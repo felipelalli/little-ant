@@ -1,0 +1,7 @@
+{
+  // Use haskell-language-server / GHC / cabal from PATH (provided by the Nix
+  // devShell via `nix develop` or direnv) instead of letting the extension
+  // manage the toolchain through GHCup. This is what silences the
+  // "Project requires GHCup" prompt on NixOS.
+  "haskell.manageHLS": "PATH"
+}

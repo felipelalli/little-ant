@@ -1,0 +1,106 @@
+cabal-version:      3.0
+name:               little-ant
+version:            0.1.0.0
+synopsis:           A personal focus engine — one brick at a time
+description:
+    Little Ant is a personal focus engine: a small, deterministic CLI that
+    keeps every executable task of your life as a brick that can be stacked,
+    broken into smaller bricks, prioritized by pairwise comparison, and served
+    back one at a time when you ask: "where should I focus now?"
+    .
+    The CLI is the dumb, deterministic core. Judgment belongs to an LLM
+    operating it from outside — a generic agent skill ships with this repo.
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Felipe Micaroni Lalli
+maintainer:         felipe.micaroni@gmail.com
+homepage:           https://github.com/felipelalli/little-ant
+category:           Productivity
+build-type:         Simple
+extra-doc-files:    README.md
+
+source-repository head
+    type:     git
+    location: https://github.com/felipelalli/little-ant
+
+common warnings
+    ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+                 -Wincomplete-uni-patterns -Wmissing-export-lists
+                 -Wpartial-fields -Wredundant-constraints
+
+library
+    import:           warnings
+    exposed-modules:
+        LittleAnt.Types
+        LittleAnt.Ids
+        LittleAnt.Event
+        LittleAnt.State
+        LittleAnt.Config
+        LittleAnt.Command
+        LittleAnt.Tick
+        LittleAnt.Order
+        LittleAnt.Scheduler
+        LittleAnt.Store
+        LittleAnt.Views
+        LittleAnt.Render
+    hs-source-dirs:   src
+    default-language: GHC2021
+    default-extensions:
+        LambdaCase
+        OverloadedStrings
+        RecordWildCards
+        StrictData
+    build-depends:
+        base >=4.18 && <5,
+        aeson >=2.1,
+        aeson-pretty,
+        bytestring,
+        containers,
+        directory,
+        filepath,
+        SHA,
+        text,
+        time
+
+executable la
+    import:           warnings
+    main-is:          Main.hs
+    hs-source-dirs:   app
+    default-language: GHC2021
+    default-extensions:
+        LambdaCase
+        OverloadedStrings
+        RecordWildCards
+    ghc-options:      -threaded
+    build-depends:
+        base,
+        aeson,
+        aeson-pretty,
+        bytestring,
+        containers,
+        little-ant,
+        optparse-applicative >=0.17,
+        text,
+        time
+
+test-suite little-ant-test
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    main-is:          Spec.hs
+    hs-source-dirs:   test
+    default-language: GHC2021
+    default-extensions:
+        LambdaCase
+        OverloadedStrings
+        RecordWildCards
+    build-depends:
+        base,
+        aeson,
+        bytestring,
+        containers,
+        little-ant,
+        tasty,
+        tasty-hunit,
+        tasty-quickcheck,
+        text,
+        time

@@ -1,0 +1,17 @@
+# Nix
+result
+result-*
+
+# direnv
+.direnv/
+
+# Cabal / GHC build artifacts
+dist-newstyle/
+dist/
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+.ghc.environment.*
+cabal.project.local
+cabal.project.local~
