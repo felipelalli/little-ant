@@ -2,7 +2,8 @@
 name: little-ant
 description: >
   Operate Little Ant (the `la` CLI): a personal focus engine. MUST trigger
-  when the user runs /ant, asks "where should I focus" / "onde foco agora",
+  when the user runs /la or /lant, asks "where should I focus" / "onde foco
+  agora",
   wants to capture an idea/task/brick, skip a suggestion, break/delegate/
   prioritize work, do a question round, or check their focus status. You are
   the judgment; `la` is the deterministic core.
@@ -62,7 +63,7 @@ Terse by default; depth on demand. Options are single letters:
   third parties: the **recipient's** language.
 - Every session ends in a proposal, never in silence.
 
-## The session loop (`/ant`, "where should I focus?")
+## The session loop (`/la`, "where should I focus?")
 
 1. `la status --json`. Render ONE opening line, e.g.:
    `🐜 little ant · Fri 10:07 · frontier 9 · inbox 4 · wip 0 · follow-ups: 1 due`

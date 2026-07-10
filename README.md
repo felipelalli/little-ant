@@ -64,9 +64,14 @@ cabal install exe:la
 
 ```sh
 ln -s "$(pwd)/skills/little-ant" ~/.claude/skills/little-ant
+mkdir -p ~/.claude/commands
+ln -s "$(pwd)/commands/la.md" ~/.claude/commands/la.md
+ln -s "$(pwd)/commands/lant.md" ~/.claude/commands/lant.md
 ```
 
-Then talk to your agent: `/ant`, "where should I focus?" — the skill operates the
+The first symlink registers the skill (invocable as `/little-ant`); the others add
+`/la` and `/lant` as short aliases, mirroring the binaries. Then talk to your agent:
+`/la`, "where should I focus?" — the skill operates the
 CLI (always via `--json`) and drives the conversation. Personalize by creating
 `~/.config/little-ant/ANT.md` declaring your bindings: which integrations deliver
 messages, calendar sources, your contexts, UI language.
