@@ -1,5 +1,5 @@
 ---
-description: Little Ant — where should I focus now? (alias of /la)
+description: Little Ant — where should I focus now?
 ---
 
 Run a Little Ant session: invoke the `little-ant` skill and follow it exactly.
