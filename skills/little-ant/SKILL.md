@@ -125,6 +125,17 @@ pattern to a new canonical reason (a change to Little Ant itself).
   `la order --place <ref>` runs binary insertion — it returns the single
   next midpoint question; record the answer with `la compare`, place again,
   repeat (~log n rounds) until `placed: true`.
+- **Bulk sorting** (initial load, or an "Order sanity round" meta-brick):
+  `la order --sort` runs the org-sort-tasks strategy (insertion sort for
+  short runs, merge with the already-ordered short-circuit) — one question
+  per invocation, resumable forever: every answer is a persisted comparison,
+  so the round can be spread lazily across days. Loop: ask → `la compare` →
+  sort again, until `sorted: true`. Batch a handful per sitting; stop when
+  the human tires.
+- **Sanity rounds are self-triggering**: the core spawns an "Order sanity
+  round" meta-brick after a burst of newly-readied bricks (tolerance,
+  default 7) or after `order_sanity_interval_days` of drift (default 14).
+  When `next` serves it: drive the `--sort` loop, then `la done` the round.
 - Stale comparisons (`revalidation_requested`) get re-asked the same way:
   "still true that X comes before Y?"
 

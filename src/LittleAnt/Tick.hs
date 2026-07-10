@@ -7,9 +7,11 @@ module LittleAnt.Tick
 
 import Data.List (sortOn)
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 import Data.Time (NominalDiffTime, UTCTime, addUTCTime)
 import LittleAnt.Config
 import LittleAnt.Event (Body (..))
+import LittleAnt.Ids (mkTitleId)
 import LittleAnt.State
 import LittleAnt.Types
 
@@ -22,7 +24,7 @@ days d = realToFrac (d * 86400)
 -- | All temporal events due at @now@. Deterministic order (by entity id).
 dueBodies :: Config -> UTCTime -> State -> [Body]
 dueBodies cfg now st =
-  wipChecks ++ staleComparisons ++ dueNudges ++ taxonomyReview
+  wipChecks ++ staleComparisons ++ dueNudges ++ taxonomyReview ++ orderSanity
   where
     -- rule DanglingWipDetected
     wipChecks =
@@ -60,5 +62,34 @@ dueBodies cfg now st =
       let tw = stTaxonomy st
        in [ TaxonomyReviewProposed (twUnreviewedOtherCount tw)
           | twUnreviewedOtherCount tw >= twReviewThreshold tw ]
+
+    -- rules OrderSanityRoundProposed (burst) + ...DueByTime (drift):
+    -- a sanity-round meta-brick is spawned when enough new bricks entered
+    -- the order as mere tie-breaks (tolerance), OR when the cadence
+    -- interval elapsed with something to order — priorities rot with time.
+    -- While a round brick is open, no new one is proposed. The round is
+    -- served like any work; the operator drives `la order --sort`.
+    orderSanity =
+      let ow = stOrderWatch st
+          burstDue = owReadiedSinceRound ow >= owRoundThreshold ow
+          driftDue = case owClockAt ow of
+            Just anchor ->
+              addUTCTime (days (cfgOrderSanityIntervalDays cfg)) anchor <= now
+                && orderableCount >= 2
+            Nothing -> False
+          roundOpen = case owRoundBrick ow of
+            Just b -> maybe False isOpen (Map.lookup b (stBricks st))
+            Nothing -> False
+          orderableCount =
+            length [ b | b <- Map.elems (stBricks st), isServable st b ]
+          title = "Order sanity round ("
+                    <> tshow (stEventCount st) <> ")"
+          bid = mkTitleId title
+       in [ OrderSanityProposed bid title (owReadiedSinceRound ow)
+          | burstDue || driftDue
+          , not roundOpen
+          , not (Map.member bid (stBricks st)) ]
+
+    tshow = T.pack . show
 
     openBrick i = maybe False isOpen (Map.lookup i (stBricks st))

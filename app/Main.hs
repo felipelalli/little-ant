@@ -25,7 +25,8 @@ import LittleAnt.Command
 import LittleAnt.Config
 import LittleAnt.Event
 import LittleAnt.Ids (shortId, unId)
-import LittleAnt.Order (orderQuestions, placeBrick)
+import LittleAnt.Order
+  (SortOutcome (..), mergeSortStep, orderQuestions, placeBrick)
 import LittleAnt.Render
 import LittleAnt.Scheduler
 import LittleAnt.State
@@ -73,7 +74,7 @@ data Cmd
   | CWaitLs
   | CDepAdd Text Text
   | CCompare Text Text Text
-  | COrder Bool Int (Maybe Text)
+  | COrder Bool Int (Maybe Text) Bool
   | CExportTj Double
   | CDelegate Text Text
   | CDelegLs
@@ -253,7 +254,9 @@ pCmd = hsubparser $ mconcat
         <*> option auto (long "limit" <> value 3 <> metavar "N"
                          <> help "max questions (default 3)")
         <*> optional (strOption (long "place" <> metavar "BRICK"
-              <> help "binary-insertion placement: the next question for ONE brick")))
+              <> help "binary-insertion placement: the next question for ONE brick"))
+        <*> switch (long "sort"
+              <> help "bulk sort (org-sort-tasks strategy): the next question, or the settled order"))
       (progDesc "Show the frontier's total order (or the open questions)")
   , command "export" $ info
       (hsubparser $ mconcat
@@ -575,7 +578,24 @@ dispatch cfg now st = \case
   CCompare a b authorT -> do
     author <- parseEnum "author" parseAuthor authorT
     simple (cmdCompare st a b author) "comparison recorded"
-  COrder _ _ (Just placeRef) -> do
+  COrder _ _ Nothing True ->
+    Right $ case mergeSortStep st (frontier st) of
+      SortedOrder sorted -> pureOut
+        (object
+          [ "sorted" .= True
+          , "order" .= map brickSummary sorted ])
+        (T.unlines $ "fully ordered ✓" :
+          [ tshow i <> ". " <> shortId (bId b) <> "  " <> bTitle b
+          | (i, b) <- zip [1 :: Int ..] sorted ])
+      AskPair a b -> pureOut
+        (object
+          [ "sorted" .= False
+          , "ask" .= object
+              [ "earlier_candidate" .= brickSummary a
+              , "later_candidate" .= brickSummary b ] ])
+        ("? should \"" <> bTitle a <> "\" be done BEFORE \""
+          <> bTitle b <> "\"? (record with `la compare`, then sort again)")
+  COrder _ _ (Just placeRef) _ -> do
     target <- resolveBrick st placeRef
     let others = frontier st
     pure $ case placeBrick st others target of
@@ -591,7 +611,7 @@ dispatch cfg now st = \case
               , "against" .= brickSummary m ] ])
         ("? should \"" <> bTitle target <> "\" be done before \""
           <> bTitle m <> "\"? (record with `la compare`, then place again)")
-  COrder questions limit Nothing ->
+  COrder questions limit Nothing False ->
     Right $
       if questions
         then

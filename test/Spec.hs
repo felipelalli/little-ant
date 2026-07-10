@@ -58,6 +58,10 @@ brickByTitle st title =
 ref :: Brick -> Text
 ref = unId . bId
 
+one' :: [a] -> a
+one' (x : _) = x
+one' [] = error "expected a non-empty list"
+
 main :: IO ()
 main = defaultMain $ testGroup "little-ant"
   [ lifecycleTests
@@ -117,10 +121,10 @@ lifecycleTests = testGroup "brick lifecycle"
 
   , testCase "raw extraction yields 0..n seeds and closes the raw input" $ do
       let st1 = step t0 emptyState (cmdRawCapture emptyState "brainstorm blob")
-          raw = head (Map.elems (stRawInputs st1))
+          raw = one' (Map.elems (stRawInputs st1))
           st2 = step t0 st1
             (cmdExtract st1 (unId (rawId raw)) ["seed one", "seed two"])
-      rawStatus (head (Map.elems (stRawInputs st2))) @?= RawExtracted
+      rawStatus (one' (Map.elems (stRawInputs st2))) @?= RawExtracted
       length [ b | b <- Map.elems (stBricks st2), bStage b == Seed ] @?= 2
       -- second extraction refused
       expectLeft "precondition_failed"
@@ -163,7 +167,7 @@ skipTests = testGroup "skip flow (the heart)"
           let st' = foldl (flip applyEvent) st (mkEvents t0 bodies)
           bStage (brickByTitle st' "Nebulous thing") @?= Committed
           -- raw text always preserved
-          let sk = head (Map.elems (stSkips st'))
+          let sk = one' (Map.elems (stSkips st'))
           skRawText sk @?= Just "sei lá"
           -- clarify defers into a meta brick
           let st'' = step t0 st'
@@ -277,6 +281,34 @@ orderTests = testGroup "total order"
           qs = orderQuestions st (frontier st) 10
       length qs @?= 2 -- a-b and b-c ties
 
+  , testCase "bulk sort: pre-ordered input needs zero questions (tolerance)" $ do
+      let st = mkReadyBricks ["a", "b", "c", "d"]
+          a = brickByTitle st "a"; b = brickByTitle st "b"
+          c = brickByTitle st "c"; d = brickByTitle st "d"
+          st1 = step t0 st (cmdCompare st (ref a) (ref b) Human)
+          st2 = step t0 st1 (cmdCompare st1 (ref b) (ref c) Human)
+          st3 = step t0 st2 (cmdCompare st2 (ref c) (ref d) Human)
+      case mergeSortStep st3 (frontier st3) of
+        SortedOrder o -> map bTitle o @?= ["a", "b", "c", "d"]
+        AskPair x y -> assertFailure
+          ("unexpected question: " <> T.unpack (bTitle x) <> " vs "
+            <> T.unpack (bTitle y))
+
+  , testCase "bulk sort: unordered input converges lazily, one question at a time" $ do
+      let loop st n
+            | n > (20 :: Int) = assertFailure "too many questions" >> pure n
+            | otherwise = case mergeSortStep st (frontier st) of
+                SortedOrder o -> do
+                  map bTitle o @?= sort (map bTitle o)
+                  pure n
+                AskPair x y -> do
+                  let (e, l) =
+                        if bTitle x <= bTitle y then (x, y) else (y, x)
+                  loop (step t0 st (cmdCompare st (ref e) (ref l) Human))
+                    (n + 1)
+      n <- loop (mkReadyBricks ["m3", "m1", "m4", "m2", "m5"]) 0
+      n <= 10 @? ("reasonable question count, got " <> show n)
+
   , testCase "binary-insertion placement asks midpoints, then places" $ do
       let st = mkReadyBricks ["a", "b", "c", "d"]
           a = brickByTitle st "a"; b = brickByTitle st "b"
@@ -376,7 +408,7 @@ schedulerTests = testGroup "scheduler"
           b = brickByTitle st "errand"
           st1 = step t0 st (cmdWait st (ref b) Nothing (Just "store hours"))
       isServable st1 (brickByTitle st1 "errand") @?= False
-      let w = head (Map.elems (stWaits st1))
+      let w = one' (Map.elems (stWaits st1))
           st2 = step t0 st1 (cmdWaitResolve st1 (unId (wId w)))
       isServable st2 (brickByTitle st2 "errand") @?= True
   ]
@@ -392,11 +424,11 @@ delegationTests = testGroup "delegation follow-ups"
           st1 = step t0 st0' (cmdCapture st0' "Review contract")
           b = brickByTitle st1 "Review contract"
           st2 = step t0 st1 (cmdDelegate st1 (ref b) "João")
-          d = head (Map.elems (stDelegations st2))
+          d = one' (Map.elems (stDelegations st2))
       dStatus d @?= DToNotify
       let st3 = step t0 st2
             (cmdDelegationNotice cfg st2 t0 (unId (dId d)))
-          d3 = head (Map.elems (stDelegations st3))
+          d3 = one' (Map.elems (stDelegations st3))
       dStatus d3 @?= DNotified
       -- before the interval: nothing due
       dueBodies cfg (daysLater 1) st3 @?= []
@@ -404,11 +436,11 @@ delegationTests = testGroup "delegation follow-ups"
       let due = dueBodies cfg (daysLater 4) st3
       length [ () | NudgeDue _ <- due ] @?= 1
       let st4 = foldl (flip applyEvent) st3 (mkEvents (daysLater 4) due)
-      dNudgePending (head (Map.elems (stDelegations st4))) @?= True
+      dNudgePending (one' (Map.elems (stDelegations st4))) @?= True
       -- approving bumps the count and re-arms the timer
       let st5 = step (daysLater 4) st4
             (cmdNudgeApprove cfg st4 (daysLater 4) (unId (dId d)))
-          d5 = head (Map.elems (stDelegations st5))
+          d5 = one' (Map.elems (stDelegations st5))
       dStatus d5 @?= DNudged
       dNudgeCount d5 @?= 1
       dNudgePending d5 @?= False
@@ -418,10 +450,10 @@ delegationTests = testGroup "delegation follow-ups"
           st1 = step t0 st0' (cmdCapture st0' "Thing")
           b = brickByTitle st1 "Thing"
           st2 = step t0 st1 (cmdDelegate st1 (ref b) "João")
-          d = head (Map.elems (stDelegations st2))
+          d = one' (Map.elems (stDelegations st2))
           st3 = step t0 st2 (cmdDelegationNotice cfg st2 t0 (unId (dId d)))
           st4 = step t0 st3 (cmdDelegationOutcome st3 (unId (dId d)) "refused")
-          d4 = head (Map.elems (stDelegations st4))
+          d4 = one' (Map.elems (stDelegations st4))
       dStatus d4 @?= DRefused
       dNextNudgeAt d4 @?= Nothing
       -- no further nudges ever
@@ -451,10 +483,10 @@ effectTests = testGroup "completion effects"
       sort (map (T.unpack . effectStatusText) statuses)
         @?= ["applied", "proposed"]
       -- approving applies it
-      let e = head [ e' | e' <- Map.elems (stEffects st3)
+      let e = one' [ e' | e' <- Map.elems (stEffects st3)
                         , efStatus e' == EProposed ]
           st4 = step t0 st3 (cmdEffectApprove st3 (unId (efId e)))
-      efStatus (head [ e' | e' <- Map.elems (stEffects st4)
+      efStatus (one' [ e' | e' <- Map.elems (stEffects st4)
                           , efId e' == efId e ]) @?= EApplied
   ]
 
@@ -468,16 +500,16 @@ sourceTests = testGroup "external sources"
       let (st, b) = readyBrick "Sync the issue"
           st1 = step t0 st
             (cmdSourceAttach st (ref b) "github:acme/api#412")
-          l = head (Map.elems (stSourceLinks st1))
+          l = one' (Map.elems (stSourceLinks st1))
           st2 = step t0 st1
             (cmdSourceCheck st1 (unId (slId l)) "fp-1")
-      slDiverged (head (Map.elems (stSourceLinks st2))) @?= False
+      slDiverged (one' (Map.elems (stSourceLinks st2))) @?= False
       -- same fingerprint: still fresh
       let st3 = step t0 st2 (cmdSourceCheck st2 (unId (slId l)) "fp-1")
-      slDiverged (head (Map.elems (stSourceLinks st3))) @?= False
+      slDiverged (one' (Map.elems (stSourceLinks st3))) @?= False
       -- new fingerprint: diverged + reconcile brick
       let st4 = step t0 st3 (cmdSourceCheck st3 (unId (slId l)) "fp-2")
-          l4 = head (Map.elems (stSourceLinks st4))
+          l4 = one' (Map.elems (stSourceLinks st4))
       slDiverged l4 @?= True
       let recs = [ r | r <- Map.elems (stBricks st4)
                      , bKind r == Just KMeta, bAbout r == Just (bId b) ]
@@ -487,7 +519,7 @@ sourceTests = testGroup "external sources"
         (cmdSourceCheck st4 (unId (slId l)) "fp-3")
       -- resolving clears it
       let st5 = step t0 st4 (cmdSourceResolve st4 (unId (slId l)) "fp-2")
-      slDiverged (head (Map.elems (stSourceLinks st5))) @?= False
+      slDiverged (one' (Map.elems (stSourceLinks st5))) @?= False
   ]
 
 -- --------------------------------------------------------------------------
@@ -550,6 +582,29 @@ tickTests = testGroup "temporal rules"
       dueBodies cfg (daysLater 10) st1 @?= []
       let due = dueBodies cfg (daysLater 31) st1
       [ () | ComparisonStale _ <- due ] @?= [()]
+
+  , testCase "order sanity: burst of 7 readied bricks proposes a round, once" $ do
+      let st = mkReadyBricks [ "s" <> T.pack (show i) | i <- [1 .. 7 :: Int] ]
+          due = dueBodies cfg t0 st
+      length [ () | OrderSanityProposed {} <- due ] @?= 1
+      let st2 = foldl (flip applyEvent) st (mkEvents t0 due)
+      length [ b | b <- Map.elems (stBricks st2), bKind b == Just KMeta ]
+        @?= 1
+      -- while the round brick is open, no re-proposal (not even by drift)
+      [ () | OrderSanityProposed {} <- dueBodies cfg (daysLater 30) st2 ]
+        @?= []
+
+  , testCase "order sanity: 6 readied bricks stay under the tolerance" $ do
+      let st = mkReadyBricks [ "s" <> T.pack (show i) | i <- [1 .. 6 :: Int] ]
+      [ () | OrderSanityProposed {} <- dueBodies cfg t0 st ] @?= []
+
+  , testCase "order sanity: drift trigger fires after the cadence interval" $ do
+      let st = mkReadyBricks ["a", "b"]
+      [ () | OrderSanityProposed {} <- dueBodies cfg (daysLater 13) st ]
+        @?= []
+      length
+        [ () | OrderSanityProposed {} <- dueBodies cfg (daysLater 15) st ]
+        @?= 1
   ]
 
 -- --------------------------------------------------------------------------
@@ -589,8 +644,8 @@ foldProperties = testGroup "fold properties"
          in st == st -- states are pure values; same input, same output
 
   , testCase "event ids are intrinsic (same content, same id)" $ do
-      let [e1] = mkEvents t0 [BrickCaptured (mkTitleId "x") "x"]
-          [e2] = mkEvents t0 [BrickCaptured (mkTitleId "x") "x"]
+      let e1 = one' (mkEvents t0 [BrickCaptured (mkTitleId "x") "x"])
+          e2 = one' (mkEvents t0 [BrickCaptured (mkTitleId "x") "x"])
       evId e1 @?= evId e2
 
   , testCase "unknown-brick events are tolerated no-ops" $ do

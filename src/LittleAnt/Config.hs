@@ -20,6 +20,8 @@ data Config = Config
     -- ^ Delegation follow-up cadence.
   , cfgWipCheckAfterHours :: Double
     -- ^ Dangling-WIP detection threshold.
+  , cfgOrderSanityIntervalDays :: Double
+    -- ^ Drift-triggered ordering sanity round cadence.
   } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -29,6 +31,7 @@ defaultConfig = Config
   , cfgComparisonShelfLifeDays = 30
   , cfgNudgeIntervalDays = 3
   , cfgWipCheckAfterHours = 24
+  , cfgOrderSanityIntervalDays = 14
   }
 
 -- | Parse a partial config: absent fields keep their defaults.
@@ -47,4 +50,5 @@ parseConfig = \case
           <*> get "comparison_shelf_life_days" (cfgComparisonShelfLifeDays defaultConfig)
           <*> get "nudge_interval_days" (cfgNudgeIntervalDays defaultConfig)
           <*> get "wip_check_after_hours" (cfgWipCheckAfterHours defaultConfig)
+          <*> get "order_sanity_interval_days" (cfgOrderSanityIntervalDays defaultConfig)
   _ -> Left "config must be a JSON object"

@@ -123,6 +123,8 @@ data Body
     -- ^ link, fingerprint
   | TaxonomyReviewProposed Int
     -- ^ unreviewed `other` count at proposal time
+  | OrderSanityProposed Id Text Int
+    -- ^ sanity-round meta-brick, its title, readied count at proposal time
   deriving (Eq, Show)
 
 -- --------------------------------------------------------------------------
@@ -176,6 +178,7 @@ bodyType = \case
   SourceDiverged {} -> "source_diverged"
   DivergenceResolved {} -> "divergence_resolved"
   TaxonomyReviewProposed {} -> "taxonomy_review_proposed"
+  OrderSanityProposed {} -> "order_sanity_proposed"
 
 pair :: (Id, Text) -> Value
 pair (i, t) = object [ "brick" .= i, "title" .= t ]
@@ -263,6 +266,8 @@ bodyData = \case
     object [ "link" .= l, "reconcile" .= rec, "title" .= t ]
   DivergenceResolved l fp -> object [ "link" .= l, "fingerprint" .= fp ]
   TaxonomyReviewProposed n -> object [ "count" .= n ]
+  OrderSanityProposed b t n ->
+    object [ "brick" .= b, "title" .= t, "readied_count" .= n ]
 
 enumField :: Text -> (Text -> Maybe e) -> Object -> Key -> Parser e
 enumField label parse o k = do
@@ -372,6 +377,9 @@ parseBody ty o = case ty of
   "divergence_resolved" ->
     DivergenceResolved <$> o .: "link" <*> o .: "fingerprint"
   "taxonomy_review_proposed" -> TaxonomyReviewProposed <$> o .: "count"
+  "order_sanity_proposed" ->
+    OrderSanityProposed <$> o .: "brick" <*> o .: "title"
+      <*> o .: "readied_count"
   other -> fail (T.unpack ("unknown event type: " <> other))
 
 eventToJSON :: Event -> Value

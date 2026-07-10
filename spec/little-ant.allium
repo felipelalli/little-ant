@@ -234,6 +234,16 @@ entity TaxonomyWatch {
     review_due: unreviewed_other_count >= review_threshold
 }
 
+entity OrderWatch {
+    bricks_readied_since_round: Integer
+    round_threshold: Integer
+    clock_at: Timestamp?
+    open_round: Brick?
+
+    round_due: bricks_readied_since_round >= round_threshold
+    no_open_round: open_round = null or open_round.stage in {done, dropped, superseded}
+}
+
 ------------------------------------------------------------
 -- Config
 ------------------------------------------------------------
@@ -244,6 +254,7 @@ config {
     comparison_shelf_life: Duration = 30.days
     nudge_interval: Duration = 3.days
     wip_check_after: Duration = 24.hours
+    order_sanity_interval: Duration = 14.days
 }
 
 ------------------------------------------------------------
@@ -251,6 +262,8 @@ config {
 ------------------------------------------------------------
 
 default TaxonomyWatch taxonomy = { unreviewed_other_count: 0, review_threshold: 5 }
+
+default OrderWatch order_watch = { bricks_readied_since_round: 0, round_threshold: 7 }
 
 ------------------------------------------------------------
 -- Rules
@@ -650,6 +663,54 @@ rule ComparisonRecorded {
         -- AI pre-orders (long runs the timsort-style merge exploits); the
         -- human settles the ambiguous few. A human answer overrides an AI
         -- one; an AI answer never displaces a human one.
+}
+
+rule ReadiedBrickCounted {
+    when: brick: Brick.stage becomes ready
+    ensures:
+        order_watch.bricks_readied_since_round = order_watch.bricks_readied_since_round + 1
+        if order_watch.clock_at = null:
+            order_watch.clock_at = now
+
+    @guidance
+        -- Every brick entering the servable order lands as a mere creation-
+        -- order tie-break until it is placed or sorted. The watch counts
+        -- them, and the first one anchors the drift clock.
+}
+
+rule OrderSanityRoundProposedByBurst {
+    when: watch: OrderWatch.round_due
+    requires: watch.no_open_round
+    ensures:
+        let round = Brick.created(title: sanity_round_title(watch),
+            stage: committed, kind: meta, atomicity: unknown)
+        watch.bricks_readied_since_round = 0
+        watch.clock_at = now
+        watch.open_round = round
+
+    @guidance
+        -- The tolerance effect: below round_threshold newly-readied bricks,
+        -- the order is left alone. At the threshold (e.g. the initial bulk
+        -- load), a sanity-round meta-brick is spawned and served like any
+        -- other work; the operator drives the org-sort-tasks merge strategy
+        -- (one question per step, lazily, resumable) until the order is
+        -- fully justified.
+}
+
+rule OrderSanityRoundProposedByDrift {
+    when: watch: OrderWatch.clock_at + config.order_sanity_interval <= now
+    requires: watch.no_open_round
+    ensures:
+        let round = Brick.created(title: sanity_round_title(watch),
+            stage: committed, kind: meta, atomicity: unknown)
+        watch.bricks_readied_since_round = 0
+        watch.clock_at = now
+        watch.open_round = round
+
+    @guidance
+        -- Priorities rot with time even when nothing new arrives — the same
+        -- reason comparisons carry a shelf life. The implementation only
+        -- fires this when there are at least two orderable bricks.
 }
 
 rule ComparisonGoesStale {

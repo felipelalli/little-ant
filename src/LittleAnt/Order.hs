@@ -10,10 +10,13 @@ module LittleAnt.Order
   ( totalOrder
   , orderQuestions
   , placeBrick
+  , SortOutcome (..)
+  , mergeSortStep
   , hasPath
   , orderEdges
   ) where
 
+import Control.Monad (foldM)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
@@ -113,6 +116,89 @@ placeBrick st others target =
                     then go (mid + 1) hi  -- target already after mid
                     else Right m          -- unknown: this is the question
    in go 0 (length ordered)
+
+-- | One step of an interactive bulk sort — the faithful port of
+-- org-sort-tasks' adapted merge sort, made resumable:
+--
+-- * insertion sort (walking backward from the end) for runs of up to 8
+--   elements — below that, insertion asks fewer questions than merging;
+-- * merge with the short-circuit: if the two halves are already ordered
+--   relative to each other (@last left <= first right@), they concatenate
+--   after a single question — on a mostly-sorted list the whole sort
+--   collapses to near-zero questions (the \"tolerance\" effect);
+-- * every already-known pair (dependencies, recorded comparisons, and their
+--   transitive closure) is answered from the graph, never asked.
+--
+-- The CLI is stateless across invocations, so the algorithm simply replays:
+-- each recorded answer extends the graph, the replay takes the same
+-- deterministic path and stops at the next unknown pair.
+data SortOutcome
+  = SortedOrder [Brick]
+    -- ^ The sort completed: the frontier's order is fully justified.
+  | AskPair Brick Brick
+    -- ^ The next question: should the first be done before the second?
+  deriving (Eq, Show)
+
+mergeSortStep :: State -> [Brick] -> SortOutcome
+mergeSortStep st bricks =
+  case sortE (totalOrder st bricks) of
+    Right sorted -> SortedOrder sorted
+    Left (a, b) -> AskPair a b
+  where
+    edges = orderEdges st (Set.fromList (map bId bricks))
+
+    -- Right True: a before b. Right False: b before a. Left: unknown — ask.
+    cmp :: Brick -> Brick -> Either (Brick, Brick) Bool
+    cmp a b
+      | hasPath edges (bId a) (bId b) = Right True
+      | hasPath edges (bId b) (bId a) = Right False
+      | otherwise = Left (a, b)
+
+    smallRun :: Int
+    smallRun = 8
+
+    sortE :: [Brick] -> Either (Brick, Brick) [Brick]
+    sortE xs
+      | length xs <= smallRun = foldM insertBack [] xs
+      | otherwise = do
+          let (l, r) = splitAt (length xs `div` 2) xs
+          ls <- sortE l
+          rs <- sortE r
+          mergeE ls rs
+
+    -- org-sort-tasks' insert-sort: walk backward from the end of the
+    -- already-sorted accumulator (cheapest on mostly-sorted input).
+    insertBack :: [Brick] -> Brick -> Either (Brick, Brick) [Brick]
+    insertBack acc x = go (reverse acc) []
+      where
+        go [] suffix = Right (x : suffix)
+        go (y : rest) suffix = do
+          xBefore <- cmp x y
+          if xBefore
+            then go rest (y : suffix)
+            else Right (reverse (y : rest) ++ (x : suffix))
+
+    -- org-sort-tasks' merge: first probe whether the halves are already
+    -- ordered relative to each other; if so, concatenate.
+    mergeE :: [Brick] -> [Brick] -> Either (Brick, Brick) [Brick]
+    mergeE [] ys = Right ys
+    mergeE xs [] = Right xs
+    mergeE xs ys@(y0 : _) =
+      case reverse xs of
+        [] -> Right ys
+        (lastX : _) -> do
+          headRightFirst <- cmp y0 lastX
+          if not headRightFirst
+            then Right (xs ++ ys)
+            else interleave xs ys
+      where
+        interleave [] ys' = Right ys'
+        interleave xs' [] = Right xs'
+        interleave (x : xs') (y : ys') = do
+          xFirst <- cmp x y
+          if xFirst
+            then (x :) <$> interleave xs' (y : ys')
+            else (y :) <$> interleave (x : xs') ys'
 
 -- | Pairs of adjacent bricks in the current order whose relative position is
 -- a mere tie-break (no path connects them): the most informative questions

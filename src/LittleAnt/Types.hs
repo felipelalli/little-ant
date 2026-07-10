@@ -44,6 +44,7 @@ module LittleAnt.Types
   , Delegation (..)
   , Session (..)
   , TaxonomyWatch (..)
+  , OrderWatch (..)
   ) where
 
 import Data.Text (Text)
@@ -333,4 +334,19 @@ data Session = Session
 data TaxonomyWatch = TaxonomyWatch
   { twUnreviewedOtherCount :: Int
   , twReviewThreshold :: Int
+  } deriving (Eq, Show)
+
+data OrderWatch = OrderWatch
+  { owReadiedSinceRound :: Int
+    -- ^ Bricks that became ready since the last sanity round: each one
+    -- lands in the order as a mere tie-break until placed/sorted.
+  , owRoundThreshold :: Int
+    -- ^ The tolerance: below this count, no burst-triggered round.
+  , owClockAt :: Maybe UTCTime
+    -- ^ Time anchor for the drift-triggered round: last round (or first
+    -- readied brick). Priorities rot with time even when nothing new
+    -- arrives — same reason comparisons have a shelf life.
+  , owRoundBrick :: Maybe Id
+    -- ^ The last spawned sanity-round meta-brick; while it is open, no new
+    -- round is proposed.
   } deriving (Eq, Show)

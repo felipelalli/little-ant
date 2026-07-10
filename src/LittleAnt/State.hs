@@ -52,6 +52,7 @@ data State = State
   , stDelegations :: Map Id Delegation
   , stSessions :: Map Id Session
   , stTaxonomy :: TaxonomyWatch
+  , stOrderWatch :: OrderWatch
   , stEventCount :: Int
   } deriving (Eq, Show)
 
@@ -69,6 +70,7 @@ emptyState = State
   , stDelegations = Map.empty
   , stSessions = Map.empty
   , stTaxonomy = TaxonomyWatch 0 5
+  , stOrderWatch = OrderWatch 0 7 Nothing Nothing
   , stEventCount = 0
   }
 
@@ -137,7 +139,7 @@ applyEvent Event {..} st0 =
         adjustBrick bid (clearWip . (\b -> b { bStage = Dropped })) st
 
       BrickReady bid ->
-        adjustBrick bid (\b -> b { bStage = Ready }) st
+        countReadied (adjustBrick bid (\b -> b { bStage = Ready }) st)
 
       BrickRegressed bid ->
         adjustBrick bid (\b -> b { bStage = Committed }) st
@@ -235,7 +237,8 @@ applyEvent Event {..} st0 =
                             , bWipFlagged = Just False })) st
 
       BrickStopped bid ->
-        adjustBrick bid (touch . clearWip . (\b -> b { bStage = Ready })) st
+        countReadied
+          (adjustBrick bid (touch . clearWip . (\b -> b { bStage = Ready })) st)
 
       BrickCompleted bid ->
         adjustBrick bid (touch . clearWip . (\b -> b { bStage = Done })) st
@@ -385,6 +388,27 @@ applyEvent Event {..} st0 =
 
       TaxonomyReviewProposed _ ->
         st { stTaxonomy = (stTaxonomy st) { twUnreviewedOtherCount = 0 } }
+
+      OrderSanityProposed bid title _ ->
+        let st' = st { stOrderWatch =
+                         (stOrderWatch st)
+                           { owReadiedSinceRound = 0
+                           , owClockAt = Just at
+                           , owRoundBrick = Just bid
+                           } }
+         in st' { stBricks =
+                    Map.insert bid
+                      ((newBrick bid title Committed) { bKind = Just KMeta })
+                      (stBricks st') }
+
+    countReadied s =
+      let ow = stOrderWatch s
+       in s { stOrderWatch = ow
+                { owReadiedSinceRound = owReadiedSinceRound ow + 1
+                , owClockAt = case owClockAt ow of
+                    Nothing -> Just at
+                    anchored -> anchored
+                } }
 
     closeDelegation did status s =
       s { stDelegations =

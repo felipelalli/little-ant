@@ -58,7 +58,7 @@ cabal install exe:la
 `--data DIR`): an append-only `events.jsonl` (the truth) plus an optional
 `config.json` for the scheduler knobs (`background_serve_ratio`,
 `foreground_window`, `comparison_shelf_life_days`, `nudge_interval_days`,
-`wip_check_after_hours`).
+`wip_check_after_hours`, `order_sanity_interval_days`).
 
 **The agent skill** ships in this repo. For Claude Code:
 
@@ -284,6 +284,13 @@ A **total order, decided by pairwise human comparison** — the
 - The drip is a floor, not a ceiling: when you have the energy — or precisely when you
   are skipping everything with `tired` — the `q`uestions command runs a batch round
   (comparisons, triage, enrichment). Fatigue becomes system maintenance.
+- **Bulk ordering is lazy and self-triggering.** `la order --sort` ports
+  org-sort-tasks' adapted merge sort (insertion sort for short runs, merge with the
+  already-ordered short-circuit — TimSort's essence): one question per invocation,
+  resumable forever since every answer is a persisted comparison. And the system
+  watches itself: an *order sanity round* meta-brick is spawned after a burst of
+  newly-readied bricks (tolerance, default 7) or after two weeks of drift — served
+  by `next` like any other work.
 - `?` (dunno) on any comparison collects proxies (complexity, urgency, criticality) and
   lets the AI break the tie.
 
