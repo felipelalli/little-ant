@@ -1,5 +1,7 @@
 # Little Ant 🐜🧱
 
+[![CI](https://github.com/felipelalli/little-ant/actions/workflows/ci.yml/badge.svg)](https://github.com/felipelalli/little-ant/actions/workflows/ci.yml)
+
 > *One brick at a time.*
 
 Little Ant is a personal focus engine: a small, deterministic CLI that keeps every
