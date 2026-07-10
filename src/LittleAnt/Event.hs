@@ -50,8 +50,9 @@ data Body
     -- ^ brick (ready -> committed; e.g. skip(vague))
   | RequesterAttributed Id Id
     -- ^ brick, party
-  | BrickEnriched Id (Maybe Kind) (Maybe Text) (Maybe Double) (Maybe Mode) (Maybe Atomicity)
-    -- ^ brick, kind, context, energy, mode, atomicity (absent = unchanged)
+  | BrickEnriched Id (Maybe Kind) (Maybe Text) (Maybe Double) (Maybe Mode) (Maybe Atomicity) (Maybe Double) (Maybe Author)
+    -- ^ brick, kind, context, energy, mode, atomicity, estimate hours,
+    -- estimate author (absent = unchanged; guesses are marked as guesses)
   | BrickBroken Id [(Id, Text)]
     -- ^ parent, parts (brick, title)
   | BricksUnified Id Id (Maybe Text)
@@ -196,13 +197,15 @@ bodyData = \case
   BrickReady b -> object [ "brick" .= b ]
   BrickRegressed b -> object [ "brick" .= b ]
   RequesterAttributed b p -> object [ "brick" .= b, "party" .= p ]
-  BrickEnriched b k c en m a ->
+  BrickEnriched b k c en m a est estBy ->
     object [ "brick" .= b
            , "kind" .= fmap kindText k
            , "context" .= c
            , "energy" .= en
            , "mode" .= fmap modeText m
-           , "atomicity" .= fmap atomicityText a ]
+           , "atomicity" .= fmap atomicityText a
+           , "estimate_hours" .= est
+           , "estimate_by" .= fmap authorText estBy ]
   BrickBroken parent parts ->
     object [ "parent" .= parent, "parts" .= map pair parts ]
   BricksUnified b into reason ->
@@ -302,6 +305,8 @@ parseBody ty o = case ty of
       <*> o .:? "energy"
       <*> optEnumField "mode" parseMode o "mode"
       <*> optEnumField "atomicity" parseAtomicity o "atomicity"
+      <*> o .:? "estimate_hours"
+      <*> optEnumField "estimate_by" parseAuthor o "estimate_by"
   "brick_broken" -> do
     p <- o .: "parent"
     parts <- o .: "parts" >>= mapM parsePair

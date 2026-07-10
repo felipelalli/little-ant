@@ -25,7 +25,7 @@ import LittleAnt.Command
 import LittleAnt.Config
 import LittleAnt.Event
 import LittleAnt.Ids (shortId, unId)
-import LittleAnt.Order (orderQuestions)
+import LittleAnt.Order (orderQuestions, placeBrick)
 import LittleAnt.Render
 import LittleAnt.Scheduler
 import LittleAnt.State
@@ -55,7 +55,7 @@ data Cmd
   | CKill Text
   | CReady Text
   | CRequester Text Text
-  | CSet Text (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text) (Maybe Text)
+  | CSet Text (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text)
   | CBreak Text [Text]
   | CUnify Text Text (Maybe Text)
   | CSupersede Text Text (Maybe Text)
@@ -73,7 +73,8 @@ data Cmd
   | CWaitLs
   | CDepAdd Text Text
   | CCompare Text Text Text
-  | COrder Bool Int
+  | COrder Bool Int (Maybe Text)
+  | CExportTj Double
   | CDelegate Text Text
   | CDelegLs
   | CDelegNotice Text
@@ -150,7 +151,11 @@ pCmd = hsubparser $ mconcat
         <*> optional (option auto (long "energy" <> metavar "0..1"))
         <*> optional (strOption (long "mode" <> metavar "digital|physical"))
         <*> optional (strOption (long "atomicity"
-              <> metavar "atomic|divisible|unknown")))
+              <> metavar "atomic|divisible|unknown"))
+        <*> optional (option auto (long "estimate" <> metavar "HOURS"
+              <> help "effort estimate in hours"))
+        <*> optional (strOption (long "estimate-by" <> metavar "human|ai"
+              <> help "who estimated (default human; guesses are marked)")))
       (progDesc "Enrich a brick lazily (never a form — metadata in drips)")
   , command "break" $ info
       (CBreak
@@ -246,8 +251,20 @@ pCmd = hsubparser $ mconcat
         <$> switch (long "questions"
                     <> help "propose the most informative pairs to ask")
         <*> option auto (long "limit" <> value 3 <> metavar "N"
-                         <> help "max questions (default 3)"))
+                         <> help "max questions (default 3)")
+        <*> optional (strOption (long "place" <> metavar "BRICK"
+              <> help "binary-insertion placement: the next question for ONE brick")))
       (progDesc "Show the frontier's total order (or the open questions)")
+  , command "export" $ info
+      (hsubparser $ mconcat
+        [ command "tj" $ info
+            (CExportTj
+              <$> option auto (long "default-effort" <> value 4
+                    <> metavar "HOURS"
+                    <> help "effort for bricks with no estimate (marked as gap)"))
+            (progDesc "Emit a TaskJuggler 3 project (feed to tj3 to simulate)")
+        ])
+      (progDesc "Exports (projections into other tools)")
   , command "delegate" $ info
       (CDelegate
         <$> textArg "BRICK" "brick ref"
@@ -320,6 +337,17 @@ pCmd = hsubparser $ mconcat
         , command "ls" $ info (pure CSourceLs) (progDesc "List source links")
         ])
       (progDesc "External sources (referenced, never copied)")
+  , command "party" $ info
+      (hsubparser $ mconcat
+        [ command "add" $ info
+            (CPartyAdd
+              <$> textArg "NAME" "canonical name (identity = hash of it)"
+              <*> strOption (long "type"
+                    <> metavar "person|ai_agent|company|area"))
+            (progDesc "Register a party in the entity registry")
+        , command "ls" $ info (pure CPartyLs) (progDesc "List parties")
+        ])
+      (progDesc "The entity registry (people, agents, companies, areas)")
   , command "ls" $ info
       (CLs
         <$> optional (strOption (long "stage" <> metavar "STAGE"))
@@ -485,11 +513,12 @@ dispatch cfg now st = \case
   CKill r -> simple (cmdKill st r) "killed"
   CReady r -> simple (cmdReady st r) "ready"
   CRequester r p -> simple (cmdRequester st r p) "requester attributed"
-  CSet r kT c en mT aT -> do
+  CSet r kT c en mT aT est estByT -> do
     k <- traverse (parseEnum "kind" parseKind) kT
     m <- traverse (parseEnum "mode" parseMode) mT
     a <- traverse (parseEnum "atomicity" parseAtomicity) aT
-    simple (cmdEnrich st r k c en m a) "enriched"
+    estBy <- traverse (parseEnum "estimate author" parseAuthor) estByT
+    simple (cmdEnrich st r k c en m a est estBy) "enriched"
   CBreak r parts -> do
     bodies <- cmdBreak st r parts
     pure $ evOut bodies (const (toJSON (length parts)))
@@ -546,7 +575,23 @@ dispatch cfg now st = \case
   CCompare a b authorT -> do
     author <- parseEnum "author" parseAuthor authorT
     simple (cmdCompare st a b author) "comparison recorded"
-  COrder questions limit ->
+  COrder _ _ (Just placeRef) -> do
+    target <- resolveBrick st placeRef
+    let others = frontier st
+    pure $ case placeBrick st others target of
+      Left pos -> pureOut
+        (object [ "placed" .= True, "position" .= (pos + 1) ])
+        ("placed: position " <> tshow (pos + 1) <> " of "
+          <> tshow (length [ o | o <- others, bId o /= bId target ] + 1))
+      Right m -> pureOut
+        (object
+          [ "placed" .= False
+          , "ask" .= object
+              [ "target" .= brickSummary target
+              , "against" .= brickSummary m ] ])
+        ("? should \"" <> bTitle target <> "\" be done before \""
+          <> bTitle m <> "\"? (record with `la compare`, then place again)")
+  COrder questions limit Nothing ->
     Right $
       if questions
         then
@@ -563,6 +608,9 @@ dispatch cfg now st = \case
           (T.unlines
             [ tshow i <> ". " <> shortId (bId b) <> "  " <> bTitle b
             | (i, b) <- zip [1 :: Int ..] (frontier st) ])
+  CExportTj defEffort ->
+    let tjp = renderTaskJuggler st now defEffort
+     in Right $ pureOut (toJSON tjp) tjp
   CDelegate r p -> do
     bodies <- cmdDelegate st r p
     pure $ evOut bodies

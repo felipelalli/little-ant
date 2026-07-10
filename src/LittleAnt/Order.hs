@@ -9,6 +9,7 @@
 module LittleAnt.Order
   ( totalOrder
   , orderQuestions
+  , placeBrick
   , hasPath
   , orderEdges
   ) where
@@ -90,6 +91,28 @@ hasPath edges from to = go (Set.singleton from) [from]
       | otherwise =
           let new = [ y | y <- succs x, not (Set.member y seen) ]
            in go (foldr Set.insert seen new) (new ++ rest)
+
+-- | Binary-insertion placement — the direct heir of
+-- org-insert-sorted-todo-heading: to place one brick into an already-ordered
+-- list, ask ~log n midpoint questions. Returns either the settled position
+-- (0-based, within the others' order) or the single next brick to compare
+-- against.
+placeBrick :: State -> [Brick] -> Brick -> Either Int Brick
+placeBrick st others target =
+  let ordered = totalOrder st [ o | o <- others, bId o /= bId target ]
+      nodes = Set.fromList (bId target : map bId ordered)
+      edges = orderEdges st nodes
+      go lo hi
+        | lo >= hi = Left lo
+        | otherwise =
+            let mid = (lo + hi) `div` 2
+                m = ordered !! mid
+             in if hasPath edges (bId target) (bId m)
+                  then go lo mid          -- target already before mid
+                  else if hasPath edges (bId m) (bId target)
+                    then go (mid + 1) hi  -- target already after mid
+                    else Right m          -- unknown: this is the question
+   in go 0 (length ordered)
 
 -- | Pairs of adjacent bricks in the current order whose relative position is
 -- a mere tie-break (no path connects them): the most informative questions

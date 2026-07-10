@@ -94,6 +94,7 @@ applyEvent Event {..} st0 =
       , bKind = Nothing, bContext = Nothing, bEnergy = Nothing
       , bMode = Nothing, bParent = Nothing, bAbout = Nothing
       , bRequester = Nothing
+      , bEstimateHours = Nothing, bEstimateBy = Nothing
       , bWipStartedAt = Nothing, bWipFlagged = Nothing
       , bSupersededBy = Nothing, bSupersedeReason = Nothing
       , bCreatedAt = at, bCreatedSeq = seqNo
@@ -144,7 +145,7 @@ applyEvent Event {..} st0 =
       RequesterAttributed bid pid ->
         adjustBrick bid (\b -> b { bRequester = Just pid }) st
 
-      BrickEnriched bid k c en m a ->
+      BrickEnriched bid k c en m a est estBy ->
         adjustBrick bid
           (\b -> b
             { bKind = maybe (bKind b) Just k
@@ -152,6 +153,8 @@ applyEvent Event {..} st0 =
             , bEnergy = maybe (bEnergy b) Just en
             , bMode = maybe (bMode b) Just m
             , bAtomicity = maybe (bAtomicity b) id a
+            , bEstimateHours = maybe (bEstimateHours b) Just est
+            , bEstimateBy = maybe (bEstimateBy b) Just estBy
             }) st
 
       BrickBroken parentId parts ->

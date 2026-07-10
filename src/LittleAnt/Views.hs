@@ -50,6 +50,8 @@ brickView st b = obj $ idFields (bId b) ++
   , ("parent", toJSON (shortId <$> bParent b))
   , ("about", toJSON (shortId <$> bAbout b))
   , ("requester", toJSON (shortId <$> bRequester b))
+  , ("estimate_hours", toJSON (bEstimateHours b))
+  , ("estimate_by", toJSON (authorText <$> bEstimateBy b))
   , ("wip_started_at", toJSON (bWipStartedAt b))
   , ("wip_flagged", toJSON (bWipFlagged b))
   , ("superseded_by", toJSON (shortId <$> bSupersededBy b))

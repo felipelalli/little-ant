@@ -35,8 +35,9 @@ and every reason changes the system.
 ## Install
 
 The binary is called **`la`** (little ant — short enough to type dozens of times a
-day). Heads-up: many shells alias `la` to `ls -A`; an interactive alias shadows the
-binary, so check `type la` and drop or rename the alias.
+day). Because many shells alias `la` to `ls -A` (an interactive alias shadows the
+binary), the install also ships **`lant`** — the exact same program under an
+unambiguous name. Check `type la`; if it's taken, just use `lant`.
 
 **Nix (flake):**
 
@@ -371,13 +372,16 @@ and projections apply the mask.
 ## Roadmap
 
 - **v0 — the Haskell core + generic skill** *(done)*: the full spec implemented as a
-  typed, event-folding state machine; the `la` CLI designed for an LLM operator;
-  36 spec-derived tests. Now: daily use — discover which skip reasons actually occur,
-  whether the total order survives contact with the DAG, what `next` really needs to
-  know. The open questions in [`spec/`](spec/) close with usage evidence.
-- **v1 — planning & estimates**: TaskJuggler export (`la export tj`) with AI-filled
-  estimate gaps explicitly marked as guesses, scenarios simulated from real
-  started/stopped durations; the oracle hook; richer question rounds.
+  typed, event-folding state machine; the `la`/`lant` CLI designed for an LLM
+  operator; spec-derived tests; binary-insertion placement (`la order --place`, the
+  org-sort-tasks lineage); a first TaskJuggler export (`la export tj` — estimates as
+  effort, gaps filled and marked). Now: daily use — discover which skip reasons
+  actually occur, whether the total order survives contact with the DAG, what `next`
+  really needs to know. The open questions in [`spec/`](spec/) close with usage
+  evidence.
+- **v1 — planning & estimates, deeper**: TJ scenarios calibrated from real
+  started/stopped durations, estimate learning through supersede chains; the oracle
+  hook; richer question rounds.
 - **v2 — richer world**: multi-device transport (event-union endpoint; the model is
   already ready), richer write-back, opportunity scanning over live sources.
 

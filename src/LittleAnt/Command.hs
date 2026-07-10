@@ -238,18 +238,22 @@ cmdRequester st ref partyRef = do
 -- rule BrickEnriched (lazy classification: metadata in drips, never forms)
 cmdEnrich
   :: State -> Text -> Maybe Kind -> Maybe Text -> Maybe Double
-  -> Maybe Mode -> Maybe Atomicity -> Either CmdError [Body]
-cmdEnrich st ref k c en m a = do
+  -> Maybe Mode -> Maybe Atomicity -> Maybe Double -> Maybe Author
+  -> Either CmdError [Body]
+cmdEnrich st ref k c en m a est estBy = do
   b <- resolveBrick st ref
   need (isOpen b)
     ("brick is in a final stage: " <> stageText (bStage b)) Nothing
   need (any' [ k /= Nothing, c /= Nothing, en /= Nothing
-             , m /= Nothing, a /= Nothing ])
+             , m /= Nothing, a /= Nothing, est /= Nothing ])
     "nothing to enrich"
-    (Just "pass at least one of --kind --context --energy --mode --atomicity")
+    (Just "pass at least one of --kind --context --energy --mode --atomicity --estimate")
   need (maybe True (\e -> e >= 0 && e <= 1) en)
     "energy must be within 0..1" Nothing
-  pure [BrickEnriched (bId b) k c en m a]
+  need (maybe True (> 0) est)
+    "estimate must be positive (hours)" Nothing
+  let estBy' = if est /= Nothing && estBy == Nothing then Just Human else estBy
+  pure [BrickEnriched (bId b) k c en m a est estBy']
   where any' = or
 
 -- --------------------------------------------------------------------------

@@ -240,6 +240,8 @@ data Brick = Brick
   , bParent :: Maybe Id
   , bAbout :: Maybe Id
   , bRequester :: Maybe Id
+  , bEstimateHours :: Maybe Double
+  , bEstimateBy :: Maybe Author
   , bWipStartedAt :: Maybe UTCTime
   , bWipFlagged :: Maybe Bool
   , bSupersededBy :: Maybe Id

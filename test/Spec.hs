@@ -19,6 +19,7 @@ import LittleAnt.Config
 import LittleAnt.Event
 import LittleAnt.Ids
 import LittleAnt.Order
+import LittleAnt.Render (renderTaskJuggler)
 import LittleAnt.Scheduler
 import LittleAnt.State
 import LittleAnt.Store (mkEvents)
@@ -275,6 +276,54 @@ orderTests = testGroup "total order"
       let st = mkReadyBricks ["a", "b", "c"]
           qs = orderQuestions st (frontier st) 10
       length qs @?= 2 -- a-b and b-c ties
+
+  , testCase "binary-insertion placement asks midpoints, then places" $ do
+      let st = mkReadyBricks ["a", "b", "c", "d"]
+          a = brickByTitle st "a"; b = brickByTitle st "b"
+          c = brickByTitle st "c"; d = brickByTitle st "d"
+          -- order the first three by human judgment: a < b < c
+          st1 = step t0 st (cmdCompare st (ref a) (ref b) Human)
+          st2 = step t0 st1 (cmdCompare st1 (ref b) (ref c) Human)
+          others = [ x | x <- Map.elems (stBricks st2) ]
+      -- placing d: first question is against the midpoint b
+      case placeBrick st2 others d of
+        Right m -> bTitle m @?= "b"
+        Left _ -> assertFailure "expected a question first"
+      -- say d < b: next question is against a
+      let st3 = step t0 st2 (cmdCompare st2 (ref d) (ref b) Human)
+      case placeBrick st3 [ x | x <- Map.elems (stBricks st3) ] d of
+        Right m -> bTitle m @?= "a"
+        Left _ -> assertFailure "expected one more question"
+      -- say a < d: placed at position 1 (after a)
+      let st4 = step t0 st3 (cmdCompare st3 (ref a) (ref d) Human)
+      case placeBrick st4 [ x | x <- Map.elems (stBricks st4) ] d of
+        Left pos -> pos @?= 1
+        Right m -> assertFailure ("unexpected question vs " <> T.unpack (bTitle m))
+
+  , testCase "estimates: set, defaulted author, positivity guard" $ do
+      let (st, b) = readyBrick "Estimated work"
+          st1 = step t0 st
+            (cmdEnrich st (ref b) Nothing Nothing Nothing Nothing Nothing
+              (Just 2.5) Nothing)
+          b1 = brickByTitle st1 "Estimated work"
+      bEstimateHours b1 @?= Just 2.5
+      bEstimateBy b1 @?= Just Human
+      expectLeft "precondition_failed"
+        (cmdEnrich st1 (ref b) Nothing Nothing Nothing Nothing Nothing
+          (Just (-1)) Nothing)
+
+  , testCase "taskjuggler export: tasks, deps, gap markers" $ do
+      let st = mkReadyBricks ["build it", "ship it"]
+          build = brickByTitle st "build it"; ship = brickByTitle st "ship it"
+          st1 = step t0 st (cmdDepAdd st (ref ship) (ref build))
+          st2 = step t0 st1
+            (cmdEnrich st1 (ref build) Nothing Nothing Nothing Nothing Nothing
+              (Just 3) (Just AI))
+          tjp = renderTaskJuggler st2 t0 4
+      T.isInfixOf "task t_" tjp @? "has tasks"
+      T.isInfixOf "estimate by ai (guess)" tjp @? "AI guesses marked"
+      T.isInfixOf "estimate missing" tjp @? "gaps marked"
+      T.isInfixOf "depends !t_" tjp @? "dependencies exported"
 
   , QC.testProperty "totalOrder is a permutation of its input" $
       \(n :: Int) ->

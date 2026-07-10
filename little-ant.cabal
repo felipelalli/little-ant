@@ -13,7 +13,7 @@ description:
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Felipe Micaroni Lalli
-maintainer:         felipe.micaroni@gmail.com
+maintainer:         la@nok.uy
 homepage:           https://github.com/felipelalli/little-ant
 category:           Productivity
 build-type:         Simple
@@ -62,9 +62,8 @@ library
         text,
         time
 
-executable la
+common la-exe
     import:           warnings
-    main-is:          Main.hs
     hs-source-dirs:   app
     default-language: GHC2021
     default-extensions:
@@ -82,6 +81,16 @@ executable la
         optparse-applicative >=0.17,
         text,
         time
+
+executable la
+    import:  la-exe
+    main-is: Main.hs
+
+-- The same program under an unambiguous name, for systems where `la` is
+-- shadowed by an alias (ls -A) or another binary.
+executable lant
+    import:  la-exe
+    main-is: Main.hs
 
 test-suite little-ant-test
     import:           warnings

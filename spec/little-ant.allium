@@ -74,6 +74,8 @@ entity Brick {
     parent: Brick?
     about: Brick?
     requester: Party?
+    estimate_hours: Decimal?
+    estimate_author: Author?
     wip_started_at: Timestamp?
     wip_flagged: Boolean?
     superseded_by: Brick when stage = superseded
@@ -120,6 +122,10 @@ entity Brick {
 
     invariant EnergyWithinUnitInterval {
         energy = null or (energy >= 0.0 and energy <= 1.0)
+    }
+
+    invariant EstimatePositive {
+        estimate_hours = null or estimate_hours > 0.0
     }
 }
 
@@ -307,9 +313,10 @@ rule RequesterAttributed {
 }
 
 rule BrickEnriched {
-    when: EnrichBrick(brick, kind?, context?, energy?, mode?, atomicity?)
+    when: EnrichBrick(brick, kind?, context?, energy?, mode?, atomicity?, estimate_hours?, estimate_author?)
     requires: brick.stage in {seed, committed, ready, wip}
     requires: energy = null or (energy >= 0.0 and energy <= 1.0)
+    requires: estimate_hours = null or estimate_hours > 0.0
     ensures:
         if kind != null:
             brick.kind = kind
@@ -321,6 +328,9 @@ rule BrickEnriched {
             brick.mode = mode
         if atomicity != null:
             brick.atomicity = atomicity
+        if estimate_hours != null:
+            brick.estimate_hours = estimate_hours
+            brick.estimate_author = estimate_author
 
     @guidance
         -- Lazy classification: enrichment happens in drips, at the moments
@@ -858,7 +868,7 @@ surface Intake {
         KillBrick(brick)
         MarkReady(brick)
         AttributeRequest(brick, party)
-        EnrichBrick(brick, kind?, context?, energy?, mode?, atomicity?)
+        EnrichBrick(brick, kind?, context?, energy?, mode?, atomicity?, estimate_hours?, estimate_author?)
         OpenSession(context_hint?, strictness)
 
     @guarantee NoFormsAtCapture

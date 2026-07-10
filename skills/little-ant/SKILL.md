@@ -24,8 +24,10 @@ read the error's `hint` and adapt.
 
 ## Setup
 
-1. `la` must be on PATH (`which la`). Data lives in `$ANT_DATA_DIR` or
-   `~/.local/share/little-ant/` (override per call with `--data DIR`).
+1. `la` must be on PATH (`which la`). If `la` is shadowed by an alias
+   (`ls -A`) or another binary, use **`lant`** — the same program, installed
+   alongside. Data lives in `$ANT_DATA_DIR` or `~/.local/share/little-ant/`
+   (override per call with `--data DIR`).
 2. Read the personal manifest at `~/.config/little-ant/ANT.md` **if it
    exists**. It declares the user's bindings: which integrations deliver
    messages (chat/email tools), calendar sources, known contexts, UI
@@ -119,6 +121,10 @@ pattern to a new canonical reason (a change to Little Ant itself).
   [--limit N]` yields the most informative pairs. Ask as
   `"X" before "Y"? ![y] · [n] · [?]` — drip 1–2 per session, batch only when
   the human has energy (or exactly when they skip with `tired`).
+- **Placing one brick** (new arrival, or after a priority challenge):
+  `la order --place <ref>` runs binary insertion — it returns the single
+  next midpoint question; record the answer with `la compare`, place again,
+  repeat (~log n rounds) until `placed: true`.
 - Stale comparisons (`revalidation_requested`) get re-asked the same way:
   "still true that X comes before Y?"
 
@@ -137,6 +143,16 @@ pattern to a new canonical reason (a change to Little Ant itself).
   conditions. When the user says they're going out, batch: list waiting
   bricks whose conditions match and propose the package.
 - Title collision (exit 5) is a feature: ask for a more specific title.
+
+## Planning simulations (TaskJuggler)
+
+`la export tj [--default-effort H]` emits a TaskJuggler 3 project: open
+actionable leaves as tasks, dependencies, the total order as priority,
+estimates as effort — gaps filled with the default and marked
+`# estimate missing`. Before simulating: fill gaps yourself with sensible
+guesses (`la set <ref> --estimate 2 --estimate-by ai`), then run `tj3` on the
+output and read the CSV report back to the human. **Load the `taskjuggler`
+skill (if available) before editing or reasoning about .tjp files.**
 
 ## External actions — the one absolute rule
 
@@ -164,5 +180,6 @@ la effect add R --kind write_back|notify|spawn --detail "..." ·
 la effect approve|decline E · la source attach R --ref URI ·
 la source check L --fingerprint F · la source resolve L --fingerprint F
 la party add "Name" --type person|ai_agent|company|area
+la order --place R · la export tj [--default-effort H]
 la ls [--frontier|--stage S] · la show R · la status · la render [--format org]
 ```
