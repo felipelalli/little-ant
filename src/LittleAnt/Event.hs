@@ -53,6 +53,8 @@ data Body
   | BrickEnriched Id (Maybe Kind) (Maybe Text) (Maybe Double) (Maybe Mode) (Maybe Atomicity) (Maybe Double) (Maybe Author)
     -- ^ brick, kind, context, energy, mode, atomicity, estimate hours,
     -- estimate author (absent = unchanged; guesses are marked as guesses)
+  | BrickDescribed Id Text
+    -- ^ brick, description (longer body; content, not identity)
   | BrickBroken Id [(Id, Text)]
     -- ^ parent, parts (brick, title)
   | BricksUnified Id Id (Maybe Text)
@@ -113,8 +115,8 @@ data Body
     -- ^ effect, spawned (brick, title) when kind = spawn
   | EffectDeclined Id
     -- ^ effect
-  | SourceAttached Id Id Text
-    -- ^ link, brick, source ref
+  | SourceAttached Id Id Text Text
+    -- ^ link, brick, source type (free vocab: github_issue, file, …), url
   | SourceChecked Id Text
     -- ^ link, fingerprint (fresh)
   | SourceDiverged Id Id Text
@@ -143,6 +145,7 @@ bodyType = \case
   BrickRegressed {} -> "brick_regressed"
   RequesterAttributed {} -> "requester_attributed"
   BrickEnriched {} -> "brick_enriched"
+  BrickDescribed {} -> "brick_described"
   BrickBroken {} -> "brick_broken"
   BricksUnified {} -> "bricks_unified"
   BrickSuperseded {} -> "brick_superseded"
@@ -209,6 +212,7 @@ bodyData = \case
            , "atomicity" .= fmap atomicityText a
            , "estimate_hours" .= est
            , "estimate_by" .= fmap authorText estBy ]
+  BrickDescribed b d -> object [ "brick" .= b, "description" .= d ]
   BrickBroken parent parts ->
     object [ "parent" .= parent, "parts" .= map pair parts ]
   BricksUnified b into reason ->
@@ -259,8 +263,8 @@ bodyData = \case
   EffectApplied e spawned ->
     object [ "effect" .= e, "spawned" .= fmap pair spawned ]
   EffectDeclined e -> object [ "effect" .= e ]
-  SourceAttached l b r ->
-    object [ "link" .= l, "brick" .= b, "ref" .= r ]
+  SourceAttached l b st' u ->
+    object [ "link" .= l, "brick" .= b, "type" .= st', "url" .= u ]
   SourceChecked l fp -> object [ "link" .= l, "fingerprint" .= fp ]
   SourceDiverged l rec t ->
     object [ "link" .= l, "reconcile" .= rec, "title" .= t ]
@@ -312,6 +316,8 @@ parseBody ty o = case ty of
       <*> optEnumField "atomicity" parseAtomicity o "atomicity"
       <*> o .:? "estimate_hours"
       <*> optEnumField "estimate_by" parseAuthor o "estimate_by"
+  "brick_described" ->
+    BrickDescribed <$> o .: "brick" <*> o .: "description"
   "brick_broken" -> do
     p <- o .: "parent"
     parts <- o .: "parts" >>= mapM parsePair
@@ -370,7 +376,8 @@ parseBody ty o = case ty of
     pure (EffectApplied e spawned)
   "effect_declined" -> EffectDeclined <$> o .: "effect"
   "source_attached" ->
-    SourceAttached <$> o .: "link" <*> o .: "brick" <*> o .: "ref"
+    SourceAttached <$> o .: "link" <*> o .: "brick"
+      <*> o .: "type" <*> o .: "url"
   "source_checked" -> SourceChecked <$> o .: "link" <*> o .: "fingerprint"
   "source_diverged" ->
     SourceDiverged <$> o .: "link" <*> o .: "reconcile" <*> o .: "title"

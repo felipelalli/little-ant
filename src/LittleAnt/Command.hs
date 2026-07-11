@@ -235,25 +235,31 @@ cmdRequester st ref partyRef = do
   p <- resolveParty st partyRef
   pure [RequesterAttributed (bId b) (pId p)]
 
--- rule BrickEnriched (lazy classification: metadata in drips, never forms)
+-- rules BrickEnriched + BrickDescribed (lazy classification: metadata and
+-- body arrive in drips, never as forms)
 cmdEnrich
   :: State -> Text -> Maybe Kind -> Maybe Text -> Maybe Double
   -> Maybe Mode -> Maybe Atomicity -> Maybe Double -> Maybe Author
+  -> Maybe Text
   -> Either CmdError [Body]
-cmdEnrich st ref k c en m a est estBy = do
+cmdEnrich st ref k c en m a est estBy desc = do
   b <- resolveBrick st ref
   need (isOpen b)
     ("brick is in a final stage: " <> stageText (bStage b)) Nothing
-  need (any' [ k /= Nothing, c /= Nothing, en /= Nothing
-             , m /= Nothing, a /= Nothing, est /= Nothing ])
+  let metaAny = any' [ k /= Nothing, c /= Nothing, en /= Nothing
+                     , m /= Nothing, a /= Nothing, est /= Nothing ]
+  need (metaAny || desc /= Nothing)
     "nothing to enrich"
-    (Just "pass at least one of --kind --context --energy --mode --atomicity --estimate")
+    (Just "pass at least one of --kind --context --energy --mode --atomicity --estimate --desc")
+  need (maybe True (not . T.null . T.strip) desc)
+    "description must not be empty" Nothing
   need (maybe True (\e -> e >= 0 && e <= 1) en)
     "energy must be within 0..1" Nothing
   need (maybe True (> 0) est)
     "estimate must be positive (hours)" Nothing
   let estBy' = if est /= Nothing && estBy == Nothing then Just Human else estBy
-  pure [BrickEnriched (bId b) k c en m a est estBy']
+  pure $ [ BrickEnriched (bId b) k c en m a est estBy' | metaAny ]
+      ++ [ BrickDescribed (bId b) (T.strip d) | Just d <- [desc] ]
   where any' = or
 
 -- --------------------------------------------------------------------------
@@ -575,15 +581,19 @@ cmdEffectDecline st ref = do
 -- External sources
 -- --------------------------------------------------------------------------
 
--- rule SourceAttached
-cmdSourceAttach :: State -> Text -> Text -> Either CmdError [Body]
-cmdSourceAttach st ref uri = do
+-- rule SourceAttached. The type is free vocabulary (github_issue, file,
+-- chat, …); identity derives from the url alone, so the same source can't
+-- be attached twice under different types.
+cmdSourceAttach :: State -> Text -> Text -> Text -> Either CmdError [Body]
+cmdSourceAttach st ref stype url = do
   b <- resolveBrick st ref
-  need (not (T.null (T.strip uri))) "source ref must not be empty" Nothing
-  let lid = derivedId "source_link" [unId (bId b), uri]
+  need (not (T.null (T.strip stype))) "source type must not be empty"
+    (Just "e.g. --type github_issue, file, chat, frill, url")
+  need (not (T.null (T.strip url))) "source url must not be empty" Nothing
+  let lid = derivedId "source_link" [unId (bId b), url]
   need (not (Map.member lid (stSourceLinks st)))
     "this source is already attached to this brick" Nothing
-  pure [SourceAttached lid (bId b) uri]
+  pure [SourceAttached lid (bId b) (T.strip stype) (T.strip url)]
 
 -- rule SourceChecked: divergence never auto-resolves — it becomes a
 -- reconcile meta-brick served like any other work.
@@ -601,7 +611,7 @@ cmdSourceCheck st ref fingerprint = do
     else do
       let brickTitle = maybe (unId (slBrick l)) bTitle
             (Map.lookup (slBrick l) (stBricks st))
-          base = "Reconcile: " <> brickTitle <> " vs " <> slRef l
+          base = "Reconcile: " <> brickTitle <> " vs " <> slUrl l
           candidate =
             if Map.member (mkTitleId base) (stBricks st)
               then base <> " (" <> shortId (slId l) <> ")"

@@ -232,6 +232,9 @@ rawStatusText = \case
 data Brick = Brick
   { bId :: Id
   , bTitle :: Text
+  , bDescription :: Maybe Text
+    -- ^ Optional longer body. Content, not identity: editing it never
+    -- changes the id. Filled lazily (e.g. skip(vague) clarification).
   , bStage :: Stage
   , bAtomicity :: Atomicity
   , bKind :: Maybe Kind
@@ -299,7 +302,10 @@ data Comparison = Comparison
 data SourceLink = SourceLink
   { slId :: Id
   , slBrick :: Id
-  , slRef :: Text
+  , slType :: Text
+    -- ^ Free vocabulary: @github_issue@, @file@, @chat@, @frill@, …
+    -- The core never rejects unknown types.
+  , slUrl :: Text
   , slLastFingerprint :: Maybe Text
   , slDiverged :: Bool
   } deriving (Eq, Show)

@@ -56,7 +56,7 @@ data Cmd
   | CKill Text
   | CReady Text
   | CRequester Text Text
-  | CSet Text (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text)
+  | CSet Text (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text) (Maybe Text)
   | CBreak Text [Text]
   | CUnify Text Text (Maybe Text)
   | CSupersede Text Text (Maybe Text)
@@ -87,7 +87,7 @@ data Cmd
   | CEffectApprove Text
   | CEffectDecline Text
   | CEffectLs
-  | CSourceAttach Text Text
+  | CSourceAttach Text Text Text
   | CSourceCheck Text Text
   | CSourceResolve Text Text
   | CSourceLs
@@ -156,7 +156,9 @@ pCmd = hsubparser $ mconcat
         <*> optional (option auto (long "estimate" <> metavar "HOURS"
               <> help "effort estimate in hours"))
         <*> optional (strOption (long "estimate-by" <> metavar "human|ai"
-              <> help "who estimated (default human; guesses are marked)")))
+              <> help "who estimated (default human; guesses are marked)"))
+        <*> optTextOpt "desc"
+              "longer body/description (content, not identity)")
       (progDesc "Enrich a brick lazily (never a form — metadata in drips)")
   , command "break" $ info
       (CBreak
@@ -325,7 +327,9 @@ pCmd = hsubparser $ mconcat
         [ command "attach" $ info
             (CSourceAttach
               <$> textArg "BRICK" "brick ref"
-              <*> textOpt "ref" "typed source ref (github:..., life:...)")
+              <*> textOpt "type"
+                    "source type (free vocab: github_issue, file, chat, ...)"
+              <*> textOpt "url" "URL or path of the source of truth")
             (progDesc "Attach an external source to a brick")
         , command "check" $ info
             (CSourceCheck
@@ -516,12 +520,12 @@ dispatch cfg now st = \case
   CKill r -> simple (cmdKill st r) "killed"
   CReady r -> simple (cmdReady st r) "ready"
   CRequester r p -> simple (cmdRequester st r p) "requester attributed"
-  CSet r kT c en mT aT est estByT -> do
+  CSet r kT c en mT aT est estByT desc -> do
     k <- traverse (parseEnum "kind" parseKind) kT
     m <- traverse (parseEnum "mode" parseMode) mT
     a <- traverse (parseEnum "atomicity" parseAtomicity) aT
     estBy <- traverse (parseEnum "estimate author" parseAuthor) estByT
-    simple (cmdEnrich st r k c en m a est estBy) "enriched"
+    simple (cmdEnrich st r k c en m a est estBy desc) "enriched"
   CBreak r parts -> do
     bodies <- cmdBreak st r parts
     pure $ evOut bodies (const (toJSON (length parts)))
@@ -658,7 +662,8 @@ dispatch cfg now st = \case
     Right $ pureOut
       (toJSON (map (effectView st) (Map.elems (stEffects st))))
       "effects listed (use --json)"
-  CSourceAttach r uri -> simple (cmdSourceAttach st r uri) "source attached"
+  CSourceAttach r stype url ->
+    simple (cmdSourceAttach st r stype url) "source attached"
   CSourceCheck l fp -> do
     bodies <- cmdSourceCheck st l fp
     let diverged = any isDivergedEv bodies

@@ -41,6 +41,7 @@ brickSummary b = obj $ idFields (bId b) ++
 brickView :: State -> Brick -> Value
 brickView st b = obj $ idFields (bId b) ++
   [ ("title", toJSON (bTitle b))
+  , ("description", toJSON (bDescription b))
   , ("stage", toJSON (stageText (bStage b)))
   , ("atomicity", toJSON (atomicityText (bAtomicity b)))
   , ("kind", toJSON (kindText <$> bKind b))
@@ -129,7 +130,8 @@ linkView :: State -> SourceLink -> Value
 linkView st l = obj $ idFields (slId l) ++
   [ ("brick", toJSON (shortId (slBrick l)))
   , ("brick_title", toJSON (bTitle <$> Map.lookup (slBrick l) (stBricks st)))
-  , ("ref", toJSON (slRef l))
+  , ("type", toJSON (slType l))
+  , ("url", toJSON (slUrl l))
   , ("last_fingerprint", toJSON (slLastFingerprint l))
   , ("diverged", toJSON (slDiverged l))
   ]

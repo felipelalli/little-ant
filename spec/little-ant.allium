@@ -65,6 +65,10 @@ entity Party {
 
 entity Brick {
     title: String
+    description: String?
+        -- Optional longer body. Content, not identity: describing a brick
+        -- never changes which brick it is. Arrives lazily (e.g. when a
+        -- skip(vague) clarification lands its "done criteria").
     stage: seed | committed | ready | wip | done | dropped | superseded
     atomicity: Atomicity
     kind: Kind?
@@ -173,7 +177,10 @@ entity Comparison {
 
 entity SourceLink {
     brick: Brick
-    ref: String
+    type: String
+        -- Free vocabulary: github_issue, file, chat, frill, url, …
+        -- The core never rejects an unknown type.
+    url: String
     last_fingerprint: String?
     diverged: Boolean
 }
@@ -351,6 +358,20 @@ rule BrickEnriched {
         -- top of the order) — never as a form at capture or serve time.
 }
 
+rule BrickDescribed {
+    when: DescribeBrick(brick, description)
+    requires: brick.stage in {seed, committed, ready, wip}
+    requires: description != ""
+    ensures: brick.description = description
+
+    @guidance
+        -- The description is content, not identity: it never changes which
+        -- brick this is. Capture still takes a title and nothing else; the
+        -- body arrives later — typically when a skip(vague) clarification
+        -- produces "done criteria", or when the operator drafts context for
+        -- a brick born inside the system (no external source to point at).
+}
+
 -- Composition ------------------------------------------------
 
 rule BrickBroken {
@@ -395,7 +416,7 @@ rule BrickSuperseded {
             stage: committed, atomicity: unknown, parent: brick.parent,
             kind: brick.kind, context: brick.context, requester: brick.requester)
         for s in brick.sources:
-            SourceLink.created(brick: replacement, ref: s.ref,
+            SourceLink.created(brick: replacement, type: s.type, url: s.url,
                 last_fingerprint: s.last_fingerprint, diverged: s.diverged)
         for d in brick.blockers:
             Dependency.created(blocked: replacement, blocker: d.blocker)
@@ -854,9 +875,15 @@ rule ExternalActionDeclined {
 -- External sources -------------------------------------------
 
 rule SourceAttached {
-    when: AttachSource(brick, ref)
-    requires: not exists SourceLink{brick: brick, ref: ref}
-    ensures: SourceLink.created(brick: brick, ref: ref, diverged: false)
+    when: AttachSource(brick, type, url)
+    requires: type != "" and url != ""
+    requires: not exists SourceLink{brick: brick, url: url}
+    ensures: SourceLink.created(brick: brick, type: type, url: url,
+        diverged: false)
+
+    @guidance
+        -- Identity derives from the url alone: the same source of truth
+        -- can't be attached twice to a brick under different types.
 }
 
 rule SourceChecked {
@@ -930,6 +957,7 @@ surface Intake {
         MarkReady(brick)
         AttributeRequest(brick, party)
         EnrichBrick(brick, kind?, context?, energy?, mode?, atomicity?, estimate_hours?, estimate_author?)
+        DescribeBrick(brick, description)
         OpenSession(context_hint?, strictness)
 
     @guarantee NoFormsAtCapture
@@ -1018,7 +1046,7 @@ surface SourceGateway {
     facing operator: Operator
 
     provides:
-        AttachSource(brick, ref)
+        AttachSource(brick, type, url)
         RecordSourceCheck(link, snapshot)
         ResolveDivergence(link, snapshot)
         ApproveExternalAction(effect)

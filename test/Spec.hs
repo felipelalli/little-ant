@@ -336,13 +336,29 @@ orderTests = testGroup "total order"
       let (st, b) = readyBrick "Estimated work"
           st1 = step t0 st
             (cmdEnrich st (ref b) Nothing Nothing Nothing Nothing Nothing
-              (Just 2.5) Nothing)
+              (Just 2.5) Nothing Nothing)
           b1 = brickByTitle st1 "Estimated work"
       bEstimateHours b1 @?= Just 2.5
       bEstimateBy b1 @?= Just Human
       expectLeft "precondition_failed"
         (cmdEnrich st1 (ref b) Nothing Nothing Nothing Nothing Nothing
-          (Just (-1)) Nothing)
+          (Just (-1)) Nothing Nothing)
+
+  , testCase "description: set lazily, content not identity" $ do
+      let (st, b) = readyBrick "Write the RFC"
+          bodies = either (error . show) id
+            (cmdEnrich st (ref b) Nothing Nothing Nothing Nothing Nothing
+              Nothing Nothing (Just "Cover error cases and the happy path."))
+          st1 = step t0 st (Right bodies)
+          b1 = brickByTitle st1 "Write the RFC"
+      -- description only: no brick_enriched noise, one brick_described
+      length bodies @?= 1
+      bDescription b1 @?= Just "Cover error cases and the happy path."
+      bId b1 @?= bId b
+      -- empty description is refused
+      expectLeft "precondition_failed"
+        (cmdEnrich st1 (ref b) Nothing Nothing Nothing Nothing Nothing
+          Nothing Nothing (Just "   "))
 
   , testCase "taskjuggler export: tasks, deps, gap markers" $ do
       let st = mkReadyBricks ["build it", "ship it"]
@@ -350,7 +366,7 @@ orderTests = testGroup "total order"
           st1 = step t0 st (cmdDepAdd st (ref ship) (ref build))
           st2 = step t0 st1
             (cmdEnrich st1 (ref build) Nothing Nothing Nothing Nothing Nothing
-              (Just 3) (Just AI))
+              (Just 3) (Just AI) Nothing)
           tjp = renderTaskJuggler st2 t0 4
       T.isInfixOf "task t_" tjp @? "has tasks"
       T.isInfixOf "estimate by ai (guess)" tjp @? "AI guesses marked"
@@ -499,10 +515,13 @@ sourceTests = testGroup "external sources"
   [ testCase "drift spawns a reconcile meta-brick; never auto-resolves" $ do
       let (st, b) = readyBrick "Sync the issue"
           st1 = step t0 st
-            (cmdSourceAttach st (ref b) "github:acme/api#412")
+            (cmdSourceAttach st (ref b) "github_issue"
+              "https://github.com/acme/api/issues/412")
           l = one' (Map.elems (stSourceLinks st1))
           st2 = step t0 st1
             (cmdSourceCheck st1 (unId (slId l)) "fp-1")
+      slType l @?= "github_issue"
+      slUrl l @?= "https://github.com/acme/api/issues/412"
       slDiverged (one' (Map.elems (stSourceLinks st2))) @?= False
       -- same fingerprint: still fresh
       let st3 = step t0 st2 (cmdSourceCheck st2 (unId (slId l)) "fp-1")
@@ -532,7 +551,8 @@ supersedeTests = testGroup "supersede / unify"
       let st = mkReadyBricks ["goal", "other"]
           g = brickByTitle st "goal"; o = brickByTitle st "other"
           st1 = step t0 st (cmdCompare st (ref g) (ref o) Human)
-          st2 = step t0 st1 (cmdSourceAttach st1 (ref g) "github:x#1")
+          st2 = step t0 st1
+            (cmdSourceAttach st1 (ref g) "github_issue" "https://github.com/x/y/issues/1")
           st3 = step t0 st2
             (cmdSupersede st2 (ref g) "goal, but online" (Just "buy online"))
           old = brickByTitle st3 "goal"
@@ -544,7 +564,7 @@ supersedeTests = testGroup "supersede / unify"
       -- comparisons re-pointed: new inherits "before other"
       Map.member (bId new, bId o) (stComparisons st3) @? "slot inherited"
       -- sources copied
-      map slRef (brickSources st3 new) @?= ["github:x#1"]
+      map slUrl (brickSources st3 new) @?= ["https://github.com/x/y/issues/1"]
       -- statistics stay honest: superseded is neither done nor dropped
       bStage old /= Done && bStage old /= Dropped @? "honest stats"
 

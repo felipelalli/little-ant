@@ -98,7 +98,7 @@ the returned `reaction`:
 |---|---|
 | `decomposition_offered` | propose 2–4 parts → `la break <ref> --part ...` |
 | `learn_or_delegate_offered` | atomic brick: offer a learning brick (`la capture`) or `d`elegate |
-| `clarification_offered` | offer to clarify NOW with you (~2 min, draft "done criteria") or later → `la clarify <ref> --title "Clarify: ..."` |
+| `clarification_offered` | offer to clarify NOW with you (~2 min, draft "done criteria" and land them: `la set <ref> --desc "..."`) or later → `la clarify <ref> --title "Clarify: ..."` |
 | `priority_challenge_issued` | ask "then what IS the priority?" → record `la compare <that> <this>` |
 | `wait_details_requested` | ask "waiting on what? (person / condition — just type it)" → `la wait add <ref> [--party P] [--condition C]`; another brick → `la dep add <ref> --on <blocker>` |
 | `recovery_options_offered` | offer: question round `q` / a lighter brick / "go rest" — no judgment |
@@ -143,6 +143,10 @@ pattern to a new canonical reason (a change to Little Ant itself).
 
 - **No forms, ever.** `la capture "title"` and stop. Metadata is enriched
   later, in drips, never as a toll before execution.
+- Detail lives in two places: bricks tracking something external get a
+  source (`la source attach <ref> --type github_issue --url ...`); bricks
+  born inside the system get a body when it's worth writing one
+  (`la set <ref> --desc "..."`). Description is content, not identity.
 - Brainstorms/pastes → `la raw add "<blob>"`, later `la extract <raw>
   --seed "t1" --seed "t2"` (zero seeds is valid).
 - Triage rounds: seeds → promote (`la promote`), incubate (leave), or kill
@@ -179,6 +183,7 @@ diverged source either — `la source check` spawns a reconcile brick; work it.
 la capture "t" · la raw add "blob" · la extract R --seed t...
 la promote R · la ready R · la kill R · la requester R PARTY
 la set R [--kind K] [--context C] [--energy 0..1] [--mode M] [--atomicity A]
+       [--estimate H] [--estimate-by human|ai] [--desc "longer body"]
 la break R --part t... · la unify R --into R2 · la supersede R --with "t"
 la session open [--context C] [--strictness ignore|prefer|require]
 la next · la start R · la stop R · la done R
@@ -188,7 +193,8 @@ la dep add BLOCKED --on BLOCKER · la compare EARLIER LATER [--author ai]
 la order [--questions] · la delegate R --to P · la nudge approve|decline D
 la delegation ls|notice|cancel|done|refused|abandoned D
 la effect add R --kind write_back|notify|spawn --detail "..." ·
-la effect approve|decline E · la source attach R --ref URI ·
+la effect approve|decline E ·
+la source attach R --type github_issue|file|chat|... --url URL ·
 la source check L --fingerprint F · la source resolve L --fingerprint F
 la party add "Name" --type person|ai_agent|company|area
 la order --place R · la export tj [--default-effort H]

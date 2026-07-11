@@ -2,7 +2,11 @@
 
 [![CI](https://github.com/felipelalli/little-ant/actions/workflows/ci.yml/badge.svg)](https://github.com/felipelalli/little-ant/actions/workflows/ci.yml)
 
-> *One brick at a time.*
+<p align="center">
+  <img src="assets/littleant.png" alt="a little ant tending a seedling" width="220">
+</p>
+
+> *One brick at a time. Inch by inch, anything's a cinch.*
 
 Little Ant is a personal focus engine: a small, deterministic CLI that keeps every
 executable task of your life (work or personal) as a **brick** that can be stacked,
@@ -111,6 +115,7 @@ Key fields (all data always in English):
 
 | Field | Values | Notes |
 |---|---|---|
+| `description` | free text, optional | the longer body; content, not identity. Never asked at capture — lands lazily via `la set --desc`, e.g. when skip(vague)'s "done criteria" get drafted |
 | `kind` | `spec \| exec \| delegation \| decision \| meta` | canonical, extensible |
 | `atomic` | `true \| false \| "unknown"` | atomic bricks can't be broken; skip(hard) offers learn/delegate instead |
 | `energy` | float `0..1` | nobody types floats; the skill maps words ("light" → 0.2) |
@@ -261,9 +266,20 @@ What this buys:
   `la render --format org` emits org-mode for Emacs muscle memory. Conflicts in
   projections are irrelevant by construction.
 
-External sources are referenced, never copied: `inputs: [{ref, seen, hash}]` where
-`ref` is typed (`github:org/repo#123`, `life:trips/x.md`, `chat:…`, `frill:…`).
-Umbrella bricks aggregate many refs ("10 backlog issues become one big brick here").
+External sources of truth are referenced, never copied. Each brick carries source
+links as plain, explicit JSON:
+
+```jsonc
+"sources": [
+  { "type": "github_issue", "url": "https://github.com/acme/api/issues/412",
+    "last_fingerprint": "sha256:…", "diverged": false },
+  { "type": "file", "url": "~/wa/life/trips/patagonia.md" }
+]
+```
+
+`type` is free vocabulary (`github_issue`, `file`, `chat`, `frill`, …): the core never
+rejects an unknown type, and the operator uses it to know *how* to fetch. Umbrella
+bricks aggregate many sources ("10 backlog issues become one big brick here").
 The sync contract has three moments: **on execution** (re-read sources, compare hash:
 "did anything change since last seen?"), **write-back** (state changes here are
 mirrored there, always proposed), and **periodic reconciliation** (drip). Divergence
@@ -421,3 +437,7 @@ Mirrored as `open question` declarations in [`spec/`](spec/):
 [`skills/little-ant/`](skills/little-ant/), and a spec-derived test suite. The spec
 remains the authority on behaviour; divergences are bugs. Open questions close with
 usage evidence (see Roadmap).
+
+Little Ant is an old dream: the pixel-art mascot and the motto come from a first
+attempt years ago, whose prototypes (Racket/Scheme) were literally named *"What
+now?"* — the same question `la next` answers today.

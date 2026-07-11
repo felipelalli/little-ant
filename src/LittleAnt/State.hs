@@ -91,7 +91,7 @@ applyEvent Event {..} st0 =
 
     newBrick :: Id -> Text -> Stage -> Brick
     newBrick bid title stage = Brick
-      { bId = bid, bTitle = title, bStage = stage
+      { bId = bid, bTitle = title, bDescription = Nothing, bStage = stage
       , bAtomicity = UnknownAtomicity
       , bKind = Nothing, bContext = Nothing, bEnergy = Nothing
       , bMode = Nothing, bParent = Nothing, bAbout = Nothing
@@ -159,6 +159,9 @@ applyEvent Event {..} st0 =
             , bEstimateBy = maybe (bEstimateBy b) Just estBy
             }) st
 
+      BrickDescribed bid d ->
+        adjustBrick bid (\b -> b { bDescription = Just d }) st
+
       BrickBroken parentId parts ->
         let parent = Map.lookup parentId (stBricks st)
             child (bid, title) =
@@ -191,8 +194,9 @@ applyEvent Event {..} st0 =
                 -- copy source links to the replacement
                 oldLinks = [ l | l <- Map.elems (stSourceLinks st), slBrick l == bid ]
                 copyLink l =
-                  let lid = derivedId "source_link" [unId replId, slRef l]
-                   in SourceLink lid replId (slRef l) (slLastFingerprint l) (slDiverged l)
+                  let lid = derivedId "source_link" [unId replId, slUrl l]
+                   in SourceLink lid replId (slType l) (slUrl l)
+                        (slLastFingerprint l) (slDiverged l)
                 newLinks = Map.fromList [ (slId l', l') | l' <- map copyLink oldLinks ]
                 -- dependencies: blockers copied, dependents re-pointed
                 deps' = Set.fromList
@@ -359,9 +363,9 @@ applyEvent Event {..} st0 =
         st { stEffects =
                Map.adjust (\e -> e { efStatus = EDeclined }) eid (stEffects st) }
 
-      SourceAttached lid bid ref ->
+      SourceAttached lid bid stype url ->
         st { stSourceLinks =
-               Map.insert lid (SourceLink lid bid ref Nothing False)
+               Map.insert lid (SourceLink lid bid stype url Nothing False)
                  (stSourceLinks st) }
 
       SourceChecked lid fp ->
