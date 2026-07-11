@@ -147,6 +147,10 @@ pattern to a new canonical reason (a change to Little Ant itself).
   source (`la source attach <ref> --type github_issue --url ...`); bricks
   born inside the system get a body when it's worth writing one
   (`la set <ref> --desc "..."`). Description is content, not identity.
+- A bare URL is not a brick yet: ask why it's here — `[p]` use in a project
+  → exec brick + `source attach` · `[l]` must learn → learning brick ·
+  `[r]` want to read → seed (incubate) · `[f]` future reference →
+  `la raw add` (material, not work).
 - Brainstorms/pastes → `la raw add "<blob>"`, later `la extract <raw>
   --seed "t1" --seed "t2"` (zero seeds is valid).
 - Triage rounds: seeds → promote (`la promote`), incubate (leave), or kill

@@ -115,7 +115,7 @@ Key fields (all data always in English):
 
 | Field | Values | Notes |
 |---|---|---|
-| `description` | free text, optional | the longer body; content, not identity. Never asked at capture — lands lazily via `la set --desc`, e.g. when skip(vague)'s "done criteria" get drafted |
+| `description` | free text, optional | the longer body; content, not identity. Never asked at capture; lands lazily via `la set --desc`, e.g. when skip(vague)'s "done criteria" get drafted |
 | `kind` | `spec \| exec \| delegation \| decision \| meta` | canonical, extensible |
 | `atomic` | `true \| false \| "unknown"` | atomic bricks can't be broken; skip(hard) offers learn/delegate instead |
 | `energy` | float `0..1` | nobody types floats; the skill maps words ("light" → 0.2) |
@@ -412,7 +412,8 @@ and projections apply the mask.
   started/stopped durations, estimate learning through supersede chains; the oracle
   hook; richer question rounds.
 - **v2, richer world**: multi-device transport (event-union endpoint; the model is
-  already ready), richer write-back, opportunity scanning over live sources.
+  already ready), richer write-back, opportunity scanning over live sources, and
+  maybe the 2013 promise: habits and recurrence (see History).
 
 ## Open questions
 
@@ -430,6 +431,32 @@ Mirrored as `open question` declarations in [`spec/`](spec/):
 9. Definition-of-ready per kind: which metadata is mandatory before serving each kind.
 10. Session-opening status line: exact content (signal vs. noise).
 
+## History
+
+Little Ant is an old dream. The idea dates back to 2013; the earliest surviving
+prototypes (first committed 2016, reorganized since) lived in the author's monorepo
+and were literally named *"What now?"*, the same question `la next` answers today.
+That version greeted the user with a promise to help "build healthy habits, break
+vices, and finish hard, important work". Habits and recurrence still aren't in the
+model; they remain a candidate direction (see Roadmap, v2).
+
+A decade of loose notes around those prototypes already held the seeds of the
+current design: a push/pop capture-and-serve loop, categories separating execution
+from learning from ideas, an "ask why you're adding this URL" triage question, and,
+most strikingly, a proto skip taxonomy: *unknown, don't know how, poorly designed,
+abstract idea, fear, laziness*. Almost all of it maps onto today's canonical
+reasons. One entry does not: **fear**. Avoidance driven by anxiety is not `meh`
+(aversion) and not `tired` (depletion). It stays a known candidate reason: if it
+keeps surfacing in `other` skips, the taxonomy watch will propose promoting it.
+
+A later note reads "use the GPT API to auto-complete some things". That line grew
+into the whole architecture: the LLM is not an autocomplete here, it is the
+operator. The pixel-art mascot and the motto survive from the first attempt
+(`assets/littleant.pxo` is the original Pixelorama source), and Paul Graham's
+[Good and Bad Procrastination](https://paulgraham.com/procrastination.html) was in
+those notes too; the skip taxonomy is, in a sense, that essay turned into a state
+machine.
+
 ## Status
 
 **v0 implemented** (2026-07): the `la` CLI in Haskell covering the full
@@ -437,7 +464,3 @@ Mirrored as `open question` declarations in [`spec/`](spec/):
 [`skills/little-ant/`](skills/little-ant/), and a spec-derived test suite. The spec
 remains the authority on behaviour; divergences are bugs. Open questions close with
 usage evidence (see Roadmap).
-
-Little Ant is an old dream: the pixel-art mascot and the motto come from a first
-attempt years ago, whose prototypes (Racket/Scheme) were literally named *"What
-now?"* — the same question `la next` answers today.
