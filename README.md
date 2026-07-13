@@ -415,6 +415,11 @@ and projections apply the mask.
   already ready), richer write-back, opportunity scanning over live sources, and
   maybe the 2013 promise: habits and recurrence (see History).
 
+An early design exploration of a web surface — a Windows Phone / Metro-style,
+no-scroll, colour-per-command layout — lives as a living HTML prototype in
+[`docs/mockups/web-metro/`](docs/mockups/web-metro/). It is a sketch, not
+committed direction.
+
 ## Open questions
 
 Mirrored as `open question` declarations in [`spec/`](spec/):

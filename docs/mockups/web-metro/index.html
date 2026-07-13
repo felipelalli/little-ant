@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>little ant — metro mockup</title>
+<style>
+  /* ============ Metro (WP7) — deliberately single-theme dark ============ */
+  :root{
+    /* command = fixed color, everywhere */
+    --c-y:#60A917;      /* yes / start / done */
+    --c-s:#FA6800;      /* skip — anchored 2nd quadrant (top-right) */
+    --c-n:#A20025;      /* no */
+    --c-x:#1BA1E2;      /* next */
+    --c-b:#00ABA9;      /* break */
+    --c-d:#AA00FF;      /* delegate */
+    --c-c:#D80073;      /* capture */
+    --c-q:#6A00FF;      /* questions */
+    --c-un:#647687;     /* ? dunno / neutral steel */
+    /* skip reasons — each its own hue, family stays muted */
+    --c-h:#825A2C; --c-v:#647687; --c-p:#F0A30A; --c-w:#6D8764;
+    --c-t:#76608A; --c-m:#7A3B3F; --c-k:#E51400; --c-a:#A4C400;
+    --bg:#000; --fg:#fff; --dim:#9ea3a8;
+    --gap:6px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--bg)}
+  body{
+    font-family:"Segoe UI","Segoe UI Light","Helvetica Neue",Roboto,sans-serif;
+    color:var(--fg);
+    height:100vh;height:100dvh;
+    display:flex;flex-direction:column;
+    position:fixed;inset:0;width:100%;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* ---------- status strip ---------- */
+  #status{
+    flex:0 0 auto;
+    display:flex;align-items:baseline;gap:14px;
+    padding:10px 14px 2px;
+    font-size:clamp(12px,3.2vmin,15px);color:var(--dim);
+    letter-spacing:.08em;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;overflow:hidden;
+  }
+  #status .ant{font-size:clamp(13px,3.4vmin,16px)}
+  /* ---------- panorama title ---------- */
+  #ptitle{
+    flex:0 0 auto;
+    font-weight:200;
+    font-size:clamp(32px,9vmin,52px);
+    line-height:1.05;
+    padding:0 12px 6px;
+    letter-spacing:-.01em;
+  }
+  /* ---------- screen ---------- */
+  #screen{flex:1 1 auto;display:grid;gap:var(--gap);padding:0 var(--gap) var(--gap);min-height:0;overflow:hidden}
+
+  /* focus card (not a command — the subject) */
+  .subject{
+    background:#141414;
+    border:1px solid #222;
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:14px;min-height:0;
+    overflow-y:auto;scrollbar-width:none;
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  }
+  .subject::-webkit-scrollbar{display:none}
+  .subject .kicker{font-size:clamp(11px,2.9vmin,13px);text-transform:uppercase;letter-spacing:.18em;color:var(--dim)}
+  .subject .title{
+    font-weight:300;font-size:clamp(19px,5.2vmin,30px);line-height:1.18;
+    text-wrap:balance;margin-top:6px;
+  }
+  .subject .meta{font-size:clamp(12px,3.2vmin,15px);color:var(--dim);margin-top:8px}
+  .subject .meta b{color:#c7cbd0;font-weight:600}
+
+  /* ---------- tiles ---------- */
+  button.tile{
+    appearance:none;border:0;color:#fff;background:var(--tc,#333);
+    font-family:inherit;text-align:left;cursor:pointer;
+    position:relative;display:flex;flex-direction:column;justify-content:space-between;
+    padding:10px 12px;min-height:0;min-width:0;overflow:hidden;
+    transition:transform .08s ease;
+  }
+  button.tile:active{transform:scale(.965)}
+  button.tile:focus-visible{outline:3px solid #fff;outline-offset:-3px}
+  .tile .letter{
+    font-weight:200;font-size:clamp(34px,9.5vmin,64px);line-height:.95;
+    display:flex;align-items:center;gap:8px;
+  }
+  .tile .letter .bang{font-weight:600;opacity:.85}
+  .tile .label{
+    font-size:clamp(14px,3.8vmin,17px);font-weight:400;text-transform:lowercase;
+    letter-spacing:.05em;align-self:flex-start;
+    color:rgba(255,255,255,.72);
+    max-width:100%;overflow:hidden;
+    white-space:normal;line-height:1.2;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  }
+  .tile .sub{font-size:clamp(11px,3vmin,14px);font-weight:300;color:rgba(255,255,255,.62);display:block}
+  .tile.big .letter{font-size:clamp(52px,14vmin,96px)}
+  .tile.mini{padding:8px 10px}
+  .tile.mini .letter{font-size:clamp(22px,6vmin,40px)}
+  .tile.mini .label{font-size:clamp(12px,3.2vmin,14px)}
+  .tile .qicon{width:clamp(34px,10vmin,60px);height:auto;display:block}
+  .tile.big .qicon{width:clamp(46px,14vmin,84px)}
+  .tile.mini .qicon{width:clamp(26px,7.5vmin,42px)}
+  .tile .label b{font-weight:900;color:#fff;font-size:1.15em}
+
+  /* entrance: metro flip, staggered */
+  @media (prefers-reduced-motion: no-preference){
+    #screen>*{animation:tin .28s cubic-bezier(.2,.7,.3,1) backwards}
+    #screen>*:nth-child(2){animation-delay:.04s}
+    #screen>*:nth-child(3){animation-delay:.08s}
+    #screen>*:nth-child(4){animation-delay:.12s}
+    #screen>*:nth-child(5){animation-delay:.16s}
+    #screen>*:nth-child(6){animation-delay:.20s}
+    #screen>*:nth-child(7){animation-delay:.24s}
+    #screen>*:nth-child(8){animation-delay:.28s}
+    #screen>*:nth-child(9){animation-delay:.32s}
+  }
+  @keyframes tin{
+    from{opacity:0;transform:perspective(900px) rotateY(18deg) translateX(26px)}
+    to{opacity:1;transform:none}
+  }
+  /* exit: metro flip-out to the left; the chosen tile pops toward you */
+  @keyframes tout{
+    to{opacity:0;transform:perspective(900px) rotateY(-22deg) translateX(-44px)}
+  }
+  @keyframes tchosen{
+    40%{opacity:1;transform:scale(1.08)}
+    to{opacity:0;transform:scale(1.18)}
+  }
+
+  /* ---------- layouts (no scroll, ever) ---------- */
+  /* flow: subject top, y biggest, skip pinned top-right of the action zone */
+  .lay-flow{
+    grid-template-columns:1.25fr 1fr;
+    grid-template-rows:minmax(0,1fr) minmax(0,1.45fr) minmax(0,.75fr);
+    grid-template-areas:
+      "subj subj"
+      "yes  skip"
+      "aux  aux";
+  }
+  .lay-flow .subject{grid-area:subj}
+  .lay-flow .t-y{grid-area:yes}
+  .lay-flow .t-s{grid-area:skip}
+  .lay-flow .aux{
+    grid-area:aux;display:grid;
+    grid-template-columns:repeat(4,1fr);grid-template-rows:minmax(0,1fr);
+    gap:var(--gap);min-height:0;overflow:hidden;
+  }
+
+  /* details ("a carta do brick") */
+  .lay-det{grid-template-rows:auto minmax(0,1fr) minmax(0,.5fr);grid-template-columns:1fr 1fr}
+  .lay-det .subject{grid-column:1/-1}
+  .detail{
+    grid-column:1/-1;background:#141414;border:1px solid #222;
+    padding:14px;min-height:0;
+    overflow-y:auto;scrollbar-width:none;
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .detail::-webkit-scrollbar{display:none}
+  .detail .row{font-size:clamp(13px,3.4vmin,16px);line-height:1.4}
+  .detail .row b{color:#c7cbd0;font-weight:600}
+  .detail .row .k{display:block;font-size:clamp(10px,2.7vmin,12px);
+    text-transform:uppercase;letter-spacing:.16em;color:var(--dim);margin-bottom:2px}
+  .detail a{color:#1BA1E2;text-decoration:none;word-break:break-all}
+
+  /* skip reasons: header + 2×4 grid */
+  .lay-skip{
+    grid-template-rows:auto repeat(4,minmax(0,1fr));
+    grid-template-columns:1fr 1fr;
+  }
+  .lay-skip .subject{grid-column:1/-1}
+
+  /* compare: question + two big tiles + footer minis */
+  .lay-cmp{
+    grid-template-rows:auto minmax(0,1fr) minmax(0,1fr) minmax(0,.45fr);
+    grid-template-columns:1fr 1fr;
+  }
+  .lay-cmp .subject{grid-column:1/-1}
+  .lay-cmp .t-A,.lay-cmp .t-B{grid-column:1/-1}
+
+  /* capture: one field, nothing else */
+  .lay-cap{grid-template-rows:auto minmax(0,1fr) minmax(0,.9fr);grid-template-columns:1fr}
+  .capbox{
+    background:#141414;border:1px solid #222;display:flex;align-items:center;padding:0 14px;
+  }
+  .capbox input{
+    width:100%;background:transparent;border:0;outline:0;color:#fff;
+    font-family:inherit;font-weight:200;font-size:clamp(24px,6.5vmin,38px);
+  }
+  .capbox input::placeholder{color:#4b5157}
+
+  /* wip */
+  .lay-wip{
+    grid-template-columns:1.4fr .6fr;
+    grid-template-rows:minmax(0,1.2fr) minmax(0,1fr) minmax(0,.6fr);
+    grid-template-areas:"subj subj" "done skip" "stop dunno";
+  }
+  .lay-wip .subject{grid-area:subj}
+  .lay-wip .t-done{grid-area:done}
+  .lay-wip .t-s{grid-area:skip}
+  .lay-wip .t-stop{grid-area:stop}
+  .lay-wip .t-un{grid-area:dunno}
+
+  /* ---------- landscape: redistribute, never scroll ---------- */
+  /* vertical pressure: the panorama title is ornament — first thing to go */
+  @media (max-height:560px){
+    #ptitle{display:none}
+  }
+  @media (orientation:landscape){
+    .lay-flow{
+      grid-template-columns:1.05fr 1fr 1fr 1fr;
+      grid-template-rows:minmax(0,1fr) minmax(0,.6fr);
+      grid-template-areas:
+        "subj yes yes skip"
+        "subj aux aux aux";
+    }
+    .lay-flow .aux{grid-template-columns:repeat(4,1fr);grid-template-rows:1fr}
+    /* landscape minis: letter + label side by side, fits short tiles */
+    .tile.mini{flex-direction:row;align-items:center;gap:10px;justify-content:flex-start}
+    .tile.mini .letter{font-size:clamp(18px,7vmin,32px)}
+    .tile.mini .label{-webkit-line-clamp:1}
+    .lay-skip{
+      grid-template-columns:repeat(4,1fr);
+      grid-template-rows:auto minmax(0,1fr) minmax(0,1fr);
+    }
+    .lay-cmp{
+      grid-template-columns:1fr 1fr;
+      grid-template-rows:auto minmax(0,1fr) minmax(0,.45fr);
+    }
+    .lay-cmp .t-A{grid-column:1;grid-row:2}
+    .lay-cmp .t-B{grid-column:2;grid-row:2}
+    .lay-wip{
+      grid-template-columns:1.15fr 1fr 1fr;
+      grid-template-rows:minmax(0,1.45fr) minmax(0,.55fr);
+      grid-template-areas:
+        "subj done skip"
+        "subj stop dunno";
+    }
+    .lay-det{
+      grid-template-columns:1fr .7fr .7fr;
+      grid-template-rows:minmax(0,1fr) minmax(0,.45fr);
+    }
+    .lay-det .subject{grid-column:1;grid-row:1/3}
+    .lay-det .detail{grid-column:2/4;grid-row:1}
+    .tile .letter{font-size:clamp(26px,8vmin,52px)}
+    .tile.big .letter{font-size:clamp(36px,11vmin,72px)}
+  }
+
+  /* trail: the last action, quietly persistent — no popups */
+  #trail{
+    flex:0 0 auto;
+    display:flex;align-items:center;gap:8px;
+    padding:2px 14px 7px;
+    font-size:clamp(12px,3.2vmin,14.5px);
+    color:var(--dim);
+    min-height:1.5em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  #trail .dot{flex:0 0 auto;width:9px;height:9px;background:var(--tc,#1BA1E2)}
+  #trail b{font-weight:700;color:#e8eaec}
+  #trail span{overflow:hidden;text-overflow:ellipsis}
+</style>
+
+<div id="status">
+  <span class="ant">🐜 little ant</span>
+  <span id="st-clock">fri&nbsp;12:14</span>
+  <span>frontier <b id="st-f">11</b></span>
+  <span>inbox <b id="st-i">0</b></span>
+  <span>wip <b id="st-w">0</b></span>
+</div>
+<div id="ptitle">what now?</div>
+<div id="trail" aria-live="polite"></div>
+<main id="screen"></main>
+
+<script>
+(function(){
+  const S = document.getElementById('screen');
+  const T = document.getElementById('trail');
+  const P = document.getElementById('ptitle');
+  const stF = document.getElementById('st-f'), stW = document.getElementById('st-w');
+
+  const C = { y:'--c-y', s:'--c-s', n:'--c-n', x:'--c-x', b:'--c-b', d:'--c-d',
+              c:'--c-c', q:'--c-q', un:'--c-un',
+              h:'--c-h', v:'--c-v', p:'--c-p', w:'--c-w', t:'--c-t', m:'--c-m', k:'--c-k', a:'--c-a' };
+
+  const bricks = [
+    {t:'Revisar README do Little Ant e propor melhorias', ctx:'little-ant', kind:'meta', note:'quick win — teu motivo, salvo no brick'},
+    {t:'1:1 com Andrade (Pesquisa e Design)', ctx:'orbit/pesquisa-design', kind:'exec', note:'skip(tired) ontem 22:10 — sem julgamento'},
+    {t:'1:1 com Camargo (Pesquisa e Design)', ctx:'orbit/pesquisa-design', kind:'exec', note:'agenda: combinar via Google Chat'}
+  ];
+  let cur = 0, frontier = 11, wip = 0;
+
+  function toast(msg, cvar){
+    T.innerHTML = `<i class="dot"></i><span>${msg}</span>`;
+    T.style.setProperty('--tc', `var(${cvar||'--c-x'})`);
+  }
+  function upd(){ stF.textContent = frontier; stW.textContent = wip; }
+
+  const svg = inner => `<svg class="qicon" viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
+  const ST = 'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
+  const I = {
+    q:    svg(`<circle cx="12" cy="12" r="10" ${ST}/><path d="M9.6 9.2a2.4 2.4 0 1 1 3.4 2.6c-.7.4-1 .8-1 1.7" ${ST}/><circle cx="12" cy="16.6" r="1.15" fill="currentColor"/>`),
+    play: svg('<path d="M8 5.5v13l11-6.5z" fill="currentColor"/>'),
+    check:svg(`<path d="M4.5 12.5l5 5L19.5 7" ${ST}/>`),
+    skip: svg('<path d="M5 6v12l8-6z" fill="currentColor"/><rect x="15.5" y="6" width="2.5" height="12" fill="currentColor"/>'),
+    brk:  svg(`<path d="M12 4v6M12 10l-6 8M12 10l6 8" ${ST}/>`),
+    del:  svg(`<circle cx="9" cy="8" r="3.2" ${ST}/><path d="M4 19c.6-3 2.6-4.5 5-4.5s4.4 1.5 5 4.5" ${ST}/><path d="M15 9h6M18.2 6.2L21 9l-2.8 2.8" ${ST}/>`),
+    feed: svg(`<path d="M12 5v14M5 12h14" ${ST} stroke-width="2.3"/>`),
+    stop: svg('<rect x="6" y="6" width="12" height="12" fill="currentColor"/>'),
+    h:    svg('<rect x="3.5" y="8.5" width="2.6" height="7" fill="currentColor"/><rect x="17.9" y="8.5" width="2.6" height="7" fill="currentColor"/><rect x="7" y="11" width="10" height="2" fill="currentColor"/>'),
+    v:    svg(`<path d="M7 17h10a3.5 3.5 0 0 0 .5-7A5 5 0 0 0 8 8.5 4 4 0 0 0 7 17z" ${ST}/>`),
+    p:    svg(`<path d="M12 5v12M6.5 12.5L12 18l5.5-5.5" ${ST}/>`),
+    w:    svg(`<circle cx="12" cy="12" r="8.5" ${ST}/><path d="M12 7.5V12l3.2 2" ${ST}/>`),
+    t:    svg(`<path d="M19 14.5A8 8 0 1 1 9.5 5a6.5 6.5 0 0 0 9.5 9.5z" ${ST}/>`),
+    m:    svg(`<circle cx="12" cy="12" r="8.5" ${ST}/><path d="M8.5 15h7" ${ST}/><circle cx="9.3" cy="10" r="1.1" fill="currentColor"/><circle cx="14.7" cy="10" r="1.1" fill="currentColor"/>`),
+    k:    svg(`<path d="M6 6l12 12M18 6L6 18" ${ST}/>`),
+    a:    svg(`<path d="M4 8h12M13 5l3 3-3 3" ${ST}/><path d="M20 16H8M11 13l-3 3 3 3" ${ST}/>`)
+  };
+  const QICON = I.q;
+
+  function tile(letter,label,cvar,cls,sub,bang,act){
+    return `<button class="tile ${cls||''}" style="--tc:var(${cvar})" data-act="${act||letter}" aria-label="${label||act||letter}">
+      <span class="letter">${bang?'<span class="bang">!</span>':''}${letter}</span>
+      <span class="label">${label}${sub?`<span class="sub">${sub}</span>`:''}</span>
+    </button>`;
+  }
+  function subject(kicker,title,meta){
+    return `<div class="subject"><div>
+        <div class="kicker">${kicker}</div>
+        <div class="title">${title}</div>
+      </div><div class="meta">${meta||''}</div></div>`;
+  }
+
+  /* ---------------- screens ---------------- */
+  function flow(){
+    const b = bricks[cur % bricks.length];
+    P.textContent = 'what now?';
+    S.className = 'lay-flow';
+    S.innerHTML =
+      subject('focus', b.t, `<b>${b.ctx}</b> · ${b.kind} · ${b.note}`) +
+      tile(I.play,'<b>y</b>es',C.y,'t-y big','start now',true,'y') +
+      tile(I.skip,'<b>s</b>kip',C.s,'t-s',null,false,'s') +
+      `<div class="aux">` +
+        tile(I.brk,'<b>b</b>reak',C.b,'mini',null,false,'b') +
+        tile(I.del,'<b>d</b>elegate',C.d,'mini',null,false,'d') +
+        tile(I.feed,'<b>f</b>eed',C.c,'mini',null,false,'f') +
+        tile(I.q,'','--c-un','mini',null,false,'?') +
+      `</div>`;
+  }
+
+  const reasons = [
+    ['h','<b>h</b>ard','pesado demais agora'],
+    ['v','<b>v</b>ague','não sei o que é "pronto"'],
+    ['p','not <b>p</b>riority','tem coisa na frente'],
+    ['w','<b>w</b>aiting','esperando algo/alguém'],
+    ['t','<b>t</b>ired','sem energia'],
+    ['m','<b>m</b>eh','sem vontade — sem culpa'],
+    ['k','<b>k</b>ill','não deveria existir'],
+    ['a','<b>a</b>lternatives','mesmo objetivo, outro método']
+  ];
+  function skip(){
+    const b = bricks[cur % bricks.length];
+    P.textContent = 'skip — why?';
+    S.className = 'lay-skip';
+    S.innerHTML = subject('skipping', b.t, 'toda recusa vira dado — nunca um descarte mudo') +
+      reasons.map(r=>tile(I[r[0]],r[1],C[r[0]],'',r[2],false,r[0])).join('');
+  }
+
+  function compare(){
+    P.textContent = 'which first?';
+    S.className = 'lay-cmp';
+    S.innerHTML =
+      subject('question round','"1:1 com Moura" antes de "1:1 com Teixeira"?','tua resposta vira comparação persistida — retomável pra sempre') +
+      tile('A','1:1 com Moura',C.x,'t-A') +
+      tile('B','1:1 com Teixeira',C.d,'t-B') +
+      tile(I.skip,'<b>s</b>kip question',C.s,null,null,false,'s') +
+      tile(I.q,'dunno — IA decide, revalidável',C.un,null,null,false,'?');
+  }
+
+  function capture(){
+    P.textContent = 'feed the ant';
+    S.className = 'lay-cap';
+    S.innerHTML =
+      subject('no forms, ever','um título e nada mais.','metadado vem depois, em gotas — nunca como pedágio') +
+      `<div class="capbox"><input id="capin" placeholder="ex.: ligar pro banco" autocomplete="off"></div>` +
+      tile(I.feed,'<b>f</b>eed',C.c,'big',null,false,'f');
+    const inp = document.getElementById('capin');
+    setTimeout(()=>inp.focus(),80);
+  }
+
+  function wipScreen(){
+    const b = bricks[cur % bricks.length];
+    P.textContent = 'in flow';
+    S.className = 'lay-wip';
+    S.innerHTML =
+      subject('wip', b.t, 'começou 12:14 — a formiguinha carrega junto') +
+      tile(I.check,'<b>y</b>es',C.y,'t-done big','done',false,'y') +
+      tile(I.skip,'<b>s</b>kip',C.s,'t-s',null,false,'s') +
+      tile(I.stop,'<b>n</b>o','--c-un','t-stop','stop — volta pra fila, sem drama',false,'n') +
+      tile(I.q,'','--c-un','t-un mini',null,false,'?');
+  }
+
+  function details(){
+    const b = bricks[cur % bricks.length];
+    P.textContent = 'the brick';
+    S.className = 'lay-det';
+    S.innerHTML =
+      subject('details', b.t, `<b>${b.ctx}</b> · ${b.kind} · #ad71021`) +
+      `<div class="detail">
+        <div class="row"><span class="k">description</span>
+          No topo da ordem por decisão do Mica: quick win — impacto alto, peso baixo.</div>
+        <div class="row"><span class="k">references</span>
+          <a>github.com/felipelalli/little-ant#readme</a></div>
+        <div class="row"><span class="k">people</span>
+          @mica (requester)</div>
+        <div class="row"><span class="k">history</span>
+          captured ontem 02:49 · placed no topo em 3½ perguntas · started hoje</div>
+      </div>` +
+      tile('‹','back',C.un) +
+      tile(I.play,'<b>y</b>es',C.y,'','start now',true,'y');
+  }
+
+  /* ---------------- transitions ---------------- */
+  let screen = 'flow';
+  let leaving = false, clicked = null, prevScreen = 'flow';
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SCREENS = ()=>({flow,skip,compare,capture,wip:wipScreen,details});
+
+  function go(s){
+    screen = s;
+    const render = SCREENS()[s];
+    if(REDUCED || !S.children.length){ render(); return; }
+    leaving = true;
+    const kids = [...S.children];
+    kids.forEach((k,i)=>{
+      k.style.animation = (k===clicked)
+        ? 'tchosen .26s ease forwards'
+        : `tout .2s cubic-bezier(.5,0,.8,.4) ${i*0.035}s forwards`;
+    });
+    setTimeout(()=>{ leaving=false; render(); }, 230 + kids.length*22);
+  }
+
+  S.addEventListener('click', e=>{
+    if(leaving) return;
+    const t = e.target.closest('.tile'); if(!t) return;
+    clicked = t;
+    const a = t.dataset.act;
+
+    if(screen==='flow'){
+      if(a==='y'){ wip=1; upd(); toast('<b>start</b> — “'+bricks[cur%bricks.length].t.slice(0,42)+'…” em WIP','--c-y'); go('wip'); }
+      else if(a==='s'){ go('skip'); }
+      else if(a==='b'){ toast('<b>break</b> — proponho 2–4 partes; herdam a posição do pai','--c-b'); }
+      else if(a==='d'){ toast('<b>delegate</b> — pra quem? follow-ups automáticos depois','--c-d'); }
+      else if(a==='f'){ go('capture'); }
+      else if(a==='?'){ prevScreen='flow'; go('details'); }
+    }
+    else if(screen==='details'){
+      if(a==='y'){ wip=1; upd(); toast('<b>start</b> — em WIP','--c-y'); go('wip'); }
+      else if(a==='‹'){ go(prevScreen||'flow'); }
+    }
+    else if(screen==='skip'){
+      const r = reasons.find(r=>r[0]===a);
+      if(r){
+        const react = {h:'oferece: break · learn · delegate', v:'clarifica agora ou spawna “Clarify:…”',
+                       p:'então o que É prioridade? → re-sort', w:'esperando o quê? sai da fronteira',
+                       t:'recovery: descansar · leve · rodada q', m:'passo de 2 min? sem julgamento',
+                       k:'morto. estatística honesta', a:'mesmo objetivo → supersede'}[a];
+        toast(`<b>skip(${r[1]})</b> gravado — ${react}`, C[a]);
+        cur++; wip=0; upd(); go('flow');
+      }
+    }
+    else if(screen==='compare'){
+      if(a==='A'||a==='B'){ toast('<b>compare</b> gravado: '+(a==='A'?'Moura → Teixeira':'Teixeira → Moura')+' · autoria humana','--c-x'); go('flow'); }
+      else if(a==='s'){ toast('<b>skip</b> — pergunta pulada, rodada continua de onde parou','--c-s'); go('flow'); }
+      else { toast('<b>?</b> — IA decide com proxies, marcado author:ai, revalidável','--c-un'); go('flow'); }
+    }
+    else if(screen==='capture'){
+      if(a==='f'){
+        const v = (document.getElementById('capin')||{}).value || 'ligar pro banco';
+        toast('<b>fed</b> — “'+v+'” é seed; placement binário no promote','--c-c');
+        go('flow');
+      }
+    }
+    else if(screen==='wip'){
+      if(a==='y'){ wip=0; frontier--; cur++; upd(); toast('<b>done</b> — próximo da ordem vem aí','--c-y'); go('flow'); }
+      else if(a==='s'){ go('skip'); }
+      else if(a==='?'){ prevScreen='wip'; go('details'); }
+      else { wip=0; upd(); toast('<b>stop</b> — volta pra fila na mesma posição','--c-un'); go('flow'); }
+    }
+  });
+
+  /* keyboard: the letter grammar works on PC too */
+  document.addEventListener('keydown', e=>{
+    if(e.metaKey||e.ctrlKey||e.altKey) return;
+    const inInput = e.target && e.target.tagName==='INPUT';
+    if(inInput && e.key!=='Enter') return;
+    let btn = null;
+    if(e.key==='Enter'){
+      btn = S.querySelector('.tile .bang')?.closest('.tile')
+         || (screen==='capture' ? S.querySelector('[data-act="f"]') : null);
+    } else if(e.key==='Escape'){
+      btn = S.querySelector('[data-act="‹"]');
+    } else if(e.key.length===1){
+      const k = e.key;
+      btn = S.querySelector(`[data-act="${CSS.escape(k)}"]`)
+         || S.querySelector(`[data-act="${CSS.escape(k.toUpperCase())}"]`);
+    }
+    if(btn){ e.preventDefault(); btn.click(); }
+  });
+
+  /* long-press panorama title → question round (easter egg do mockup) */
+  P.addEventListener('click', ()=>{ go(screen==='compare'?'flow':'compare'); });
+  P.style.cursor='pointer'; P.title='toque: alternar rodada de perguntas';
+
+  const h = new Date(); document.getElementById('st-clock').textContent =
+    ['sun','mon','tue','wed','thu','fri','sat'][h.getDay()]+' '+String(h.getHours()).padStart(2,'0')+':'+String(h.getMinutes()).padStart(2,'0');
+
+  go('flow');
+})();
+</script>
