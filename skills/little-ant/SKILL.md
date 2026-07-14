@@ -2,7 +2,8 @@
 name: little-ant
 description: >
   Operate Little Ant (the `la` CLI): a personal focus engine. MUST trigger
-  when the user runs /lant, asks "where should I focus" / "onde foco agora",
+  when the user runs /lant, mentions "Little Ant" / "little ant" / "lant" /
+  "the la CLI" by name, asks "where should I focus" / "onde foco agora",
   wants to capture an idea/task/brick, skip a suggestion, break/delegate/
   prioritize work, do a question round, or check their focus status. You are
   the judgment; `la` is the deterministic core.
