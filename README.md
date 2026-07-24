@@ -106,7 +106,7 @@ raw material ──extract──▶ seed ──promote──▶ committed ─▶
 
 - **raw** is pre-brick material: a pasted brainstorm, a loose conversation. Extraction
   yields *zero or more* seeds. Triaging raw = extraction; triaging a seed = decision
-  (promote / incubate / kill).
+  (promote / skip / kill).
 - **seed** is the idea bucket: a real brick, but uncommitted. Seeds are *invisible* to
   the focus loop; they only surface in triage rounds. Nothing nags you.
 - `next` only ever serves bricks at `committed` or beyond.

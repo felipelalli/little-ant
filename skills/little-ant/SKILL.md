@@ -53,7 +53,11 @@ Terse by default; depth on demand. Options are single letters:
   namespaces: commands `x` next · `s` skip · `b` break · `u` unify ·
   `d` done · `g` delegate · `c` capture · `q` questions. Answers: `y` yes ·
   `n` no · `l` later (always show the absolute date: "(Mon, Jul 13)").
-  Triage: `p` promote · `i` incubate · `k` kill.
+  Triage: `p` promote · `s` skip · `k` kill. One gesture, one letter:
+  `s` means "pass" in every dialog. Mechanically a triage skip just
+  leaves the seed snoozing — no reason is asked (seeds carry no
+  obligation; the skip taxonomy applies to served work only), and the
+  next triage round is the alarm ringing again.
 - **Three-layer rendering**: every `--json` envelope carries a `human`
   field — the exact line the CLI would print. Surface each call as:
   1. `$ la <args>` — the `la` invocation with every behavior-changing
@@ -166,11 +170,12 @@ pattern to a new canonical reason (a change to Little Ant itself).
   (`la set <ref> --desc "..."`). Description is content, not identity.
 - A bare URL is not a brick yet: ask why it's here — `[p]` use in a project
   → exec brick + `source attach` · `[l]` must learn → learning brick ·
-  `[r]` want to read → seed (incubate) · `[f]` future reference →
+  `[r]` want to read → seed (snoozed) · `[f]` future reference →
   `la raw add` (material, not work).
 - Brainstorms/pastes → `la raw add "<blob>"`, later `la extract <raw>
   --seed "t1" --seed "t2"` (zero seeds is valid).
-- Triage rounds: seeds → promote (`la promote`), incubate (leave), or kill
+- Triage rounds: seeds → promote (`la promote`), skip (leave — no reason
+  asked), or kill
   (`la kill`). Committed bricks approaching the top: prepare them
   (definition of ready) → enrich in passing (`la set R --context acme/api
   --kind exec --energy 0.7`) and then `la ready`. Suggest values yourself;
