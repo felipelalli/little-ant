@@ -112,14 +112,15 @@ stageTable =
 stageText :: Stage -> Text
 stageText s = maybe "" id (Prelude.lookup s stageTable)
 
--- | Stage emoji for human one-liners: 🌱 seed · 🧱 committed · 🟢 ready
--- (green light, pre-done) · 👷 wip · ✅ done · ❌ dropped · 🔄 superseded.
--- Raw material (pre-brick) renders as 🪨 where raw inputs are listed.
+-- | Stage emoji for human one-liners: 🌱 seed · 🫡 committed (obligation
+-- accepted) · 🧱 ready (a brick fit to lay) · 👷 wip · ✅ done ·
+-- ❌ dropped · 🔄 superseded. Raw material (pre-brick) renders as 🪨
+-- where raw inputs are listed.
 stageEmoji :: Stage -> Text
 stageEmoji = \case
   Seed -> "🌱"
-  Committed -> "🧱"
-  Ready -> "🟢"
+  Committed -> "🫡"
+  Ready -> "🧱"
   Wip -> "👷"
   Done -> "✅"
   Dropped -> "❌"
