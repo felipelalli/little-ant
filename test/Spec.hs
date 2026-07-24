@@ -61,17 +61,9 @@ expectLeft code = \case
   Left e -> ceCode e @?= code
   Right _ -> assertFailure ("expected failure with code " <> T.unpack code)
 
--- | Feed is the only door (no direct path to seed): a test seed is fed as
--- raw and digested by an immediate single-seed extraction.
+-- | Feed defaults to a seed (raw material takes the --raw path).
 feedSeed :: UTCTime -> State -> Text -> State
-feedSeed at st title =
-  let st1 = step at st (cmdFeed st title)
-      rid = case [ r | r <- Map.elems (stRawInputs st1)
-                     , rawContent r == title
-                     , rawStatus r == RawPending ] of
-        (r : _) -> unId (rawId r)
-        [] -> error "feedSeed: fed raw not found"
-   in step at st1 (cmdExtract st1 rid [title])
+feedSeed at st title = step at st (cmdFeed st title)
 
 brickByTitle :: State -> Text -> Brick
 brickByTitle st title =
@@ -146,7 +138,7 @@ lifecycleTests = testGroup "brick lifecycle"
       expectLeft "precondition_failed" (cmdKill st2 (ref b))
 
   , testCase "raw extraction yields 0..n seeds and closes the raw input" $ do
-      let st1 = step t0 emptyState (cmdFeed emptyState "brainstorm blob")
+      let st1 = step t0 emptyState (cmdFeedRaw emptyState "brainstorm blob")
           raw = one' (Map.elems (stRawInputs st1))
           st2 = step t0 st1
             (cmdExtract st1 (unId (rawId raw)) ["seed one", "seed two"])
@@ -661,10 +653,7 @@ identityTests :: TestTree
 identityTests = testGroup "identity"
   [ testCase "title collision is refused with a teaching hint" $ do
       let st1 = feedSeed t0 emptyState "buy paper"
-          st2 = step t0 st1 (cmdFeed st1 "buy paper again")
-          raw = one' [ r | r <- Map.elems (stRawInputs st2)
-                         , rawStatus r == RawPending ]
-      case cmdExtract st2 (unId (rawId raw)) ["buy paper"] of
+      case cmdFeed st1 "buy paper" of
         Left e -> do
           ceCode e @?= "title_collision"
           isJust (ceHint e) @? "hint present"

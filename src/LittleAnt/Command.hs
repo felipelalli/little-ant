@@ -7,6 +7,7 @@ module LittleAnt.Command
   , notFound
   , cmdPartyAdd
   , cmdFeed
+  , cmdFeedRaw
   , cmdExtract
   , cmdPromote
   , cmdKill
@@ -180,11 +181,18 @@ cmdPartyAdd st name ptype = do
     (Just "choose a more specific name")
   pure [PartyRegistered i n ptype]
 
--- rule AntFed. Feed is the ONLY door into the system (decided 2026-07-15):
--- everything enters as raw and is digested by extraction — there is no
--- direct path to seed, deliberately.
+-- rule SeedFed. Feed defaults to a seed — priority is freshest at
+-- insertion time (decided 2026-07-24, revising 2026-07-15's raw-first):
+-- task-shaped input becomes a seed at once; non-task-shaped material
+-- (URLs, pasted blobs) goes to raw via --raw, a call the operator makes.
 cmdFeed :: State -> Text -> Either CmdError [Body]
-cmdFeed st content = do
+cmdFeed st title = do
+  (i, t) <- freshTitle st [] title
+  pure [BrickCaptured i t]
+
+-- rule AntFedRaw. Raw material: digestion (extraction) yields 0..n seeds.
+cmdFeedRaw :: State -> Text -> Either CmdError [Body]
+cmdFeedRaw st content = do
   need (not (T.null (T.strip content))) "feed content must not be empty" Nothing
   let rid = derivedId "raw" [nextSeq st]
   pure [Fed rid content]

@@ -49,7 +49,7 @@ data Global = Global
 data Cmd
   = CPartyAdd Text Text
   | CPartyLs
-  | CFeed Text
+  | CFeed Text Bool
   | CRawLs
   | CExtract Text [Text]
   | CPromote Text
@@ -115,9 +115,12 @@ optTextOpt name h = optional (textOpt name h)
 pCmd :: Parser Cmd
 pCmd = hsubparser $ mconcat
   [ command "feed" $ info
-      (CFeed <$> textArg "CONTENT"
-        "anything — a thought, a blob, a URL; the ant digests it")
-      (progDesc "Feed the ant: the only door in. Everything enters as raw")
+      (CFeed
+        <$> textArg "CONTENT"
+              "a task-shaped title (default: seed) or raw material (--raw)"
+        <*> switch (long "raw"
+              <> help "feed raw material instead: digestion (extract) later"))
+      (progDesc "Feed the ant: seed by default, raw material with --raw")
   , command "raw" $ info
       (hsubparser $ mconcat
         [ command "ls" $ info (pure CRawLs) (progDesc "List raw inputs")
@@ -546,11 +549,23 @@ dispatch cfg now st = \case
       (toJSON (map partyView (Map.elems (stParties st))))
       (T.unlines [ shortId (pId p) <> "  " <> pName p
                  | p <- Map.elems (stParties st) ])
-  CFeed content -> do
-    bodies <- cmdFeed st content
-    pure $ evOut bodies
-      (const (toJSON True))
-      (const "✓ fed — digesting in the raw inbox (extract when ready)")
+  CFeed content rawMode
+    | rawMode -> do
+        bodies <- cmdFeedRaw st content
+        pure $ evOut bodies
+          (const (toJSON True))
+          (const "✓ fed — digesting in the raw inbox (extract when ready)")
+    | otherwise -> do
+        bodies <- cmdFeed st content
+        pure $ evOut bodies
+          (\st' -> case [ i | BrickCaptured i _ <- bodies ] of
+              (i : _) -> maybe (toJSON True) (brickView st')
+                (Map.lookup i (stBricks st'))
+              [] -> toJSON True)
+          (\st' -> case [ i | BrickCaptured i _ <- bodies ] of
+              (i : _) -> maybe "✓ fed" (\b -> "✓ fed → " <> brickOneLiner b)
+                (Map.lookup i (stBricks st'))
+              [] -> "✓ fed")
   CRawLs ->
     Right $ pureOut
       (toJSON (map rawView (Map.elems (stRawInputs st))))

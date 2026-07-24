@@ -188,12 +188,17 @@ pattern to a new canonical reason (a change to Little Ant itself).
 
 ## Feed and triage
 
-- **Feed is the ONLY door, and it makes raw.** `la feed "<anything>"` and
-  stop — a thought, a title, a URL, a pasted brainstorm; you don't hand a
-  finished brick to an ant, you drop food and she digests. Digestion is
-  the extraction: `la extract <raw> --seed "t1" --seed "t2"` (zero seeds
-  is valid). There is NO direct path to seed, deliberately — even for an
-  "obvious" single task, feed then extract in the same breath.
+- **Feed is the door; seed is the default.** `la feed "title"` makes a
+  seed directly — priority is freshest at insertion, so a fed seed should
+  be OFFERED binary placement right away (`la order --place <ref>`, 1–2
+  questions; declining is fine, the grooming drip catches it later).
+  `la feed --raw "<blob>"` takes raw material instead; digestion is the
+  extraction: `la extract <raw> --seed "t1" --seed "t2"` (zero is valid).
+- **You judge the shape (decided 2026-07-24).** When the human feeds
+  something that is NOT task-shaped — a bare URL, a pasted conversation,
+  malformed fragments — route it to `--raw` yourself, even though they
+  didn't say "raw"; confirm in one breath ("→ raw, extract depois?").
+  Task-shaped titles go straight to seed.
 - Vocabulary aliases live in YOU, not the core: when the human says
   "add", "capture", "anota", "cadastra" — translate to feed. Never ask
   them to rephrase.
@@ -203,7 +208,7 @@ pattern to a new canonical reason (a change to Little Ant itself).
   source (`la source attach <ref> --type github_issue --url ...`); bricks
   born inside the system get a body when it's worth writing one
   (`la set <ref> --desc "..."`). Description is content, not identity.
-- A bare URL is not a brick yet: it enters as raw like everything else;
+- A bare URL is not a brick yet: it enters as raw (your judgment call);
   at extraction ask why it's here — `[p]` use in a project → exec brick +
   `source attach` · `[l]` must learn → learning brick · `[r]` want to
   read → seed (snoozed) · `[f]` future reference → leave it raw
@@ -217,8 +222,8 @@ pattern to a new canonical reason (a change to Little Ant itself).
 - Physical errands: feed normally; on skip(waiting) record place/hours
   conditions. When the user says they're going out, batch: list waiting
   bricks whose conditions match and propose the package.
-- Title collision (exit 5) at extraction is a feature: ask for a more
-  specific title.
+- Title collision (exit 5) — at feed or extraction — is a feature: ask
+  for a more specific title.
 
 ## Planning simulations (TaskJuggler)
 
@@ -241,7 +246,7 @@ diverged source either — `la source check` spawns a reconcile brick; work it.
 ## Command crib
 
 ```
-la feed "anything" · la raw ls · la extract R --seed t...
+la feed "title" · la feed --raw "blob" · la raw ls · la extract R --seed t...
 la promote R · la ready R · la kill R · la requester R PARTY
 la set R [--kind K] [--context C] [--weight 0..1] [--mode M] [--atomicity A]
        [--estimate H] [--estimate-by human|ai] [--desc "longer body"]
