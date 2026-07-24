@@ -43,6 +43,7 @@ library
         LittleAnt.Store
         LittleAnt.Views
         LittleAnt.Render
+        LittleAnt.Grammar
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions:

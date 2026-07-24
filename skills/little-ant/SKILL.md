@@ -46,9 +46,23 @@ read the error's `hint` and adapt.
 
 Terse by default; depth on demand. Options are single letters:
 
-- Two namespaces, stable letters. Commands: `x` next · `s` skip · `b` break ·
-  `u` unify · `d` delegate · `c` capture · `q` questions. Answers: `y` yes ·
-  `n` no · `l` later (always show the absolute date: "(Mon, Jul 13)").
+- **The core owns the letters**: `la grammar --json` is the single source of
+  truth for every namespace (commands, answers, skip reasons, triage) and
+  the markers. Load it once per session; never invent letters, layouts or
+  ad-hoc menus (no numbered lists with positional answers). Current
+  namespaces: commands `x` next · `s` skip · `b` break · `u` unify ·
+  `d` delegate · `c` capture · `q` questions. Answers: `y` yes · `n` no ·
+  `l` later (always show the absolute date: "(Mon, Jul 13)"). Triage:
+  `p` promote · `i` incubate · `k` kill.
+- **Three-layer rendering**: every `--json` envelope carries a `human`
+  field — the exact line the CLI would print. Surface each call as:
+  1. `$ la <args>` — the exact `la` invocation, all flags included
+     (`--json` too); shell plumbing (pipes to formatters) may be omitted,
+     the `la` call itself may not be abbreviated. Never paste the raw JSON;
+  2. the CLI's `human` line, verbatim;
+  3. your own interpretation/proposal paragraph, clearly yours.
+  Deterministic surface first, interpretation second. Never invent terms,
+  layouts or shortcut letters on top of it.
 - `!` marks your suggested default; a bare `!` from the user accepts it.
   When you have no basis to guess, show no default — never bluff.
 - `?` is universal and never listed: dunno / more info / help me decide.
@@ -58,8 +72,8 @@ Terse by default; depth on demand. Options are single letters:
   always a command (`next` works even where `n` means no).
 - Free text always works. Classify it (confirm when unsure) — and it is
   always preserved: pass it via `--text` on skips.
-- UI language: English unless the manifest sets another. Data (titles may be
-  any language the user wrote) — but enums/fields are English. Messages to
+- Language: English for UI **and** data (titles, descriptions, everything),
+  unless the personal manifest explicitly says otherwise. Messages to
   third parties: the **recipient's** language.
 - Every session ends in a proposal, never in silence.
 
@@ -204,4 +218,5 @@ la source check L --fingerprint F · la source resolve L --fingerprint F
 la party add "Name" --type person|ai_agent|company|area
 la order --place R · la export tj [--default-effort H]
 la ls [--frontier|--stage S] · la show R · la status · la render [--format org]
+la grammar (canonical letters/namespaces — load once per session)
 ```

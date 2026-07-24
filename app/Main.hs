@@ -24,6 +24,7 @@ import System.IO (hPutStrLn, stderr)
 import LittleAnt.Command
 import LittleAnt.Config
 import LittleAnt.Event
+import LittleAnt.Grammar (grammarHuman, grammarView)
 import LittleAnt.Ids (shortId, unId)
 import LittleAnt.Order
   (SortOutcome (..), mergeSortStep, orderQuestions, placeBrick)
@@ -94,6 +95,7 @@ data Cmd
   | CLs (Maybe Text) Bool
   | CShow Text
   | CStatus
+  | CGrammar
   | CTick
   | CRender Text
   | CEvents (Maybe Int)
@@ -365,6 +367,8 @@ pCmd = hsubparser $ mconcat
       (progDesc "Show one brick in full")
   , command "status" $ info (pure CStatus)
       (progDesc "Everything the operator needs for the opening line")
+  , command "grammar" $ info (pure CGrammar)
+      (progDesc "The canonical interaction grammar: namespaces, letters, markers")
   , command "tick" $ info (pure CTick)
       (progDesc "Fire due temporal rules explicitly (every command auto-ticks)")
   , command "render" $ info
@@ -441,6 +445,7 @@ emit g _ Out {..}
       [ "ok" .= True
       , "dry_run" .= oDryRun
       , "result" .= oResult
+      , "human" .= oHuman
       , "events" .= map eventToJSON oEvents
       , "warnings" .= oWarnings
       ]
@@ -456,6 +461,8 @@ emitError g CmdError {..}
       [ "ok" .= False
       , "error" .= object
           [ "code" .= ceCode, "message" .= ceMessage, "hint" .= ceHint ]
+      , "human" .= ("error (" <> ceCode <> "): " <> ceMessage
+                    <> maybe "" ("\nhint: " <>) ceHint)
       ]
   | otherwise = do
       TIO.hPutStrLn stderr ("error (" <> ceCode <> "): " <> ceMessage)
@@ -712,6 +719,8 @@ dispatch cfg now st = \case
         <> shortId (bId b))
   CStatus ->
     Right $ pureOut (statusView st) (statusHuman st)
+  CGrammar ->
+    Right $ pureOut grammarView grammarHuman
   CTick ->
     -- auto-tick already ran; this command exists to make it explicit
     Right $ pureOut (toJSON True) "ticked"
