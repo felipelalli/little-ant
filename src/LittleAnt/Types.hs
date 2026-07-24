@@ -19,7 +19,7 @@ module LittleAnt.Types
   , SessionStatus (..)
   , RawStatus (..)
     -- * Enum text mappings
-  , stageText, parseStage
+  , stageText, stageEmoji, parseStage
   , kindText, parseKind
   , modeText, parseMode
   , atomicityText, parseAtomicity
@@ -111,6 +111,19 @@ stageTable =
 
 stageText :: Stage -> Text
 stageText s = maybe "" id (Prelude.lookup s stageTable)
+
+-- | Stage emoji for human one-liners: 🌱 seed · 🧱 committed · 🟢 ready
+-- (green light, pre-done) · 👷 wip · ✅ done · ❌ dropped · 🔄 superseded.
+-- Raw material (pre-brick) renders as 🪨 where raw inputs are listed.
+stageEmoji :: Stage -> Text
+stageEmoji = \case
+  Seed -> "🌱"
+  Committed -> "🧱"
+  Ready -> "🟢"
+  Wip -> "👷"
+  Done -> "✅"
+  Dropped -> "❌"
+  Superseded -> "🔄"
 
 parseStage :: Text -> Maybe Stage
 parseStage = byText stageTable

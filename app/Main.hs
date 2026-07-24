@@ -553,9 +553,9 @@ dispatch cfg now st = \case
   CRawLs ->
     Right $ pureOut
       (toJSON (map rawView (Map.elems (stRawInputs st))))
-      (T.unlines [ shortId (rawId r) <> "  ["
-                     <> rawStatusText (rawStatus r) <> "] "
-                     <> T.take 60 (rawContent r)
+      (T.unlines [ "🪨 \"" <> T.take 60 (rawContent r) <> "\" #"
+                     <> shortId (rawId r)
+                     <> (if rawStatus r == RawExtracted then " (extracted)" else "")
                  | r <- Map.elems (stRawInputs st) ])
   CExtract rawRef titles -> do
     bodies <- cmdExtract st rawRef titles
@@ -737,7 +737,8 @@ dispatch cfg now st = \case
     pure $ pureOut
       (toJSON (map (brickView st) bricks))
       (T.unlines
-        [ shortId (bId b) <> "  [" <> stageText (bStage b) <> "] " <> bTitle b
+        [ stageEmoji (bStage b) <> " \"" <> bTitle b <> "\" #"
+            <> shortId (bId b)
         | b <- bricks ])
   CShow r -> do
     b <- resolveBrick st r
@@ -753,7 +754,7 @@ dispatch cfg now st = \case
                            | d <- Map.elems (stDelegations st)
                            , dBrick d == bId b ]
         ])
-      (bTitle b <> "  [" <> stageText (bStage b) <> "]  "
+      (stageEmoji (bStage b) <> " \"" <> bTitle b <> "\" #"
         <> shortId (bId b))
   CStatus ->
     Right $ pureOut (statusView st) (statusHuman st)
