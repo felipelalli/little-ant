@@ -10,7 +10,7 @@ module LittleAnt.Views
   , delegationView
   , effectView
   , linkView
-  , sessionView
+  , flowView
   , rawView
   , statusView
   ) where
@@ -146,13 +146,13 @@ linkView st l = obj $ idFields (slId l) ++
   , ("diverged", toJSON (slDiverged l))
   ]
 
-sessionView :: Session -> Value
-sessionView s = obj $ idFields (sesId s) ++
-  [ ("context", toJSON (sesContextHint s))
-  , ("strictness", toJSON (strictnessText (sesStrictness s)))
-  , ("serve_count", toJSON (sesServeCount s))
-  , ("status", toJSON (sessionStatusText (sesStatus s)))
-  , ("opened_at", toJSON (sesOpenedAt s))
+flowView :: Flow -> Value
+flowView s = obj $ idFields (floId s) ++
+  [ ("context", toJSON (floContextHint s))
+  , ("strictness", toJSON (strictnessText (floStrictness s)))
+  , ("serve_count", toJSON (floServeCount s))
+  , ("status", toJSON (flowStatusText (floStatus s)))
+  , ("opened_at", toJSON (floOpenedAt s))
   ]
 
 rawView :: RawInput -> Value
@@ -162,7 +162,7 @@ rawView r = obj $ idFields (rawId r) ++
   , ("status", toJSON (rawStatusText (rawStatus r)))
   ]
 
--- | The session-opening status line's data source (exact human rendering is
+-- | The opening status line's data source (exact human rendering is
 -- the operator's concern — an open question in the spec).
 statusView :: State -> Value
 statusView st = obj
@@ -195,9 +195,9 @@ statusView st = obj
       , openId (cBefore c), openId (cAfter c) ])
   , ("diverged_sources", toJSON
       [ linkView st l | l <- Map.elems (stSourceLinks st), slDiverged l ])
-  , ("open_sessions", toJSON
-      (map sessionView
-        (sortOn (Down . sesOpenedAt) (openSessions st))))
+  , ("open_flows", toJSON
+      (map flowView
+        (sortOn (Down . floOpenedAt) (openFlows st))))
   , ("unreviewed_other_skips",
       toJSON (twUnreviewedOtherCount (stTaxonomy st)))
   ]

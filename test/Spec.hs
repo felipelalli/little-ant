@@ -409,29 +409,29 @@ schedulerTests = testGroup "scheduler"
       let st = mkReadyBricks ["a", "b"]
           a = brickByTitle st "a"; b = brickByTitle st "b"
           st1 = step t0 st (cmdCompare st (ref b) (ref a) Human)
-          st2 = step t0 st1 (cmdSessionOpen st1 Nothing SPrefer)
+          st2 = step t0 st1 (cmdFlowOpen st1 Nothing SPrefer)
       case cmdNext cfg st2 Nothing of
         Left e -> assertFailure (show e)
         Right (bodies, Right choice) -> do
           bTitle (chBrick choice) @?= "b"
           let st3 = foldl (flip applyEvent) st2 (mkEvents t0 bodies)
-          sesServeCount (fromJust (latestOpenSession st3)) @?= 1
+          floServeCount (fromJust (latestOpenFlow st3)) @?= 1
         Right (_, Left nc) -> assertFailure (show nc)
 
   , testCase "strictness=require with no matching context excludes all" $ do
       let st = mkReadyBricks ["a"]
-          st1 = step t0 st (cmdSessionOpen st (Just "acme") SRequire)
+          st1 = step t0 st (cmdFlowOpen st (Just "acme") SRequire)
       case cmdNext cfg st1 Nothing of
         Right (_, Left ContextExcludedAll) -> pure ()
         other -> assertFailure ("expected ContextExcludedAll, got: "
                                  <> show (fmap snd other))
 
-  , testCase "no open session is a teachable error" $ do
+  , testCase "no open flow is a teachable error" $ do
       let st = mkReadyBricks ["a"]
-      expectLeft "no_open_session" (cmdNext cfg st Nothing)
+      expectLeft "no_open_flow" (cmdNext cfg st Nothing)
 
   , testCase "empty frontier reports FrontierEmpty" $ do
-      let st1 = step t0 emptyState (cmdSessionOpen emptyState Nothing SIgnore)
+      let st1 = step t0 emptyState (cmdFlowOpen emptyState Nothing SIgnore)
       case cmdNext cfg st1 Nothing of
         Right (_, Left FrontierEmpty) -> pure ()
         other -> assertFailure ("expected FrontierEmpty, got: "
@@ -882,6 +882,21 @@ versioningTests = testGroup "event log versioning"
       case parseEither eventFromJSONVersioned legacy of
         Left e -> assertFailure e
         Right ev -> evBody ev @?= body
+  , testCase "production upcasters: session_* v1 read as flow_*" $ do
+      let legacy ty dat = object
+            [ "v" .= (1 :: Int), "id" .= ("x" :: Text), "at" .= t0
+            , "type" .= (ty :: Text), "data" .= dat ]
+      case parseEither eventFromJSONVersioned
+             (legacy "session_opened" (object
+               [ "session" .= Id "s1", "context" .= ("acme" :: Text)
+               , "strictness" .= ("prefer" :: Text) ])) of
+        Left e -> assertFailure e
+        Right ev -> evBody ev @?= FlowOpened (Id "s1") (Just "acme") SPrefer
+      case parseEither eventFromJSONVersioned
+             (legacy "focus_served" (object
+               [ "session" .= Id "s1", "brick" .= Id "b1" ])) of
+        Left e -> assertFailure e
+        Right ev -> evBody ev @?= FocusServed (Id "s1") (Id "b1")
   , testCase "migrate rewrites the hot log atomically with a backup" $ do
       tmp <- getTemporaryDirectory
       let d = tmp </> "little-ant-migrate-test"

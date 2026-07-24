@@ -16,7 +16,7 @@ module LittleAnt.Types
   , EffectStatus (..)
   , DelegationStatus (..)
   , PartyType (..)
-  , SessionStatus (..)
+  , FlowStatus (..)
   , RawStatus (..)
     -- * Enum text mappings
   , stageText, stageEmoji, brickOneLiner, parseStage
@@ -30,7 +30,7 @@ module LittleAnt.Types
   , effectStatusText
   , delegationStatusText
   , partyTypeText, parsePartyType
-  , sessionStatusText
+  , flowStatusText
   , rawStatusText
     -- * Entities
   , Brick (..)
@@ -42,7 +42,7 @@ module LittleAnt.Types
   , SourceLink (..)
   , Effect (..)
   , Delegation (..)
-  , Session (..)
+  , Flow (..)
   , TaxonomyWatch (..)
   , OrderWatch (..)
   ) where
@@ -91,7 +91,7 @@ data DelegationStatus
 data PartyType = Person | AiAgent | Company | Area
   deriving (Eq, Ord, Show, Enum, Bounded)
 
-data SessionStatus = SessOpen | SessClosed
+data FlowStatus = FloOpen | FloClosed
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 data RawStatus = RawPending | RawExtracted
@@ -236,10 +236,10 @@ partyTypeText p = maybe "" id (Prelude.lookup p partyTypeTable)
 parsePartyType :: Text -> Maybe PartyType
 parsePartyType = byText partyTypeTable
 
-sessionStatusText :: SessionStatus -> Text
-sessionStatusText = \case
-  SessOpen -> "open"
-  SessClosed -> "closed"
+flowStatusText :: FlowStatus -> Text
+flowStatusText = \case
+  FloOpen -> "open"
+  FloClosed -> "closed"
 
 rawStatusText :: RawStatus -> Text
 rawStatusText = \case
@@ -349,13 +349,13 @@ data Delegation = Delegation
   , dNudgePending :: Bool
   } deriving (Eq, Show)
 
-data Session = Session
-  { sesId :: Id
-  , sesContextHint :: Maybe Text
-  , sesStrictness :: Strictness
-  , sesServeCount :: Int
-  , sesStatus :: SessionStatus
-  , sesOpenedAt :: UTCTime
+data Flow = Flow
+  { floId :: Id
+  , floContextHint :: Maybe Text
+  , floStrictness :: Strictness
+  , floServeCount :: Int
+  , floStatus :: FlowStatus
+  , floOpenedAt :: UTCTime
   } deriving (Eq, Show)
 
 data TaxonomyWatch = TaxonomyWatch

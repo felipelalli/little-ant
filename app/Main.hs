@@ -60,9 +60,9 @@ data Cmd
   | CBreak Text [Text]
   | CUnify Text Text (Maybe Text)
   | CSupersede Text Text (Maybe Text)
-  | CSessionOpen (Maybe Text) Text
-  | CSessionClose (Maybe Text)
-  | CSessionLs
+  | CFlowOpen (Maybe Text) Text
+  | CFlowStop (Maybe Text)
+  | CFlowLs
   | CNext (Maybe Text)
   | CStart Text
   | CStop Text
@@ -181,23 +181,23 @@ pCmd = hsubparser $ mconcat
         <*> textOpt "with" "replacement title"
         <*> optTextOpt "reason" "why the method changed")
       (progDesc "Replace the method, keep the goal (inherits slot & lineage)")
-  , command "session" $ info
+  , command "flow" $ info
       (hsubparser $ mconcat
         [ command "open" $ info
-            (CSessionOpen
+            (CFlowOpen
               <$> optTextOpt "context" "sticky context hint (e.g. acme/api)"
               <*> strOption (long "strictness" <> value "prefer"
                              <> metavar "ignore|prefer|require"
                              <> help "context strictness (default: prefer)"))
-            (progDesc "Open a focus session")
-        , command "close" $ info
-            (CSessionClose <$> optional (textArg "SESSION" "session ref"))
-            (progDesc "Close a focus session (default: latest open)")
-        , command "ls" $ info (pure CSessionLs) (progDesc "List sessions")
+            (progDesc "Open a focus flow")
+        , command "stop" $ info
+            (CFlowStop <$> optional (textArg "FLOW" "flow ref"))
+            (progDesc "Stop a focus flow (default: latest open)")
+        , command "ls" $ info (pure CFlowLs) (progDesc "List flows")
         ])
-      (progDesc "Focus sessions")
+      (progDesc "Focus flows (the state the engine protects)")
   , command "next" $ info
-      (CNext <$> optional (strOption (long "session" <> metavar "SESSION")))
+      (CNext <$> optional (strOption (long "flow" <> metavar "FLOW")))
       (progDesc "Where should I focus now?")
   , command "start" $ info
       (CStart <$> textArg "BRICK" "brick ref")
@@ -594,18 +594,18 @@ dispatch cfg now st = \case
   CUnify r into reason -> simple (cmdUnify st r into reason) "unified"
   CSupersede r title reason ->
     simple (cmdSupersede st r title reason) "superseded"
-  CSessionOpen ctx strictT -> do
+  CFlowOpen ctx strictT -> do
     strict <- parseEnum "strictness" parseStrictness strictT
-    bodies <- cmdSessionOpen st ctx strict
+    bodies <- cmdFlowOpen st ctx strict
     pure $ evOut bodies
-      (\st' -> maybe (toJSON True) sessionView (latestOpenSession st'))
-      (const "session open")
-  CSessionClose mref -> simple (cmdSessionClose st mref) "session closed"
-  CSessionLs ->
+      (\st' -> maybe (toJSON True) flowView (latestOpenFlow st'))
+      (const "flow open")
+  CFlowStop mref -> simple (cmdFlowStop st mref) "flow stopped"
+  CFlowLs ->
     Right $ pureOut
-      (toJSON (map sessionView
-        (sortOn (Down . sesOpenedAt) (Map.elems (stSessions st)))))
-      "sessions listed (use --json)"
+      (toJSON (map flowView
+        (sortOn (Down . floOpenedAt) (Map.elems (stFlows st)))))
+      "flows listed (use --json)"
   CNext mref -> do
     (bodies, outcome) <- cmdNext cfg st mref
     pure $ evOut bodies

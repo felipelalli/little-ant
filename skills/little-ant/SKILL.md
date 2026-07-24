@@ -124,7 +124,7 @@ Terse by default; depth on demand. Options are single letters:
       → `la delegation notice <id>` + deliver.
    d. **Effects awaiting approval** (`effects_proposed`): show the exact
       external action → `la effect approve|decline <id>`, deliver on approve.
-   e. **Focus**: `la next` (open a session first if needed: `la session open
+   e. **Focus**: `la next` (open a flow first if needed: `la flow open
       [--context C] [--strictness prefer]` — pick context from calendar/day
       shape; that's your policy call). Render:
       `Focus: "<title>" · <context> · ~<estimate> — *[y] start · [d]one · [s]kip · [b]reak`
@@ -251,7 +251,7 @@ la promote R · la ready R · la kill R · la requester R PARTY
 la set R [--kind K] [--context C] [--weight 0..1] [--mode M] [--atomicity A]
        [--estimate H] [--estimate-by human|ai] [--desc "longer body"]
 la break R --part t... · la unify R --into R2 · la supersede R --with "t"
-la session open [--context C] [--strictness ignore|prefer|require]
+la flow open [--context C] [--strictness ignore|prefer|require] · la flow stop
 la next · la start R · la stop R · la done R
 la skip R --reason X [--text "..."] · la clarify R --title "t"
 la wait add R [--party P] [--condition C] · la wait resolve W

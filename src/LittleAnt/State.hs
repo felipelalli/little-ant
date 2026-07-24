@@ -25,8 +25,8 @@ module LittleAnt.State
   , brickSources
   , brickEffects
   , comparisonById
-  , openSessions
-  , latestOpenSession
+  , openFlows
+  , latestOpenFlow
   ) where
 
 import Data.List (sortOn)
@@ -53,7 +53,7 @@ data State = State
   , stSourceLinks :: Map Id SourceLink
   , stEffects :: Map Id Effect
   , stDelegations :: Map Id Delegation
-  , stSessions :: Map Id Session
+  , stFlows :: Map Id Flow
   , stTaxonomy :: TaxonomyWatch
   , stOrderWatch :: OrderWatch
   , stEventCount :: Int
@@ -71,7 +71,7 @@ emptyState = State
   , stSourceLinks = Map.empty
   , stEffects = Map.empty
   , stDelegations = Map.empty
-  , stSessions = Map.empty
+  , stFlows = Map.empty
   , stTaxonomy = TaxonomyWatch 0 5
   , stOrderWatch = OrderWatch 0 7 Nothing Nothing
   , stEventCount = 0
@@ -220,20 +220,20 @@ applyEvent Event {..} st0 =
                    , stComparisons = comps'
                    }
 
-      SessionOpened sid ctx strict ->
-        st { stSessions =
-               Map.insert sid (Session sid ctx strict 0 SessOpen at)
-                 (stSessions st) }
+      FlowOpened sid ctx strict ->
+        st { stFlows =
+               Map.insert sid (Flow sid ctx strict 0 FloOpen at)
+                 (stFlows st) }
 
-      SessionClosed sid ->
-        st { stSessions =
-               Map.adjust (\s -> s { sesStatus = SessClosed }) sid
-                 (stSessions st) }
+      FlowClosed sid ->
+        st { stFlows =
+               Map.adjust (\s -> s { floStatus = FloClosed }) sid
+                 (stFlows st) }
 
       FocusServed sid bid ->
-        let st' = st { stSessions =
-                         Map.adjust (\s -> s { sesServeCount = sesServeCount s + 1 })
-                           sid (stSessions st) }
+        let st' = st { stFlows =
+                         Map.adjust (\s -> s { floServeCount = floServeCount s + 1 })
+                           sid (stFlows st) }
          in adjustBrick bid
               (touch . (\b -> b { bServeCount = bServeCount b + 1 })) st'
 
@@ -532,13 +532,13 @@ comparisonById st cid =
     (c : _) -> Just c
     [] -> Nothing
 
-openSessions :: State -> [Session]
-openSessions st =
-  [ s | s <- Map.elems (stSessions st), sesStatus s == SessOpen ]
+openFlows :: State -> [Flow]
+openFlows st =
+  [ s | s <- Map.elems (stFlows st), floStatus s == FloOpen ]
 
 -- | The most recently opened session that is still open.
-latestOpenSession :: State -> Maybe Session
-latestOpenSession st =
-  case sortOn (Down . sesOpenedAt) (openSessions st) of
+latestOpenFlow :: State -> Maybe Flow
+latestOpenFlow st =
+  case sortOn (Down . floOpenedAt) (openFlows st) of
     (s : _) -> Just s
     [] -> Nothing

@@ -65,12 +65,12 @@ data Body
     -- ^ brick, into, reason
   | BrickSuperseded Id Id Text (Maybe Text)
     -- ^ brick, replacement, replacement title, reason
-  | SessionOpened Id (Maybe Text) Strictness
-    -- ^ session, context hint, strictness
-  | SessionClosed Id
-    -- ^ session
+  | FlowOpened Id (Maybe Text) Strictness
+    -- ^ flow, context hint, strictness
+  | FlowClosed Id
+    -- ^ flow
   | FocusServed Id Id
-    -- ^ session, brick
+    -- ^ flow, brick
   | BrickStarted Id
     -- ^ brick
   | BrickStopped Id
@@ -153,8 +153,8 @@ bodyType = \case
   BrickBroken {} -> "brick_broken"
   BricksUnified {} -> "bricks_unified"
   BrickSuperseded {} -> "brick_superseded"
-  SessionOpened {} -> "session_opened"
-  SessionClosed {} -> "session_closed"
+  FlowOpened {} -> "flow_opened"
+  FlowClosed {} -> "flow_closed"
   FocusServed {} -> "focus_served"
   BrickStarted {} -> "brick_started"
   BrickStopped {} -> "brick_stopped"
@@ -224,11 +224,11 @@ bodyData = \case
   BrickSuperseded b repl title reason ->
     object [ "brick" .= b, "replacement" .= repl
            , "title" .= title, "reason" .= reason ]
-  SessionOpened s ctx strict ->
-    object [ "session" .= s, "context" .= ctx
+  FlowOpened s ctx strict ->
+    object [ "flow" .= s, "context" .= ctx
            , "strictness" .= strictnessText strict ]
-  SessionClosed s -> object [ "session" .= s ]
-  FocusServed s b -> object [ "session" .= s, "brick" .= b ]
+  FlowClosed s -> object [ "flow" .= s ]
+  FocusServed s b -> object [ "flow" .= s, "brick" .= b ]
   BrickStarted b -> object [ "brick" .= b ]
   BrickStopped b -> object [ "brick" .= b ]
   BrickCompleted b -> object [ "brick" .= b ]
@@ -331,11 +331,11 @@ parseBody ty o = case ty of
   "brick_superseded" ->
     BrickSuperseded <$> o .: "brick" <*> o .: "replacement"
       <*> o .: "title" <*> o .:? "reason"
-  "session_opened" ->
-    SessionOpened <$> o .: "session" <*> o .:? "context"
+  "flow_opened" ->
+    FlowOpened <$> o .: "flow" <*> o .:? "context"
       <*> enumField "strictness" parseStrictness o "strictness"
-  "session_closed" -> SessionClosed <$> o .: "session"
-  "focus_served" -> FocusServed <$> o .: "session" <*> o .: "brick"
+  "flow_closed" -> FlowClosed <$> o .: "flow"
+  "focus_served" -> FocusServed <$> o .: "flow" <*> o .: "brick"
   "brick_started" -> BrickStarted <$> o .: "brick"
   "brick_stopped" -> BrickStopped <$> o .: "brick"
   "brick_completed" -> BrickCompleted <$> o .: "brick"
@@ -399,6 +399,7 @@ parseBody ty o = case ty of
 currentVersionFor :: Text -> Int
 currentVersionFor = \case
   "brick_enriched" -> 2  -- v1 carried the weight as "energy"
+  "focus_served" -> 2    -- v1 named the flow field "session"
   _ -> 1
 
 eventToJSON :: Event -> Value

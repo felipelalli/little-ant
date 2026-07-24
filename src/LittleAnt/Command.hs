@@ -17,8 +17,8 @@ module LittleAnt.Command
   , cmdBreak
   , cmdUnify
   , cmdSupersede
-  , cmdSessionOpen
-  , cmdSessionClose
+  , cmdFlowOpen
+  , cmdFlowStop
   , cmdNext
   , cmdStart
   , cmdStop
@@ -48,7 +48,7 @@ module LittleAnt.Command
   , resolveEffect
   , resolveWait
   , resolveLink
-  , resolveSession
+  , resolveFlow
   , resolveRaw
   ) where
 
@@ -136,8 +136,8 @@ resolveWait st = resolveIn "wait" (stWaits st)
 resolveLink :: State -> Text -> Either CmdError SourceLink
 resolveLink st = resolveIn "source link" (stSourceLinks st)
 
-resolveSession :: State -> Text -> Either CmdError Session
-resolveSession st = resolveIn "session" (stSessions st)
+resolveFlow :: State -> Text -> Either CmdError Flow
+resolveFlow st = resolveIn "flow" (stFlows st)
 
 resolveRaw :: State -> Text -> Either CmdError RawInput
 resolveRaw st = resolveIn "raw input" (stRawInputs st)
@@ -307,37 +307,37 @@ cmdSupersede st ref title reason = do
 -- Focus loop
 -- --------------------------------------------------------------------------
 
--- rule SessionOpened
-cmdSessionOpen :: State -> Maybe Text -> Strictness -> Either CmdError [Body]
-cmdSessionOpen st ctx strict = do
-  let sid = derivedId "session" [nextSeq st]
-  pure [SessionOpened sid ctx strict]
+-- rule FlowOpened
+cmdFlowOpen :: State -> Maybe Text -> Strictness -> Either CmdError [Body]
+cmdFlowOpen st ctx strict = do
+  let sid = derivedId "flow" [nextSeq st]
+  pure [FlowOpened sid ctx strict]
 
--- rule SessionClosed
-cmdSessionClose :: State -> Maybe Text -> Either CmdError [Body]
-cmdSessionClose st mref = do
-  ses <- currentSession st mref
-  need (sesStatus ses == SessOpen) "session is already closed" Nothing
-  pure [SessionClosed (sesId ses)]
+-- rule FlowClosed
+cmdFlowStop :: State -> Maybe Text -> Either CmdError [Body]
+cmdFlowStop st mref = do
+  ses <- currentFlow st mref
+  need (floStatus ses == FloOpen) "flow is already stopped" Nothing
+  pure [FlowClosed (floId ses)]
 
-currentSession :: State -> Maybe Text -> Either CmdError Session
-currentSession st = \case
-  Just ref -> resolveSession st ref
-  Nothing -> case latestOpenSession st of
+currentFlow :: State -> Maybe Text -> Either CmdError Flow
+currentFlow st = \case
+  Just ref -> resolveFlow st ref
+  Nothing -> case latestOpenFlow st of
     Just s -> Right s
-    Nothing -> Left $ CmdError "no_open_session"
-      "no open focus session"
-      (Just "run: la session open [--context C] [--strictness prefer]")
+    Nothing -> Left $ CmdError "no_open_flow"
+      "no open focus flow"
+      (Just "run: la flow open [--context C] [--strictness prefer]")
 
 -- rule FocusServed
 cmdNext
   :: Config -> State -> Maybe Text
   -> Either CmdError ([Body], Either NoChoice Choice)
 cmdNext cfg st mref = do
-  ses <- currentSession st mref
+  ses <- currentFlow st mref
   case selectNext cfg st ses of
     Right choice ->
-      pure ([FocusServed (sesId ses) (bId (chBrick choice))], Right choice)
+      pure ([FocusServed (floId ses) (bId (chBrick choice))], Right choice)
     Left nc -> pure ([], Left nc)
 
 -- rule BrickStarted

@@ -26,7 +26,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import LittleAnt.Event
 import LittleAnt.Types
-  (parseAtomicity, parseAuthor, parseKind, parseMode)
+  (parseAtomicity, parseAuthor, parseKind, parseMode, parseStrictness)
 
 -- | Upcasters for shapes no longer written, keyed by wire-side
 -- @(type, v)@. Example: when @session_opened@ becomes @flow_opened@, the
@@ -47,6 +47,15 @@ legacyUpcasters =
           <*> optEnumField "atomicity" parseAtomicity o "atomicity"
           <*> o .:? "estimate_hours"
           <*> optEnumField "estimate_by" parseAuthor o "estimate_by" )
+  -- session -> flow rename, 2026-07-24
+  , ( ("session_opened", 1)
+    , \o ->
+        FlowOpened <$> o .: "session" <*> o .:? "context"
+          <*> enumField "strictness" parseStrictness o "strictness" )
+  , ( ("session_closed", 1)
+    , \o -> FlowClosed <$> o .: "session" )
+  , ( ("focus_served", 1)  -- v1 named the flow field "session"
+    , \o -> FocusServed <$> o .: "session" <*> o .: "brick" )
   ]
 
 type LegacyTable = [((Text, Int), Object -> Parser Body)]

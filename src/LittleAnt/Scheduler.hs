@@ -52,20 +52,20 @@ contextMatches (Just hint) b = case bContext b of
 -- | Arrange ordered candidates according to the session's context
 -- strictness. Returns the arranged list; for @require@ non-matching
 -- candidates are removed entirely.
-arrangeByContext :: Session -> [Brick] -> [Brick]
-arrangeByContext ses ordered = case sesStrictness ses of
+arrangeByContext :: Flow -> [Brick] -> [Brick]
+arrangeByContext ses ordered = case floStrictness ses of
   SIgnore -> ordered
   SPrefer ->
     let (matching, rest) = partition (contextMatches hint) ordered
      in matching ++ rest
-  SRequire -> case sesContextHint ses of
+  SRequire -> case floContextHint ses of
     Nothing -> ordered
     Just _ -> filter (contextMatches hint) ordered
   where
-    hint = sesContextHint ses
+    hint = floContextHint ses
 
 -- | Pick the next focus. Deterministic given config, state and session.
-selectNext :: Config -> State -> Session -> Either NoChoice Choice
+selectNext :: Config -> State -> Flow -> Either NoChoice Choice
 selectNext cfg st ses
   | null front = Left FrontierEmpty
   | null arranged = Left ContextExcludedAll
@@ -79,12 +79,12 @@ selectNext cfg st ses
     window = max 1 (cfgForegroundWindow cfg)
     background = drop window arranged
     ratio = cfgBackgroundServeRatio cfg
-    serveNo = sesServeCount ses + 1
+    serveNo = floServeCount ses + 1
     backgroundTurn = ratio > 0 && serveNo `mod` ratio == 0
     -- anti-starvation: the most neglected background brick first
     aged = sortOn (\b -> (bLastActivityAt b, bCreatedSeq b)) background
     choice b queue = Choice
       { chBrick = b
       , chQueue = queue
-      , chContextMatched = contextMatches (sesContextHint ses) b
+      , chContextMatched = contextMatches (floContextHint ses) b
       }

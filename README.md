@@ -86,7 +86,7 @@ Sanity check without an agent:
 ```sh
 la feed "my first brick" && la extract <raw> --seed "my first brick"
 la promote <ref> && la ready <ref>
-la session open && la next
+la flow open && la next
 ```
 
 ## Core concepts
