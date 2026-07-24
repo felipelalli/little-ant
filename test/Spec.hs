@@ -24,7 +24,8 @@ import LittleAnt.Event
 import LittleAnt.Ids
 import LittleAnt.Order
 import LittleAnt.Render
-  (renderCsv, renderOrg, renderTable, renderTaskJuggler, renderTree)
+  (renderCsv, renderHtml, renderOrg, renderTable, renderTaskJuggler,
+   renderTree)
 import LittleAnt.Scheduler
 import LittleAnt.State
 import LittleAnt.Store
@@ -738,6 +739,28 @@ renderTests = testGroup "render projections"
           hw = brickByTitle st' "Hello, world"
       assertBool "comma title is quoted"
         (",\"Hello, world\"," `T.isInfixOf` renderCsv st' [hw])
+
+  , testCase "html: self-contained, escaped, interactive vs static" $ do
+      let p1 = brickByTitle renderState "Part one"
+          st = step t0 renderState
+                 (Right [BrickDescribed (bId p1) "Uses <b>bold</b> & \"q\""])
+          p2 = brickByTitle st "Part two"
+          dyn = renderHtml st t0 True
+          sta = renderHtml st t0 False
+      assertBool "full document" ("<!doctype html>" `T.isInfixOf` dyn)
+      assertBool "no external requests"
+        (not ("http://" `T.isInfixOf` dyn)
+          && not ("https://" `T.isInfixOf` dyn))
+      assertBool "interactive folds the description behind <details>"
+        ("<details><summary>description</summary>" `T.isInfixOf` dyn)
+      assertBool "static expands the description"
+        (not ("<details>" `T.isInfixOf` sta)
+          && ("Uses &lt;b&gt;bold&lt;/b&gt; &amp; &quot;q&quot;"
+                `T.isInfixOf` sta))
+      assertBool "dep pointer links to the dependent's anchor"
+        (("href=\"#b-" <> shortId (bId p2)) `T.isInfixOf` dyn)
+      assertBool "blocked chip links back to the blocker"
+        (("href=\"#b-" <> shortId (bId p1)) `T.isInfixOf` dyn)
 
   , testCase "a closed parent re-roots its children" $ do
       let st = renderState

@@ -381,7 +381,7 @@ pCmd = hsubparser $ mconcat
       (progDesc "Fire due temporal rules explicitly (every command auto-ticks)")
   , command "render" $ info
       (CRender <$> strOption (long "format" <> value "md"
-                              <> metavar "md|org"
+                              <> metavar "md|org|html|html-static"
                               <> help "projection format (default md)"))
       (progDesc "Render human-readable projections of the truth")
   , command "events" $ info
@@ -790,6 +790,12 @@ dispatch cfg now st = \case
     Right $ pureOut (toJSON True) "ticked"
   CRender fmt -> case fmt of
     "org" -> Right $ pureOut (toJSON (renderOrg st)) (renderOrg st)
+    "html" ->
+      let h = renderHtml st now True
+       in Right $ pureOut (toJSON h) h
+    "html-static" ->
+      let h = renderHtml st now False
+       in Right $ pureOut (toJSON h) h
     _ -> Right $ pureOut (toJSON (renderMarkdown st)) (renderMarkdown st)
   CEvents mtail ->
     Right $ pureOut
