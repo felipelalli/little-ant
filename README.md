@@ -345,11 +345,11 @@ Terse by default; depth on demand. Single letters, two consistent namespaces:
 
 | Commands | Answers | Skip reasons |
 |---|---|---|
-| `x` next · `s` skip · `b` break · `u` unify · `d` delegate · `c` capture · `q` questions | `y` yes · `n` no · `l` later (absolute dates) | `h v p w t m k a` (table above) |
+| `x` next · `s` skip · `b` break · `u` unify · `d` done · `g` delegate · `c` capture · `q` questions | `y` yes · `n` no · `l` later (absolute dates) | `h v p w t m k a` (table above) |
 
-- `!` marks the AI-suggested default; typing `!` alone accepts it. When the AI has no
+- `*` marks the AI-suggested default; typing `*` alone accepts it. When the AI has no
   basis to guess, there is no default: it doesn't bluff.
-- `?` is universal: dunno / more info / hints ("help me out here"). Like `!`, it is
+- `?` is universal: dunno / more info / hints ("help me out here"). Like `*`, it is
   global and never listed in menus.
 - With a question pending, a bare letter is an *answer*; a whole word is always a
   *command* (`next` works even where `n` means "no").
@@ -366,22 +366,22 @@ A session, at real size:
 🐜 little ant · Fri 10:07 · frontier 9 · inbox 4 · wip 0 · follow-ups: 1 due
 
 ant > João has had "Review Gateway contract draft" for 6 days (nudged Mon). Nudge again?
-      ![y] · [n] · [l]ater (Mon, Jul 13)
+      *[y] · [n] · [l]ater (Mon, Jul 13)
 me  > y
 ant > Draft (Google Chat → João):
       ┃ Oi João! Conseguiu avançar na revisão da minuta? Qualquer bloqueio me avisa.
-      ![y] send · [e]dit · [n] cancel
+      *[y] send · [e]dit · [n] cancel
 me  > y
 ant > Sent ✓ (nudge #2, next: Wed, Jul 15)
 
 ant > Focus: "Spec: reconciliation endpoint — error cases" · acme/api · spec · ~2h (est: ai)
-      ![y] start · [s]kip · [b]reak
+      *[y] start · [d]one · [s]kip · [b]reak
 me  > s
 ant > Skip: why?
       [h]ard · [v]ague · [p] not priority · [w]aiting · [t]ired · [m]eh · [k]ill · [a]lternatives
 me  > v
 ant > Vague ✓. Clarify now with me? (~2 min, I'll draft "done criteria" from #412)
-      ![y] now · [l]ater → spawns "Clarify: error cases" (keeps its slot), then next focus
+      *[y] now · [l]ater → spawns "Clarify: error cases" (keeps its slot), then next focus
 ```
 
 ## Personalization & vocabulary governance

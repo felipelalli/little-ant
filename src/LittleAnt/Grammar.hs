@@ -19,7 +19,8 @@ namespaces :: [(Text, [(Text, Text)])]
 namespaces =
   [ ( "commands"
     , [ ("x", "next"), ("s", "skip"), ("b", "break"), ("u", "unify")
-      , ("d", "delegate"), ("c", "capture"), ("q", "questions")
+      , ("d", "done"), ("g", "delegate"), ("c", "capture")
+      , ("q", "questions")
       ]
     )
   , ( "answers"
@@ -37,7 +38,7 @@ namespaces =
   ]
 
 markers :: [(Text, Text)]
-markers = [ ("!", "suggested default; a bare ! accepts it")
+markers = [ ("*", "suggested default; a bare * accepts it")
           , ("?", "universal: dunno / more info / help me decide")
           ]
 

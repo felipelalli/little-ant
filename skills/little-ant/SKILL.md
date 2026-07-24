@@ -51,19 +51,20 @@ Terse by default; depth on demand. Options are single letters:
   the markers. Load it once per session; never invent letters, layouts or
   ad-hoc menus (no numbered lists with positional answers). Current
   namespaces: commands `x` next · `s` skip · `b` break · `u` unify ·
-  `d` delegate · `c` capture · `q` questions. Answers: `y` yes · `n` no ·
-  `l` later (always show the absolute date: "(Mon, Jul 13)"). Triage:
-  `p` promote · `i` incubate · `k` kill.
+  `d` done · `g` delegate · `c` capture · `q` questions. Answers: `y` yes ·
+  `n` no · `l` later (always show the absolute date: "(Mon, Jul 13)").
+  Triage: `p` promote · `i` incubate · `k` kill.
 - **Three-layer rendering**: every `--json` envelope carries a `human`
   field — the exact line the CLI would print. Surface each call as:
-  1. `$ la <args>` — the exact `la` invocation, all flags included
-     (`--json` too); shell plumbing (pipes to formatters) may be omitted,
-     the `la` call itself may not be abbreviated. Never paste the raw JSON;
+  1. `$ la <args>` — the `la` invocation with every behavior-changing
+     parameter shown (refs, --reason, --context, ...); plumbing flags
+     (`--json`) and shell pipes to formatters may be omitted. Never paste
+     the raw JSON;
   2. the CLI's `human` line, verbatim;
   3. your own interpretation/proposal paragraph, clearly yours.
   Deterministic surface first, interpretation second. Never invent terms,
   layouts or shortcut letters on top of it.
-- `!` marks your suggested default; a bare `!` from the user accepts it.
+- `*` marks your suggested default; a bare `*` from the user accepts it.
   When you have no basis to guess, show no default — never bluff.
 - `?` is universal and never listed: dunno / more info / help me decide.
   On a comparison, `?` means: collect proxies (complexity, urgency,
@@ -86,7 +87,7 @@ Terse by default; depth on demand. Options are single letters:
       `[y]` keep · stopped → `la stop` · finished → `la done` · stuck →
       treat as a disguised skip.
    b. **Follow-ups due** (`nudges_pending`): draft the nudge message in the
-      recipient's language, SHOW IT IN FULL, then `![y]` send → `la nudge
+      recipient's language, SHOW IT IN FULL, then `*[y]` send → `la nudge
       approve <id>` **and deliver it via the user's integration**; `[n]` →
       `la nudge decline <id>`; outcomes → `la delegation done|refused|abandoned`.
    c. **Delegations to notify** (`delegations_to_notify`): same preview flow
@@ -96,7 +97,8 @@ Terse by default; depth on demand. Options are single letters:
    e. **Focus**: `la next` (open a session first if needed: `la session open
       [--context C] [--strictness prefer]` — pick context from calendar/day
       shape; that's your policy call). Render:
-      `Focus: "<title>" · <context> · ~<estimate> — ![y] start · [s]kip · [b]reak`
+      `Focus: "<title>" · <context> · ~<estimate> — *[y] start · [d]one · [s]kip · [b]reak`
+      ([d] = "already done": the work happened outside the system)
       `y` → `la start <ref>`.
 3. Drip maintenance: if `stale_comparisons` or inbox is fat, offer — don't
    push — "want a 2-minute question round?" (`q`).
@@ -134,7 +136,7 @@ pattern to a new canonical reason (a change to Little Ant itself).
   direction) — expect exit code 2 and move on.
 - `la order` shows the frontier's total order; `la order --questions
   [--limit N]` yields the most informative pairs. Ask as
-  `"X" before "Y"? ![y] · [n] · [?]` — drip 1–2 per session, batch only when
+  `"X" before "Y"? *[y] · [n] · [?]` — drip 1–2 per session, batch only when
   the human has energy (or exactly when they skip with `tired`).
 - **Placing one brick** (new arrival, or after a priority challenge):
   `la order --place <ref>` runs binary insertion — it returns the single
