@@ -19,7 +19,7 @@ module LittleAnt.Types
   , SessionStatus (..)
   , RawStatus (..)
     -- * Enum text mappings
-  , stageText, stageEmoji, parseStage
+  , stageText, stageEmoji, brickOneLiner, parseStage
   , kindText, parseKind
   , modeText, parseMode
   , atomicityText, parseAtomicity
@@ -49,7 +49,7 @@ module LittleAnt.Types
 
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import LittleAnt.Ids (Id)
+import LittleAnt.Ids (Id, shortId)
 
 -- --------------------------------------------------------------------------
 -- Enums
@@ -125,6 +125,13 @@ stageEmoji = \case
   Done -> "✅"
   Dropped -> "❌"
   Superseded -> "🔄"
+
+-- | The canonical brick one-liner: fixed-width id first (aligns and
+-- survives proportional fonts), then stage emoji and quoted title.
+brickOneLiner :: Brick -> Text
+brickOneLiner b =
+  "#" <> shortId (bId b) <> " " <> stageEmoji (bStage b)
+    <> " \"" <> bTitle b <> "\""
 
 parseStage :: Text -> Maybe Stage
 parseStage = byText stageTable

@@ -92,7 +92,7 @@ data Cmd
   | CSourceCheck Text Text
   | CSourceResolve Text Text
   | CSourceLs
-  | CLs (Maybe Text) Bool
+  | CLs (Maybe Text) Bool Bool Bool Text
   | CShow Text
   | CStatus
   | CGrammar
@@ -361,7 +361,12 @@ pCmd = hsubparser $ mconcat
   , command "ls" $ info
       (CLs
         <$> optional (strOption (long "stage" <> metavar "STAGE"))
-        <*> switch (long "frontier" <> help "servable frontier only"))
+        <*> switch (long "frontier" <> help "servable frontier only")
+        <*> switch (long "tree" <> help "shorthand for --format tree")
+        <*> switch (long "table" <> help "shorthand for --format table")
+        <*> strOption (long "format" <> value "oneline"
+              <> metavar "oneline|tree|table|csv"
+              <> help "human output shape (default oneline)"))
       (progDesc "List bricks")
   , command "show" $ info
       (CShow <$> textArg "BRICK" "brick ref")
@@ -553,8 +558,8 @@ dispatch cfg now st = \case
   CRawLs ->
     Right $ pureOut
       (toJSON (map rawView (Map.elems (stRawInputs st))))
-      (T.unlines [ "🪨 \"" <> T.take 60 (rawContent r) <> "\" #"
-                     <> shortId (rawId r)
+      (T.unlines [ "#" <> shortId (rawId r) <> " 🪨 \""
+                     <> T.take 60 (rawContent r) <> "\""
                      <> (if rawStatus r == RawExtracted then " (extracted)" else "")
                  | r <- Map.elems (stRawInputs st) ])
   CExtract rawRef titles -> do
@@ -722,24 +727,45 @@ dispatch cfg now st = \case
     Right $ pureOut
       (toJSON (map (linkView st) (Map.elems (stSourceLinks st))))
       "source links listed (use --json)"
-  CLs mstage frontierOnly -> do
-    bricks <-
-      if frontierOnly
-        then Right (frontier st)
-        else case mstage of
-          Nothing -> Right
-            (sortOn bCreatedSeq
-              [ b | b <- Map.elems (stBricks st), isOpen b ])
-          Just sT -> do
-            s <- parseEnum "stage" parseStage sT
-            Right (sortOn bCreatedSeq
-              [ b | b <- Map.elems (stBricks st), bStage b == s ])
-    pure $ pureOut
-      (toJSON (map (brickView st) bricks))
-      (T.unlines
-        [ stageEmoji (bStage b) <> " \"" <> bTitle b <> "\" #"
-            <> shortId (bId b)
-        | b <- bricks ])
+  CLs mstage frontierOnly tree table fmtOpt -> do
+    fmt <- case [ f | (True, f) <- [ (tree, "tree"), (table, "table")
+                                   , (fmtOpt /= "oneline", fmtOpt) ] ] of
+      [] -> Right ("oneline" :: Text)
+      [f]
+        | f `elem` ["oneline", "tree", "table", "csv"] -> Right f
+        | otherwise -> Left (CmdError "invalid"
+            ("unknown format: " <> f)
+            (Just "formats: oneline · tree · table · csv"))
+      _ -> Left (CmdError "invalid"
+            "pick one output format"
+            (Just "--tree/--table are shorthands for --format"))
+    if fmt == "tree"
+      then
+        if frontierOnly || mstage /= Nothing
+          then Left (CmdError "invalid"
+                 "tree renders the whole open forest"
+                 (Just "drop --stage/--frontier"))
+          else Right $ pureOut
+                 (toJSON (map (treeView st) (openForest st)))
+                 (renderTree st)
+      else do
+        bricks <-
+          if frontierOnly
+            then Right (frontier st)
+            else case mstage of
+              Nothing -> Right
+                (sortOn bCreatedSeq
+                  [ b | b <- Map.elems (stBricks st), isOpen b ])
+              Just sT -> do
+                s <- parseEnum "stage" parseStage sT
+                Right (sortOn bCreatedSeq
+                  [ b | b <- Map.elems (stBricks st), bStage b == s ])
+        pure $ pureOut
+          (toJSON (map (brickView st) bricks))
+          (case fmt of
+             "table" -> renderTable st bricks
+             "csv" -> renderCsv st bricks
+             _ -> T.unlines (map brickOneLiner bricks))
   CShow r -> do
     b <- resolveBrick st r
     pure $ pureOut
@@ -754,8 +780,7 @@ dispatch cfg now st = \case
                            | d <- Map.elems (stDelegations st)
                            , dBrick d == bId b ]
         ])
-      (stageEmoji (bStage b) <> " \"" <> bTitle b <> "\" #"
-        <> shortId (bId b))
+      (brickOneLiner b)
   CStatus ->
     Right $ pureOut (statusView st) (statusHuman st)
   CGrammar ->

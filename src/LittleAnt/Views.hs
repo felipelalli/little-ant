@@ -2,6 +2,7 @@
 module LittleAnt.Views
   ( brickSummary
   , brickView
+  , treeView
   , partyView
   , skipView
   , waitView
@@ -36,6 +37,15 @@ brickSummary b = obj $ idFields (bId b) ++
   , ("stage", toJSON (stageText (bStage b)))
   , ("kind", toJSON (kindText <$> bKind b))
   , ("context", toJSON (bContext b))
+  ]
+
+-- | The open forest, nested: each node is the full brick view plus its
+-- open children (composition axis; the dependency DAG is already in each
+-- brick's blockers field).
+treeView :: State -> BrickTree -> Value
+treeView st (BrickTree b children) = obj
+  [ ("brick", brickView st b)
+  , ("children", toJSON (map (treeView st) children))
   ]
 
 brickView :: State -> Brick -> Value

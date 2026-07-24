@@ -74,10 +74,19 @@ Terse by default; depth on demand. Options are single letters:
   option would run first, then ONE terse option line in canonical
   letters — never a menu with prose baked into the labels.
 - **Brick one-liners**: the core renders a brick as
-  `<stage emoji> "title" #shortid` (🪨 raw · 🌱 seed · 🫡 committed ·
-  🧱 ready · 👷 wip · ✅ done · ❌ dropped · 🔄 superseded). Use the same
-  shape whenever you reference a brick in your own commentary — one
-  visual language, never bracketed `[stage]` tags or bare ids.
+  `#shortid <stage emoji> "title"` — fixed-width id first (🪨 raw ·
+  🌱 seed · 🫡 committed · 🧱 ready · 👷 wip · ✅ done · ❌ dropped ·
+  🔄 superseded). Use the same shape whenever you reference a brick in
+  your own commentary — one visual language, never bracketed `[stage]`
+  tags or bare ids.
+- **Structural views come from the core, not from you.** For an overview
+  ask the CLI and show its `human` output verbatim: `la ls --tree` (open
+  forest; `::` per indent level; composition nests bare, dependency edges
+  are one-line `→` pointers under each blocker, duplicated per edge),
+  `la ls --format table|csv [--stage S|--frontier]` (light aligned
+  columns / RFC-4180), `la render --format org` (nested outline with
+  :BLOCKED_BY:). Never hand-draw your own tables or trees of bricks —
+  if a projection is missing, that is a brick, not an improvisation.
 - **Channel surfaces**: when the session runs over a channel the manifest
   binds (e.g. Telegram), dialogs travel as messages whose buttons ARE the
   canonical letters: a reply keyboard (`ReplyKeyboardMarkup`) built from
@@ -241,6 +250,7 @@ la source attach R --type github_issue|file|chat|... --url URL ·
 la source check L --fingerprint F · la source resolve L --fingerprint F
 la party add "Name" --type person|ai_agent|company|area
 la order --place R · la export tj [--default-effort H]
-la ls [--frontier|--stage S] · la show R · la status · la render [--format org]
+la ls [--frontier|--stage S] [--format oneline|table|csv] · la ls --tree
+la show R · la status · la render [--format org]
 la grammar (canonical letters/namespaces — load once per session)
 ```

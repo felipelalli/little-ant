@@ -13,6 +13,9 @@ module LittleAnt.State
   , isOpen
   , openChildren
   , isLeaf
+  , BrickTree (..)
+  , openForest
+  , openBlockers
   , brickWaits
   , isWaiting
   , brickBlockers
@@ -458,6 +461,31 @@ openChildren st b =
 
 isLeaf :: State -> Brick -> Bool
 isLeaf st = null . openChildren st
+
+-- | The open bricks as a forest along the composition axis (parent/child
+-- from break). A child whose parent is closed roots itself. Siblings and
+-- roots keep creation order.
+data BrickTree = BrickTree Brick [BrickTree]
+  deriving (Eq, Show)
+
+openForest :: State -> [BrickTree]
+openForest st = map grow roots
+  where
+    open = sortOn bCreatedSeq [ b | b <- Map.elems (stBricks st), isOpen b ]
+    openIds = Set.fromList (map bId open)
+    rootish b = case bParent b of
+      Nothing -> True
+      Just p -> not (Set.member p openIds)
+    roots = filter rootish open
+    grow b = BrickTree b [ grow c | c <- open, bParent c == Just (bId b) ]
+
+-- | Blockers (dependency DAG) that are still open, in creation order.
+openBlockers :: State -> Brick -> [Brick]
+openBlockers st b = sortOn bCreatedSeq
+  [ blocker
+  | bid <- brickBlockers st b
+  , Just blocker <- [Map.lookup bid (stBricks st)]
+  , isOpen blocker ]
 
 brickWaits :: State -> Brick -> [Wait]
 brickWaits st b = [ w | w <- Map.elems (stWaits st), wBrick w == bId b ]

@@ -23,7 +23,8 @@ import LittleAnt.Config
 import LittleAnt.Event
 import LittleAnt.Ids
 import LittleAnt.Order
-import LittleAnt.Render (renderTaskJuggler)
+import LittleAnt.Render
+  (renderCsv, renderOrg, renderTable, renderTaskJuggler, renderTree)
 import LittleAnt.Scheduler
 import LittleAnt.State
 import LittleAnt.Store
@@ -85,6 +86,7 @@ main = defaultMain $ testGroup "little-ant"
   , tickTests
   , identityTests
   , versioningTests
+  , renderTests
   , foldProperties
   ]
 
@@ -663,6 +665,102 @@ identityTests = testGroup "identity"
   ]
 
 -- --------------------------------------------------------------------------
+-- Render projections: org outline, ls tree, tables
+-- --------------------------------------------------------------------------
+
+-- | Parent broken into two parts (part two depends on part one, which is
+-- ready and servable), plus a loose seed.
+renderState :: State
+renderState =
+  let s1 = step t0 emptyState (cmdCapture emptyState "Parent work")
+      parent = brickByTitle s1 "Parent work"
+      s2 = step t0 s1 (cmdPromote s1 (ref parent))
+      s3 = step t0 s2 (cmdBreak s2 (ref parent) ["Part one", "Part two"])
+      p1 = brickByTitle s3 "Part one"
+      p2 = brickByTitle s3 "Part two"
+      s4 = step t0 s3 (cmdDepAdd s3 (ref p2) (ref p1))
+      s5 = step t0 s4 (cmdCapture s4 "Loose seed")
+   in step t0 s5 (cmdReady s5 (ref p1))
+
+renderTests :: TestTree
+renderTests = testGroup "render projections"
+  [ testCase "org outline nests children under their parent" $ do
+      let org = renderOrg renderState
+      assertBool "parent at level 1" ("* TODO Parent work" `T.isInfixOf` org)
+      assertBool "servable child is NEXT at level 2"
+        ("** NEXT Part one" `T.isInfixOf` org)
+      assertBool "blocked child is TODO at level 2"
+        ("** TODO Part two" `T.isInfixOf` org)
+      assertBool "seeds appear as IDEA" ("* IDEA Loose seed" `T.isInfixOf` org)
+
+  , testCase "org annotates the dependency DAG per entry" $ do
+      let st = renderState
+          p1 = brickByTitle st "Part one"
+          p2 = brickByTitle st "Part two"
+      assertBool "blocked entry carries BLOCKED_BY"
+        ((":BLOCKED_BY: #" <> shortId (bId p1)) `T.isInfixOf` renderOrg st)
+      assertBool "unblocked entries do not"
+        (not ((":BLOCKED_BY: #" <> shortId (bId p2))
+                `T.isInfixOf` renderOrg st))
+
+  , testCase "ls tree: colon indentation, dep pointers, id-front one-liners" $ do
+      let st = renderState
+          p1 = brickByTitle st "Part one"
+          p2 = brickByTitle st "Part two"
+          seed = brickByTitle st "Loose seed"
+          out = renderTree st
+      assertBool "child one-liner colon-indented under the parent"
+        (("\n:: #" <> shortId (bId p1) <> " 🧱 \"Part one\"")
+           `T.isInfixOf` out)
+      assertBool "dependency edge is a one-line pointer under the blocker"
+        (("\n:::: → #" <> shortId (bId p2) <> " 🫡 \"Part two\"")
+           `T.isInfixOf` out)
+      assertBool "the blocked brick keeps its composition slot too"
+        (("\n:: #" <> shortId (bId p2)) `T.isInfixOf` out)
+      assertBool "roots start at column zero"
+        (("\n#" <> shortId (bId seed) <> " 🌱 \"Loose seed\"")
+           `T.isInfixOf` out)
+      assertBool "no trailing blocker annotations"
+        (not ("⛔" `T.isInfixOf` out))
+
+  , testCase "csv escapes and keeps full titles" $ do
+      let st = renderState
+          p1 = brickByTitle st "Part one"
+          p2 = brickByTitle st "Part two"
+          out = renderCsv st [p1, p2]
+      assertBool "header row"
+        ("id,stage,title,context,blocked_by" `T.isInfixOf` out)
+      assertBool "plain row"
+        ((shortId (bId p1) <> ",ready,Part one,,") `T.isInfixOf` out)
+      assertBool "blocked_by cell filled"
+        ((",#" <> shortId (bId p1)) `T.isInfixOf` out)
+      let st' = step t0 st (cmdCapture st "Hello, world")
+          hw = brickByTitle st' "Hello, world"
+      assertBool "comma title is quoted"
+        (",\"Hello, world\"," `T.isInfixOf` renderCsv st' [hw])
+
+  , testCase "a closed parent re-roots its children" $ do
+      let st = renderState
+          parent = brickByTitle st "Parent work"
+          st' = step t0 st (cmdKill st (ref parent))
+      assertBool "child moves to level 1"
+        ("* NEXT Part one" `T.isInfixOf` renderOrg st')
+
+  , testCase "table aligns light columns without box-drawing" $ do
+      let st = renderState
+          p1 = brickByTitle st "Part one"
+          p2 = brickByTitle st "Part two"
+          out = renderTable st [p1, p2]
+      assertBool "header row present" ("id       stage" `T.isInfixOf` out)
+      assertBool "dash separator, no box-drawing"
+        ("-------  " `T.isInfixOf` out && not ("│" `T.isInfixOf` out))
+      assertBool "row shows stage as plain word"
+        ((shortId (bId p1) <> "  ready") `T.isInfixOf` out)
+      assertBool "blocked_by column filled"
+        (("#" <> shortId (bId p1)) `T.isInfixOf` out)
+  ]
+
+-- --------------------------------------------------------------------------
 -- Fold properties
 -- --------------------------------------------------------------------------
 
@@ -758,8 +856,8 @@ versioningTests = testGroup "event log versioning"
       case r of
         Left e -> assertFailure (T.unpack e)
         Right files -> [ n | (_, n, _) <- files ] @?= [1]
-      after <- BS.readFile (eventsPath d)
-      after @?= before
+      untouched <- BS.readFile (eventsPath d)
+      untouched @?= before
       bakExists <- doesFileExist (eventsPath d <> ".v1.bak")
       bakExists @?= False
       removePathForcibly d
