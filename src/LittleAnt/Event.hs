@@ -8,7 +8,8 @@ module LittleAnt.Event
   ( Event (..)
   , Body (..)
   , eventToJSON
-  , eventFromJSON
+  , parseBody
+  , currentVersionFor
   , computeEventId
   , bodyType
   ) where
@@ -389,23 +390,20 @@ parseBody ty o = case ty of
       <*> o .: "readied_count"
   other -> fail (T.unpack ("unknown event type: " <> other))
 
+-- | The version stamped on newly written events, PER event type. Bump a
+-- type here — and add an upcaster for its old shape in "LittleAnt.Upcast" —
+-- on a breaking change; additive changes need no bump.
+currentVersionFor :: Text -> Int
+currentVersionFor _ = 1
+
 eventToJSON :: Event -> Value
 eventToJSON Event {..} = object
-  [ "v" .= (1 :: Int)
+  [ "v" .= currentVersionFor (bodyType evBody)
   , "id" .= evId
   , "at" .= evAt
   , "type" .= bodyType evBody
   , "data" .= bodyData evBody
   ]
-
-eventFromJSON :: Value -> Parser Event
-eventFromJSON = withObject "event" $ \o -> do
-  eid <- o .: "id"
-  at <- o .: "at"
-  ty <- o .: "type"
-  d <- o .: "data"
-  body <- withObject "data" (parseBody ty) d
-  pure (Event eid at body)
 
 -- | Intrinsic event id: hash of the canonical serialised content (without
 -- the id field itself). Position-independent, so future sync can treat the

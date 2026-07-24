@@ -53,7 +53,9 @@ Terse by default; depth on demand. Options are single letters:
   namespaces: commands `x` next · `s` skip · `b` break · `u` unify ·
   `d` done · `g` delegate · `c` capture · `q` questions. Answers: `y` yes ·
   `n` no · `l` later (always show the absolute date: "(Mon, Jul 13)").
-  Triage: `p` promote · `s` skip · `k` kill. One gesture, one letter:
+  Triage: `p` promote · `s` skip · `k` kill · `d` done (already finished
+  outside; the operator chains promote+done until the core grows
+  done-from-any-stage). One gesture, one letter:
   `s` means "pass" in every dialog. Mechanically a triage skip just
   leaves the seed snoozing — no reason is asked (seeds carry no
   obligation; the skip taxonomy applies to served work only), and the
@@ -67,7 +69,10 @@ Terse by default; depth on demand. Options are single letters:
   2. the CLI's `human` line, verbatim;
   3. your own interpretation/proposal paragraph, clearly yours.
   Deterministic surface first, interpretation second. Never invent terms,
-  layouts or shortcut letters on top of it.
+  layouts or shortcut letters on top of it. Proposals follow the same
+  shape: when options imply actions, show the exact command(s) each
+  option would run first, then ONE terse option line in canonical
+  letters — never a menu with prose baked into the labels.
 - `*` marks your suggested default; a bare `*` from the user accepts it.
   When you have no basis to guess, show no default — never bluff.
 - `?` is universal and never listed: dunno / more info / help me decide.

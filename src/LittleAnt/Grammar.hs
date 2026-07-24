@@ -33,7 +33,7 @@ namespaces =
       ]
     )
   , ( "triage"
-    , [ ("p", "promote"), ("s", "skip"), ("k", "kill") ]
+    , [ ("p", "promote"), ("s", "skip"), ("k", "kill"), ("d", "done") ]
     )
   ]
 

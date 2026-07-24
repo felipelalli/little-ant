@@ -96,6 +96,7 @@ data Cmd
   | CShow Text
   | CStatus
   | CGrammar
+  | CMigrate
   | CTick
   | CRender Text
   | CEvents (Maybe Int)
@@ -369,6 +370,8 @@ pCmd = hsubparser $ mconcat
       (progDesc "Everything the operator needs for the opening line")
   , command "grammar" $ info (pure CGrammar)
       (progDesc "The canonical interaction grammar: namespaces, letters, markers")
+  , command "migrate" $ info (pure CMigrate)
+      (progDesc "Rewrite log + archives to the current wire format (admin; backs up originals)")
   , command "tick" $ info (pure CTick)
       (progDesc "Fire due temporal rules explicitly (every command auto-ticks)")
   , command "render" $ info
@@ -402,6 +405,39 @@ main :: IO ()
 main = do
   (g, cmd) <- execParser opts
   dir <- resolveDataDir (gDataDir g)
+  case cmd of
+    CMigrate -> runMigrate g dir
+    _ -> runNormal g dir cmd
+
+-- | @la migrate@ bypasses the normal replay/tick/dispatch pipeline: it is
+-- an offline admin operation on the log's REPRESENTATION, not a domain
+-- command — no auto-tick events are appended during a rewrite.
+runMigrate :: Global -> FilePath -> IO ()
+runMigrate g dir = do
+  r <- migrateLog dir (gDryRun g)
+  case r of
+    Left err -> do
+      emitError g CmdError
+        { ceCode = "migrate_failed"
+        , ceMessage = err
+        , ceHint = Just "nothing was rewritten; fix the log (or move the stale backup) and retry"
+        }
+      exitWith (ExitFailure 2)
+    Right files -> emit g "la" Out
+      { oResult = toJSON
+          [ object [ "file" .= f, "events" .= n, "backup" .= b ]
+          | (f, n, b) <- files ]
+      , oHuman = T.intercalate "\n"
+          [ "migrated " <> tshow n <> " events: " <> T.pack f
+              <> " (backup: " <> T.pack b <> ")"
+          | (f, n, b) <- files ]
+      , oEvents = []
+      , oWarnings = []
+      , oDryRun = gDryRun g
+      }
+
+runNormal :: Global -> FilePath -> Cmd -> IO ()
+runNormal g dir cmd = do
   cfgE <- loadConfigIO dir
   cfg <- case cfgE of
     Left e -> hPutStrLn stderr e >> exitWith (ExitFailure 1)
@@ -495,6 +531,8 @@ parseEnum what parse t = case parse t of
 
 dispatch :: Config -> UTCTime -> State -> Cmd -> Either CmdError Output
 dispatch cfg now st = \case
+  CMigrate -> Left (CmdError "internal"
+    "migrate is handled before the dispatch pipeline" Nothing)
   CPartyAdd name ptypeT -> do
     ptype <- parseEnum "party type" parsePartyType ptypeT
     bodies <- cmdPartyAdd st name ptype

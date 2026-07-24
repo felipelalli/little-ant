@@ -44,6 +44,7 @@ library
         LittleAnt.Views
         LittleAnt.Render
         LittleAnt.Grammar
+        LittleAnt.Upcast
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions:
@@ -108,6 +109,8 @@ test-suite little-ant-test
         aeson,
         bytestring,
         containers,
+        directory,
+        filepath,
         little-ant,
         tasty,
         tasty-hunit,

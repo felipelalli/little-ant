@@ -4,7 +4,11 @@
 -- end-to-end scenario — the README's simulated session — runs with no IO.
 module Main (main) where
 
-import Data.List (sort)
+import Data.Aeson (Value (..), object, (.:), (.=))
+import qualified Data.Aeson.KeyMap as KM
+import Data.Aeson.Types (parseEither)
+import qualified Data.ByteString as BS
+import Data.List (isInfixOf, sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust, isJust)
 import Data.Text (Text)
@@ -22,9 +26,15 @@ import LittleAnt.Order
 import LittleAnt.Render (renderTaskJuggler)
 import LittleAnt.Scheduler
 import LittleAnt.State
-import LittleAnt.Store (mkEvents)
+import LittleAnt.Store
+  (appendEvents, eventsPath, loadEvents, migrateLog, mkEvents)
 import LittleAnt.Tick (dueBodies)
 import LittleAnt.Types
+import LittleAnt.Upcast
+import System.Directory
+  (createDirectoryIfMissing, doesFileExist, getTemporaryDirectory,
+   removePathForcibly)
+import System.FilePath ((</>))
 
 t0 :: UTCTime
 t0 = UTCTime (fromGregorian 2026 7 10) 0
@@ -74,6 +84,7 @@ main = defaultMain $ testGroup "little-ant"
   , supersedeTests
   , tickTests
   , identityTests
+  , versioningTests
   , foldProperties
   ]
 
@@ -674,4 +685,82 @@ foldProperties = testGroup "fold properties"
                  (mkEvents t0 [BrickKilled ghost, BrickStarted ghost])
       Map.size (stBricks st) @?= 0
       stEventCount st @?= 2
+  ]
+
+-- --------------------------------------------------------------------------
+-- Event log versioning: the boundary in LittleAnt.Upcast plus la migrate
+-- --------------------------------------------------------------------------
+
+versioningTests :: TestTree
+versioningTests = testGroup "event log versioning"
+  [ testCase "round-trip through the version boundary preserves the event" $ do
+      let ev = one' (mkEvents t0 [BrickCaptured (Id "abc") "a brick"])
+      case parseEither eventFromJSONVersioned (eventToJSON ev) of
+        Left e -> assertFailure e
+        Right ev' -> ev' @?= ev
+  , testCase "reader requires the v field" $ do
+      let ev = one' (mkEvents t0 [BrickCaptured (Id "abc") "a brick"])
+          json = case eventToJSON ev of
+            Object o -> Object (KM.delete "v" o)
+            v -> v
+      case parseEither eventFromJSONVersioned json of
+        Left _ -> pure ()
+        Right _ -> assertFailure "expected failure without a v field"
+  , testCase "unknown version fails naming the event type" $ do
+      let ev = one' (mkEvents t0 [BrickCaptured (Id "abc") "a brick"])
+          json = case eventToJSON ev of
+            Object o -> Object (KM.insert "v" (Number 99) o)
+            v -> v
+      case parseEither eventFromJSONVersioned json of
+        Left e -> assertBool "error names the type"
+          ("brick_captured" `isInfixOf` e)
+        Right _ -> assertFailure "expected failure on unknown version"
+  , testCase "a legacy shape upcasts to the current form" $ do
+      let table =
+            [ ( ("proto_captured", 1)
+              , \o -> BrickCaptured <$> o .: "brick" <*> o .: "title" ) ]
+          json = object
+            [ "v" .= (1 :: Int), "id" .= ("x" :: Text), "at" .= t0
+            , "type" .= ("proto_captured" :: Text)
+            , "data" .= object
+                [ "brick" .= Id "abc", "title" .= ("old shape" :: Text) ]
+            ]
+      case parseEither (eventFromJSONWith table) json of
+        Left e -> assertFailure e
+        Right ev -> evBody ev @?= BrickCaptured (Id "abc") "old shape"
+  , testCase "migrate rewrites the hot log atomically with a backup" $ do
+      tmp <- getTemporaryDirectory
+      let d = tmp </> "little-ant-migrate-test"
+      removePathForcibly d
+      createDirectoryIfMissing True d
+      let evs = mkEvents t0 [ BrickCaptured (Id "b1") "one"
+                            , BrickStarted (Id "b1") ]
+      appendEvents d evs
+      r <- migrateLog d False
+      case r of
+        Left e -> assertFailure (T.unpack e)
+        Right files -> do
+          [ n | (_, n, _) <- files ] @?= [2]
+          bakExists <- doesFileExist (one' [ b | (_, _, b) <- files ])
+          bakExists @?= True
+          (evs', warns) <- loadEvents d
+          warns @?= []
+          map evId evs' @?= map evId evs
+      removePathForcibly d
+  , testCase "migrate --dry-run validates but writes nothing" $ do
+      tmp <- getTemporaryDirectory
+      let d = tmp </> "little-ant-migrate-dry-test"
+      removePathForcibly d
+      createDirectoryIfMissing True d
+      appendEvents d (mkEvents t0 [BrickCaptured (Id "b1") "one"])
+      before <- BS.readFile (eventsPath d)
+      r <- migrateLog d True
+      case r of
+        Left e -> assertFailure (T.unpack e)
+        Right files -> [ n | (_, n, _) <- files ] @?= [1]
+      after <- BS.readFile (eventsPath d)
+      after @?= before
+      bakExists <- doesFileExist (eventsPath d <> ".v1.bak")
+      bakExists @?= False
+      removePathForcibly d
   ]
