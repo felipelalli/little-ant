@@ -19,7 +19,7 @@ namespaces :: [(Text, [(Text, Text)])]
 namespaces =
   [ ( "commands"
     , [ ("x", "next"), ("s", "skip"), ("b", "break"), ("u", "unify")
-      , ("d", "done"), ("g", "delegate"), ("c", "capture")
+      , ("d", "done"), ("g", "delegate"), ("f", "feed")
       , ("q", "questions")
       ]
     )

@@ -84,7 +84,8 @@ messages, calendar sources, your contexts, UI language.
 Sanity check without an agent:
 
 ```sh
-la capture "my first brick" && la promote <ref> && la ready <ref>
+la feed "my first brick" && la extract <raw> --seed "my first brick"
+la promote <ref> && la ready <ref>
 la session open && la next
 ```
 
@@ -345,7 +346,7 @@ Terse by default; depth on demand. Single letters, two consistent namespaces:
 
 | Commands | Answers | Skip reasons |
 |---|---|---|
-| `x` next · `s` skip · `b` break · `u` unify · `d` done · `g` delegate · `c` capture · `q` questions | `y` yes · `n` no · `l` later (absolute dates) | `h v p w t m k a` (table above) |
+| `x` next · `s` skip · `b` break · `u` unify · `d` done · `g` delegate · `f` feed · `q` questions | `y` yes · `n` no · `l` later (absolute dates) | `h v p w t m k a` (table above) |
 
 - `*` marks the AI-suggested default; typing `*` alone accepts it. When the AI has no
   basis to guess, there is no default: it doesn't bluff.

@@ -36,9 +36,10 @@ data Body
   = PartyRegistered Id Text PartyType
     -- ^ party, name, party_type
   | BrickCaptured Id Text
-    -- ^ brick, title  (a new seed)
-  | RawCaptured Id Text
-    -- ^ raw, content
+    -- ^ brick, title  (a new seed) — LEGACY: no command produces this any
+    -- more (feed is the only door and it makes raw); replay keeps it alive
+  | Fed Id Text
+    -- ^ raw, content (the ant is fed; digestion = extraction)
   | SeedsExtracted Id [(Id, Text)]
     -- ^ raw, seeds (brick, title) — may be empty
   | SeedPromoted Id
@@ -138,7 +139,7 @@ bodyType :: Body -> Text
 bodyType = \case
   PartyRegistered {} -> "party_registered"
   BrickCaptured {} -> "brick_captured"
-  RawCaptured {} -> "raw_captured"
+  Fed {} -> "fed"
   SeedsExtracted {} -> "seeds_extracted"
   SeedPromoted {} -> "seed_promoted"
   BrickKilled {} -> "brick_killed"
@@ -196,7 +197,7 @@ bodyData = \case
   PartyRegistered p n t ->
     object [ "party" .= p, "name" .= n, "party_type" .= partyTypeText t ]
   BrickCaptured b t -> object [ "brick" .= b, "title" .= t ]
-  RawCaptured r c -> object [ "raw" .= r, "content" .= c ]
+  Fed r c -> object [ "raw" .= r, "content" .= c ]
   SeedsExtracted r seeds ->
     object [ "raw" .= r, "seeds" .= map pair seeds ]
   SeedPromoted b -> object [ "brick" .= b ]
@@ -296,7 +297,7 @@ parseBody ty o = case ty of
     PartyRegistered <$> o .: "party" <*> o .: "name"
       <*> enumField "party_type" parsePartyType o "party_type"
   "brick_captured" -> BrickCaptured <$> o .: "brick" <*> o .: "title"
-  "raw_captured" -> RawCaptured <$> o .: "raw" <*> o .: "content"
+  "fed" -> Fed <$> o .: "raw" <*> o .: "content"
   "seeds_extracted" -> do
     r <- o .: "raw"
     seeds <- o .: "seeds" >>= mapM parsePair

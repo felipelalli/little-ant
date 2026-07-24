@@ -49,8 +49,7 @@ data Global = Global
 data Cmd
   = CPartyAdd Text Text
   | CPartyLs
-  | CCapture Text
-  | CRawAdd Text
+  | CFeed Text
   | CRawLs
   | CExtract Text [Text]
   | CPromote Text
@@ -115,17 +114,15 @@ optTextOpt name h = optional (textOpt name h)
 
 pCmd :: Parser Cmd
 pCmd = hsubparser $ mconcat
-  [ command "capture" $ info
-      (CCapture <$> textArg "TITLE" "capture a seed — a title and nothing else")
-      (progDesc "Capture a seed into the idea bucket")
+  [ command "feed" $ info
+      (CFeed <$> textArg "CONTENT"
+        "anything — a thought, a blob, a URL; the ant digests it")
+      (progDesc "Feed the ant: the only door in. Everything enters as raw")
   , command "raw" $ info
       (hsubparser $ mconcat
-        [ command "add" $ info
-            (CRawAdd <$> textArg "CONTENT" "raw material to extract later")
-            (progDesc "Capture raw input (brainstorm, pasted conversation)")
-        , command "ls" $ info (pure CRawLs) (progDesc "List raw inputs")
+        [ command "ls" $ info (pure CRawLs) (progDesc "List raw inputs")
         ])
-      (progDesc "Raw input (pre-brick material)")
+      (progDesc "Raw input (fed, not yet digested)")
   , command "extract" $ info
       (CExtract
         <$> textArg "RAW" "raw input ref"
@@ -549,12 +546,11 @@ dispatch cfg now st = \case
       (toJSON (map partyView (Map.elems (stParties st))))
       (T.unlines [ shortId (pId p) <> "  " <> pName p
                  | p <- Map.elems (stParties st) ])
-  CCapture title -> do
-    bodies <- cmdCapture st title
-    pure $ withBrickOf bodies "seed captured"
-  CRawAdd content -> do
-    bodies <- cmdRawCapture st content
-    pure $ evOut bodies (const (toJSON True)) (const "raw input captured")
+  CFeed content -> do
+    bodies <- cmdFeed st content
+    pure $ evOut bodies
+      (const (toJSON True))
+      (const "✓ fed — digesting in the raw inbox (extract when ready)")
   CRawLs ->
     Right $ pureOut
       (toJSON (map rawView (Map.elems (stRawInputs st))))
@@ -807,15 +803,6 @@ dispatch cfg now st = \case
     simple e msg = do
       bodies <- e
       pure $ evOut bodies (const (toJSON True)) (const ("✓ " <> msg))
-
-    withBrickOf bodies msg = evOut bodies
-      (\st' -> case [ i | BrickCaptured i _ <- bodies ] of
-          (i : _) -> maybe (toJSON True) (brickView st')
-            (Map.lookup i (stBricks st'))
-          [] -> toJSON True)
-      (\_ -> case [ (i, t) | BrickCaptured i t <- bodies ] of
-          ((i, t) : _) -> "✓ " <> msg <> ": " <> shortId i <> " · " <> t
-          [] -> "✓ " <> msg)
 
     lastParty st' =
       case sortOn (Down . unId . pId) (Map.elems (stParties st')) of

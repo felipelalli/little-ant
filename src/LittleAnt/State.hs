@@ -123,7 +123,7 @@ applyEvent Event {..} st0 =
       BrickCaptured bid title ->
         st { stBricks = Map.insert bid (newBrick bid title Seed) (stBricks st) }
 
-      RawCaptured rid content ->
+      Fed rid content ->
         st { stRawInputs =
                Map.insert rid (RawInput rid content at RawPending) (stRawInputs st) }
 

@@ -51,7 +51,7 @@ Terse by default; depth on demand. Options are single letters:
   the markers. Load it once per session; never invent letters, layouts or
   ad-hoc menus (no numbered lists with positional answers). Current
   namespaces: commands `x` next · `s` skip · `b` break · `u` unify ·
-  `d` done · `g` delegate · `c` capture · `q` questions. Answers: `y` yes ·
+  `d` done · `g` delegate · `f` feed · `q` questions. Answers: `y` yes ·
   `n` no · `l` later (always show the absolute date: "(Mon, Jul 13)").
   Triage: `p` promote · `s` skip · `k` kill · `d` done (already finished
   outside; the operator chains promote+done until the core grows
@@ -144,7 +144,7 @@ the returned `reaction`:
 | reaction | what you do next |
 |---|---|
 | `decomposition_offered` | propose 2–4 parts → `la break <ref> --part ...` |
-| `learn_or_delegate_offered` | atomic brick: offer a learning brick (`la capture`) or `d`elegate |
+| `learn_or_delegate_offered` | atomic brick: offer a learning brick (feed + extract) or `d`elegate |
 | `clarification_offered` | offer to clarify NOW with you (~2 min, draft "done criteria" and land them: `la set <ref> --desc "..."`) or later → `la clarify <ref> --title "Clarify: ..."` |
 | `priority_challenge_issued` | ask "then what IS the priority?" → record `la compare <that> <this>` |
 | `wait_details_requested` | ask "waiting on what? (person / condition — just type it)" → `la wait add <ref> [--party P] [--condition C]`; another brick → `la dep add <ref> --on <blocker>` |
@@ -186,30 +186,39 @@ pattern to a new canonical reason (a change to Little Ant itself).
 - Stale comparisons (`revalidation_requested`) get re-asked the same way:
   "still true that X comes before Y?"
 
-## Capture and triage
+## Feed and triage
 
-- **No forms, ever.** `la capture "title"` and stop. Metadata is enriched
-  later, in drips, never as a toll before execution.
+- **Feed is the ONLY door, and it makes raw.** `la feed "<anything>"` and
+  stop — a thought, a title, a URL, a pasted brainstorm; you don't hand a
+  finished brick to an ant, you drop food and she digests. Digestion is
+  the extraction: `la extract <raw> --seed "t1" --seed "t2"` (zero seeds
+  is valid). There is NO direct path to seed, deliberately — even for an
+  "obvious" single task, feed then extract in the same breath.
+- Vocabulary aliases live in YOU, not the core: when the human says
+  "add", "capture", "anota", "cadastra" — translate to feed. Never ask
+  them to rephrase.
+- **No forms, ever.** Metadata is enriched later, in drips, never as a
+  toll before execution.
 - Detail lives in two places: bricks tracking something external get a
   source (`la source attach <ref> --type github_issue --url ...`); bricks
   born inside the system get a body when it's worth writing one
   (`la set <ref> --desc "..."`). Description is content, not identity.
-- A bare URL is not a brick yet: ask why it's here — `[p]` use in a project
-  → exec brick + `source attach` · `[l]` must learn → learning brick ·
-  `[r]` want to read → seed (snoozed) · `[f]` future reference →
-  `la raw add` (material, not work).
-- Brainstorms/pastes → `la raw add "<blob>"`, later `la extract <raw>
-  --seed "t1" --seed "t2"` (zero seeds is valid).
+- A bare URL is not a brick yet: it enters as raw like everything else;
+  at extraction ask why it's here — `[p]` use in a project → exec brick +
+  `source attach` · `[l]` must learn → learning brick · `[r]` want to
+  read → seed (snoozed) · `[f]` future reference → leave it raw
+  (material, not work).
 - Triage rounds: seeds → promote (`la promote`), skip (leave — no reason
   asked), or kill
   (`la kill`). Committed bricks approaching the top: prepare them
   (definition of ready) → enrich in passing (`la set R --context acme/api
   --kind exec --energy 0.7`) and then `la ready`. Suggest values yourself;
   the human confirms with a glance.
-- Physical errands: capture normally; on skip(waiting) record place/hours
+- Physical errands: feed normally; on skip(waiting) record place/hours
   conditions. When the user says they're going out, batch: list waiting
   bricks whose conditions match and propose the package.
-- Title collision (exit 5) is a feature: ask for a more specific title.
+- Title collision (exit 5) at extraction is a feature: ask for a more
+  specific title.
 
 ## Planning simulations (TaskJuggler)
 
@@ -232,7 +241,7 @@ diverged source either — `la source check` spawns a reconcile brick; work it.
 ## Command crib
 
 ```
-la capture "t" · la raw add "blob" · la extract R --seed t...
+la feed "anything" · la raw ls · la extract R --seed t...
 la promote R · la ready R · la kill R · la requester R PARTY
 la set R [--kind K] [--context C] [--energy 0..1] [--mode M] [--atomicity A]
        [--estimate H] [--estimate-by human|ai] [--desc "longer body"]

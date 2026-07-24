@@ -31,7 +31,10 @@ import LittleAnt.Event
 -- entry @(("session_opened", 1), \\o -> FlowOpened \<$\> ...)@ keeps old
 -- logs readable with zero version ifs in the domain.
 legacyUpcasters :: LegacyTable
-legacyUpcasters = []
+legacyUpcasters =
+  [ ( ("raw_captured", 1)  -- renamed to fed, 2026-07-24 (feed rename)
+    , \o -> Fed <$> o .: "raw" <*> o .: "content" )
+  ]
 
 type LegacyTable = [((Text, Int), Object -> Parser Body)]
 

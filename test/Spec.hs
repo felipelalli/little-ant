@@ -61,6 +61,18 @@ expectLeft code = \case
   Left e -> ceCode e @?= code
   Right _ -> assertFailure ("expected failure with code " <> T.unpack code)
 
+-- | Feed is the only door (no direct path to seed): a test seed is fed as
+-- raw and digested by an immediate single-seed extraction.
+feedSeed :: UTCTime -> State -> Text -> State
+feedSeed at st title =
+  let st1 = step at st (cmdFeed st title)
+      rid = case [ r | r <- Map.elems (stRawInputs st1)
+                     , rawContent r == title
+                     , rawStatus r == RawPending ] of
+        (r : _) -> unId (rawId r)
+        [] -> error "feedSeed: fed raw not found"
+   in step at st1 (cmdExtract st1 rid [title])
+
 brickByTitle :: State -> Text -> Brick
 brickByTitle st title =
   case [ b | b <- Map.elems (stBricks st), bTitle b == title ] of
@@ -98,7 +110,7 @@ main = defaultMain $ testGroup "little-ant"
 lifecycleTests :: TestTree
 lifecycleTests = testGroup "brick lifecycle"
   [ testCase "capture -> promote -> ready -> start -> done" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "Write the spec")
+      let st1 = feedSeed t0 emptyState "Write the spec"
           b = brickByTitle st1 "Write the spec"
       bStage b @?= Seed
       let st2 = step t0 st1 (cmdPromote st1 (ref b))
@@ -115,26 +127,26 @@ lifecycleTests = testGroup "brick lifecycle"
       bWipStartedAt b5 @?= Nothing
 
   , testCase "cannot start a committed brick" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "x")
+      let st1 = feedSeed t0 emptyState "x"
           b = brickByTitle st1 "x"
           st2 = step t0 st1 (cmdPromote st1 (ref b))
       expectLeft "precondition_failed" (cmdStart st2 (ref b))
 
   , testCase "cannot promote a non-seed" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "x")
+      let st1 = feedSeed t0 emptyState "x"
           b = brickByTitle st1 "x"
           st2 = step t0 st1 (cmdPromote st1 (ref b))
       expectLeft "precondition_failed" (cmdPromote st2 (ref b))
 
   , testCase "kill works from any open stage; not from final" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "x")
+      let st1 = feedSeed t0 emptyState "x"
           b = brickByTitle st1 "x"
           st2 = step t0 st1 (cmdKill st1 (ref b))
       bStage (brickByTitle st2 "x") @?= Dropped
       expectLeft "precondition_failed" (cmdKill st2 (ref b))
 
   , testCase "raw extraction yields 0..n seeds and closes the raw input" $ do
-      let st1 = step t0 emptyState (cmdRawCapture emptyState "brainstorm blob")
+      let st1 = step t0 emptyState (cmdFeed emptyState "brainstorm blob")
           raw = one' (Map.elems (stRawInputs st1))
           st2 = step t0 st1
             (cmdExtract st1 (unId (rawId raw)) ["seed one", "seed two"])
@@ -145,7 +157,7 @@ lifecycleTests = testGroup "brick lifecycle"
         (cmdExtract st2 (unId (rawId raw)) [])
 
   , testCase "break inherits kind/context; parent leaves the frontier" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "Big one")
+      let st1 = feedSeed t0 emptyState "Big one"
           b = brickByTitle st1 "Big one"
           st2 = step t0 st1 (cmdPromote st1 (ref b))
           st3 = step t0 st2 (cmdReady st2 (ref b))
@@ -164,7 +176,7 @@ lifecycleTests = testGroup "brick lifecycle"
 
 readyBrick :: Text -> (State, Brick)
 readyBrick title =
-  let st1 = step t0 emptyState (cmdCapture emptyState title)
+  let st1 = feedSeed t0 emptyState title
       b = brickByTitle st1 title
       st2 = step t0 st1 (cmdPromote st1 (ref b))
       st3 = step t0 st2 (cmdReady st2 (ref b))
@@ -230,13 +242,13 @@ skipTests = testGroup "skip flow (the heart)"
       twUnreviewedOtherCount (stTaxonomy st6) @?= 0
 
   , testCase "only a served (ready) brick can be skipped" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "seedling")
+      let st1 = feedSeed t0 emptyState "seedling"
           b = brickByTitle st1 "seedling"
       expectLeft "precondition_failed" (cmdSkip st1 (ref b) Tired Nothing)
   ]
   where
     freshReady st title =
-      let st1 = step t0 st (cmdCapture st title)
+      let st1 = feedSeed t0 st title
           b = brickByTitle st1 title
           st2 = step t0 st1 (cmdPromote st1 (ref b))
           st3 = step t0 st2 (cmdReady st2 (ref b))
@@ -250,7 +262,7 @@ mkReadyBricks :: [Text] -> State
 mkReadyBricks titles = foldl one emptyState titles
   where
     one st title =
-      let st1 = step t0 st (cmdCapture st title)
+      let st1 = feedSeed t0 st title
           b = brickByTitle st1 title
           st2 = step t0 st1 (cmdPromote st1 (ref b))
        in step t0 st2 (cmdReady st2 (ref b))
@@ -451,7 +463,7 @@ delegationTests :: TestTree
 delegationTests = testGroup "delegation follow-ups"
   [ testCase "delegate -> notice -> nudge due after interval -> approve" $ do
       let st0' = step t0 emptyState (cmdPartyAdd emptyState "João" Person)
-          st1 = step t0 st0' (cmdCapture st0' "Review contract")
+          st1 = feedSeed t0 st0' "Review contract"
           b = brickByTitle st1 "Review contract"
           st2 = step t0 st1 (cmdDelegate st1 (ref b) "João")
           d = one' (Map.elems (stDelegations st2))
@@ -477,7 +489,7 @@ delegationTests = testGroup "delegation follow-ups"
 
   , testCase "outcome closes the follow-up machine" $ do
       let st0' = step t0 emptyState (cmdPartyAdd emptyState "João" Person)
-          st1 = step t0 st0' (cmdCapture st0' "Thing")
+          st1 = feedSeed t0 st0' "Thing"
           b = brickByTitle st1 "Thing"
           st2 = step t0 st1 (cmdDelegate st1 (ref b) "João")
           d = one' (Map.elems (stDelegations st2))
@@ -648,15 +660,18 @@ tickTests = testGroup "temporal rules"
 identityTests :: TestTree
 identityTests = testGroup "identity"
   [ testCase "title collision is refused with a teaching hint" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "buy paper")
-      case cmdCapture st1 "buy paper" of
+      let st1 = feedSeed t0 emptyState "buy paper"
+          st2 = step t0 st1 (cmdFeed st1 "buy paper again")
+          raw = one' [ r | r <- Map.elems (stRawInputs st2)
+                         , rawStatus r == RawPending ]
+      case cmdExtract st2 (unId (rawId raw)) ["buy paper"] of
         Left e -> do
           ceCode e @?= "title_collision"
           isJust (ceHint e) @? "hint present"
         Right _ -> assertFailure "expected collision"
 
   , testCase "prefix resolution: unique prefix works, ambiguous fails" $ do
-      let st1 = step t0 emptyState (cmdCapture emptyState "alpha")
+      let st1 = feedSeed t0 emptyState "alpha"
           b = brickByTitle st1 "alpha"
           long = unId (bId b)
       case resolveBrick st1 (T.take 7 long) of
@@ -673,14 +688,14 @@ identityTests = testGroup "identity"
 -- ready and servable), plus a loose seed.
 renderState :: State
 renderState =
-  let s1 = step t0 emptyState (cmdCapture emptyState "Parent work")
+  let s1 = feedSeed t0 emptyState "Parent work"
       parent = brickByTitle s1 "Parent work"
       s2 = step t0 s1 (cmdPromote s1 (ref parent))
       s3 = step t0 s2 (cmdBreak s2 (ref parent) ["Part one", "Part two"])
       p1 = brickByTitle s3 "Part one"
       p2 = brickByTitle s3 "Part two"
       s4 = step t0 s3 (cmdDepAdd s3 (ref p2) (ref p1))
-      s5 = step t0 s4 (cmdCapture s4 "Loose seed")
+      s5 = feedSeed t0 s4 "Loose seed"
    in step t0 s5 (cmdReady s5 (ref p1))
 
 renderTests :: TestTree
@@ -735,7 +750,7 @@ renderTests = testGroup "render projections"
         ((shortId (bId p1) <> ",ready,Part one,,") `T.isInfixOf` out)
       assertBool "blocked_by cell filled"
         ((",#" <> shortId (bId p1)) `T.isInfixOf` out)
-      let st' = step t0 st (cmdCapture st "Hello, world")
+      let st' = feedSeed t0 st "Hello, world"
           hw = brickByTitle st' "Hello, world"
       assertBool "comma title is quoted"
         (",\"Hello, world\"," `T.isInfixOf` renderCsv st' [hw])
@@ -849,6 +864,16 @@ versioningTests = testGroup "event log versioning"
       case parseEither (eventFromJSONWith table) json of
         Left e -> assertFailure e
         Right ev -> evBody ev @?= BrickCaptured (Id "abc") "old shape"
+  , testCase "production upcaster: raw_captured v1 reads as fed" $ do
+      let json = object
+            [ "v" .= (1 :: Int), "id" .= ("x" :: Text), "at" .= t0
+            , "type" .= ("raw_captured" :: Text)
+            , "data" .= object
+                [ "raw" .= Id "r1", "content" .= ("blob" :: Text) ]
+            ]
+      case parseEither eventFromJSONVersioned json of
+        Left e -> assertFailure e
+        Right ev -> evBody ev @?= Fed (Id "r1") "blob"
   , testCase "migrate rewrites the hot log atomically with a backup" $ do
       tmp <- getTemporaryDirectory
       let d = tmp </> "little-ant-migrate-test"

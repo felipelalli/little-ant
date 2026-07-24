@@ -6,8 +6,7 @@ module LittleAnt.Command
   ( CmdError (..)
   , notFound
   , cmdPartyAdd
-  , cmdCapture
-  , cmdRawCapture
+  , cmdFeed
   , cmdExtract
   , cmdPromote
   , cmdKill
@@ -181,18 +180,14 @@ cmdPartyAdd st name ptype = do
     (Just "choose a more specific name")
   pure [PartyRegistered i n ptype]
 
--- rule SeedCaptured
-cmdCapture :: State -> Text -> Either CmdError [Body]
-cmdCapture st title = do
-  (i, t) <- freshTitle st [] title
-  pure [BrickCaptured i t]
-
--- rule RawInputCaptured
-cmdRawCapture :: State -> Text -> Either CmdError [Body]
-cmdRawCapture st content = do
-  need (not (T.null (T.strip content))) "raw content must not be empty" Nothing
+-- rule AntFed. Feed is the ONLY door into the system (decided 2026-07-15):
+-- everything enters as raw and is digested by extraction — there is no
+-- direct path to seed, deliberately.
+cmdFeed :: State -> Text -> Either CmdError [Body]
+cmdFeed st content = do
+  need (not (T.null (T.strip content))) "feed content must not be empty" Nothing
   let rid = derivedId "raw" [nextSeq st]
-  pure [RawCaptured rid content]
+  pure [Fed rid content]
 
 -- rule SeedsExtracted (extraction may yield zero seeds)
 cmdExtract :: State -> Text -> [Text] -> Either CmdError [Body]
