@@ -73,7 +73,7 @@ entity Brick {
     atomicity: Atomicity
     kind: Kind?
     context: String?
-    energy: Decimal?
+    weight: Decimal?
     mode: Mode?
     parent: Brick?
     about: Brick?
@@ -124,8 +124,8 @@ entity Brick {
     is_blocked: blockers.any(d => d.blocker.stage in {seed, committed, ready, wip})
     is_servable: stage = ready and is_leaf and not is_waiting and not is_blocked
 
-    invariant EnergyWithinUnitInterval {
-        energy = null or (energy >= 0.0 and energy <= 1.0)
+    invariant WeightWithinUnitInterval {
+        weight = null or (weight >= 0.0 and weight <= 1.0)
     }
 
     invariant EstimatePositive {
@@ -222,7 +222,7 @@ entity Delegation {
     }
 }
 
-entity FocusSession {
+entity FocusFlow {
     context_hint: String?
     strictness: Strictness
     serve_count: Integer
@@ -276,15 +276,15 @@ default OrderWatch order_watch = { bricks_readied_since_round: 0, round_threshol
 -- Rules
 ------------------------------------------------------------
 
--- Capture and triage ----------------------------------------
+-- Feed and triage ----------------------------------------
 
-rule SeedCaptured {
-    when: CaptureSeed(title)
+rule SeedFed {
+    when: FeedSeed(title)
     ensures: Brick.created(title: title, stage: seed, atomicity: unknown)
 }
 
-rule RawInputCaptured {
-    when: CaptureRawInput(content)
+rule AntFedRaw {
+    when: FeedRaw(content)
     ensures: RawInput.created(content: content, received_at: now, status: pending)
 }
 
@@ -333,17 +333,17 @@ rule RequesterAttributed {
 }
 
 rule BrickEnriched {
-    when: EnrichBrick(brick, kind?, context?, energy?, mode?, atomicity?, estimate_hours?, estimate_author?)
+    when: EnrichBrick(brick, kind?, context?, weight?, mode?, atomicity?, estimate_hours?, estimate_author?)
     requires: brick.stage in {seed, committed, ready, wip}
-    requires: energy = null or (energy >= 0.0 and energy <= 1.0)
+    requires: weight = null or (weight >= 0.0 and weight <= 1.0)
     requires: estimate_hours = null or estimate_hours > 0.0
     ensures:
         if kind != null:
             brick.kind = kind
         if context != null:
             brick.context = context
-        if energy != null:
-            brick.energy = energy
+        if weight != null:
+            brick.weight = weight
         if mode != null:
             brick.mode = mode
         if atomicity != null:
@@ -355,7 +355,7 @@ rule BrickEnriched {
     @guidance
         -- Lazy classification: enrichment happens in drips, at the moments
         -- the metadata is about to be used (triage, skip, approaching the
-        -- top of the order) — never as a form at capture or serve time.
+        -- top of the order) — never as a form at feed or serve time.
 }
 
 rule BrickDescribed {
@@ -366,7 +366,7 @@ rule BrickDescribed {
 
     @guidance
         -- The description is content, not identity: it never changes which
-        -- brick this is. Capture still takes a title and nothing else; the
+        -- brick this is. Feed still takes a title and nothing else; the
         -- body arrives later — typically when a skip(vague) clarification
         -- produces "done criteria", or when the operator drafts context for
         -- a brick born inside the system (no external source to point at).
@@ -442,31 +442,31 @@ rule BrickSuperseded {
 
 -- Focus loop -------------------------------------------------
 
-rule SessionOpened {
-    when: OpenSession(context_hint?, strictness)
-    ensures: FocusSession.created(context_hint: context_hint,
+rule FlowOpened {
+    when: OpenFlow(context_hint?, strictness)
+    ensures: FocusFlow.created(context_hint: context_hint,
         strictness: strictness, serve_count: 0, status: open)
 }
 
-rule SessionClosed {
-    when: CloseSession(session)
-    requires: session.status = open
-    ensures: session.status = closed
+rule FlowClosed {
+    when: CloseFlow(flow)
+    requires: flow.status = open
+    ensures: flow.status = closed
 }
 
 rule FocusServed {
-    when: RequestNext(session)
-    requires: session.status = open
+    when: RequestNext(flow)
+    requires: flow.status = open
     ensures:
-        session.serve_count = session.serve_count + 1
-        FocusProposed(session: session, brick: select_next(session))
+        flow.serve_count = flow.serve_count + 1
+        FocusProposed(flow: flow, brick: select_next(flow))
 
     @guidance
         -- select_next picks from servable bricks (is_servable) using the
         -- core mechanisms: two queues with config.background_serve_ratio
         -- (every Nth serve comes from the background queue), anti-starvation
-        -- aging, and sticky context (session.context_hint honoured per
-        -- session.strictness, within config.context_quantum). Policy — which
+        -- aging, and sticky context (flow.context_hint honoured per
+        -- flow.strictness, within config.context_quantum). Policy — which
         -- context today, when to override the ratio — belongs to the
         -- operator, not the core.
 }
@@ -743,7 +743,7 @@ rule ComparisonGoesStale {
 
     @guidance
         -- Revalidation is a drip: the operator surfaces at most a question
-        -- or two per session, prioritising stale comparisons near the top of
+        -- or two per flow, prioritising stale comparisons near the top of
         -- the order. The drip is a floor, not a ceiling — question rounds
         -- batch these when the human has the energy.
 }
@@ -949,34 +949,34 @@ surface Intake {
     facing operator: Operator
 
     provides:
-        CaptureSeed(title)
-        CaptureRawInput(content)
+        FeedSeed(title)
+        FeedRaw(content)
         ExtractRawInput(raw, seed_titles)
         PromoteSeed(brick)
         KillBrick(brick)
         MarkReady(brick)
         AttributeRequest(brick, party)
-        EnrichBrick(brick, kind?, context?, energy?, mode?, atomicity?, estimate_hours?, estimate_author?)
+        EnrichBrick(brick, kind?, context?, weight?, mode?, atomicity?, estimate_hours?, estimate_author?)
         DescribeBrick(brick, description)
-        OpenSession(context_hint?, strictness)
+        OpenFlow(context_hint?, strictness)
 
-    @guarantee NoFormsAtCapture
-        -- Capture takes a title (or raw content) and nothing else. All other
+    @guarantee NoFormsAtFeed
+        -- Feed takes a title (or raw content) and nothing else. All other
         -- metadata is collected lazily, in drips, at the moment it is needed.
 }
 
 surface FocusLoop {
     facing operator: Operator
-    context session: FocusSession where status = open
+    context flow: FocusFlow where status = open
 
     exposes:
-        session.context_hint
-        session.strictness
-        session.serve_count
+        flow.context_hint
+        flow.strictness
+        flow.serve_count
 
     provides:
-        RequestNext(session)
-        CloseSession(session)
+        RequestNext(flow)
+        CloseFlow(flow)
         StartBrick(brick)
         StopBrick(brick)
         CompleteBrick(brick)
@@ -991,7 +991,7 @@ surface FocusLoop {
         AddDependency(blocked, blocker)
         AddCompletionEffect(brick, kind, detail)
 
-    @guarantee SessionAlwaysEndsInProposal
+    @guarantee FlowAlwaysEndsInProposal
         -- Every interaction ends with a proposal (a focus, a question, an
         -- offer), never in silence.
 
@@ -1109,7 +1109,7 @@ open question "Comparison staleness: decay function / half-life (comparison_shel
 -- Reconciliation policy — decided direction (implementation pending) that
 -- supersedes current behaviour: because the log is append-only, an upstream
 -- change both auto-applies and notifies; the notice surfaces lazily at the
--- session boundary through the same status channel as nudges and delegations
+-- flow boundary through the same status channel as nudges and delegations
 -- (e.g. a sources_reconciled field), never interrupting mid-flow. Current
 -- implemented behaviour still spawns a reconcile meta-brick on divergence
 -- (rule SourceChecked, guarantee DivergenceNeverAutoResolves); the
@@ -1121,13 +1121,24 @@ open question "Comparison staleness: decay function / half-life (comparison_shel
 -- versions merge safely: per-event-type versions with an upcast boundary at
 -- parse (LittleAnt.Upcast) and an atomic `la migrate` (hot log plus archives,
 -- .vN.bak backups).
+--
+-- Versioned renames shipped 2026-07-24, each carried through the upcast
+-- boundary: `brick_enriched` is now v2 (wire field energy -> weight, v1
+-- upcaster) and `focus_served` is now v2 (data field session -> flow, v1
+-- upcaster). The feed rename introduced `fed` (v1), and the flow rename
+-- introduced `flow_opened` / `flow_closed` (v1) under their new names. The old
+-- wire names `raw_captured`, `session_opened` and `session_closed` now live
+-- only in the legacy upcaster table: a real `la migrate` ran on 2026-07-24 (hot
+-- log plus archives, .vN.bak backups), so hot logs are already normalized to
+-- the new names. `brick_captured` was deliberately not renamed — it remains the
+-- internal event emitted for a fed seed.
 open question "Multi-device transport (v2): the concrete event-union endpoint design."
 
 -- on_start triggers — decided (2026-07-23): yes, they should exist, mirroring
 -- the completion effects. Implementation pending.
 open question "on_start triggers: their concrete shape and semantics, mirroring completion effects."
 
--- Session-opening status line — decided direction (implementation pending):
+-- Flow-opening status line — decided direction (implementation pending):
 -- the canonical status line is emitted by the core as a deterministic command
 -- (planned `la status --line`) applying a mechanical only-actionables /
 -- omit-zeros rule, so every LLM operator renders it identically; the operator
