@@ -1069,13 +1069,66 @@ surface SourceGateway {
 -- Open Questions
 ------------------------------------------------------------
 
-open question "Core language and timing: Haskell is the leaning; v0 validates semantics as skill+files first — confirm the sequence."
-open question "Estimates: unit/format, when collected, and the AI-guesses-human-corrects flow."
+-- Decisions recorded by the project owner (Mica) on 2026-07-23 are folded in
+-- below. Genuinely unresolved items remain as `open question` declarations.
+-- Items that are decided but not yet built are kept as decided-direction notes
+-- (implementation pending), so this spec never claims behaviour the core does
+-- not yet have.
+
+-- Core language and timing — resolved by reality: the Haskell core shipped as
+-- v0 and implements this spec.
+
+-- Estimates and definition of ready — decided direction (implementation
+-- pending), merging the former estimates-timing and definition-of-ready
+-- questions. Unit and format are settled: an estimate is hours as a Decimal
+-- (estimate_hours), always carrying estimate_author (human | ai) so an AI
+-- guess is marked as such. Nothing is ever mandatory before serving: the
+-- operator placeholder-fills missing metadata with AI guesses (e.g.
+-- estimate_author = ai) and the human corrects in drips. Preparation is a
+-- "grooming" meta-brick — "prepare brick X" (estimate, dependencies, split
+-- assessment, context, binary-insertion placement) — that spawns when a
+-- committed brick approaches the top of the order, the same pattern as the
+-- clarify and sanity-round meta-bricks. A grooming brick must never itself
+-- require grooming: no meta-meta.
+open question "Estimates: when they are collected, and the concrete AI-guesses / human-corrects drip flow."
+open question "Definition of ready per kind: which fields the operator placeholder-fills per brick kind during grooming."
+
+-- Scheduler defaults and comparison staleness — still open, with a shared
+-- decision: the starting values are tuned by the AI operator via simulations
+-- over real usage. Non-negotiable: every knob stays parameterisable (config),
+-- never hard-coded.
 open question "Scheduler defaults: background_serve_ratio, context_quantum, and the aging curve."
 open question "Comparison staleness: decay function / half-life (comparison_shelf_life is a placeholder)."
-open question "Question-round composition: the mix of comparisons, triage and enrichment, and how it adapts to energy."
-open question "Fine-grained reconciliation policy: which upstream changes auto-apply versus only notify."
-open question "Multi-device transport (v2): event-union endpoint versus pure git."
-open question "on_start triggers: do they exist, mirroring completion effects?"
-open question "Definition of ready per kind: which metadata is mandatory before serving each kind of brick."
-open question "Session-opening status line: exact content (signal versus noise)."
+
+-- Question-round composition — resolved as skill policy, not core mechanism:
+-- the operator chooses the mix by reading system state. Stale comparisons push
+-- ordering questions, a fat inbox pushes triage, an unprepared top of the
+-- order pushes enrichment; a specific flavour can always be requested in free
+-- text.
+
+-- Reconciliation policy — decided direction (implementation pending) that
+-- supersedes current behaviour: because the log is append-only, an upstream
+-- change both auto-applies and notifies; the notice surfaces lazily at the
+-- session boundary through the same status channel as nudges and delegations
+-- (e.g. a sources_reconciled field), never interrupting mid-flow. Current
+-- implemented behaviour still spawns a reconcile meta-brick on divergence
+-- (rule SourceChecked, guarantee DivergenceNeverAutoResolves); the
+-- auto-apply-and-notify policy supersedes it once built.
+
+-- Multi-device transport (v2) — narrowed: pure git is rejected (mobile must be
+-- a first-class device); the event-union endpoint is the leaning. Supporting
+-- infrastructure is already implemented so devices on different binary
+-- versions merge safely: per-event-type versions with an upcast boundary at
+-- parse (LittleAnt.Upcast) and an atomic `la migrate` (hot log plus archives,
+-- .vN.bak backups).
+open question "Multi-device transport (v2): the concrete event-union endpoint design."
+
+-- on_start triggers — decided (2026-07-23): yes, they should exist, mirroring
+-- the completion effects. Implementation pending.
+open question "on_start triggers: their concrete shape and semantics, mirroring completion effects."
+
+-- Session-opening status line — decided direction (implementation pending):
+-- the canonical status line is emitted by the core as a deterministic command
+-- (planned `la status --line`) applying a mechanical only-actionables /
+-- omit-zeros rule, so every LLM operator renders it identically; the operator
+-- then adds a second, judgement line below it.
