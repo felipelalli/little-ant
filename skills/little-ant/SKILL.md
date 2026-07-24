@@ -74,10 +74,17 @@ Terse by default; depth on demand. Options are single letters:
   option would run first, then ONE terse option line in canonical
   letters — never a menu with prose baked into the labels.
 - **Brick one-liners**: the core renders a brick as
-  `<stage emoji> "title" #shortid` (🪨 raw · 🌱 seed · 🧱 committed ·
-  🟢 ready · 👷 wip · ✅ done · ❌ dropped · 🔄 superseded). Use the same
+  `<stage emoji> "title" #shortid` (🪨 raw · 🌱 seed · 🫡 committed ·
+  🧱 ready · 👷 wip · ✅ done · ❌ dropped · 🔄 superseded). Use the same
   shape whenever you reference a brick in your own commentary — one
   visual language, never bracketed `[stage]` tags or bare ids.
+- **Channel surfaces**: when the session runs over a channel the manifest
+  binds (e.g. Telegram), dialogs travel as messages whose buttons ARE the
+  canonical letters: a reply keyboard (`ReplyKeyboardMarkup`) built from
+  the pending namespace's letters — `*` first when a default exists, `?`
+  last; a button press sends the bare letter back as normal input. Same
+  grammar, different surface; the manifest holds the transport details
+  and the channel skill (e.g. `telegram-reply-mode`) holds the etiquette.
 - `*` marks your suggested default; a bare `*` from the user accepts it.
   When you have no basis to guess, show no default — never bluff.
 - `?` is universal and never listed: dunno / more info / help me decide.
