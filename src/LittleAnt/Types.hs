@@ -260,7 +260,7 @@ data Brick = Brick
   , bAtomicity :: Atomicity
   , bKind :: Maybe Kind
   , bContext :: Maybe Text
-  , bEnergy :: Maybe Double
+  , bWeight :: Maybe Double
   , bMode :: Maybe Mode
   , bParent :: Maybe Id
   , bAbout :: Maybe Id

@@ -25,6 +25,8 @@ import Data.Aeson.Types (Parser)
 import Data.Text (Text)
 import qualified Data.Text as T
 import LittleAnt.Event
+import LittleAnt.Types
+  (parseAtomicity, parseAuthor, parseKind, parseMode)
 
 -- | Upcasters for shapes no longer written, keyed by wire-side
 -- @(type, v)@. Example: when @session_opened@ becomes @flow_opened@, the
@@ -34,6 +36,17 @@ legacyUpcasters :: LegacyTable
 legacyUpcasters =
   [ ( ("raw_captured", 1)  -- renamed to fed, 2026-07-24 (feed rename)
     , \o -> Fed <$> o .: "raw" <*> o .: "content" )
+  , ( ("brick_enriched", 1)  -- v1 carried the weight as "energy"
+    , \o ->
+        BrickEnriched
+          <$> o .: "brick"
+          <*> optEnumField "kind" parseKind o "kind"
+          <*> o .:? "context"
+          <*> o .:? "energy"
+          <*> optEnumField "mode" parseMode o "mode"
+          <*> optEnumField "atomicity" parseAtomicity o "atomicity"
+          <*> o .:? "estimate_hours"
+          <*> optEnumField "estimate_by" parseAuthor o "estimate_by" )
   ]
 
 type LegacyTable = [((Text, Int), Object -> Parser Body)]

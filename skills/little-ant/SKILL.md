@@ -212,7 +212,7 @@ pattern to a new canonical reason (a change to Little Ant itself).
   asked), or kill
   (`la kill`). Committed bricks approaching the top: prepare them
   (definition of ready) → enrich in passing (`la set R --context acme/api
-  --kind exec --energy 0.7`) and then `la ready`. Suggest values yourself;
+  --kind exec --weight 0.7`) and then `la ready`. Suggest values yourself;
   the human confirms with a glance.
 - Physical errands: feed normally; on skip(waiting) record place/hours
   conditions. When the user says they're going out, batch: list waiting
@@ -243,7 +243,7 @@ diverged source either — `la source check` spawns a reconcile brick; work it.
 ```
 la feed "anything" · la raw ls · la extract R --seed t...
 la promote R · la ready R · la kill R · la requester R PARTY
-la set R [--kind K] [--context C] [--energy 0..1] [--mode M] [--atomicity A]
+la set R [--kind K] [--context C] [--weight 0..1] [--mode M] [--atomicity A]
        [--estimate H] [--estimate-by human|ai] [--desc "longer body"]
 la break R --part t... · la unify R --into R2 · la supersede R --with "t"
 la session open [--context C] [--strictness ignore|prefer|require]

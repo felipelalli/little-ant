@@ -245,11 +245,11 @@ cmdEnrich st ref k c en m a est estBy desc = do
                      , m /= Nothing, a /= Nothing, est /= Nothing ]
   need (metaAny || desc /= Nothing)
     "nothing to enrich"
-    (Just "pass at least one of --kind --context --energy --mode --atomicity --estimate --desc")
+    (Just "pass at least one of --kind --context --weight --mode --atomicity --estimate --desc")
   need (maybe True (not . T.null . T.strip) desc)
     "description must not be empty" Nothing
   need (maybe True (\e -> e >= 0 && e <= 1) en)
-    "energy must be within 0..1" Nothing
+    "weight must be within 0..1" Nothing
   need (maybe True (> 0) est)
     "estimate must be positive (hours)" Nothing
   let estBy' = if est /= Nothing && estBy == Nothing then Just Human else estBy

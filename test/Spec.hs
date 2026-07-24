@@ -4,7 +4,7 @@
 -- end-to-end scenario — the README's simulated session — runs with no IO.
 module Main (main) where
 
-import Data.Aeson (Value (..), object, (.:), (.=))
+import Data.Aeson (Value (..), object, toJSON, (.:), (.=))
 import qualified Data.Aeson.KeyMap as KM
 import Data.Aeson.Types (parseEither)
 import qualified Data.ByteString as BS
@@ -874,6 +874,25 @@ versioningTests = testGroup "event log versioning"
       case parseEither eventFromJSONVersioned json of
         Left e -> assertFailure e
         Right ev -> evBody ev @?= Fed (Id "r1") "blob"
+  , testCase "brick_enriched: writes v2 with weight, upcasts v1 energy" $ do
+      let body = BrickEnriched (Id "b1") Nothing Nothing (Just 0.7)
+                   Nothing Nothing Nothing Nothing
+          written = eventToJSON (one' (mkEvents t0 [body]))
+      case written of
+        Object o -> do
+          KM.lookup "v" o @?= Just (toJSON (2 :: Int))
+          case KM.lookup "data" o of
+            Just (Object d) -> KM.lookup "weight" d @?= Just (toJSON (0.7 :: Double))
+            _ -> assertFailure "data object missing"
+        _ -> assertFailure "event not an object"
+      let legacy = object
+            [ "v" .= (1 :: Int), "id" .= ("x" :: Text), "at" .= t0
+            , "type" .= ("brick_enriched" :: Text)
+            , "data" .= object [ "brick" .= Id "b1", "energy" .= (0.7 :: Double) ]
+            ]
+      case parseEither eventFromJSONVersioned legacy of
+        Left e -> assertFailure e
+        Right ev -> evBody ev @?= body
   , testCase "migrate rewrites the hot log atomically with a backup" $ do
       tmp <- getTemporaryDirectory
       let d = tmp </> "little-ant-migrate-test"

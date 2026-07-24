@@ -149,7 +149,7 @@ pCmd = hsubparser $ mconcat
         <*> optional (strOption (long "kind"
               <> metavar "spec|exec|delegation|decision|meta"))
         <*> optTextOpt "context" "namespaced context (e.g. acme/api)"
-        <*> optional (option auto (long "energy" <> metavar "0..1"))
+        <*> optional (option auto (long "weight" <> metavar "0..1"))
         <*> optional (strOption (long "mode" <> metavar "digital|physical"))
         <*> optional (strOption (long "atomicity"
               <> metavar "atomic|divisible|unknown"))

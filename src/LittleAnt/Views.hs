@@ -56,7 +56,7 @@ brickView st b = obj $ idFields (bId b) ++
   , ("atomicity", toJSON (atomicityText (bAtomicity b)))
   , ("kind", toJSON (kindText <$> bKind b))
   , ("context", toJSON (bContext b))
-  , ("energy", toJSON (bEnergy b))
+  , ("weight", toJSON (bWeight b))
   , ("mode", toJSON (modeText <$> bMode b))
   , ("parent", toJSON (shortId <$> bParent b))
   , ("about", toJSON (shortId <$> bAbout b))

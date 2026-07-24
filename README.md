@@ -119,7 +119,7 @@ Key fields (all data always in English):
 | `description` | free text, optional | the longer body; content, not identity. Never asked at capture; lands lazily via `la set --desc`, e.g. when skip(vague)'s "done criteria" get drafted |
 | `kind` | `spec \| exec \| delegation \| decision \| meta` | canonical, extensible |
 | `atomic` | `true \| false \| "unknown"` | atomic bricks can't be broken; skip(hard) offers learn/delegate instead |
-| `energy` | float `0..1` | nobody types floats; the skill maps words ("light" → 0.2) |
+| `weight` | float `0..1` | nobody types floats; the skill maps words ("light" → 0.2) |
 | `mode` | `digital \| physical` | physical bricks carry conditions (place, time window) and get batched |
 | `context` | free, namespaced | `acme/api`, `personal/home`; namespacing gives per-project vocab for free |
 | `estimate` | `{value, by: ai\|human}` | guesses are always marked as guesses |
@@ -393,7 +393,7 @@ The rule of thumb: **is there code hanging off the value?**
 |---|---|---|
 | Fixed, versioned in the tool | `stage` transitions, event types, delegation FSM | a release; these have behavior attached |
 | Canonical + extensible | skip reasons (8 + `other`), `kind` | new values are born as `other`/free and get *promoted* when they earn code |
-| Free, yours | `context`, `energy`, `meta.*` | nothing, just use them (`la set <ref> --context whatever/new`); the core never rejects unknown values |
+| Free, yours | `context`, `weight`, `meta.*` | nothing, just use them (`la set <ref> --context whatever/new`); the core never rejects unknown values |
 
 Dynamic first, harden later: the same philosophy as the whole project. Renames never
 rewrite history (the log is immutable): the manifest holds `aliases: {"old": "new"}`

@@ -96,7 +96,7 @@ applyEvent Event {..} st0 =
     newBrick bid title stage = Brick
       { bId = bid, bTitle = title, bDescription = Nothing, bStage = stage
       , bAtomicity = UnknownAtomicity
-      , bKind = Nothing, bContext = Nothing, bEnergy = Nothing
+      , bKind = Nothing, bContext = Nothing, bWeight = Nothing
       , bMode = Nothing, bParent = Nothing, bAbout = Nothing
       , bRequester = Nothing
       , bEstimateHours = Nothing, bEstimateBy = Nothing
@@ -155,7 +155,7 @@ applyEvent Event {..} st0 =
           (\b -> b
             { bKind = maybe (bKind b) Just k
             , bContext = maybe (bContext b) Just c
-            , bEnergy = maybe (bEnergy b) Just en
+            , bWeight = maybe (bWeight b) Just en
             , bMode = maybe (bMode b) Just m
             , bAtomicity = maybe (bAtomicity b) id a
             , bEstimateHours = maybe (bEstimateHours b) Just est

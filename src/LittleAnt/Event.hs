@@ -12,6 +12,8 @@ module LittleAnt.Event
   , currentVersionFor
   , computeEventId
   , bodyType
+  , enumField
+  , optEnumField
   ) where
 
 import Data.Aeson
@@ -53,7 +55,7 @@ data Body
   | RequesterAttributed Id Id
     -- ^ brick, party
   | BrickEnriched Id (Maybe Kind) (Maybe Text) (Maybe Double) (Maybe Mode) (Maybe Atomicity) (Maybe Double) (Maybe Author)
-    -- ^ brick, kind, context, energy, mode, atomicity, estimate hours,
+    -- ^ brick, kind, context, weight, mode, atomicity, estimate hours,
     -- estimate author (absent = unchanged; guesses are marked as guesses)
   | BrickDescribed Id Text
     -- ^ brick, description (longer body; content, not identity)
@@ -209,7 +211,7 @@ bodyData = \case
     object [ "brick" .= b
            , "kind" .= fmap kindText k
            , "context" .= c
-           , "energy" .= en
+           , "weight" .= en
            , "mode" .= fmap modeText m
            , "atomicity" .= fmap atomicityText a
            , "estimate_hours" .= est
@@ -313,7 +315,7 @@ parseBody ty o = case ty of
       <$> o .: "brick"
       <*> optEnumField "kind" parseKind o "kind"
       <*> o .:? "context"
-      <*> o .:? "energy"
+      <*> o .:? "weight"
       <*> optEnumField "mode" parseMode o "mode"
       <*> optEnumField "atomicity" parseAtomicity o "atomicity"
       <*> o .:? "estimate_hours"
@@ -395,7 +397,9 @@ parseBody ty o = case ty of
 -- type here — and add an upcaster for its old shape in "LittleAnt.Upcast" —
 -- on a breaking change; additive changes need no bump.
 currentVersionFor :: Text -> Int
-currentVersionFor _ = 1
+currentVersionFor = \case
+  "brick_enriched" -> 2  -- v1 carried the weight as "energy"
+  _ -> 1
 
 eventToJSON :: Event -> Value
 eventToJSON Event {..} = object
