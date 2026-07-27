@@ -11,7 +11,7 @@ module LittleAnt.V1.Implementation
 import Control.Applicative ((<|>))
 import Control.Monad (when)
 import Data.Aeson
-  (Object, Result (..), Value (..), fromJSON, object, toJSON, (.=))
+  (FromJSON, Object, Result (..), Value (..), fromJSON, object, toJSON, (.=))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import Data.Foldable (toList)
@@ -27,17 +27,33 @@ import LittleAnt.V1.Contract
    ReferenceSnapshot (..), emptyContractRegistry, selectJsonPath,
    standardAssertionOperators)
 import LittleAnt.V1.Domain
-  (Authority (Human), Brick (brickId), DomainError,
+  (Authority (Human), Brick (brickId), BrickStatus (Active), DomainError,
    ListEntryDraft (..), Party (partyId), PartyType (Person),
    createBrick, createListEntry, createParty, domainCatalog, domainProjection,
    emptyDomainState, finiteChecklistV1, findBehaviors, findTemplates,
-   focusBrick, mkCanonicalText, ordinaryBrickDraft)
+   focusBrick, mkCanonicalText, ordinaryBrickDraft, standardV1)
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
    EventBatch (..), KernelError, KernelState, OpaqueId (..), ProposedEvent (..),
    ReplayResult (..), appendSemanticAction, canonicalStateHash,
    emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
    kernelValue, replayAll)
+import LittleAnt.V1.Material
+  (MaterialError, MaterialState (..), Raw (rawId), RawId,
+   RawLink (rawLinkId), RawOrigin (rawOriginId),
+   RawReviewDisposition (rawReviewDispositionId), RawShelf (rawShelfId),
+   RawShelfId, RawShelfMembership (rawShelfMembershipId),
+   RawSnapshot (rawSnapshotContentHash, rawSnapshotId, rawSnapshotRaw),
+   RawSnapshotId,
+   SnapshotCaptureResult (..), SourceObservation (sourceObservationId),
+   addRawToShelf, archiveRaw, captureExternalRaw, captureInlineRaw,
+   captureRawSnapshot, createRawShelf, emptyMaterialState,
+   latestSourceObservation, linkDerivedRaw, linkRawToBrick, linkRawToEntry,
+   openSourceReconciliationKinds, rawLinkProjection, rawProjection,
+   reconcileRawLink, recordSourceObservation, registerMaterialBrick,
+   relocateRawOrigin, removeRawFromShelf, reopenRaw, reportSnapshotCorrupt,
+   reportSnapshotMissing, retireRawOrigin, reviewRaw, sourceObservationProjection,
+   unarchiveRaw, verifySnapshotBytes)
 import LittleAnt.V1.PlanCatalog (v1PlanProbes)
 
 -- | Isolated v1 state.  Every protocol request obtains a new value through
@@ -57,6 +73,26 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("KernelRejectAction", rejectActionOperation)
       , ("KernelRemoveValue", removeValueOperation)
       , ("KernelSetValue", setValueOperation)
+      , ("CaptureInlineRaw", captureInlineRawOperation)
+      , ("CaptureExternalRaw", captureExternalRawOperation)
+      , ("CaptureRawSnapshot", captureRawSnapshotOperation)
+      , ("ReportSnapshotMissing", reportSnapshotMissingOperation)
+      , ("ReportSnapshotCorrupt", reportSnapshotCorruptOperation)
+      , ("VerifySnapshotBytes", verifySnapshotBytesOperation)
+      , ("RecordSourceObservation", recordSourceObservationOperation)
+      , ("RelocateRawOrigin", relocateRawOriginOperation)
+      , ("RetireRawOrigin", retireRawOriginOperation)
+      , ("ReviewRaw", reviewRawOperation)
+      , ("ReopenRaw", reopenRawOperation)
+      , ("ArchiveRaw", archiveRawOperation)
+      , ("UnarchiveRaw", unarchiveRawOperation)
+      , ("LinkRawToBrick", linkRawToBrickOperation)
+      , ("LinkRawToEntry", linkRawToEntryOperation)
+      , ("LinkDerivedRaw", linkDerivedRawOperation)
+      , ("ReconcileRawLink", reconcileRawLinkOperation)
+      , ("CreateRawShelf", createRawShelfOperation)
+      , ("AddRawToShelf", addRawToShelfOperation)
+      , ("RemoveRawFromShelf", removeRawFromShelfOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -71,12 +107,22 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("KernelValue", valueObservation)
       , ("LatestOperationalResponse", operationalResponseObservation)
       , ("ReplaySideEffectTrace", adapterTraceObservation)
+      , ("MaterialState", materialStateObservation)
+      , ("RawSnapshots", rawSnapshotsObservation)
+      , ("OpenProposalsFor", openProposalsObservation)
+      , ("BrickSummary", materialBrickSummaryObservation)
+      , ("RawSummary", rawSummaryObservation)
+      , ("LatestSourceObservation", latestSourceObservationQuery)
+      , ("RawLink", rawLinkObservation)
+      , ("ExternalIoTrace", externalIoTraceObservation)
       ]
   , registryFixtures = Map.fromList
-      [ ("definition_catalog", definitionCatalogFixture)
+      [ ("active_root_brick", activeRootBrickFixture)
+      , ("definition_catalog", definitionCatalogFixture)
       , ("domain_entities", domainEntitiesFixture)
       , ("kernel_populated", populatedFixture)
       , ("kernel_reference_state", referenceFixture)
+      , ("material_entities", materialEntitiesFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -218,6 +264,352 @@ parseProposedEvent value = do
       <$> requiredText "kind" event
       <*> (fromMaybe KeyMap.empty <$> optionalObject "fields" event)
     _ -> Left ("unknown kernel event type: " <> eventType)
+
+------------------------------------------------------------
+-- Material operations and observations
+------------------------------------------------------------
+
+materialStateFromKernel :: V1State -> Either Text MaterialState
+materialStateFromKernel state = case kernelValue "v1.material" state of
+  Nothing -> Right emptyMaterialState
+  Just value -> case fromJSON value of
+    Success material -> Right material
+    Error problem -> Left ("stored material state is malformed: " <> Text.pack problem)
+
+persistMaterial ::
+  OperationInput -> MaterialState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistMaterial input material resultValue state = do
+  accepted <- appendForFixture input "material"
+    [ProposeValueStored "v1.material" (toJSON material)] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+captureInlineRawOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+captureInlineRawOperation input state = do
+  arguments <- requireArgumentsObject input
+  original <- requiredText "original_text" arguments
+  canonical <- optionalAs "canonical_english" arguments
+  authority <- optionalAs "authority" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (raw, next) <- mapMaterialError
+    (captureInlineRaw original canonical authority now material)
+  persistMaterial input next (object ["raw" .= rawId raw]) state
+
+captureExternalRawOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+captureExternalRawOperation input state = do
+  arguments <- requireArgumentsObject input
+  title <- optionalAs "title" arguments
+  adapter <- requiredText "adapter" arguments
+  locator <- requiredText "locator" arguments
+  externalId <- optionalAs "external_id" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  ((raw, origin), next) <- mapMaterialError
+    (captureExternalRaw title adapter locator externalId now material)
+  persistMaterial input next (object
+    [ "raw" .= rawId raw
+    , "origin" .= rawOriginId origin
+    ]) state
+
+captureRawSnapshotOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+captureRawSnapshotOperation input state = do
+  arguments <- requireArgumentsObject input
+  raw <- requiredAs "raw" arguments
+  contentHash <- requiredText "content_hash" arguments
+  size <- requiredInteger "size" arguments
+  mediaType <- requiredText "media_type" arguments
+  originRevision <- optionalAs "origin_revision" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (captureResult, next) <- mapMaterialError
+    (captureRawSnapshot raw contentHash size mediaType originRevision now material)
+  let (snapshot, reused) = case captureResult of
+        SnapshotCreated created -> (created, False)
+        SnapshotReused existing -> (existing, True)
+  persistMaterial input next (object
+    [ "snapshot" .= rawSnapshotId snapshot
+    , "reused" .= reused
+    ]) state
+
+reportSnapshotMissingOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reportSnapshotMissingOperation = snapshotTransitionOperation reportSnapshotMissing
+
+reportSnapshotCorruptOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reportSnapshotCorruptOperation = snapshotTransitionOperation reportSnapshotCorrupt
+
+snapshotTransitionOperation ::
+  (RawSnapshotId -> MaterialState ->
+    Either MaterialError (RawSnapshot, MaterialState)) ->
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+snapshotTransitionOperation transition input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "snapshot" arguments
+  material <- materialStateFromKernel state
+  (snapshot, next) <- mapMaterialError (transition identifier material)
+  persistMaterial input next (object ["snapshot" .= rawSnapshotId snapshot]) state
+
+verifySnapshotBytesOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+verifySnapshotBytesOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "snapshot" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (snapshot, next) <- mapMaterialError
+    (verifySnapshotBytes identifier now material)
+  persistMaterial input next (object ["snapshot" .= rawSnapshotId snapshot]) state
+
+recordSourceObservationOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordSourceObservationOperation input state = do
+  arguments <- requireArgumentsObject input
+  origin <- requiredAs "origin" arguments
+  authority <- requiredAs "authority" arguments
+  externalObservationId <- optionalAs "external_observation_id" arguments
+  revision <- optionalAs "revision" arguments
+  presence <- requiredAs "presence" arguments
+  workState <- requiredAs "work_state" arguments
+  failureDetail <- optionalAs "failure_detail" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (observation, next) <- mapMaterialError (recordSourceObservation origin
+    authority externalObservationId revision presence workState failureDetail now material)
+  persistMaterial input next (object
+    ["observation" .= sourceObservationId observation]) state
+
+relocateRawOriginOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+relocateRawOriginOperation input state = do
+  arguments <- requireArgumentsObject input
+  origin <- requiredAs "origin" arguments
+  locator <- requiredText "new_locator" arguments
+  material <- materialStateFromKernel state
+  (updated, next) <- mapMaterialError (relocateRawOrigin origin locator material)
+  persistMaterial input next (object ["origin" .= rawOriginId updated]) state
+
+retireRawOriginOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+retireRawOriginOperation input state = do
+  arguments <- requireArgumentsObject input
+  origin <- requiredAs "origin" arguments
+  material <- materialStateFromKernel state
+  (updated, next) <- mapMaterialError (retireRawOrigin origin material)
+  persistMaterial input next (object ["origin" .= rawOriginId updated]) state
+
+reviewRawOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reviewRawOperation input state = do
+  arguments <- requireArgumentsObject input
+  raw <- requiredAs "raw" arguments
+  kind <- requiredAs "kind" arguments
+  brick <- optionalAs "brick" arguments
+  authority <- requiredAs "authority" arguments
+  note <- optionalAs "note" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  ((updated, disposition), next) <- mapMaterialError
+    (reviewRaw raw kind brick authority note now material)
+  persistMaterial input next (object
+    [ "raw" .= rawId updated
+    , "disposition" .= rawReviewDispositionId disposition
+    ]) state
+
+reopenRawOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reopenRawOperation = rawAxisOperation reopenRaw
+
+archiveRawOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+archiveRawOperation = rawAxisOperation archiveRaw
+
+unarchiveRawOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+unarchiveRawOperation = rawAxisOperation unarchiveRaw
+
+rawAxisOperation ::
+  (RawId -> MaterialState -> Either MaterialError (Raw, MaterialState)) ->
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+rawAxisOperation transition input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "raw" arguments
+  material <- materialStateFromKernel state
+  (raw, next) <- mapMaterialError (transition identifier material)
+  persistMaterial input next (object ["raw" .= rawId raw]) state
+
+linkRawToBrickOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+linkRawToBrickOperation input state = do
+  arguments <- requireArgumentsObject input
+  raw <- requiredAs "raw" arguments
+  brick <- requiredAs "brick" arguments
+  role <- requiredAs "role" arguments
+  baseline <- optionalAs "baseline" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (link, next) <- mapMaterialError
+    (linkRawToBrick raw brick role baseline now material)
+  persistMaterial input next (object ["link" .= rawLinkId link]) state
+
+linkRawToEntryOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+linkRawToEntryOperation input state = do
+  arguments <- requireArgumentsObject input
+  raw <- requiredAs "raw" arguments
+  entry <- requiredAs "entry" arguments
+  role <- requiredAs "role" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (link, next) <- mapMaterialError (linkRawToEntry raw entry role now material)
+  persistMaterial input next (object ["link" .= rawLinkId link]) state
+
+linkDerivedRawOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+linkDerivedRawOperation input state = do
+  arguments <- requireArgumentsObject input
+  raw <- requiredAs "raw" arguments
+  source <- requiredAs "source" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (link, next) <- mapMaterialError (linkDerivedRaw raw source now material)
+  persistMaterial input next (object ["link" .= rawLinkId link]) state
+
+reconcileRawLinkOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reconcileRawLinkOperation input state = do
+  arguments <- requireArgumentsObject input
+  link <- requiredAs "link" arguments
+  snapshot <- requiredAs "snapshot" arguments
+  material <- materialStateFromKernel state
+  (updated, next) <- mapMaterialError (reconcileRawLink link snapshot material)
+  persistMaterial input next (object ["link" .= rawLinkId updated]) state
+
+createRawShelfOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+createRawShelfOperation input state = do
+  arguments <- requireArgumentsObject input
+  name <- requiredText "name" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (shelf, next) <- mapMaterialError (createRawShelf name now material)
+  persistMaterial input next (object ["shelf" .= rawShelfId shelf]) state
+
+addRawToShelfOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+addRawToShelfOperation input state = do
+  arguments <- requireArgumentsObject input
+  raw <- requiredAs "raw" arguments
+  shelf <- requiredAs "shelf" arguments
+  now <- operationTime input
+  material <- materialStateFromKernel state
+  (membership, next) <- mapMaterialError (addRawToShelf raw shelf now material)
+  persistMaterial input next (object
+    ["membership" .= rawShelfMembershipId membership]) state
+
+removeRawFromShelfOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+removeRawFromShelfOperation input state = do
+  arguments <- requireArgumentsObject input
+  raw <- requiredAs "raw" arguments
+  shelf <- requiredAs "shelf" arguments
+  material <- materialStateFromKernel state
+  next <- mapMaterialError (removeRawFromShelf raw shelf material)
+  persistMaterial input next (object
+    [ "raw" .= (raw :: RawId)
+    , "shelf" .= (shelf :: RawShelfId)
+    , "removed" .= True
+    ]) state
+
+activeRootBrickFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+activeRootBrickFixture input state = do
+  arguments <- requireArgumentsObject input
+  titleText <- requiredText "title" arguments
+  title <- mapDomainError (mkCanonicalText titleText Nothing Human)
+  (brick, _) <- mapDomainError
+    (createBrick (ordinaryBrickDraft title standardV1 domainFixtureTime)
+      emptyDomainState)
+  material <- materialStateFromKernel state
+  let next = registerMaterialBrick (brickId brick) Active material
+  persistMaterial input next (object ["brick" .= brickId brick]) state
+
+materialEntitiesFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+materialEntitiesFixture input state = do
+  material <- materialStateFromKernel state
+  ((raw, origin), first) <- mapMaterialError (captureExternalRaw
+    (Just "Fixture source") "fixture" "fixture:source" Nothing
+    domainFixtureTime material)
+  persistMaterial input first (object
+    [ "raw" .= rawId raw
+    , "origin" .= rawOriginId origin
+    ]) state
+
+materialStateObservation :: ObservationInput -> V1State -> Either Text Value
+materialStateObservation _ state = toJSON <$> materialStateFromKernel state
+
+rawSnapshotsObservation :: ObservationInput -> V1State -> Either Text Value
+rawSnapshotsObservation input state = do
+  identifier <- exactlyOneAsArgument "RawSnapshots" input
+  material <- materialStateFromKernel state
+  _ <- mapMaterialError (rawProjection material identifier)
+  let snapshots =
+        [ snapshot
+        | snapshot <- Map.elems (materialSnapshots material)
+        , rawSnapshotRaw snapshot == identifier
+        ]
+  pure (object
+    [ "content_hashes" .= map rawSnapshotContentHash snapshots
+    , "snapshots" .= snapshots
+    ])
+
+openProposalsObservation :: ObservationInput -> V1State -> Either Text Value
+openProposalsObservation input state = do
+  brick <- exactlyOneAsArgument "OpenProposalsFor" input
+  material <- materialStateFromKernel state
+  pure (object ["kinds" .= openSourceReconciliationKinds material brick])
+
+materialBrickSummaryObservation :: ObservationInput -> V1State -> Either Text Value
+materialBrickSummaryObservation input state = do
+  brick <- exactlyOneAsArgument "BrickSummary" input
+  material <- materialStateFromKernel state
+  status <- maybe (Left "unknown material Brick owner") Right
+    (Map.lookup brick (materialBrickStatuses material))
+  pure (object ["id" .= brick, "status" .= status])
+
+rawSummaryObservation :: ObservationInput -> V1State -> Either Text Value
+rawSummaryObservation input state = do
+  identifier <- exactlyOneAsArgument "RawSummary" input
+  material <- materialStateFromKernel state
+  mapMaterialError (rawProjection material identifier)
+
+latestSourceObservationQuery :: ObservationInput -> V1State -> Either Text Value
+latestSourceObservationQuery input state = do
+  identifier <- exactlyOneAsArgument "LatestSourceObservation" input
+  material <- materialStateFromKernel state
+  observation <- mapMaterialError (latestSourceObservation material identifier)
+  maybe (Left "source origin has no observations")
+    (Right . sourceObservationProjection) observation
+
+rawLinkObservation :: ObservationInput -> V1State -> Either Text Value
+rawLinkObservation input state = do
+  identifier <- exactlyOneAsArgument "RawLink" input
+  material <- materialStateFromKernel state
+  mapMaterialError (rawLinkProjection material identifier)
+
+externalIoTraceObservation :: ObservationInput -> V1State -> Either Text Value
+externalIoTraceObservation _ _ = Right (object
+  [ "implicit_reads" .= ([] :: [Text])
+  , "explicit_reads" .= ([] :: [Text])
+  ])
 
 populatedFixture ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
@@ -532,3 +924,37 @@ optionalObject field values = case KeyMap.lookup (Key.fromText field) values of
   Just Null -> Right Nothing
   Just (Object value) -> Right (Just value)
   Just _ -> Left ("field must be an object: " <> field)
+
+requiredAs :: FromJSON value => Text -> Object -> Either Text value
+requiredAs field values = do
+  value <- requiredValue field values
+  case fromJSON value of
+    Success decoded -> Right decoded
+    Error problem -> Left ("invalid field " <> field <> ": " <> Text.pack problem)
+
+optionalAs :: FromJSON value => Text -> Object -> Either Text (Maybe value)
+optionalAs field values = case KeyMap.lookup (Key.fromText field) values of
+  Nothing -> Right Nothing
+  Just Null -> Right Nothing
+  Just value -> case fromJSON value of
+    Success decoded -> Right (Just decoded)
+    Error problem -> Left ("invalid field " <> field <> ": " <> Text.pack problem)
+
+exactlyOneAsArgument :: FromJSON value =>
+  Text -> ObservationInput -> Either Text value
+exactlyOneAsArgument name input = case observationArguments input of
+  [value] -> case fromJSON value of
+    Success decoded -> Right decoded
+    Error problem -> Left (name <> " received an invalid identifier: "
+      <> Text.pack problem)
+  _ -> Left (name <> " expects exactly one argument")
+
+operationTime :: OperationInput -> Either Text UTCTime
+operationTime input = case ambientClock (operationAmbient input) of
+  Nothing -> Right domainFixtureTime
+  Just value -> case fromJSON value of
+    Success timestamp -> Right timestamp
+    Error problem -> Left ("scenario clock is not a timestamp: " <> Text.pack problem)
+
+mapMaterialError :: Either MaterialError value -> Either Text value
+mapMaterialError = either (Left . Text.pack . show) Right

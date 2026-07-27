@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Canonical Little Ant 1.0 domain vocabulary and definition catalog.
 --
@@ -92,7 +93,8 @@ module LittleAnt.V1.Domain
 
 import Control.Monad (unless, when)
 import Data.Aeson
-  (FromJSON (parseJSON), ToJSON (toJSON), Value (..), object, withText, (.=))
+  (FromJSON (parseJSON), FromJSONKey, ToJSON (toJSON), ToJSONKey,
+   Value (..), object, withText, (.=))
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.ByteString.Lazy as LBS
@@ -321,17 +323,17 @@ newtype EntityRevision = EntityRevision { unEntityRevision :: Integer }
 
 newtype PartyId = PartyId { unPartyId :: Text }
   deriving stock (Eq, Ord, Show, Generic)
+  deriving newtype (ToJSON, FromJSON, ToJSONKey, FromJSONKey)
 
 newtype BrickId = BrickId { unBrickId :: Text }
   deriving stock (Eq, Ord, Show, Generic)
+  deriving newtype (ToJSON, FromJSON, ToJSONKey, FromJSONKey)
 
 newtype ListEntryId = ListEntryId { unListEntryId :: Text }
   deriving stock (Eq, Ord, Show, Generic)
+  deriving newtype (ToJSON, FromJSON, ToJSONKey, FromJSONKey)
 
 instance ToJSON EntityRevision where toJSON = toJSON . unEntityRevision
-instance ToJSON PartyId where toJSON = toJSON . unPartyId
-instance ToJSON BrickId where toJSON = toJSON . unBrickId
-instance ToJSON ListEntryId where toJSON = toJSON . unListEntryId
 
 data CanonicalText = CanonicalText
   { canonicalTextEnglish :: Text

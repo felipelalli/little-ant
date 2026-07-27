@@ -3,12 +3,13 @@ module Main (main) where
 import Data.Aeson (Object, Value (..), encode, object, toJSON, (.=))
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as LBS8
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Time (UTCTime (..), fromGregorian)
+import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), DriverResponse (..),
    ObservationInput (..), OperationInput (..), OperationResult (..),
@@ -23,6 +24,7 @@ import LittleAnt.V1.Kernel
    EventBatch (..), KernelError (..), OpaqueId (..), ProposedEvent (..),
    ReplayResult (..), appendSemanticAction, emptyKernelState,
    kernelEventBatches, kernelRevision, kernelValue, replayAll)
+import LittleAnt.V1.Material
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
   (Assertion, assertBool, assertFailure, testCase, (@?=))
@@ -31,6 +33,7 @@ main :: IO ()
 main = defaultMain $ testGroup "v1 contract runner"
   [ kernelTests
   , domainTests
+  , materialTests
   , implementationBridgeTests
   , planTests
   , scenarioTests
@@ -276,6 +279,165 @@ domainTests = testGroup "v1 domain model and definition catalog"
       brickBehavior brick @?= standardV1
   ]
 
+materialTests :: TestTree
+materialTests = testGroup "v1 Raw material, blobs, provenance, and shelves"
+  [ testCase "content-addresses, reads, deduplicates, and verifies canonical blobs" $ do
+      let bytes = LBS8.pack "canonical evidence"
+          contentHash = canonicalContentHash bytes
+          size = fromIntegral (LBS.length bytes)
+      stored <- requireMaterialSuccess
+        (canonicalBlobPut contentHash size "text/plain" bytes emptyCanonicalBlobStore)
+      canonicalBlobRead contentHash stored @?= Right bytes
+      canonicalBlobVerify contentHash stored @?= True
+      canonicalBlobPut contentHash size "text/plain" bytes stored @?= Right stored
+      case canonicalBlobPut "sha256:wrong" size "text/plain" bytes stored of
+        Left (BlobHashMismatch _ _) -> pure ()
+        result -> assertFailure ("mismatched hash accepted: " <> show result)
+      case canonicalBlobPut contentHash (size + 1) "text/plain" bytes stored of
+        Left (BlobSizeMismatch _ _) -> pure ()
+        result -> assertFailure ("mismatched size accepted: " <> show result)
+  , testCase "retains immutable distinct snapshots through missing, corrupt, and repair" $ do
+      (raw, first) <- requireMaterialSuccess
+        (captureInlineRaw "evidence" Nothing Nothing domainTestTime emptyMaterialState)
+      (capturedV1, second) <- requireMaterialSuccess
+        (captureRawSnapshot (rawId raw) "sha256:v1" 1 "text/plain"
+          (Just "r1") domainTestTime first)
+      snapshotV1 <- requireCreatedSnapshot capturedV1
+      (capturedV2, third) <- requireMaterialSuccess
+        (captureRawSnapshot (rawId raw) "sha256:v2" 2 "text/plain"
+          (Just "r2") (addUTCTime 1 domainTestTime) second)
+      snapshotV2 <- requireCreatedSnapshot capturedV2
+      snapshotV1 @?= Map.findWithDefault snapshotV1 (rawSnapshotId snapshotV1)
+        (materialSnapshots third)
+      assertBool "snapshot versions collapsed" (snapshotV1 /= snapshotV2)
+      latest <- requireMaterialSuccess (rawLatestSnapshot third (rawId raw))
+      latest @?= Just snapshotV2
+      (missing, fourth) <- requireMaterialSuccess
+        (reportSnapshotMissing (rawSnapshotId snapshotV1) third)
+      rawSnapshotAvailability missing @?= SnapshotMissing
+      rawSnapshotVerifiedAt missing @?= Nothing
+      (repaired, fifth) <- requireMaterialSuccess
+        (verifySnapshotBytes (rawSnapshotId snapshotV1)
+          (addUTCTime 2 domainTestTime) fourth)
+      rawSnapshotAvailability repaired @?= SnapshotAvailable
+      (corrupt, sixth) <- requireMaterialSuccess
+        (reportSnapshotCorrupt (rawSnapshotId snapshotV1) fifth)
+      rawSnapshotAvailability corrupt @?= SnapshotCorrupt
+      (repairedAgain, _) <- requireMaterialSuccess
+        (verifySnapshotBytes (rawSnapshotId snapshotV1)
+          (addUTCTime 3 domainTestTime) sixth)
+      rawSnapshotAvailability repairedAgain @?= SnapshotAvailable
+  , testCase "keeps source presence, work state, local review, and storage independent" $ do
+      ((raw, origin), first) <- requireMaterialSuccess
+        (captureExternalRaw (Just "Issue") "fake" "issue:1" (Just "1")
+          domainTestTime emptyMaterialState)
+      (observation, second) <- requireMaterialSuccess
+        (recordSourceObservation (rawOriginId origin) Adapter (Just "obs:1")
+          (Just "r2") Removed WorkUnknown Nothing
+          (addUTCTime 1 domainTestTime) first)
+      sourceObservationPresence observation @?= Removed
+      sourceObservationWorkState observation @?= WorkUnknown
+      let unchangedRaw = Map.findWithDefault raw (rawId raw) (materialRaws second)
+      rawReviewState unchangedRaw @?= RawPending
+      rawStorageState unchangedRaw @?= RawActive
+      let updatedOrigin = Map.findWithDefault origin (rawOriginId origin)
+            (materialOrigins second)
+      rawOriginLastObservedRevision updatedOrigin @?= Just "r2"
+      (relocated, third) <- requireMaterialSuccess
+        (relocateRawOrigin (rawOriginId origin) "issue:2" second)
+      rawOriginLocator origin @?= "issue:1"
+      rawOriginLocator relocated @?= "issue:2"
+      (retired, _) <- requireMaterialSuccess
+        (retireRawOrigin (rawOriginId origin) third)
+      rawOriginHistoricalOnly retired @?= True
+  , testCase "enforces typed single-owner links and explicit reconciliation" $ do
+      ((raw, _), first) <- requireMaterialSuccess
+        (captureExternalRaw Nothing "fake" "source:1" Nothing
+          domainTestTime emptyMaterialState)
+      (other, second) <- requireMaterialSuccess
+        (captureInlineRaw "derived" Nothing Nothing domainTestTime first)
+      let brick = BrickId "brick:material-test"
+          entry = ListEntryId "entry:material-test"
+          registered = registerMaterialListEntry entry
+            (registerMaterialBrick brick Active second)
+      (capturedV1, third) <- requireMaterialSuccess
+        (captureRawSnapshot (rawId raw) "sha256:one" 1 "text/plain" Nothing
+          domainTestTime registered)
+      snapshotV1 <- requireCreatedSnapshot capturedV1
+      (sourceLink, fourth) <- requireMaterialSuccess
+        (linkRawToBrick (rawId raw) brick Source (Just (rawSnapshotId snapshotV1))
+          domainTestTime third)
+      (entryLink, fifth) <- requireMaterialSuccess
+        (linkRawToEntry (rawId other) entry Evidence domainTestTime fourth)
+      rawLinkOwnerBrick sourceLink @?= Just brick
+      rawLinkOwnerEntry sourceLink @?= Nothing
+      rawLinkOwnerEntry entryLink @?= Just entry
+      (derived, sixth) <- requireMaterialSuccess
+        (linkDerivedRaw (rawId other) (rawId raw) domainTestTime fifth)
+      rawLinkRaw derived @?= rawId raw
+      rawLinkOwnerRaw derived @?= Just (rawId other)
+      (capturedV2, seventh) <- requireMaterialSuccess
+        (captureRawSnapshot (rawId raw) "sha256:two" 2 "text/plain" Nothing
+          (addUTCTime 1 domainTestTime) sixth)
+      snapshotV2 <- requireCreatedSnapshot capturedV2
+      openSourceReconciliationKinds seventh brick @?= ["source_reconciliation"]
+      (reconciled, eighth) <- requireMaterialSuccess
+        (reconcileRawLink (rawLinkId sourceLink) (rawSnapshotId snapshotV2) seventh)
+      rawLinkReconciledSnapshot reconciled @?= Just (rawSnapshotId snapshotV2)
+      openSourceReconciliationKinds eighth brick @?= []
+      case linkRawToBrick (rawId raw) brick Source Nothing domainTestTime eighth of
+        Left DuplicateRawLink -> pure ()
+        result -> assertFailure ("duplicate source link accepted: " <> show result)
+  , testCase "transitions review and archive axes without deleting history" $ do
+      (raw, first) <- requireMaterialSuccess
+        (captureInlineRaw "review me" (Just "Review me") (Just Human)
+          domainTestTime emptyMaterialState)
+      ((reviewed, disposition), second) <- requireMaterialSuccess
+        (reviewRaw (rawId raw) NoWork Nothing Human (Just "nothing actionable")
+          domainTestTime first)
+      rawReviewState reviewed @?= RawReviewedState
+      rawStorageState reviewed @?= RawActive
+      rawReviewDispositionKind disposition @?= NoWork
+      (archived, third) <- requireMaterialSuccess (archiveRaw (rawId raw) second)
+      rawReviewState archived @?= RawReviewedState
+      rawStorageState archived @?= RawArchivedState
+      (reopened, fourth) <- requireMaterialSuccess (reopenRaw (rawId raw) third)
+      rawReviewState reopened @?= RawPending
+      rawStorageState reopened @?= RawArchivedState
+      (unarchived, final) <- requireMaterialSuccess (unarchiveRaw (rawId raw) fourth)
+      rawStorageState unarchived @?= RawActive
+      assertBool "Raw history was deleted"
+        (Map.member (rawId raw) (materialRaws final)
+          && Map.member (rawReviewDispositionId disposition)
+            (materialReviewDispositions final))
+  , testCase "keeps shelf membership flat, unique, and reversible" $ do
+      (raw, first) <- requireMaterialSuccess
+        (captureInlineRaw "shelf item" Nothing Nothing domainTestTime emptyMaterialState)
+      (shelf, second) <- requireMaterialSuccess
+        (createRawShelf "References" domainTestTime first)
+      (membership, third) <- requireMaterialSuccess
+        (addRawToShelf (rawId raw) (rawShelfId shelf) domainTestTime second)
+      rawShelfMembershipRaw membership @?= rawId raw
+      rawShelfMembershipShelf membership @?= rawShelfId shelf
+      case addRawToShelf (rawId raw) (rawShelfId shelf) domainTestTime third of
+        Left (DuplicateShelfMembership _ _) -> pure ()
+        result -> assertFailure ("duplicate shelf membership accepted: " <> show result)
+      final <- requireMaterialSuccess
+        (removeRawFromShelf (rawId raw) (rawShelfId shelf) third)
+      Map.null (materialMemberships final) @?= True
+      Map.member (rawId raw) (materialRaws final) @?= True
+  , testCase "runs the seven raw source reconciliation assertions on real state" $
+      assertResponsePassed (runContractRequest contractRegistry materialScenario)
+        [ "new-snapshot-is-immutable-and-distinct"
+        , "new-source-snapshot-proposes-reconciliation"
+        , "external-removal-is-not-local-done"
+        , "external-removal-does-not-archive-raw"
+        , "observation-keeps-presence-separate-from-work-state"
+        , "reconciliation-advances-baseline-explicitly"
+        , "reconciliation-does-not-fetch-hidden-io"
+        ]
+  ]
+
 implementationBridgeTests :: TestTree
 implementationBridgeTests = testGroup "real implementation registry"
   [ testCase "populates every contract extension point" $ do
@@ -319,6 +481,14 @@ implementationBridgeTests = testGroup "real implementation registry"
         , "contract-signature.DefinitionCatalog.find_templates"
         , "rule-success.PersonalBehaviorVersionPublished"
         , "invariant.TerminalBrickIsNotWip"
+        ]
+  , testCase "executes material probes through real constructors and boundaries" $
+      assertResponsePassed (runContractRequest contractRegistry materialPlanRequest)
+        [ "contract-signature.CanonicalBlobStore.put"
+        , "entity-fields.RawSnapshot"
+        , "rule-success.SourceLinkReconciled"
+        , "invariant.RawLinkHasExactlyOneOwner"
+        , "surface-provides.MaterialDesk"
         ]
   ]
 
@@ -790,6 +960,146 @@ domainPlanRequest = object
   , "model" .= object ["version" .= (3 :: Int)]
   ]
 
+materialPlanRequest :: Value
+materialPlanRequest = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("material" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "contract-signature.CanonicalBlobStore.put"
+              "contract_signature" "CanonicalBlobStore.put"
+          , obligation "entity-fields.RawSnapshot"
+              "entity_fields" "RawSnapshot"
+          , obligation "rule-success.SourceLinkReconciled"
+              "rule_success" "SourceLinkReconciled"
+          , obligation "invariant.RawLinkHasExactlyOneOwner"
+              "invariant" "RawLinkHasExactlyOneOwner"
+          , obligation "surface-provides.MaterialDesk"
+              "surface_provides" "MaterialDesk"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+materialScenario :: Value
+materialScenario = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("raw-source-reconciliation-unit" :: Text)
+      , "clock" .= ("2026-07-27T16:00:00Z" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("create-brick" :: Text)
+              , "operation" .= ("CreateFixture" :: Text)
+              , "arguments" .= object
+                  [ "fixture" .= ("active_root_brick" :: Text)
+                  , "title" .= ("Implement issue 412" :: Text)
+                  ]
+              , "bind_result" .= object ["brick" .= ("brick" :: Text)]
+              ]
+          , object
+              [ "id" .= ("capture-source" :: Text)
+              , "operation" .= ("CaptureExternalRaw" :: Text)
+              , "arguments" .= object
+                  [ "title" .= ("Issue 412" :: Text)
+                  , "adapter" .= ("github-issues" :: Text)
+                  , "locator" .= ("https://example.test/issues/412" :: Text)
+                  , "external_id" .= ("example#412" :: Text)
+                  ]
+              , "bind_result" .= object
+                  [ "raw" .= ("raw" :: Text), "origin" .= ("origin" :: Text)]
+              ]
+          , object
+              [ "id" .= ("capture-v1" :: Text)
+              , "operation" .= ("CaptureRawSnapshot" :: Text)
+              , "arguments" .= object
+                  [ "raw" .= ("$raw" :: Text), "content_hash" .= ("sha256:v1" :: Text)
+                  , "size" .= (1200 :: Int), "media_type" .= ("application/json" :: Text)
+                  , "origin_revision" .= ("etag-1" :: Text)
+                  ]
+              , "bind_result" .= object ["snapshot" .= ("snapshot_v1" :: Text)]
+              ]
+          , object
+              [ "id" .= ("link-source" :: Text)
+              , "operation" .= ("LinkRawToBrick" :: Text)
+              , "arguments" .= object
+                  [ "raw" .= ("$raw" :: Text), "brick" .= ("$brick" :: Text)
+                  , "role" .= ("source" :: Text), "baseline" .= ("$snapshot_v1" :: Text)
+                  ]
+              , "bind_result" .= object ["link" .= ("link" :: Text)]
+              ]
+          , object
+              [ "id" .= ("capture-v2" :: Text)
+              , "operation" .= ("CaptureRawSnapshot" :: Text)
+              , "arguments" .= object
+                  [ "raw" .= ("$raw" :: Text), "content_hash" .= ("sha256:v2" :: Text)
+                  , "size" .= (1400 :: Int), "media_type" .= ("application/json" :: Text)
+                  , "origin_revision" .= ("etag-2" :: Text)
+                  ]
+              , "bind_result" .= object ["snapshot" .= ("snapshot_v2" :: Text)]
+              ]
+          , object
+              [ "id" .= ("observe-removed" :: Text)
+              , "operation" .= ("RecordSourceObservation" :: Text)
+              , "arguments" .= object
+                  [ "origin" .= ("$origin" :: Text), "authority" .= ("adapter" :: Text)
+                  , "external_observation_id" .= ("observation-3" :: Text)
+                  , "revision" .= ("etag-3" :: Text), "presence" .= ("removed" :: Text)
+                  , "work_state" .= ("unknown" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("reconcile" :: Text)
+              , "operation" .= ("ReconcileRawLink" :: Text)
+              , "arguments" .= object
+                  ["link" .= ("$link" :: Text), "snapshot" .= ("$snapshot_v2" :: Text)]
+              ]
+          ]
+      , "assertions" .=
+          [ materialAssertion "new-snapshot-is-immutable-and-distinct" "capture-v2"
+              "RawSnapshots($raw)" (Just "content_hashes") "equals_set"
+              (toJSON (["sha256:v1", "sha256:v2"] :: [Text]))
+          , materialAssertion "new-source-snapshot-proposes-reconciliation" "capture-v2"
+              "OpenProposalsFor($brick)" (Just "kinds") "contains"
+              (String "source_reconciliation")
+          , materialAssertion "external-removal-is-not-local-done" "observe-removed"
+              "BrickSummary($brick)" (Just "status") "equals" (String "active")
+          , materialAssertion "external-removal-does-not-archive-raw" "observe-removed"
+              "RawSummary($raw)" (Just "storage_state") "equals" (String "active")
+          , object
+              [ "id" .= ("observation-keeps-presence-separate-from-work-state" :: Text)
+              , "after" .= ("observe-removed" :: Text)
+              , "query" .= ("LatestSourceObservation($origin)" :: Text)
+              , "operator" .= ("contains" :: Text)
+              , "value" .= object
+                  ["presence" .= ("removed" :: Text), "work_state" .= ("unknown" :: Text)]
+              ]
+          , object
+              [ "id" .= ("reconciliation-advances-baseline-explicitly" :: Text)
+              , "after" .= ("reconcile" :: Text)
+              , "query" .= ("RawLink($link)" :: Text)
+              , "path" .= ("reconciled_snapshot.id" :: Text)
+              , "operator" .= ("equals_reference" :: Text)
+              , "value" .= ("$snapshot_v2" :: Text)
+              ]
+          , materialAssertion "reconciliation-does-not-fetch-hidden-io" "reconcile"
+              "ExternalIoTrace" (Just "implicit_reads") "count_equals" (toJSON (0 :: Int))
+          ]
+      ]
+  ]
+
+materialAssertion :: Text -> Text -> Text -> Maybe Text -> Text -> Value -> Value
+materialAssertion identifier afterStep query path operator expected = object
+  ([ "id" .= identifier
+   , "after" .= afterStep
+   , "query" .= query
+   , "operator" .= operator
+   , "value" .= expected
+   ] <> maybe [] (\selected -> ["path" .= selected]) path)
+
 planRequest :: Value
 planRequest = object
   [ "protocol_version" .= (1 :: Int)
@@ -1062,6 +1372,17 @@ requireDomainSuccess :: Show problem => Either problem value -> IO value
 requireDomainSuccess result = case result of
   Left problem -> assertFailure ("domain operation failed: " <> show problem)
   Right value -> pure value
+
+requireMaterialSuccess :: Either MaterialError value -> IO value
+requireMaterialSuccess result = case result of
+  Left problem -> assertFailure ("material operation failed: " <> show problem)
+  Right value -> pure value
+
+requireCreatedSnapshot :: SnapshotCaptureResult -> IO RawSnapshot
+requireCreatedSnapshot result = case result of
+  SnapshotCreated snapshot -> pure snapshot
+  SnapshotReused snapshot -> assertFailure
+    ("expected a new snapshot, reused: " <> show (rawSnapshotId snapshot))
 
 domainTestTime :: UTCTime
 domainTestTime = UTCTime (fromGregorian 2026 7 27) 0

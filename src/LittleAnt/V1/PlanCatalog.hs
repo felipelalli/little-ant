@@ -30,9 +30,10 @@ import LittleAnt.V1.Kernel
    ProposedEvent (..), ReplayResult (..), appendSemanticAction,
    emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
    kernelValue, replayAll)
+import LittleAnt.V1.MaterialPlanCatalog (materialPlanProbes)
 
 v1PlanProbes :: Map ProbeKey PlanProbe
-v1PlanProbes = Map.union kernelPlanProbes domainPlanProbes
+v1PlanProbes = Map.unions [kernelPlanProbes, domainPlanProbes, materialPlanProbes]
 
 kernelPlanProbes :: Map ProbeKey PlanProbe
 kernelPlanProbes = Map.fromList
