@@ -24,6 +24,7 @@ import Data.Time (UTCTime (..), fromGregorian)
 import LittleAnt.V1.Contract
   (PlanProbe, PlanProbeInput (..), ProbeKey (..))
 import LittleAnt.V1.Domain
+import LittleAnt.V1.JudgmentAssessmentPlanCatalog (assessmentPlanProbes)
 import LittleAnt.V1.JudgmentPlanCatalog (priorityPlanProbes)
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
@@ -39,6 +40,7 @@ v1PlanProbes = Map.unions
   , domainPlanProbes
   , materialPlanProbes
   , priorityPlanProbes
+  , assessmentPlanProbes
   ]
 
 kernelPlanProbes :: Map ProbeKey PlanProbe

@@ -59,6 +59,8 @@ library
         LittleAnt.V1.Contract
         LittleAnt.V1.Domain
         LittleAnt.V1.Implementation
+        LittleAnt.V1.Judgment
+        LittleAnt.V1.JudgmentAssessmentPlanCatalog
         LittleAnt.V1.Kernel
         LittleAnt.V1.Material
         LittleAnt.V1.MaterialPlanCatalog

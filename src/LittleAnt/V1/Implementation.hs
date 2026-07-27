@@ -9,12 +9,13 @@ module LittleAnt.V1.Implementation
   ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (when)
+import Control.Monad (foldM, when)
 import Data.Aeson
   (FromJSON, Object, Result (..), Value (..), fromJSON, object, toJSON, (.=))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import Data.Foldable (toList)
+import Data.List (find)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe)
@@ -27,11 +28,14 @@ import LittleAnt.V1.Contract
    ReferenceSnapshot (..), emptyContractRegistry, selectJsonPath,
    standardAssertionOperators)
 import LittleAnt.V1.Domain
-  (Authority (Human), Brick (brickId), BrickStatus (Active), DomainError,
+  (Applicability (Applicable), Authority (Human), Brick (brickId), BrickId (..),
+   BrickStatus (Active), DomainError,
    ListEntryDraft (..), Party (partyId), PartyType (Person),
-   createBrick, createListEntry, createParty, domainCatalog, domainProjection,
-   emptyDomainState, finiteChecklistV1, findBehaviors, findTemplates,
+   behaviorEffort, behaviorId, behaviorVersions, createBrick, createListEntry,
+   createParty, domainCatalog, domainProjection, emptyDomainState,
+   finiteChecklistV1, findBehaviors, findTemplates, initialDefinitionCatalog,
    focusBrick, mkCanonicalText, ordinaryBrickDraft, standardV1)
+import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
    EventBatch (..), KernelError, KernelState, OpaqueId (..), ProposedEvent (..),
@@ -82,6 +86,17 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("OpenProvocativeValidation", openProvocativeValidationOperation)
       , ("RecordPriorityJudgment", recordPriorityJudgmentOperation)
       , ("CommitPriorityRecalibration", commitPriorityRecalibrationOperation)
+      , ("ClassifyImpact", classifyImpactOperation)
+      , ("CompareImpact", compareImpactOperation)
+      , ("ReviseImpactMaturity", reviseImpactMaturityOperation)
+      , ("ClassifyEffort", classifyEffortOperation)
+      , ("CompareEffort", compareEffortOperation)
+      , ("DeferJudgmentProbe", deferJudgmentProbeOperation)
+      , ("ReopenJudgmentProbe", reopenJudgmentProbeOperation)
+      , ("ConfirmDecompositionCoverage", confirmDecompositionCoverageOperation)
+      , ("ConfirmScopeRevision", confirmScopeRevisionOperation)
+      , ("RecordProgressEvidence", recordProgressEvidenceOperation)
+      , ("SetJudgmentBrickStatus", setJudgmentBrickStatusOperation)
       , ("CaptureInlineRaw", captureInlineRawOperation)
       , ("CaptureExternalRaw", captureExternalRawOperation)
       , ("CaptureRawSnapshot", captureRawSnapshotOperation)
@@ -126,6 +141,15 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("JudgmentProbe", judgmentProbeObservation)
       , ("PriorityEvidence", priorityEvidenceObservation)
       , ("PriorityRecalibration", priorityRecalibrationObservation)
+      , ("JudgmentState", judgmentStateObservation)
+      , ("ImpactAssessment", impactAssessmentObservation)
+      , ("ImpactComparison", impactComparisonObservation)
+      , ("ImpactEvidence", impactEvidenceObservation)
+      , ("EffortAssessment", effortAssessmentObservation)
+      , ("EffortComparisonEvidence", effortComparisonObservation)
+      , ("EffortEvidence", effortEvidenceObservation)
+      , ("RemainingEffort", remainingEffortObservation)
+      , ("JudgmentProjection", judgmentProjectionObservation)
       , ("OpenProposalsFor", openProposalsObservation)
       , ("BrickSummary", materialBrickSummaryObservation)
       , ("RawSummary", rawSummaryObservation)
@@ -139,6 +163,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("domain_entities", domainEntitiesFixture)
       , ("kernel_populated", populatedFixture)
       , ("kernel_reference_state", referenceFixture)
+      , ("judgment_entities", judgmentEntitiesFixture)
       , ("material_entities", materialEntitiesFixture)
       , ("strict_root_priority", strictRootPriorityFixture)
       ]
@@ -332,6 +357,25 @@ persistPriority input priority resultValue state = do
     , operationResultState = appendResultState accepted
     }
 
+persistPriorityAndJudgment ::
+  OperationInput -> Priority.PriorityState -> Judgment.JudgmentState -> Value ->
+  V1State -> Either Text (OperationResult V1State)
+persistPriorityAndJudgment input priority judgment resultValue state = do
+  accepted <- appendForFixture input "priority-and-judgment"
+    [ ProposeValueStored "v1.priority" (toJSON priority)
+    , ProposeValueStored "v1.judgment" (toJSON judgment)
+    ] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+behaviorSupportsEffort :: Text -> Either Text Bool
+behaviorSupportsEffort identifier = do
+  behavior <- maybe (Left ("unknown Brick behavior: " <> identifier)) Right
+    (find ((== identifier) . behaviorId) (behaviorVersions initialDefinitionCatalog))
+  pure (behaviorEffort behavior == Applicable)
+
 createRootPriorityOperation ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
 createRootPriorityOperation input state = do
@@ -339,14 +383,17 @@ createRootPriorityOperation input state = do
   title <- requiredText "title" arguments
   _ <- requiredAs "title_authority" arguments :: Either Text Authority
   behavior <- requiredText "behavior" arguments
-  when (Text.null (Text.strip behavior)) (Left "behavior must not be empty")
+  effortApplicable <- behaviorSupportsEffort behavior
   now <- operationTime input
   priority <- priorityStateForOperation input state
+  judgment <- judgmentStateFromKernel state
   let randomEvidence = fromMaybe (actionIdFor input)
         (ambientText (ambientRandomEvidence (operationAmbient input)))
   (brick, insertion, next) <- mapPriorityError
     (Priority.createPriorityRoot title randomEvidence now priority)
-  persistPriority input next (object
+  nextJudgment <- mapJudgmentError (Judgment.registerJudgmentBrick
+    (Priority.priorityBrickId brick) Nothing Active effortApplicable judgment)
+  persistPriorityAndJudgment input next nextJudgment (object
     [ "brick" .= Priority.priorityBrickId brick
     , "insertion" .= Priority.priorityInsertionId insertion
     ]) state
@@ -359,14 +406,17 @@ createChildPriorityOperation input state = do
   title <- requiredText "title" arguments
   _ <- requiredAs "title_authority" arguments :: Either Text Authority
   behavior <- requiredText "behavior" arguments
-  when (Text.null (Text.strip behavior)) (Left "behavior must not be empty")
+  effortApplicable <- behaviorSupportsEffort behavior
   now <- operationTime input
   priority <- priorityStateForOperation input state
+  judgment <- judgmentStateFromKernel state
   let randomEvidence = fromMaybe (actionIdFor input)
         (ambientText (ambientRandomEvidence (operationAmbient input)))
   (brick, insertion, next) <- mapPriorityError
     (Priority.createPriorityChild parent title randomEvidence now priority)
-  persistPriority input next (object
+  nextJudgment <- mapJudgmentError (Judgment.registerJudgmentBrick
+    (Priority.priorityBrickId brick) (Just parent) Active effortApplicable judgment)
+  persistPriorityAndJudgment input next nextJudgment (object
     [ "brick" .= Priority.priorityBrickId brick
     , "insertion" .= Priority.priorityInsertionId insertion
     ]) state
@@ -423,19 +473,33 @@ openProvocativeValidationOperation ::
 openProvocativeValidationOperation input state = do
   arguments <- requireArgumentsObject input
   axis <- requiredAs "axis" arguments
-  when (axis /= Priority.PriorityAxis)
-    (Left "this implementation slice opens priority probes only")
-  scope <- requiredAs "scope" arguments
   left <- requiredAs "left" arguments
   right <- requiredAs "right" arguments
   purpose <- requiredAs "purpose" arguments
-  let reason = fromMaybe "provocative validation of retained priority evidence"
-        (optionalText "reason" arguments)
   now <- operationTime input
-  priority <- priorityStateForOperation input state
-  (probe, next) <- mapPriorityError
-    (Priority.openPriorityProbe scope left right purpose reason now priority)
-  persistPriority input next (toJSON (Priority.judgmentProbeId probe)) state
+  case axis of
+    Priority.PriorityAxis -> do
+      scope <- requiredAs "scope" arguments
+      let reason = fromMaybe "provocative validation of retained priority evidence"
+            (optionalText "reason" arguments)
+      priority <- priorityStateForOperation input state
+      (probe, next) <- mapPriorityError
+        (Priority.openPriorityProbe scope left right purpose reason now priority)
+      persistPriority input next (toJSON (Priority.judgmentProbeId probe)) state
+    Priority.ImpactAxis -> do
+      let reason = fromMaybe "provocative validation of retained impact evidence"
+            (optionalText "reason" arguments)
+      judgment <- judgmentStateFromKernel state
+      (probe, next) <- mapJudgmentError
+        (Judgment.openImpactProbe left right purpose reason now judgment)
+      persistJudgment input next (toJSON (Priority.judgmentProbeId probe)) state
+    Priority.EffortAxis -> do
+      let reason = fromMaybe "provocative validation of retained effort evidence"
+            (optionalText "reason" arguments)
+      judgment <- judgmentStateFromKernel state
+      (probe, next) <- mapJudgmentError
+        (Judgment.openEffortProbe left right purpose reason now judgment)
+      persistJudgment input next (toJSON (Priority.judgmentProbeId probe)) state
 
 recordPriorityJudgmentOperation ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
@@ -480,12 +544,18 @@ strictRootPriorityFixture input state = do
         (ambientText (ambientRandomEvidence (operationAmbient input)))
   (byTitle, next) <- mapPriorityError
     (Priority.createStrictRootFixture titles pairs randomEvidence now priority)
+  judgment <- judgmentStateFromKernel state
+  nextJudgment <- foldM (\current brick -> mapJudgmentError
+      (Judgment.registerJudgmentBrick (Priority.priorityBrickId brick)
+        (Priority.priorityBrickParent brick) (Priority.priorityBrickStatus brick)
+        True current)) judgment (Map.elems (Priority.priorityStateBricks next))
   let resultFields =
         (Key.fromText "scope", toJSON Priority.priorityRootScopeId)
         : [ (Key.fromText title, toJSON identifier)
           | (title, identifier) <- Map.toList byTitle
           ]
-  persistPriority input next (Object (KeyMap.fromList resultFields)) state
+  persistPriorityAndJudgment input next nextJudgment
+    (Object (KeyMap.fromList resultFields)) state
 
 priorityInsertionObservation :: ObservationInput -> V1State -> Either Text Value
 priorityInsertionObservation input state = do
@@ -542,7 +612,10 @@ judgmentProbeObservation :: ObservationInput -> V1State -> Either Text Value
 judgmentProbeObservation input state = do
   identifier <- exactlyOneAsArgument "JudgmentProbe" input
   priority <- priorityStateFromKernel state
-  mapPriorityError (Priority.probeProjection priority identifier)
+  judgment <- judgmentStateFromKernel state
+  if Map.member identifier (Priority.priorityStateProbes priority)
+    then mapPriorityError (Priority.probeProjection priority identifier)
+    else mapJudgmentError (Judgment.judgmentProbeProjection judgment identifier)
 
 priorityEvidenceObservation :: ObservationInput -> V1State -> Either Text Value
 priorityEvidenceObservation input state = do
@@ -591,6 +664,332 @@ decodeArgument name value = case fromJSON value of
 
 mapPriorityError :: Either Priority.PriorityError value -> Either Text value
 mapPriorityError = either (Left . Text.pack . show) Right
+
+------------------------------------------------------------
+-- Impact, effort, and judgment evidence
+------------------------------------------------------------
+
+judgmentStateFromKernel :: V1State -> Either Text Judgment.JudgmentState
+judgmentStateFromKernel state = case kernelValue "v1.judgment" state of
+  Nothing -> Right Judgment.emptyJudgmentState
+  Just value -> case fromJSON value of
+    Success judgment -> Right judgment
+    Error problem -> Left ("stored judgment state is malformed: " <> Text.pack problem)
+
+persistJudgment ::
+  OperationInput -> Judgment.JudgmentState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistJudgment input judgment resultValue state = do
+  accepted <- appendForFixture input "judgment"
+    [ProposeValueStored "v1.judgment" (toJSON judgment)] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+classifyImpactOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+classifyImpactOperation input state = do
+  arguments <- requireArgumentsObject input
+  root <- requiredAs "root" arguments
+  impact <- requiredAs "impact" arguments
+  maturity <- requiredAs "maturity" arguments
+  authority <- requiredAs "authority" arguments
+  reason <- optionalAs "reason" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  (assessment, probe, next) <- mapJudgmentError
+    (Judgment.classifyImpact root impact maturity authority reason now judgment)
+  persistJudgment input next (object
+    [ "assessment" .= Judgment.impactAssessmentId assessment
+    , "probe" .= fmap Priority.judgmentProbeId probe
+    ]) state
+
+compareImpactOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+compareImpactOperation input state = do
+  arguments <- requireArgumentsObject input
+  left <- requiredAs "left" arguments
+  right <- requiredAs "right" arguments
+  result <- requiredAs "result" arguments
+  authority <- requiredAs "authority" arguments
+  reason <- optionalAs "reason" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  (comparison, probe, next) <- mapJudgmentError
+    (Judgment.compareImpact left right result authority reason now judgment)
+  persistJudgment input next (object
+    [ "comparison" .= Judgment.impactComparisonId comparison
+    , "probe" .= fmap Priority.judgmentProbeId probe
+    ]) state
+
+reviseImpactMaturityOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reviseImpactMaturityOperation input state = do
+  arguments <- requireArgumentsObject input
+  root <- requiredAs "root" arguments
+  maturity <- requiredAs "maturity" arguments
+  authority <- requiredAs "authority" arguments
+  reason <- requiredText "reason" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  (assessment, probe, next) <- mapJudgmentError
+    (Judgment.reviseImpactMaturity root maturity authority reason now judgment)
+  persistJudgment input next (object
+    [ "assessment" .= Judgment.impactAssessmentId assessment
+    , "probe" .= fmap Priority.judgmentProbeId probe
+    ]) state
+
+classifyEffortOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+classifyEffortOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  authority <- requiredAs "authority" arguments
+  provisional <- requiredAs "provisional" arguments
+  reason <- optionalAs "reason" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  band <- requiredEffortBand "band" arguments judgment
+  (assessment, probe, next) <- mapJudgmentError
+    (Judgment.classifyEffort brick band authority provisional reason now judgment)
+  persistJudgment input next (object
+    [ "assessment" .= Judgment.effortAssessmentId assessment
+    , "probe" .= fmap Priority.judgmentProbeId probe
+    ]) state
+
+compareEffortOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+compareEffortOperation input state = do
+  arguments <- requireArgumentsObject input
+  subject <- requiredAs "subject" arguments
+  exemplar <- requiredAs "exemplar" arguments
+  result <- requiredAs "result" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  (comparison, probe, next) <- mapJudgmentError
+    (Judgment.compareEffort subject exemplar result authority now judgment)
+  persistJudgment input next (object
+    [ "comparison" .= Judgment.effortComparisonEvidenceId comparison
+    , "probe" .= fmap Priority.judgmentProbeId probe
+    ]) state
+
+deferJudgmentProbeOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+deferJudgmentProbeOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "probe" arguments
+  judgment <- judgmentStateFromKernel state
+  if Map.member identifier (Judgment.judgmentStateProbes judgment)
+    then do
+      (probe, next) <- mapJudgmentError
+        (Judgment.deferAssessmentProbe identifier judgment)
+      persistJudgment input next (toJSON (Priority.judgmentProbeId probe)) state
+    else do
+      priority <- priorityStateForOperation input state
+      (probe, next) <- mapPriorityError (Priority.deferJudgmentProbe identifier priority)
+      persistPriority input next (toJSON (Priority.judgmentProbeId probe)) state
+
+reopenJudgmentProbeOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reopenJudgmentProbeOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "probe" arguments
+  judgment <- judgmentStateFromKernel state
+  if Map.member identifier (Judgment.judgmentStateProbes judgment)
+    then do
+      (probe, next) <- mapJudgmentError
+        (Judgment.reopenAssessmentProbe identifier judgment)
+      persistJudgment input next (toJSON (Priority.judgmentProbeId probe)) state
+    else do
+      priority <- priorityStateForOperation input state
+      (probe, next) <- mapPriorityError (Priority.reopenJudgmentProbe identifier priority)
+      persistPriority input next (toJSON (Priority.judgmentProbeId probe)) state
+
+confirmDecompositionCoverageOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+confirmDecompositionCoverageOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  judgment <- judgmentStateFromKernel state
+  (updated, next) <- mapJudgmentError
+    (Judgment.confirmDecompositionCoverage brick judgment)
+  persistJudgment input next (object
+    [ "brick" .= Judgment.judgmentBrickId updated
+    , "decomposition_coverage" .= Judgment.judgmentBrickDecompositionCoverage updated
+    ]) state
+
+confirmScopeRevisionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+confirmScopeRevisionOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  reason <- requiredText "reason" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  (revision, nextJudgment) <- mapJudgmentError
+    (Judgment.confirmScopeRevision brick reason authority now judgment)
+  priority <- priorityStateFromKernel state
+  nextPriority <- if Map.member brick (Priority.priorityStateBricks priority)
+    then Just <$> mapPriorityError
+      (Priority.invalidatePriorityJudgmentsFor brick priority)
+    else pure Nothing
+  let events = [ProposeValueStored "v1.judgment" (toJSON nextJudgment)]
+        <> maybe [] (\value -> [ProposeValueStored "v1.priority" (toJSON value)])
+          nextPriority
+  accepted <- appendForFixture input "scope-revision" events state
+  pure OperationResult
+    { operationResultValue = object
+        [ "scope_revision" .= Judgment.scopeRevisionId revision
+        , "brick" .= brick
+        ]
+    , operationResultState = appendResultState accepted
+    }
+
+recordProgressEvidenceOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordProgressEvidenceOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  kind <- requiredAs "kind" arguments
+  amount <- requiredAs "amount" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  (evidence, next) <- mapJudgmentError
+    (Judgment.recordProgressEvidence brick kind amount now judgment)
+  persistJudgment input next (object
+    ["progress_evidence" .= Judgment.progressEvidenceId evidence]) state
+
+setJudgmentBrickStatusOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+setJudgmentBrickStatusOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  status <- requiredAs "status" arguments
+  now <- operationTime input
+  judgment <- judgmentStateFromKernel state
+  (updated, nextJudgment) <- mapJudgmentError
+    (Judgment.setJudgmentBrickStatus brick status now judgment)
+  priority <- priorityStateFromKernel state
+  nextPriority <- if Map.member brick (Priority.priorityStateBricks priority)
+    then Just . snd <$> mapPriorityError
+      (Priority.setPriorityBrickStatus brick status now priority)
+    else pure Nothing
+  let events = [ProposeValueStored "v1.judgment" (toJSON nextJudgment)]
+        <> maybe [] (\value -> [ProposeValueStored "v1.priority" (toJSON value)])
+          nextPriority
+  accepted <- appendForFixture input "terminal-judgment-brick" events state
+  pure OperationResult
+    { operationResultValue = object
+        ["brick" .= Judgment.judgmentBrickId updated, "status" .= status]
+    , operationResultState = appendResultState accepted
+    }
+
+requiredEffortBand ::
+  Text -> Object -> Judgment.JudgmentState -> Either Text Judgment.EffortBand
+requiredEffortBand field values judgment = do
+  value <- requiredValue field values
+  case fromJSON value of
+    Success band -> Right band
+    Error _ -> case value of
+      String identifier -> mapJudgmentError
+        (Judgment.effortBandById Judgment.initialEffortProfile identifier judgment)
+      _ -> Left ("invalid effort band field: " <> field)
+
+judgmentEntitiesFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+judgmentEntitiesFixture input state = do
+  judgment <- judgmentStateFromKernel state
+  let rootA = BrickId "judgment:fixture:00000001"
+      rootB = BrickId "judgment:fixture:00000002"
+      child = BrickId "judgment:fixture:00000003"
+      disabled = BrickId "judgment:fixture:00000004"
+  first <- mapJudgmentError
+    (Judgment.registerJudgmentBrick rootA Nothing Active True judgment)
+  second <- mapJudgmentError
+    (Judgment.registerJudgmentBrick rootB Nothing Active True first)
+  third <- mapJudgmentError
+    (Judgment.registerJudgmentBrick child (Just rootA) Active True second)
+  next <- mapJudgmentError
+    (Judgment.registerJudgmentBrick disabled Nothing Active False third)
+  easy <- mapJudgmentError
+    (Judgment.effortBandById Judgment.initialEffortProfile "EASY" next)
+  hard <- mapJudgmentError
+    (Judgment.effortBandById Judgment.initialEffortProfile "HARD" next)
+  persistJudgment input next (object
+    [ "root_a" .= rootA
+    , "root_b" .= rootB
+    , "child" .= child
+    , "effort_disabled" .= disabled
+    , "easy" .= easy
+    , "hard" .= hard
+    , "effort_profile" .= Judgment.initialEffortProfile
+    ]) state
+
+judgmentStateObservation :: ObservationInput -> V1State -> Either Text Value
+judgmentStateObservation input state = do
+  requireNoArguments "JudgmentState" input
+  toJSON <$> judgmentStateFromKernel state
+
+impactAssessmentObservation :: ObservationInput -> V1State -> Either Text Value
+impactAssessmentObservation input state = do
+  identifier <- exactlyOneAsArgument "ImpactAssessment" input
+  judgment <- judgmentStateFromKernel state
+  mapJudgmentError (Judgment.impactAssessmentProjection judgment identifier)
+
+impactComparisonObservation :: ObservationInput -> V1State -> Either Text Value
+impactComparisonObservation input state = do
+  identifier <- exactlyOneAsArgument "ImpactComparison" input
+  judgment <- judgmentStateFromKernel state
+  mapJudgmentError (Judgment.impactComparisonProjection judgment identifier)
+
+impactEvidenceObservation :: ObservationInput -> V1State -> Either Text Value
+impactEvidenceObservation input state = do
+  root <- exactlyOneAsArgument "ImpactEvidence" input
+  judgment <- judgmentStateFromKernel state
+  toJSON <$> mapJudgmentError (Judgment.impactEvidence judgment root)
+
+effortAssessmentObservation :: ObservationInput -> V1State -> Either Text Value
+effortAssessmentObservation input state = do
+  identifier <- exactlyOneAsArgument "EffortAssessment" input
+  judgment <- judgmentStateFromKernel state
+  mapJudgmentError (Judgment.effortAssessmentProjection judgment identifier)
+
+effortComparisonObservation :: ObservationInput -> V1State -> Either Text Value
+effortComparisonObservation input state = do
+  identifier <- exactlyOneAsArgument "EffortComparisonEvidence" input
+  judgment <- judgmentStateFromKernel state
+  mapJudgmentError (Judgment.effortComparisonProjection judgment identifier)
+
+effortEvidenceObservation :: ObservationInput -> V1State -> Either Text Value
+effortEvidenceObservation input state = do
+  brick <- exactlyOneAsArgument "EffortEvidence" input
+  judgment <- judgmentStateFromKernel state
+  toJSON <$> mapJudgmentError (Judgment.effortEvidence judgment brick)
+
+remainingEffortObservation :: ObservationInput -> V1State -> Either Text Value
+remainingEffortObservation input state = do
+  judgment <- judgmentStateFromKernel state
+  (brick, profile) <- case observationArguments input of
+    [brickValue] -> (, Judgment.initialEffortProfile)
+      <$> decodeArgument "RemainingEffort" brickValue
+    [brickValue, profileValue] -> (,)
+      <$> decodeArgument "RemainingEffort" brickValue
+      <*> decodeArgument "RemainingEffort" profileValue
+    _ -> Left "RemainingEffort expects a Brick and optional effort profile"
+  toJSON <$> mapJudgmentError
+    (Judgment.remainingEffortProjection judgment brick profile)
+
+judgmentProjectionObservation :: ObservationInput -> V1State -> Either Text Value
+judgmentProjectionObservation input state = do
+  brick <- exactlyOneAsArgument "JudgmentProjection" input
+  judgment <- judgmentStateFromKernel state
+  mapJudgmentError (Judgment.judgmentProjection judgment brick)
+
+mapJudgmentError :: Either Judgment.JudgmentError value -> Either Text value
+mapJudgmentError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Material operations and observations
@@ -903,8 +1302,10 @@ openProposalsObservation input state = do
   brick <- exactlyOneAsArgument "OpenProposalsFor" input
   material <- materialStateFromKernel state
   priority <- priorityStateFromKernel state
+  judgment <- judgmentStateFromKernel state
   pure (object ["kinds" .= (openSourceReconciliationKinds material brick
-    <> Priority.priorityProposalKinds priority brick)])
+    <> Priority.priorityProposalKinds priority brick
+    <> Judgment.judgmentProposalKinds judgment brick)])
 
 materialBrickSummaryObservation :: ObservationInput -> V1State -> Either Text Value
 materialBrickSummaryObservation input state = do

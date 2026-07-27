@@ -19,6 +19,7 @@ import LittleAnt.V1.Contract
    evaluateAssertionOperator, runContractRequest, standardAssertionOperators)
 import LittleAnt.V1.Domain
 import LittleAnt.V1.Implementation (contractRegistry)
+import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
    EventBatch (..), KernelError (..), OpaqueId (..), ProposedEvent (..),
@@ -36,6 +37,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , domainTests
   , materialTests
   , priorityTests
+  , judgmentTests
   , implementationBridgeTests
   , planTests
   , scenarioTests
@@ -639,6 +641,143 @@ priorityTests = testGroup "strict human priority and recalibration"
         ]
   ]
 
+judgmentTests :: TestTree
+judgmentTests = testGroup "impact, effort, and judgment evidence"
+  [ testCase "keeps root impact history and opens contradiction recalibration" $ do
+      (rootA, rootB, _, _, state) <- judgmentFixtureState
+      (_, _, first) <- requireJudgmentSuccess
+        (Judgment.classifyImpact rootA Judgment.HighImpact Judgment.Supported
+          Human Nothing domainTestTime state)
+      (_, _, second) <- requireJudgmentSuccess
+        (Judgment.classifyImpact rootA Judgment.LowImpact Judgment.Speculative
+          Ai (Just "AI prior") (addUTCTime 1 domainTestTime) first)
+      humanView <- requireJudgmentSuccess (Judgment.impactEvidence second rootA)
+      fmap Judgment.impactAssessmentImpact
+        (Judgment.impactEvidenceCurrent humanView) @?= Just Judgment.HighImpact
+      assertBool "conflicting AI evidence did not lower reliability"
+        (Judgment.impactEvidenceNeedsValidation humanView)
+      (_, _, third) <- requireJudgmentSuccess
+        (Judgment.classifyImpact rootB Judgment.LowImpact Judgment.Supported
+          Human Nothing domainTestTime second)
+      (_, probe, contradicted) <- requireJudgmentSuccess
+        (Judgment.compareImpact rootA rootB Judgment.RelativelyLess Human Nothing
+          (addUTCTime 2 domainTestTime) third)
+      assertBool "contradictory impact did not open a recalibration probe"
+        (probe /= Nothing)
+      finalView <- requireJudgmentSuccess
+        (Judgment.impactEvidence contradicted rootA)
+      length (Judgment.impactEvidenceHistory finalView) @?= 2
+      assertBool "impact comparison history is absent"
+        (not (null (Judgment.impactEvidenceComparisons finalView)))
+  , testCase "versions ordered effort profiles and preserves assessment calibration" $ do
+      (rootA, _, _, disabled, state) <- judgmentFixtureState
+      map Judgment.effortBandId Judgment.initialEffortBands @?=
+        [ "VERY_EASY", "EASY", "NORMAL", "MODERATED", "HARD"
+        , "VERY_HARD", "MINI_PROJECT", "PROJECT"
+        ]
+      map Judgment.effortBandOrdinal Judgment.initialEffortBands @?= [1 .. 8]
+      easy <- requireJudgmentSuccess
+        (Judgment.effortBandById Judgment.initialEffortProfile "EASY" state)
+      (assessment, _, classified) <- requireJudgmentSuccess
+        (Judgment.classifyEffort rootA easy Human False Nothing domainTestTime state)
+      let drafts =
+            [ Judgment.EffortBandDraft "SMALL" 1 "EFFORT_SMALL" 1 2 3
+            , Judgment.EffortBandDraft "LARGE" 2 "EFFORT_LARGE" 4 6 8
+            ]
+      (profileV2, _, versioned) <- requireJudgmentSuccess
+        (Judgment.publishEffortProfile "core/effort" 2 "Recalibrated" drafts
+          classified)
+      Judgment.effortProfileVersion profileV2 @?= 2
+      Judgment.effortBandProfile (Judgment.effortAssessmentBand assessment) @?=
+        Judgment.initialEffortProfile
+      case Judgment.publishEffortProfile "core/effort" 2 "Mutation" drafts
+          versioned of
+        Left (Judgment.InvalidEffortProfile _) -> pure ()
+        result -> assertFailure ("published effort version mutated: " <> show result)
+      case Judgment.classifyEffort disabled easy Human False Nothing domainTestTime
+          versioned of
+        Left (Judgment.InvalidJudgmentRelationship _) -> pure ()
+        result -> assertFailure ("effort-disabled Brick classified: " <> show result)
+  , testCase "derives remaining effort only from conservative progress evidence" $ do
+      (rootA, _, _, _, state) <- judgmentFixtureState
+      normal <- requireJudgmentSuccess
+        (Judgment.effortBandById Judgment.initialEffortProfile "NORMAL" state)
+      (_, _, classified) <- requireJudgmentSuccess
+        (Judgment.classifyEffort rootA normal Human False Nothing domainTestTime state)
+      (_, focused) <- requireJudgmentSuccess
+        (Judgment.recordProgressEvidence rootA Judgment.FocusDuration 100
+          domainTestTime classified)
+      unchanged <- requireJudgmentSuccess
+        (Judgment.remainingEffortProjection focused rootA
+          Judgment.initialEffortProfile)
+      Judgment.remainingEffortRealisticHours unchanged @?= Just 12
+      (_, progressed) <- requireJudgmentSuccess
+        (Judgment.recordProgressEvidence rootA Judgment.ExplicitHumanProgress 0.25
+          (addUTCTime 1 domainTestTime) focused)
+      remaining <- requireJudgmentSuccess
+        (Judgment.remainingEffortProjection progressed rootA
+          Judgment.initialEffortProfile)
+      Judgment.remainingEffortRealisticHours remaining @?= Just 9
+      fmap Judgment.effortBandId (Judgment.remainingEffortTotalBand remaining) @?=
+        Just "NORMAL"
+      current <- requireJudgmentSuccess (Judgment.effortEvidence progressed rootA)
+      fmap (Judgment.effortBandId . Judgment.effortAssessmentBand)
+        (Judgment.effortEvidenceCurrent current) @?= Just "NORMAL"
+  , testCase "enforces probe scope, decomposition, terminal cleanup, and correction" $ do
+      (rootA, rootB, child, disabled, state) <- judgmentFixtureState
+      case Judgment.openImpactProbe child rootB Priority.Validation "bad scope"
+          domainTestTime state of
+        Left (Judgment.InvalidJudgmentRelationship _) -> pure ()
+        result -> assertFailure ("child impact probe accepted: " <> show result)
+      case Judgment.openEffortProbe rootA disabled Priority.Validation
+          "bad applicability" domainTestTime state of
+        Left (Judgment.InvalidJudgmentRelationship _) -> pure ()
+        result -> assertFailure ("inapplicable effort probe accepted: " <> show result)
+      (probe, opened) <- requireJudgmentSuccess
+        (Judgment.openEffortProbe rootA rootB Priority.Validation "calibrate"
+          domainTestTime state)
+      (_, deferred) <- requireJudgmentSuccess
+        (Judgment.deferAssessmentProbe (Priority.judgmentProbeId probe) opened)
+      (_, reopened) <- requireJudgmentSuccess
+        (Judgment.reopenAssessmentProbe (Priority.judgmentProbeId probe) deferred)
+      (_, terminal) <- requireJudgmentSuccess
+        (Judgment.setJudgmentBrickStatus rootB Done domainTestTime reopened)
+      fmap Priority.judgmentProbeStatus
+        (Map.lookup (Priority.judgmentProbeId probe)
+          (Judgment.judgmentStateProbes terminal)) @?= Just Priority.ProbeResolved
+      (parent, covered) <- requireJudgmentSuccess
+        (Judgment.confirmDecompositionCoverage rootA state)
+      Judgment.judgmentBrickDecompositionCoverage parent @?= Complete
+      easy <- requireJudgmentSuccess
+        (Judgment.effortBandById Judgment.initialEffortProfile "EASY" covered)
+      (_, _, assessed) <- requireJudgmentSuccess
+        (Judgment.classifyEffort rootA easy Human False Nothing domainTestTime covered)
+      (_, revised) <- requireJudgmentSuccess
+        (Judgment.confirmScopeRevision rootA "scope changed" Human
+          (addUTCTime 1 domainTestTime) assessed)
+      assertBool "scope revision deleted evidence"
+        (not (Map.null (Judgment.judgmentStateEffortAssessments revised)))
+      assertBool "scope revision left affected evidence applicable"
+        (all (not . Judgment.effortAssessmentApplicable)
+          (Map.elems (Judgment.judgmentStateEffortAssessments revised)))
+  , testCase "retires priority evidence on scope revision without moving Bricks" $ do
+      (byTitle, ordered) <- requirePrioritySuccess
+        (Priority.createStrictRootFixture ["A", "B"] [("A", "B")]
+          "scope-revision" domainTestTime Priority.emptyPriorityState)
+      a <- requireNamedPriority "A" byTitle
+      let membersBefore = fmap Priority.priorityScopeMembers
+            (Map.lookup Priority.priorityRootScopeId
+              (Priority.priorityStateScopes ordered))
+      revised <- requirePrioritySuccess
+        (Priority.invalidatePriorityJudgmentsFor a ordered)
+      fmap Priority.priorityScopeMembers
+        (Map.lookup Priority.priorityRootScopeId
+          (Priority.priorityStateScopes revised)) @?= membersBefore
+      assertBool "affected priority evidence remained applicable"
+        (all (not . Priority.priorityJudgmentApplicable)
+          (Map.elems (Priority.priorityStateJudgments revised)))
+  ]
+
 implementationBridgeTests :: TestTree
 implementationBridgeTests = testGroup "real implementation registry"
   [ testCase "populates every contract extension point" $ do
@@ -698,6 +837,13 @@ implementationBridgeTests = testGroup "real implementation registry"
         , "rule-success.PriorityComparisonSkippedAtThreshold"
         , "rule-success.CoherentPriorityRecalibrationCommitted"
         , "invariant.EveryActiveBrickIsPositionedExactlyOnce"
+        ]
+  , testCase "serves impact, effort, remaining-work, and probe projections" $
+      assertResponsePassed (runContractRequest contractRegistry judgmentBridgeScenario)
+        [ "impact-history-is-retained"
+        , "impact-contradiction-opens-probe"
+        , "remaining-effort-uses-explicit-progress"
+        , "judgments-do-not-control-eligibility"
         ]
   ]
 
@@ -1410,6 +1556,91 @@ priorityAssertion identifier afterStep query path operator expected = object
    , "operator" .= operator
    ] <> ["value" .= expected | expected /= Null])
 
+judgmentBridgeScenario :: Value
+judgmentBridgeScenario = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("judgment-bridge-unit" :: Text)
+      , "clock" .= ("2026-07-27T16:00:00Z" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("fixture" :: Text)
+              , "operation" .= ("CreateFixture" :: Text)
+              , "arguments" .= object
+                  ["fixture" .= ("judgment_entities" :: Text)]
+              , "bind_result" .= object
+                  [ "root_a" .= ("root_a" :: Text)
+                  , "root_b" .= ("root_b" :: Text)
+                  , "easy" .= ("easy" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("impact-a" :: Text)
+              , "operation" .= ("ClassifyImpact" :: Text)
+              , "arguments" .= object
+                  [ "root" .= ("$root_a" :: Text)
+                  , "impact" .= ("HIGH" :: Text)
+                  , "maturity" .= ("SUPPORTED" :: Text)
+                  , "authority" .= ("human" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("impact-b" :: Text)
+              , "operation" .= ("ClassifyImpact" :: Text)
+              , "arguments" .= object
+                  [ "root" .= ("$root_b" :: Text)
+                  , "impact" .= ("LOW" :: Text)
+                  , "maturity" .= ("SUPPORTED" :: Text)
+                  , "authority" .= ("human" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("contradict-impact" :: Text)
+              , "operation" .= ("CompareImpact" :: Text)
+              , "arguments" .= object
+                  [ "left" .= ("$root_a" :: Text)
+                  , "right" .= ("$root_b" :: Text)
+                  , "result" .= ("less" :: Text)
+                  , "authority" .= ("human" :: Text)
+                  ]
+              , "bind_result" .= object ["probe" .= ("impact_probe" :: Text)]
+              ]
+          , object
+              [ "id" .= ("effort" :: Text)
+              , "operation" .= ("ClassifyEffort" :: Text)
+              , "arguments" .= object
+                  [ "brick" .= ("$root_a" :: Text)
+                  , "band" .= ("$easy" :: Text)
+                  , "authority" .= ("human" :: Text)
+                  , "provisional" .= False
+                  ]
+              ]
+          , object
+              [ "id" .= ("progress" :: Text)
+              , "operation" .= ("RecordProgressEvidence" :: Text)
+              , "arguments" .= object
+                  [ "brick" .= ("$root_a" :: Text)
+                  , "kind" .= ("explicit_human_progress" :: Text)
+                  , "amount" .= (0.25 :: Double)
+                  ]
+              ]
+          ]
+      , "assertions" .=
+          [ priorityAssertion "impact-history-is-retained" "contradict-impact"
+              "ImpactEvidence($root_a)" "history" "count_equals" (toJSON (1 :: Int))
+          , priorityAssertion "impact-contradiction-opens-probe" "contradict-impact"
+              "JudgmentProbe($impact_probe)" "status" "equals" (String "open")
+          , priorityAssertion "remaining-effort-uses-explicit-progress" "progress"
+              "RemainingEffort($root_a)" "realistic_hours" "equals"
+              (toJSON (4.5 :: Double))
+          , priorityAssertion "judgments-do-not-control-eligibility" "progress"
+              "JudgmentProjection($root_a)" "controls_eligibility" "equals"
+              (Bool False)
+          ]
+      ]
+  ]
+
 materialScenario :: Value
 materialScenario = object
   [ "protocol_version" .= (1 :: Int)
@@ -1809,6 +2040,29 @@ requirePrioritySuccess :: Either Priority.PriorityError value -> IO value
 requirePrioritySuccess result = case result of
   Left problem -> assertFailure ("priority operation failed: " <> show problem)
   Right value -> pure value
+
+requireJudgmentSuccess :: Either Judgment.JudgmentError value -> IO value
+requireJudgmentSuccess result = case result of
+  Left problem -> assertFailure ("judgment operation failed: " <> show problem)
+  Right value -> pure value
+
+judgmentFixtureState ::
+  IO (BrickId, BrickId, BrickId, BrickId, Judgment.JudgmentState)
+judgmentFixtureState = do
+  let rootA = BrickId "test:judgment:root-a"
+      rootB = BrickId "test:judgment:root-b"
+      child = BrickId "test:judgment:child"
+      disabled = BrickId "test:judgment:disabled"
+  first <- requireJudgmentSuccess
+    (Judgment.registerJudgmentBrick rootA Nothing Active True
+      Judgment.emptyJudgmentState)
+  second <- requireJudgmentSuccess
+    (Judgment.registerJudgmentBrick rootB Nothing Active True first)
+  third <- requireJudgmentSuccess
+    (Judgment.registerJudgmentBrick child (Just rootA) Active True second)
+  final <- requireJudgmentSuccess
+    (Judgment.registerJudgmentBrick disabled Nothing Active False third)
+  pure (rootA, rootB, child, disabled, final)
 
 requireNamedPriority :: Text -> Map.Map Text BrickId -> IO BrickId
 requireNamedPriority title values = maybe

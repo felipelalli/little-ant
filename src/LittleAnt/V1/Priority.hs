@@ -38,6 +38,7 @@ module LittleAnt.V1.Priority
   , createPriorityRoot
   , createStrictRootFixture
   , deferJudgmentProbe
+  , invalidatePriorityJudgmentsFor
   , emptyPriorityState
   , openPriorityProbe
   , priorityEvidence
@@ -895,6 +896,23 @@ setPriorityBrickStatus identifier status now state = do
             probe {judgmentProbeStatus = ProbeResolved,
               judgmentProbeResolvedAt = Just now}
       | otherwise = probe
+
+-- | Retire only evidence whose semantic scope changed.  Human importance
+-- order and unrelated evidence are deliberately left untouched.
+invalidatePriorityJudgmentsFor ::
+  BrickId -> PriorityState -> Either PriorityError PriorityState
+invalidatePriorityJudgmentsFor identifier state = do
+  _ <- requireBrick identifier state
+  let retire judgment
+        | identifier `elem`
+            [ priorityJudgmentMoreImportant judgment
+            , priorityJudgmentLessImportant judgment
+            ] = judgment {priorityJudgmentApplicable = False}
+        | otherwise = judgment
+      next = state
+        { priorityStateJudgments = Map.map retire (priorityStateJudgments state) }
+  validatePriorityState next
+  pure next
 
 recordPriorityDependency ::
   BrickId -> BrickId -> PriorityState -> Either PriorityError PriorityState
