@@ -25,6 +25,7 @@ import LittleAnt.V1.Kernel
    ReplayResult (..), appendSemanticAction, emptyKernelState,
    kernelEventBatches, kernelRevision, kernelValue, replayAll)
 import LittleAnt.V1.Material
+import qualified LittleAnt.V1.Priority as Priority
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
   (Assertion, assertBool, assertFailure, testCase, (@?=))
@@ -34,6 +35,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   [ kernelTests
   , domainTests
   , materialTests
+  , priorityTests
   , implementationBridgeTests
   , planTests
   , scenarioTests
@@ -438,6 +440,205 @@ materialTests = testGroup "v1 Raw material, blobs, provenance, and shelves"
         ]
   ]
 
+priorityTests :: TestTree
+priorityTests = testGroup "strict human priority and recalibration"
+  [ testCase "keeps one strict sibling position and ignores dependency ordering" $ do
+      (byTitle, ordered) <- requirePrioritySuccess
+        (Priority.createStrictRootFixture ["A", "B", "C"]
+          [("A", "B"), ("B", "C")] "unit-order" domainTestTime
+          Priority.emptyPriorityState)
+      a <- requireNamedPriority "A" byTitle
+      b <- requireNamedPriority "B" byTitle
+      c <- requireNamedPriority "C" byTitle
+      let rootBefore = Map.lookup Priority.priorityRootScopeId
+            (Priority.priorityStateScopes ordered)
+      fmap Priority.priorityScopeMembers rootBefore @?= Just [a, b, c]
+      withDependency <- requirePrioritySuccess
+        (Priority.recordPriorityDependency c a ordered)
+      fmap Priority.priorityScopeMembers
+        (Map.lookup Priority.priorityRootScopeId
+          (Priority.priorityStateScopes withDependency)) @?= Just [a, b, c]
+      (_, terminal) <- requirePrioritySuccess
+        (Priority.setPriorityBrickStatus b Done domainTestTime withDependency)
+      assertBool "terminal Brick remained positioned"
+        (all (notElem b . Priority.priorityScopeMembers)
+          (Map.elems (Priority.priorityStateScopes terminal)))
+      requirePrioritySuccess (Priority.validatePriorityState terminal)
+  , testCase "skips choose a nearby distinct candidate without false evidence" $ do
+      (byTitle, ordered) <- requirePrioritySuccess
+        (Priority.createStrictRootFixture ["A", "B"] [("A", "B")]
+          "unit-skip" domainTestTime Priority.emptyPriorityState)
+      (c, insertion, created) <- requirePrioritySuccess
+        (Priority.createPriorityRoot "C" "unit-skip" domainTestTime ordered)
+      let beforeEvidence = Map.size (Priority.priorityStateJudgments created)
+          previous = Priority.priorityInsertionCurrentCandidate insertion
+      previousCandidate <- maybe
+        (assertFailure "open insertion has no comparison candidate") pure previous
+      (afterFirst, firstSkip, first) <- requirePrioritySuccess
+        (Priority.skipPriorityComparison (Priority.priorityInsertionId insertion)
+          Priority.Unresolved domainTestTime created)
+      Priority.priorityInsertionStatus afterFirst @?= Priority.InsertionOpen
+      assertBool "first skip repeated its candidate"
+        (Priority.priorityInsertionCurrentCandidate afterFirst /= previous)
+      assertBool "alternate candidate was not nearby"
+        (maybe False (\distance -> distance >= 1 && distance <= 3)
+          (Priority.priorityInsertionCandidateDistanceFromPrevious afterFirst))
+      Priority.priorityComparisonSkipCandidate firstSkip @?= previousCandidate
+      Map.size (Priority.priorityStateJudgments first) @?= beforeEvidence
+      (deferred, _, final) <- requirePrioritySuccess
+        (Priority.skipPriorityComparison (Priority.priorityInsertionId afterFirst)
+          Priority.Unresolved domainTestTime first)
+      Priority.priorityInsertionStatus deferred @?= Priority.InsertionDeferred
+      Priority.priorityProposalKinds final (Priority.priorityBrickId c) @?=
+        ["priority_probe"]
+      viewItem <- requirePrioritySuccess
+        (Priority.priorityViewItem final (Priority.priorityBrickId c))
+      Priority.priorityViewItemProvisional viewItem @?= True
+      deferredCandidate <- maybe
+        (assertFailure "deferred insertion forgot its final candidate") pure
+        (Priority.priorityInsertionPreviousCandidate deferred)
+      evidence <- requirePrioritySuccess (Priority.priorityEvidence final
+        Priority.priorityRootScopeId (Priority.priorityBrickId c) deferredCandidate)
+      Priority.priorityEvidenceContainsEquality evidence @?= False
+      assertBool "fixture lost title bindings"
+        (all (`Map.member` byTitle) ["A", "B"])
+  , testCase "keeps a single-candidate insertion open until the skip threshold" $ do
+      (firstRoot, _, first) <- requirePrioritySuccess
+        (Priority.createPriorityRoot "A" "unit-single-skip" domainTestTime
+          Priority.emptyPriorityState)
+      (secondRoot, insertion, created) <- requirePrioritySuccess
+        (Priority.createPriorityRoot "B" "unit-single-skip" domainTestTime first)
+      let candidate = Just (Priority.priorityBrickId firstRoot)
+          beforeEvidence = Map.size (Priority.priorityStateJudgments created)
+      Priority.priorityInsertionCurrentCandidate insertion @?= candidate
+      (afterFirst, _, skippedOnce) <- requirePrioritySuccess
+        (Priority.skipPriorityComparison (Priority.priorityInsertionId insertion)
+          Priority.Unresolved domainTestTime created)
+      Priority.priorityInsertionStatus afterFirst @?= Priority.InsertionOpen
+      Priority.priorityInsertionConsecutiveSkips afterFirst @?= 1
+      Priority.priorityInsertionCurrentCandidate afterFirst @?= candidate
+      Priority.priorityInsertionFinishedAt afterFirst @?= Nothing
+      Priority.priorityProposalKinds skippedOnce
+        (Priority.priorityBrickId secondRoot) @?= []
+      Map.size (Priority.priorityStateJudgments skippedOnce) @?= beforeEvidence
+      (deferred, _, final) <- requirePrioritySuccess
+        (Priority.skipPriorityComparison (Priority.priorityInsertionId afterFirst)
+          Priority.Unresolved domainTestTime skippedOnce)
+      Priority.priorityInsertionStatus deferred @?= Priority.InsertionDeferred
+      Priority.priorityInsertionConsecutiveSkips deferred @?= 2
+      Priority.priorityInsertionCurrentCandidate deferred @?= Nothing
+      assertBool "threshold skip did not finish the insertion"
+        (Priority.priorityInsertionFinishedAt deferred /= Nothing)
+      Priority.priorityProposalKinds final
+        (Priority.priorityBrickId secondRoot) @?= ["priority_probe"]
+  , testCase "keeps skip candidates inside bounds narrowed by earlier answers" $ do
+      (byTitle, ordered) <- requirePrioritySuccess
+        (Priority.createStrictRootFixture ["A", "B", "C", "D", "E"] []
+          "x" domainTestTime Priority.emptyPriorityState)
+      a <- requireNamedPriority "A" byTitle
+      b <- requireNamedPriority "B" byTitle
+      c <- requireNamedPriority "C" byTitle
+      d <- requireNamedPriority "D" byTitle
+      e <- requireNamedPriority "E" byTitle
+      (f, insertion, created) <- requirePrioritySuccess
+        (Priority.createPriorityRoot "F" "x" domainTestTime ordered)
+      Priority.priorityInsertionCurrentCandidate insertion @?= Just c
+      (afterAnswer, _, answered) <- requirePrioritySuccess
+        (Priority.answerPriorityInsertion (Priority.priorityInsertionId insertion)
+          True Human Nothing domainTestTime created)
+      Priority.priorityInsertionCurrentCandidate afterAnswer @?= Just b
+      Priority.priorityInsertionSearchLow afterAnswer @?= 0
+      Priority.priorityInsertionSearchHigh afterAnswer @?= 2
+      (afterSkip, _, skipped) <- requirePrioritySuccess
+        (Priority.skipPriorityComparison
+          (Priority.priorityInsertionId afterAnswer) Priority.Unresolved
+          domainTestTime answered)
+      Priority.priorityInsertionCurrentCandidate afterSkip @?= Just a
+      (afterSecondAnswer, _, answeredAgain) <- requirePrioritySuccess
+        (Priority.answerPriorityInsertion (Priority.priorityInsertionId afterSkip)
+          False Human Nothing domainTestTime skipped)
+      Priority.priorityInsertionStatus afterSecondAnswer @?= Priority.InsertionOpen
+      Priority.priorityInsertionCurrentCandidate afterSecondAnswer @?= Just b
+      (resolved, _, final) <- requirePrioritySuccess
+        (Priority.answerPriorityInsertion
+          (Priority.priorityInsertionId afterSecondAnswer) True Human Nothing
+          domainTestTime answeredAgain)
+      Priority.priorityInsertionStatus resolved @?= Priority.InsertionResolved
+      fmap Priority.priorityScopeMembers
+        (Map.lookup Priority.priorityRootScopeId
+          (Priority.priorityStateScopes final)) @?=
+            Just [a, Priority.priorityBrickId f, b, c, d, e]
+  , testCase "retains contradiction history and commits only the local segment" $ do
+      (byTitle, ordered) <- requirePrioritySuccess
+        (Priority.createStrictRootFixture ["A", "B", "C", "D"]
+          [("A", "B"), ("B", "C")] "unit-contradiction" domainTestTime
+          Priority.emptyPriorityState)
+      a <- requireNamedPriority "A" byTitle
+      b <- requireNamedPriority "B" byTitle
+      c <- requireNamedPriority "C" byTitle
+      d <- requireNamedPriority "D" byTitle
+      before <- requirePrioritySuccess
+        (Priority.priorityEvidence ordered Priority.priorityRootScopeId a c)
+      (probe, withProbe) <- requirePrioritySuccess
+        (Priority.openPriorityProbe Priority.priorityRootScopeId a c
+          Priority.Validation "test transitive edge" domainTestTime ordered)
+      (_, recalibrationResult, contradicted) <- requirePrioritySuccess
+        (Priority.recordPriorityJudgment Priority.priorityRootScopeId c a Human
+          (Just "new evidence") domainTestTime withProbe)
+      recalibration <- maybe
+        (assertFailure "contradiction did not open recalibration") pure
+        recalibrationResult
+      after <- requirePrioritySuccess
+        (Priority.priorityEvidence contradicted Priority.priorityRootScopeId a c)
+      assertBool "contradiction did not lower confidence"
+        (Priority.priorityEvidenceConfidence after
+          < Priority.priorityEvidenceConfidence before)
+      assertBool "new human judgment was not retained"
+        (any (\judgment ->
+          Priority.priorityJudgmentMoreImportant judgment == c
+          && Priority.priorityJudgmentLessImportant judgment == a)
+          (Priority.priorityEvidenceHistory after))
+      assertBool "transitive support disappeared"
+        (not (null (Priority.priorityEvidenceTransitiveSupport after)))
+      Priority.priorityRecalibrationSegment recalibration @?= [a, b, c]
+      fmap Priority.judgmentProbeStatus
+        (Map.lookup (Priority.judgmentProbeId probe)
+          (Priority.priorityStateProbes contradicted)) @?= Just Priority.ProbeResolved
+      let historySize = Map.size (Priority.priorityStateJudgments contradicted)
+      (resolved, committed) <- requirePrioritySuccess
+        (Priority.commitPriorityRecalibration
+          (Priority.priorityRecalibrationId recalibration)
+          domainTestTime contradicted)
+      Priority.priorityRecalibrationStatus resolved @?=
+        Priority.RecalibrationResolved
+      fmap (last . Priority.priorityScopeMembers)
+        (Map.lookup Priority.priorityRootScopeId
+          (Priority.priorityStateScopes committed)) @?= Just d
+      Map.size (Priority.priorityStateJudgments committed) @?= historySize
+      requirePrioritySuccess (Priority.validatePriorityState committed)
+  , testCase "runs both owned priority scenarios on immutable checkpoints" $ do
+      assertResponsePassed
+        (runContractRequest contractRegistry priorityUncertaintyScenario)
+        [ "first-skip-selects-nearby-distinct-candidate"
+        , "skip-records-no-directional-judgment"
+        , "skip-records-no-equality"
+        , "insertion-defers-at-threshold"
+        , "brick-remains-strictly-positioned"
+        , "position-is-marked-provisional"
+        , "uncertainty-creates-future-pressure"
+        ]
+      assertResponsePassed
+        (runContractRequest contractRegistry priorityContradictionScenario)
+        [ "provocative-question-tests-transitive-edge"
+        , "new-human-judgment-is-retained"
+        , "older-evidence-is-not-deleted"
+        , "contradiction-lowers-confidence"
+        , "smallest-local-segment-is-selected"
+        , "unrelated-tail-does-not-move"
+        , "committed-segment-is-strict-and-coherent"
+        ]
+  ]
+
 implementationBridgeTests :: TestTree
 implementationBridgeTests = testGroup "real implementation registry"
   [ testCase "populates every contract extension point" $ do
@@ -489,6 +690,14 @@ implementationBridgeTests = testGroup "real implementation registry"
         , "rule-success.SourceLinkReconciled"
         , "invariant.RawLinkHasExactlyOneOwner"
         , "surface-provides.MaterialDesk"
+        ]
+  , testCase "executes priority probes through strict ordering and evidence" $
+      assertResponsePassed (runContractRequest contractRegistry judgmentPlanRequest)
+        [ "enum-comparable.PrioritySkipKind"
+        , "entity-fields.PriorityInsertion"
+        , "rule-success.PriorityComparisonSkippedAtThreshold"
+        , "rule-success.CoherentPriorityRecalibrationCommitted"
+        , "invariant.EveryActiveBrickIsPositionedExactlyOnce"
         ]
   ]
 
@@ -983,6 +1192,224 @@ materialPlanRequest = object
   , "model" .= object ["version" .= (3 :: Int)]
   ]
 
+judgmentPlanRequest :: Value
+judgmentPlanRequest = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("judgment" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "enum-comparable.PrioritySkipKind"
+              "enum_comparable" "PrioritySkipKind"
+          , obligation "entity-fields.PriorityInsertion"
+              "entity_fields" "PriorityInsertion"
+          , obligation "rule-success.PriorityComparisonSkippedAtThreshold"
+              "rule_success" "PriorityComparisonSkippedAtThreshold"
+          , obligation "rule-success.CoherentPriorityRecalibrationCommitted"
+              "rule_success" "CoherentPriorityRecalibrationCommitted"
+          , obligation "invariant.EveryActiveBrickIsPositionedExactlyOnce"
+              "invariant" "EveryActiveBrickIsPositionedExactlyOnce"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+priorityUncertaintyScenario :: Value
+priorityUncertaintyScenario = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("priority-uncertainty-unit" :: Text)
+      , "clock" .= ("2026-07-27T10:00:00Z" :: Text)
+      , "parameter_overrides" .= object
+          [ "priority_nearby_distance" .= (3 :: Int)
+          , "priority_skip_limit" .= (2 :: Int)
+          ]
+      , "random_evidence" .= ("priority-uncertainty-seed-001" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("create-a" :: Text)
+              , "operation" .= ("CreateRootBrick" :: Text)
+              , "arguments" .= object
+                  [ "title" .= ("Validate product A" :: Text)
+                  , "title_authority" .= ("human" :: Text)
+                  , "behavior" .= ("core/standard" :: Text)
+                  ]
+              , "bind_result" .= object ["brick" .= ("a" :: Text)]
+              ]
+          , object
+              [ "id" .= ("create-b" :: Text)
+              , "operation" .= ("CreateRootBrick" :: Text)
+              , "arguments" .= object
+                  [ "title" .= ("Validate product B" :: Text)
+                  , "title_authority" .= ("human" :: Text)
+                  , "behavior" .= ("core/standard" :: Text)
+                  ]
+              , "bind_result" .= object
+                  ["brick" .= ("b" :: Text), "insertion" .= ("b_insertion" :: Text)]
+              ]
+          , object
+              [ "id" .= ("answer-b" :: Text)
+              , "operation" .= ("AnswerPriorityComparison" :: Text)
+              , "arguments" .= object
+                  [ "insertion" .= ("$b_insertion" :: Text)
+                  , "answer" .= ("no" :: Text)
+                  , "authority" .= ("human" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("create-c" :: Text)
+              , "operation" .= ("CreateRootBrick" :: Text)
+              , "arguments" .= object
+                  [ "title" .= ("Run customer interviews" :: Text)
+                  , "title_authority" .= ("human" :: Text)
+                  , "behavior" .= ("core/standard" :: Text)
+                  ]
+              , "bind_result" .= object
+                  ["brick" .= ("c" :: Text), "insertion" .= ("c_insertion" :: Text)]
+              ]
+          , object
+              [ "id" .= ("first-skip" :: Text)
+              , "operation" .= ("SkipPriorityComparison" :: Text)
+              , "arguments" .= object
+                  [ "insertion" .= ("$c_insertion" :: Text)
+                  , "kind" .= ("unresolved" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("second-skip" :: Text)
+              , "operation" .= ("SkipPriorityComparison" :: Text)
+              , "arguments" .= object
+                  [ "insertion" .= ("$c_insertion" :: Text)
+                  , "kind" .= ("unresolved" :: Text)
+                  ]
+              ]
+          ]
+      , "assertions" .=
+          [ priorityAssertion "first-skip-selects-nearby-distinct-candidate"
+              "first-skip" "PriorityInsertion($c_insertion)"
+              "candidate_distance_from_previous" "between_inclusive"
+              (toJSON ([1, 3] :: [Int]))
+          , priorityAssertion "skip-records-no-directional-judgment"
+              "second-skip" "PriorityJudgmentsFor($c)" "items"
+              "count_equals" (toJSON (0 :: Int))
+          , priorityAssertion "skip-records-no-equality" "second-skip"
+              "PriorityEvidenceFor($c)" "contains_equality" "equals" (Bool False)
+          , priorityAssertion "insertion-defers-at-threshold" "second-skip"
+              "PriorityInsertion($c_insertion)" "status" "equals"
+              (String "deferred")
+          , priorityAssertion "brick-remains-strictly-positioned" "second-skip"
+              "RootPriority" "members" "contains_once" (String "$c")
+          , priorityAssertion "position-is-marked-provisional" "second-skip"
+              "PriorityViewItem($c)" "provisional" "equals" (Bool True)
+          , priorityAssertion "uncertainty-creates-future-pressure" "second-skip"
+              "OpenProposalsFor($c)" "kinds" "contains" (String "priority_probe")
+          ]
+      ]
+  ]
+
+priorityContradictionScenario :: Value
+priorityContradictionScenario = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("priority-contradiction-unit" :: Text)
+      , "clock" .= ("2026-07-27T11:00:00Z" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("create-ordered-run" :: Text)
+              , "operation" .= ("CreateFixture" :: Text)
+              , "arguments" .= object
+                  [ "fixture" .= ("strict_root_priority" :: Text)
+                  , "titles" .=
+                      ([ "Ship feature A", "Ship feature B", "Ship feature C"
+                       , "Clean old screenshots"] :: [Text])
+                  , "direct_human_judgments" .=
+                      ([ ["Ship feature A", "Ship feature B"]
+                       , ["Ship feature B", "Ship feature C"]] :: [[Text]])
+                  ]
+              , "bind_result" .= object
+                  [ "scope" .= ("scope" :: Text)
+                  , "Ship feature A" .= ("a" :: Text)
+                  , "Ship feature B" .= ("b" :: Text)
+                  , "Ship feature C" .= ("c" :: Text)
+                  , "Clean old screenshots" .= ("d" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("validate-transitive-edge" :: Text)
+              , "operation" .= ("OpenProvocativeValidation" :: Text)
+              , "arguments" .= object
+                  [ "axis" .= ("priority" :: Text), "scope" .= ("$scope" :: Text)
+                  , "left" .= ("$a" :: Text), "right" .= ("$c" :: Text)
+                  , "purpose" .= ("validation" :: Text)
+                  ]
+              , "bind" .= ("probe" :: Text)
+              ]
+          , object
+              [ "id" .= ("record-contradiction" :: Text)
+              , "operation" .= ("RecordPriorityJudgment" :: Text)
+              , "arguments" .= object
+                  [ "scope" .= ("$scope" :: Text)
+                  , "more_important" .= ("$c" :: Text)
+                  , "less_important" .= ("$a" :: Text)
+                  , "authority" .= ("human" :: Text)
+                  , "reason" .= ("New evidence changed the decision" :: Text)
+                  ]
+              , "bind_result" .= object
+                  ["recalibration" .= ("recalibration" :: Text)]
+              ]
+          , object
+              [ "id" .= ("commit-local-order" :: Text)
+              , "operation" .= ("CommitPriorityRecalibration" :: Text)
+              , "arguments" .= object
+                  ["recalibration" .= ("$recalibration" :: Text)]
+              ]
+          ]
+      , "assertions" .=
+          [ priorityAssertion "provocative-question-tests-transitive-edge"
+              "validate-transitive-edge" "JudgmentProbe($probe)" "purpose"
+              "equals" (String "validation")
+          , priorityAssertion "new-human-judgment-is-retained"
+              "record-contradiction" "PriorityEvidence($scope,$a,$c)" "history"
+              "contains" (object
+                [ "more_important" .= ("$c" :: Text)
+                , "less_important" .= ("$a" :: Text)
+                , "authority" .= ("human" :: Text)
+                ])
+          , priorityAssertion "older-evidence-is-not-deleted"
+              "record-contradiction" "PriorityEvidence($scope,$a,$c)"
+              "transitive_support" "not_empty" Null
+          , object
+              [ "id" .= ("contradiction-lowers-confidence" :: Text)
+              , "after" .= ("record-contradiction" :: Text)
+              , "query" .= ("PriorityEvidence($scope,$a,$c)" :: Text)
+              , "path" .= ("confidence" :: Text)
+              , "operator" .= ("less_than" :: Text)
+              , "value_from" .= ("confidence_before:record-contradiction" :: Text)
+              ]
+          , priorityAssertion "smallest-local-segment-is-selected"
+              "record-contradiction" "PriorityRecalibration($recalibration)"
+              "segment" "equals" (toJSON (["$a", "$b", "$c"] :: [Text]))
+          , priorityAssertion "unrelated-tail-does-not-move" "commit-local-order"
+              "RootPriority" "members.last" "equals_reference" (String "$d")
+          , priorityAssertion "committed-segment-is-strict-and-coherent"
+              "commit-local-order" "PriorityRecalibration($recalibration)"
+              "status" "equals" (String "resolved")
+          ]
+      ]
+  ]
+
+priorityAssertion :: Text -> Text -> Text -> Text -> Text -> Value -> Value
+priorityAssertion identifier afterStep query path operator expected = object
+  ([ "id" .= identifier
+   , "after" .= afterStep
+   , "query" .= query
+   , "path" .= path
+   , "operator" .= operator
+   ] <> ["value" .= expected | expected /= Null])
+
 materialScenario :: Value
 materialScenario = object
   [ "protocol_version" .= (1 :: Int)
@@ -1377,6 +1804,17 @@ requireMaterialSuccess :: Either MaterialError value -> IO value
 requireMaterialSuccess result = case result of
   Left problem -> assertFailure ("material operation failed: " <> show problem)
   Right value -> pure value
+
+requirePrioritySuccess :: Either Priority.PriorityError value -> IO value
+requirePrioritySuccess result = case result of
+  Left problem -> assertFailure ("priority operation failed: " <> show problem)
+  Right value -> pure value
+
+requireNamedPriority :: Text -> Map.Map Text BrickId -> IO BrickId
+requireNamedPriority title values = maybe
+  (assertFailure ("priority fixture title is missing: " <> Text.unpack title))
+  pure
+  (Map.lookup title values)
 
 requireCreatedSnapshot :: SnapshotCaptureResult -> IO RawSnapshot
 requireCreatedSnapshot result = case result of

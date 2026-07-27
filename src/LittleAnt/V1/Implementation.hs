@@ -55,6 +55,7 @@ import LittleAnt.V1.Material
    reportSnapshotMissing, retireRawOrigin, reviewRaw, sourceObservationProjection,
    unarchiveRaw, verifySnapshotBytes)
 import LittleAnt.V1.PlanCatalog (v1PlanProbes)
+import qualified LittleAnt.V1.Priority as Priority
 
 -- | Isolated v1 state.  Every protocol request obtains a new value through
 -- 'registryInitialState'.
@@ -73,6 +74,14 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("KernelRejectAction", rejectActionOperation)
       , ("KernelRemoveValue", removeValueOperation)
       , ("KernelSetValue", setValueOperation)
+      , ("CreateRootBrick", createRootPriorityOperation)
+      , ("CreateChildBrick", createChildPriorityOperation)
+      , ("AnswerPriorityComparison", answerPriorityComparisonOperation)
+      , ("SkipPriorityComparison", skipPriorityComparisonOperation)
+      , ("ReopenPriorityInsertion", reopenPriorityInsertionOperation)
+      , ("OpenProvocativeValidation", openProvocativeValidationOperation)
+      , ("RecordPriorityJudgment", recordPriorityJudgmentOperation)
+      , ("CommitPriorityRecalibration", commitPriorityRecalibrationOperation)
       , ("CaptureInlineRaw", captureInlineRawOperation)
       , ("CaptureExternalRaw", captureExternalRawOperation)
       , ("CaptureRawSnapshot", captureRawSnapshotOperation)
@@ -109,6 +118,14 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("ReplaySideEffectTrace", adapterTraceObservation)
       , ("MaterialState", materialStateObservation)
       , ("RawSnapshots", rawSnapshotsObservation)
+      , ("PriorityInsertion", priorityInsertionObservation)
+      , ("PriorityJudgmentsFor", priorityJudgmentsForObservation)
+      , ("PriorityEvidenceFor", priorityEvidenceForObservation)
+      , ("RootPriority", rootPriorityObservation)
+      , ("PriorityViewItem", priorityViewItemObservation)
+      , ("JudgmentProbe", judgmentProbeObservation)
+      , ("PriorityEvidence", priorityEvidenceObservation)
+      , ("PriorityRecalibration", priorityRecalibrationObservation)
       , ("OpenProposalsFor", openProposalsObservation)
       , ("BrickSummary", materialBrickSummaryObservation)
       , ("RawSummary", rawSummaryObservation)
@@ -123,6 +140,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("kernel_populated", populatedFixture)
       , ("kernel_reference_state", referenceFixture)
       , ("material_entities", materialEntitiesFixture)
+      , ("strict_root_priority", strictRootPriorityFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -264,6 +282,315 @@ parseProposedEvent value = do
       <$> requiredText "kind" event
       <*> (fromMaybe KeyMap.empty <$> optionalObject "fields" event)
     _ -> Left ("unknown kernel event type: " <> eventType)
+
+------------------------------------------------------------
+-- Strict human priority operations and observations
+------------------------------------------------------------
+
+priorityStateFromKernel :: V1State -> Either Text Priority.PriorityState
+priorityStateFromKernel state = case kernelValue "v1.priority" state of
+  Nothing -> Right Priority.emptyPriorityState
+  Just value -> case fromJSON value of
+    Success priority -> Right priority
+    Error problem -> Left ("stored priority state is malformed: " <> Text.pack problem)
+
+priorityStateForOperation ::
+  OperationInput -> V1State -> Either Text Priority.PriorityState
+priorityStateForOperation input state = do
+  priority <- priorityStateFromKernel state
+  case kernelValue "v1.priority" state of
+    Just _ -> Right priority
+    Nothing -> do
+      let (nearbyDistance, skipLimit) = priorityOverrides
+            (ambientParameterOverrides (operationAmbient input))
+      mapPriorityError (Priority.configurePriorityState
+        nearbyDistance skipLimit priority)
+
+priorityOverrides :: Maybe Value -> (Int, Int)
+priorityOverrides value = case value of
+  Just (Object fields) ->
+    ( integerOverride "priority_nearby_distance" 3 fields
+    , integerOverride "priority_skip_limit" 2 fields
+    )
+  _ -> (3, 2)
+  where
+    integerOverride field fallback fields =
+      case KeyMap.lookup (Key.fromText field) fields of
+        Just encoded -> case fromJSON encoded of
+          Success number -> number
+          Error _ -> fallback
+        Nothing -> fallback
+
+persistPriority ::
+  OperationInput -> Priority.PriorityState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistPriority input priority resultValue state = do
+  accepted <- appendForFixture input "priority"
+    [ProposeValueStored "v1.priority" (toJSON priority)] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+createRootPriorityOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+createRootPriorityOperation input state = do
+  arguments <- requireArgumentsObject input
+  title <- requiredText "title" arguments
+  _ <- requiredAs "title_authority" arguments :: Either Text Authority
+  behavior <- requiredText "behavior" arguments
+  when (Text.null (Text.strip behavior)) (Left "behavior must not be empty")
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  let randomEvidence = fromMaybe (actionIdFor input)
+        (ambientText (ambientRandomEvidence (operationAmbient input)))
+  (brick, insertion, next) <- mapPriorityError
+    (Priority.createPriorityRoot title randomEvidence now priority)
+  persistPriority input next (object
+    [ "brick" .= Priority.priorityBrickId brick
+    , "insertion" .= Priority.priorityInsertionId insertion
+    ]) state
+
+createChildPriorityOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+createChildPriorityOperation input state = do
+  arguments <- requireArgumentsObject input
+  parent <- requiredAs "parent" arguments
+  title <- requiredText "title" arguments
+  _ <- requiredAs "title_authority" arguments :: Either Text Authority
+  behavior <- requiredText "behavior" arguments
+  when (Text.null (Text.strip behavior)) (Left "behavior must not be empty")
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  let randomEvidence = fromMaybe (actionIdFor input)
+        (ambientText (ambientRandomEvidence (operationAmbient input)))
+  (brick, insertion, next) <- mapPriorityError
+    (Priority.createPriorityChild parent title randomEvidence now priority)
+  persistPriority input next (object
+    [ "brick" .= Priority.priorityBrickId brick
+    , "insertion" .= Priority.priorityInsertionId insertion
+    ]) state
+
+answerPriorityComparisonOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+answerPriorityComparisonOperation input state = do
+  arguments <- requireArgumentsObject input
+  insertion <- requiredAs "insertion" arguments
+  answerText <- requiredText "answer" arguments
+  answer <- case answerText of
+    "yes" -> Right True
+    "no" -> Right False
+    _ -> Left "priority answer must be yes or no"
+  authority <- requiredAs "authority" arguments
+  reason <- optionalAs "reason" arguments
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  (updated, judgment, next) <- mapPriorityError
+    (Priority.answerPriorityInsertion insertion answer authority reason now priority)
+  persistPriority input next (object
+    [ "insertion" .= Priority.priorityInsertionId updated
+    , "judgment" .= Priority.priorityJudgmentId judgment
+    ]) state
+
+skipPriorityComparisonOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+skipPriorityComparisonOperation input state = do
+  arguments <- requireArgumentsObject input
+  insertion <- requiredAs "insertion" arguments
+  kind <- requiredAs "kind" arguments
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  (updated, skipped, next) <- mapPriorityError
+    (Priority.skipPriorityComparison insertion kind now priority)
+  persistPriority input next (object
+    [ "insertion" .= Priority.priorityInsertionId updated
+    , "skip" .= Priority.priorityComparisonSkipId skipped
+    ]) state
+
+reopenPriorityInsertionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reopenPriorityInsertionOperation input state = do
+  arguments <- requireArgumentsObject input
+  insertion <- requiredAs "insertion" arguments
+  priority <- priorityStateForOperation input state
+  (updated, next) <- mapPriorityError
+    (Priority.reopenPriorityInsertion insertion priority)
+  persistPriority input next (object
+    ["insertion" .= Priority.priorityInsertionId updated]) state
+
+openProvocativeValidationOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+openProvocativeValidationOperation input state = do
+  arguments <- requireArgumentsObject input
+  axis <- requiredAs "axis" arguments
+  when (axis /= Priority.PriorityAxis)
+    (Left "this implementation slice opens priority probes only")
+  scope <- requiredAs "scope" arguments
+  left <- requiredAs "left" arguments
+  right <- requiredAs "right" arguments
+  purpose <- requiredAs "purpose" arguments
+  let reason = fromMaybe "provocative validation of retained priority evidence"
+        (optionalText "reason" arguments)
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  (probe, next) <- mapPriorityError
+    (Priority.openPriorityProbe scope left right purpose reason now priority)
+  persistPriority input next (toJSON (Priority.judgmentProbeId probe)) state
+
+recordPriorityJudgmentOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordPriorityJudgmentOperation input state = do
+  arguments <- requireArgumentsObject input
+  scope <- requiredAs "scope" arguments
+  moreImportant <- requiredAs "more_important" arguments
+  lessImportant <- requiredAs "less_important" arguments
+  authority <- requiredAs "authority" arguments
+  reason <- optionalAs "reason" arguments
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  (judgment, recalibration, next) <- mapPriorityError
+    (Priority.recordPriorityJudgment scope moreImportant lessImportant
+      authority reason now priority)
+  persistPriority input next (object
+    [ "judgment" .= Priority.priorityJudgmentId judgment
+    , "recalibration" .= fmap Priority.priorityRecalibrationId recalibration
+    ]) state
+
+commitPriorityRecalibrationOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+commitPriorityRecalibrationOperation input state = do
+  arguments <- requireArgumentsObject input
+  recalibration <- requiredAs "recalibration" arguments
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  (resolved, next) <- mapPriorityError
+    (Priority.commitPriorityRecalibration recalibration now priority)
+  persistPriority input next (object
+    ["recalibration" .= Priority.priorityRecalibrationId resolved]) state
+
+strictRootPriorityFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+strictRootPriorityFixture input state = do
+  arguments <- requireArgumentsObject input
+  titles <- requiredTextValues "titles" arguments
+  pairs <- requiredTextPairs "direct_human_judgments" arguments
+  now <- operationTime input
+  priority <- priorityStateForOperation input state
+  let randomEvidence = fromMaybe (actionIdFor input)
+        (ambientText (ambientRandomEvidence (operationAmbient input)))
+  (byTitle, next) <- mapPriorityError
+    (Priority.createStrictRootFixture titles pairs randomEvidence now priority)
+  let resultFields =
+        (Key.fromText "scope", toJSON Priority.priorityRootScopeId)
+        : [ (Key.fromText title, toJSON identifier)
+          | (title, identifier) <- Map.toList byTitle
+          ]
+  persistPriority input next (Object (KeyMap.fromList resultFields)) state
+
+priorityInsertionObservation :: ObservationInput -> V1State -> Either Text Value
+priorityInsertionObservation input state = do
+  identifier <- exactlyOneAsArgument "PriorityInsertion" input
+  priority <- priorityStateFromKernel state
+  mapPriorityError (Priority.priorityInsertionProjection priority identifier)
+
+priorityJudgmentsForObservation :: ObservationInput -> V1State -> Either Text Value
+priorityJudgmentsForObservation input state = do
+  brick <- exactlyOneAsArgument "PriorityJudgmentsFor" input
+  priority <- priorityStateFromKernel state
+  let items =
+        [ judgment
+        | judgment <- Map.elems (Priority.priorityStateJudgments priority)
+        , brick `elem`
+            [ Priority.priorityJudgmentMoreImportant judgment
+            , Priority.priorityJudgmentLessImportant judgment
+            ]
+        ]
+  pure (object ["items" .= items])
+
+priorityEvidenceForObservation :: ObservationInput -> V1State -> Either Text Value
+priorityEvidenceForObservation input state = do
+  brick <- exactlyOneAsArgument "PriorityEvidenceFor" input
+  priority <- priorityStateFromKernel state
+  _ <- maybe (Left "unknown priority Brick") Right
+    (Map.lookup brick (Priority.priorityStateBricks priority))
+  pure (object
+    [ "contains_equality" .= False
+    , "history" .=
+        [ judgment
+        | judgment <- Map.elems (Priority.priorityStateJudgments priority)
+        , brick `elem`
+            [ Priority.priorityJudgmentMoreImportant judgment
+            , Priority.priorityJudgmentLessImportant judgment
+            ]
+        ]
+    ])
+
+rootPriorityObservation :: ObservationInput -> V1State -> Either Text Value
+rootPriorityObservation input state = do
+  requireNoArguments "RootPriority" input
+  priority <- priorityStateFromKernel state
+  mapPriorityError
+    (Priority.priorityScopeProjection priority Priority.priorityRootScopeId)
+
+priorityViewItemObservation :: ObservationInput -> V1State -> Either Text Value
+priorityViewItemObservation input state = do
+  brick <- exactlyOneAsArgument "PriorityViewItem" input
+  priority <- priorityStateFromKernel state
+  toJSON <$> mapPriorityError (Priority.priorityViewItem priority brick)
+
+judgmentProbeObservation :: ObservationInput -> V1State -> Either Text Value
+judgmentProbeObservation input state = do
+  identifier <- exactlyOneAsArgument "JudgmentProbe" input
+  priority <- priorityStateFromKernel state
+  mapPriorityError (Priority.probeProjection priority identifier)
+
+priorityEvidenceObservation :: ObservationInput -> V1State -> Either Text Value
+priorityEvidenceObservation input state = do
+  (scope, left, right) <- exactlyThreeAsArguments "PriorityEvidence" input
+  priority <- priorityStateFromKernel state
+  toJSON <$> mapPriorityError (Priority.priorityEvidence priority scope left right)
+
+priorityRecalibrationObservation :: ObservationInput -> V1State -> Either Text Value
+priorityRecalibrationObservation input state = do
+  identifier <- exactlyOneAsArgument "PriorityRecalibration" input
+  priority <- priorityStateFromKernel state
+  mapPriorityError (Priority.priorityRecalibrationProjection priority identifier)
+
+requiredTextValues :: Text -> Object -> Either Text [Text]
+requiredTextValues field values = requiredArray field values >>= mapM (\case
+  String value -> Right value
+  _ -> Left ("field must contain only text: " <> field))
+
+requiredTextPairs :: Text -> Object -> Either Text [(Text, Text)]
+requiredTextPairs field values = requiredArray field values >>= mapM (\case
+  Array pair -> case toList pair of
+    [String first, String second] -> Right (first, second)
+    _ -> Left ("field must contain text pairs: " <> field)
+  _ -> Left ("field must contain arrays: " <> field))
+
+requireNoArguments :: Text -> ObservationInput -> Either Text ()
+requireNoArguments name input = case observationArguments input of
+  [] -> Right ()
+  _ -> Left (name <> " expects no arguments")
+
+exactlyThreeAsArguments ::
+  (FromJSON first, FromJSON second, FromJSON third) =>
+  Text -> ObservationInput -> Either Text (first, second, third)
+exactlyThreeAsArguments name input = case observationArguments input of
+  [firstValue, secondValue, thirdValue] -> (,,)
+    <$> decodeArgument name firstValue
+    <*> decodeArgument name secondValue
+    <*> decodeArgument name thirdValue
+  _ -> Left (name <> " expects exactly three arguments")
+
+decodeArgument :: FromJSON value => Text -> Value -> Either Text value
+decodeArgument name value = case fromJSON value of
+  Success decoded -> Right decoded
+  Error problem -> Left (name <> " received an invalid argument: "
+    <> Text.pack problem)
+
+mapPriorityError :: Either Priority.PriorityError value -> Either Text value
+mapPriorityError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Material operations and observations
@@ -575,7 +902,9 @@ openProposalsObservation :: ObservationInput -> V1State -> Either Text Value
 openProposalsObservation input state = do
   brick <- exactlyOneAsArgument "OpenProposalsFor" input
   material <- materialStateFromKernel state
-  pure (object ["kinds" .= openSourceReconciliationKinds material brick])
+  priority <- priorityStateFromKernel state
+  pure (object ["kinds" .= (openSourceReconciliationKinds material brick
+    <> Priority.priorityProposalKinds priority brick)])
 
 materialBrickSummaryObservation :: ObservationInput -> V1State -> Either Text Value
 materialBrickSummaryObservation input state = do
@@ -782,10 +1111,38 @@ confidenceBeforeReference input = do
     (Left ("unknown confidence checkpoint: before:" <> stepId))
     Right
     (Map.lookup ("before:" <> stepId) (referenceInputCheckpoints input))
-  maybe
-    (Left "confidence is unavailable at the requested checkpoint")
-    Right
-    (kernelValue "confidence" (referenceSnapshotState checkpoint))
+  query <- requiredText "query" (referenceInputAssertion input)
+  if "PriorityEvidence(" `Text.isPrefixOf` query
+    then priorityConfidenceAt checkpoint query
+    else maybe
+      (Left "confidence is unavailable at the requested checkpoint")
+      Right
+      (kernelValue "confidence" (referenceSnapshotState checkpoint))
+
+priorityConfidenceAt :: ReferenceSnapshot V1State -> Text -> Either Text Value
+priorityConfidenceAt snapshot query = do
+  argumentsText <- maybe
+    (Left "priority confidence query is malformed") Right
+    (Text.stripPrefix "PriorityEvidence(" query >>= Text.stripSuffix ")")
+  let argumentNames = map Text.strip (Text.splitOn "," argumentsText)
+  (scope, left, right) <- case argumentNames of
+    [scopeName, leftName, rightName] -> (,,)
+      <$> boundReference scopeName
+      <*> boundReference leftName
+      <*> boundReference rightName
+    _ -> Left "priority confidence query must name scope, left, and right"
+  priority <- priorityStateFromKernel (referenceSnapshotState snapshot)
+  evidence <- mapPriorityError (Priority.priorityEvidence priority scope left right)
+  pure (toJSON (Priority.priorityEvidenceConfidence evidence))
+  where
+    boundReference name = do
+      binding <- maybe
+        (Left "priority confidence query arguments must be bindings") Right
+        (Text.stripPrefix "$" name)
+      value <- maybe
+        (Left ("unknown priority confidence binding: $" <> binding)) Right
+        (Map.lookup binding (referenceSnapshotBindings snapshot))
+      decodeArgument "priority confidence" value
 
 forecastReference :: ReferenceInput V1State -> Either Text Value
 forecastReference input = do

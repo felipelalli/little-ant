@@ -2,14 +2,14 @@ plan:domain 72/108
 plan:execution 0/374
 plan:integration 0/268
 plan:interaction 2/119
-plan:judgment 0/197
+plan:judgment 110/197
 plan:material 121/121
 plan:migration-v0-v1 0/67
 plan:root 1/11
 plan:selection 0/181
 scenario:grocery-capture-and-duplicate 0/7
-scenario:priority-uncertainty 0/7
-scenario:priority-contradiction-recalibration 0/7
+scenario:priority-uncertainty 7/7
+scenario:priority-contradiction-recalibration 7/7
 scenario:forecast-lottery-calibration 0/7
 scenario:served-skip-cooldown-and-pressure 0/7
 scenario:article-repeat-with-jitter 0/7
@@ -23,4 +23,4 @@ scenario:event-replay-sparse-history 0/9
 scenario:v0-v1-atomic-cutover 0/8
 scenario:taskjuggler-planning-cut 0/7
 scenario:pack-sandbox-and-credentials 0/7
-TOTAL 203/1566
+TOTAL 327/1566
