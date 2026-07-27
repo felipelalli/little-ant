@@ -90,21 +90,22 @@ Examples include:
 - release an MVP and measure its reception;
 - homologate a proposed solution.
 
-Such work:
+Such work is an ordinary Brick:
 
-- uses phase `validation`;
-- may have children, dependencies, dates, and its own priority;
-- explicitly targets the impact assessment it is meant to validate;
-- may be a child of the target work, a dependency of it, or both, according
-  to the final relationship model.
+- it may use phase `validation` when phase is applicable, but phase is not
+  required to make the work legitimate;
+- it may have children, dependencies, dates, and its own priority;
+- generic provenance or `about` relationships may connect its evidence to the
+  assessment without introducing a special validation-work entity;
+- its concrete method remains external judgment.
 
 Completing a validation Brick does not automatically change the target's
 impact class or maturity. Its result must first be recorded as evidence; a
 human or operator can then confirm a new assessment, preserve the current one,
 or decide to drop or supersede the target.
 
-Little Ant should propose impact-validation work only when the expected value
+Little Ant should propose investigation work only when the expected value
 of information is high: evidence maturity is low, the uncertainty could
 change a relevant decision, and the work is sufficiently important or close
 to execution. The core may identify this condition but must not invent a
-validation method or create the Brick automatically.
+method or create the Brick automatically.

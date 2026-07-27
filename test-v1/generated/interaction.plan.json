@@ -1,0 +1,1665 @@
+{
+  "obligations": [
+    {
+      "category": "value_equality",
+      "description": "Verify value type CompactEntityReference has structural equality",
+      "id": "value-equality.CompactEntityReference",
+      "source_construct": "CompactEntityReference",
+      "source_span": {
+        "end": 696,
+        "start": 589
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on CompactEntityReference are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "title",
+          "revision",
+          "state"
+        ]
+      },
+      "id": "entity-fields.CompactEntityReference",
+      "source_construct": "CompactEntityReference",
+      "source_span": {
+        "end": 696,
+        "start": 589
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type InteractionAction has structural equality",
+      "id": "value-equality.InteractionAction",
+      "source_construct": "InteractionAction",
+      "source_span": {
+        "end": 869,
+        "start": 698
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on InteractionAction are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "label",
+          "shortcut",
+          "canonical_command",
+          "destructive",
+          "confirmation_required"
+        ]
+      },
+      "id": "entity-fields.InteractionAction",
+      "source_construct": "InteractionAction",
+      "source_span": {
+        "end": 869,
+        "start": 698
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type InteractionProgress has structural equality",
+      "id": "value-equality.InteractionProgress",
+      "source_construct": "InteractionProgress",
+      "source_span": {
+        "end": 1000,
+        "start": 871
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on InteractionProgress are present with correct types",
+      "detail": {
+        "fields": [
+          "facts",
+          "estimated_remaining_min",
+          "estimated_remaining_max"
+        ]
+      },
+      "id": "entity-fields.InteractionProgress",
+      "source_construct": "InteractionProgress",
+      "source_span": {
+        "end": 1000,
+        "start": 871
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type InteractionEnvelope has structural equality",
+      "id": "value-equality.InteractionEnvelope",
+      "source_construct": "InteractionEnvelope",
+      "source_span": {
+        "end": 1314,
+        "start": 1002
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on InteractionEnvelope are present with correct types",
+      "detail": {
+        "fields": [
+          "protocol_version",
+          "interaction_id",
+          "domain_revision",
+          "interaction_revision",
+          "kind",
+          "prompt",
+          "subject",
+          "actions",
+          "help",
+          "progress"
+        ]
+      },
+      "id": "entity-fields.InteractionEnvelope",
+      "source_construct": "InteractionEnvelope",
+      "source_span": {
+        "end": 1314,
+        "start": 1002
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type OperationalResponse has structural equality",
+      "id": "value-equality.OperationalResponse",
+      "source_construct": "OperationalResponse",
+      "source_span": {
+        "end": 1586,
+        "start": 1316
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on OperationalResponse are present with correct types",
+      "detail": {
+        "fields": [
+          "ok",
+          "human",
+          "result_kind",
+          "entity",
+          "changed",
+          "warnings",
+          "error_code",
+          "hint",
+          "dry_run",
+          "domain_revision"
+        ]
+      },
+      "id": "entity-fields.OperationalResponse",
+      "source_construct": "OperationalResponse",
+      "source_span": {
+        "end": 1586,
+        "start": 1316
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type StatusSummary has structural equality",
+      "id": "value-equality.StatusSummary",
+      "source_construct": "StatusSummary",
+      "source_span": {
+        "end": 1809,
+        "start": 1588
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on StatusSummary are present with correct types",
+      "detail": {
+        "fields": [
+          "human",
+          "mode",
+          "powered_by",
+          "current_focus",
+          "human_wip_count",
+          "open_proposal_count",
+          "pending_notice_count"
+        ]
+      },
+      "id": "entity-fields.StatusSummary",
+      "source_construct": "StatusSummary",
+      "source_span": {
+        "end": 1809,
+        "start": 1588
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type HistoryQuery has structural equality",
+      "id": "value-equality.HistoryQuery",
+      "source_construct": "HistoryQuery",
+      "source_span": {
+        "end": 2143,
+        "start": 1811
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on HistoryQuery are present with correct types",
+      "detail": {
+        "fields": [
+          "from",
+          "through",
+          "brick_ids",
+          "related_entity_ids",
+          "scope_ids",
+          "actor_ids",
+          "origins",
+          "action_families",
+          "minimum_relevance",
+          "cursor",
+          "page_size"
+        ]
+      },
+      "id": "entity-fields.HistoryQuery",
+      "source_construct": "HistoryQuery",
+      "source_span": {
+        "end": 2143,
+        "start": 1811
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type SemanticActionSummary has structural equality",
+      "id": "value-equality.SemanticActionSummary",
+      "source_construct": "SemanticActionSummary",
+      "source_span": {
+        "end": 2451,
+        "start": 2145
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on SemanticActionSummary are present with correct types",
+      "detail": {
+        "fields": [
+          "action_id",
+          "domain_revision",
+          "occurred_at",
+          "actor_or_origin",
+          "family",
+          "relevance",
+          "outcome",
+          "summary",
+          "affected",
+          "event_references"
+        ]
+      },
+      "id": "entity-fields.SemanticActionSummary",
+      "source_construct": "SemanticActionSummary",
+      "source_span": {
+        "end": 2451,
+        "start": 2145
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type HistoryPage has structural equality",
+      "id": "value-equality.HistoryPage",
+      "source_construct": "HistoryPage",
+      "source_span": {
+        "end": 2602,
+        "start": 2453
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on HistoryPage are present with correct types",
+      "detail": {
+        "fields": [
+          "snapshot_domain_revision",
+          "items",
+          "next_cursor",
+          "exact_total"
+        ]
+      },
+      "id": "entity-fields.HistoryPage",
+      "source_construct": "HistoryPage",
+      "source_span": {
+        "end": 2602,
+        "start": 2453
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type HistoryBrief has structural equality",
+      "id": "value-equality.HistoryBrief",
+      "source_construct": "HistoryBrief",
+      "source_span": {
+        "end": 2769,
+        "start": 2604
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on HistoryBrief are present with correct types",
+      "detail": {
+        "fields": [
+          "snapshot_domain_revision",
+          "from",
+          "through",
+          "facts",
+          "source_action_ids"
+        ]
+      },
+      "id": "entity-fields.HistoryBrief",
+      "source_construct": "HistoryBrief",
+      "source_span": {
+        "end": 2769,
+        "start": 2604
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract InteractionProtocol.current",
+      "id": "contract-signature.InteractionProtocol.current",
+      "source_construct": "InteractionProtocol.current",
+      "source_span": {
+        "end": 2994,
+        "start": 2942
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract InteractionProtocol.submit",
+      "id": "contract-signature.InteractionProtocol.submit",
+      "source_construct": "InteractionProtocol.submit",
+      "source_span": {
+        "end": 3168,
+        "start": 2999
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract CommandProtocol.execute",
+      "id": "contract-signature.CommandProtocol.execute",
+      "source_construct": "CommandProtocol.execute",
+      "source_span": {
+        "end": 3715,
+        "start": 3656
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract CommandProtocol.project",
+      "id": "contract-signature.CommandProtocol.project",
+      "source_construct": "CommandProtocol.project",
+      "source_span": {
+        "end": 3776,
+        "start": 3720
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract CanonicalEventStore.append",
+      "id": "contract-signature.CanonicalEventStore.append",
+      "source_construct": "CanonicalEventStore.append",
+      "source_span": {
+        "end": 4785,
+        "start": 4661
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract CanonicalEventStore.replay",
+      "id": "contract-signature.CanonicalEventStore.replay",
+      "source_construct": "CanonicalEventStore.replay",
+      "source_span": {
+        "end": 4832,
+        "start": 4790
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract StatusProvider.status",
+      "id": "contract-signature.StatusProvider.status",
+      "source_construct": "StatusProvider.status",
+      "source_span": {
+        "end": 5780,
+        "start": 5753
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract HistoryQueryProtocol.query",
+      "id": "contract-signature.HistoryQueryProtocol.query",
+      "source_construct": "HistoryQueryProtocol.query",
+      "source_span": {
+        "end": 6035,
+        "start": 5991
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract HistoryQueryProtocol.brief",
+      "id": "contract-signature.HistoryQueryProtocol.brief",
+      "source_construct": "HistoryQueryProtocol.brief",
+      "source_span": {
+        "end": 6085,
+        "start": 6040
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract PoweredUpModel.request_via_stdin",
+      "id": "contract-signature.PoweredUpModel.request_via_stdin",
+      "source_construct": "PoweredUpModel.request_via_stdin",
+      "source_span": {
+        "end": 7284,
+        "start": 7238
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum InteractionStatus are comparable",
+      "id": "enum-comparable.InteractionStatus",
+      "source_construct": "InteractionStatus",
+      "source_span": {
+        "end": 7966,
+        "start": 7903
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ProjectionKind are comparable",
+      "id": "enum-comparable.ProjectionKind",
+      "source_construct": "ProjectionKind",
+      "source_span": {
+        "end": 8069,
+        "start": 7967
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum HarnessMode are comparable",
+      "id": "enum-comparable.HarnessMode",
+      "source_construct": "HarnessMode",
+      "source_span": {
+        "end": 8108,
+        "start": 8070
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum HistoryRelevance are comparable",
+      "id": "enum-comparable.HistoryRelevance",
+      "source_construct": "HistoryRelevance",
+      "source_span": {
+        "end": 8176,
+        "start": 8109
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum AnnotationTargetKind are comparable",
+      "id": "enum-comparable.AnnotationTargetKind",
+      "source_construct": "AnnotationTargetKind",
+      "source_span": {
+        "end": 8220,
+        "start": 8177
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum AnnotationStatus are comparable",
+      "id": "enum-comparable.AnnotationStatus",
+      "source_construct": "AnnotationStatus",
+      "source_span": {
+        "end": 8261,
+        "start": 8221
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on DomainClock are present with correct types",
+      "detail": {
+        "fields": [
+          "revision"
+        ]
+      },
+      "id": "entity-fields.DomainClock",
+      "source_construct": "DomainClock",
+      "source_span": {
+        "end": 8455,
+        "start": 8411
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> stale on InteractionSession.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "InteractionSession",
+        "field": "status",
+        "from": "open",
+        "to": "stale"
+      },
+      "id": "transition-edge.InteractionSession.open.stale",
+      "source_construct": "InteractionSession.status",
+      "source_span": {
+        "end": 8855,
+        "start": 8842
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> completed on InteractionSession.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "InteractionSession",
+        "field": "status",
+        "from": "open",
+        "to": "completed"
+      },
+      "id": "transition-edge.InteractionSession.open.completed",
+      "source_construct": "InteractionSession.status",
+      "source_span": {
+        "end": 8881,
+        "start": 8864
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> abandoned on InteractionSession.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "InteractionSession",
+        "field": "status",
+        "from": "open",
+        "to": "abandoned"
+      },
+      "id": "transition-edge.InteractionSession.open.abandoned",
+      "source_construct": "InteractionSession.status",
+      "source_span": {
+        "end": 8907,
+        "start": 8890
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition stale -> open on InteractionSession.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "InteractionSession",
+        "field": "status",
+        "from": "stale",
+        "to": "open"
+      },
+      "id": "transition-edge.InteractionSession.stale.open",
+      "source_construct": "InteractionSession.status",
+      "source_span": {
+        "end": 8929,
+        "start": 8916
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition stale -> abandoned on InteractionSession.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "InteractionSession",
+        "field": "status",
+        "from": "stale",
+        "to": "abandoned"
+      },
+      "id": "transition-edge.InteractionSession.stale.abandoned",
+      "source_construct": "InteractionSession.status",
+      "source_span": {
+        "end": 8956,
+        "start": 8938
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on InteractionSession.status are rejected",
+      "id": "transition-rejected.InteractionSession.status",
+      "source_construct": "InteractionSession.status",
+      "source_span": {
+        "end": 9001,
+        "start": 8813
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on InteractionSession.status have no outbound transitions",
+      "detail": {
+        "entity": "InteractionSession",
+        "field": "status",
+        "states": [
+          "completed",
+          "abandoned"
+        ]
+      },
+      "id": "transition-terminal.InteractionSession.status",
+      "source_construct": "InteractionSession.status",
+      "source_span": {
+        "end": 9001,
+        "start": 8813
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on InteractionSession are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "kind",
+          "subject_brick",
+          "subject_raw",
+          "status",
+          "domain_revision",
+          "interaction_revision",
+          "prompt_key",
+          "random_evidence",
+          "confirmed_actions",
+          "opened_at",
+          "updated_at"
+        ]
+      },
+      "id": "entity-fields.InteractionSession",
+      "source_construct": "InteractionSession",
+      "source_span": {
+        "end": 9003,
+        "start": 8457
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field InteractionSession.subject_brick accepts null and non-null values",
+      "id": "entity-optional.InteractionSession.subject_brick",
+      "source_construct": "InteractionSession.subject_brick",
+      "source_span": {
+        "end": 9003,
+        "start": 8457
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field InteractionSession.subject_raw accepts null and non-null values",
+      "id": "entity-optional.InteractionSession.subject_raw",
+      "source_construct": "InteractionSession.subject_raw",
+      "source_span": {
+        "end": 9003,
+        "start": 8457
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field InteractionSession.random_evidence accepts null and non-null values",
+      "id": "entity-optional.InteractionSession.random_evidence",
+      "source_construct": "InteractionSession.random_evidence",
+      "source_span": {
+        "end": 9003,
+        "start": 8457
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on SurfaceCheckpoint are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "surface_id",
+          "interaction_id",
+          "displayed_domain_revision",
+          "displayed_interaction_revision",
+          "screen",
+          "selected_item",
+          "text_buffer",
+          "cursor_offset",
+          "transcript",
+          "last_response",
+          "last_status",
+          "last_projection",
+          "history_query",
+          "last_history_page",
+          "last_history_brief",
+          "updated_at"
+        ]
+      },
+      "id": "entity-fields.SurfaceCheckpoint",
+      "source_construct": "SurfaceCheckpoint",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.interaction_id accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.interaction_id",
+      "source_construct": "SurfaceCheckpoint.interaction_id",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.displayed_interaction_revision accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.displayed_interaction_revision",
+      "source_construct": "SurfaceCheckpoint.displayed_interaction_revision",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.selected_item accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.selected_item",
+      "source_construct": "SurfaceCheckpoint.selected_item",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.text_buffer accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.text_buffer",
+      "source_construct": "SurfaceCheckpoint.text_buffer",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.cursor_offset accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.cursor_offset",
+      "source_construct": "SurfaceCheckpoint.cursor_offset",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.last_response accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.last_response",
+      "source_construct": "SurfaceCheckpoint.last_response",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.last_status accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.last_status",
+      "source_construct": "SurfaceCheckpoint.last_status",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.last_projection accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.last_projection",
+      "source_construct": "SurfaceCheckpoint.last_projection",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.history_query accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.history_query",
+      "source_construct": "SurfaceCheckpoint.history_query",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.last_history_page accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.last_history_page",
+      "source_construct": "SurfaceCheckpoint.last_history_page",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SurfaceCheckpoint.last_history_brief accepts null and non-null values",
+      "id": "entity-optional.SurfaceCheckpoint.last_history_brief",
+      "source_construct": "SurfaceCheckpoint.last_history_brief",
+      "source_span": {
+        "end": 9553,
+        "start": 9005
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on ReplRuntime are present with correct types",
+      "detail": {
+        "fields": [
+          "mode",
+          "powered_by",
+          "adapter_protocol"
+        ]
+      },
+      "id": "entity-fields.ReplRuntime",
+      "source_construct": "ReplRuntime",
+      "source_span": {
+        "end": 9654,
+        "start": 9555
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field ReplRuntime.powered_by accepts null and non-null values",
+      "id": "entity-optional.ReplRuntime.powered_by",
+      "source_construct": "ReplRuntime.powered_by",
+      "source_span": {
+        "end": 9654,
+        "start": 9555
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field ReplRuntime.adapter_protocol accepts null and non-null values",
+      "id": "entity-optional.ReplRuntime.adapter_protocol",
+      "source_construct": "ReplRuntime.adapter_protocol",
+      "source_span": {
+        "end": 9654,
+        "start": 9555
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition active -> stale on TextAnnotation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "TextAnnotation",
+        "field": "status",
+        "from": "active",
+        "to": "stale"
+      },
+      "id": "transition-edge.TextAnnotation.active.stale",
+      "source_construct": "TextAnnotation.status",
+      "source_span": {
+        "end": 10086,
+        "start": 10071
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on TextAnnotation.status are rejected",
+      "id": "transition-rejected.TextAnnotation.status",
+      "source_construct": "TextAnnotation.status",
+      "source_span": {
+        "end": 10092,
+        "start": 10042
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on TextAnnotation are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "owner_brick",
+          "field",
+          "text_revision",
+          "start_offset",
+          "end_offset",
+          "displayed_token",
+          "target_kind",
+          "target_party",
+          "target_brick",
+          "authority",
+          "status",
+          "created_at"
+        ]
+      },
+      "id": "entity-fields.TextAnnotation",
+      "source_construct": "TextAnnotation",
+      "source_span": {
+        "end": 10094,
+        "start": 9656
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field TextAnnotation.target_party accepts null and non-null values",
+      "id": "entity-optional.TextAnnotation.target_party",
+      "source_construct": "TextAnnotation.target_party",
+      "source_span": {
+        "end": 10094,
+        "start": 9656
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field TextAnnotation.target_brick accepts null and non-null values",
+      "id": "entity-optional.TextAnnotation.target_brick",
+      "source_construct": "TextAnnotation.target_brick",
+      "source_span": {
+        "end": 10094,
+        "start": 9656
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "InteractionSession"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InteractionOpened succeeds when all preconditions are met",
+      "id": "rule-success.InteractionOpened",
+      "source_construct": "InteractionOpened",
+      "source_span": {
+        "end": 11144,
+        "start": 10528
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "InteractionSession"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule InteractionOpened ensures clause produces the specified fields",
+      "id": "rule-entity-creation.InteractionOpened.1",
+      "source_construct": "InteractionOpened",
+      "source_span": {
+        "end": 11142,
+        "start": 10637
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "CanonicalActionAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentInteractionActionAccepted succeeds when all preconditions are met",
+      "id": "rule-success.CurrentInteractionActionAccepted",
+      "source_construct": "CurrentInteractionActionAccepted",
+      "source_span": {
+        "end": 12479,
+        "start": 11146
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "CanonicalActionAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentInteractionActionAccepted is rejected when requires clause fails",
+      "id": "rule-failure.CurrentInteractionActionAccepted.1",
+      "source_construct": "CurrentInteractionActionAccepted",
+      "source_span": {
+        "end": 11375,
+        "start": 11340
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "CanonicalActionAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentInteractionActionAccepted is rejected when requires clause fails",
+      "id": "rule-failure.CurrentInteractionActionAccepted.2",
+      "source_construct": "CurrentInteractionActionAccepted",
+      "source_span": {
+        "end": 11432,
+        "start": 11380
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "CanonicalActionAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentInteractionActionAccepted is rejected when requires clause fails",
+      "id": "rule-failure.CurrentInteractionActionAccepted.3",
+      "source_construct": "CurrentInteractionActionAccepted",
+      "source_span": {
+        "end": 11502,
+        "start": 11437
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "CanonicalActionAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentInteractionActionAccepted is rejected when requires clause fails",
+      "id": "rule-failure.CurrentInteractionActionAccepted.4",
+      "source_construct": "CurrentInteractionActionAccepted",
+      "source_span": {
+        "end": 11590,
+        "start": 11507
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "CanonicalActionAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentInteractionActionAccepted is rejected when requires clause fails",
+      "id": "rule-failure.CurrentInteractionActionAccepted.5",
+      "source_construct": "CurrentInteractionActionAccepted",
+      "source_span": {
+        "end": 11644,
+        "start": 11595
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "InteractionActionRejected"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StaleInteractionActionRejected succeeds when all preconditions are met",
+      "id": "rule-success.StaleInteractionActionRejected",
+      "source_construct": "StaleInteractionActionRejected",
+      "source_span": {
+        "end": 13366,
+        "start": 12481
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "InteractionActionRejected"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StaleInteractionActionRejected is rejected when requires clause fails",
+      "id": "rule-failure.StaleInteractionActionRejected.1",
+      "source_construct": "StaleInteractionActionRejected",
+      "source_span": {
+        "end": 12708,
+        "start": 12673
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "InteractionActionRejected"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StaleInteractionActionRejected is rejected when requires clause fails",
+      "id": "rule-failure.StaleInteractionActionRejected.2",
+      "source_construct": "StaleInteractionActionRejected",
+      "source_span": {
+        "end": 12987,
+        "start": 12713
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StaleInteractionRebased succeeds when all preconditions are met",
+      "id": "rule-success.StaleInteractionRebased",
+      "source_construct": "StaleInteractionRebased",
+      "source_span": {
+        "end": 13897,
+        "start": 13368
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StaleInteractionRebased is rejected when requires clause fails",
+      "id": "rule-failure.StaleInteractionRebased.1",
+      "source_construct": "StaleInteractionRebased",
+      "source_span": {
+        "end": 13480,
+        "start": 13444
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "InteractionHelpShown"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InteractionHelpRequested succeeds when all preconditions are met",
+      "id": "rule-success.InteractionHelpRequested",
+      "source_construct": "InteractionHelpRequested",
+      "source_span": {
+        "end": 14301,
+        "start": 13899
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "InteractionHelpShown"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InteractionHelpRequested is rejected when requires clause fails",
+      "id": "rule-failure.InteractionHelpRequested.1",
+      "source_construct": "InteractionHelpRequested",
+      "source_span": {
+        "end": 14016,
+        "start": 13981
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InteractionCompleted succeeds when all preconditions are met",
+      "id": "rule-success.InteractionCompleted",
+      "source_construct": "InteractionCompleted",
+      "source_span": {
+        "end": 14504,
+        "start": 14303
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InteractionCompleted is rejected when requires clause fails",
+      "id": "rule-failure.InteractionCompleted.1",
+      "source_construct": "InteractionCompleted",
+      "source_span": {
+        "end": 14413,
+        "start": 14378
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InteractionAbandoned succeeds when all preconditions are met",
+      "id": "rule-success.InteractionAbandoned",
+      "source_construct": "InteractionAbandoned",
+      "source_span": {
+        "end": 14880,
+        "start": 14506
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InteractionAbandoned is rejected when requires clause fails",
+      "id": "rule-failure.InteractionAbandoned.1",
+      "source_construct": "InteractionAbandoned",
+      "source_span": {
+        "end": 14625,
+        "start": 14580
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "SurfaceCheckpoint"
+        ],
+        "entities_read": [
+          "SurfaceCheckpoint"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SurfaceCheckpointSavedFirstTime succeeds when all preconditions are met",
+      "id": "rule-success.SurfaceCheckpointSavedFirstTime",
+      "source_construct": "SurfaceCheckpointSavedFirstTime",
+      "source_span": {
+        "end": 15774,
+        "start": 14960
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "SurfaceCheckpoint"
+        ],
+        "entities_read": [
+          "SurfaceCheckpoint"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SurfaceCheckpointSavedFirstTime is rejected when requires clause fails",
+      "id": "rule-failure.SurfaceCheckpointSavedFirstTime.1",
+      "source_construct": "SurfaceCheckpointSavedFirstTime",
+      "source_span": {
+        "end": 15313,
+        "start": 15263
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "SurfaceCheckpoint"
+        ],
+        "entities_read": [
+          "SurfaceCheckpoint"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule SurfaceCheckpointSavedFirstTime ensures clause produces the specified fields",
+      "id": "rule-entity-creation.SurfaceCheckpointSavedFirstTime.1",
+      "source_construct": "SurfaceCheckpointSavedFirstTime",
+      "source_span": {
+        "end": 15772,
+        "start": 15318
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingSurfaceCheckpointUpdated succeeds when all preconditions are met",
+      "id": "rule-success.ExistingSurfaceCheckpointUpdated",
+      "source_construct": "ExistingSurfaceCheckpointUpdated",
+      "source_span": {
+        "end": 16838,
+        "start": 15776
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingSurfaceCheckpointUpdated is rejected when requires clause fails",
+      "id": "rule-failure.ExistingSurfaceCheckpointUpdated.1",
+      "source_construct": "ExistingSurfaceCheckpointUpdated",
+      "source_span": {
+        "end": 16158,
+        "start": 16131
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "PoweredUpAdapterAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PoweredUpAdapterValidated succeeds when all preconditions are met",
+      "id": "rule-success.PoweredUpAdapterValidated",
+      "source_construct": "PoweredUpAdapterValidated",
+      "source_span": {
+        "end": 17514,
+        "start": 16918
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "PoweredUpAdapterAccepted"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PoweredUpAdapterValidated is rejected when requires clause fails",
+      "id": "rule-failure.PoweredUpAdapterValidated.1",
+      "source_construct": "PoweredUpAdapterValidated",
+      "source_span": {
+        "end": 17060,
+        "start": 17012
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "PoweredUpStartupFailed"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PoweredUpAdapterRejected succeeds when all preconditions are met",
+      "id": "rule-success.PoweredUpAdapterRejected",
+      "source_construct": "PoweredUpAdapterRejected",
+      "source_span": {
+        "end": 17947,
+        "start": 17516
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "PoweredUpStartupFailed"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PoweredUpAdapterRejected is rejected when requires clause fails",
+      "id": "rule-failure.PoweredUpAdapterRejected.1",
+      "source_construct": "PoweredUpAdapterRejected",
+      "source_span": {
+        "end": 17661,
+        "start": 17609
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PoweredUpModeDisabled succeeds when all preconditions are met",
+      "id": "rule-success.PoweredUpModeDisabled",
+      "source_construct": "PoweredUpModeDisabled",
+      "source_span": {
+        "end": 18146,
+        "start": 17949
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PoweredUpModeDisabled is rejected when requires clause fails",
+      "id": "rule-failure.PoweredUpModeDisabled.1",
+      "source_construct": "PoweredUpModeDisabled",
+      "source_span": {
+        "end": 18038,
+        "start": 18006
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PartyAnnotationConfirmed succeeds when all preconditions are met",
+      "id": "rule-success.PartyAnnotationConfirmed",
+      "source_construct": "PartyAnnotationConfirmed",
+      "source_span": {
+        "end": 19026,
+        "start": 18226
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PartyAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.PartyAnnotationConfirmed.1",
+      "source_construct": "PartyAnnotationConfirmed",
+      "source_span": {
+        "end": 18502,
+        "start": 18452
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PartyAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.PartyAnnotationConfirmed.2",
+      "source_construct": "PartyAnnotationConfirmed",
+      "source_span": {
+        "end": 18559,
+        "start": 18507
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PartyAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.PartyAnnotationConfirmed.3",
+      "source_construct": "PartyAnnotationConfirmed",
+      "source_span": {
+        "end": 18591,
+        "start": 18564
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PartyAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.PartyAnnotationConfirmed.4",
+      "source_construct": "PartyAnnotationConfirmed",
+      "source_span": {
+        "end": 18631,
+        "start": 18596
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule PartyAnnotationConfirmed ensures clause produces the specified fields",
+      "id": "rule-entity-creation.PartyAnnotationConfirmed.1",
+      "source_construct": "PartyAnnotationConfirmed",
+      "source_span": {
+        "end": 19024,
+        "start": 18636
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAnnotationConfirmed succeeds when all preconditions are met",
+      "id": "rule-success.BrickAnnotationConfirmed",
+      "source_construct": "BrickAnnotationConfirmed",
+      "source_span": {
+        "end": 20026,
+        "start": 19028
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.BrickAnnotationConfirmed.1",
+      "source_construct": "BrickAnnotationConfirmed",
+      "source_span": {
+        "end": 19305,
+        "start": 19255
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.BrickAnnotationConfirmed.2",
+      "source_construct": "BrickAnnotationConfirmed",
+      "source_span": {
+        "end": 19362,
+        "start": 19310
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.BrickAnnotationConfirmed.3",
+      "source_construct": "BrickAnnotationConfirmed",
+      "source_span": {
+        "end": 19394,
+        "start": 19367
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAnnotationConfirmed is rejected when requires clause fails",
+      "id": "rule-failure.BrickAnnotationConfirmed.4",
+      "source_construct": "BrickAnnotationConfirmed",
+      "source_span": {
+        "end": 19434,
+        "start": 19399
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "TextAnnotation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule BrickAnnotationConfirmed ensures clause produces the specified fields",
+      "id": "rule-entity-creation.BrickAnnotationConfirmed.1",
+      "source_construct": "BrickAnnotationConfirmed",
+      "source_span": {
+        "end": 19828,
+        "start": 19439
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule AnnotationMarkedStale succeeds when all preconditions are met",
+      "id": "rule-success.AnnotationMarkedStale",
+      "source_construct": "AnnotationMarkedStale",
+      "source_span": {
+        "end": 20180,
+        "start": 20028
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule AnnotationMarkedStale is rejected when requires clause fails",
+      "id": "rule-failure.AnnotationMarkedStale.1",
+      "source_construct": "AnnotationMarkedStale",
+      "source_span": {
+        "end": 20139,
+        "start": 20103
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant AnnotationHasExactlyOneTarget holds after every state-changing rule that touches constrained entities",
+      "expression": "for annotation in TextAnnotations:\n        (\n            annotation.target_party != null\n            or annotation.target_brick != null\n        )\n        and not (\n            annotation.target_party != null\n            and annotation.target_brick != null",
+      "id": "invariant.AnnotationHasExactlyOneTarget",
+      "source_construct": "AnnotationHasExactlyOneTarget",
+      "source_span": {
+        "end": 20632,
+        "start": 20319
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant AnnotationKindMatchesTarget holds after every state-changing rule that touches constrained entities",
+      "expression": "for annotation in TextAnnotations:\n        annotation.target_kind = party implies\n            annotation.target_party != null\n    for annotation in TextAnnotations:\n        annotation.target_kind = brick implies\n            annotation.target_brick != null",
+      "id": "invariant.AnnotationKindMatchesTarget",
+      "source_construct": "AnnotationKindMatchesTarget",
+      "source_span": {
+        "end": 20935,
+        "start": 20634
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant OneCheckpointPerSurface holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in SurfaceCheckpoints:\n        for second in SurfaceCheckpoints:\n            first.surface_id = second.surface_id implies first = second",
+      "id": "invariant.OneCheckpointPerSurface",
+      "source_construct": "OneCheckpointPerSurface",
+      "source_span": {
+        "end": 21125,
+        "start": 20937
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant HonestProgress holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.HonestProgress",
+      "source_construct": "HonestProgress",
+      "source_span": {
+        "end": 21307,
+        "start": 21127
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface CanonicalInteraction is accessible only to the specified actor",
+      "id": "surface-actor.CanonicalInteraction",
+      "source_construct": "CanonicalInteraction",
+      "source_span": {
+        "end": 24804,
+        "start": 21663
+      }
+    },
+    {
+      "category": "surface_exposure",
+      "description": "Verify each exposed item on CanonicalInteraction is accessible",
+      "detail": {
+        "items": [
+          "id",
+          "revision",
+          "mode",
+          "powered_by"
+        ],
+        "surface": "CanonicalInteraction"
+      },
+      "id": "surface-exposure.CanonicalInteraction",
+      "source_construct": "CanonicalInteraction",
+      "source_span": {
+        "end": 21810,
+        "start": 21721
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on CanonicalInteraction appear/hide based on when conditions",
+      "id": "surface-provides.CanonicalInteraction",
+      "source_construct": "CanonicalInteraction",
+      "source_span": {
+        "end": 23083,
+        "start": 21816
+      }
+    }
+  ],
+  "version": 3
+}

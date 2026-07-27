@@ -1,0 +1,138 @@
+{
+  "protocol_version": 1,
+  "id": "repl-revisions-and-powered-up-mode",
+  "title": "One-key interactions are revision-scoped and powered-up startup fails closed",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "interaction"
+  ],
+  "clock": "2026-07-27T18:00:00Z",
+  "steps": [
+    {
+      "id": "open-interaction",
+      "operation": "OpenInteraction",
+      "arguments": {
+        "kind": "priority_comparison",
+        "random_evidence": "repl-seed-001"
+      },
+      "bind_result": {
+        "interaction": "interaction",
+        "domain_revision": "opened_domain_revision",
+        "interaction_revision": "opened_interaction_revision",
+        "prompt_key": "prompt_key"
+      }
+    },
+    {
+      "id": "request-help",
+      "operation": "RequestInteractionHelp",
+      "arguments": {
+        "interaction": "$interaction"
+      }
+    },
+    {
+      "id": "submit-current-key",
+      "operation": "SubmitInteractionAction",
+      "arguments": {
+        "interaction": "$interaction",
+        "displayed_domain_revision": "$opened_domain_revision",
+        "displayed_interaction_revision": "$opened_interaction_revision",
+        "action_id": "yes"
+      }
+    },
+    {
+      "id": "submit-stale-key",
+      "operation": "SubmitInteractionAction",
+      "arguments": {
+        "interaction": "$interaction",
+        "displayed_domain_revision": "$opened_domain_revision",
+        "displayed_interaction_revision": "$opened_interaction_revision",
+        "action_id": "yes"
+      }
+    },
+    {
+      "id": "reject-powered-up",
+      "operation": "ValidatePoweredUpAdapter",
+      "arguments": {
+        "path": "/tmp/broken-model",
+        "transport": "stdin",
+        "probe_response": "Here is the answer: {\"status\":\"OK\"} and more text {\"status\":\"NO\"}"
+      }
+    },
+    {
+      "id": "accept-powered-up",
+      "operation": "ValidatePoweredUpAdapter",
+      "arguments": {
+        "path": "/opt/lant/claude-fast.sh",
+        "transport": "stdin",
+        "probe_response": "{\"protocol_version\":1,\"status\":\"OK\"}"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "help-does-not-advance-domain-revision",
+      "after": "request-help",
+      "query": "DomainRevision",
+      "operator": "equals_reference",
+      "value": "$opened_domain_revision"
+    },
+    {
+      "id": "help-restores-same-prompt",
+      "after": "request-help",
+      "query": "Interaction($interaction)",
+      "path": "prompt_key",
+      "operator": "equals_reference",
+      "value": "$prompt_key"
+    },
+    {
+      "id": "accepted-key-advances-domain-once",
+      "after": "submit-current-key",
+      "query": "DomainRevision",
+      "operator": "equals_expression",
+      "value": "$opened_domain_revision + 1"
+    },
+    {
+      "id": "stale-key-is-rejected",
+      "after": "submit-stale-key",
+      "query": "LatestOperationalResponse",
+      "path": "error_code",
+      "operator": "equals",
+      "value": "stale_interaction"
+    },
+    {
+      "id": "stale-key-causes-no-domain-mutation",
+      "after": "submit-stale-key",
+      "query": "DomainRevision",
+      "operator": "equals_snapshot",
+      "value_from": "after:submit-current-key"
+    },
+    {
+      "id": "ambiguous-model-output-fails-startup",
+      "after": "reject-powered-up",
+      "query": "ReplRuntime",
+      "path": "mode",
+      "operator": "equals",
+      "value": "dumb"
+    },
+    {
+      "id": "powered-up-probe-uses-stdin-only",
+      "after": "accept-powered-up",
+      "query": "ProcessInvocationTrace(/opt/lant/claude-fast.sh)",
+      "operator": "contains",
+      "value": {
+        "arguments_contain_prompt": false,
+        "stdin_contains_probe": true
+      }
+    },
+    {
+      "id": "validated-model-appears-in-status",
+      "after": "accept-powered-up",
+      "query": "StatusSummary",
+      "operator": "contains",
+      "value": {
+        "mode": "powered_up",
+        "powered_by": "/opt/lant/claude-fast.sh"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1756 @@
+{
+  "obligations": [
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract SourceReader.observe",
+      "id": "contract-signature.SourceReader.observe",
+      "source_construct": "SourceReader.observe",
+      "source_span": {
+        "end": 323,
+        "start": 273
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract SourceReader.fetch",
+      "id": "contract-signature.SourceReader.fetch",
+      "source_construct": "SourceReader.fetch",
+      "source_span": {
+        "end": 376,
+        "start": 328
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract CanonicalBlobStore.put",
+      "id": "contract-signature.CanonicalBlobStore.put",
+      "source_construct": "CanonicalBlobStore.put",
+      "source_span": {
+        "end": 816,
+        "start": 697
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract CanonicalBlobStore.read",
+      "id": "contract-signature.CanonicalBlobStore.read",
+      "source_construct": "CanonicalBlobStore.read",
+      "source_span": {
+        "end": 856,
+        "start": 821
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract CanonicalBlobStore.verify",
+      "id": "contract-signature.CanonicalBlobStore.verify",
+      "source_construct": "CanonicalBlobStore.verify",
+      "source_span": {
+        "end": 902,
+        "start": 861
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum RawReviewState are comparable",
+      "id": "enum-comparable.RawReviewState",
+      "source_construct": "RawReviewState",
+      "source_span": {
+        "end": 1760,
+        "start": 1718
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum RawStorageState are comparable",
+      "id": "enum-comparable.RawStorageState",
+      "source_construct": "RawStorageState",
+      "source_span": {
+        "end": 1803,
+        "start": 1761
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum SnapshotAvailability are comparable",
+      "id": "enum-comparable.SnapshotAvailability",
+      "source_construct": "SnapshotAvailability",
+      "source_span": {
+        "end": 1863,
+        "start": 1804
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum RawLinkRole are comparable",
+      "id": "enum-comparable.RawLinkRole",
+      "source_construct": "RawLinkRole",
+      "source_span": {
+        "end": 1930,
+        "start": 1864
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ExternalPresence are comparable",
+      "id": "enum-comparable.ExternalPresence",
+      "source_construct": "ExternalPresence",
+      "source_span": {
+        "end": 1998,
+        "start": 1931
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ExternalWorkState are comparable",
+      "id": "enum-comparable.ExternalWorkState",
+      "source_construct": "ExternalWorkState",
+      "source_span": {
+        "end": 2052,
+        "start": 1999
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ReviewDispositionKind are comparable",
+      "id": "enum-comparable.ReviewDispositionKind",
+      "source_construct": "ReviewDispositionKind",
+      "source_span": {
+        "end": 2127,
+        "start": 2053
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition pending -> reviewed on Raw.review_state is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Raw",
+        "field": "review_state",
+        "from": "pending",
+        "to": "reviewed"
+      },
+      "id": "transition-edge.Raw.pending.reviewed",
+      "source_construct": "Raw.review_state",
+      "source_span": {
+        "end": 2582,
+        "start": 2563
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition reviewed -> pending on Raw.review_state is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Raw",
+        "field": "review_state",
+        "from": "reviewed",
+        "to": "pending"
+      },
+      "id": "transition-edge.Raw.reviewed.pending",
+      "source_construct": "Raw.review_state",
+      "source_span": {
+        "end": 2610,
+        "start": 2591
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on Raw.review_state are rejected",
+      "id": "transition-rejected.Raw.review_state",
+      "source_construct": "Raw.review_state",
+      "source_span": {
+        "end": 2616,
+        "start": 2528
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition active -> archived on Raw.storage_state is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Raw",
+        "field": "storage_state",
+        "from": "active",
+        "to": "archived"
+      },
+      "id": "transition-edge.Raw.active.archived",
+      "source_construct": "Raw.storage_state",
+      "source_span": {
+        "end": 2676,
+        "start": 2658
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition archived -> active on Raw.storage_state is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Raw",
+        "field": "storage_state",
+        "from": "archived",
+        "to": "active"
+      },
+      "id": "transition-edge.Raw.archived.active",
+      "source_construct": "Raw.storage_state",
+      "source_span": {
+        "end": 2703,
+        "start": 2685
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on Raw.storage_state are rejected",
+      "id": "transition-rejected.Raw.storage_state",
+      "source_construct": "Raw.storage_state",
+      "source_span": {
+        "end": 2709,
+        "start": 2622
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Raw are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "title",
+          "original_text",
+          "canonical_english",
+          "normalization_authority",
+          "review_state",
+          "storage_state",
+          "created_at",
+          "origin",
+          "snapshots",
+          "links",
+          "memberships",
+          "latest_snapshot"
+        ]
+      },
+      "id": "entity-fields.Raw",
+      "source_construct": "Raw",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Raw.title accepts null and non-null values",
+      "id": "entity-optional.Raw.title",
+      "source_construct": "Raw.title",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Raw.original_text accepts null and non-null values",
+      "id": "entity-optional.Raw.original_text",
+      "source_construct": "Raw.original_text",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Raw.canonical_english accepts null and non-null values",
+      "id": "entity-optional.Raw.canonical_english",
+      "source_construct": "Raw.canonical_english",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Raw.normalization_authority accepts null and non-null values",
+      "id": "entity-optional.Raw.normalization_authority",
+      "source_construct": "Raw.normalization_authority",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Raw.origin navigates to the correct related entities",
+      "id": "entity-relationship.Raw.origin",
+      "source_construct": "Raw.origin",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Raw.snapshots navigates to the correct related entities",
+      "id": "entity-relationship.Raw.snapshots",
+      "source_construct": "Raw.snapshots",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Raw.links navigates to the correct related entities",
+      "id": "entity-relationship.Raw.links",
+      "source_construct": "Raw.links",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Raw.memberships navigates to the correct related entities",
+      "id": "entity-relationship.Raw.memberships",
+      "source_construct": "Raw.memberships",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Raw.latest_snapshot computes correctly",
+      "id": "derived.Raw.latest_snapshot",
+      "source_construct": "Raw.latest_snapshot",
+      "source_span": {
+        "end": 2944,
+        "start": 2277
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RawOrigin are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "raw",
+          "adapter",
+          "locator",
+          "external_id",
+          "last_checked_at",
+          "last_observed_revision",
+          "historical_only",
+          "created_at",
+          "observations"
+        ]
+      },
+      "id": "entity-fields.RawOrigin",
+      "source_construct": "RawOrigin",
+      "source_span": {
+        "end": 3238,
+        "start": 2946
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawOrigin.external_id accepts null and non-null values",
+      "id": "entity-optional.RawOrigin.external_id",
+      "source_construct": "RawOrigin.external_id",
+      "source_span": {
+        "end": 3238,
+        "start": 2946
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawOrigin.last_checked_at accepts null and non-null values",
+      "id": "entity-optional.RawOrigin.last_checked_at",
+      "source_construct": "RawOrigin.last_checked_at",
+      "source_span": {
+        "end": 3238,
+        "start": 2946
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawOrigin.last_observed_revision accepts null and non-null values",
+      "id": "entity-optional.RawOrigin.last_observed_revision",
+      "source_construct": "RawOrigin.last_observed_revision",
+      "source_span": {
+        "end": 3238,
+        "start": 2946
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship RawOrigin.observations navigates to the correct related entities",
+      "id": "entity-relationship.RawOrigin.observations",
+      "source_construct": "RawOrigin.observations",
+      "source_span": {
+        "end": 3238,
+        "start": 2946
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition available -> missing on RawSnapshot.availability is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RawSnapshot",
+        "field": "availability",
+        "from": "available",
+        "to": "missing"
+      },
+      "id": "transition-edge.RawSnapshot.available.missing",
+      "source_construct": "RawSnapshot.availability",
+      "source_span": {
+        "end": 3538,
+        "start": 3518
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition available -> corrupt on RawSnapshot.availability is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RawSnapshot",
+        "field": "availability",
+        "from": "available",
+        "to": "corrupt"
+      },
+      "id": "transition-edge.RawSnapshot.available.corrupt",
+      "source_construct": "RawSnapshot.availability",
+      "source_span": {
+        "end": 3567,
+        "start": 3547
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition missing -> available on RawSnapshot.availability is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RawSnapshot",
+        "field": "availability",
+        "from": "missing",
+        "to": "available"
+      },
+      "id": "transition-edge.RawSnapshot.missing.available",
+      "source_construct": "RawSnapshot.availability",
+      "source_span": {
+        "end": 3596,
+        "start": 3576
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition corrupt -> available on RawSnapshot.availability is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RawSnapshot",
+        "field": "availability",
+        "from": "corrupt",
+        "to": "available"
+      },
+      "id": "transition-edge.RawSnapshot.corrupt.available",
+      "source_construct": "RawSnapshot.availability",
+      "source_span": {
+        "end": 3625,
+        "start": 3605
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on RawSnapshot.availability are rejected",
+      "id": "transition-rejected.RawSnapshot.availability",
+      "source_construct": "RawSnapshot.availability",
+      "source_span": {
+        "end": 3631,
+        "start": 3483
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RawSnapshot are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "raw",
+          "content_hash",
+          "size",
+          "media_type",
+          "captured_at",
+          "origin_revision",
+          "availability",
+          "verified_at"
+        ]
+      },
+      "id": "entity-fields.RawSnapshot",
+      "source_construct": "RawSnapshot",
+      "source_span": {
+        "end": 3633,
+        "start": 3240
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawSnapshot.origin_revision accepts null and non-null values",
+      "id": "entity-optional.RawSnapshot.origin_revision",
+      "source_construct": "RawSnapshot.origin_revision",
+      "source_span": {
+        "end": 3633,
+        "start": 3240
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawSnapshot.verified_at accepts null and non-null values",
+      "id": "entity-optional.RawSnapshot.verified_at",
+      "source_construct": "RawSnapshot.verified_at",
+      "source_span": {
+        "end": 3633,
+        "start": 3240
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RawLink are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "raw",
+          "role",
+          "owner_brick",
+          "owner_entry",
+          "owner_raw",
+          "reconciled_snapshot",
+          "created_at"
+        ]
+      },
+      "id": "entity-fields.RawLink",
+      "source_construct": "RawLink",
+      "source_span": {
+        "end": 3853,
+        "start": 3635
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawLink.owner_brick accepts null and non-null values",
+      "id": "entity-optional.RawLink.owner_brick",
+      "source_construct": "RawLink.owner_brick",
+      "source_span": {
+        "end": 3853,
+        "start": 3635
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawLink.owner_entry accepts null and non-null values",
+      "id": "entity-optional.RawLink.owner_entry",
+      "source_construct": "RawLink.owner_entry",
+      "source_span": {
+        "end": 3853,
+        "start": 3635
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawLink.owner_raw accepts null and non-null values",
+      "id": "entity-optional.RawLink.owner_raw",
+      "source_construct": "RawLink.owner_raw",
+      "source_span": {
+        "end": 3853,
+        "start": 3635
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawLink.reconciled_snapshot accepts null and non-null values",
+      "id": "entity-optional.RawLink.reconciled_snapshot",
+      "source_construct": "RawLink.reconciled_snapshot",
+      "source_span": {
+        "end": 3853,
+        "start": 3635
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RawShelf are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "name",
+          "created_at",
+          "memberships"
+        ]
+      },
+      "id": "entity-fields.RawShelf",
+      "source_construct": "RawShelf",
+      "source_span": {
+        "end": 3987,
+        "start": 3855
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship RawShelf.memberships navigates to the correct related entities",
+      "id": "entity-relationship.RawShelf.memberships",
+      "source_construct": "RawShelf.memberships",
+      "source_span": {
+        "end": 3987,
+        "start": 3855
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RawShelfMembership are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "raw",
+          "shelf",
+          "added_at"
+        ]
+      },
+      "id": "entity-fields.RawShelfMembership",
+      "source_construct": "RawShelfMembership",
+      "source_span": {
+        "end": 4090,
+        "start": 3989
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on SourceObservation are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "origin",
+          "observed_at",
+          "authority",
+          "external_observation_id",
+          "revision",
+          "presence",
+          "work_state",
+          "failure_detail"
+        ]
+      },
+      "id": "entity-fields.SourceObservation",
+      "source_construct": "SourceObservation",
+      "source_span": {
+        "end": 4368,
+        "start": 4092
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SourceObservation.external_observation_id accepts null and non-null values",
+      "id": "entity-optional.SourceObservation.external_observation_id",
+      "source_construct": "SourceObservation.external_observation_id",
+      "source_span": {
+        "end": 4368,
+        "start": 4092
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SourceObservation.revision accepts null and non-null values",
+      "id": "entity-optional.SourceObservation.revision",
+      "source_construct": "SourceObservation.revision",
+      "source_span": {
+        "end": 4368,
+        "start": 4092
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field SourceObservation.failure_detail accepts null and non-null values",
+      "id": "entity-optional.SourceObservation.failure_detail",
+      "source_construct": "SourceObservation.failure_detail",
+      "source_span": {
+        "end": 4368,
+        "start": 4092
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RawReviewDisposition are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "raw",
+          "kind",
+          "brick",
+          "recorded_at",
+          "authority",
+          "note"
+        ]
+      },
+      "id": "entity-fields.RawReviewDisposition",
+      "source_construct": "RawReviewDisposition",
+      "source_span": {
+        "end": 4563,
+        "start": 4370
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawReviewDisposition.brick accepts null and non-null values",
+      "id": "entity-optional.RawReviewDisposition.brick",
+      "source_construct": "RawReviewDisposition.brick",
+      "source_span": {
+        "end": 4563,
+        "start": 4370
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field RawReviewDisposition.note accepts null and non-null values",
+      "id": "entity-optional.RawReviewDisposition.note",
+      "source_construct": "RawReviewDisposition.note",
+      "source_span": {
+        "end": 4563,
+        "start": 4370
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InlineRawCaptured succeeds when all preconditions are met",
+      "id": "rule-success.InlineRawCaptured",
+      "source_construct": "InlineRawCaptured",
+      "source_span": {
+        "end": 5291,
+        "start": 4697
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InlineRawCaptured is rejected when requires clause fails",
+      "id": "rule-failure.InlineRawCaptured.1",
+      "source_construct": "InlineRawCaptured",
+      "source_span": {
+        "end": 4895,
+        "start": 4800
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InlineRawCaptured is rejected when requires clause fails",
+      "id": "rule-failure.InlineRawCaptured.2",
+      "source_construct": "InlineRawCaptured",
+      "source_span": {
+        "end": 5025,
+        "start": 4900
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule InlineRawCaptured ensures clause produces the specified fields",
+      "id": "rule-entity-creation.InlineRawCaptured.1",
+      "source_construct": "InlineRawCaptured",
+      "source_span": {
+        "end": 5289,
+        "start": 5031
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Raw",
+          "RawOrigin"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExternalRawCaptured succeeds when all preconditions are met",
+      "id": "rule-success.ExternalRawCaptured",
+      "source_construct": "ExternalRawCaptured",
+      "source_span": {
+        "end": 5823,
+        "start": 5293
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Raw",
+          "RawOrigin"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ExternalRawCaptured ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ExternalRawCaptured.1",
+      "source_construct": "ExternalRawCaptured",
+      "source_span": {
+        "end": 5821,
+        "start": 5393
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RawSnapshot"
+        ],
+        "entities_read": [
+          "RawSnapshot"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawSnapshotCaptured succeeds when all preconditions are met",
+      "id": "rule-success.RawSnapshotCaptured",
+      "source_construct": "RawSnapshotCaptured",
+      "source_span": {
+        "end": 6468,
+        "start": 5825
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawSnapshot"
+        ],
+        "entities_read": [
+          "RawSnapshot"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawSnapshotCaptured is rejected when requires clause fails",
+      "id": "rule-failure.RawSnapshotCaptured.1",
+      "source_construct": "RawSnapshotCaptured",
+      "source_span": {
+        "end": 5959,
+        "start": 5940
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawSnapshot"
+        ],
+        "entities_read": [
+          "RawSnapshot"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawSnapshotCaptured is rejected when requires clause fails",
+      "id": "rule-failure.RawSnapshotCaptured.2",
+      "source_construct": "RawSnapshotCaptured",
+      "source_span": {
+        "end": 6015,
+        "start": 5964
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RawSnapshot"
+        ],
+        "entities_read": [
+          "RawSnapshot"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RawSnapshotCaptured ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RawSnapshotCaptured.1",
+      "source_construct": "RawSnapshotCaptured",
+      "source_span": {
+        "end": 6304,
+        "start": 6020
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "RawSnapshot"
+        ],
+        "trigger_emissions": [
+          "RawSnapshotReused"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingRawSnapshotObservedAgain succeeds when all preconditions are met",
+      "id": "rule-success.ExistingRawSnapshotObservedAgain",
+      "source_construct": "ExistingRawSnapshotObservedAgain",
+      "source_span": {
+        "end": 6716,
+        "start": 6470
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "RawSnapshot"
+        ],
+        "trigger_emissions": [
+          "RawSnapshotReused"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingRawSnapshotObservedAgain is rejected when requires clause fails",
+      "id": "rule-failure.ExistingRawSnapshotObservedAgain.1",
+      "source_construct": "ExistingRawSnapshotObservedAgain",
+      "source_span": {
+        "end": 6645,
+        "start": 6598
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SnapshotReportedMissing succeeds when all preconditions are met",
+      "id": "rule-success.SnapshotReportedMissing",
+      "source_construct": "SnapshotReportedMissing",
+      "source_span": {
+        "end": 6941,
+        "start": 6718
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SnapshotReportedMissing is rejected when requires clause fails",
+      "id": "rule-failure.SnapshotReportedMissing.1",
+      "source_construct": "SnapshotReportedMissing",
+      "source_span": {
+        "end": 6850,
+        "start": 6795
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SnapshotReportedCorrupt succeeds when all preconditions are met",
+      "id": "rule-success.SnapshotReportedCorrupt",
+      "source_construct": "SnapshotReportedCorrupt",
+      "source_span": {
+        "end": 7166,
+        "start": 6943
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SnapshotReportedCorrupt is rejected when requires clause fails",
+      "id": "rule-failure.SnapshotReportedCorrupt.1",
+      "source_construct": "SnapshotReportedCorrupt",
+      "source_span": {
+        "end": 7075,
+        "start": 7020
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SnapshotRepaired succeeds when all preconditions are met",
+      "id": "rule-success.SnapshotRepaired",
+      "source_construct": "SnapshotRepaired",
+      "source_span": {
+        "end": 7381,
+        "start": 7168
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SnapshotRepaired is rejected when requires clause fails",
+      "id": "rule-failure.SnapshotRepaired.1",
+      "source_construct": "SnapshotRepaired",
+      "source_span": {
+        "end": 7289,
+        "start": 7236
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "SourceObservation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OriginObserved succeeds when all preconditions are met",
+      "id": "rule-success.OriginObserved",
+      "source_construct": "OriginObserved",
+      "source_span": {
+        "end": 8323,
+        "start": 7383
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "SourceObservation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule OriginObserved ensures clause produces the specified fields",
+      "id": "rule-entity-creation.OriginObserved.1",
+      "source_construct": "OriginObserved",
+      "source_span": {
+        "end": 8135,
+        "start": 7595
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OriginRelocated succeeds when all preconditions are met",
+      "id": "rule-success.OriginRelocated",
+      "source_construct": "OriginRelocated",
+      "source_span": {
+        "end": 8519,
+        "start": 8325
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OriginRetiredAfterMigration succeeds when all preconditions are met",
+      "id": "rule-success.OriginRetiredAfterMigration",
+      "source_construct": "OriginRetiredAfterMigration",
+      "source_span": {
+        "end": 8679,
+        "start": 8521
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OriginRetiredAfterMigration is rejected when requires clause fails",
+      "id": "rule-failure.OriginRetiredAfterMigration.1",
+      "source_construct": "OriginRetiredAfterMigration",
+      "source_span": {
+        "end": 8634,
+        "start": 8594
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RawReviewDisposition"
+        ],
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawReviewed succeeds when all preconditions are met",
+      "id": "rule-success.RawReviewed",
+      "source_construct": "RawReviewed",
+      "source_span": {
+        "end": 9072,
+        "start": 8681
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawReviewDisposition"
+        ],
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawReviewed is rejected when requires clause fails",
+      "id": "rule-failure.RawReviewed.1",
+      "source_construct": "RawReviewed",
+      "source_span": {
+        "end": 8797,
+        "start": 8761
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RawReviewDisposition"
+        ],
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RawReviewed ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RawReviewed.1",
+      "source_construct": "RawReviewed",
+      "source_span": {
+        "end": 9070,
+        "start": 8802
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawReopened succeeds when all preconditions are met",
+      "id": "rule-success.RawReopened",
+      "source_construct": "RawReopened",
+      "source_span": {
+        "end": 9201,
+        "start": 9074
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawReopened is rejected when requires clause fails",
+      "id": "rule-failure.RawReopened.1",
+      "source_construct": "RawReopened",
+      "source_span": {
+        "end": 9159,
+        "start": 9122
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawArchived succeeds when all preconditions are met",
+      "id": "rule-success.RawArchived",
+      "source_construct": "RawArchived",
+      "source_span": {
+        "end": 9332,
+        "start": 9203
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawArchived is rejected when requires clause fails",
+      "id": "rule-failure.RawArchived.1",
+      "source_construct": "RawArchived",
+      "source_span": {
+        "end": 9288,
+        "start": 9252
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawUnarchived succeeds when all preconditions are met",
+      "id": "rule-success.RawUnarchived",
+      "source_construct": "RawUnarchived",
+      "source_span": {
+        "end": 9467,
+        "start": 9334
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Raw"
+        ],
+        "entities_written": [
+          "Raw"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawUnarchived is rejected when requires clause fails",
+      "id": "rule-failure.RawUnarchived.1",
+      "source_construct": "RawUnarchived",
+      "source_span": {
+        "end": 9425,
+        "start": 9387
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawLinkedToBrick succeeds when all preconditions are met",
+      "id": "rule-success.RawLinkedToBrick",
+      "source_construct": "RawLinkedToBrick",
+      "source_span": {
+        "end": 9888,
+        "start": 9469
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawLinkedToBrick is rejected when requires clause fails",
+      "id": "rule-failure.RawLinkedToBrick.1",
+      "source_construct": "RawLinkedToBrick",
+      "source_span": {
+        "end": 9599,
+        "start": 9551
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawLinkedToBrick is rejected when requires clause fails",
+      "id": "rule-failure.RawLinkedToBrick.2",
+      "source_construct": "RawLinkedToBrick",
+      "source_span": {
+        "end": 9704,
+        "start": 9604
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RawLinkedToBrick ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RawLinkedToBrick.1",
+      "source_construct": "RawLinkedToBrick",
+      "source_span": {
+        "end": 9886,
+        "start": 9709
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawLinkedToEntry succeeds when all preconditions are met",
+      "id": "rule-success.RawLinkedToEntry",
+      "source_construct": "RawLinkedToEntry",
+      "source_span": {
+        "end": 10259,
+        "start": 9890
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawLinkedToEntry is rejected when requires clause fails",
+      "id": "rule-failure.RawLinkedToEntry.1",
+      "source_construct": "RawLinkedToEntry",
+      "source_span": {
+        "end": 10009,
+        "start": 9961
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawLinkedToEntry is rejected when requires clause fails",
+      "id": "rule-failure.RawLinkedToEntry.2",
+      "source_construct": "RawLinkedToEntry",
+      "source_span": {
+        "end": 10114,
+        "start": 10014
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RawLinkedToEntry ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RawLinkedToEntry.1",
+      "source_construct": "RawLinkedToEntry",
+      "source_span": {
+        "end": 10257,
+        "start": 10119
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawDerivedFromRaw succeeds when all preconditions are met",
+      "id": "rule-success.RawDerivedFromRaw",
+      "source_construct": "RawDerivedFromRaw",
+      "source_span": {
+        "end": 10615,
+        "start": 10261
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawDerivedFromRaw is rejected when requires clause fails",
+      "id": "rule-failure.RawDerivedFromRaw.1",
+      "source_construct": "RawDerivedFromRaw",
+      "source_span": {
+        "end": 10351,
+        "start": 10328
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawDerivedFromRaw is rejected when requires clause fails",
+      "id": "rule-failure.RawDerivedFromRaw.2",
+      "source_construct": "RawDerivedFromRaw",
+      "source_span": {
+        "end": 10463,
+        "start": 10356
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RawLink"
+        ],
+        "entities_read": [
+          "RawLink"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RawDerivedFromRaw ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RawDerivedFromRaw.1",
+      "source_construct": "RawDerivedFromRaw",
+      "source_span": {
+        "end": 10613,
+        "start": 10468
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SourceLinkReconciled succeeds when all preconditions are met",
+      "id": "rule-success.SourceLinkReconciled",
+      "source_construct": "SourceLinkReconciled",
+      "source_span": {
+        "end": 10822,
+        "start": 10617
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SourceLinkReconciled is rejected when requires clause fails",
+      "id": "rule-failure.SourceLinkReconciled.1",
+      "source_construct": "SourceLinkReconciled",
+      "source_span": {
+        "end": 10733,
+        "start": 10692
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SourceLinkReconciled is rejected when requires clause fails",
+      "id": "rule-failure.SourceLinkReconciled.2",
+      "source_construct": "SourceLinkReconciled",
+      "source_span": {
+        "end": 10771,
+        "start": 10738
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RawShelf"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawShelfCreated succeeds when all preconditions are met",
+      "id": "rule-success.RawShelfCreated",
+      "source_construct": "RawShelfCreated",
+      "source_span": {
+        "end": 10952,
+        "start": 10824
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RawShelf"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RawShelfCreated ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RawShelfCreated.1",
+      "source_construct": "RawShelfCreated",
+      "source_span": {
+        "end": 10950,
+        "start": 10882
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RawShelfMembership"
+        ],
+        "entities_read": [
+          "RawShelfMembership"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawAddedToShelf succeeds when all preconditions are met",
+      "id": "rule-success.RawAddedToShelf",
+      "source_construct": "RawAddedToShelf",
+      "source_span": {
+        "end": 11196,
+        "start": 10954
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RawShelfMembership"
+        ],
+        "entities_read": [
+          "RawShelfMembership"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawAddedToShelf is rejected when requires clause fails",
+      "id": "rule-failure.RawAddedToShelf.1",
+      "source_construct": "RawAddedToShelf",
+      "source_span": {
+        "end": 11068,
+        "start": 11017
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RawShelfMembership"
+        ],
+        "entities_read": [
+          "RawShelfMembership"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RawAddedToShelf ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RawAddedToShelf.1",
+      "source_construct": "RawAddedToShelf",
+      "source_span": {
+        "end": 11194,
+        "start": 11073
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawRemovedFromShelf succeeds when all preconditions are met",
+      "id": "rule-success.RawRemovedFromShelf",
+      "source_construct": "RawRemovedFromShelf",
+      "source_span": {
+        "end": 11386,
+        "start": 11198
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RawRemovedFromShelf is rejected when requires clause fails",
+      "id": "rule-failure.RawRemovedFromShelf.1",
+      "source_construct": "RawRemovedFromShelf",
+      "source_span": {
+        "end": 11349,
+        "start": 11322
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant AtMostOneOriginPerRaw holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in RawOrigins:\n        for second in RawOrigins:\n            first.raw = second.raw implies first = second",
+      "id": "invariant.AtMostOneOriginPerRaw",
+      "source_construct": "AtMostOneOriginPerRaw",
+      "source_span": {
+        "end": 11681,
+        "start": 11525
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant RawNormalizationIsAttributed holds after every state-changing rule that touches constrained entities",
+      "expression": "for raw in Raws:\n        (raw.canonical_english = null\n            and raw.normalization_authority = null)\n        or\n        (raw.canonical_english != null\n            and raw.normalization_authority != null",
+      "id": "invariant.RawNormalizationIsAttributed",
+      "source_construct": "RawNormalizationIsAttributed",
+      "source_span": {
+        "end": 11939,
+        "start": 11683
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant DerivedRawLinkOwnsRaw holds after every state-changing rule that touches constrained entities",
+      "expression": "for link in RawLinks:\n        link.role = derived_from implies link.owner_raw != null",
+      "id": "invariant.DerivedRawLinkOwnsRaw",
+      "source_construct": "DerivedRawLinkOwnsRaw",
+      "source_span": {
+        "end": 12066,
+        "start": 11941
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant WorkRawLinkOwnsBrickOrEntry holds after every state-changing rule that touches constrained entities",
+      "expression": "for link in RawLinks:\n        link.role in {attachment, source, evidence} implies\n            link.owner_raw = null",
+      "id": "invariant.WorkRawLinkOwnsBrickOrEntry",
+      "source_construct": "WorkRawLinkOwnsBrickOrEntry",
+      "source_span": {
+        "end": 12229,
+        "start": 12068
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant RawLinkHasExactlyOneOwner holds after every state-changing rule that touches constrained entities",
+      "expression": "for link in RawLinks:\n        (link.owner_brick != null or link.owner_entry != null or link.owner_raw != null)\n        and not (link.owner_brick != null and link.owner_entry != null)\n        and not (link.owner_brick != null and link.owner_raw != null)\n        and not (link.owner_entry != null and link.owner_raw != null",
+      "id": "invariant.RawLinkHasExactlyOneOwner",
+      "source_construct": "RawLinkHasExactlyOneOwner",
+      "source_span": {
+        "end": 12597,
+        "start": 12231
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant SnapshotBelongsToLinkedRaw holds after every state-changing rule that touches constrained entities",
+      "expression": "for link in RawLinks:\n        link.reconciled_snapshot != null implies\n            link.reconciled_snapshot.raw = link.raw",
+      "id": "invariant.SnapshotBelongsToLinkedRaw",
+      "source_construct": "SnapshotBelongsToLinkedRaw",
+      "source_span": {
+        "end": 12766,
+        "start": 12599
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant ShelvesAreFlat holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.ShelvesAreFlat",
+      "source_construct": "ShelvesAreFlat",
+      "source_span": {
+        "end": 12915,
+        "start": 12768
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant NoPermanentRawDeletion holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.NoPermanentRawDeletion",
+      "source_construct": "NoPermanentRawDeletion",
+      "source_span": {
+        "end": 13088,
+        "start": 12917
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface MaterialDesk is accessible only to the specified actor",
+      "id": "surface-actor.MaterialDesk",
+      "source_construct": "MaterialDesk",
+      "source_span": {
+        "end": 15014,
+        "start": 13444
+      }
+    },
+    {
+      "category": "surface_exposure",
+      "description": "Verify each exposed item on MaterialDesk is accessible",
+      "detail": {
+        "items": [
+          "id"
+        ],
+        "surface": "MaterialDesk"
+      },
+      "id": "surface-exposure.MaterialDesk",
+      "source_construct": "MaterialDesk",
+      "source_span": {
+        "end": 13518,
+        "start": 13494
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on MaterialDesk appear/hide based on when conditions",
+      "id": "surface-provides.MaterialDesk",
+      "source_construct": "MaterialDesk",
+      "source_span": {
+        "end": 14563,
+        "start": 13524
+      }
+    }
+  ],
+  "version": 3
+}

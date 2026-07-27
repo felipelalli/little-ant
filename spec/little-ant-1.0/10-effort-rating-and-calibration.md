@@ -24,6 +24,12 @@ The selected public name is `effort`. `difficulty`, `complexity`, `size`,
 `cost`, and `load` were considered, but each captures only part of the concept
 or introduces another ambiguity.
 
+Effort is optional and behavior-applicable. Missing effort is neutral and must
+not block capture or selection. It should be requested lazily only when it
+could materially improve a choice, decomposition review, or planning
+simulation. Standing checklist entries and simple domain items normally have
+no independent effort.
+
 ## 10.2 Remaining effort
 
 Remaining effort is a derived planning projection, not a second rating that

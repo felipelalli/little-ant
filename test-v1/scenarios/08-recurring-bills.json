@@ -1,0 +1,136 @@
+{
+  "protocol_version": 1,
+  "id": "recurring-bills",
+  "title": "Recurring bills release unique child obligations without cloning the standing owner",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "domain",
+    "execution",
+    "selection"
+  ],
+  "clock": "2026-08-01T09:00:00-03:00",
+  "steps": [
+    {
+      "id": "create-bills-owner",
+      "operation": "CreateFixture",
+      "arguments": {
+        "fixture": "template_brick",
+        "template": "standard/bills_to_pay@1",
+        "title": "Pay electricity bill"
+      },
+      "bind_result": {
+        "brick": "bills"
+      }
+    },
+    {
+      "id": "configure-monthly",
+      "operation": "ConfigureRecurrence",
+      "arguments": {
+        "target": "$bills",
+        "kind": "obligation",
+        "schedule": "monthly on day 1",
+        "timezone": "America/Montevideo",
+        "first_release": "2026-08-01T00:00:00-03:00"
+      },
+      "bind_result": {
+        "recurrence": "monthly"
+      }
+    },
+    {
+      "id": "release-august",
+      "operation": "AdvanceSchedules",
+      "arguments": {
+        "at": "2026-08-01T09:00:00-03:00"
+      },
+      "bind_result": {
+        "occurrence": "august_bill"
+      }
+    },
+    {
+      "id": "repeat-same-advance",
+      "operation": "AdvanceSchedules",
+      "arguments": {
+        "at": "2026-08-01T09:00:00-03:00"
+      }
+    },
+    {
+      "id": "complete-august",
+      "operation": "CompleteBrick",
+      "arguments": {
+        "brick": "$august_bill",
+        "note": "Paid by bank transfer"
+      }
+    },
+    {
+      "id": "release-september",
+      "operation": "AdvanceSchedules",
+      "arguments": {
+        "at": "2026-09-01T09:00:00-03:00"
+      },
+      "bind_result": {
+        "occurrence": "september_bill"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "standing-owner-remains-single-brick",
+      "after": "release-september",
+      "query": "BricksByCanonicalTitle(Pay electricity bill)",
+      "path": "items",
+      "operator": "count_equals",
+      "value": 1
+    },
+    {
+      "id": "occurrence-is-child-of-owner",
+      "after": "release-august",
+      "query": "BrickSummary($august_bill)",
+      "path": "parent.id",
+      "operator": "equals_reference",
+      "value": "$bills"
+    },
+    {
+      "id": "same-period-is-idempotent",
+      "after": "repeat-same-advance",
+      "query": "ObligationOccurrences($monthly,2026-08)",
+      "path": "items",
+      "operator": "count_equals",
+      "value": 1
+    },
+    {
+      "id": "completing-occurrence-does-not-retire-owner",
+      "after": "complete-august",
+      "query": "BrickSummary($bills)",
+      "path": "status",
+      "operator": "equals",
+      "value": "active"
+    },
+    {
+      "id": "next-period-gets-distinct-identity",
+      "after": "release-september",
+      "query": "ObligationOccurrences($monthly)",
+      "path": "items",
+      "operator": "all_unique_by",
+      "value": "id"
+    },
+    {
+      "id": "new-occurrence-is-provisionally-positioned",
+      "after": "release-september",
+      "query": "PriorityViewItem($september_bill)",
+      "path": "provisional",
+      "operator": "equals",
+      "value": true
+    },
+    {
+      "id": "missed-occurrence-remains-visible-history",
+      "after": "release-september",
+      "query": "ObligationHistory($monthly)",
+      "path": "period_keys",
+      "operator": "equals",
+      "value": [
+        "2026-08",
+        "2026-09"
+      ]
+    }
+  ]
+}

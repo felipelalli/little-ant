@@ -1,0 +1,236 @@
+{
+  "entities": [
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "source_path",
+          "type_expr": "String"
+        },
+        {
+          "name": "byte_size",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "event_count",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "sha256",
+          "type_expr": "String"
+        },
+        {
+          "name": "archived_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "immutable",
+          "type_expr": "Boolean"
+        },
+        {
+          "name": "verified",
+          "type_expr": "Boolean"
+        }
+      ],
+      "kind": "internal",
+      "name": "V0Archive"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "archive",
+          "type_expr": "V0Archive"
+        },
+        {
+          "name": "old_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "new_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "kind",
+          "type_expr": "MigratedEntityKind"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "V0V1IdentityMap"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "archive",
+          "type_expr": "V0Archive"
+        },
+        {
+          "name": "old_event_id",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "subject_old_id",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "semantic_kind",
+          "type_expr": "String"
+        },
+        {
+          "name": "summary",
+          "type_expr": "String"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "MigrationEvidence"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "archive",
+          "type_expr": "V0Archive"
+        },
+        {
+          "name": "status",
+          "type_expr": "CutoverStatus"
+        },
+        {
+          "name": "planned_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "finished_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "projected_entity_count",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "mapped_identity_count",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "retained_evidence_count",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "v1_log_hash",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "receipt_hash",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "failure",
+          "optional": true,
+          "type_expr": "String?"
+        }
+      ],
+      "kind": "internal",
+      "name": "V1Cutover",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "planned",
+              "to": "archive_verified"
+            },
+            {
+              "from": "planned",
+              "to": "failed"
+            },
+            {
+              "from": "archive_verified",
+              "to": "state_projected"
+            },
+            {
+              "from": "archive_verified",
+              "to": "failed"
+            },
+            {
+              "from": "state_projected",
+              "to": "projection_verified"
+            },
+            {
+              "from": "state_projected",
+              "to": "failed"
+            },
+            {
+              "from": "projection_verified",
+              "to": "committed"
+            },
+            {
+              "from": "projection_verified",
+              "to": "failed"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "archive_verified",
+            "committed",
+            "failed",
+            "planned",
+            "projection_verified",
+            "state_projected"
+          ],
+          "terminal": [
+            "committed",
+            "failed"
+          ]
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "CutoverStatus",
+      "values": [
+        "planned",
+        "archive_verified",
+        "state_projected",
+        "projection_verified",
+        "committed",
+        "failed"
+      ]
+    },
+    {
+      "name": "MigratedEntityKind",
+      "values": [
+        "brick",
+        "raw",
+        "party",
+        "list_entry"
+      ]
+    }
+  ],
+  "version": 3
+}

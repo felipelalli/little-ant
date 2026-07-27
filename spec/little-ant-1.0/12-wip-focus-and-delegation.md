@@ -26,7 +26,18 @@ The exact canonical commands for focus, unfocus, and returning WIP to idle
 remain open. No compatibility aliases will be added to avoid making that
 choice.
 
-## 12.2 Delegation
+## 12.2 Standing-work executions
+
+A standing Brick may have many execution occurrences without becoming
+terminal. Focusing it may start a run; finishing the run records an execution
+outcome, returns the Brick to idle, and clears current focus without setting
+the Brick to `done`.
+
+Terminal completion means retiring the standing responsibility. The exact
+canonical commands and whether execution occurrences are explicit entities or
+event-derived records remain open.
+
+## 12.3 Delegation
 
 - Delegated work does not consume the human WIP count or current focus.
 - Many delegations may proceed in parallel.

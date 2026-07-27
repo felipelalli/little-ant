@@ -1,0 +1,467 @@
+{
+  "config": [
+    {
+      "default_expr": "2.hours",
+      "name": "served_skip_cooldown",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "24.hours",
+      "name": "stale_focus_after",
+      "type_expr": "Duration"
+    }
+  ],
+  "entities": [
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "kind",
+          "type_expr": "ProposalKind"
+        },
+        {
+          "name": "brick",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "raw",
+          "optional": true,
+          "type_expr": "material/Raw?"
+        },
+        {
+          "name": "insertion",
+          "optional": true,
+          "type_expr": "judgment/PriorityInsertion?"
+        },
+        {
+          "name": "judgment_probe",
+          "optional": true,
+          "type_expr": "judgment/JudgmentProbe?"
+        },
+        {
+          "name": "delegation",
+          "optional": true,
+          "type_expr": "execution/Delegation?"
+        },
+        {
+          "name": "reason",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "ProposalStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "available_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "Proposal",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "open",
+              "to": "resolved"
+            },
+            {
+              "from": "open",
+              "to": "dismissed"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "dismissed",
+            "open",
+            "resolved"
+          ],
+          "terminal": [
+            "resolved",
+            "dismissed"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "until",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "recent_skip_count",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "last_reason",
+          "type_expr": "execution/SkipReason"
+        }
+      ],
+      "kind": "internal",
+      "name": "SelectionCooldown"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "source_forecast"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "selected_brick",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "selected_proposal",
+          "optional": true,
+          "type_expr": "Proposal?"
+        },
+        {
+          "name": "domain_revision",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "random_evidence",
+          "type_expr": "String"
+        },
+        {
+          "name": "drawn_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "reasons",
+          "type_expr": "List<String>"
+        }
+      ],
+      "kind": "internal",
+      "name": "NextDraw"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "original_text",
+          "type_expr": "String"
+        },
+        {
+          "name": "canonical_english",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "normalization_authority",
+          "optional": true,
+          "type_expr": "domain/Authority?"
+        },
+        {
+          "name": "proposed_route",
+          "optional": true,
+          "type_expr": "CaptureRoute?"
+        },
+        {
+          "name": "proposed_parent",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "proposed_owner",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "proposed_behavior",
+          "optional": true,
+          "type_expr": "domain/BrickBehavior?"
+        },
+        {
+          "name": "proposed_template",
+          "optional": true,
+          "type_expr": "domain/BrickTemplate?"
+        },
+        {
+          "name": "status",
+          "type_expr": "CaptureStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "CaptureIntent",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "pending_review",
+              "to": "routed"
+            },
+            {
+              "from": "pending_review",
+              "to": "cancelled"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "cancelled",
+            "pending_review",
+            "routed"
+          ],
+          "terminal": [
+            "routed",
+            "cancelled"
+          ]
+        }
+      ]
+    },
+    {
+      "derived_values": [
+        {
+          "name": "match_view"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "capture",
+          "type_expr": "CaptureIntent"
+        },
+        {
+          "name": "target_kind",
+          "type_expr": "DuplicateTargetKind"
+        },
+        {
+          "name": "target_brick",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "target_entry",
+          "optional": true,
+          "type_expr": "domain/ListEntry?"
+        },
+        {
+          "name": "target_raw",
+          "optional": true,
+          "type_expr": "material/Raw?"
+        },
+        {
+          "name": "strength",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "reasons",
+          "type_expr": "List<String>"
+        }
+      ],
+      "kind": "internal",
+      "name": "DuplicateSuspicion"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "capture",
+          "type_expr": "CaptureIntent"
+        },
+        {
+          "name": "suspicion",
+          "optional": true,
+          "type_expr": "DuplicateSuspicion?"
+        },
+        {
+          "name": "decision",
+          "type_expr": "DuplicateDecisionKind"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "DuplicateDecision"
+    }
+  ],
+  "enums": [
+    {
+      "name": "ProposalKind",
+      "values": [
+        "priority_probe",
+        "impact_probe",
+        "effort_probe",
+        "brick_review",
+        "review_parent",
+        "review_wip",
+        "phase_review",
+        "practice_review",
+        "review_raw",
+        "refresh_raw",
+        "stale_focus",
+        "stale_comparison",
+        "scope_review",
+        "source_reconciliation",
+        "delegation_followup",
+        "effect_approval",
+        "duplicate_review",
+        "place_batch",
+        "investigation_plan"
+      ]
+    },
+    {
+      "name": "ProposalStatus",
+      "values": [
+        "open",
+        "resolved",
+        "dismissed"
+      ]
+    },
+    {
+      "name": "CaptureRoute",
+      "values": [
+        "preserve_raw",
+        "create_brick",
+        "create_list_entry",
+        "instantiate_template",
+        "enrich_existing"
+      ]
+    },
+    {
+      "name": "CaptureStatus",
+      "values": [
+        "pending_review",
+        "routed",
+        "cancelled"
+      ]
+    },
+    {
+      "name": "DuplicateTargetKind",
+      "values": [
+        "brick",
+        "list_entry",
+        "raw"
+      ]
+    },
+    {
+      "name": "DuplicateDecisionKind",
+      "values": [
+        "reuse",
+        "enrich",
+        "separate"
+      ]
+    }
+  ],
+  "value_types": [
+    {
+      "fields": [
+        {
+          "name": "brick",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "proposal",
+          "optional": true,
+          "type_expr": "Proposal?"
+        },
+        {
+          "name": "weight",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "probability",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "reasons",
+          "type_expr": "List<String>"
+        }
+      ],
+      "name": "ForecastItem"
+    },
+    {
+      "fields": [
+        {
+          "name": "domain_revision",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "generated_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "items",
+          "type_expr": "List<ForecastItem>"
+        }
+      ],
+      "name": "ForecastView"
+    },
+    {
+      "fields": [
+        {
+          "name": "target_kind",
+          "type_expr": "DuplicateTargetKind"
+        },
+        {
+          "name": "target_brick",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "target_entry",
+          "optional": true,
+          "type_expr": "domain/ListEntry?"
+        },
+        {
+          "name": "target_raw",
+          "optional": true,
+          "type_expr": "material/Raw?"
+        },
+        {
+          "name": "strength",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "reasons",
+          "type_expr": "List<String>"
+        }
+      ],
+      "name": "DuplicateMatch"
+    }
+  ],
+  "version": 3
+}

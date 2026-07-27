@@ -1,0 +1,164 @@
+{
+  "protocol_version": 1,
+  "id": "event-replay-sparse-history",
+  "title": "Replay is deterministic while operational responses and history stay bounded",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "interaction",
+    "domain",
+    "execution"
+  ],
+  "clock": "2026-07-27T19:00:00Z",
+  "steps": [
+    {
+      "id": "create-and-describe",
+      "operation": "CreateFixture",
+      "arguments": {
+        "fixture": "created_and_described_brick",
+        "title": "Prepare release notes",
+        "description": "Summarize user-visible changes."
+      },
+      "bind_result": {
+        "brick": "brick",
+        "semantic_action": "creation_action"
+      }
+    },
+    {
+      "id": "rename",
+      "operation": "RenameBrick",
+      "arguments": {
+        "brick": "$brick",
+        "title": "Publish release notes",
+        "authority": "human"
+      },
+      "bind_result": {
+        "semantic_action": "rename_action"
+      }
+    },
+    {
+      "id": "query-important-history",
+      "operation": "HistoryQueryProtocol.query",
+      "arguments": {
+        "filter": {
+          "brick_ids": [
+            "$brick"
+          ],
+          "action_families": [
+            "lifecycle",
+            "content"
+          ],
+          "minimum_relevance": "relevant",
+          "page_size": 10
+        }
+      },
+      "bind": "history_page"
+    },
+    {
+      "id": "build-brief",
+      "operation": "HistoryQueryProtocol.brief",
+      "arguments": {
+        "filter": {
+          "brick_ids": [
+            "$brick"
+          ],
+          "page_size": 10
+        }
+      },
+      "bind": "history_brief"
+    },
+    {
+      "id": "replay",
+      "operation": "CanonicalEventStore.replay",
+      "arguments": {
+        "through_revision": "$current_domain_revision"
+      },
+      "bind": "replayed_state"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "rename-keeps-opaque-id",
+      "after": "rename",
+      "query": "BrickSummary($brick)",
+      "path": "id",
+      "operator": "equals_reference",
+      "value": "$brick"
+    },
+    {
+      "id": "operational-response-is-sparse",
+      "after": "rename",
+      "query": "LatestOperationalResponse",
+      "operator": "omits_paths",
+      "value": [
+        "entity.description",
+        "entity.children",
+        "entity.entries",
+        "entity.requester",
+        "raw_events"
+      ]
+    },
+    {
+      "id": "false-and-zero-are-not-recursively-erased",
+      "after": "rename",
+      "query": "LatestOperationalResponse",
+      "operator": "schema_presence_matches_projection",
+      "value": true
+    },
+    {
+      "id": "one-history-item-per-semantic-action",
+      "after": "query-important-history",
+      "query": "HistoryPage($history_page)",
+      "path": "items",
+      "operator": "unique_by",
+      "value": "action_id"
+    },
+    {
+      "id": "ordinary-history-omits-event-bodies",
+      "after": "query-important-history",
+      "query": "HistoryPage($history_page)",
+      "path": "items",
+      "operator": "all_omit",
+      "value": "event_payload"
+    },
+    {
+      "id": "history-remains-drilldown-traceable",
+      "after": "query-important-history",
+      "query": "HistoryPage($history_page)",
+      "path": "items",
+      "operator": "all_match",
+      "value": {
+        "event_references": "not_empty"
+      }
+    },
+    {
+      "id": "brief-cites-source-actions",
+      "after": "build-brief",
+      "query": "HistoryBrief($history_brief)",
+      "path": "source_action_ids",
+      "operator": "contains_all",
+      "value": [
+        "$creation_action",
+        "$rename_action"
+      ]
+    },
+    {
+      "id": "replay-reconstructs-byte-equivalent-domain-state",
+      "after": "replay",
+      "query": "CanonicalStateHash($replayed_state)",
+      "operator": "equals",
+      "value_from": "CanonicalStateHash(current)"
+    },
+    {
+      "id": "replay-executes-no-external-code",
+      "after": "replay",
+      "query": "ReplaySideEffectTrace",
+      "operator": "equals",
+      "value": {
+        "clock_reads": 0,
+        "random_reads": 0,
+        "network_calls": 0,
+        "pack_invocations": 0
+      }
+    }
+  ]
+}

@@ -37,3 +37,12 @@ The operator may converse in another language when appropriate, but it must
 translate that conversation to canonical English before invoking or recording
 Little Ant data. Messages addressed to third parties remain in the recipient's
 language.
+
+Verbatim non-English input may be retained as Raw or provenance so translation
+never destroys information. It is not a second canonical title or searchable
+domain value. When normalization occurs, the system should preserve the
+original text, canonical English, and normalization author separately.
+
+English canonicalization is also a prerequisite for consistent search and
+duplicate suspicion. Exact enforcement in the dumb REPL, which cannot
+reliably translate or prove a language on its own, remains open.

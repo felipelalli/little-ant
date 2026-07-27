@@ -1,0 +1,798 @@
+-- allium: 3
+-- Little Ant 1.0 — canonical interaction, sparse responses, and REPL harness.
+
+use "./domain.allium" as domain
+use "./material.allium" as material
+use "./judgment.allium" as judgment
+use "./execution.allium" as execution
+use "./selection.allium" as selection
+
+------------------------------------------------------------
+-- Given
+------------------------------------------------------------
+
+given {
+    focus: domain/FocusRegister
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value CompactEntityReference {
+    id: String
+    title: String?
+    revision: Integer
+    state: String?
+}
+
+value InteractionAction {
+    id: String
+    label: String
+    shortcut: String
+    canonical_command: String
+    destructive: Boolean
+    confirmation_required: Boolean
+}
+
+value InteractionProgress {
+    facts: List<String>
+    estimated_remaining_min: Integer?
+    estimated_remaining_max: Integer?
+}
+
+value InteractionEnvelope {
+    protocol_version: Integer
+    interaction_id: String
+    domain_revision: Integer
+    interaction_revision: Integer
+    kind: String
+    prompt: String
+    subject: CompactEntityReference?
+    actions: List<InteractionAction>
+    help: String?
+    progress: InteractionProgress?
+}
+
+value OperationalResponse {
+    ok: Boolean
+    human: String
+    result_kind: String?
+    entity: CompactEntityReference?
+    changed: List<String>
+    warnings: List<String>
+    error_code: String?
+    hint: String?
+    dry_run: Boolean?
+    domain_revision: Integer
+}
+
+value StatusSummary {
+    human: String
+    mode: String
+    powered_by: String?
+    current_focus: CompactEntityReference?
+    human_wip_count: Integer
+    open_proposal_count: Integer
+    pending_notice_count: Integer
+}
+
+value HistoryQuery {
+    from: Timestamp?
+    through: Timestamp?
+    brick_ids: List<String>
+    related_entity_ids: List<String>
+    scope_ids: List<String>
+    actor_ids: List<String>
+    origins: List<String>
+    action_families: List<String>
+    minimum_relevance: HistoryRelevance?
+    cursor: String?
+    page_size: Integer
+}
+
+value SemanticActionSummary {
+    action_id: String
+    domain_revision: Integer
+    occurred_at: Timestamp
+    actor_or_origin: String
+    family: String
+    relevance: HistoryRelevance
+    outcome: String
+    summary: String
+    affected: List<CompactEntityReference>
+    event_references: List<String>
+}
+
+value HistoryPage {
+    snapshot_domain_revision: Integer
+    items: List<SemanticActionSummary>
+    next_cursor: String?
+    exact_total: Integer?
+}
+
+value HistoryBrief {
+    snapshot_domain_revision: Integer
+    from: Timestamp?
+    through: Timestamp?
+    facts: List<String>
+    source_action_ids: List<String>
+}
+
+------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+contract InteractionProtocol {
+    current: (surface_id: String) -> InteractionEnvelope
+    submit: (
+        interaction_id: String,
+        interaction_revision: Integer,
+        domain_revision: Integer,
+        action_id: String
+    ) -> OperationalResponse
+
+    @invariant StateScopedActions
+        -- An action is valid only for the exact interaction and revisions
+        -- against which the core emitted it.
+
+    @invariant CanonicalSemantics
+        -- Action IDs and canonical commands come from the deterministic core.
+        -- A surface never infers semantics from a human label or shortcut.
+
+    @invariant HelpIsNotAnAnswer
+        -- Help records no semantic answer and restores the same prompt.
+}
+
+contract CommandProtocol {
+    execute: (canonical_command: String) -> OperationalResponse
+    project: (projection: String, reference: String?) -> Any
+
+    @invariant SparseBySchema
+        -- Presence and omission are declared by each typed projection. There
+        -- is no recursive rule that deletes every null, false, zero, or empty
+        -- collection.
+
+    @invariant MutationPostcondition
+        -- A successful mutation returns enough typed information to establish
+        -- its observable postcondition without echoing a complete entity.
+
+    @invariant EveryMutationAdvancesDomainRevision
+        -- Every successful canonical mutation, whether invoked through an
+        -- interaction, direct CLI command, skill, or adapter, advances the
+        -- same DomainClock exactly once. Queries never advance it.
+
+    @invariant ExplicitCompleteness
+        -- Summary, operational, relationships, history, and complete
+        -- projections all derive from the same canonical state.
+}
+
+contract CanonicalEventStore {
+    append: (
+        expected_revision: Integer,
+        semantic_action_id: String,
+        events: List<Any>
+    ) -> Integer
+    replay: (through_revision: Integer) -> Any
+
+    @invariant AppendOnlyAuthority
+        -- Operational domain mutations become authoritative only through one
+        -- successful optimistic event append. No database, cache, projection,
+        -- Pack, checkpoint, or planning manifest is a bypass write path.
+
+    @invariant RebuildableProjections
+        -- Operational databases, indexes, search structures, and materialized
+        -- views contain no unique canonical state and rebuild from accepted
+        -- events plus required canonical blobs.
+
+    @invariant ReplayRunsNoExternalCode
+        -- Replaying reads no clock, randomness, network, AI, Pack code,
+        -- credential vault, or external source.
+
+    @invariant BoundedNonDomainArtifacts
+        -- SurfaceCheckpoint and PlanningManifest retain only their explicit
+        -- presentation or planning authority and never become domain
+        -- projections.
+}
+
+contract StatusProvider {
+    status: () -> StatusSummary
+
+    @invariant OneCanonicalStatus
+        -- CLI, REPL, skill, and UI adapters consume one typed StatusSummary
+        -- and the same compact canonical human rendering.
+}
+
+contract HistoryQueryProtocol {
+    query: (filter: HistoryQuery) -> HistoryPage
+    brief: (filter: HistoryQuery) -> HistoryBrief
+
+    @invariant ComposableTypedFilters
+        -- Time, Brick or related entity, scope, actor, origin, semantic-action
+        -- family, and relevance filters compose through schema-known fields;
+        -- unchecked expression evaluation is not a query language.
+
+    @invariant StableBoundedPagination
+        -- A cursor is bound to one domain revision and query fingerprint.
+        -- Every page is bounded, deterministic, and either returns one valid
+        -- next cursor or ends the result.
+
+    @invariant OneSummaryPerSemanticAction
+        -- Several canonical events produced by one accepted command appear as
+        -- one concise semantic action with exact event references for
+        -- drill-down.
+
+    @invariant BriefIsDerivedAndTraceable
+        -- A concise brief is state-derived, consumes no model judgment, and
+        -- retains the action IDs needed to inspect every summarized fact.
+
+    @invariant OrdinaryHistoryOmitsRawEventBodies
+        -- Raw event payloads and complete entity projections are available
+        -- only through explicit drill-down, never copied into ordinary pages.
+}
+
+contract PoweredUpModel {
+    request_via_stdin: (request: String) -> String
+
+    @invariant StdinOnly
+        -- Prompts are written to stdin, never passed as process arguments.
+
+    @invariant StructuredBoundedOutput
+        -- The harness extracts one schema-valid bounded result and rejects
+        -- missing, duplicate, malformed, or semantically unsupported output.
+
+    @invariant ProposalOnly
+        -- The model returns attributed proposals. It receives no direct
+        -- mutation, command-alias, credential, or hidden workflow authority.
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum InteractionStatus { open | stale | completed | abandoned }
+enum ProjectionKind {
+    summary |
+    operational |
+    relationships |
+    history |
+    complete
+}
+enum HarnessMode { dumb | powered_up }
+enum HistoryRelevance { routine | relevant | important | critical }
+enum AnnotationTargetKind { party | brick }
+enum AnnotationStatus { active | stale }
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity DomainClock {
+    revision: Integer
+}
+
+entity InteractionSession {
+    id: String
+    kind: String
+    subject_brick: domain/Brick?
+    subject_raw: material/Raw?
+    status: InteractionStatus
+    domain_revision: Integer
+    interaction_revision: Integer
+    prompt_key: String
+    random_evidence: String?
+    confirmed_actions: Integer
+    opened_at: Timestamp
+    updated_at: Timestamp
+
+    transitions status {
+        open -> stale
+        open -> completed
+        open -> abandoned
+        stale -> open
+        stale -> abandoned
+        terminal: completed, abandoned
+    }
+}
+
+entity SurfaceCheckpoint {
+    id: String
+    surface_id: String
+    interaction_id: String?
+    displayed_domain_revision: Integer
+    displayed_interaction_revision: Integer?
+    screen: String
+    selected_item: String?
+    text_buffer: String?
+    cursor_offset: Integer?
+    transcript: List<String>
+    last_response: OperationalResponse?
+    last_status: StatusSummary?
+    last_projection: ProjectionKind?
+    history_query: HistoryQuery?
+    last_history_page: HistoryPage?
+    last_history_brief: HistoryBrief?
+    updated_at: Timestamp
+}
+
+entity ReplRuntime {
+    mode: HarnessMode
+    powered_by: String?
+    adapter_protocol: Integer?
+}
+
+entity TextAnnotation {
+    id: String
+    owner_brick: domain/Brick
+    field: String
+    text_revision: Integer
+    start_offset: Integer
+    end_offset: Integer
+    displayed_token: String
+    target_kind: AnnotationTargetKind
+    target_party: domain/Party?
+    target_brick: domain/Brick?
+    authority: domain/Authority
+    status: AnnotationStatus
+    created_at: Timestamp
+
+    transitions status {
+        active -> stale
+    }
+}
+
+------------------------------------------------------------
+-- Defaults
+------------------------------------------------------------
+
+default DomainClock clock = { revision: 0 }
+default ReplRuntime repl = { mode: dumb }
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- Interaction lifecycle ---------------------------------------------------
+
+rule InteractionOpened {
+    when: OpenInteraction(kind, subject_brick?, subject_raw?, random_evidence?)
+    ensures: InteractionSession.created(
+        id: new_id(),
+        kind: kind,
+        subject_brick: subject_brick,
+        subject_raw: subject_raw,
+        status: open,
+        domain_revision: clock.revision,
+        interaction_revision: 1,
+        prompt_key: derive_prompt_key(
+            kind,
+            subject_brick,
+            subject_raw,
+            clock.revision),
+        random_evidence: random_evidence,
+        confirmed_actions: 0,
+        opened_at: now,
+        updated_at: now)
+}
+
+rule CurrentInteractionActionAccepted {
+    when: SubmitInteractionAction(
+        interaction,
+        displayed_domain_revision,
+        displayed_interaction_revision,
+        action_id)
+    requires: interaction.status = open
+    requires: displayed_domain_revision = clock.revision
+    requires: displayed_domain_revision = interaction.domain_revision
+    requires:
+        displayed_interaction_revision = interaction.interaction_revision
+    requires: action_is_valid(interaction, action_id)
+    ensures:
+        CanonicalActionAccepted(
+            interaction: interaction,
+            action_id: action_id,
+            command: canonical_command(interaction, action_id))
+        clock.revision = clock.revision + 1
+        interaction.domain_revision = clock.revision
+        interaction.interaction_revision =
+            interaction.interaction_revision + 1
+        interaction.prompt_key = derive_next_prompt_key(
+            interaction,
+            clock.revision)
+        interaction.confirmed_actions =
+            interaction.confirmed_actions + 1
+        interaction.updated_at = now
+
+    @guarantee ImmediateCanonicalCommit
+        -- Each accepted semantic answer invokes its ordinary canonical domain
+        -- operation immediately. There is no hidden batch commit at the end
+        -- of a question round.
+}
+
+rule StaleInteractionActionRejected {
+    when: SubmitInteractionAction(
+        interaction,
+        displayed_domain_revision,
+        displayed_interaction_revision,
+        action_id)
+    requires: interaction.status = open
+    requires:
+        displayed_domain_revision != clock.revision
+        or displayed_domain_revision != interaction.domain_revision
+        or displayed_interaction_revision !=
+            interaction.interaction_revision
+        or not action_is_valid(interaction, action_id)
+    ensures:
+        interaction.status = stale
+        interaction.updated_at = now
+        InteractionActionRejected(
+            interaction: interaction,
+            action_id: action_id,
+            code: "stale_interaction")
+
+    @guarantee NoStaleKeypressReuse
+        -- A stale keypress is never rebound to the prompt currently visible
+        -- in another revision.
+}
+
+rule StaleInteractionRebased {
+    when: RebaseInteraction(interaction)
+    requires: interaction.status = stale
+    ensures:
+        interaction.status = open
+        interaction.domain_revision = clock.revision
+        interaction.interaction_revision =
+            interaction.interaction_revision + 1
+        interaction.prompt_key = derive_prompt_key(
+            interaction.kind,
+            interaction.subject_brick,
+            interaction.subject_raw,
+            clock.revision)
+        interaction.updated_at = now
+}
+
+rule InteractionHelpRequested {
+    when: RequestInteractionHelp(interaction)
+    requires: interaction.status = open
+    ensures: InteractionHelpShown(
+        interaction: interaction,
+        prompt_key: interaction.prompt_key)
+
+    @guarantee SameQuestionAfterHelp
+        -- Domain and interaction revisions do not advance; the same pending
+        -- decision is restored after contextual help.
+}
+
+rule InteractionCompleted {
+    when: CompleteInteraction(interaction)
+    requires: interaction.status = open
+    ensures:
+        interaction.status = completed
+        interaction.updated_at = now
+}
+
+rule InteractionAbandoned {
+    when: AbandonInteraction(interaction)
+    requires: interaction.status in {open, stale}
+    ensures:
+        interaction.status = abandoned
+        interaction.updated_at = now
+
+    @guarantee NoContinuationBrick
+        -- Stopping a dialog creates no Brick, successor round, fake
+        -- obligation, or fictional completion percentage.
+}
+
+-- Presentation checkpoint -------------------------------------------------
+
+rule SurfaceCheckpointSavedFirstTime {
+    when: SaveSurfaceCheckpoint(
+        surface_id,
+        interaction_id?,
+        displayed_domain_revision,
+        displayed_interaction_revision?,
+        screen,
+        selected_item?,
+        text_buffer?,
+        cursor_offset?,
+        transcript)
+    requires: not exists SurfaceCheckpoint{surface_id}
+    ensures: SurfaceCheckpoint.created(
+        id: new_id(),
+        surface_id: surface_id,
+        interaction_id: interaction_id,
+        displayed_domain_revision: displayed_domain_revision,
+        displayed_interaction_revision: displayed_interaction_revision,
+        screen: screen,
+        selected_item: selected_item,
+        text_buffer: text_buffer,
+        cursor_offset: cursor_offset,
+        transcript: transcript,
+        updated_at: now)
+}
+
+rule ExistingSurfaceCheckpointUpdated {
+    when: SaveSurfaceCheckpoint(
+        surface_id,
+        interaction_id?,
+        displayed_domain_revision,
+        displayed_interaction_revision?,
+        screen,
+        selected_item?,
+        text_buffer?,
+        cursor_offset?,
+        transcript)
+    let checkpoint = SurfaceCheckpoint{surface_id}
+    requires: exists checkpoint
+    ensures:
+        checkpoint.interaction_id = interaction_id
+        checkpoint.displayed_domain_revision = displayed_domain_revision
+        checkpoint.displayed_interaction_revision =
+            displayed_interaction_revision
+        checkpoint.screen = screen
+        checkpoint.selected_item = selected_item
+        checkpoint.text_buffer = text_buffer
+        checkpoint.cursor_offset = cursor_offset
+        checkpoint.transcript = transcript
+        checkpoint.updated_at = now
+
+    @guarantee PresentationOnly
+        -- A checkpoint may restore an unsubmitted buffer and navigation. It is
+        -- never authority for a description, comparison, or domain answer.
+}
+
+-- Powered-up mode ---------------------------------------------------------
+
+rule PoweredUpAdapterValidated {
+    when: ValidatePoweredUpAdapter(path, probe_response)
+    requires: valid_powered_up_probe(probe_response)
+    ensures:
+        repl.mode = powered_up
+        repl.powered_by = path
+        repl.adapter_protocol = 1
+        PoweredUpAdapterAccepted(path: path, protocol: 1)
+
+    @guidance
+        -- The startup probe is sent via stdin and requires one exact
+        -- schema-valid success object. A prefixed or suffixed explanation is
+        -- tolerated only when the bounded parser extracts exactly one valid
+        -- object and no conflicting output.
+}
+
+rule PoweredUpAdapterRejected {
+    when: ValidatePoweredUpAdapter(path, probe_response)
+    requires: not valid_powered_up_probe(probe_response)
+    ensures: PoweredUpStartupFailed(
+        path: path,
+        code: "invalid_powered_up_adapter")
+
+    @guarantee FailBeforeReplStarts
+        -- An invalid configured model makes powered-up startup fail
+        -- immediately instead of degrading silently to an unvalidated mode.
+}
+
+rule PoweredUpModeDisabled {
+    when: UseDumbMode()
+    requires: repl.mode = powered_up
+    ensures:
+        repl.mode = dumb
+        repl.powered_by = null
+        repl.adapter_protocol = null
+}
+
+-- Typed text annotations --------------------------------------------------
+
+rule PartyAnnotationConfirmed {
+    when: AnnotatePartyInBrickText(
+        owner,
+        field,
+        text_revision,
+        start_offset,
+        end_offset,
+        displayed_token,
+        party,
+        authority)
+    requires: annotation_field_supported(owner, field)
+    requires: text_revision = owner.description_revision
+    requires: start_offset >= 0
+    requires: start_offset < end_offset
+    ensures: TextAnnotation.created(
+        id: new_id(),
+        owner_brick: owner,
+        field: field,
+        text_revision: text_revision,
+        start_offset: start_offset,
+        end_offset: end_offset,
+        displayed_token: displayed_token,
+        target_kind: party,
+        target_party: party,
+        authority: authority,
+        status: active,
+        created_at: now)
+}
+
+rule BrickAnnotationConfirmed {
+    when: AnnotateBrickInBrickText(
+        owner,
+        field,
+        text_revision,
+        start_offset,
+        end_offset,
+        displayed_token,
+        target,
+        authority)
+    requires: annotation_field_supported(owner, field)
+    requires: text_revision = owner.description_revision
+    requires: start_offset >= 0
+    requires: start_offset < end_offset
+    ensures: TextAnnotation.created(
+        id: new_id(),
+        owner_brick: owner,
+        field: field,
+        text_revision: text_revision,
+        start_offset: start_offset,
+        end_offset: end_offset,
+        displayed_token: displayed_token,
+        target_kind: brick,
+        target_brick: target,
+        authority: authority,
+        status: active,
+        created_at: now)
+
+    @guarantee AnnotationHasNoBehavioralSideEffect
+        -- A mention does not imply parent, requester, delegation, dependency,
+        -- wait, notification, about, or external authorization.
+}
+
+rule AnnotationMarkedStale {
+    when: MarkAnnotationStale(annotation)
+    requires: annotation.status = active
+    ensures: annotation.status = stale
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant AnnotationHasExactlyOneTarget {
+    for annotation in TextAnnotations:
+        (
+            annotation.target_party != null
+            or annotation.target_brick != null
+        )
+        and not (
+            annotation.target_party != null
+            and annotation.target_brick != null
+        )
+}
+
+invariant AnnotationKindMatchesTarget {
+    for annotation in TextAnnotations:
+        annotation.target_kind = party implies
+            annotation.target_party != null
+    for annotation in TextAnnotations:
+        annotation.target_kind = brick implies
+            annotation.target_brick != null
+}
+
+invariant OneCheckpointPerSurface {
+    for first in SurfaceCheckpoints:
+        for second in SurfaceCheckpoints:
+            first.surface_id = second.surface_id implies first = second
+}
+
+invariant HonestProgress {
+    -- Exact fractions appear only for a finite stable known set. Adaptive
+    -- dialogs expose facts and explicitly labelled ranges instead.
+    true
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor User {
+    identified_by: domain/Party where party_type = person
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface CanonicalInteraction {
+    facing user: User
+
+    exposes:
+        user.id
+        clock.revision
+        repl.mode
+        repl.powered_by
+
+    provides:
+        OpenInteraction(kind, subject_brick?, subject_raw?, random_evidence?)
+        SubmitInteractionAction(
+            interaction,
+            displayed_domain_revision,
+            displayed_interaction_revision,
+            action_id)
+        RebaseInteraction(interaction)
+        RequestInteractionHelp(interaction)
+        CompleteInteraction(interaction)
+        AbandonInteraction(interaction)
+        SaveSurfaceCheckpoint(
+            surface_id,
+            interaction_id?,
+            displayed_domain_revision,
+            displayed_interaction_revision?,
+            screen,
+            selected_item?,
+            text_buffer?,
+            cursor_offset?,
+            transcript)
+        ValidatePoweredUpAdapter(path, probe_response)
+        UseDumbMode()
+        AnnotatePartyInBrickText(
+            owner,
+            field,
+            text_revision,
+            start_offset,
+            end_offset,
+            displayed_token,
+            party,
+            authority)
+        AnnotateBrickInBrickText(
+            owner,
+            field,
+            text_revision,
+            start_offset,
+            end_offset,
+            displayed_token,
+            target,
+            authority)
+        MarkAnnotationStale(annotation)
+
+    contracts:
+        fulfils InteractionProtocol
+        fulfils CommandProtocol
+        fulfils StatusProvider
+        fulfils HistoryQueryProtocol
+        demands CanonicalEventStore
+        demands PoweredUpModel
+
+    @guarantee SameSemanticsOnEverySurface
+        -- CLI, deterministic REPL, powered-up REPL, skill, and UI adapters
+        -- use the same prompt, action identity, revision, and canonical
+        -- operation.
+
+    @guarantee OneKeyFiniteChoices
+        -- REPL finite decisions accept one keypress without Enter. Slash opens
+        -- the command palette; question mark requests contextual help.
+
+    @guarantee CanonicalEnglish
+        -- Commands, labels, shortcuts, structured fields, and canonical
+        -- product content are English. Verbatim Raw and original input remain
+        -- preserved in their original language.
+
+    @guarantee EnglishIsAttributedNotGuessedByCore
+        -- The deterministic core validates conservative text normalization
+        -- and requires an authority assertion; it does not pretend to detect
+        -- or translate natural language. Dumb mode keeps unresolved input as
+        -- Raw or asks for English, while powered-up and skill proposals retain
+        -- AI or human attribution.
+
+    @guarantee NoCoreAliases
+        -- Natural language interpretation belongs to the operator or
+        -- powered-up proposal layer. The core exposes one unambiguous command
+        -- vocabulary.
+
+    @guarantee TypedSigilCompletion
+        -- On capable editing surfaces, @ searches Party candidates and #
+        -- searches Brick candidates. Only explicit candidate selection
+        -- creates an annotation; unresolved sigil-shaped text stays literal.
+}
+
+------------------------------------------------------------
+-- Open Questions
+------------------------------------------------------------
+
+open question "Exact shortcut letters, renderer glyphs, terminal layout, and byte budgets are surface policy constrained by this protocol."

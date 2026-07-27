@@ -7,8 +7,8 @@ Little Ant does not store hours as a Brick property.
 - A Brick stores a discrete effort class and its EffortProfile version.
 - The profile maps that class to one structural macro.
 - The macro expands into optimistic, realistic, and pessimistic hours.
-- Resources, calendars, and resource efficiency belong to the adapter or a
-  planning manifest, not to intrinsic Brick effort.
+- Resources, calendars, and resource efficiency belong to planning inputs and
+  the immutable planning manifest, not to intrinsic Brick effort.
 
 TaskJuggler schedules supplied planning inputs. It does not infer effort from
 Little Ant semantics.
@@ -16,8 +16,9 @@ Little Ant semantics.
 ## 15.2 One macro per planned item
 
 Every planning-cut item that receives effort selects exactly one structural
-macro. That macro supplies all three scenarios; the adapter must not select a
-different source estimate independently for each scenario.
+macro. That macro supplies all three scenarios; neither the planning
+projection nor a target-format exporter may select a different source estimate
+independently for each scenario.
 
 The initial profile mapping is defined in
 [Effort and calibration](10-effort-rating-and-calibration.md). Aliases used by
@@ -67,30 +68,56 @@ At minimum the manifest records:
 - EffortProfile ID and version;
 - selected macro and warnings for each cut item;
 - resources, calendars, efficiency, and scenario inputs;
-- adapter version and other data required for reproducibility.
+- the canonical versioned planning projection used for export;
+- exporter Pack ID, component ID, version, content hash, and contract version;
+- other data required for reproducibility.
 
-The generated `.tjp` must be reproducible from the manifest. The exact manifest
-schema, storage location, and retention policy remain open.
+The generated `.tjp` must be reproducible by applying the exact pinned
+exporter to the projection retained by the manifest. Creating or inspecting
+the manifest never causes an exporter to run during event replay. The exact
+manifest schema, storage location, and retention policy remain open.
 
 ## 15.5 Importing actuals
 
 Generated TaskJuggler tasks embed their Little Ant Brick IDs. On import:
 
-1. the adapter resolves actuals by embedded ID;
+1. the TaskJuggler SourceAdapter resolves actuals by embedded ID;
 2. it prepares a grouped preview of the proposed evidence;
 3. the human confirms the batch or excludes individual rows;
 4. confirmed actuals are appended as observations without rewriting estimates.
 
 Legacy or ambiguous TaskJuggler tasks require explicit human mapping. The
-adapter must never heuristically mutate a Brick when identity is uncertain.
+SourceAdapter must never heuristically mutate a Brick when identity is
+uncertain.
 
 The estimate, its EffortProfile version, and the observed actual remain
 separate so calibration and scope mismatches can be investigated.
 
-## 15.6 Still open
+## 15.6 Standard-Pack exporter
+
+The standard Pack distributed with Little Ant 1.0 contains a TaskJuggler
+`ReadOnlyExporter` implemented in Lua. The core produces and validates the
+planning projection; the exporter owns only TaskJuggler-specific `.tjp`
+serialization and returns bytes, media type, a suggested filename, and
+warnings.
+
+The exporter has no direct filesystem, network, subprocess, or canonical
+mutation authority. The invoking surface writes the result. Running `tj3` or
+publishing a plan is a separate external action. TaskJuggler actuals use a
+separate SourceAdapter rather than broadening the exporter.
+
+The exporter is also the reference executable Pack component: its source,
+manifest, fixtures, conformance tests, and failure examples ship with 1.0 and
+exercise the same public runner and contract available to community authors.
+See
+[Lua Pack runtime, credentials, exporters, and UI adapters](34-lua-pack-runtime-credentials-exporters-and-ui-adapters.md).
+
+## 15.7 Still open
 
 - How dependencies outside the selected export scopes are represented.
 - The exact manifest schema, location, retention, and naming.
 - How resources, calendars, and efficiency are selected for a run.
 - Thresholds for warning about estimate-versus-actual discrepancies.
 - How a profile revision affects a new plan containing old estimates.
+- The final generic export command grammar and versioned planning-projection
+  schema.

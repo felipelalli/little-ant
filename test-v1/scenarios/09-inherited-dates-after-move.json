@@ -1,0 +1,144 @@
+{
+  "protocol_version": 1,
+  "id": "inherited-dates-after-move",
+  "title": "Moving a subtree recalculates inherited dates and resolves stale notices",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "domain",
+    "execution",
+    "judgment"
+  ],
+  "clock": "2026-07-27T15:00:00Z",
+  "steps": [
+    {
+      "id": "create-projects",
+      "operation": "CreateFixture",
+      "arguments": {
+        "fixture": "two_projects_with_child",
+        "first_parent": "Launch website",
+        "second_parent": "Maintain website",
+        "child": "Write landing page copy"
+      },
+      "bind_result": {
+        "first_parent": "launch",
+        "second_parent": "maintain",
+        "child": "copy",
+        "first_scope": "launch_scope",
+        "second_scope": "maintain_scope"
+      }
+    },
+    {
+      "id": "set-first-deadline",
+      "operation": "SetBrickDeadline",
+      "arguments": {
+        "brick": "$launch",
+        "value": "2026-08-01T18:00:00Z"
+      }
+    },
+    {
+      "id": "set-second-deadline",
+      "operation": "SetBrickDeadline",
+      "arguments": {
+        "brick": "$maintain",
+        "value": "2026-09-01T18:00:00Z"
+      }
+    },
+    {
+      "id": "emit-first-notice",
+      "operation": "AdvanceTime",
+      "arguments": {
+        "at": "2026-07-27T15:00:00Z"
+      },
+      "bind_result": {
+        "deadline_notice_for_copy": "old_notice"
+      }
+    },
+    {
+      "id": "move-child",
+      "operation": "MoveSubtreeUnderParent",
+      "arguments": {
+        "root": "$copy",
+        "new_parent": "$maintain"
+      },
+      "bind_result": {
+        "priority_insertion": "new_insertion"
+      }
+    },
+    {
+      "id": "advance-near-new-deadline",
+      "operation": "AdvanceTime",
+      "arguments": {
+        "at": "2026-08-27T15:00:00Z"
+      },
+      "bind_result": {
+        "deadline_notice_for_copy": "new_notice"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "child-inherits-first-deadline-before-move",
+      "after": "set-second-deadline",
+      "query": "BrickSummary($copy)",
+      "path": "effective_deadline",
+      "operator": "equals",
+      "value": "2026-08-01T18:00:00Z"
+    },
+    {
+      "id": "first-notice-uses-effective-fingerprint",
+      "after": "emit-first-notice",
+      "query": "DateNotice($old_notice)",
+      "path": "date_revision",
+      "operator": "equals_reference",
+      "value": "BrickSummary($copy).effective_date_revision"
+    },
+    {
+      "id": "move-preserves-child-id-and-descendants",
+      "after": "move-child",
+      "query": "BrickSummary($copy)",
+      "path": "id",
+      "operator": "equals_reference",
+      "value": "$copy"
+    },
+    {
+      "id": "move-recalculates-inherited-deadline",
+      "after": "move-child",
+      "query": "BrickSummary($copy)",
+      "path": "effective_deadline",
+      "operator": "equals",
+      "value": "2026-09-01T18:00:00Z"
+    },
+    {
+      "id": "old-notice-is-resolved-not-deleted",
+      "after": "move-child",
+      "query": "DateNotice($old_notice)",
+      "path": "status",
+      "operator": "equals",
+      "value": "resolved"
+    },
+    {
+      "id": "old-scope-judgments-become-historical",
+      "after": "move-child",
+      "query": "PriorityEvidenceFor($copy,$launch_scope)",
+      "path": "applicable",
+      "operator": "all_equal",
+      "value": false
+    },
+    {
+      "id": "new-scope-placement-is-provisional",
+      "after": "move-child",
+      "query": "PriorityInsertion($new_insertion)",
+      "path": "status",
+      "operator": "equals",
+      "value": "deferred"
+    },
+    {
+      "id": "new-date-can-create-one-new-notice",
+      "after": "advance-near-new-deadline",
+      "query": "ActiveDateNotices($copy,deadline_approaching)",
+      "path": "items",
+      "operator": "count_equals",
+      "value": 1
+    }
+  ]
+}

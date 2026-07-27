@@ -1,0 +1,148 @@
+{
+  "protocol_version": 1,
+  "id": "article-repeat-with-jitter",
+  "title": "Read one sourced article and schedule the same Brick roughly six months later",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "material",
+    "domain",
+    "execution",
+    "selection"
+  ],
+  "clock": "2026-07-27T14:00:00Z",
+  "steps": [
+    {
+      "id": "capture-url",
+      "operation": "CaptureExternalRaw",
+      "arguments": {
+        "title": "Storage paper",
+        "adapter": "url",
+        "locator": "https://example.com/storage-paper",
+        "external_id": "https://example.com/storage-paper"
+      },
+      "bind_result": {
+        "raw": "paper_raw"
+      }
+    },
+    {
+      "id": "create-reading-brick",
+      "operation": "BeginCapture",
+      "arguments": {
+        "original_text": "Ler artigo sobre storage",
+        "canonical_english": "Read the storage paper",
+        "normalization_authority": "ai",
+        "proposed_route": "instantiate_template",
+        "proposed_template": "standard/article_reading@1"
+      },
+      "bind": "reading_capture"
+    },
+    {
+      "id": "confirm-reading-brick",
+      "operation": "ConfirmSeparateCapture",
+      "arguments": {
+        "capture": "$reading_capture",
+        "authority": "human"
+      },
+      "bind_result": {
+        "created_brick": "reading"
+      }
+    },
+    {
+      "id": "link-source",
+      "operation": "LinkRawToBrick",
+      "arguments": {
+        "raw": "$paper_raw",
+        "brick": "$reading",
+        "role": "source"
+      }
+    },
+    {
+      "id": "start-reading",
+      "operation": "StartStandingExecution",
+      "arguments": {
+        "brick": "$reading"
+      },
+      "bind_result": {
+        "execution": "reading_execution"
+      }
+    },
+    {
+      "id": "finish-and-repeat",
+      "operation": "FinishRepeatableAndSchedule",
+      "arguments": {
+        "execution": "$reading_execution",
+        "note": "Read and annotated",
+        "base_delay": "P6M",
+        "jitter_range": "P3M",
+        "random_evidence": "article-repeat-seed-001"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "raw-remains-linked-source",
+      "after": "link-source",
+      "query": "RawLinksToBrick($reading)",
+      "path": "roles",
+      "operator": "contains",
+      "value": "source"
+    },
+    {
+      "id": "repeat-reuses-same-brick-id",
+      "after": "finish-and-repeat",
+      "query": "BrickSummary($reading)",
+      "path": "id",
+      "operator": "equals_reference",
+      "value": "$reading"
+    },
+    {
+      "id": "repeat-does-not-clone-work",
+      "after": "finish-and-repeat",
+      "query": "BricksByCanonicalTitle(Read the storage paper)",
+      "path": "items",
+      "operator": "count_equals",
+      "value": 1
+    },
+    {
+      "id": "brick-remains-active-and-idle",
+      "after": "finish-and-repeat",
+      "query": "BrickSummary($reading)",
+      "operator": "contains",
+      "value": {
+        "status": "active",
+        "work_state": "idle"
+      }
+    },
+    {
+      "id": "next-reading-is-within-jitter-window",
+      "after": "finish-and-repeat",
+      "query": "BrickSummary($reading)",
+      "path": "not_before",
+      "operator": "between_inclusive",
+      "value": [
+        "2026-10-27T14:00:00Z",
+        "2027-04-27T14:00:00Z"
+      ]
+    },
+    {
+      "id": "fixed-evidence-replays-same-date",
+      "after": "finish-and-repeat",
+      "operation": "ReplayFromEvents",
+      "query": "BrickSummary($reading)",
+      "path": "not_before",
+      "operator": "equals_snapshot",
+      "value_from": "after:finish-and-repeat"
+    },
+    {
+      "id": "execution-history-is-preserved",
+      "after": "finish-and-repeat",
+      "query": "ExecutionHistory($reading)",
+      "path": "items",
+      "operator": "contains",
+      "value": {
+        "outcome": "done",
+        "completion_note": "Read and annotated"
+      }
+    }
+  ]
+}

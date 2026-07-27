@@ -19,18 +19,30 @@ Human priority is a hierarchical total order of commitment or preference.
 The canonical English priority question is:
 
 ```text
-Does "X" come before "Y"?
-[y] yes · [n] no · [s] skip
+Is "X" more important than "Y"?
+[y] yes · [n] no · [s] skip · [?]
 ```
 
 There is no tie answer because every sibling set has a total order.
 
-- `y` records `X` before `Y`.
-- `n` records `Y` before `X`.
+- `y` records that `X` is more important than `Y`.
+- `n` records that `Y` is more important than `X`.
 - `s` records no comparison evidence.
+- `?` records no answer. It requests more information, explanation, or help
+  deciding and then returns to the same pending comparison.
 
 Placement uses binary insertion and asks one discriminating midpoint question
 at a time.
+
+An ordering-skip subreason may be:
+
+```text
+[t] tie-break for me
+```
+
+This does not assert equal importance. It authorizes a strict provisional
+order while stating that the human has no useful directional preference for
+that pair. The exact subdialog key path remains open.
 
 ## 8.3 Ordering skip
 
@@ -38,6 +50,8 @@ Ordering skip is different from skipping a served Brick.
 
 - On the first ordering skip, the core selects a different nearby sibling,
   one to three positions above or below.
+- `tie-break for me` still causes one nearby comparison so the core can test
+  whether a meaningful local boundary exists.
 - The alternate must be distinct and chosen with reproducible pseudo-randomness.
 - On the second consecutive skip for that placement, the round ends.
 - The Brick remains in the current provisional slot.
@@ -48,8 +62,27 @@ The interpretation is evidence-sensitive:
 
 - an early skip may mean the comparison target is poorly understood;
 - repeated skips make “either position is acceptable” more plausible;
+- `tie-break for me` makes deliberate indifference more plausible without
+  asserting equality;
 - this never creates false y/n evidence;
 - uncertainty creates future pressure rather than blocking capture.
+
+If unresolved importance could change a relevant near-term choice, the core
+may propose creating an ordinary Brick such as:
+
+```text
+Determine whether "A" is more important than "B"
+```
+
+The proposal must not create the Brick automatically. The core does not invent
+whether the useful method is research, a meeting, a questionnaire, an
+experiment, a POC, or an MVP. The operator or powered-up REPL may propose a
+method. Completing that work contributes Raw or attributed evidence and
+reopens the comparison; it never chooses the answer automatically.
+
+Deliberate `tie-break for me` evidence should create less investigation
+pressure than lack of information. Deep-backlog uncertainty that cannot alter
+a relevant choice does not deserve mandatory research.
 
 ## 8.4 Comparison evidence and confidence
 
@@ -101,12 +134,12 @@ The core supports three kinds of priority probe:
 Example validation:
 
 ```text
-A comes before B
-B comes before C
-therefore the current order implies A comes before C
+A is more important than B
+B is more important than C
+therefore the current order implies A is more important than C
 ```
 
-The system may occasionally ask whether `A` really comes before `C`.
+The system may occasionally ask whether `A` really is more important than `C`.
 
 When a human answer contradicts the current transitive order:
 
@@ -124,3 +157,39 @@ When a human answer contradicts the current transitive order:
 Validation has a small background rate. Its probability rises after structural
 changes, stale evidence, reversals, or detected contradictions. Exact rates and
 decay functions remain open.
+
+## 8.6 Dependency does not constrain importance
+
+The dependency graph and the human priority tree answer different questions:
+
+- priority asks which sibling is more important;
+- dependency asks which Brick is currently blocked by another.
+
+A dependency therefore does not force a comparison answer, prohibit a pairwise
+importance question, or move either Brick. A blocked Brick keeps its position
+and confidence. It is temporarily excluded from executable selection, while
+its blocker may gain forecast pressure because completing it unlocks important
+work.
+
+Example:
+
+```text
+human priority
+1. Implement the feature       blocked by Write the specification
+2. Publish the announcement
+3. Write the specification
+
+currently eligible
+- Publish the announcement
+- Write the specification
+```
+
+`Implement the feature` remains the most important sibling even though it
+cannot be executed yet. When `Write the specification` completes,
+implementation becomes eligible at its existing position. It is not newly
+inserted, and the human is not asked to reconstruct an importance judgment
+that already exists.
+
+Structural views should show both position and blocking clearly. Forecast and
+`next` use eligibility; the priority projection continues to show the complete
+active importance order.

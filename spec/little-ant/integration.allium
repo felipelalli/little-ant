@@ -1,0 +1,1680 @@
+-- allium: 3
+-- Little Ant 1.0 — typed Packs, imports, exporters, credentials, and UI.
+
+use "./domain.allium" as domain
+use "./material.allium" as material
+use "./judgment.allium" as judgment
+use "./execution.allium" as execution
+use "./selection.allium" as selection
+use "./interaction.allium" as interaction
+
+------------------------------------------------------------
+-- Given
+------------------------------------------------------------
+
+given {
+    root_priority: judgment/PriorityScope
+    standard_behavior: domain/BrickBehavior
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value ImportCandidate {
+    provider: String
+    account: String
+    external_id: String
+    container_id: String?
+    kind: String
+    original_title: String?
+    canonical_english: String?
+    normalization_authority: domain/Authority?
+    body: String?
+    content_hash: String
+    revision: String?
+    presence: material/ExternalPresence
+    work_state: material/ExternalWorkState
+}
+
+value PackExecutionRequest {
+    protocol_version: Integer
+    component_id: String
+    operation: String
+    input: Any
+    capability_grants: List<String>
+}
+
+value PackExecutionResult {
+    protocol_version: Integer
+    ok: Boolean
+    output: Any?
+    error_code: String?
+    diagnostics: List<String>
+}
+
+value ExportPayload {
+    media_type: String
+    suggested_filename: String
+    content_hash: String
+    size: Integer
+}
+
+value PackComponentManifest {
+    id: String
+    version: Integer
+    kind: PackComponentKind
+    executable: Boolean
+    capabilities: List<String>
+}
+
+value PackInstallManifest {
+    id: String
+    version: Integer
+    publisher: String
+    content_hash: String
+    components: List<PackComponentManifest>
+}
+
+------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+contract PackRunner {
+    execute: (request: PackExecutionRequest) -> PackExecutionResult
+
+    @invariant Lua54Only
+        -- Lua 5.4 through the separate HsLua runner is the sole first-class
+        -- executable Pack runtime in 1.0.
+
+    @invariant FreshBoundedRuntime
+        -- Each call receives a fresh isolated VM with bounded time, memory,
+        -- instructions, output size, and nesting depth.
+
+    @invariant NoRawOperatingSystem
+        -- Lua receives no unrestricted operating-system, process, filesystem,
+        -- socket, environment, or dynamic-library access.
+
+    @invariant NeverDuringReplay
+        -- Pack code never executes while canonical events are replayed.
+
+    @invariant TypedComponentOnly
+        -- A Pack executes only through one declared closed component contract;
+        -- there is no arbitrary hook or generic Plugin entity.
+}
+
+contract HostHttp {
+    request: (component_id: String, request: Any) -> Any
+
+    @invariant ExactHostAllowlist
+        -- The host validates method, URL, body size, redirect policy, and exact
+        -- allowed destinations before performing network I/O.
+
+    @invariant CredentialsAreBrokered
+        -- The host applies credentials after Lua returns the normalized
+        -- request. Secrets and tokens are never given to Lua.
+
+    @invariant RedactedDiagnostics
+        -- Requests, responses, errors, and logs redact credential material.
+}
+
+contract CredentialBroker {
+    authorize: (component_id: String, slot: String, account: String) -> Any
+
+    @invariant EncryptedAtRest
+        -- Credentials are stored only in the local encrypted vault.
+
+    @invariant ExcludedFromDatasetSync
+        -- Ordinary Little Ant backup and synchronization never include the
+        -- credential vault.
+
+    @invariant SlotScoped
+        -- One explicit local binding grants one component and account only the
+        -- typed authentication scheme declared by its credential slot.
+
+    @invariant LockedVaultIsNotProviderFailure
+        -- Credential-dependent work remains due with credential_locked while
+        -- the vault is unavailable. No adapter request runs, no provider
+        -- failure is fabricated, and provider backoff does not advance.
+}
+
+contract SourceAdapterContract {
+    discover: (source_scope: String, cursor: String?) -> List<ImportCandidate>
+    observe: (external_id: String) -> ImportCandidate
+    apply_approved_effect: (effect_id: String) -> Any
+
+    @invariant NormalizedEvidenceOnly
+        -- Adapter output is attributable provider evidence. It does not
+        -- directly mutate canonical Raw, Brick, priority, or completion.
+
+    @invariant VerbatimAndCanonicalTextAreDistinct
+        -- original_title and body preserve source text. canonical_english is
+        -- an attributed English title suitable for canonical search and
+        -- automatic adoption; it is never inferred from source text by the
+        -- deterministic core.
+
+    @invariant CanonicalTextHasAuthority
+        -- canonical_english and normalization_authority are either both
+        -- absent or both present on every candidate.
+
+    @invariant OmissionIsNotRemoval
+        -- Absence from a page, filter, failed request, inaccessible account,
+        -- ambiguous provider response, or expired credential emits no removed
+        -- observation. Removal requires an authoritative provider signal.
+
+    @invariant ApprovedEffectsOnly
+        -- Source mutation executes only an already-previewed, item-scoped,
+        -- explicitly approved effect.
+}
+
+contract EnricherContract {
+    propose: (projection: Any) -> Any
+
+    @invariant ProposalAuthorityOnly
+        -- An Enricher returns bounded attributed proposals and cannot mutate
+        -- canonical state.
+}
+
+contract ReadOnlyExporterContract {
+    export: (projection: Any) -> ExportPayload
+
+    @invariant PureExport
+        -- The component receives a versioned projection and returns bytes and
+        -- metadata. It has no network, filesystem, credential, mutation, or
+        -- external-effect capability.
+}
+
+contract UIAdapterContract {
+    render: (envelope: interaction/InteractionEnvelope) -> Any
+    decode: (input: Any) -> Any
+
+    @invariant CanonicalActionRoundTrip
+        -- A response returns the exact canonical action identity and
+        -- interaction/domain revisions that were rendered.
+
+    @invariant PresentationOnly
+        -- A UI adapter neither owns domain state nor invents domain logic.
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum PackComponentKind {
+    brick_behavior |
+    brick_template |
+    import_profile_preset |
+    source_adapter |
+    enricher |
+    read_only_exporter |
+    ui_adapter
+}
+enum PackStatus { installed | disabled | revoked }
+enum ComponentStatus { enabled | disabled | revoked }
+enum CredentialBindingStatus { active | locked | revoked }
+enum ImportProfileStatus { active | retired }
+enum ImportRoute { preserve_raw | adopt_brick | adopt_list_entry }
+enum ImportRunMode { synchronize | migrate }
+enum ImportRunStatus {
+    planned |
+    running |
+    captured |
+    verified |
+    completed |
+    cut_over |
+    failed
+}
+enum SourceEffectKind { erase_object | erase_container | write_back }
+enum SourceEffectStatus {
+    proposed |
+    approved |
+    applied |
+    declined |
+    failed
+}
+enum WebSessionStatus { open | closed }
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity LittleAntPack {
+    id: String
+    version: Integer
+    publisher: String
+    content_hash: String
+    status: PackStatus
+}
+
+entity PackComponent {
+    id: String
+    version: Integer
+    pack: LittleAntPack
+    kind: PackComponentKind
+    executable: Boolean
+    status: ComponentStatus
+    capabilities: List<String>
+}
+
+entity PackInvocation {
+    id: String
+    component: PackComponent
+    pack_content_hash: String
+    component_version: Integer
+    operation: String
+    input_revision: String
+    request_hash: String
+    capability_grants: List<String>
+    result: PackExecutionResult
+    invoked_at: Timestamp
+}
+
+entity PackInstallation {
+    id: String
+    pack: LittleAntPack
+    manifest: PackInstallManifest
+    installed_at: Timestamp
+}
+
+entity CredentialSlot {
+    id: String
+    component: PackComponent
+    name: String
+    authentication_kind: String
+    required: Boolean
+}
+
+entity VaultEntry {
+    id: String
+    label: String
+    encrypted_payload: String
+    created_at: Timestamp
+    rotated_at: Timestamp?
+}
+
+entity CredentialBinding {
+    id: String
+    slot: CredentialSlot
+    account: String
+    vault_entry_id: String
+    status: CredentialBindingStatus
+    created_at: Timestamp
+
+    transitions status {
+        active -> locked
+        active -> revoked
+        locked -> active
+        locked -> revoked
+        terminal: revoked
+    }
+}
+
+entity ImportProfile {
+    id: String
+    version: Integer
+    name: String
+    adapter: PackComponent
+    source_scope: String
+    candidate_kind: String
+    route: ImportRoute
+    destination_parent: domain/Brick?
+    destination_owner: domain/Brick?
+    destination_shelf: material/RawShelf?
+    automatic_adoption: Boolean
+    status: ImportProfileStatus
+    created_at: Timestamp
+
+    transitions status {
+        active -> retired
+        terminal: retired
+    }
+}
+
+entity ExternalRecord {
+    id: String
+    profile: ImportProfile
+    provider: String
+    account: String
+    external_id: String
+    container_id: String?
+    raw: material/Raw
+    brick: domain/Brick?
+    entry: domain/ListEntry?
+    presence: material/ExternalPresence
+    work_state: material/ExternalWorkState
+    last_revision: String?
+    last_observed_at: Timestamp
+}
+
+entity ImportRun {
+    id: String
+    profile: ImportProfile
+    mode: ImportRunMode
+    status: ImportRunStatus
+    erase_after_import: Boolean
+    started_at: Timestamp
+    finished_at: Timestamp?
+    source_cursor: String?
+    captured_count: Integer
+    verified_count: Integer
+    failure_count: Integer
+    receipt_hash: String?
+
+    transitions status {
+        planned -> running
+        planned -> failed
+        running -> captured
+        running -> failed
+        captured -> verified
+        captured -> failed
+        verified -> completed
+        verified -> cut_over
+        verified -> failed
+        terminal: completed, cut_over, failed
+    }
+}
+
+entity SourceEffect {
+    id: String
+    run: ImportRun?
+    record: ExternalRecord?
+    kind: SourceEffectKind
+    preview: String
+    status: SourceEffectStatus
+    proposed_at: Timestamp
+    approved_at: Timestamp?
+    applied_at: Timestamp?
+    receipt: String?
+    failure: String?
+
+    transitions status {
+        proposed -> approved
+        proposed -> declined
+        approved -> applied
+        approved -> failed
+        failed -> approved
+        failed -> declined
+        terminal: applied, declined
+    }
+}
+
+entity PlanningManifest {
+    id: String
+    exporter: PackComponent
+    dataset_revision: Integer
+    selected_bricks: List<domain/Brick>
+    effort_profile: judgment/EffortProfile
+    generated_at: Timestamp
+    payload: ExportPayload
+    content_hash: String
+}
+
+entity ImportedActual {
+    id: String
+    manifest: PlanningManifest
+    brick: domain/Brick
+    observed_hours: Decimal
+    imported_at: Timestamp
+}
+
+entity WebUiSession {
+    id: String
+    component: PackComponent
+    bind_host: String
+    port: Integer
+    status: WebSessionStatus
+    opened_at: Timestamp
+    closed_at: Timestamp?
+
+    transitions status {
+        open -> closed
+        terminal: closed
+    }
+}
+
+------------------------------------------------------------
+-- Defaults
+------------------------------------------------------------
+
+default LittleAntPack standard_pack_v1 = {
+    id: "little-ant/standard",
+    version: 1,
+    publisher: "Little Ant",
+    content_hash: bundled_pack_hash("little-ant/standard", 1),
+    status: installed
+}
+
+default PackComponent microsoft_todo_adapter_v1 = {
+    id: "standard/microsoft-todo",
+    version: 1,
+    pack: standard_pack_v1,
+    kind: source_adapter,
+    executable: true,
+    status: enabled,
+    capabilities: [
+        "http:microsoft-graph",
+        "credential:microsoft-todo",
+        "effect:erase-object",
+        "effect:erase-container"
+    ]
+}
+
+default PackComponent notesnook_adapter_v1 = {
+    id: "standard/notesnook",
+    version: 1,
+    pack: standard_pack_v1,
+    kind: source_adapter,
+    executable: true,
+    status: enabled,
+    capabilities: ["http:notesnook", "credential:notesnook"]
+}
+
+default PackComponent taskjuggler_exporter_v1 = {
+    id: "standard/taskjuggler",
+    version: 1,
+    pack: standard_pack_v1,
+    kind: read_only_exporter,
+    executable: true,
+    status: enabled,
+    capabilities: []
+}
+
+default PackComponent metro_web_ui_v1 = {
+    id: "standard/web-metro",
+    version: 1,
+    pack: standard_pack_v1,
+    kind: ui_adapter,
+    executable: true,
+    status: enabled,
+    capabilities: []
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- Pack and credential configuration --------------------------------------
+
+rule VerifiedPackInstalled {
+    when: InstallPack(manifest)
+    requires: verified_pack_archive(manifest.content_hash)
+    requires: pack_manifest_is_compatible(manifest)
+    requires: manifest.components.count > 0
+    requires: not exists LittleAntPack{
+        id: manifest.id,
+        version: manifest.version
+    }
+    ensures:
+        let pack = LittleAntPack.created(
+            id: manifest.id,
+            version: manifest.version,
+            publisher: manifest.publisher,
+            content_hash: manifest.content_hash,
+            status: installed)
+        PackInstallation.created(
+            id: new_id(),
+            pack: pack,
+            manifest: manifest,
+            installed_at: now)
+        for declared in manifest.components:
+            PackComponent.created(
+                id: declared.id,
+                version: declared.version,
+                pack: pack,
+                kind: declared.kind,
+                executable: declared.executable,
+                status: enabled,
+                capabilities: declared.capabilities)
+
+    @guarantee InstallGrantsNoInvocation
+        -- Installation records pinned definitions and declared capabilities.
+        -- Credentials, semantic destinations, standing source authorization,
+        -- and external-effect approval remain separate local decisions.
+}
+
+rule PackDisabled {
+    when: DisablePack(target_pack)
+    requires: target_pack.status = installed
+    ensures:
+        target_pack.status = disabled
+        for component in PackComponents
+            where pack = target_pack and status = enabled:
+            component.status = disabled
+}
+
+rule PackInvocationRecorded {
+    when: RecordPackInvocation(
+        component,
+        operation,
+        input_revision,
+        request_hash,
+        capability_grants,
+        result)
+    requires: component.status = enabled
+    requires:
+        capability_grants.is_subset_of(component.capabilities)
+    ensures: PackInvocation.created(
+        id: new_id(),
+        component: component,
+        pack_content_hash: component.pack.content_hash,
+        component_version: component.version,
+        operation: operation,
+        input_revision: input_revision,
+        request_hash: request_hash,
+        capability_grants: capability_grants,
+        result: result,
+        invoked_at: now)
+
+    @guarantee ResultIsEvidenceNotAuthority
+        -- A Pack result is attributed input. Canonical mutation still occurs
+        -- only through the applicable validated core operation.
+}
+
+rule PackReenabled {
+    when: EnablePack(target_pack)
+    requires: target_pack.status = disabled
+    ensures:
+        target_pack.status = installed
+        for component in PackComponents
+            where pack = target_pack and status = disabled:
+            component.status = enabled
+}
+
+rule PackRevoked {
+    when: RevokePack(target_pack)
+    requires: target_pack.status in {installed, disabled}
+    ensures:
+        target_pack.status = revoked
+        for component in PackComponents
+            where pack = target_pack and status != revoked:
+            component.status = revoked
+}
+
+rule CredentialStored {
+    when: StoreCredential(label, encrypted_payload)
+    ensures: VaultEntry.created(
+        id: new_id(),
+        label: label,
+        encrypted_payload: encrypted_payload,
+        created_at: now)
+}
+
+rule CredentialBound {
+    when: BindCredential(slot, account, vault_entry_id)
+    requires: not exists CredentialBinding{
+        slot,
+        account,
+        status: active
+    }
+    requires: not exists CredentialBinding{
+        slot,
+        account,
+        status: locked
+    }
+    ensures: CredentialBinding.created(
+        id: new_id(),
+        slot: slot,
+        account: account,
+        vault_entry_id: vault_entry_id,
+        status: active,
+        created_at: now)
+}
+
+rule CredentialBindingLocked {
+    when: LockCredentialBinding(binding)
+    requires: binding.status = active
+    ensures: binding.status = locked
+}
+
+rule CredentialBindingUnlocked {
+    when: UnlockCredentialBinding(binding)
+    requires: binding.status = locked
+    ensures: binding.status = active
+}
+
+rule CredentialBindingRevoked {
+    when: RevokeCredentialBinding(binding)
+    requires: binding.status in {active, locked}
+    ensures: binding.status = revoked
+}
+
+-- Import profiles and normalized capture ---------------------------------
+
+rule ImportProfileCreated {
+    when: CreateImportProfile(
+        name,
+        adapter,
+        source_scope,
+        candidate_kind,
+        route,
+        destination_parent?,
+        destination_owner?,
+        destination_shelf?,
+        automatic_adoption)
+    requires: adapter.kind = source_adapter
+    requires: adapter.status = enabled
+    requires: route != adopt_brick or destination_owner = null
+    requires: route != adopt_list_entry or destination_owner != null
+    requires: route != adopt_list_entry or destination_parent = null
+    requires:
+        route != adopt_list_entry
+        or destination_owner.behavior.owns_entries
+    ensures: ImportProfile.created(
+        id: new_id(),
+        version: 1,
+        name: name,
+        adapter: adapter,
+        source_scope: source_scope,
+        candidate_kind: candidate_kind,
+        route: route,
+        destination_parent: destination_parent,
+        destination_owner: destination_owner,
+        destination_shelf: destination_shelf,
+        automatic_adoption: automatic_adoption,
+        status: active,
+        created_at: now)
+}
+
+rule ImportProfileRetired {
+    when: RetireImportProfile(retired_profile)
+    requires: retired_profile.status = active
+    ensures:
+        retired_profile.status = retired
+        for record in ExternalRecords
+            where profile = retired_profile:
+            let origin = material/RawOrigin{raw: record.raw}
+            origin.historical_only = true
+}
+
+rule ImportRunPlanned {
+    when: PlanImport(profile, mode, erase_after_import)
+    requires: profile.status = active
+    requires: not erase_after_import or mode = migrate
+    ensures: ImportRun.created(
+        id: new_id(),
+        profile: profile,
+        mode: mode,
+        status: planned,
+        erase_after_import: erase_after_import,
+        started_at: now,
+        captured_count: 0,
+        verified_count: 0,
+        failure_count: 0)
+}
+
+rule ImportRunStarted {
+    when: StartImport(run)
+    requires: run.status = planned
+    ensures: run.status = running
+}
+
+rule NewCandidatePreservedAsRaw {
+    when: AcceptImportCandidate(run, candidate)
+    requires: run.status = running
+    requires: not exists ExternalRecord{
+        profile: run.profile,
+        provider: candidate.provider,
+        account: candidate.account,
+        external_id: candidate.external_id
+    }
+    requires:
+        run.profile.route = preserve_raw
+        or not run.profile.automatic_adoption
+        or (
+            run.profile.route in {adopt_brick, adopt_list_entry}
+            and (
+                candidate.canonical_english = null
+                or candidate.normalization_authority = null
+            )
+        )
+        or (
+            run.profile.route = adopt_brick
+            and candidate.kind != "structured_task"
+        )
+        or (
+            run.profile.route = adopt_list_entry
+            and candidate.kind not in {"structured_task", "list_item"}
+        )
+    ensures:
+        let raw = material/Raw.created(
+            id: new_id(),
+            title: candidate.canonical_english,
+            original_text: candidate_verbatim(candidate),
+            canonical_english: candidate.canonical_english,
+            normalization_authority: candidate.normalization_authority,
+            review_state: pending,
+            storage_state: active,
+            created_at: now)
+        material/RawOrigin.created(
+            id: new_id(),
+            raw: raw,
+            adapter: run.profile.adapter.id,
+            locator: import_locator(candidate),
+            external_id: candidate.external_id,
+            last_checked_at: now,
+            last_observed_revision: candidate.revision,
+            historical_only: false,
+            created_at: now)
+        material/RawSnapshot.created(
+            id: new_id(),
+            raw: raw,
+            content_hash: candidate.content_hash,
+            size: candidate_size(candidate),
+            media_type: candidate_media_type(candidate),
+            captured_at: now,
+            origin_revision: candidate.revision,
+            availability: available,
+            verified_at: now)
+        ExternalRecord.created(
+            id: external_record_id(
+                run.profile,
+                candidate.provider,
+                candidate.account,
+                candidate.external_id),
+            profile: run.profile,
+            provider: candidate.provider,
+            account: candidate.account,
+            external_id: candidate.external_id,
+            container_id: candidate.container_id,
+            raw: raw,
+            presence: candidate.presence,
+            work_state: candidate.work_state,
+            last_revision: candidate.revision,
+            last_observed_at: now)
+        if run.profile.destination_shelf != null:
+            material/RawShelfMembership.created(
+                id: new_id(),
+                raw: raw,
+                shelf: run.profile.destination_shelf,
+                added_at: now)
+        run.captured_count = run.captured_count + 1
+
+    @guidance
+        -- Notes and mixed material normally follow this route and remain
+        -- pending Raw until deterministic, powered-up, or skill triage.
+}
+
+rule StructuredTaskAutomaticallyAdoptedAtRoot {
+    when: AcceptImportCandidate(run, candidate)
+    requires: run.status = running
+    requires: run.profile.route = adopt_brick
+    requires: run.profile.automatic_adoption
+    requires: run.profile.destination_parent = null
+    requires: candidate.kind = "structured_task"
+    requires: candidate.canonical_english != null
+    requires: candidate.normalization_authority != null
+    requires: canonical_english_text(candidate.canonical_english)
+    requires: not exists ExternalRecord{
+        profile: run.profile,
+        provider: candidate.provider,
+        account: candidate.account,
+        external_id: candidate.external_id
+    }
+    ensures:
+        let raw = material/Raw.created(
+            id: new_id(),
+            title: candidate.canonical_english,
+            original_text: candidate_verbatim(candidate),
+            canonical_english: candidate.canonical_english,
+            normalization_authority: candidate.normalization_authority,
+            review_state: reviewed,
+            storage_state: active,
+            created_at: now)
+        material/RawOrigin.created(
+            id: new_id(),
+            raw: raw,
+            adapter: run.profile.adapter.id,
+            locator: import_locator(candidate),
+            external_id: candidate.external_id,
+            last_checked_at: now,
+            last_observed_revision: candidate.revision,
+            historical_only: false,
+            created_at: now)
+        material/RawSnapshot.created(
+            id: new_id(),
+            raw: raw,
+            content_hash: candidate.content_hash,
+            size: candidate_size(candidate),
+            media_type: candidate_media_type(candidate),
+            captured_at: now,
+            origin_revision: candidate.revision,
+            availability: available,
+            verified_at: now)
+        let brick = domain/Brick.created(
+            id: new_id(),
+            title: candidate.canonical_english,
+            original_title: candidate.original_title,
+            title_authority: candidate.normalization_authority,
+            description: candidate.body,
+            description_revision:
+                if candidate.body != null: 1 else: 0,
+            status: active,
+            work_state: idle,
+            behavior: standard_behavior,
+            atomicity: unknown,
+            date_revision: 0,
+            decomposition_coverage: not_applicable,
+            created_at: now,
+            status_changed_at: now)
+        judgment/PriorityScope.created(
+            id: child_scope_id(brick),
+            parent: brick,
+            members: [],
+            revision: 0)
+        root_priority.members = provisional_insert(
+            root_priority.members,
+            brick,
+            null,
+            candidate.external_id)
+        root_priority.revision = root_priority.revision + 1
+        judgment/PriorityInsertion.created(
+            id: new_id(),
+            brick: brick,
+            scope: root_priority,
+            status: deferred,
+            comparisons_recorded: 0,
+            consecutive_skips: 0,
+            random_evidence: candidate.external_id,
+            started_at: now,
+            finished_at: now)
+        material/RawLink.created(
+            id: new_id(),
+            raw: raw,
+            role: source,
+            owner_brick: brick,
+            reconciled_snapshot: raw.latest_snapshot,
+            created_at: now)
+        ExternalRecord.created(
+            id: external_record_id(
+                run.profile,
+                candidate.provider,
+                candidate.account,
+                candidate.external_id),
+            profile: run.profile,
+            provider: candidate.provider,
+            account: candidate.account,
+            external_id: candidate.external_id,
+            container_id: candidate.container_id,
+            raw: raw,
+            brick: brick,
+            presence: candidate.presence,
+            work_state: candidate.work_state,
+            last_revision: candidate.revision,
+            last_observed_at: now)
+        material/RawReviewDisposition.created(
+            id: new_id(),
+            raw: raw,
+            kind: produced_work,
+            brick: brick,
+            recorded_at: now,
+            authority: candidate.normalization_authority)
+        run.captured_count = run.captured_count + 1
+
+    @guarantee CaptureAndAdoptionAreAtomic
+        -- Stable Raw provenance, immutable snapshot, positioned Brick, source
+        -- link, and external identity appear as one accepted semantic import.
+
+    @guarantee AutomaticAdoptionRequiresCanonicalEnglish
+        -- A structured source task enters the Brick tree automatically only
+        -- with an attributed canonical English title. Otherwise the same
+        -- candidate remains Raw material pending deterministic, powered-up,
+        -- or skill-assisted triage.
+}
+
+rule StructuredTaskAutomaticallyAdoptedUnderParent {
+    when: AcceptImportCandidate(run, candidate)
+    requires: run.status = running
+    requires: run.profile.route = adopt_brick
+    requires: run.profile.automatic_adoption
+    requires: run.profile.destination_parent != null
+    requires: run.profile.destination_parent.status = active
+    requires: candidate.kind = "structured_task"
+    requires: candidate.canonical_english != null
+    requires: candidate.normalization_authority != null
+    requires: canonical_english_text(candidate.canonical_english)
+    requires: not exists ExternalRecord{
+        profile: run.profile,
+        provider: candidate.provider,
+        account: candidate.account,
+        external_id: candidate.external_id
+    }
+    let scope = judgment/PriorityScope{
+        parent: run.profile.destination_parent
+    }
+    ensures:
+        let raw = material/Raw.created(
+            id: new_id(),
+            title: candidate.canonical_english,
+            original_text: candidate_verbatim(candidate),
+            canonical_english: candidate.canonical_english,
+            normalization_authority: candidate.normalization_authority,
+            review_state: reviewed,
+            storage_state: active,
+            created_at: now)
+        material/RawOrigin.created(
+            id: new_id(),
+            raw: raw,
+            adapter: run.profile.adapter.id,
+            locator: import_locator(candidate),
+            external_id: candidate.external_id,
+            last_checked_at: now,
+            last_observed_revision: candidate.revision,
+            historical_only: false,
+            created_at: now)
+        material/RawSnapshot.created(
+            id: new_id(),
+            raw: raw,
+            content_hash: candidate.content_hash,
+            size: candidate_size(candidate),
+            media_type: candidate_media_type(candidate),
+            captured_at: now,
+            origin_revision: candidate.revision,
+            availability: available,
+            verified_at: now)
+        let brick = domain/Brick.created(
+            id: new_id(),
+            title: candidate.canonical_english,
+            original_title: candidate.original_title,
+            title_authority: candidate.normalization_authority,
+            description: candidate.body,
+            description_revision:
+                if candidate.body != null: 1 else: 0,
+            status: active,
+            work_state: idle,
+            behavior: standard_behavior,
+            parent: run.profile.destination_parent,
+            atomicity: unknown,
+            date_revision: 0,
+            decomposition_coverage: not_applicable,
+            created_at: now,
+            status_changed_at: now)
+        judgment/PriorityScope.created(
+            id: child_scope_id(brick),
+            parent: brick,
+            members: [],
+            revision: 0)
+        scope.members = provisional_insert(
+            scope.members,
+            brick,
+            null,
+            candidate.external_id)
+        scope.revision = scope.revision + 1
+        judgment/PriorityInsertion.created(
+            id: new_id(),
+            brick: brick,
+            scope: scope,
+            status: deferred,
+            comparisons_recorded: 0,
+            consecutive_skips: 0,
+            random_evidence: candidate.external_id,
+            started_at: now,
+            finished_at: now)
+        material/RawLink.created(
+            id: new_id(),
+            raw: raw,
+            role: source,
+            owner_brick: brick,
+            reconciled_snapshot: raw.latest_snapshot,
+            created_at: now)
+        ExternalRecord.created(
+            id: external_record_id(
+                run.profile,
+                candidate.provider,
+                candidate.account,
+                candidate.external_id),
+            profile: run.profile,
+            provider: candidate.provider,
+            account: candidate.account,
+            external_id: candidate.external_id,
+            container_id: candidate.container_id,
+            raw: raw,
+            brick: brick,
+            presence: candidate.presence,
+            work_state: candidate.work_state,
+            last_revision: candidate.revision,
+            last_observed_at: now)
+        material/RawReviewDisposition.created(
+            id: new_id(),
+            raw: raw,
+            kind: produced_work,
+            brick: brick,
+            recorded_at: now,
+            authority: candidate.normalization_authority)
+        run.captured_count = run.captured_count + 1
+}
+
+rule StructuredItemAutomaticallyAdoptedAsListEntry {
+    when: AcceptImportCandidate(run, candidate)
+    requires: run.status = running
+    requires: run.profile.route = adopt_list_entry
+    requires: run.profile.automatic_adoption
+    requires: run.profile.destination_owner != null
+    requires: run.profile.destination_owner.status = active
+    requires: run.profile.destination_owner.behavior.owns_entries
+    requires: candidate.kind in {"structured_task", "list_item"}
+    requires: candidate.canonical_english != null
+    requires: candidate.normalization_authority != null
+    requires: canonical_english_text(candidate.canonical_english)
+    requires: not exists ExternalRecord{
+        profile: run.profile,
+        provider: candidate.provider,
+        account: candidate.account,
+        external_id: candidate.external_id
+    }
+    ensures:
+        let raw = material/Raw.created(
+            id: new_id(),
+            title: candidate.canonical_english,
+            original_text: candidate_verbatim(candidate),
+            canonical_english: candidate.canonical_english,
+            normalization_authority: candidate.normalization_authority,
+            review_state: reviewed,
+            storage_state: active,
+            created_at: now)
+        material/RawOrigin.created(
+            id: new_id(),
+            raw: raw,
+            adapter: run.profile.adapter.id,
+            locator: import_locator(candidate),
+            external_id: candidate.external_id,
+            last_checked_at: now,
+            last_observed_revision: candidate.revision,
+            historical_only: false,
+            created_at: now)
+        material/RawSnapshot.created(
+            id: new_id(),
+            raw: raw,
+            content_hash: candidate.content_hash,
+            size: candidate_size(candidate),
+            media_type: candidate_media_type(candidate),
+            captured_at: now,
+            origin_revision: candidate.revision,
+            availability: available,
+            verified_at: now)
+        let entry = domain/ListEntry.created(
+            id: new_id(),
+            owner: run.profile.destination_owner,
+            label: candidate.canonical_english,
+            original_label: candidate.original_title,
+            label_authority: candidate.normalization_authority,
+            note: candidate.body,
+            status: open,
+            created_at: now)
+        material/RawLink.created(
+            id: new_id(),
+            raw: raw,
+            role: source,
+            owner_entry: entry,
+            reconciled_snapshot: raw.latest_snapshot,
+            created_at: now)
+        ExternalRecord.created(
+            id: external_record_id(
+                run.profile,
+                candidate.provider,
+                candidate.account,
+                candidate.external_id),
+            profile: run.profile,
+            provider: candidate.provider,
+            account: candidate.account,
+            external_id: candidate.external_id,
+            container_id: candidate.container_id,
+            raw: raw,
+            entry: entry,
+            presence: candidate.presence,
+            work_state: candidate.work_state,
+            last_revision: candidate.revision,
+            last_observed_at: now)
+        material/RawReviewDisposition.created(
+            id: new_id(),
+            raw: raw,
+            kind: produced_work,
+            brick: run.profile.destination_owner,
+            recorded_at: now,
+            authority: candidate.normalization_authority)
+        run.captured_count = run.captured_count + 1
+
+    @guarantee EntryAdoptionHasNoPriorityPosition
+        -- The owning Brick is the focus and priority unit. The imported entry
+        -- is resolved inside that owner and never becomes independently
+        -- ordered, focused, phased, estimated, or selected by next.
+}
+
+rule ExistingExternalObjectReconciled {
+    when: AcceptImportCandidate(run, candidate)
+    let record = ExternalRecord{
+        profile: run.profile,
+        provider: candidate.provider,
+        account: candidate.account,
+        external_id: candidate.external_id
+    }
+    requires: run.status = running
+    requires: exists record
+    ensures:
+        record.presence = candidate.presence
+        record.work_state = candidate.work_state
+        record.container_id = candidate.container_id
+        record.last_revision = candidate.revision
+        record.last_observed_at = now
+        if record.raw.latest_snapshot = null
+            or record.raw.latest_snapshot.content_hash !=
+                candidate.content_hash:
+            material/RawSnapshot.created(
+                id: new_id(),
+                raw: record.raw,
+                content_hash: candidate.content_hash,
+                size: candidate_size(candidate),
+                media_type: candidate_media_type(candidate),
+                captured_at: now,
+                origin_revision: candidate.revision,
+                availability: available,
+                verified_at: now)
+        run.captured_count = run.captured_count + 1
+
+    @guarantee ProviderStateIsIndependent
+        -- Upstream completed may propose local done; removed changes presence;
+        -- unavailable proves neither. No provider state silently mutates local
+        -- Brick status.
+}
+
+rule ExternalCompletionCreatesReviewProposal {
+    when: ObserveExternalCompletion(record)
+    requires: record.brick != null
+    requires: record.work_state = completed
+    requires: record.brick.status = active
+    requires: not exists selection/Proposal{
+        kind: brick_review,
+        brick: record.brick,
+        status: open
+    }
+    ensures: selection/Proposal.created(
+        id: new_id(),
+        kind: brick_review,
+        brick: record.brick,
+        reason: "the attributed external source reports completion",
+        status: open,
+        created_at: now,
+        available_at: now)
+}
+
+rule ImportCaptureFinished {
+    when: FinishImportCapture(run, source_cursor?)
+    requires: run.status = running
+    ensures:
+        run.status = captured
+        run.source_cursor = source_cursor
+}
+
+rule ImportVerified {
+    when: VerifyImport(run, verified_count, failure_count)
+    requires: run.status = captured
+    requires: verified_count = run.captured_count
+    requires: failure_count = 0
+    requires:
+        run.mode != migrate
+        or migration_scope_has_reviewed_dispositions(run)
+    ensures:
+        run.status = verified
+        run.verified_count = verified_count
+        run.failure_count = failure_count
+}
+
+rule ImportVerificationFailed {
+    when: VerifyImport(run, verified_count, failure_count)
+    requires: run.status = captured
+    requires:
+        verified_count != run.captured_count
+        or failure_count > 0
+    ensures:
+        run.status = failed
+        run.finished_at = now
+        run.verified_count = verified_count
+        run.failure_count = failure_count
+}
+
+rule SynchronizationCompleted {
+    when: CompleteSynchronization(run, receipt_hash)
+    requires: run.mode = synchronize
+    requires: run.status = verified
+    ensures:
+        run.status = completed
+        run.finished_at = now
+        run.receipt_hash = receipt_hash
+
+    @guarantee SyncRemainsLive
+        -- Completing one synchronization run neither retires its profile nor
+        -- turns future source absence into local completion or deletion.
+}
+
+-- Explicit source cleanup -------------------------------------------------
+
+rule VerifiedMigrationProposesItemCleanup {
+    when: PlanEraseAfterImport(run)
+    requires: run.mode = migrate
+    requires: run.erase_after_import
+    requires: run.status = verified
+    requires:
+        "effect:erase-object" in run.profile.adapter.capabilities
+    for record in ExternalRecords where profile = run.profile:
+        requires: locally_reconstructible(record)
+        requires: no_unresolved_import_conflict(record)
+        ensures: SourceEffect.created(
+            id: new_id(),
+            run: run,
+            record: record,
+            kind: erase_object,
+            preview: erase_preview(record),
+            status: proposed,
+            proposed_at: now)
+
+    @guarantee ItemScopedCleanup
+        -- Cleanup is planned per verified object. One unresolved or lossy item
+        -- blocks only its own deletion and remains explicit.
+}
+
+rule SourceEffectApproved {
+    when: ApproveSourceEffect(effect)
+    requires: effect.status = proposed
+    ensures:
+        effect.status = approved
+        effect.approved_at = now
+}
+
+rule SourceEffectDeclined {
+    when: DeclineSourceEffect(effect)
+    requires: effect.status in {proposed, failed}
+    ensures: effect.status = declined
+}
+
+rule FailedSourceEffectRetried {
+    when: RetrySourceEffect(effect)
+    requires: effect.status = failed
+    requires: source_effect_target_is_unchanged(effect)
+    ensures:
+        effect.status = approved
+        effect.failure = null
+
+    @guarantee RetryKeepsExactApprovedScope
+        -- Retry reuses the same item-scoped effect and approval. A changed
+        -- source revision requires a new preview and effect instead.
+}
+
+rule ApprovedSourceEffectApplied {
+    when: RecordSourceEffectApplied(effect, receipt)
+    requires: effect.status = approved
+    ensures:
+        effect.status = applied
+        effect.applied_at = now
+        effect.receipt = receipt
+}
+
+rule ApprovedSourceEffectFailed {
+    when: RecordSourceEffectFailed(effect, failure)
+    requires: effect.status = approved
+    ensures:
+        effect.status = failed
+        effect.failure = failure
+}
+
+rule MigrationCutOver {
+    when: CutOverImport(run, receipt_hash)
+    requires: run.mode = migrate
+    requires: run.status = verified
+    requires: migration_scope_has_reviewed_dispositions(run)
+    requires: not run.erase_after_import
+        or all_cleanup_dispositions_resolved(run)
+    ensures:
+        run.status = cut_over
+        run.finished_at = now
+        run.receipt_hash = receipt_hash
+        run.profile.status = retired
+        for record in ExternalRecords where profile = run.profile:
+            let origin = material/RawOrigin{raw: record.raw}
+            origin.historical_only = true
+}
+
+rule EmptyContainerDeletionProposedSeparately {
+    when: ProposeEmptyContainerDeletion(run, preview)
+    requires: run.status in {verified, cut_over}
+    requires: all_imported_objects_erased(run)
+    requires:
+        "effect:erase-container" in run.profile.adapter.capabilities
+    ensures: SourceEffect.created(
+        id: new_id(),
+        run: run,
+        kind: erase_container,
+        preview: preview,
+        status: proposed,
+        proposed_at: now)
+
+    @guarantee SeparateContainerApproval
+        -- Erasing all imported objects never implies permission to delete the
+        -- now-empty external list, notebook, or container.
+}
+
+-- TaskJuggler planning boundary ------------------------------------------
+
+rule TaskJugglerManifestGenerated {
+    when: ExportTaskJuggler(
+        dataset_revision,
+        selected_bricks,
+        effort_profile,
+        payload)
+    requires: selected_bricks.count > 0
+    requires: planning_cut_has_no_overlap(selected_bricks)
+    requires:
+        planning_cut_uses_effort_profile(
+            selected_bricks,
+            effort_profile)
+    requires: dataset_revision = current_domain_revision()
+    requires: taskjuggler_exporter_v1.status = enabled
+    requires: valid_export_payload(payload)
+    ensures: PlanningManifest.created(
+        id: new_id(),
+        exporter: taskjuggler_exporter_v1,
+        dataset_revision: dataset_revision,
+        selected_bricks: selected_bricks,
+        effort_profile: effort_profile,
+        generated_at: now,
+        payload: payload,
+        content_hash: payload.content_hash)
+
+    @guarantee NotLeafOnly
+        -- The selected planning cut may contain leaves or containers. It
+        -- contains no ancestor and descendant simultaneously, preventing
+        -- double counting.
+
+    @guarantee HoursRemainPlanningCalibration
+        -- TaskJuggler macros come from the selected effort profile. Canonical
+        -- Brick state contains an effort class, never promised hours.
+}
+
+rule TaskJugglerActualImported {
+    when: ImportTaskJugglerActual(
+        manifest,
+        brick,
+        observed_hours)
+    requires: brick in manifest.selected_bricks
+    requires: observed_hours >= 0.0
+    requires: not exists ImportedActual{manifest, brick}
+    ensures:
+        ImportedActual.created(
+            id: new_id(),
+            manifest: manifest,
+            brick: brick,
+            observed_hours: observed_hours,
+            imported_at: now)
+
+    @guarantee ActualDoesNotRewriteEstimate
+        -- Observed hours are separate evidence. They never rewrite the
+        -- historical effort class or EffortProfile version.
+
+    @guarantee ManifestRemainsImmutable
+        -- Importing any number of per-Brick actuals never changes the
+        -- reproducible manifest against which they were observed.
+}
+
+-- Local web UI adapter ----------------------------------------------------
+
+rule LocalWebUiOpened {
+    when: OpenLocalWebUi(port)
+    requires: metro_web_ui_v1.status = enabled
+    ensures: WebUiSession.created(
+        id: new_id(),
+        component: metro_web_ui_v1,
+        bind_host: "127.0.0.1",
+        port: port,
+        status: open,
+        opened_at: now)
+}
+
+rule LocalWebUiClosed {
+    when: CloseLocalWebUi(session)
+    requires: session.status = open
+    ensures:
+        session.status = closed
+        session.closed_at = now
+}
+
+rule WebUiInputForwarded {
+    when: SubmitWebUiInput(
+        session,
+        interaction_id,
+        interaction_revision,
+        domain_revision,
+        action_id)
+    requires: session.status = open
+    ensures: CanonicalUiActionForwarded(
+        interaction_id: interaction_id,
+        interaction_revision: interaction_revision,
+        domain_revision: domain_revision,
+        action_id: action_id)
+
+    @guarantee BrowserIsThin
+        -- Browser assets contain presentation and input mapping only. Domain
+        -- state, rules, storage, ordering, and selection remain in the local
+        -- Little Ant process.
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant ComponentKindIsClosed {
+    -- PackComponentKind is the complete 1.0 extension vocabulary. There is no
+    -- generic plugin, arbitrary event hook, or untyped callback.
+    true
+}
+
+invariant PackVersionIdentityIsUnique {
+    for first in LittleAntPacks:
+        for second in LittleAntPacks:
+            (
+                first.id = second.id
+                and first.version = second.version
+            ) implies first = second
+}
+
+invariant ExecutableComponentsUseTypedKinds {
+    for component in PackComponents:
+        component.executable implies component.kind in {
+            source_adapter,
+            enricher,
+            read_only_exporter,
+            ui_adapter
+        }
+}
+
+invariant DeclarativeComponentsAreNotExecutable {
+    for component in PackComponents:
+        component.kind in {
+            brick_behavior,
+            brick_template,
+            import_profile_preset
+        } implies not component.executable
+}
+
+invariant ExternalIdentityIsStablePerProfile {
+    for first in ExternalRecords:
+        for second in ExternalRecords:
+            (
+                first.profile = second.profile
+                and first.provider = second.provider
+                and first.account = second.account
+                and first.external_id = second.external_id
+            ) implies first = second
+}
+
+invariant OneLiveCredentialBindingPerSlotAndAccount {
+    for first in CredentialBindings:
+        for second in CredentialBindings:
+            (
+                first.slot = second.slot
+                and first.account = second.account
+                and first.status in {active, locked}
+                and second.status in {active, locked}
+            ) implies first = second
+}
+
+invariant ExternalRecordHasAtMostOneWorkAdoption {
+    for record in ExternalRecords:
+        not (
+            record.brick != null
+            and record.entry != null
+        )
+}
+
+invariant PlanningCutDoesNotDoubleCount {
+    for manifest in PlanningManifests:
+        planning_cut_has_no_overlap(manifest.selected_bricks)
+}
+
+invariant OneActualPerManifestBrick {
+    for first in ImportedActuals:
+        for second in ImportedActuals:
+            (
+                first.manifest = second.manifest
+                and first.brick = second.brick
+            ) implies first = second
+}
+
+invariant RootPriorityBindingIsCanonical {
+    root_priority.parent = null
+}
+
+invariant StandardBehaviorBindingIsCanonical {
+    standard_behavior.id = "core/standard"
+}
+
+invariant WebUiIsLoopbackOnly {
+    for session in WebUiSessions:
+        session.bind_host = "127.0.0.1"
+}
+
+invariant VaultIsNotPackContent {
+    -- VaultEntry and CredentialBinding are local deployment configuration.
+    -- They are never embedded in, exported with, or synchronized as a Pack.
+    true
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor User {
+    identified_by: domain/Party where party_type = person
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface ExtensionDesk {
+    facing user: User
+
+    exposes:
+        user.id
+        standard_pack_v1.id
+        microsoft_todo_adapter_v1.id
+        notesnook_adapter_v1.id
+        taskjuggler_exporter_v1.id
+        metro_web_ui_v1.id
+
+    provides:
+        InstallPack(manifest)
+        RecordPackInvocation(
+            component,
+            operation,
+            input_revision,
+            request_hash,
+            capability_grants,
+            result)
+        DisablePack(pack)
+        EnablePack(pack)
+        RevokePack(pack)
+        StoreCredential(label, encrypted_payload)
+        BindCredential(slot, account, vault_entry_id)
+        LockCredentialBinding(binding)
+        UnlockCredentialBinding(binding)
+        RevokeCredentialBinding(binding)
+        CreateImportProfile(
+            name,
+            adapter,
+            source_scope,
+            candidate_kind,
+            route,
+            destination_parent?,
+            destination_owner?,
+            destination_shelf?,
+            automatic_adoption)
+        RetireImportProfile(profile)
+        PlanImport(profile, mode, erase_after_import)
+        StartImport(run)
+        AcceptImportCandidate(run, candidate)
+        ObserveExternalCompletion(record)
+        FinishImportCapture(run, source_cursor?)
+        VerifyImport(run, verified_count, failure_count)
+        CompleteSynchronization(run, receipt_hash)
+        PlanEraseAfterImport(run)
+        ApproveSourceEffect(effect)
+        DeclineSourceEffect(effect)
+        RetrySourceEffect(effect)
+        RecordSourceEffectApplied(effect, receipt)
+        RecordSourceEffectFailed(effect, failure)
+        CutOverImport(run, receipt_hash)
+        ProposeEmptyContainerDeletion(run, preview)
+        ExportTaskJuggler(
+            dataset_revision,
+            selected_bricks,
+            effort_profile,
+            payload)
+        ImportTaskJugglerActual(
+            manifest,
+            brick,
+            observed_hours)
+        OpenLocalWebUi(port)
+        CloseLocalWebUi(session)
+        SubmitWebUiInput(
+            session,
+            interaction_id,
+            interaction_revision,
+            domain_revision,
+            action_id)
+
+    contracts:
+        demands PackRunner
+        demands HostHttp
+        demands CredentialBroker
+        demands SourceAdapterContract
+        demands EnricherContract
+        demands ReadOnlyExporterContract
+        demands UIAdapterContract
+
+    @guarantee StandardPackIsOfflineAndInspectable
+        -- The factory behavior/template catalog and the four selected
+        -- components are inspectable product content available without a
+        -- community repository.
+
+    @guarantee StandardPackScope
+        -- Version 1.0 ships TaskJuggler, Microsoft To Do, Notesnook, and the
+        -- Metro-style local web UI. Other providers remain community or later
+        -- Pack work.
+
+    @guarantee NotesAreMaterialFirst
+        -- Notesnook notes default to Raw triage with notebook/folder/tag
+        -- provenance. Semantic adoption requires explicit policy or judgment.
+
+    @guarantee MicrosoftTodoSupportsMigrationCleanup
+        -- Microsoft To Do supports synchronization and explicit verified
+        -- migration cleanup; cleanup is never inferred from ordinary sync.
+
+    @guarantee UnexpectedMassRemovalIsReviewedAsOneSourceAnomaly
+        -- An authoritative but unexpected burst of removals pauses automatic
+        -- reconciliation and raises one source-level review; it never
+        -- fabricates a burst of local done, dropped, or archived outcomes.
+}
+
+------------------------------------------------------------
+-- Open Questions
+------------------------------------------------------------
+
+open question "Provider API details, HTTP retry policy, cryptographic construction, vault recovery, and runner resource numbers are implementation decisions constrained by these contracts."

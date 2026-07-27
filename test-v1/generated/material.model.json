@@ -1,0 +1,457 @@
+{
+  "entities": [
+    {
+      "derived_values": [
+        {
+          "name": "latest_snapshot"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "title",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "original_text",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "canonical_english",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "normalization_authority",
+          "optional": true,
+          "type_expr": "domain/Authority?"
+        },
+        {
+          "name": "review_state",
+          "type_expr": "RawReviewState"
+        },
+        {
+          "name": "storage_state",
+          "type_expr": "RawStorageState"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "Raw",
+      "relationships": [
+        {
+          "name": "origin",
+          "target": "RawOrigin"
+        },
+        {
+          "name": "snapshots",
+          "target": "RawSnapshot"
+        },
+        {
+          "name": "links",
+          "target": "RawLink"
+        },
+        {
+          "name": "memberships",
+          "target": "RawShelfMembership"
+        }
+      ],
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "pending",
+              "to": "reviewed"
+            },
+            {
+              "from": "reviewed",
+              "to": "pending"
+            }
+          ],
+          "field": "review_state",
+          "states": [
+            "pending",
+            "reviewed"
+          ]
+        },
+        {
+          "edges": [
+            {
+              "from": "active",
+              "to": "archived"
+            },
+            {
+              "from": "archived",
+              "to": "active"
+            }
+          ],
+          "field": "storage_state",
+          "states": [
+            "active",
+            "archived"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "raw",
+          "type_expr": "Raw"
+        },
+        {
+          "name": "adapter",
+          "type_expr": "String"
+        },
+        {
+          "name": "locator",
+          "type_expr": "String"
+        },
+        {
+          "name": "external_id",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "last_checked_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "last_observed_revision",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "historical_only",
+          "type_expr": "Boolean"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "RawOrigin",
+      "relationships": [
+        {
+          "name": "observations",
+          "target": "SourceObservation"
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "raw",
+          "type_expr": "Raw"
+        },
+        {
+          "name": "content_hash",
+          "type_expr": "String"
+        },
+        {
+          "name": "size",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "media_type",
+          "type_expr": "String"
+        },
+        {
+          "name": "captured_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "origin_revision",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "availability",
+          "type_expr": "SnapshotAvailability"
+        },
+        {
+          "name": "verified_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "RawSnapshot",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "available",
+              "to": "missing"
+            },
+            {
+              "from": "available",
+              "to": "corrupt"
+            },
+            {
+              "from": "missing",
+              "to": "available"
+            },
+            {
+              "from": "corrupt",
+              "to": "available"
+            }
+          ],
+          "field": "availability",
+          "states": [
+            "available",
+            "corrupt",
+            "missing"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "raw",
+          "type_expr": "Raw"
+        },
+        {
+          "name": "role",
+          "type_expr": "RawLinkRole"
+        },
+        {
+          "name": "owner_brick",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "owner_entry",
+          "optional": true,
+          "type_expr": "domain/ListEntry?"
+        },
+        {
+          "name": "owner_raw",
+          "optional": true,
+          "type_expr": "Raw?"
+        },
+        {
+          "name": "reconciled_snapshot",
+          "optional": true,
+          "type_expr": "RawSnapshot?"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "RawLink"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "name",
+          "type_expr": "String"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "RawShelf",
+      "relationships": [
+        {
+          "name": "memberships",
+          "target": "RawShelfMembership"
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "raw",
+          "type_expr": "Raw"
+        },
+        {
+          "name": "shelf",
+          "type_expr": "RawShelf"
+        },
+        {
+          "name": "added_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "RawShelfMembership"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "origin",
+          "type_expr": "RawOrigin"
+        },
+        {
+          "name": "observed_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "external_observation_id",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "revision",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "presence",
+          "type_expr": "ExternalPresence"
+        },
+        {
+          "name": "work_state",
+          "type_expr": "ExternalWorkState"
+        },
+        {
+          "name": "failure_detail",
+          "optional": true,
+          "type_expr": "String?"
+        }
+      ],
+      "kind": "internal",
+      "name": "SourceObservation"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "raw",
+          "type_expr": "Raw"
+        },
+        {
+          "name": "kind",
+          "type_expr": "ReviewDispositionKind"
+        },
+        {
+          "name": "brick",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "note",
+          "optional": true,
+          "type_expr": "String?"
+        }
+      ],
+      "kind": "internal",
+      "name": "RawReviewDisposition"
+    }
+  ],
+  "enums": [
+    {
+      "name": "RawReviewState",
+      "values": [
+        "pending",
+        "reviewed"
+      ]
+    },
+    {
+      "name": "RawStorageState",
+      "values": [
+        "active",
+        "archived"
+      ]
+    },
+    {
+      "name": "SnapshotAvailability",
+      "values": [
+        "available",
+        "missing",
+        "corrupt"
+      ]
+    },
+    {
+      "name": "RawLinkRole",
+      "values": [
+        "attachment",
+        "source",
+        "evidence",
+        "derived_from"
+      ]
+    },
+    {
+      "name": "ExternalPresence",
+      "values": [
+        "unknown",
+        "present",
+        "removed",
+        "unavailable"
+      ]
+    },
+    {
+      "name": "ExternalWorkState",
+      "values": [
+        "unknown",
+        "open",
+        "completed"
+      ]
+    },
+    {
+      "name": "ReviewDispositionKind",
+      "values": [
+        "retained",
+        "linked",
+        "produced_work",
+        "no_work"
+      ]
+    }
+  ],
+  "version": 3
+}

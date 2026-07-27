@@ -1,0 +1,5694 @@
+{
+  "obligations": [
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum WaitStatus are comparable",
+      "id": "enum-comparable.WaitStatus",
+      "source_construct": "WaitStatus",
+      "source_span": {
+        "end": 599,
+        "start": 552
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum DependencyStatus are comparable",
+      "id": "enum-comparable.DependencyStatus",
+      "source_construct": "DependencyStatus",
+      "source_span": {
+        "end": 656,
+        "start": 600
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum DelegationStatus are comparable",
+      "id": "enum-comparable.DelegationStatus",
+      "source_construct": "DelegationStatus",
+      "source_span": {
+        "end": 783,
+        "start": 657
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ExecutionStatus are comparable",
+      "id": "enum-comparable.ExecutionStatus",
+      "source_construct": "ExecutionStatus",
+      "source_span": {
+        "end": 839,
+        "start": 784
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ExecutionOutcome are comparable",
+      "id": "enum-comparable.ExecutionOutcome",
+      "source_construct": "ExecutionOutcome",
+      "source_span": {
+        "end": 892,
+        "start": 840
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum SkipReason are comparable",
+      "id": "enum-comparable.SkipReason",
+      "source_construct": "SkipReason",
+      "source_span": {
+        "end": 1030,
+        "start": 893
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum NoticeKind are comparable",
+      "id": "enum-comparable.NoticeKind",
+      "source_construct": "NoticeKind",
+      "source_span": {
+        "end": 1153,
+        "start": 1031
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum NoticeStatus are comparable",
+      "id": "enum-comparable.NoticeStatus",
+      "source_construct": "NoticeStatus",
+      "source_span": {
+        "end": 1219,
+        "start": 1154
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum RecurrenceKind are comparable",
+      "id": "enum-comparable.RecurrenceKind",
+      "source_construct": "RecurrenceKind",
+      "source_span": {
+        "end": 1265,
+        "start": 1220
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ScheduleStatus are comparable",
+      "id": "enum-comparable.ScheduleStatus",
+      "source_construct": "ScheduleStatus",
+      "source_span": {
+        "end": 1315,
+        "start": 1266
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum PracticeOpportunityStatus are comparable",
+      "id": "enum-comparable.PracticeOpportunityStatus",
+      "source_construct": "PracticeOpportunityStatus",
+      "source_span": {
+        "end": 1390,
+        "start": 1316
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum OpportunityTriggerStatus are comparable",
+      "id": "enum-comparable.OpportunityTriggerStatus",
+      "source_construct": "OpportunityTriggerStatus",
+      "source_span": {
+        "end": 1441,
+        "start": 1391
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum PlaceStrength are comparable",
+      "id": "enum-comparable.PlaceStrength",
+      "source_construct": "PlaceStrength",
+      "source_span": {
+        "end": 1476,
+        "start": 1442
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum LocationObservationKind are comparable",
+      "id": "enum-comparable.LocationObservationKind",
+      "source_construct": "LocationObservationKind",
+      "source_span": {
+        "end": 1534,
+        "start": 1477
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> resolved on Wait.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Wait",
+        "field": "status",
+        "from": "open",
+        "to": "resolved"
+      },
+      "id": "transition-edge.Wait.open.resolved",
+      "source_construct": "Wait.status",
+      "source_span": {
+        "end": 1914,
+        "start": 1898
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> cancelled on Wait.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Wait",
+        "field": "status",
+        "from": "open",
+        "to": "cancelled"
+      },
+      "id": "transition-edge.Wait.open.cancelled",
+      "source_construct": "Wait.status",
+      "source_span": {
+        "end": 1940,
+        "start": 1923
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on Wait.status are rejected",
+      "id": "transition-rejected.Wait.status",
+      "source_construct": "Wait.status",
+      "source_span": {
+        "end": 1984,
+        "start": 1869
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on Wait.status have no outbound transitions",
+      "detail": {
+        "entity": "Wait",
+        "field": "status",
+        "states": [
+          "resolved",
+          "cancelled"
+        ]
+      },
+      "id": "transition-terminal.Wait.status",
+      "source_construct": "Wait.status",
+      "source_span": {
+        "end": 1984,
+        "start": 1869
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Wait are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "brick",
+          "on_party",
+          "condition",
+          "status",
+          "created_at",
+          "resolved_at"
+        ]
+      },
+      "id": "entity-fields.Wait",
+      "source_construct": "Wait",
+      "source_span": {
+        "end": 1986,
+        "start": 1684
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Wait.on_party accepts null and non-null values",
+      "id": "entity-optional.Wait.on_party",
+      "source_construct": "Wait.on_party",
+      "source_span": {
+        "end": 1986,
+        "start": 1684
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Wait.resolved_at accepts null and non-null values",
+      "id": "entity-optional.Wait.resolved_at",
+      "source_construct": "Wait.resolved_at",
+      "source_span": {
+        "end": 1986,
+        "start": 1684
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition active -> satisfied on Dependency.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Dependency",
+        "field": "status",
+        "from": "active",
+        "to": "satisfied"
+      },
+      "id": "transition-edge.Dependency.active.satisfied",
+      "source_construct": "Dependency.status",
+      "source_span": {
+        "end": 2211,
+        "start": 2192
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition active -> cancelled on Dependency.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Dependency",
+        "field": "status",
+        "from": "active",
+        "to": "cancelled"
+      },
+      "id": "transition-edge.Dependency.active.cancelled",
+      "source_construct": "Dependency.status",
+      "source_span": {
+        "end": 2239,
+        "start": 2220
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on Dependency.status are rejected",
+      "id": "transition-rejected.Dependency.status",
+      "source_construct": "Dependency.status",
+      "source_span": {
+        "end": 2284,
+        "start": 2163
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on Dependency.status have no outbound transitions",
+      "detail": {
+        "entity": "Dependency",
+        "field": "status",
+        "states": [
+          "satisfied",
+          "cancelled"
+        ]
+      },
+      "id": "transition-terminal.Dependency.status",
+      "source_construct": "Dependency.status",
+      "source_span": {
+        "end": 2284,
+        "start": 2163
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Dependency are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "blocked",
+          "blocker",
+          "status",
+          "created_at",
+          "resolved_at"
+        ]
+      },
+      "id": "entity-fields.Dependency",
+      "source_construct": "Dependency",
+      "source_span": {
+        "end": 2286,
+        "start": 1988
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Dependency.resolved_at accepts null and non-null values",
+      "id": "entity-optional.Dependency.resolved_at",
+      "source_construct": "Dependency.resolved_at",
+      "source_span": {
+        "end": 2286,
+        "start": 1988
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition awaiting_approval -> notified on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "awaiting_approval",
+        "to": "notified"
+      },
+      "id": "transition-edge.Delegation.awaiting_approval.notified",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2607,
+        "start": 2578
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition awaiting_approval -> abandoned on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "awaiting_approval",
+        "to": "abandoned"
+      },
+      "id": "transition-edge.Delegation.awaiting_approval.abandoned",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2646,
+        "start": 2616
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition notified -> in_progress on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "notified",
+        "to": "in_progress"
+      },
+      "id": "transition-edge.Delegation.notified.in_progress",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2678,
+        "start": 2655
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition notified -> completed on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "notified",
+        "to": "completed"
+      },
+      "id": "transition-edge.Delegation.notified.completed",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2708,
+        "start": 2687
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition notified -> refused on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "notified",
+        "to": "refused"
+      },
+      "id": "transition-edge.Delegation.notified.refused",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2736,
+        "start": 2717
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition notified -> abandoned on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "notified",
+        "to": "abandoned"
+      },
+      "id": "transition-edge.Delegation.notified.abandoned",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2766,
+        "start": 2745
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition in_progress -> completed on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "in_progress",
+        "to": "completed"
+      },
+      "id": "transition-edge.Delegation.in_progress.completed",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2799,
+        "start": 2775
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition in_progress -> refused on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "in_progress",
+        "to": "refused"
+      },
+      "id": "transition-edge.Delegation.in_progress.refused",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2830,
+        "start": 2808
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition in_progress -> abandoned on Delegation.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "from": "in_progress",
+        "to": "abandoned"
+      },
+      "id": "transition-edge.Delegation.in_progress.abandoned",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2863,
+        "start": 2839
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on Delegation.status are rejected",
+      "id": "transition-rejected.Delegation.status",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2917,
+        "start": 2549
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on Delegation.status have no outbound transitions",
+      "detail": {
+        "entity": "Delegation",
+        "field": "status",
+        "states": [
+          "completed",
+          "refused",
+          "abandoned"
+        ]
+      },
+      "id": "transition-terminal.Delegation.status",
+      "source_construct": "Delegation.status",
+      "source_span": {
+        "end": 2917,
+        "start": 2549
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Delegation are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "brick",
+          "delegate",
+          "status",
+          "instructions",
+          "created_at",
+          "last_contact_at",
+          "next_followup_at",
+          "result_note"
+        ]
+      },
+      "id": "entity-fields.Delegation",
+      "source_construct": "Delegation",
+      "source_span": {
+        "end": 2919,
+        "start": 2288
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Delegation.last_contact_at accepts null and non-null values",
+      "id": "entity-optional.Delegation.last_contact_at",
+      "source_construct": "Delegation.last_contact_at",
+      "source_span": {
+        "end": 2919,
+        "start": 2288
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Delegation.next_followup_at accepts null and non-null values",
+      "id": "entity-optional.Delegation.next_followup_at",
+      "source_construct": "Delegation.next_followup_at",
+      "source_span": {
+        "end": 2919,
+        "start": 2288
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Delegation.result_note accepts null and non-null values",
+      "id": "entity-optional.Delegation.result_note",
+      "source_construct": "Delegation.result_note",
+      "source_span": {
+        "end": 2919,
+        "start": 2288
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition running -> finished on ExecutionOccurrence.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "ExecutionOccurrence",
+        "field": "status",
+        "from": "running",
+        "to": "finished"
+      },
+      "id": "transition-edge.ExecutionOccurrence.running.finished",
+      "source_construct": "ExecutionOccurrence.status",
+      "source_span": {
+        "end": 3185,
+        "start": 3166
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition running -> abandoned on ExecutionOccurrence.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "ExecutionOccurrence",
+        "field": "status",
+        "from": "running",
+        "to": "abandoned"
+      },
+      "id": "transition-edge.ExecutionOccurrence.running.abandoned",
+      "source_construct": "ExecutionOccurrence.status",
+      "source_span": {
+        "end": 3214,
+        "start": 3194
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on ExecutionOccurrence.status are rejected",
+      "id": "transition-rejected.ExecutionOccurrence.status",
+      "source_construct": "ExecutionOccurrence.status",
+      "source_span": {
+        "end": 3258,
+        "start": 3137
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on ExecutionOccurrence.status have no outbound transitions",
+      "detail": {
+        "entity": "ExecutionOccurrence",
+        "field": "status",
+        "states": [
+          "finished",
+          "abandoned"
+        ]
+      },
+      "id": "transition-terminal.ExecutionOccurrence.status",
+      "source_construct": "ExecutionOccurrence.status",
+      "source_span": {
+        "end": 3258,
+        "start": 3137
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on ExecutionOccurrence are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "brick",
+          "status",
+          "started_at",
+          "finished_at",
+          "outcome",
+          "completion_note"
+        ]
+      },
+      "id": "entity-fields.ExecutionOccurrence",
+      "source_construct": "ExecutionOccurrence",
+      "source_span": {
+        "end": 3260,
+        "start": 2921
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field ExecutionOccurrence.started_at accepts null and non-null values",
+      "id": "entity-optional.ExecutionOccurrence.started_at",
+      "source_construct": "ExecutionOccurrence.started_at",
+      "source_span": {
+        "end": 3260,
+        "start": 2921
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field ExecutionOccurrence.finished_at accepts null and non-null values",
+      "id": "entity-optional.ExecutionOccurrence.finished_at",
+      "source_construct": "ExecutionOccurrence.finished_at",
+      "source_span": {
+        "end": 3260,
+        "start": 2921
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field ExecutionOccurrence.outcome accepts null and non-null values",
+      "id": "entity-optional.ExecutionOccurrence.outcome",
+      "source_construct": "ExecutionOccurrence.outcome",
+      "source_span": {
+        "end": 3260,
+        "start": 2921
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field ExecutionOccurrence.completion_note accepts null and non-null values",
+      "id": "entity-optional.ExecutionOccurrence.completion_note",
+      "source_construct": "ExecutionOccurrence.completion_note",
+      "source_span": {
+        "end": 3260,
+        "start": 2921
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on ServedSkip are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "brick",
+          "reason",
+          "raw_text",
+          "recorded_at"
+        ]
+      },
+      "id": "entity-fields.ServedSkip",
+      "source_construct": "ServedSkip",
+      "source_span": {
+        "end": 3394,
+        "start": 3262
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field ServedSkip.raw_text accepts null and non-null values",
+      "id": "entity-optional.ServedSkip.raw_text",
+      "source_construct": "ServedSkip.raw_text",
+      "source_span": {
+        "end": 3394,
+        "start": 3262
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition pending -> acknowledged on DateNotice.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "from": "pending",
+        "to": "acknowledged"
+      },
+      "id": "transition-edge.DateNotice.pending.acknowledged",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3666,
+        "start": 3643
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition pending -> snoozed on DateNotice.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "from": "pending",
+        "to": "snoozed"
+      },
+      "id": "transition-edge.DateNotice.pending.snoozed",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3693,
+        "start": 3675
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition pending -> resolved on DateNotice.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "from": "pending",
+        "to": "resolved"
+      },
+      "id": "transition-edge.DateNotice.pending.resolved",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3721,
+        "start": 3702
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition snoozed -> pending on DateNotice.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "from": "snoozed",
+        "to": "pending"
+      },
+      "id": "transition-edge.DateNotice.snoozed.pending",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3748,
+        "start": 3730
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition snoozed -> acknowledged on DateNotice.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "from": "snoozed",
+        "to": "acknowledged"
+      },
+      "id": "transition-edge.DateNotice.snoozed.acknowledged",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3780,
+        "start": 3757
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition snoozed -> resolved on DateNotice.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "from": "snoozed",
+        "to": "resolved"
+      },
+      "id": "transition-edge.DateNotice.snoozed.resolved",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3808,
+        "start": 3789
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition acknowledged -> resolved on DateNotice.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "from": "acknowledged",
+        "to": "resolved"
+      },
+      "id": "transition-edge.DateNotice.acknowledged.resolved",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3841,
+        "start": 3817
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on DateNotice.status are rejected",
+      "id": "transition-rejected.DateNotice.status",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3874,
+        "start": 3614
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on DateNotice.status have no outbound transitions",
+      "detail": {
+        "entity": "DateNotice",
+        "field": "status",
+        "states": [
+          "resolved"
+        ]
+      },
+      "id": "transition-terminal.DateNotice.status",
+      "source_construct": "DateNotice.status",
+      "source_span": {
+        "end": 3874,
+        "start": 3614
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on DateNotice are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "brick",
+          "kind",
+          "date_value",
+          "date_revision",
+          "status",
+          "created_at",
+          "snoozed_until"
+        ]
+      },
+      "id": "entity-fields.DateNotice",
+      "source_construct": "DateNotice",
+      "source_span": {
+        "end": 3876,
+        "start": 3396
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field DateNotice.snoozed_until accepts null and non-null values",
+      "id": "entity-optional.DateNotice.snoozed_until",
+      "source_construct": "DateNotice.snoozed_until",
+      "source_span": {
+        "end": 3876,
+        "start": 3396
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition active -> paused on RecurrenceRule.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RecurrenceRule",
+        "field": "status",
+        "from": "active",
+        "to": "paused"
+      },
+      "id": "transition-edge.RecurrenceRule.active.paused",
+      "source_construct": "RecurrenceRule.status",
+      "source_span": {
+        "end": 4276,
+        "start": 4260
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition active -> retired on RecurrenceRule.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RecurrenceRule",
+        "field": "status",
+        "from": "active",
+        "to": "retired"
+      },
+      "id": "transition-edge.RecurrenceRule.active.retired",
+      "source_construct": "RecurrenceRule.status",
+      "source_span": {
+        "end": 4302,
+        "start": 4285
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition paused -> active on RecurrenceRule.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RecurrenceRule",
+        "field": "status",
+        "from": "paused",
+        "to": "active"
+      },
+      "id": "transition-edge.RecurrenceRule.paused.active",
+      "source_construct": "RecurrenceRule.status",
+      "source_span": {
+        "end": 4327,
+        "start": 4311
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition paused -> retired on RecurrenceRule.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "RecurrenceRule",
+        "field": "status",
+        "from": "paused",
+        "to": "retired"
+      },
+      "id": "transition-edge.RecurrenceRule.paused.retired",
+      "source_construct": "RecurrenceRule.status",
+      "source_span": {
+        "end": 4353,
+        "start": 4336
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on RecurrenceRule.status are rejected",
+      "id": "transition-rejected.RecurrenceRule.status",
+      "source_construct": "RecurrenceRule.status",
+      "source_span": {
+        "end": 4385,
+        "start": 4231
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on RecurrenceRule.status have no outbound transitions",
+      "detail": {
+        "entity": "RecurrenceRule",
+        "field": "status",
+        "states": [
+          "retired"
+        ]
+      },
+      "id": "transition-terminal.RecurrenceRule.status",
+      "source_construct": "RecurrenceRule.status",
+      "source_span": {
+        "end": 4385,
+        "start": 4231
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RecurrenceRule are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "target",
+          "kind",
+          "schedule",
+          "timezone",
+          "status",
+          "next_release_at",
+          "created_at",
+          "practice_history"
+        ]
+      },
+      "id": "entity-fields.RecurrenceRule",
+      "source_construct": "RecurrenceRule",
+      "source_span": {
+        "end": 4387,
+        "start": 3878
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value RecurrenceRule.practice_history computes correctly",
+      "id": "derived.RecurrenceRule.practice_history",
+      "source_construct": "RecurrenceRule.practice_history",
+      "source_span": {
+        "end": 4387,
+        "start": 3878
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on ObligationOccurrence are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "rule",
+          "period_key",
+          "brick",
+          "released_at"
+        ]
+      },
+      "id": "entity-fields.ObligationOccurrence",
+      "source_construct": "ObligationOccurrence",
+      "source_span": {
+        "end": 4534,
+        "start": 4389
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on RecurrenceRevision are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "rule",
+          "prior_schedule",
+          "new_schedule",
+          "prior_timezone",
+          "new_timezone",
+          "next_release_at",
+          "reason",
+          "authority",
+          "revised_at"
+        ]
+      },
+      "id": "entity-fields.RecurrenceRevision",
+      "source_construct": "RecurrenceRevision",
+      "source_span": {
+        "end": 4817,
+        "start": 4536
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> done on PracticeOpportunity.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "PracticeOpportunity",
+        "field": "status",
+        "from": "open",
+        "to": "done"
+      },
+      "id": "transition-edge.PracticeOpportunity.open.done",
+      "source_construct": "PracticeOpportunity.status",
+      "source_span": {
+        "end": 5097,
+        "start": 5085
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> not_done on PracticeOpportunity.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "PracticeOpportunity",
+        "field": "status",
+        "from": "open",
+        "to": "not_done"
+      },
+      "id": "transition-edge.PracticeOpportunity.open.not_done",
+      "source_construct": "PracticeOpportunity.status",
+      "source_span": {
+        "end": 5122,
+        "start": 5106
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition open -> not_applicable on PracticeOpportunity.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "PracticeOpportunity",
+        "field": "status",
+        "from": "open",
+        "to": "not_applicable"
+      },
+      "id": "transition-edge.PracticeOpportunity.open.not_applicable",
+      "source_construct": "PracticeOpportunity.status",
+      "source_span": {
+        "end": 5153,
+        "start": 5131
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on PracticeOpportunity.status are rejected",
+      "id": "transition-rejected.PracticeOpportunity.status",
+      "source_construct": "PracticeOpportunity.status",
+      "source_span": {
+        "end": 5208,
+        "start": 5056
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on PracticeOpportunity.status have no outbound transitions",
+      "detail": {
+        "entity": "PracticeOpportunity",
+        "field": "status",
+        "states": [
+          "done",
+          "not_done",
+          "not_applicable"
+        ]
+      },
+      "id": "transition-terminal.PracticeOpportunity.status",
+      "source_construct": "PracticeOpportunity.status",
+      "source_span": {
+        "end": 5208,
+        "start": 5056
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on PracticeOpportunity are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "rule",
+          "period_key",
+          "status",
+          "window_start",
+          "window_end",
+          "resolved_at",
+          "reason"
+        ]
+      },
+      "id": "entity-fields.PracticeOpportunity",
+      "source_construct": "PracticeOpportunity",
+      "source_span": {
+        "end": 5210,
+        "start": 4819
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field PracticeOpportunity.resolved_at accepts null and non-null values",
+      "id": "entity-optional.PracticeOpportunity.resolved_at",
+      "source_construct": "PracticeOpportunity.resolved_at",
+      "source_span": {
+        "end": 5210,
+        "start": 4819
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field PracticeOpportunity.reason accepts null and non-null values",
+      "id": "entity-optional.PracticeOpportunity.reason",
+      "source_construct": "PracticeOpportunity.reason",
+      "source_span": {
+        "end": 5210,
+        "start": 4819
+      }
+    },
+    {
+      "category": "transition_edge",
+      "description": "Verify transition active -> retired on OpportunityTrigger.status is reachable via a witnessing rule",
+      "detail": {
+        "entity": "OpportunityTrigger",
+        "field": "status",
+        "from": "active",
+        "to": "retired"
+      },
+      "id": "transition-edge.OpportunityTrigger.active.retired",
+      "source_construct": "OpportunityTrigger.status",
+      "source_span": {
+        "end": 5419,
+        "start": 5402
+      }
+    },
+    {
+      "category": "transition_rejected",
+      "description": "Verify undeclared transitions on OpportunityTrigger.status are rejected",
+      "id": "transition-rejected.OpportunityTrigger.status",
+      "source_construct": "OpportunityTrigger.status",
+      "source_span": {
+        "end": 5451,
+        "start": 5373
+      }
+    },
+    {
+      "category": "transition_terminal",
+      "description": "Verify terminal states on OpportunityTrigger.status have no outbound transitions",
+      "detail": {
+        "entity": "OpportunityTrigger",
+        "field": "status",
+        "states": [
+          "retired"
+        ]
+      },
+      "id": "transition-terminal.OpportunityTrigger.status",
+      "source_construct": "OpportunityTrigger.status",
+      "source_span": {
+        "end": 5451,
+        "start": 5373
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on OpportunityTrigger are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "source",
+          "target",
+          "status",
+          "created_at"
+        ]
+      },
+      "id": "entity-fields.OpportunityTrigger",
+      "source_construct": "OpportunityTrigger",
+      "source_span": {
+        "end": 5453,
+        "start": 5212
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on TriggeredOpportunity are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "trigger",
+          "source_event_id",
+          "target",
+          "released_at",
+          "consumed_at"
+        ]
+      },
+      "id": "entity-fields.TriggeredOpportunity",
+      "source_construct": "TriggeredOpportunity",
+      "source_span": {
+        "end": 5641,
+        "start": 5455
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field TriggeredOpportunity.consumed_at accepts null and non-null values",
+      "id": "entity-optional.TriggeredOpportunity.consumed_at",
+      "source_construct": "TriggeredOpportunity.consumed_at",
+      "source_span": {
+        "end": 5641,
+        "start": 5455
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Place are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "label",
+          "created_at"
+        ]
+      },
+      "id": "entity-fields.Place",
+      "source_construct": "Place",
+      "source_span": {
+        "end": 5718,
+        "start": 5643
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on PlaceCondition are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "brick",
+          "place",
+          "strength",
+          "created_at"
+        ]
+      },
+      "id": "entity-fields.PlaceCondition",
+      "source_construct": "PlaceCondition",
+      "source_span": {
+        "end": 5855,
+        "start": 5720
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on LocationObservation are present with correct types",
+      "detail": {
+        "fields": [
+          "id",
+          "place",
+          "kind",
+          "observed_at",
+          "expires_at",
+          "authority",
+          "source",
+          "external_observation_id"
+        ]
+      },
+      "id": "entity-fields.LocationObservation",
+      "source_construct": "LocationObservation",
+      "source_span": {
+        "end": 6094,
+        "start": 5857
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field LocationObservation.external_observation_id accepts null and non-null values",
+      "id": "entity-optional.LocationObservation.external_observation_id",
+      "source_construct": "LocationObservation.external_observation_id",
+      "source_span": {
+        "end": 6094,
+        "start": 5857
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type PracticeHistoryView has structural equality",
+      "id": "value-equality.PracticeHistoryView",
+      "source_construct": "PracticeHistoryView",
+      "source_span": {
+        "end": 6463,
+        "start": 6250
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on PracticeHistoryView are present with correct types",
+      "detail": {
+        "fields": [
+          "target",
+          "marks",
+          "current_streak",
+          "best_streak",
+          "applicable_count",
+          "done_count",
+          "not_done_count"
+        ]
+      },
+      "id": "entity-fields.PracticeHistoryView",
+      "source_construct": "PracticeHistoryView",
+      "source_span": {
+        "end": 6463,
+        "start": 6250
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract PracticeProjection.history",
+      "id": "contract-signature.PracticeProjection.history",
+      "source_construct": "PracticeProjection.history",
+      "source_span": {
+        "end": 6625,
+        "start": 6499
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter soft_wip_limit has its declared default",
+      "id": "config-default.soft_wip_limit",
+      "source_construct": "config.soft_wip_limit",
+      "source_span": {
+        "end": 7186,
+        "start": 7159
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter best_before_notice_lead has its declared default",
+      "id": "config-default.best_before_notice_lead",
+      "source_construct": "config.best_before_notice_lead",
+      "source_span": {
+        "end": 7233,
+        "start": 7191
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter deadline_notice_lead has its declared default",
+      "id": "config-default.deadline_notice_lead",
+      "source_construct": "config.deadline_notice_lead",
+      "source_span": {
+        "end": 7277,
+        "start": 7238
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter location_observation_ttl has its declared default",
+      "id": "config-default.location_observation_ttl",
+      "source_construct": "config.location_observation_ttl",
+      "source_span": {
+        "end": 7326,
+        "start": 7282
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRenamed succeeds when all preconditions are met",
+      "id": "rule-success.BrickRenamed",
+      "source_construct": "BrickRenamed",
+      "source_span": {
+        "end": 7888,
+        "start": 7540
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRenamed is rejected when requires clause fails",
+      "id": "rule-failure.BrickRenamed.1",
+      "source_construct": "BrickRenamed",
+      "source_span": {
+        "end": 7642,
+        "start": 7611
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRenamed is rejected when requires clause fails",
+      "id": "rule-failure.BrickRenamed.2",
+      "source_construct": "BrickRenamed",
+      "source_span": {
+        "end": 7686,
+        "start": 7647
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickOriginalTitleSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickOriginalTitleSet",
+      "source_construct": "BrickOriginalTitleSet",
+      "source_span": {
+        "end": 8062,
+        "start": 7890
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickOriginalTitleSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickOriginalTitleSet.1",
+      "source_construct": "BrickOriginalTitleSet",
+      "source_span": {
+        "end": 8009,
+        "start": 7978
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickOriginalTitleCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickOriginalTitleCleared",
+      "source_construct": "BrickOriginalTitleCleared",
+      "source_span": {
+        "end": 8259,
+        "start": 8064
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickOriginalTitleCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickOriginalTitleCleared.1",
+      "source_construct": "BrickOriginalTitleCleared",
+      "source_span": {
+        "end": 8173,
+        "start": 8142
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickOriginalTitleCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickOriginalTitleCleared.2",
+      "source_construct": "BrickOriginalTitleCleared",
+      "source_span": {
+        "end": 8216,
+        "start": 8178
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDescribed succeeds when all preconditions are met",
+      "id": "rule-success.BrickDescribed",
+      "source_construct": "BrickDescribed",
+      "source_span": {
+        "end": 8559,
+        "start": 8261
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDescribed is rejected when requires clause fails",
+      "id": "rule-failure.BrickDescribed.1",
+      "source_construct": "BrickDescribed",
+      "source_span": {
+        "end": 8362,
+        "start": 8331
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDescriptionCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickDescriptionCleared",
+      "source_construct": "BrickDescriptionCleared",
+      "source_span": {
+        "end": 8896,
+        "start": 8561
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDescriptionCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickDescriptionCleared.1",
+      "source_construct": "BrickDescriptionCleared",
+      "source_span": {
+        "end": 8666,
+        "start": 8635
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDescriptionCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickDescriptionCleared.2",
+      "source_construct": "BrickDescriptionCleared",
+      "source_span": {
+        "end": 8706,
+        "start": 8671
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickPhaseSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickPhaseSet",
+      "source_construct": "BrickPhaseSet",
+      "source_span": {
+        "end": 9136,
+        "start": 8898
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickPhaseSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickPhaseSet.1",
+      "source_construct": "BrickPhaseSet",
+      "source_span": {
+        "end": 9003,
+        "start": 8972
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickPhaseSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickPhaseSet.2",
+      "source_construct": "BrickPhaseSet",
+      "source_span": {
+        "end": 9051,
+        "start": 9008
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickPhaseCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickPhaseCleared",
+      "source_construct": "BrickPhaseCleared",
+      "source_span": {
+        "end": 9358,
+        "start": 9138
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickPhaseCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickPhaseCleared.1",
+      "source_construct": "BrickPhaseCleared",
+      "source_span": {
+        "end": 9231,
+        "start": 9200
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickPhaseCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickPhaseCleared.2",
+      "source_construct": "BrickPhaseCleared",
+      "source_span": {
+        "end": 9279,
+        "start": 9236
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickContextSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickContextSet",
+      "source_construct": "BrickContextSet",
+      "source_span": {
+        "end": 9499,
+        "start": 9360
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickContextSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickContextSet.1",
+      "source_construct": "BrickContextSet",
+      "source_span": {
+        "end": 9460,
+        "start": 9429
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickContextCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickContextCleared",
+      "source_construct": "BrickContextCleared",
+      "source_span": {
+        "end": 9670,
+        "start": 9501
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickContextCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickContextCleared.1",
+      "source_construct": "BrickContextCleared",
+      "source_span": {
+        "end": 9598,
+        "start": 9567
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickContextCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickContextCleared.2",
+      "source_construct": "BrickContextCleared",
+      "source_span": {
+        "end": 9634,
+        "start": 9603
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickModeSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickModeSet",
+      "source_construct": "BrickModeSet",
+      "source_span": {
+        "end": 9796,
+        "start": 9672
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickModeSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickModeSet.1",
+      "source_construct": "BrickModeSet",
+      "source_span": {
+        "end": 9763,
+        "start": 9732
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickModeCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickModeCleared",
+      "source_construct": "BrickModeCleared",
+      "source_span": {
+        "end": 9955,
+        "start": 9798
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickModeCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickModeCleared.1",
+      "source_construct": "BrickModeCleared",
+      "source_span": {
+        "end": 9889,
+        "start": 9858
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickModeCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickModeCleared.2",
+      "source_construct": "BrickModeCleared",
+      "source_span": {
+        "end": 9922,
+        "start": 9894
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickNotBeforeSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickNotBeforeSet",
+      "source_construct": "BrickNotBeforeSet",
+      "source_span": {
+        "end": 10208,
+        "start": 9957
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickNotBeforeSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickNotBeforeSet.1",
+      "source_construct": "BrickNotBeforeSet",
+      "source_span": {
+        "end": 10059,
+        "start": 10028
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickNotBeforeCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickNotBeforeCleared",
+      "source_construct": "BrickNotBeforeCleared",
+      "source_span": {
+        "end": 10498,
+        "start": 10210
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickNotBeforeCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickNotBeforeCleared.1",
+      "source_construct": "BrickNotBeforeCleared",
+      "source_span": {
+        "end": 10311,
+        "start": 10280
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickNotBeforeCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickNotBeforeCleared.2",
+      "source_construct": "BrickNotBeforeCleared",
+      "source_span": {
+        "end": 10350,
+        "start": 10316
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickBestBeforeSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickBestBeforeSet",
+      "source_construct": "BrickBestBeforeSet",
+      "source_span": {
+        "end": 10754,
+        "start": 10500
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickBestBeforeSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickBestBeforeSet.1",
+      "source_construct": "BrickBestBeforeSet",
+      "source_span": {
+        "end": 10604,
+        "start": 10573
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickBestBeforeCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickBestBeforeCleared",
+      "source_construct": "BrickBestBeforeCleared",
+      "source_span": {
+        "end": 11048,
+        "start": 10756
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickBestBeforeCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickBestBeforeCleared.1",
+      "source_construct": "BrickBestBeforeCleared",
+      "source_span": {
+        "end": 10859,
+        "start": 10828
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickBestBeforeCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickBestBeforeCleared.2",
+      "source_construct": "BrickBestBeforeCleared",
+      "source_span": {
+        "end": 10899,
+        "start": 10864
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDeadlineSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickDeadlineSet",
+      "source_construct": "BrickDeadlineSet",
+      "source_span": {
+        "end": 11297,
+        "start": 11050
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDeadlineSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickDeadlineSet.1",
+      "source_construct": "BrickDeadlineSet",
+      "source_span": {
+        "end": 11150,
+        "start": 11119
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDeadlineCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickDeadlineCleared",
+      "source_construct": "BrickDeadlineCleared",
+      "source_span": {
+        "end": 11581,
+        "start": 11299
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDeadlineCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickDeadlineCleared.1",
+      "source_construct": "BrickDeadlineCleared",
+      "source_span": {
+        "end": 11398,
+        "start": 11367
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickDeadlineCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickDeadlineCleared.2",
+      "source_construct": "BrickDeadlineCleared",
+      "source_span": {
+        "end": 11435,
+        "start": 11403
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRequesterSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickRequesterSet",
+      "source_construct": "BrickRequesterSet",
+      "source_span": {
+        "end": 11732,
+        "start": 11583
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRequesterSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickRequesterSet.1",
+      "source_construct": "BrickRequesterSet",
+      "source_span": {
+        "end": 11689,
+        "start": 11658
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRequesterCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickRequesterCleared",
+      "source_construct": "BrickRequesterCleared",
+      "source_span": {
+        "end": 11911,
+        "start": 11734
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRequesterCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickRequesterCleared.1",
+      "source_construct": "BrickRequesterCleared",
+      "source_span": {
+        "end": 11835,
+        "start": 11804
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickRequesterCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickRequesterCleared.2",
+      "source_construct": "BrickRequesterCleared",
+      "source_span": {
+        "end": 11873,
+        "start": 11840
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAboutSet succeeds when all preconditions are met",
+      "id": "rule-success.BrickAboutSet",
+      "source_construct": "BrickAboutSet",
+      "source_span": {
+        "end": 12071,
+        "start": 11913
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAboutSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickAboutSet.1",
+      "source_construct": "BrickAboutSet",
+      "source_span": {
+        "end": 12007,
+        "start": 11976
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAboutSet is rejected when requires clause fails",
+      "id": "rule-failure.BrickAboutSet.2",
+      "source_construct": "BrickAboutSet",
+      "source_span": {
+        "end": 12036,
+        "start": 12012
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAboutCleared succeeds when all preconditions are met",
+      "id": "rule-success.BrickAboutCleared",
+      "source_construct": "BrickAboutCleared",
+      "source_span": {
+        "end": 12234,
+        "start": 12073
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAboutCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickAboutCleared.1",
+      "source_construct": "BrickAboutCleared",
+      "source_span": {
+        "end": 12166,
+        "start": 12135
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickAboutCleared is rejected when requires clause fails",
+      "id": "rule-failure.BrickAboutCleared.2",
+      "source_construct": "BrickAboutCleared",
+      "source_span": {
+        "end": 12200,
+        "start": 12171
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "WipReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule IdleBrickFocused succeeds when all preconditions are met",
+      "id": "rule-success.IdleBrickFocused",
+      "source_construct": "IdleBrickFocused",
+      "source_span": {
+        "end": 12696,
+        "start": 12314
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "WipReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule IdleBrickFocused is rejected when requires clause fails",
+      "id": "rule-failure.IdleBrickFocused.1",
+      "source_construct": "IdleBrickFocused",
+      "source_span": {
+        "end": 12401,
+        "start": 12370
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "WipReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule IdleBrickFocused is rejected when requires clause fails",
+      "id": "rule-failure.IdleBrickFocused.2",
+      "source_construct": "IdleBrickFocused",
+      "source_span": {
+        "end": 12439,
+        "start": 12406
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "WipReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule IdleBrickFocused is rejected when requires clause fails",
+      "id": "rule-failure.IdleBrickFocused.3",
+      "source_construct": "IdleBrickFocused",
+      "source_span": {
+        "end": 12479,
+        "start": 12444
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingWipFocused succeeds when all preconditions are met",
+      "id": "rule-success.ExistingWipFocused",
+      "source_construct": "ExistingWipFocused",
+      "source_span": {
+        "end": 12940,
+        "start": 12698
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingWipFocused is rejected when requires clause fails",
+      "id": "rule-failure.ExistingWipFocused.1",
+      "source_construct": "ExistingWipFocused",
+      "source_span": {
+        "end": 12787,
+        "start": 12756
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingWipFocused is rejected when requires clause fails",
+      "id": "rule-failure.ExistingWipFocused.2",
+      "source_construct": "ExistingWipFocused",
+      "source_span": {
+        "end": 12824,
+        "start": 12792
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExistingWipFocused is rejected when requires clause fails",
+      "id": "rule-failure.ExistingWipFocused.3",
+      "source_construct": "ExistingWipFocused",
+      "source_span": {
+        "end": 12864,
+        "start": 12829
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentBrickUnfocused succeeds when all preconditions are met",
+      "id": "rule-success.CurrentBrickUnfocused",
+      "source_construct": "CurrentBrickUnfocused",
+      "source_span": {
+        "end": 13113,
+        "start": 12942
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CurrentBrickUnfocused is rejected when requires clause fails",
+      "id": "rule-failure.CurrentBrickUnfocused.1",
+      "source_construct": "CurrentBrickUnfocused",
+      "source_span": {
+        "end": 13038,
+        "start": 13007
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WipReturnedToIdle succeeds when all preconditions are met",
+      "id": "rule-success.WipReturnedToIdle",
+      "source_construct": "WipReturnedToIdle",
+      "source_span": {
+        "end": 13323,
+        "start": 13115
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WipReturnedToIdle is rejected when requires clause fails",
+      "id": "rule-failure.WipReturnedToIdle.1",
+      "source_construct": "WipReturnedToIdle",
+      "source_span": {
+        "end": 13210,
+        "start": 13179
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WipReturnedToIdle is rejected when requires clause fails",
+      "id": "rule-failure.WipReturnedToIdle.2",
+      "source_construct": "WipReturnedToIdle",
+      "source_span": {
+        "end": 13247,
+        "start": 13215
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WipReturnedToIdle is rejected when requires clause fails",
+      "id": "rule-failure.WipReturnedToIdle.3",
+      "source_construct": "WipReturnedToIdle",
+      "source_span": {
+        "end": 13284,
+        "start": 13252
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule FiniteBrickCompletedDirectly succeeds when all preconditions are met",
+      "id": "rule-success.FiniteBrickCompletedDirectly",
+      "source_construct": "FiniteBrickCompletedDirectly",
+      "source_span": {
+        "end": 14155,
+        "start": 13403
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule FiniteBrickCompletedDirectly is rejected when requires clause fails",
+      "id": "rule-failure.FiniteBrickCompletedDirectly.1",
+      "source_construct": "FiniteBrickCompletedDirectly",
+      "source_span": {
+        "end": 13512,
+        "start": 13481
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule FiniteBrickCompletedDirectly is rejected when requires clause fails",
+      "id": "rule-failure.FiniteBrickCompletedDirectly.2",
+      "source_construct": "FiniteBrickCompletedDirectly",
+      "source_span": {
+        "end": 13559,
+        "start": 13517
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule FiniteBrickCompletedDirectly is rejected when requires clause fails",
+      "id": "rule-failure.FiniteBrickCompletedDirectly.3",
+      "source_construct": "FiniteBrickCompletedDirectly",
+      "source_span": {
+        "end": 13605,
+        "start": 13564
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingBrickRetiredAsDone succeeds when all preconditions are met",
+      "id": "rule-success.StandingBrickRetiredAsDone",
+      "source_construct": "StandingBrickRetiredAsDone",
+      "source_span": {
+        "end": 14871,
+        "start": 14157
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingBrickRetiredAsDone is rejected when requires clause fails",
+      "id": "rule-failure.StandingBrickRetiredAsDone.1",
+      "source_construct": "StandingBrickRetiredAsDone",
+      "source_span": {
+        "end": 14270,
+        "start": 14239
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingBrickRetiredAsDone is rejected when requires clause fails",
+      "id": "rule-failure.StandingBrickRetiredAsDone.2",
+      "source_construct": "StandingBrickRetiredAsDone",
+      "source_span": {
+        "end": 14319,
+        "start": 14275
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingBrickRetiredAsDone is rejected when requires clause fails",
+      "id": "rule-failure.StandingBrickRetiredAsDone.3",
+      "source_construct": "StandingBrickRetiredAsDone",
+      "source_span": {
+        "end": 14365,
+        "start": 14324
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickDropped"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule LeafBrickDropped succeeds when all preconditions are met",
+      "id": "rule-success.LeafBrickDropped",
+      "source_construct": "LeafBrickDropped",
+      "source_span": {
+        "end": 15283,
+        "start": 14873
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickDropped"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule LeafBrickDropped is rejected when requires clause fails",
+      "id": "rule-failure.LeafBrickDropped.1",
+      "source_construct": "LeafBrickDropped",
+      "source_span": {
+        "end": 14968,
+        "start": 14937
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickDropped"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule LeafBrickDropped is rejected when requires clause fails",
+      "id": "rule-failure.LeafBrickDropped.2",
+      "source_construct": "LeafBrickDropped",
+      "source_span": {
+        "end": 15014,
+        "start": 14973
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededByExistingBrick succeeds when all preconditions are met",
+      "id": "rule-success.BrickSupersededByExistingBrick",
+      "source_construct": "BrickSupersededByExistingBrick",
+      "source_span": {
+        "end": 16066,
+        "start": 15285
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededByExistingBrick is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededByExistingBrick.1",
+      "source_construct": "BrickSupersededByExistingBrick",
+      "source_span": {
+        "end": 15412,
+        "start": 15381
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededByExistingBrick is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededByExistingBrick.2",
+      "source_construct": "BrickSupersededByExistingBrick",
+      "source_span": {
+        "end": 15454,
+        "start": 15417
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededByExistingBrick is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededByExistingBrick.3",
+      "source_construct": "BrickSupersededByExistingBrick",
+      "source_span": {
+        "end": 15489,
+        "start": 15459
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededByExistingBrick is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededByExistingBrick.4",
+      "source_construct": "BrickSupersededByExistingBrick",
+      "source_span": {
+        "end": 15537,
+        "start": 15494
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededByExistingBrick is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededByExistingBrick.5",
+      "source_construct": "BrickSupersededByExistingBrick",
+      "source_span": {
+        "end": 15583,
+        "start": 15542
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededWithExplicitChildTransfer succeeds when all preconditions are met",
+      "id": "rule-success.BrickSupersededWithExplicitChildTransfer",
+      "source_construct": "BrickSupersededWithExplicitChildTransfer",
+      "source_span": {
+        "end": 18794,
+        "start": 16068
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededWithExplicitChildTransfer is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededWithExplicitChildTransfer.1",
+      "source_construct": "BrickSupersededWithExplicitChildTransfer",
+      "source_span": {
+        "end": 16269,
+        "start": 16238
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededWithExplicitChildTransfer is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededWithExplicitChildTransfer.2",
+      "source_construct": "BrickSupersededWithExplicitChildTransfer",
+      "source_span": {
+        "end": 16311,
+        "start": 16274
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededWithExplicitChildTransfer is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededWithExplicitChildTransfer.3",
+      "source_construct": "BrickSupersededWithExplicitChildTransfer",
+      "source_span": {
+        "end": 16346,
+        "start": 16316
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededWithExplicitChildTransfer is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededWithExplicitChildTransfer.4",
+      "source_construct": "BrickSupersededWithExplicitChildTransfer",
+      "source_span": {
+        "end": 16394,
+        "start": 16351
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededWithExplicitChildTransfer is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededWithExplicitChildTransfer.5",
+      "source_construct": "BrickSupersededWithExplicitChildTransfer",
+      "source_span": {
+        "end": 16458,
+        "start": 16399
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BrickSupersededWithExplicitChildTransfer is rejected when requires clause fails",
+      "id": "rule-failure.BrickSupersededWithExplicitChildTransfer.6",
+      "source_construct": "BrickSupersededWithExplicitChildTransfer",
+      "source_span": {
+        "end": 16508,
+        "start": 16463
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WholeSubtreeCompleted succeeds when all preconditions are met",
+      "id": "rule-success.WholeSubtreeCompleted",
+      "source_construct": "WholeSubtreeCompleted",
+      "source_span": {
+        "end": 19352,
+        "start": 18796
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickCompletionRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WholeSubtreeCompleted is rejected when requires clause fails",
+      "id": "rule-failure.WholeSubtreeCompleted.1",
+      "source_construct": "WholeSubtreeCompleted",
+      "source_span": {
+        "end": 18898,
+        "start": 18868
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickDropped"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WholeSubtreeDropped succeeds when all preconditions are met",
+      "id": "rule-success.WholeSubtreeDropped",
+      "source_construct": "WholeSubtreeDropped",
+      "source_span": {
+        "end": 19804,
+        "start": 19354
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "BrickDropped"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WholeSubtreeDropped is rejected when requires clause fails",
+      "id": "rule-failure.WholeSubtreeDropped.1",
+      "source_construct": "WholeSubtreeDropped",
+      "source_span": {
+        "end": 19452,
+        "start": 19422
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMoved succeeds when all preconditions are met",
+      "id": "rule-success.ActiveSubtreeMoved",
+      "source_construct": "ActiveSubtreeMoved",
+      "source_span": {
+        "end": 22727,
+        "start": 19806
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMoved is rejected when requires clause fails",
+      "id": "rule-failure.ActiveSubtreeMoved.1",
+      "source_construct": "ActiveSubtreeMoved",
+      "source_span": {
+        "end": 19917,
+        "start": 19887
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMoved is rejected when requires clause fails",
+      "id": "rule-failure.ActiveSubtreeMoved.2",
+      "source_construct": "ActiveSubtreeMoved",
+      "source_span": {
+        "end": 19957,
+        "start": 19922
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMoved is rejected when requires clause fails",
+      "id": "rule-failure.ActiveSubtreeMoved.3",
+      "source_construct": "ActiveSubtreeMoved",
+      "source_span": {
+        "end": 19998,
+        "start": 19962
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMoved is rejected when requires clause fails",
+      "id": "rule-failure.ActiveSubtreeMoved.4",
+      "source_construct": "ActiveSubtreeMoved",
+      "source_span": {
+        "end": 20044,
+        "start": 20003
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ActiveSubtreeMoved ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ActiveSubtreeMoved.1",
+      "source_construct": "ActiveSubtreeMoved",
+      "source_span": {
+        "end": 22203,
+        "start": 20380
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMovedToRoot succeeds when all preconditions are met",
+      "id": "rule-success.ActiveSubtreeMovedToRoot",
+      "source_construct": "ActiveSubtreeMovedToRoot",
+      "source_span": {
+        "end": 24545,
+        "start": 22729
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMovedToRoot is rejected when requires clause fails",
+      "id": "rule-failure.ActiveSubtreeMovedToRoot.1",
+      "source_construct": "ActiveSubtreeMovedToRoot",
+      "source_span": {
+        "end": 22829,
+        "start": 22799
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ActiveSubtreeMovedToRoot is rejected when requires clause fails",
+      "id": "rule-failure.ActiveSubtreeMovedToRoot.2",
+      "source_construct": "ActiveSubtreeMovedToRoot",
+      "source_span": {
+        "end": 22863,
+        "start": 22834
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "ScopeReviewSuggested"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ActiveSubtreeMovedToRoot ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ActiveSubtreeMovedToRoot.1",
+      "source_construct": "ActiveSubtreeMovedToRoot",
+      "source_span": {
+        "end": 24313,
+        "start": 23105
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalRootRemovedFromPriority succeeds when all preconditions are met",
+      "id": "rule-success.TerminalRootRemovedFromPriority",
+      "source_construct": "TerminalRootRemovedFromPriority",
+      "source_span": {
+        "end": 25231,
+        "start": 24624
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalRootRemovedFromPriority is rejected when requires clause fails",
+      "id": "rule-failure.TerminalRootRemovedFromPriority.1",
+      "source_construct": "TerminalRootRemovedFromPriority",
+      "source_span": {
+        "end": 24776,
+        "start": 24747
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalRootRemovedFromPriority is rejected when requires clause fails",
+      "id": "rule-failure.TerminalRootRemovedFromPriority.2",
+      "source_construct": "TerminalRootRemovedFromPriority",
+      "source_span": {
+        "end": 24821,
+        "start": 24781
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalChildRemovedFromPriority succeeds when all preconditions are met",
+      "id": "rule-success.TerminalChildRemovedFromPriority",
+      "source_construct": "TerminalChildRemovedFromPriority",
+      "source_span": {
+        "end": 25839,
+        "start": 25233
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalChildRemovedFromPriority is rejected when requires clause fails",
+      "id": "rule-failure.TerminalChildRemovedFromPriority.1",
+      "source_construct": "TerminalChildRemovedFromPriority",
+      "source_span": {
+        "end": 25387,
+        "start": 25357
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalChildRemovedFromPriority is rejected when requires clause fails",
+      "id": "rule-failure.TerminalChildRemovedFromPriority.2",
+      "source_construct": "TerminalChildRemovedFromPriority",
+      "source_span": {
+        "end": 25485,
+        "start": 25453
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule LastActiveChildClosed succeeds when all preconditions are met",
+      "id": "rule-success.LastActiveChildClosed",
+      "source_construct": "LastActiveChildClosed",
+      "source_span": {
+        "end": 26353,
+        "start": 25841
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule LastActiveChildClosed is rejected when requires clause fails",
+      "id": "rule-failure.LastActiveChildClosed.1",
+      "source_construct": "LastActiveChildClosed",
+      "source_span": {
+        "end": 25984,
+        "start": 25954
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule LastActiveChildClosed is rejected when requires clause fails",
+      "id": "rule-failure.LastActiveChildClosed.2",
+      "source_construct": "LastActiveChildClosed",
+      "source_span": {
+        "end": 26027,
+        "start": 25989
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule LastActiveChildClosed is rejected when requires clause fails",
+      "id": "rule-failure.LastActiveChildClosed.3",
+      "source_construct": "LastActiveChildClosed",
+      "source_span": {
+        "end": 26081,
+        "start": 26032
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule LastActiveChildClosed is rejected when requires clause fails",
+      "id": "rule-failure.LastActiveChildClosed.4",
+      "source_construct": "LastActiveChildClosed",
+      "source_span": {
+        "end": 26134,
+        "start": 26086
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Wait"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WaitAdded succeeds when all preconditions are met",
+      "id": "rule-success.WaitAdded",
+      "source_construct": "WaitAdded",
+      "source_span": {
+        "end": 26708,
+        "start": 26431
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Wait"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WaitAdded is rejected when requires clause fails",
+      "id": "rule-failure.WaitAdded.1",
+      "source_construct": "WaitAdded",
+      "source_span": {
+        "end": 26530,
+        "start": 26499
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Wait"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule WaitAdded ensures clause produces the specified fields",
+      "id": "rule-entity-creation.WaitAdded.1",
+      "source_construct": "WaitAdded",
+      "source_span": {
+        "end": 26706,
+        "start": 26535
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Wait"
+        ],
+        "entities_written": [
+          "Wait"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WaitResolved succeeds when all preconditions are met",
+      "id": "rule-success.WaitResolved",
+      "source_construct": "WaitResolved",
+      "source_span": {
+        "end": 26867,
+        "start": 26710
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Wait"
+        ],
+        "entities_written": [
+          "Wait"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WaitResolved is rejected when requires clause fails",
+      "id": "rule-failure.WaitResolved.1",
+      "source_construct": "WaitResolved",
+      "source_span": {
+        "end": 26790,
+        "start": 26762
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Wait"
+        ],
+        "entities_written": [
+          "Wait"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WaitCancelled succeeds when all preconditions are met",
+      "id": "rule-success.WaitCancelled",
+      "source_construct": "WaitCancelled",
+      "source_span": {
+        "end": 27027,
+        "start": 26869
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Wait"
+        ],
+        "entities_written": [
+          "Wait"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule WaitCancelled is rejected when requires clause fails",
+      "id": "rule-failure.WaitCancelled.1",
+      "source_construct": "WaitCancelled",
+      "source_span": {
+        "end": 26949,
+        "start": 26921
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Dependency"
+        ],
+        "entities_read": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyAdded succeeds when all preconditions are met",
+      "id": "rule-success.DependencyAdded",
+      "source_construct": "DependencyAdded",
+      "source_span": {
+        "end": 27608,
+        "start": 27029
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Dependency"
+        ],
+        "entities_read": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyAdded is rejected when requires clause fails",
+      "id": "rule-failure.DependencyAdded.1",
+      "source_construct": "DependencyAdded",
+      "source_span": {
+        "end": 27126,
+        "start": 27098
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Dependency"
+        ],
+        "entities_read": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyAdded is rejected when requires clause fails",
+      "id": "rule-failure.DependencyAdded.2",
+      "source_construct": "DependencyAdded",
+      "source_span": {
+        "end": 27164,
+        "start": 27131
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Dependency"
+        ],
+        "entities_read": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyAdded is rejected when requires clause fails",
+      "id": "rule-failure.DependencyAdded.3",
+      "source_construct": "DependencyAdded",
+      "source_span": {
+        "end": 27202,
+        "start": 27169
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Dependency"
+        ],
+        "entities_read": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyAdded is rejected when requires clause fails",
+      "id": "rule-failure.DependencyAdded.4",
+      "source_construct": "DependencyAdded",
+      "source_span": {
+        "end": 27263,
+        "start": 27207
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Dependency"
+        ],
+        "entities_read": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyAdded is rejected when requires clause fails",
+      "id": "rule-failure.DependencyAdded.5",
+      "source_construct": "DependencyAdded",
+      "source_span": {
+        "end": 27333,
+        "start": 27268
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Dependency"
+        ],
+        "entities_read": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule DependencyAdded ensures clause produces the specified fields",
+      "id": "rule-entity-creation.DependencyAdded.1",
+      "source_construct": "DependencyAdded",
+      "source_span": {
+        "end": 27489,
+        "start": 27338
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_written": [
+          "Dependency"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule DependencySatisfiedByCompletion succeeds when all preconditions are met",
+      "id": "rule-success.DependencySatisfiedByCompletion",
+      "source_construct": "DependencySatisfiedByCompletion",
+      "source_span": {
+        "end": 27909,
+        "start": 27610
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_written": [
+          "Dependency"
+        ],
+        "trigger_emissions": [
+          "DependencyReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule DependencyCancelledByNonCompletion succeeds when all preconditions are met",
+      "id": "rule-success.DependencyCancelledByNonCompletion",
+      "source_construct": "DependencyCancelledByNonCompletion",
+      "source_span": {
+        "end": 28304,
+        "start": 27911
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Dependency"
+        ],
+        "entities_written": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyRemovedExplicitly succeeds when all preconditions are met",
+      "id": "rule-success.DependencyRemovedExplicitly",
+      "source_construct": "DependencyRemovedExplicitly",
+      "source_span": {
+        "end": 28510,
+        "start": 28306
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Dependency"
+        ],
+        "entities_written": [
+          "Dependency"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DependencyRemovedExplicitly is rejected when requires clause fails",
+      "id": "rule-failure.DependencyRemovedExplicitly.1",
+      "source_construct": "DependencyRemovedExplicitly",
+      "source_span": {
+        "end": 28420,
+        "start": 28384
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationDrafted succeeds when all preconditions are met",
+      "id": "rule-success.DelegationDrafted",
+      "source_construct": "DelegationDrafted",
+      "source_span": {
+        "end": 28893,
+        "start": 28512
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationDrafted is rejected when requires clause fails",
+      "id": "rule-failure.DelegationDrafted.1",
+      "source_construct": "DelegationDrafted",
+      "source_span": {
+        "end": 28646,
+        "start": 28615
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule DelegationDrafted ensures clause produces the specified fields",
+      "id": "rule-entity-creation.DelegationDrafted.1",
+      "source_construct": "DelegationDrafted",
+      "source_span": {
+        "end": 28891,
+        "start": 28651
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationApprovedAndNotified succeeds when all preconditions are met",
+      "id": "rule-success.DelegationApprovedAndNotified",
+      "source_construct": "DelegationApprovedAndNotified",
+      "source_span": {
+        "end": 29122,
+        "start": 28895
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationApprovedAndNotified is rejected when requires clause fails",
+      "id": "rule-failure.DelegationApprovedAndNotified.1",
+      "source_construct": "DelegationApprovedAndNotified",
+      "source_span": {
+        "end": 29029,
+        "start": 28982
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationStarted succeeds when all preconditions are met",
+      "id": "rule-success.DelegationStarted",
+      "source_construct": "DelegationStarted",
+      "source_span": {
+        "end": 29285,
+        "start": 29124
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationStarted is rejected when requires clause fails",
+      "id": "rule-failure.DelegationStarted.1",
+      "source_construct": "DelegationStarted",
+      "source_span": {
+        "end": 29238,
+        "start": 29200
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationCompleted succeeds when all preconditions are met",
+      "id": "rule-success.DelegationCompleted",
+      "source_construct": "DelegationCompleted",
+      "source_span": {
+        "end": 29530,
+        "start": 29287
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationCompleted is rejected when requires clause fails",
+      "id": "rule-failure.DelegationCompleted.1",
+      "source_construct": "DelegationCompleted",
+      "source_span": {
+        "end": 29432,
+        "start": 29378
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationRefused succeeds when all preconditions are met",
+      "id": "rule-success.DelegationRefused",
+      "source_construct": "DelegationRefused",
+      "source_span": {
+        "end": 29769,
+        "start": 29532
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationRefused is rejected when requires clause fails",
+      "id": "rule-failure.DelegationRefused.1",
+      "source_construct": "DelegationRefused",
+      "source_span": {
+        "end": 29673,
+        "start": 29619
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationAbandoned succeeds when all preconditions are met",
+      "id": "rule-success.DelegationAbandoned",
+      "source_construct": "DelegationAbandoned",
+      "source_span": {
+        "end": 30057,
+        "start": 29771
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Delegation"
+        ],
+        "entities_written": [
+          "Delegation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DelegationAbandoned is rejected when requires clause fails",
+      "id": "rule-failure.DelegationAbandoned.1",
+      "source_construct": "DelegationAbandoned",
+      "source_span": {
+        "end": 29959,
+        "start": 29856
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "ServedSkip"
+        ],
+        "trigger_emissions": [
+          "ServedSkipRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ServedBrickSkipped succeeds when all preconditions are met",
+      "id": "rule-success.ServedBrickSkipped",
+      "source_construct": "ServedBrickSkipped",
+      "source_span": {
+        "end": 30708,
+        "start": 30137
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "ServedSkip"
+        ],
+        "trigger_emissions": [
+          "ServedSkipRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ServedBrickSkipped is rejected when requires clause fails",
+      "id": "rule-failure.ServedBrickSkipped.1",
+      "source_construct": "ServedBrickSkipped",
+      "source_span": {
+        "end": 30250,
+        "start": 30219
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "ServedSkip"
+        ],
+        "trigger_emissions": [
+          "ServedSkipRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ServedBrickSkipped is rejected when requires clause fails",
+      "id": "rule-failure.ServedBrickSkipped.2",
+      "source_construct": "ServedBrickSkipped",
+      "source_span": {
+        "end": 30300,
+        "start": 30255
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "ServedSkip"
+        ],
+        "trigger_emissions": [
+          "ServedSkipRecorded"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ServedBrickSkipped ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ServedBrickSkipped.1",
+      "source_construct": "ServedBrickSkipped",
+      "source_span": {
+        "end": 30540,
+        "start": 30305
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryAdded succeeds when all preconditions are met",
+      "id": "rule-success.ListEntryAdded",
+      "source_construct": "ListEntryAdded",
+      "source_span": {
+        "end": 31347,
+        "start": 30787
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryAdded is rejected when requires clause fails",
+      "id": "rule-failure.ListEntryAdded.1",
+      "source_construct": "ListEntryAdded",
+      "source_span": {
+        "end": 30976,
+        "start": 30945
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryAdded is rejected when requires clause fails",
+      "id": "rule-failure.ListEntryAdded.2",
+      "source_construct": "ListEntryAdded",
+      "source_span": {
+        "end": 31025,
+        "start": 30981
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryAdded is rejected when requires clause fails",
+      "id": "rule-failure.ListEntryAdded.3",
+      "source_construct": "ListEntryAdded",
+      "source_span": {
+        "end": 31069,
+        "start": 31030
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ListEntryAdded ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ListEntryAdded.1",
+      "source_construct": "ListEntryAdded",
+      "source_span": {
+        "end": 31345,
+        "start": 31074
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryResolved succeeds when all preconditions are met",
+      "id": "rule-success.ListEntryResolved",
+      "source_construct": "ListEntryResolved",
+      "source_span": {
+        "end": 31520,
+        "start": 31349
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryResolved is rejected when requires clause fails",
+      "id": "rule-failure.ListEntryResolved.1",
+      "source_construct": "ListEntryResolved",
+      "source_span": {
+        "end": 31441,
+        "start": 31412
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryRemoved succeeds when all preconditions are met",
+      "id": "rule-success.ListEntryRemoved",
+      "source_construct": "ListEntryRemoved",
+      "source_span": {
+        "end": 31736,
+        "start": 31522
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ListEntryRemoved is rejected when requires clause fails",
+      "id": "rule-failure.ListEntryRemoved.1",
+      "source_construct": "ListEntryRemoved",
+      "source_span": {
+        "end": 31621,
+        "start": 31592
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule FiniteChecklistBecameEmpty succeeds when all preconditions are met",
+      "id": "rule-success.FiniteChecklistBecameEmpty",
+      "source_construct": "FiniteChecklistBecameEmpty",
+      "source_span": {
+        "end": 32309,
+        "start": 31738
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule FiniteChecklistBecameEmpty is rejected when requires clause fails",
+      "id": "rule-failure.FiniteChecklistBecameEmpty.1",
+      "source_construct": "FiniteChecklistBecameEmpty",
+      "source_span": {
+        "end": 31888,
+        "start": 31851
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule FiniteChecklistBecameEmpty is rejected when requires clause fails",
+      "id": "rule-failure.FiniteChecklistBecameEmpty.2",
+      "source_construct": "FiniteChecklistBecameEmpty",
+      "source_span": {
+        "end": 31936,
+        "start": 31893
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule FiniteChecklistBecameEmpty is rejected when requires clause fails",
+      "id": "rule-failure.FiniteChecklistBecameEmpty.3",
+      "source_construct": "FiniteChecklistBecameEmpty",
+      "source_span": {
+        "end": 31989,
+        "start": 31941
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "ParentReviewSuggested"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule FiniteChecklistBecameEmpty is rejected when requires clause fails",
+      "id": "rule-failure.FiniteChecklistBecameEmpty.4",
+      "source_construct": "FiniteChecklistBecameEmpty",
+      "source_span": {
+        "end": 32038,
+        "start": 31994
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionStarted succeeds when all preconditions are met",
+      "id": "rule-success.StandingExecutionStarted",
+      "source_construct": "StandingExecutionStarted",
+      "source_span": {
+        "end": 32907,
+        "start": 32388
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionStarted is rejected when requires clause fails",
+      "id": "rule-failure.StandingExecutionStarted.1",
+      "source_construct": "StandingExecutionStarted",
+      "source_span": {
+        "end": 32495,
+        "start": 32464
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionStarted is rejected when requires clause fails",
+      "id": "rule-failure.StandingExecutionStarted.2",
+      "source_construct": "StandingExecutionStarted",
+      "source_span": {
+        "end": 32544,
+        "start": 32500
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionStarted is rejected when requires clause fails",
+      "id": "rule-failure.StandingExecutionStarted.3",
+      "source_construct": "StandingExecutionStarted",
+      "source_span": {
+        "end": 32613,
+        "start": 32549
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionStarted is rejected when requires clause fails",
+      "id": "rule-failure.StandingExecutionStarted.4",
+      "source_construct": "StandingExecutionStarted",
+      "source_span": {
+        "end": 32653,
+        "start": 32618
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule StandingExecutionStarted ensures clause produces the specified fields",
+      "id": "rule-entity-creation.StandingExecutionStarted.1",
+      "source_construct": "StandingExecutionStarted",
+      "source_span": {
+        "end": 32905,
+        "start": 32658
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionFinished succeeds when all preconditions are met",
+      "id": "rule-success.StandingExecutionFinished",
+      "source_construct": "StandingExecutionFinished",
+      "source_span": {
+        "end": 33554,
+        "start": 32909
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionFinished is rejected when requires clause fails",
+      "id": "rule-failure.StandingExecutionFinished.1",
+      "source_construct": "StandingExecutionFinished",
+      "source_span": {
+        "end": 33043,
+        "start": 33007
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StandingExecutionFinished is rejected when requires clause fails",
+      "id": "rule-failure.StandingExecutionFinished.2",
+      "source_construct": "StandingExecutionFinished",
+      "source_span": {
+        "end": 33117,
+        "start": 33048
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "RepeatScheduled"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RepeatableExecutionScheduledAgain succeeds when all preconditions are met",
+      "id": "rule-success.RepeatableExecutionScheduledAgain",
+      "source_construct": "RepeatableExecutionScheduledAgain",
+      "source_span": {
+        "end": 34695,
+        "start": 33556
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "RepeatScheduled"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RepeatableExecutionScheduledAgain is rejected when requires clause fails",
+      "id": "rule-failure.RepeatableExecutionScheduledAgain.1",
+      "source_construct": "RepeatableExecutionScheduledAgain",
+      "source_span": {
+        "end": 33777,
+        "start": 33741
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged",
+          "RepeatScheduled"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RepeatableExecutionScheduledAgain is rejected when requires clause fails",
+      "id": "rule-failure.RepeatableExecutionScheduledAgain.2",
+      "source_construct": "RepeatableExecutionScheduledAgain",
+      "source_span": {
+        "end": 33858,
+        "start": 33782
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RepeatableExecutionRetired succeeds when all preconditions are met",
+      "id": "rule-success.RepeatableExecutionRetired",
+      "source_construct": "RepeatableExecutionRetired",
+      "source_span": {
+        "end": 35548,
+        "start": 34697
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RepeatableExecutionRetired is rejected when requires clause fails",
+      "id": "rule-failure.RepeatableExecutionRetired.1",
+      "source_construct": "RepeatableExecutionRetired",
+      "source_span": {
+        "end": 34825,
+        "start": 34789
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RepeatableExecutionRetired is rejected when requires clause fails",
+      "id": "rule-failure.RepeatableExecutionRetired.2",
+      "source_construct": "RepeatableExecutionRetired",
+      "source_span": {
+        "end": 34906,
+        "start": 34830
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_emissions": [
+          "DateConfigurationChanged"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RepeatableExecutionRetired is rejected when requires clause fails",
+      "id": "rule-failure.RepeatableExecutionRetired.3",
+      "source_construct": "RepeatableExecutionRetired",
+      "source_span": {
+        "end": 34962,
+        "start": 34911
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RunningExecutionAbandoned succeeds when all preconditions are met",
+      "id": "rule-success.RunningExecutionAbandoned",
+      "source_construct": "RunningExecutionAbandoned",
+      "source_span": {
+        "end": 35989,
+        "start": 35550
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RunningExecutionAbandoned is rejected when requires clause fails",
+      "id": "rule-failure.RunningExecutionAbandoned.1",
+      "source_construct": "RunningExecutionAbandoned",
+      "source_span": {
+        "end": 35668,
+        "start": 35632
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRule"
+        ],
+        "entities_read": [
+          "RecurrenceRule"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceConfigured succeeds when all preconditions are met",
+      "id": "rule-success.RecurrenceConfigured",
+      "source_construct": "RecurrenceConfigured",
+      "source_span": {
+        "end": 36859,
+        "start": 36067
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRule"
+        ],
+        "entities_read": [
+          "RecurrenceRule"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceConfigured is rejected when requires clause fails",
+      "id": "rule-failure.RecurrenceConfigured.1",
+      "source_construct": "RecurrenceConfigured",
+      "source_span": {
+        "end": 36210,
+        "start": 36178
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRule"
+        ],
+        "entities_read": [
+          "RecurrenceRule"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceConfigured is rejected when requires clause fails",
+      "id": "rule-failure.RecurrenceConfigured.2",
+      "source_construct": "RecurrenceConfigured",
+      "source_span": {
+        "end": 36408,
+        "start": 36215
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRule"
+        ],
+        "entities_read": [
+          "RecurrenceRule"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceConfigured is rejected when requires clause fails",
+      "id": "rule-failure.RecurrenceConfigured.3",
+      "source_construct": "RecurrenceConfigured",
+      "source_span": {
+        "end": 36509,
+        "start": 36414
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRule"
+        ],
+        "entities_read": [
+          "RecurrenceRule"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceConfigured is rejected when requires clause fails",
+      "id": "rule-failure.RecurrenceConfigured.4",
+      "source_construct": "RecurrenceConfigured",
+      "source_span": {
+        "end": 36609,
+        "start": 36514
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRule"
+        ],
+        "entities_read": [
+          "RecurrenceRule"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RecurrenceConfigured ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RecurrenceConfigured.1",
+      "source_construct": "RecurrenceConfigured",
+      "source_span": {
+        "end": 36857,
+        "start": 36614
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrencePaused succeeds when all preconditions are met",
+      "id": "rule-success.RecurrencePaused",
+      "source_construct": "RecurrencePaused",
+      "source_span": {
+        "end": 37260,
+        "start": 36861
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrencePaused is rejected when requires clause fails",
+      "id": "rule-failure.RecurrencePaused.1",
+      "source_construct": "RecurrencePaused",
+      "source_span": {
+        "end": 36963,
+        "start": 36927
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceResumed succeeds when all preconditions are met",
+      "id": "rule-success.RecurrenceResumed",
+      "source_construct": "RecurrenceResumed",
+      "source_span": {
+        "end": 37480,
+        "start": 37262
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceResumed is rejected when requires clause fails",
+      "id": "rule-failure.RecurrenceResumed.1",
+      "source_construct": "RecurrenceResumed",
+      "source_span": {
+        "end": 37380,
+        "start": 37344
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceRetired succeeds when all preconditions are met",
+      "id": "rule-success.RecurrenceRetired",
+      "source_construct": "RecurrenceRetired",
+      "source_span": {
+        "end": 37896,
+        "start": 37482
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceRetired is rejected when requires clause fails",
+      "id": "rule-failure.RecurrenceRetired.1",
+      "source_construct": "RecurrenceRetired",
+      "source_span": {
+        "end": 37597,
+        "start": 37550
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRevision"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceScheduleRevised succeeds when all preconditions are met",
+      "id": "rule-success.RecurrenceScheduleRevised",
+      "source_construct": "RecurrenceScheduleRevised",
+      "source_span": {
+        "end": 38930,
+        "start": 37898
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRevision"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RecurrenceScheduleRevised is rejected when requires clause fails",
+      "id": "rule-failure.RecurrenceScheduleRevised.1",
+      "source_construct": "RecurrenceScheduleRevised",
+      "source_span": {
+        "end": 38123,
+        "start": 38076
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "RecurrenceRevision"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RecurrenceScheduleRevised ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RecurrenceScheduleRevised.1",
+      "source_construct": "RecurrenceScheduleRevised",
+      "source_span": {
+        "end": 38660,
+        "start": 38128
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "ObligationOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DueObligationsReleased succeeds when all preconditions are met",
+      "id": "rule-success.DueObligationsReleased",
+      "source_construct": "DueObligationsReleased",
+      "source_span": {
+        "end": 41393,
+        "start": 38932
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "PracticeOpportunity"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ApplicablePracticeOpportunitiesReleased succeeds when all preconditions are met",
+      "id": "rule-success.ApplicablePracticeOpportunitiesReleased",
+      "source_construct": "ApplicablePracticeOpportunitiesReleased",
+      "source_span": {
+        "end": 42176,
+        "start": 41395
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "PracticeOpportunity"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule InapplicablePracticeWindowsRecorded succeeds when all preconditions are met",
+      "id": "rule-success.InapplicablePracticeWindowsRecorded",
+      "source_construct": "InapplicablePracticeWindowsRecorded",
+      "source_span": {
+        "end": 43087,
+        "start": 42178
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PracticeOpportunityCompleted succeeds when all preconditions are met",
+      "id": "rule-success.PracticeOpportunityCompleted",
+      "source_construct": "PracticeOpportunityCompleted",
+      "source_span": {
+        "end": 43728,
+        "start": 43089
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PracticeOpportunityCompleted is rejected when requires clause fails",
+      "id": "rule-failure.PracticeOpportunityCompleted.1",
+      "source_construct": "PracticeOpportunityCompleted",
+      "source_span": {
+        "end": 43222,
+        "start": 43187
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule PracticeOpportunityCompleted ensures clause produces the specified fields",
+      "id": "rule-entity-creation.PracticeOpportunityCompleted.1",
+      "source_construct": "PracticeOpportunityCompleted",
+      "source_span": {
+        "end": 43536,
+        "start": 43227
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PracticeOpportunityAbandoned succeeds when all preconditions are met",
+      "id": "rule-success.PracticeOpportunityAbandoned",
+      "source_construct": "PracticeOpportunityAbandoned",
+      "source_span": {
+        "end": 44179,
+        "start": 43730
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PracticeOpportunityAbandoned is rejected when requires clause fails",
+      "id": "rule-failure.PracticeOpportunityAbandoned.1",
+      "source_construct": "PracticeOpportunityAbandoned",
+      "source_span": {
+        "end": 43864,
+        "start": 43829
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExpiredPracticeOpportunityRecorded succeeds when all preconditions are met",
+      "id": "rule-success.ExpiredPracticeOpportunityRecorded",
+      "source_construct": "ExpiredPracticeOpportunityRecorded",
+      "source_span": {
+        "end": 44757,
+        "start": 44181
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "OpportunityTrigger"
+        ],
+        "entities_read": [
+          "OpportunityTrigger"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerConfigured succeeds when all preconditions are met",
+      "id": "rule-success.OpportunityTriggerConfigured",
+      "source_construct": "OpportunityTriggerConfigured",
+      "source_span": {
+        "end": 45350,
+        "start": 44836
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "OpportunityTrigger"
+        ],
+        "entities_read": [
+          "OpportunityTrigger"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerConfigured is rejected when requires clause fails",
+      "id": "rule-failure.OpportunityTriggerConfigured.1",
+      "source_construct": "OpportunityTriggerConfigured",
+      "source_span": {
+        "end": 44956,
+        "start": 44930
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "OpportunityTrigger"
+        ],
+        "entities_read": [
+          "OpportunityTrigger"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerConfigured is rejected when requires clause fails",
+      "id": "rule-failure.OpportunityTriggerConfigured.2",
+      "source_construct": "OpportunityTriggerConfigured",
+      "source_span": {
+        "end": 44993,
+        "start": 44961
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "OpportunityTrigger"
+        ],
+        "entities_read": [
+          "OpportunityTrigger"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerConfigured is rejected when requires clause fails",
+      "id": "rule-failure.OpportunityTriggerConfigured.3",
+      "source_construct": "OpportunityTriggerConfigured",
+      "source_span": {
+        "end": 45030,
+        "start": 44998
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "OpportunityTrigger"
+        ],
+        "entities_read": [
+          "OpportunityTrigger"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerConfigured is rejected when requires clause fails",
+      "id": "rule-failure.OpportunityTriggerConfigured.4",
+      "source_construct": "OpportunityTriggerConfigured",
+      "source_span": {
+        "end": 45082,
+        "start": 45035
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "OpportunityTrigger"
+        ],
+        "entities_read": [
+          "OpportunityTrigger"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerConfigured is rejected when requires clause fails",
+      "id": "rule-failure.OpportunityTriggerConfigured.5",
+      "source_construct": "OpportunityTriggerConfigured",
+      "source_span": {
+        "end": 45188,
+        "start": 45087
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "OpportunityTrigger"
+        ],
+        "entities_read": [
+          "OpportunityTrigger"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule OpportunityTriggerConfigured ensures clause produces the specified fields",
+      "id": "rule-entity-creation.OpportunityTriggerConfigured.1",
+      "source_construct": "OpportunityTriggerConfigured",
+      "source_span": {
+        "end": 45348,
+        "start": 45193
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "TriggeredOpportunity"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence",
+          "TriggeredOpportunity"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule SourceExecutionReleasesOpportunity succeeds when all preconditions are met",
+      "id": "rule-success.SourceExecutionReleasesOpportunity",
+      "source_construct": "SourceExecutionReleasesOpportunity",
+      "source_span": {
+        "end": 45981,
+        "start": 45352
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TriggeredOpportunity"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence",
+          "TriggeredOpportunity"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule SourceExecutionReleasesOpportunity is rejected when requires clause fails",
+      "id": "rule-failure.SourceExecutionReleasesOpportunity.1",
+      "source_construct": "SourceExecutionReleasesOpportunity",
+      "source_span": {
+        "end": 45714,
+        "start": 45573
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "TriggeredOpportunity"
+        ],
+        "entities_read": [
+          "ExecutionOccurrence",
+          "TriggeredOpportunity"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify entity creation in rule SourceExecutionReleasesOpportunity ensures clause produces the specified fields",
+      "id": "rule-entity-creation.SourceExecutionReleasesOpportunity.1",
+      "source_construct": "SourceExecutionReleasesOpportunity",
+      "source_span": {
+        "end": 45979,
+        "start": 45723
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "TriggeredOpportunity"
+        ],
+        "entities_read": [
+          "TriggeredOpportunity"
+        ],
+        "trigger_source": "chained"
+      },
+      "description": "Verify rule DirectCompletionReleasesOpportunity succeeds when all preconditions are met",
+      "id": "rule-success.DirectCompletionReleasesOpportunity",
+      "source_construct": "DirectCompletionReleasesOpportunity",
+      "source_span": {
+        "end": 46652,
+        "start": 45983
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "TriggeredOpportunity"
+        ],
+        "entities_read": [
+          "TriggeredOpportunity"
+        ],
+        "trigger_source": "chained"
+      },
+      "description": "Verify rule DirectCompletionReleasesOpportunity is rejected when requires clause fails",
+      "id": "rule-failure.DirectCompletionReleasesOpportunity.1",
+      "source_construct": "DirectCompletionReleasesOpportunity",
+      "source_span": {
+        "end": 46393,
+        "start": 46266
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "TriggeredOpportunity"
+        ],
+        "entities_read": [
+          "TriggeredOpportunity"
+        ],
+        "trigger_source": "chained"
+      },
+      "description": "Verify entity creation in rule DirectCompletionReleasesOpportunity ensures clause produces the specified fields",
+      "id": "rule-entity-creation.DirectCompletionReleasesOpportunity.1",
+      "source_construct": "DirectCompletionReleasesOpportunity",
+      "source_span": {
+        "end": 46650,
+        "start": 46402
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TargetExecutionConsumesOneTriggeredOpportunity succeeds when all preconditions are met",
+      "id": "rule-success.TargetExecutionConsumesOneTriggeredOpportunity",
+      "source_construct": "TargetExecutionConsumesOneTriggeredOpportunity",
+      "source_span": {
+        "end": 47208,
+        "start": 46654
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "ExecutionOccurrence"
+        ],
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TargetExecutionConsumesOneTriggeredOpportunity is rejected when requires clause fails",
+      "id": "rule-failure.TargetExecutionConsumesOneTriggeredOpportunity.1",
+      "source_construct": "TargetExecutionConsumesOneTriggeredOpportunity",
+      "source_span": {
+        "end": 46901,
+        "start": 46873
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerRetired succeeds when all preconditions are met",
+      "id": "rule-success.OpportunityTriggerRetired",
+      "source_construct": "OpportunityTriggerRetired",
+      "source_span": {
+        "end": 47364,
+        "start": 47210
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule OpportunityTriggerRetired is rejected when requires clause fails",
+      "id": "rule-failure.OpportunityTriggerRetired.1",
+      "source_construct": "OpportunityTriggerRetired",
+      "source_span": {
+        "end": 47324,
+        "start": 47291
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalBrickRetiresFutureStandingMechanics succeeds when all preconditions are met",
+      "id": "rule-success.TerminalBrickRetiresFutureStandingMechanics",
+      "source_construct": "TerminalBrickRetiresFutureStandingMechanics",
+      "source_span": {
+        "end": 48352,
+        "start": 47366
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "chained"
+      },
+      "description": "Verify rule DateConfigurationChangeResolvesSupersededNotices succeeds when all preconditions are met",
+      "id": "rule-success.DateConfigurationChangeResolvesSupersededNotices",
+      "source_construct": "DateConfigurationChangeResolvesSupersededNotices",
+      "source_span": {
+        "end": 49017,
+        "start": 48432
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BestBeforeApproachingNoticeCreated succeeds when all preconditions are met",
+      "id": "rule-success.BestBeforeApproachingNoticeCreated",
+      "source_construct": "BestBeforeApproachingNoticeCreated",
+      "source_span": {
+        "end": 49846,
+        "start": 49019
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BestBeforeApproachingNoticeCreated is rejected when requires clause fails",
+      "id": "rule-failure.BestBeforeApproachingNoticeCreated.1",
+      "source_construct": "BestBeforeApproachingNoticeCreated",
+      "source_span": {
+        "end": 49544,
+        "start": 49323
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule BestBeforeApproachingNoticeCreated ensures clause produces the specified fields",
+      "id": "rule-entity-creation.BestBeforeApproachingNoticeCreated.1",
+      "source_construct": "BestBeforeApproachingNoticeCreated",
+      "source_span": {
+        "end": 49844,
+        "start": 49553
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BestBeforePassedNoticeCreated succeeds when all preconditions are met",
+      "id": "rule-success.BestBeforePassedNoticeCreated",
+      "source_construct": "BestBeforePassedNoticeCreated",
+      "source_span": {
+        "end": 50576,
+        "start": 49848
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule BestBeforePassedNoticeCreated is rejected when requires clause fails",
+      "id": "rule-failure.BestBeforePassedNoticeCreated.1",
+      "source_construct": "BestBeforePassedNoticeCreated",
+      "source_span": {
+        "end": 50279,
+        "start": 50063
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule BestBeforePassedNoticeCreated ensures clause produces the specified fields",
+      "id": "rule-entity-creation.BestBeforePassedNoticeCreated.1",
+      "source_construct": "BestBeforePassedNoticeCreated",
+      "source_span": {
+        "end": 50574,
+        "start": 50288
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DeadlineApproachingNoticeCreated succeeds when all preconditions are met",
+      "id": "rule-success.DeadlineApproachingNoticeCreated",
+      "source_construct": "DeadlineApproachingNoticeCreated",
+      "source_span": {
+        "end": 51367,
+        "start": 50578
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DeadlineApproachingNoticeCreated is rejected when requires clause fails",
+      "id": "rule-failure.DeadlineApproachingNoticeCreated.1",
+      "source_construct": "DeadlineApproachingNoticeCreated",
+      "source_span": {
+        "end": 51071,
+        "start": 50856
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule DeadlineApproachingNoticeCreated ensures clause produces the specified fields",
+      "id": "rule-entity-creation.DeadlineApproachingNoticeCreated.1",
+      "source_construct": "DeadlineApproachingNoticeCreated",
+      "source_span": {
+        "end": 51365,
+        "start": 51080
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DeadlineOverdueNoticeCreated succeeds when all preconditions are met",
+      "id": "rule-success.DeadlineOverdueNoticeCreated",
+      "source_construct": "DeadlineOverdueNoticeCreated",
+      "source_span": {
+        "end": 52080,
+        "start": 51369
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DeadlineOverdueNoticeCreated is rejected when requires clause fails",
+      "id": "rule-failure.DeadlineOverdueNoticeCreated.1",
+      "source_construct": "DeadlineOverdueNoticeCreated",
+      "source_span": {
+        "end": 51788,
+        "start": 51577
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "DateNotice"
+        ],
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule DeadlineOverdueNoticeCreated ensures clause produces the specified fields",
+      "id": "rule-entity-creation.DeadlineOverdueNoticeCreated.1",
+      "source_construct": "DeadlineOverdueNoticeCreated",
+      "source_span": {
+        "end": 52078,
+        "start": 51797
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DateNoticeAcknowledged succeeds when all preconditions are met",
+      "id": "rule-success.DateNoticeAcknowledged",
+      "source_construct": "DateNoticeAcknowledged",
+      "source_span": {
+        "end": 52245,
+        "start": 52082
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DateNoticeAcknowledged is rejected when requires clause fails",
+      "id": "rule-failure.DateNoticeAcknowledged.1",
+      "source_construct": "DateNoticeAcknowledged",
+      "source_span": {
+        "end": 52201,
+        "start": 52156
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DateNoticeSnoozed succeeds when all preconditions are met",
+      "id": "rule-success.DateNoticeSnoozed",
+      "source_construct": "DateNoticeSnoozed",
+      "source_span": {
+        "end": 52435,
+        "start": 52247
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DateNoticeSnoozed is rejected when requires clause fails",
+      "id": "rule-failure.DateNoticeSnoozed.1",
+      "source_construct": "DateNoticeSnoozed",
+      "source_span": {
+        "end": 52351,
+        "start": 52318
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule DateNoticeSnoozeEnded succeeds when all preconditions are met",
+      "id": "rule-success.DateNoticeSnoozeEnded",
+      "source_construct": "DateNoticeSnoozeEnded",
+      "source_span": {
+        "end": 52636,
+        "start": 52437
+      }
+    },
+    {
+      "category": "temporal",
+      "dependencies": {
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify temporal trigger in DateNoticeSnoozeEnded fires at deadline, not before, and does not re-fire",
+      "id": "temporal.DateNoticeSnoozeEnded",
+      "source_construct": "DateNoticeSnoozeEnded",
+      "source_span": {
+        "end": 52515,
+        "start": 52470
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "DateNotice"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule DateNoticeSnoozeEnded is rejected when requires clause fails",
+      "id": "rule-failure.DateNoticeSnoozeEnded.1",
+      "source_construct": "DateNoticeSnoozeEnded",
+      "source_span": {
+        "end": 52553,
+        "start": 52520
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "trigger_source": "state_transition"
+      },
+      "description": "Verify rule TerminalBrickResolvesDateNotices succeeds when all preconditions are met",
+      "id": "rule-success.TerminalBrickResolvesDateNotices",
+      "source_construct": "TerminalBrickResolvesDateNotices",
+      "source_span": {
+        "end": 52909,
+        "start": 52638
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Place"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PlaceCreated succeeds when all preconditions are met",
+      "id": "rule-success.PlaceCreated",
+      "source_construct": "PlaceCreated",
+      "source_span": {
+        "end": 53111,
+        "start": 52989
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Place"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule PlaceCreated ensures clause produces the specified fields",
+      "id": "rule-entity-creation.PlaceCreated.1",
+      "source_construct": "PlaceCreated",
+      "source_span": {
+        "end": 53109,
+        "start": 53042
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "PlaceCondition"
+        ],
+        "entities_read": [
+          "PlaceCondition"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PlaceConditionAdded succeeds when all preconditions are met",
+      "id": "rule-success.PlaceConditionAdded",
+      "source_construct": "PlaceConditionAdded",
+      "source_span": {
+        "end": 53449,
+        "start": 53113
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "PlaceCondition"
+        ],
+        "entities_read": [
+          "PlaceCondition"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PlaceConditionAdded is rejected when requires clause fails",
+      "id": "rule-failure.PlaceConditionAdded.1",
+      "source_construct": "PlaceConditionAdded",
+      "source_span": {
+        "end": 53227,
+        "start": 53196
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "PlaceCondition"
+        ],
+        "entities_read": [
+          "PlaceCondition"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule PlaceConditionAdded is rejected when requires clause fails",
+      "id": "rule-failure.PlaceConditionAdded.2",
+      "source_construct": "PlaceConditionAdded",
+      "source_span": {
+        "end": 53291,
+        "start": 53232
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "PlaceCondition"
+        ],
+        "entities_read": [
+          "PlaceCondition"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule PlaceConditionAdded ensures clause produces the specified fields",
+      "id": "rule-entity-creation.PlaceConditionAdded.1",
+      "source_construct": "PlaceConditionAdded",
+      "source_span": {
+        "end": 53447,
+        "start": 53296
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "LocationObservation"
+        ],
+        "entities_read": [
+          "LocationObservation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule LocationObservationRecorded succeeds when all preconditions are met",
+      "id": "rule-success.LocationObservationRecorded",
+      "source_construct": "LocationObservationRecorded",
+      "source_span": {
+        "end": 54466,
+        "start": 53451
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "LocationObservation"
+        ],
+        "entities_read": [
+          "LocationObservation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule LocationObservationRecorded is rejected when requires clause fails",
+      "id": "rule-failure.LocationObservationRecorded.1",
+      "source_construct": "LocationObservationRecorded",
+      "source_span": {
+        "end": 53849,
+        "start": 53667
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "LocationObservation"
+        ],
+        "entities_read": [
+          "LocationObservation"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule LocationObservationRecorded ensures clause produces the specified fields",
+      "id": "rule-entity-creation.LocationObservationRecorded.1",
+      "source_construct": "LocationObservationRecorded",
+      "source_span": {
+        "end": 54272,
+        "start": 53854
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant NoSelfDependency holds after every state-changing rule that touches constrained entities",
+      "expression": "for dependency in Dependencies:\n        dependency.blocked != dependency.blocker",
+      "id": "invariant.NoSelfDependency",
+      "source_construct": "NoSelfDependency",
+      "source_span": {
+        "end": 54720,
+        "start": 54605
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant RootPriorityBindingIsCanonical holds after every state-changing rule that touches constrained entities",
+      "expression": "root_priority.parent = null",
+      "id": "invariant.RootPriorityBindingIsCanonical",
+      "source_construct": "RootPriorityBindingIsCanonical",
+      "source_span": {
+        "end": 54798,
+        "start": 54722
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant StandardBehaviorBindingIsCanonical holds after every state-changing rule that touches constrained entities",
+      "expression": "standard_behavior.id = \"core/standard\"",
+      "id": "invariant.StandardBehaviorBindingIsCanonical",
+      "source_construct": "StandardBehaviorBindingIsCanonical",
+      "source_span": {
+        "end": 54891,
+        "start": 54800
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant AtMostOneRunningExecutionPerBrick holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in ExecutionOccurrences:\n        for second in ExecutionOccurrences:\n            (first.brick = second.brick\n                and first.status = running\n                and second.status = running)\n                implies first = second",
+      "id": "invariant.AtMostOneRunningExecutionPerBrick",
+      "source_construct": "AtMostOneRunningExecutionPerBrick",
+      "source_span": {
+        "end": 55190,
+        "start": 54893
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant RunningExecutionHasObservedStart holds after every state-changing rule that touches constrained entities",
+      "expression": "for execution in ExecutionOccurrences:\n        execution.status = running implies execution.started_at != null",
+      "id": "invariant.RunningExecutionHasObservedStart",
+      "source_construct": "RunningExecutionHasObservedStart",
+      "source_span": {
+        "end": 55353,
+        "start": 55192
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant DelegationDoesNotConsumeHumanWip holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.DelegationDoesNotConsumeHumanWip",
+      "source_construct": "DelegationDoesNotConsumeHumanWip",
+      "source_span": {
+        "end": 55506,
+        "start": 55355
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant DateNoticeOccurrenceIsUniquePerRevision holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in DateNotices:\n        for second in DateNotices:\n            (\n                first.brick = second.brick\n                and first.kind = second.kind\n                and first.date_revision = second.date_revision\n            ) implies first = second",
+      "id": "invariant.DateNoticeOccurrenceIsUniquePerRevision",
+      "source_construct": "DateNoticeOccurrenceIsUniquePerRevision",
+      "source_span": {
+        "end": 55828,
+        "start": 55508
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant ObligationPeriodIsUnique holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in ObligationOccurrences:\n        for second in ObligationOccurrences:\n            (first.rule = second.rule\n                and first.period_key = second.period_key)\n                implies first = second",
+      "id": "invariant.ObligationPeriodIsUnique",
+      "source_construct": "ObligationPeriodIsUnique",
+      "source_span": {
+        "end": 56088,
+        "start": 55830
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant OneLiveRecurrencePerTargetAndKind holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in RecurrenceRules:\n        for second in RecurrenceRules:\n            (\n                first.target = second.target\n                and first.kind = second.kind\n                and first.status in {active, paused}\n                and second.status in {active, paused}\n            ) implies first = second",
+      "id": "invariant.OneLiveRecurrencePerTargetAndKind",
+      "source_construct": "OneLiveRecurrencePerTargetAndKind",
+      "source_span": {
+        "end": 56458,
+        "start": 56090
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant PracticePeriodIsUnique holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in PracticeOpportunities:\n        for second in PracticeOpportunities:\n            (first.rule = second.rule\n                and first.period_key = second.period_key)\n                implies first = second",
+      "id": "invariant.PracticePeriodIsUnique",
+      "source_construct": "PracticePeriodIsUnique",
+      "source_span": {
+        "end": 56716,
+        "start": 56460
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant TriggeredOpportunityIsIdempotentPerSourceEvent holds after every state-changing rule that touches constrained entities",
+      "expression": "for first in TriggeredOpportunities:\n        for second in TriggeredOpportunities:\n            (\n                first.trigger = second.trigger\n                and first.source_event_id = second.source_event_id\n            ) implies first = second",
+      "id": "invariant.TriggeredOpportunityIsIdempotentPerSourceEvent",
+      "source_construct": "TriggeredOpportunityIsIdempotentPerSourceEvent",
+      "source_span": {
+        "end": 57030,
+        "start": 56718
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant PracticeOpportunityHasValidWindow holds after every state-changing rule that touches constrained entities",
+      "expression": "for opportunity in PracticeOpportunities:\n        opportunity.window_start < opportunity.window_end",
+      "id": "invariant.PracticeOpportunityHasValidWindow",
+      "source_construct": "PracticeOpportunityHasValidWindow",
+      "source_span": {
+        "end": 57183,
+        "start": 57032
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant RepeatableHasAtMostOnePendingDate holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.RepeatableHasAtMostOnePendingDate",
+      "source_construct": "RepeatableHasAtMostOnePendingDate",
+      "source_span": {
+        "end": 57388,
+        "start": 57185
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface WorkDesk is accessible only to the specified actor",
+      "id": "surface-actor.WorkDesk",
+      "source_construct": "WorkDesk",
+      "source_span": {
+        "end": 61566,
+        "start": 57744
+      }
+    },
+    {
+      "category": "surface_exposure",
+      "description": "Verify each exposed item on WorkDesk is accessible",
+      "detail": {
+        "items": [
+          "id",
+          "current"
+        ],
+        "surface": "WorkDesk"
+      },
+      "id": "surface-exposure.WorkDesk",
+      "source_construct": "WorkDesk",
+      "source_span": {
+        "end": 57836,
+        "start": 57790
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on WorkDesk appear/hide based on when conditions",
+      "id": "surface-provides.WorkDesk",
+      "source_construct": "WorkDesk",
+      "source_span": {
+        "end": 61173,
+        "start": 57842
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface DeterministicClock is accessible only to the specified actor",
+      "id": "surface-actor.DeterministicClock",
+      "source_construct": "DeterministicClock",
+      "source_span": {
+        "end": 61851,
+        "start": 61568
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on DeterministicClock appear/hide based on when conditions",
+      "id": "surface-provides.DeterministicClock",
+      "source_construct": "DeterministicClock",
+      "source_span": {
+        "end": 61663,
+        "start": 61601
+      }
+    }
+  ],
+  "version": 3
+}

@@ -1,0 +1,163 @@
+{
+  "protocol_version": 1,
+  "id": "raw-source-reconciliation",
+  "title": "A refreshed source creates review evidence without changing local completion",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "material",
+    "selection",
+    "execution"
+  ],
+  "clock": "2026-07-27T16:00:00Z",
+  "steps": [
+    {
+      "id": "create-brick",
+      "operation": "CreateFixture",
+      "arguments": {
+        "fixture": "active_root_brick",
+        "title": "Implement issue 412"
+      },
+      "bind_result": {
+        "brick": "brick"
+      }
+    },
+    {
+      "id": "capture-source",
+      "operation": "CaptureExternalRaw",
+      "arguments": {
+        "title": "Issue 412",
+        "adapter": "github-issues",
+        "locator": "https://github.com/acme/api/issues/412",
+        "external_id": "acme/api#412"
+      },
+      "bind_result": {
+        "raw": "raw",
+        "origin": "origin"
+      }
+    },
+    {
+      "id": "capture-v1",
+      "operation": "CaptureRawSnapshot",
+      "arguments": {
+        "raw": "$raw",
+        "content_hash": "sha256:v1",
+        "size": 1200,
+        "media_type": "application/json",
+        "origin_revision": "etag-1"
+      },
+      "bind_result": {
+        "snapshot": "snapshot_v1"
+      }
+    },
+    {
+      "id": "link-source",
+      "operation": "LinkRawToBrick",
+      "arguments": {
+        "raw": "$raw",
+        "brick": "$brick",
+        "role": "source",
+        "baseline": "$snapshot_v1"
+      },
+      "bind_result": {
+        "link": "link"
+      }
+    },
+    {
+      "id": "capture-v2",
+      "operation": "CaptureRawSnapshot",
+      "arguments": {
+        "raw": "$raw",
+        "content_hash": "sha256:v2",
+        "size": 1400,
+        "media_type": "application/json",
+        "origin_revision": "etag-2"
+      },
+      "bind_result": {
+        "snapshot": "snapshot_v2"
+      }
+    },
+    {
+      "id": "observe-removed",
+      "operation": "RecordSourceObservation",
+      "arguments": {
+        "origin": "$origin",
+        "authority": "adapter",
+        "external_observation_id": "observation-3",
+        "revision": "etag-3",
+        "presence": "removed",
+        "work_state": "unknown"
+      }
+    },
+    {
+      "id": "reconcile",
+      "operation": "ReconcileRawLink",
+      "arguments": {
+        "link": "$link",
+        "snapshot": "$snapshot_v2"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "new-snapshot-is-immutable-and-distinct",
+      "after": "capture-v2",
+      "query": "RawSnapshots($raw)",
+      "path": "content_hashes",
+      "operator": "equals_set",
+      "value": [
+        "sha256:v1",
+        "sha256:v2"
+      ]
+    },
+    {
+      "id": "new-source-snapshot-proposes-reconciliation",
+      "after": "capture-v2",
+      "query": "OpenProposalsFor($brick)",
+      "path": "kinds",
+      "operator": "contains",
+      "value": "source_reconciliation"
+    },
+    {
+      "id": "external-removal-is-not-local-done",
+      "after": "observe-removed",
+      "query": "BrickSummary($brick)",
+      "path": "status",
+      "operator": "equals",
+      "value": "active"
+    },
+    {
+      "id": "external-removal-does-not-archive-raw",
+      "after": "observe-removed",
+      "query": "RawSummary($raw)",
+      "path": "storage_state",
+      "operator": "equals",
+      "value": "active"
+    },
+    {
+      "id": "observation-keeps-presence-separate-from-work-state",
+      "after": "observe-removed",
+      "query": "LatestSourceObservation($origin)",
+      "operator": "contains",
+      "value": {
+        "presence": "removed",
+        "work_state": "unknown"
+      }
+    },
+    {
+      "id": "reconciliation-advances-baseline-explicitly",
+      "after": "reconcile",
+      "query": "RawLink($link)",
+      "path": "reconciled_snapshot.id",
+      "operator": "equals_reference",
+      "value": "$snapshot_v2"
+    },
+    {
+      "id": "reconciliation-does-not-fetch-hidden-io",
+      "after": "reconcile",
+      "query": "ExternalIoTrace",
+      "path": "implicit_reads",
+      "operator": "count_equals",
+      "value": 0
+    }
+  ]
+}

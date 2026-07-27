@@ -1,0 +1,947 @@
+{
+  "config": [
+    {
+      "default_expr": "3",
+      "name": "soft_wip_limit",
+      "type_expr": "Integer"
+    },
+    {
+      "default_expr": "7.days",
+      "name": "best_before_notice_lead",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "7.days",
+      "name": "deadline_notice_lead",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "4.hours",
+      "name": "location_observation_ttl",
+      "type_expr": "Duration"
+    }
+  ],
+  "entities": [
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "on_party",
+          "optional": true,
+          "type_expr": "domain/Party?"
+        },
+        {
+          "name": "condition",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "WaitStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "resolved_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "Wait",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "open",
+              "to": "resolved"
+            },
+            {
+              "from": "open",
+              "to": "cancelled"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "cancelled",
+            "open",
+            "resolved"
+          ],
+          "terminal": [
+            "resolved",
+            "cancelled"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "blocked",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "blocker",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "status",
+          "type_expr": "DependencyStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "resolved_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "Dependency",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "active",
+              "to": "satisfied"
+            },
+            {
+              "from": "active",
+              "to": "cancelled"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "active",
+            "cancelled",
+            "satisfied"
+          ],
+          "terminal": [
+            "satisfied",
+            "cancelled"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "delegate",
+          "type_expr": "domain/Party"
+        },
+        {
+          "name": "status",
+          "type_expr": "DelegationStatus"
+        },
+        {
+          "name": "instructions",
+          "type_expr": "String"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "last_contact_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "next_followup_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "result_note",
+          "optional": true,
+          "type_expr": "String?"
+        }
+      ],
+      "kind": "internal",
+      "name": "Delegation",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "awaiting_approval",
+              "to": "notified"
+            },
+            {
+              "from": "awaiting_approval",
+              "to": "abandoned"
+            },
+            {
+              "from": "notified",
+              "to": "in_progress"
+            },
+            {
+              "from": "notified",
+              "to": "completed"
+            },
+            {
+              "from": "notified",
+              "to": "refused"
+            },
+            {
+              "from": "notified",
+              "to": "abandoned"
+            },
+            {
+              "from": "in_progress",
+              "to": "completed"
+            },
+            {
+              "from": "in_progress",
+              "to": "refused"
+            },
+            {
+              "from": "in_progress",
+              "to": "abandoned"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "abandoned",
+            "awaiting_approval",
+            "completed",
+            "in_progress",
+            "notified",
+            "refused"
+          ],
+          "terminal": [
+            "completed",
+            "refused",
+            "abandoned"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "status",
+          "type_expr": "ExecutionStatus"
+        },
+        {
+          "name": "started_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "finished_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "outcome",
+          "optional": true,
+          "type_expr": "ExecutionOutcome?"
+        },
+        {
+          "name": "completion_note",
+          "optional": true,
+          "type_expr": "String?"
+        }
+      ],
+      "kind": "internal",
+      "name": "ExecutionOccurrence",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "running",
+              "to": "finished"
+            },
+            {
+              "from": "running",
+              "to": "abandoned"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "abandoned",
+            "finished",
+            "running"
+          ],
+          "terminal": [
+            "finished",
+            "abandoned"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "reason",
+          "type_expr": "SkipReason"
+        },
+        {
+          "name": "raw_text",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "ServedSkip"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "kind",
+          "type_expr": "NoticeKind"
+        },
+        {
+          "name": "date_value",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "date_revision",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "NoticeStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "snoozed_until",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "DateNotice",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "pending",
+              "to": "acknowledged"
+            },
+            {
+              "from": "pending",
+              "to": "snoozed"
+            },
+            {
+              "from": "pending",
+              "to": "resolved"
+            },
+            {
+              "from": "snoozed",
+              "to": "pending"
+            },
+            {
+              "from": "snoozed",
+              "to": "acknowledged"
+            },
+            {
+              "from": "snoozed",
+              "to": "resolved"
+            },
+            {
+              "from": "acknowledged",
+              "to": "resolved"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "acknowledged",
+            "pending",
+            "resolved",
+            "snoozed"
+          ],
+          "terminal": [
+            "resolved"
+          ]
+        }
+      ]
+    },
+    {
+      "derived_values": [
+        {
+          "name": "practice_history"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "target",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "kind",
+          "type_expr": "RecurrenceKind"
+        },
+        {
+          "name": "schedule",
+          "type_expr": "String"
+        },
+        {
+          "name": "timezone",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "ScheduleStatus"
+        },
+        {
+          "name": "next_release_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "RecurrenceRule",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "active",
+              "to": "paused"
+            },
+            {
+              "from": "active",
+              "to": "retired"
+            },
+            {
+              "from": "paused",
+              "to": "active"
+            },
+            {
+              "from": "paused",
+              "to": "retired"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "active",
+            "paused",
+            "retired"
+          ],
+          "terminal": [
+            "retired"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "rule",
+          "type_expr": "RecurrenceRule"
+        },
+        {
+          "name": "period_key",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "released_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "ObligationOccurrence"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "rule",
+          "type_expr": "RecurrenceRule"
+        },
+        {
+          "name": "prior_schedule",
+          "type_expr": "String"
+        },
+        {
+          "name": "new_schedule",
+          "type_expr": "String"
+        },
+        {
+          "name": "prior_timezone",
+          "type_expr": "String"
+        },
+        {
+          "name": "new_timezone",
+          "type_expr": "String"
+        },
+        {
+          "name": "next_release_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "reason",
+          "type_expr": "String"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "revised_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "RecurrenceRevision"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "rule",
+          "type_expr": "RecurrenceRule"
+        },
+        {
+          "name": "period_key",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "PracticeOpportunityStatus"
+        },
+        {
+          "name": "window_start",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "window_end",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "resolved_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "reason",
+          "optional": true,
+          "type_expr": "String?"
+        }
+      ],
+      "kind": "internal",
+      "name": "PracticeOpportunity",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "open",
+              "to": "done"
+            },
+            {
+              "from": "open",
+              "to": "not_done"
+            },
+            {
+              "from": "open",
+              "to": "not_applicable"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "done",
+            "not_applicable",
+            "not_done",
+            "open"
+          ],
+          "terminal": [
+            "done",
+            "not_done",
+            "not_applicable"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "source",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "target",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "status",
+          "type_expr": "OpportunityTriggerStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "OpportunityTrigger",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "active",
+              "to": "retired"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "active",
+            "retired"
+          ],
+          "terminal": [
+            "retired"
+          ]
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "trigger",
+          "type_expr": "OpportunityTrigger"
+        },
+        {
+          "name": "source_event_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "target",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "released_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "consumed_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "TriggeredOpportunity"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "label",
+          "type_expr": "String"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "Place"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "place",
+          "type_expr": "Place"
+        },
+        {
+          "name": "strength",
+          "type_expr": "PlaceStrength"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "PlaceCondition"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "place",
+          "type_expr": "Place"
+        },
+        {
+          "name": "kind",
+          "type_expr": "LocationObservationKind"
+        },
+        {
+          "name": "observed_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "expires_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "source",
+          "type_expr": "String"
+        },
+        {
+          "name": "external_observation_id",
+          "optional": true,
+          "type_expr": "String?"
+        }
+      ],
+      "kind": "internal",
+      "name": "LocationObservation"
+    }
+  ],
+  "enums": [
+    {
+      "name": "WaitStatus",
+      "values": [
+        "open",
+        "resolved",
+        "cancelled"
+      ]
+    },
+    {
+      "name": "DependencyStatus",
+      "values": [
+        "active",
+        "satisfied",
+        "cancelled"
+      ]
+    },
+    {
+      "name": "DelegationStatus",
+      "values": [
+        "awaiting_approval",
+        "notified",
+        "in_progress",
+        "completed",
+        "refused",
+        "abandoned"
+      ]
+    },
+    {
+      "name": "ExecutionStatus",
+      "values": [
+        "running",
+        "finished",
+        "abandoned"
+      ]
+    },
+    {
+      "name": "ExecutionOutcome",
+      "values": [
+        "done",
+        "partial",
+        "abandoned"
+      ]
+    },
+    {
+      "name": "SkipReason",
+      "values": [
+        "hard",
+        "vague",
+        "not_priority",
+        "waiting",
+        "tired",
+        "meh",
+        "kill",
+        "alternatives",
+        "other"
+      ]
+    },
+    {
+      "name": "NoticeKind",
+      "values": [
+        "best_before_approaching",
+        "best_before_passed",
+        "deadline_approaching",
+        "deadline_overdue"
+      ]
+    },
+    {
+      "name": "NoticeStatus",
+      "values": [
+        "pending",
+        "acknowledged",
+        "snoozed",
+        "resolved"
+      ]
+    },
+    {
+      "name": "RecurrenceKind",
+      "values": [
+        "obligation",
+        "practice"
+      ]
+    },
+    {
+      "name": "ScheduleStatus",
+      "values": [
+        "active",
+        "paused",
+        "retired"
+      ]
+    },
+    {
+      "name": "PracticeOpportunityStatus",
+      "values": [
+        "open",
+        "done",
+        "not_done",
+        "not_applicable"
+      ]
+    },
+    {
+      "name": "OpportunityTriggerStatus",
+      "values": [
+        "active",
+        "retired"
+      ]
+    },
+    {
+      "name": "PlaceStrength",
+      "values": [
+        "hard",
+        "soft"
+      ]
+    },
+    {
+      "name": "LocationObservationKind",
+      "values": [
+        "entered",
+        "left",
+        "present"
+      ]
+    }
+  ],
+  "value_types": [
+    {
+      "fields": [
+        {
+          "name": "target",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "marks",
+          "type_expr": "List<String>"
+        },
+        {
+          "name": "current_streak",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "best_streak",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "applicable_count",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "done_count",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "not_done_count",
+          "type_expr": "Integer"
+        }
+      ],
+      "name": "PracticeHistoryView"
+    }
+  ],
+  "version": 3
+}

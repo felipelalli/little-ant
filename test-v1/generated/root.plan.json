@@ -1,0 +1,126 @@
+{
+  "obligations": [
+    {
+      "category": "invariant",
+      "description": "Verify invariant OneCanonicalBrickModel holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.OneCanonicalBrickModel",
+      "source_construct": "OneCanonicalBrickModel",
+      "source_span": {
+        "end": 1027,
+        "start": 736
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant RawIsMaterialAndBrickIsWork holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.RawIsMaterialAndBrickIsWork",
+      "source_construct": "RawIsMaterialAndBrickIsWork",
+      "source_span": {
+        "end": 1347,
+        "start": 1029
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant GloballyOpaqueEntityIds holds after every state-changing rule that touches constrained entities",
+      "expression": "for brick in domain/Bricks:\n        for raw in material/Raws:\n            brick.id != raw.id\n    for brick in domain/Bricks:\n        for party in domain/Parties:\n            brick.id != party.id\n    for raw in material/Raws:\n        for party in domain/Parties:\n            raw.id != party.id",
+      "id": "invariant.GloballyOpaqueEntityIds",
+      "source_construct": "GloballyOpaqueEntityIds",
+      "source_span": {
+        "end": 1683,
+        "start": 1349
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant EveryActiveBrickHasOneStrictSiblingPosition holds after every state-changing rule that touches constrained entities",
+      "expression": "for brick in domain/Bricks:\n        brick.status = active implies\n            judgment/PriorityScopes.any(\n                scope => brick in scope.members\n            )",
+      "id": "invariant.EveryActiveBrickHasOneStrictSiblingPosition",
+      "source_construct": "EveryActiveBrickHasOneStrictSiblingPosition",
+      "source_span": {
+        "end": 1915,
+        "start": 1685
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant PriorityIsImportanceOnly holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.PriorityIsImportanceOnly",
+      "source_construct": "PriorityIsImportanceOnly",
+      "source_span": {
+        "end": 2246,
+        "start": 1917
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant ForecastIsNotAnotherStoredOrder holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.ForecastIsNotAnotherStoredOrder",
+      "source_construct": "ForecastIsNotAnotherStoredOrder",
+      "source_span": {
+        "end": 2447,
+        "start": 2248
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant OptionalAxesStayLazy holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.OptionalAxesStayLazy",
+      "source_construct": "OptionalAxesStayLazy",
+      "source_span": {
+        "end": 2665,
+        "start": 2449
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant CoreMechanismAndExternalJudgmentAreSeparated holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.CoreMechanismAndExternalJudgmentAreSeparated",
+      "source_construct": "CoreMechanismAndExternalJudgmentAreSeparated",
+      "source_span": {
+        "end": 3010,
+        "start": 2667
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant CanonicalEnglishWithVerbatimProvenance holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.CanonicalEnglishWithVerbatimProvenance",
+      "source_construct": "CanonicalEnglishWithVerbatimProvenance",
+      "source_span": {
+        "end": 3212,
+        "start": 3012
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant NoGenericPluginAuthority holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.NoGenericPluginAuthority",
+      "source_construct": "NoGenericPluginAuthority",
+      "source_span": {
+        "end": 3448,
+        "start": 3214
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant LegacyBehaviorIsNotSpecAuthority holds after every state-changing rule that touches constrained entities",
+      "expression": "true",
+      "id": "invariant.LegacyBehaviorIsNotSpecAuthority",
+      "source_construct": "LegacyBehaviorIsNotSpecAuthority",
+      "source_span": {
+        "end": 3653,
+        "start": 3450
+      }
+    }
+  ],
+  "version": 3
+}

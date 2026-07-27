@@ -1,0 +1,364 @@
+-- allium: 3
+-- Little Ant 1.0 — auditable v0-to-v1 cutover contract.
+-- This module grants authority only through its explicit verified activation
+-- workflow; inspection and planning never alter the source dataset.
+
+use "./domain.allium" as domain
+
+------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+contract V0ArchiveReader {
+    inspect: (source_path: String) -> Any
+    hash: (source_path: String) -> String
+
+    @invariant ReadOnlySource
+        -- Planning, inspection, and validation never rewrite the v0 log or
+        -- any existing backup.
+}
+
+contract V1CutoverWriter {
+    stage: (projection: Any) -> Any
+    verify: (staged: Any) -> Any
+    activate: (staged: Any) -> Any
+
+    @invariant ActivateVerifiedOnly
+        -- Only a complete, validated staged v1 dataset may become active.
+
+    @invariant AtomicActivation
+        -- Failure leaves the v0 dataset and archive untouched and leaves no
+        -- partially active v1 log.
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum CutoverStatus {
+    planned |
+    archive_verified |
+    state_projected |
+    projection_verified |
+    committed |
+    failed
+}
+enum MigratedEntityKind { brick | raw | party | list_entry }
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity V0Archive {
+    id: String
+    source_path: String
+    byte_size: Integer
+    event_count: Integer
+    sha256: String
+    archived_at: Timestamp
+    immutable: Boolean
+    verified: Boolean
+}
+
+entity V0V1IdentityMap {
+    id: String
+    archive: V0Archive
+    old_id: String
+    new_id: String
+    kind: MigratedEntityKind
+    recorded_at: Timestamp
+}
+
+entity MigrationEvidence {
+    id: String
+    archive: V0Archive
+    old_event_id: String?
+    subject_old_id: String?
+    semantic_kind: String
+    summary: String
+    recorded_at: Timestamp
+}
+
+entity V1Cutover {
+    id: String
+    archive: V0Archive
+    status: CutoverStatus
+    planned_at: Timestamp
+    finished_at: Timestamp?
+    projected_entity_count: Integer
+    mapped_identity_count: Integer
+    retained_evidence_count: Integer
+    v1_log_hash: String?
+    receipt_hash: String?
+    failure: String?
+
+    transitions status {
+        planned -> archive_verified
+        planned -> failed
+        archive_verified -> state_projected
+        archive_verified -> failed
+        state_projected -> projection_verified
+        state_projected -> failed
+        projection_verified -> committed
+        projection_verified -> failed
+        terminal: committed, failed
+    }
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule CutoverPlanned {
+    when: PlanV0V1Cutover(
+        source_path,
+        byte_size,
+        event_count,
+        sha256)
+    requires: byte_size > 0
+    requires: event_count > 0
+    ensures:
+        let archive = V0Archive.created(
+            id: new_id(),
+            source_path: source_path,
+            byte_size: byte_size,
+            event_count: event_count,
+            sha256: sha256,
+            archived_at: now,
+            immutable: true,
+            verified: false)
+        V1Cutover.created(
+            id: new_id(),
+            archive: archive,
+            status: planned,
+            planned_at: now,
+            projected_entity_count: 0,
+            mapped_identity_count: 0,
+            retained_evidence_count: 0)
+}
+
+rule HistoricalArchiveVerified {
+    when: VerifyV0Archive(cutover, observed_hash, observed_event_count)
+    requires: cutover.status = planned
+    requires: observed_hash = cutover.archive.sha256
+    requires: observed_event_count = cutover.archive.event_count
+    ensures:
+        cutover.archive.verified = true
+        cutover.status = archive_verified
+}
+
+rule HistoricalArchiveVerificationFailed {
+    when: VerifyV0Archive(cutover, observed_hash, observed_event_count)
+    requires: cutover.status = planned
+    requires:
+        observed_hash != cutover.archive.sha256
+        or observed_event_count != cutover.archive.event_count
+    ensures:
+        cutover.status = failed
+        cutover.finished_at = now
+        cutover.failure = "v0_archive_verification_failed"
+}
+
+rule CurrentStateProjected {
+    when: ProjectV1State(
+        cutover,
+        projected_entity_count,
+        retained_evidence_count)
+    requires: cutover.status = archive_verified
+    requires: cutover.archive.verified
+    requires: projected_entity_count >= 0
+    requires: retained_evidence_count >= 0
+    ensures:
+        cutover.status = state_projected
+        cutover.projected_entity_count = projected_entity_count
+        cutover.retained_evidence_count = retained_evidence_count
+
+    @guarantee SemanticProjectionNotEventUpcast
+        -- The migration folds v0 history once, then writes clean v1 creation
+        -- and evidence records representing current state. Obsolete v0 event
+        -- kinds never become normal inputs to the v1 fold.
+
+    @guarantee RemovedStagesMapToIndependentAxes
+        -- seed, committed, and ready map to active positioned Bricks; wip maps
+        -- to active plus WorkState.wip; terminal outcomes remain honest.
+
+    @guarantee UsefulEvidenceSurvives
+        -- Applicable comparisons, descriptions, dependencies, waits,
+        -- delegation, source provenance, execution facts, and semantic
+        -- timestamps are retained without copying irrelevant ceremony.
+}
+
+rule MigratedIdentityMapped {
+    when: RecordMigratedIdentity(
+        cutover,
+        old_id,
+        new_id,
+        kind)
+    requires: cutover.status = state_projected
+    requires: not exists V0V1IdentityMap{
+        archive: cutover.archive,
+        old_id: old_id
+    }
+    ensures:
+        V0V1IdentityMap.created(
+            id: new_id(),
+            archive: cutover.archive,
+            old_id: old_id,
+            new_id: new_id,
+            kind: kind,
+            recorded_at: now)
+        cutover.mapped_identity_count =
+            cutover.mapped_identity_count + 1
+
+    @guarantee TitlesDoNotRemainIdentity
+        -- Each migrated entity receives a new opaque immutable ID. Its old
+        -- title-derived ID remains only in this explicit provenance map.
+}
+
+rule MigratedEvidenceRecorded {
+    when: RecordMigrationEvidence(
+        cutover,
+        old_event_id?,
+        subject_old_id?,
+        semantic_kind,
+        summary)
+    requires: cutover.status = state_projected
+    ensures: MigrationEvidence.created(
+        id: new_id(),
+        archive: cutover.archive,
+        old_event_id: old_event_id,
+        subject_old_id: subject_old_id,
+        semantic_kind: semantic_kind,
+        summary: summary,
+        recorded_at: now)
+}
+
+rule V1ProjectionVerified {
+    when: VerifyV1Projection(
+        cutover,
+        mapped_identity_count,
+        projected_entity_count,
+        v1_log_hash)
+    requires: cutover.status = state_projected
+    requires:
+        mapped_identity_count = cutover.mapped_identity_count
+    requires:
+        projected_entity_count = cutover.projected_entity_count
+    requires: v1_projection_satisfies_invariants(cutover)
+    ensures:
+        cutover.status = projection_verified
+        cutover.v1_log_hash = v1_log_hash
+}
+
+rule V1ProjectionVerificationFailed {
+    when: RejectV1Projection(cutover, failure)
+    requires: cutover.status = state_projected
+    ensures:
+        cutover.status = failed
+        cutover.finished_at = now
+        cutover.failure = failure
+}
+
+rule V1CutoverCommitted {
+    when: CommitV1Cutover(cutover, receipt_hash)
+    requires: cutover.status = projection_verified
+    requires: cutover.archive.verified
+    requires: cutover.v1_log_hash != null
+    ensures:
+        cutover.status = committed
+        cutover.finished_at = now
+        cutover.receipt_hash = receipt_hash
+
+    @guarantee HistoricalArchiveRemainsImmutable
+        -- Committing v1 changes neither the archived v0 bytes nor their hash.
+
+    @guarantee CleanV1Authority
+        -- After cutover, the active operational source of truth is the clean
+        -- v1 log. The v0 archive is audit evidence, not a second mutable log.
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant OneMapEntryPerOldId {
+    for first in V0V1IdentityMaps:
+        for second in V0V1IdentityMaps:
+            (
+                first.archive = second.archive
+                and first.old_id = second.old_id
+            ) implies first = second
+}
+
+invariant ArchiveIsImmutable {
+    for archive in V0Archives:
+        archive.immutable = true
+}
+
+invariant CommittedCutoverIsVerifiable {
+    for cutover in V1Cutovers:
+        cutover.status = committed implies
+            cutover.archive.verified
+            and cutover.v1_log_hash != null
+            and cutover.receipt_hash != null
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor User {
+    identified_by: domain/Party where party_type = person
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface MigrationDesk {
+    facing user: User
+
+    exposes:
+        user.id
+
+    provides:
+        PlanV0V1Cutover(
+            source_path,
+            byte_size,
+            event_count,
+            sha256)
+        VerifyV0Archive(
+            cutover,
+            observed_hash,
+            observed_event_count)
+        ProjectV1State(
+            cutover,
+            projected_entity_count,
+            retained_evidence_count)
+        RecordMigratedIdentity(
+            cutover,
+            old_id,
+            new_id,
+            kind)
+        RecordMigrationEvidence(
+            cutover,
+            old_event_id?,
+            subject_old_id?,
+            semantic_kind,
+            summary)
+        VerifyV1Projection(
+            cutover,
+            mapped_identity_count,
+            projected_entity_count,
+            v1_log_hash)
+        RejectV1Projection(cutover, failure)
+        CommitV1Cutover(cutover, receipt_hash)
+
+    contracts:
+        demands V0ArchiveReader
+        demands V1CutoverWriter
+
+    @guarantee DryRunBeforeAuthorityChange
+        -- Planning, archive verification, projection, identity mapping, and
+        -- validation complete before activation is available.
+}

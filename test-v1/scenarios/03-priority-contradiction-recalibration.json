@@ -1,0 +1,141 @@
+{
+  "protocol_version": 1,
+  "id": "priority-contradiction-recalibration",
+  "title": "A provocative direct contradiction lowers confidence and recalibrates locally",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "judgment",
+    "selection"
+  ],
+  "clock": "2026-07-27T11:00:00Z",
+  "steps": [
+    {
+      "id": "create-ordered-run",
+      "operation": "CreateFixture",
+      "arguments": {
+        "fixture": "strict_root_priority",
+        "titles": [
+          "Ship feature A",
+          "Ship feature B",
+          "Ship feature C",
+          "Clean old screenshots"
+        ],
+        "direct_human_judgments": [
+          [
+            "Ship feature A",
+            "Ship feature B"
+          ],
+          [
+            "Ship feature B",
+            "Ship feature C"
+          ]
+        ]
+      },
+      "bind_result": {
+        "scope": "scope",
+        "Ship feature A": "a",
+        "Ship feature B": "b",
+        "Ship feature C": "c",
+        "Clean old screenshots": "d"
+      }
+    },
+    {
+      "id": "validate-transitive-edge",
+      "operation": "OpenProvocativeValidation",
+      "arguments": {
+        "axis": "priority",
+        "scope": "$scope",
+        "left": "$a",
+        "right": "$c",
+        "purpose": "validation"
+      },
+      "bind": "probe"
+    },
+    {
+      "id": "record-contradiction",
+      "operation": "RecordPriorityJudgment",
+      "arguments": {
+        "scope": "$scope",
+        "more_important": "$c",
+        "less_important": "$a",
+        "authority": "human",
+        "reason": "New evidence changed the decision"
+      },
+      "bind_result": {
+        "recalibration": "recalibration"
+      }
+    },
+    {
+      "id": "commit-local-order",
+      "operation": "CommitPriorityRecalibration",
+      "arguments": {
+        "recalibration": "$recalibration"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "provocative-question-tests-transitive-edge",
+      "after": "validate-transitive-edge",
+      "query": "JudgmentProbe($probe)",
+      "path": "purpose",
+      "operator": "equals",
+      "value": "validation"
+    },
+    {
+      "id": "new-human-judgment-is-retained",
+      "after": "record-contradiction",
+      "query": "PriorityEvidence($scope,$a,$c)",
+      "path": "history",
+      "operator": "contains",
+      "value": {
+        "more_important": "$c",
+        "less_important": "$a",
+        "authority": "human"
+      }
+    },
+    {
+      "id": "older-evidence-is-not-deleted",
+      "after": "record-contradiction",
+      "query": "PriorityEvidence($scope,$a,$c)",
+      "path": "transitive_support",
+      "operator": "not_empty"
+    },
+    {
+      "id": "contradiction-lowers-confidence",
+      "after": "record-contradiction",
+      "query": "PriorityEvidence($scope,$a,$c)",
+      "path": "confidence",
+      "operator": "less_than",
+      "value_from": "confidence_before:record-contradiction"
+    },
+    {
+      "id": "smallest-local-segment-is-selected",
+      "after": "record-contradiction",
+      "query": "PriorityRecalibration($recalibration)",
+      "path": "segment",
+      "operator": "equals",
+      "value": [
+        "$a",
+        "$b",
+        "$c"
+      ]
+    },
+    {
+      "id": "unrelated-tail-does-not-move",
+      "after": "commit-local-order",
+      "query": "RootPriority",
+      "path": "members.last",
+      "operator": "equals_reference",
+      "value": "$d"
+    },
+    {
+      "id": "committed-segment-is-strict-and-coherent",
+      "after": "commit-local-order",
+      "query": "PriorityRecalibration($recalibration)",
+      "path": "status",
+      "operator": "equals",
+      "value": "resolved"
+    }
+  ]
+}

@@ -1,0 +1,858 @@
+{
+  "config": [
+    {
+      "default_expr": "3",
+      "name": "priority_nearby_distance",
+      "type_expr": "Integer"
+    },
+    {
+      "default_expr": "2",
+      "name": "priority_skip_limit",
+      "type_expr": "Integer"
+    },
+    {
+      "default_expr": "3",
+      "name": "effort_assistance_limit",
+      "type_expr": "Integer"
+    }
+  ],
+  "entities": [
+    {
+      "derived_values": [
+        {
+          "name": "view"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "parent",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "members",
+          "type_expr": "List<domain/Brick>"
+        },
+        {
+          "name": "revision",
+          "type_expr": "Integer"
+        }
+      ],
+      "kind": "internal",
+      "name": "PriorityScope"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "scope",
+          "type_expr": "PriorityScope"
+        },
+        {
+          "name": "status",
+          "type_expr": "InsertionStatus"
+        },
+        {
+          "name": "current_candidate",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "comparisons_recorded",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "consecutive_skips",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "random_evidence",
+          "type_expr": "String"
+        },
+        {
+          "name": "started_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "finished_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "PriorityInsertion",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "open",
+              "to": "resolved"
+            },
+            {
+              "from": "open",
+              "to": "deferred"
+            },
+            {
+              "from": "deferred",
+              "to": "open"
+            },
+            {
+              "from": "deferred",
+              "to": "resolved"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "deferred",
+            "open",
+            "resolved"
+          ],
+          "terminal": [
+            "resolved"
+          ]
+        }
+      ]
+    },
+    {
+      "derived_values": [
+        {
+          "name": "is_current"
+        },
+        {
+          "name": "evidence_view"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "scope",
+          "type_expr": "PriorityScope"
+        },
+        {
+          "name": "scope_revision",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "more_important",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "less_important",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "reason",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "applicable",
+          "type_expr": "Boolean"
+        }
+      ],
+      "kind": "internal",
+      "name": "PriorityJudgment"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "insertion",
+          "type_expr": "PriorityInsertion"
+        },
+        {
+          "name": "candidate",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "kind",
+          "type_expr": "PrioritySkipKind"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "PriorityComparisonSkip"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "scope",
+          "type_expr": "PriorityScope"
+        },
+        {
+          "name": "segment",
+          "type_expr": "List<domain/Brick>"
+        },
+        {
+          "name": "proposed_order",
+          "type_expr": "List<domain/Brick>"
+        },
+        {
+          "name": "status",
+          "type_expr": "RecalibrationStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "resolved_at",
+          "type_expr": "Timestamp",
+          "when_set": {
+            "qualifying_states": [
+              "resolved"
+            ],
+            "status_field": "status"
+          }
+        }
+      ],
+      "kind": "internal",
+      "name": "PriorityRecalibration",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "open",
+              "to": "resolved"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "open",
+            "resolved"
+          ],
+          "terminal": [
+            "resolved"
+          ]
+        }
+      ]
+    },
+    {
+      "derived_values": [
+        {
+          "name": "is_current"
+        },
+        {
+          "name": "evidence_view"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "root",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "impact",
+          "type_expr": "ImpactClass"
+        },
+        {
+          "name": "maturity",
+          "type_expr": "ImpactMaturity"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "reason",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "applicable",
+          "type_expr": "Boolean"
+        }
+      ],
+      "kind": "internal",
+      "name": "ImpactAssessment"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "is_current"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "left",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "right",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "result",
+          "type_expr": "RelativeAssessment"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "reason",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "applicable",
+          "type_expr": "Boolean"
+        }
+      ],
+      "kind": "internal",
+      "name": "ImpactComparison"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "version",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "name",
+          "type_expr": "String"
+        }
+      ],
+      "kind": "internal",
+      "name": "EffortProfile"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "profile",
+          "type_expr": "EffortProfile"
+        },
+        {
+          "name": "ordinal",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "macro",
+          "type_expr": "String"
+        },
+        {
+          "name": "optimistic_hours",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "realistic_hours",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "pessimistic_hours",
+          "type_expr": "Decimal"
+        }
+      ],
+      "kind": "internal",
+      "name": "EffortBand"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "is_current"
+        },
+        {
+          "name": "evidence_view"
+        },
+        {
+          "name": "remaining_view"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "band",
+          "type_expr": "EffortBand"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "provisional",
+          "type_expr": "Boolean"
+        },
+        {
+          "name": "reason",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "applicable",
+          "type_expr": "Boolean"
+        }
+      ],
+      "kind": "internal",
+      "name": "EffortAssessment"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "is_current"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "subject",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "exemplar",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "result",
+          "type_expr": "EffortComparison"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "recorded_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "applicable",
+          "type_expr": "Boolean"
+        }
+      ],
+      "kind": "internal",
+      "name": "EffortComparisonEvidence"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "reason",
+          "type_expr": "String"
+        },
+        {
+          "name": "authority",
+          "type_expr": "domain/Authority"
+        },
+        {
+          "name": "confirmed_at",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "kind": "internal",
+      "name": "ScopeRevision"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        },
+        {
+          "name": "axis",
+          "type_expr": "JudgmentAxis"
+        },
+        {
+          "name": "purpose",
+          "type_expr": "ProbePurpose"
+        },
+        {
+          "name": "scope",
+          "optional": true,
+          "type_expr": "PriorityScope?"
+        },
+        {
+          "name": "left",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "right",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "reason",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "JudgmentProbeStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "resolved_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "JudgmentProbe",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "open",
+              "to": "deferred"
+            },
+            {
+              "from": "open",
+              "to": "resolved"
+            },
+            {
+              "from": "deferred",
+              "to": "open"
+            },
+            {
+              "from": "deferred",
+              "to": "resolved"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "deferred",
+            "open",
+            "resolved"
+          ],
+          "terminal": [
+            "resolved"
+          ]
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "PrioritySkipKind",
+      "values": [
+        "unresolved",
+        "tie_break_for_me"
+      ]
+    },
+    {
+      "name": "InsertionStatus",
+      "values": [
+        "open",
+        "resolved",
+        "deferred"
+      ]
+    },
+    {
+      "name": "RecalibrationStatus",
+      "values": [
+        "open",
+        "resolved"
+      ]
+    },
+    {
+      "name": "JudgmentAxis",
+      "values": [
+        "priority",
+        "impact",
+        "effort"
+      ]
+    },
+    {
+      "name": "ProbePurpose",
+      "values": [
+        "discovery",
+        "validation",
+        "recalibration"
+      ]
+    },
+    {
+      "name": "JudgmentProbeStatus",
+      "values": [
+        "open",
+        "deferred",
+        "resolved"
+      ]
+    },
+    {
+      "name": "ImpactClass",
+      "values": [
+        "VERY_LOW",
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "VERY_HIGH",
+        "CRITICAL"
+      ]
+    },
+    {
+      "name": "ImpactMaturity",
+      "values": [
+        "SPECULATIVE",
+        "SUPPORTED",
+        "VALIDATED",
+        "OBSERVED"
+      ]
+    },
+    {
+      "name": "RelativeAssessment",
+      "values": [
+        "less",
+        "similar",
+        "more"
+      ]
+    },
+    {
+      "name": "EffortComparison",
+      "values": [
+        "much_less",
+        "a_little_less",
+        "similar",
+        "a_little_more",
+        "much_more"
+      ]
+    }
+  ],
+  "value_types": [
+    {
+      "fields": [
+        {
+          "name": "scope",
+          "type_expr": "PriorityScope"
+        },
+        {
+          "name": "left",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "right",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "current_more_important",
+          "optional": true,
+          "type_expr": "domain/Brick?"
+        },
+        {
+          "name": "confidence",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "confidence_reasons",
+          "type_expr": "List<String>"
+        },
+        {
+          "name": "provisional",
+          "type_expr": "Boolean"
+        }
+      ],
+      "name": "PriorityEvidenceView"
+    },
+    {
+      "fields": [
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "scope",
+          "type_expr": "PriorityScope"
+        },
+        {
+          "name": "sibling_index",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "tree_path",
+          "type_expr": "List<Integer>"
+        },
+        {
+          "name": "confidence",
+          "type_expr": "Decimal"
+        },
+        {
+          "name": "confidence_reasons",
+          "type_expr": "List<String>"
+        },
+        {
+          "name": "provisional",
+          "type_expr": "Boolean"
+        }
+      ],
+      "name": "PriorityViewItem"
+    },
+    {
+      "fields": [
+        {
+          "name": "root_scope",
+          "type_expr": "PriorityScope"
+        },
+        {
+          "name": "revision_fingerprint",
+          "type_expr": "String"
+        },
+        {
+          "name": "items",
+          "type_expr": "List<PriorityViewItem>"
+        }
+      ],
+      "name": "PriorityView"
+    },
+    {
+      "fields": [
+        {
+          "name": "root",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "current",
+          "optional": true,
+          "type_expr": "ImpactAssessment?"
+        },
+        {
+          "name": "reliability_reasons",
+          "type_expr": "List<String>"
+        },
+        {
+          "name": "needs_validation",
+          "type_expr": "Boolean"
+        }
+      ],
+      "name": "ImpactEvidenceView"
+    },
+    {
+      "fields": [
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "current",
+          "optional": true,
+          "type_expr": "EffortAssessment?"
+        },
+        {
+          "name": "confidence_reasons",
+          "type_expr": "List<String>"
+        },
+        {
+          "name": "needs_validation",
+          "type_expr": "Boolean"
+        }
+      ],
+      "name": "EffortEvidenceView"
+    },
+    {
+      "fields": [
+        {
+          "name": "brick",
+          "type_expr": "domain/Brick"
+        },
+        {
+          "name": "effort_profile",
+          "type_expr": "EffortProfile"
+        },
+        {
+          "name": "total_band",
+          "optional": true,
+          "type_expr": "EffortBand?"
+        },
+        {
+          "name": "optimistic_hours",
+          "optional": true,
+          "type_expr": "Decimal?"
+        },
+        {
+          "name": "realistic_hours",
+          "optional": true,
+          "type_expr": "Decimal?"
+        },
+        {
+          "name": "pessimistic_hours",
+          "optional": true,
+          "type_expr": "Decimal?"
+        },
+        {
+          "name": "evidence",
+          "type_expr": "List<String>"
+        },
+        {
+          "name": "confidence_reasons",
+          "type_expr": "List<String>"
+        }
+      ],
+      "name": "RemainingEffortProjection"
+    }
+  ],
+  "version": 3
+}

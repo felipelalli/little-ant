@@ -32,8 +32,8 @@ B
 - New children form a local ordered sibling set and need initial placement.
 - Breaking or adding relevant children makes the parent's decomposition
   coverage `open`.
-- A child with no explicit phase inherits the parent's phase initially, but
-  that inferred phase is uncertain.
+- When phase is applicable, a child with no explicit phase may inherit the
+  parent's phase initially, but that inferred phase is uncertain.
 - Moving a subtree preserves all internal structure and internal sibling
   order.
 - The moved root is reinserted into its new sibling set with low priority
@@ -49,9 +49,29 @@ B
 
 - A parent with active descendants must reject a simple `done`, `drop`, or
   `supersede`.
+- Direct completion from any active Brick never bypasses this rule; “direct”
+  removes lifecycle ceremony, not subtree reconciliation.
 - The error must explain how to resolve or batch-handle the subtree.
 - Closing the last active child does not automatically complete the parent.
 - Instead, it produces a `review_parent` proposal.
+
+`review_parent` applies only when the parent has finite outcome semantics. Its
+payload summarizes the relevant child outcomes and the parent's decomposition
+coverage:
+
+- if coverage is `complete` and every relevant child completed successfully,
+  `done` is the preferred proposal, but still requires confirmation;
+- if coverage is `open`, or any relevant child was dropped or superseded, no
+  completion default is assumed; the review asks whether the parent outcome
+  was achieved, missing work should be added, or the parent should remain
+  open;
+- an empty standing `collection` becomes derivatively dormant and does not
+  receive a terminal-completion proposal merely because it has no active
+  children.
+
+Confirming the parent's completion may make its finite parent eligible for the
+same review. This ascends one confirmed level at a time: every ancestor remains
+open until separately reviewed, and completion never cascades automatically.
 
 Little Ant 1.0 must support explicit batch operations for:
 
@@ -63,6 +83,12 @@ Little Ant 1.0 must support explicit batch operations for:
 
 Behavior for active waits, delegations, and pending external effects during
 these operations remains open.
+
+ListEntries are not child Bricks. Their resolution does not invoke subtree
+closure or priority-order rules. A behavior may use their aggregate state to
+propose reviewing a finite parent, finishing an execution occurrence, or
+making standing work derivatively dormant; none of those outcomes is automatic
+terminal Brick completion.
 
 ## 7.4 Decomposition coverage
 

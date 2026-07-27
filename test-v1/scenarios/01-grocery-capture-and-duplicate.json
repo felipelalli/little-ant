@@ -1,0 +1,164 @@
+{
+  "protocol_version": 1,
+  "id": "grocery-capture-and-duplicate",
+  "title": "Route grocery input to one checklist and preserve duplicate evidence",
+  "kind": "end_to_end",
+  "spec_refs": [
+    "domain",
+    "material",
+    "selection",
+    "execution"
+  ],
+  "clock": "2026-07-27T09:00:00Z",
+  "steps": [
+    {
+      "id": "create-user",
+      "operation": "CreateParty",
+      "arguments": {
+        "label": "Felipe",
+        "party_type": "person"
+      },
+      "bind": "user"
+    },
+    {
+      "id": "open-grocery-capture",
+      "operation": "BeginCapture",
+      "arguments": {
+        "original_text": "Buy groceries",
+        "canonical_english": "Buy groceries",
+        "normalization_authority": "human",
+        "proposed_route": "instantiate_template",
+        "proposed_template": "standard/grocery_list@1"
+      },
+      "bind": "grocery_capture"
+    },
+    {
+      "id": "confirm-grocery-brick",
+      "operation": "ConfirmSeparateCapture",
+      "arguments": {
+        "capture": "$grocery_capture",
+        "authority": "human"
+      },
+      "bind_result": {
+        "created_brick": "groceries"
+      }
+    },
+    {
+      "id": "open-milk-capture",
+      "operation": "BeginCapture",
+      "arguments": {
+        "original_text": "leite",
+        "canonical_english": "Milk",
+        "normalization_authority": "ai",
+        "proposed_route": "create_list_entry",
+        "proposed_owner": "$groceries"
+      },
+      "bind": "milk_capture"
+    },
+    {
+      "id": "confirm-milk-entry",
+      "operation": "ConfirmSeparateCapture",
+      "arguments": {
+        "capture": "$milk_capture",
+        "authority": "human"
+      },
+      "bind_result": {
+        "created_entry": "milk_entry"
+      }
+    },
+    {
+      "id": "repeat-milk-capture",
+      "operation": "BeginCapture",
+      "arguments": {
+        "original_text": "comprar leite",
+        "canonical_english": "Buy milk",
+        "normalization_authority": "ai",
+        "proposed_route": "create_list_entry",
+        "proposed_owner": "$groceries"
+      },
+      "bind": "duplicate_capture"
+    },
+    {
+      "id": "select-entry-suspicion",
+      "operation": "SelectDuplicateSuspicion",
+      "arguments": {
+        "capture": "$duplicate_capture",
+        "target_entry": "$milk_entry"
+      },
+      "bind": "milk_suspicion"
+    },
+    {
+      "id": "confirm-enrichment",
+      "operation": "ConfirmDuplicateDecision",
+      "arguments": {
+        "capture": "$duplicate_capture",
+        "suspicion": "$milk_suspicion",
+        "decision": "enrich",
+        "authority": "human"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "grocery-owner-uses-standing-checklist",
+      "after": "confirm-grocery-brick",
+      "query": "BrickSummary($groceries)",
+      "path": "behavior.id",
+      "operator": "equals",
+      "value": "core/standing_checklist"
+    },
+    {
+      "id": "grocery-owner-is-positioned-once",
+      "after": "confirm-grocery-brick",
+      "query": "PriorityMemberships($groceries)",
+      "path": "count",
+      "operator": "equals",
+      "value": 1
+    },
+    {
+      "id": "milk-is-lightweight-entry",
+      "after": "confirm-milk-entry",
+      "query": "ListEntrySummary($milk_entry)",
+      "path": "owner.id",
+      "operator": "equals_reference",
+      "value": "$groceries"
+    },
+    {
+      "id": "entry-keeps-original-language",
+      "after": "confirm-milk-entry",
+      "query": "ListEntrySummary($milk_entry)",
+      "path": "original_label",
+      "operator": "equals",
+      "value": "leite"
+    },
+    {
+      "id": "duplicate-does-not-create-second-entry",
+      "after": "confirm-enrichment",
+      "query": "OpenEntries($groceries)",
+      "path": "items",
+      "operator": "count_equals",
+      "value": 1
+    },
+    {
+      "id": "duplicate-input-survives-as-raw-evidence",
+      "after": "confirm-enrichment",
+      "query": "RawLinksToEntry($milk_entry)",
+      "path": "items",
+      "operator": "contains",
+      "value": {
+        "role": "evidence",
+        "original_text": "comprar leite"
+      }
+    },
+    {
+      "id": "grocery-view-renders-all-open-entries",
+      "after": "confirm-enrichment",
+      "query": "OperationalProjection($groceries)",
+      "path": "open_entries",
+      "operator": "equals",
+      "value": [
+        "Milk"
+      ]
+    }
+  ]
+}

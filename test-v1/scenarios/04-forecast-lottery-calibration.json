@@ -1,0 +1,129 @@
+{
+  "protocol_version": 1,
+  "id": "forecast-lottery-calibration",
+  "title": "Weighted next draws converge without creating a second stored order",
+  "kind": "simulation",
+  "spec_refs": [
+    "judgment",
+    "selection"
+  ],
+  "clock": "2026-07-27T12:00:00Z",
+  "random_evidence": {
+    "algorithm": "driver-defined-replay-safe-stream",
+    "seed": "forecast-calibration-2026-07-27",
+    "samples": 10000
+  },
+  "steps": [
+    {
+      "id": "create-calibration-state",
+      "operation": "CreateFixture",
+      "arguments": {
+        "fixture": "eligible_priority_run",
+        "titles": [
+          "Critical customer fix",
+          "Write migration guide",
+          "Read background paper"
+        ],
+        "phases": [
+          "exec",
+          "spec",
+          "idea"
+        ],
+        "skip_pressure": [
+          0,
+          1,
+          3
+        ]
+      },
+      "bind_result": {
+        "scope": "scope",
+        "Critical customer fix": "a",
+        "Write migration guide": "b",
+        "Read background paper": "c"
+      }
+    },
+    {
+      "id": "build-forecast",
+      "operation": "BuildForecast",
+      "arguments": {
+        "at": "2026-07-27T12:00:00Z",
+        "domain_revision": "$current_domain_revision"
+      },
+      "bind": "forecast"
+    },
+    {
+      "id": "sample-draws",
+      "operation": "SimulateReplaySafeDraws",
+      "arguments": {
+        "forecast": "$forecast",
+        "samples": 10000,
+        "seed": "forecast-calibration-2026-07-27"
+      },
+      "bind": "draw_metrics"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "forecast-build-is-read-only",
+      "after": "build-forecast",
+      "query": "DomainRevision",
+      "operator": "equals_snapshot",
+      "value_from": "before:build-forecast"
+    },
+    {
+      "id": "every-eligible-brick-has-positive-probability",
+      "after": "build-forecast",
+      "query": "Forecast($forecast)",
+      "path": "ordinary_eligible_items",
+      "operator": "all_match",
+      "value": {
+        "probability": {
+          "greater_than": 0.0
+        }
+      }
+    },
+    {
+      "id": "weights-have-explanations",
+      "after": "build-forecast",
+      "query": "Forecast($forecast)",
+      "path": "items",
+      "operator": "all_match",
+      "value": {
+        "nonzero_weight_has_nonempty_reasons": true
+      }
+    },
+    {
+      "id": "empirical-frequency-tracks-declared-probability",
+      "after": "sample-draws",
+      "query": "SimulationMetrics($draw_metrics)",
+      "path": "per_candidate",
+      "operator": "all_within_absolute_tolerance",
+      "expected_path": "forecast_probability",
+      "actual_path": "observed_frequency",
+      "tolerance": 0.02
+    },
+    {
+      "id": "sampling-is-exactly-replayable",
+      "after": "sample-draws",
+      "operation": "RepeatSimulation",
+      "operator": "equals",
+      "value_from": "$draw_metrics"
+    },
+    {
+      "id": "draws-do-not-rewrite-human-priority",
+      "after": "sample-draws",
+      "query": "PriorityScope($scope)",
+      "path": "members",
+      "operator": "equals_snapshot",
+      "value_from": "before:sample-draws"
+    },
+    {
+      "id": "draws-do-not-persist-forecast-order",
+      "after": "sample-draws",
+      "query": "CanonicalEntities",
+      "path": "stored_forecast_orders",
+      "operator": "count_equals",
+      "value": 0
+    }
+  ]
+}

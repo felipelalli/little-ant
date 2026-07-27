@@ -1,0 +1,1346 @@
+-- allium: 3
+-- Little Ant 1.0 — human priority, impact, effort, and scope evidence.
+
+use "./domain.allium" as domain
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum PrioritySkipKind { unresolved | tie_break_for_me }
+enum InsertionStatus { open | resolved | deferred }
+enum RecalibrationStatus { open | resolved }
+enum JudgmentAxis { priority | impact | effort }
+enum ProbePurpose { discovery | validation | recalibration }
+enum JudgmentProbeStatus { open | deferred | resolved }
+enum ImpactClass {
+    `VERY_LOW` |
+    `LOW` |
+    `MEDIUM` |
+    `HIGH` |
+    `VERY_HIGH` |
+    `CRITICAL`
+}
+enum ImpactMaturity {
+    `SPECULATIVE` |
+    `SUPPORTED` |
+    `VALIDATED` |
+    `OBSERVED`
+}
+enum RelativeAssessment { less | similar | more }
+enum EffortComparison {
+    much_less |
+    a_little_less |
+    similar |
+    a_little_more |
+    much_more
+}
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity PriorityScope {
+    id: String
+    parent: domain/Brick?
+    members: List<domain/Brick>
+    revision: Integer
+
+    view: PriorityView = priority_view(this)
+}
+
+entity PriorityInsertion {
+    id: String
+    brick: domain/Brick
+    scope: PriorityScope
+    status: InsertionStatus
+    current_candidate: domain/Brick?
+    comparisons_recorded: Integer
+    consecutive_skips: Integer
+    random_evidence: String
+    started_at: Timestamp
+    finished_at: Timestamp?
+
+    transitions status {
+        open -> resolved
+        open -> deferred
+        deferred -> open
+        deferred -> resolved
+        terminal: resolved
+    }
+}
+
+entity PriorityJudgment {
+    id: String
+    scope: PriorityScope
+    scope_revision: Integer
+    more_important: domain/Brick
+    less_important: domain/Brick
+    authority: domain/Authority
+    recorded_at: Timestamp
+    reason: String?
+    applicable: Boolean
+
+    is_current: Boolean =
+        applicable and current_priority_judgment(
+            scope,
+            unordered_pair(more_important, less_important)
+        ) = this
+    evidence_view: PriorityEvidenceView =
+        priority_evidence(scope, more_important, less_important)
+}
+
+entity PriorityComparisonSkip {
+    id: String
+    insertion: PriorityInsertion
+    candidate: domain/Brick
+    kind: PrioritySkipKind
+    recorded_at: Timestamp
+}
+
+entity PriorityRecalibration {
+    id: String
+    scope: PriorityScope
+    segment: List<domain/Brick>
+    proposed_order: List<domain/Brick>
+    status: RecalibrationStatus
+    created_at: Timestamp
+    resolved_at: Timestamp when status = resolved
+
+    transitions status {
+        open -> resolved
+        terminal: resolved
+    }
+}
+
+entity ImpactAssessment {
+    id: String
+    root: domain/Brick
+    impact: ImpactClass
+    maturity: ImpactMaturity
+    authority: domain/Authority
+    reason: String?
+    recorded_at: Timestamp
+    applicable: Boolean
+
+    is_current: Boolean =
+        applicable and current_impact_assessment(root) = this
+    evidence_view: ImpactEvidenceView = impact_evidence(root)
+}
+
+entity ImpactComparison {
+    id: String
+    left: domain/Brick
+    right: domain/Brick
+    result: RelativeAssessment
+    authority: domain/Authority
+    reason: String?
+    recorded_at: Timestamp
+    applicable: Boolean
+
+    is_current: Boolean =
+        applicable and current_impact_comparison(
+            unordered_pair(left, right)
+        ) = this
+}
+
+entity EffortProfile {
+    id: String
+    version: Integer
+    name: String
+}
+
+entity EffortBand {
+    id: String
+    profile: EffortProfile
+    ordinal: Integer
+    macro: String
+    optimistic_hours: Decimal
+    realistic_hours: Decimal
+    pessimistic_hours: Decimal
+}
+
+entity EffortAssessment {
+    id: String
+    brick: domain/Brick
+    band: EffortBand
+    authority: domain/Authority
+    provisional: Boolean
+    reason: String?
+    recorded_at: Timestamp
+    applicable: Boolean
+
+    is_current: Boolean =
+        applicable and current_effort_assessment(brick) = this
+    evidence_view: EffortEvidenceView = effort_evidence(brick)
+    remaining_view: RemainingEffortProjection =
+        remaining_effort_projection(brick, band.profile)
+}
+
+entity EffortComparisonEvidence {
+    id: String
+    subject: domain/Brick
+    exemplar: domain/Brick
+    result: EffortComparison
+    authority: domain/Authority
+    recorded_at: Timestamp
+    applicable: Boolean
+
+    is_current: Boolean =
+        applicable and current_effort_comparison(
+            unordered_pair(subject, exemplar)
+        ) = this
+}
+
+entity ScopeRevision {
+    id: String
+    brick: domain/Brick
+    reason: String
+    authority: domain/Authority
+    confirmed_at: Timestamp
+}
+
+entity JudgmentProbe {
+    id: String
+    axis: JudgmentAxis
+    purpose: ProbePurpose
+    scope: PriorityScope?
+    left: domain/Brick
+    right: domain/Brick
+    reason: String
+    status: JudgmentProbeStatus
+    created_at: Timestamp
+    resolved_at: Timestamp?
+
+    transitions status {
+        open -> deferred
+        open -> resolved
+        deferred -> open
+        deferred -> resolved
+        terminal: resolved
+    }
+}
+
+------------------------------------------------------------
+-- Derived evidence views and contract
+------------------------------------------------------------
+
+value PriorityEvidenceView {
+    scope: PriorityScope
+    left: domain/Brick
+    right: domain/Brick
+    current_more_important: domain/Brick?
+    confidence: Decimal
+    confidence_reasons: List<String>
+    provisional: Boolean
+}
+
+value PriorityViewItem {
+    brick: domain/Brick
+    scope: PriorityScope
+    sibling_index: Integer
+    tree_path: List<Integer>
+    confidence: Decimal
+    confidence_reasons: List<String>
+    provisional: Boolean
+}
+
+value PriorityView {
+    root_scope: PriorityScope
+    revision_fingerprint: String
+    items: List<PriorityViewItem>
+}
+
+value ImpactEvidenceView {
+    root: domain/Brick
+    current: ImpactAssessment?
+    reliability_reasons: List<String>
+    needs_validation: Boolean
+}
+
+value EffortEvidenceView {
+    brick: domain/Brick
+    current: EffortAssessment?
+    confidence_reasons: List<String>
+    needs_validation: Boolean
+}
+
+value RemainingEffortProjection {
+    brick: domain/Brick
+    effort_profile: EffortProfile
+    total_band: EffortBand?
+    optimistic_hours: Decimal?
+    realistic_hours: Decimal?
+    pessimistic_hours: Decimal?
+    evidence: List<String>
+    confidence_reasons: List<String>
+}
+
+contract JudgmentDerivation {
+    priority: (
+        scope: PriorityScope,
+        left: domain/Brick,
+        right: domain/Brick
+    ) -> PriorityEvidenceView
+    impact: (root: domain/Brick) -> ImpactEvidenceView
+    effort: (brick: domain/Brick) -> EffortEvidenceView
+    remaining_effort: (
+        brick: domain/Brick,
+        profile: EffortProfile
+    ) -> RemainingEffortProjection
+
+    @invariant FullHistoryIsRetained
+        -- A newer judgment changes the derived current view; it never
+        -- overwrites or deletes older evidence.
+
+    @invariant HumanAuthorityPrecedesAi
+        -- Applicable human evidence cannot be silently replaced by AI
+        -- evidence. Conflicting AI evidence may lower confidence and request
+        -- validation.
+
+    @invariant NewerApplicableEvidenceWeighsMore
+        -- Within the same authority tier and applicable scope, more recent
+        -- evidence contributes more than older evidence.
+
+    @invariant ContradictionLowersConfidence
+        -- Reversals, cycles, and inconsistent direct or transitive evidence
+        -- remain valid history while lowering confidence or reliability.
+
+    @invariant ProgressNeverRewritesTotalEffort
+        -- Total effort remains the current scope assessment. Remaining effort
+        -- is a planning-only projection derived conservatively from completed
+        -- descendants, explicit human progress, or imported actuals; focus
+        -- duration alone is never completion evidence.
+}
+
+contract PriorityProjection {
+    build: (root_scope: PriorityScope) -> PriorityView
+
+    @invariant LocalOrderIsExact
+        -- Within each scope, the projection preserves members exactly and
+        -- assigns sibling indexes from their strict human importance order.
+
+    @invariant GlobalOrderIsLexicographicTreePath
+        -- A global priority view sorts active Bricks lexicographically by the
+        -- sequence of sibling indexes from the root to the Brick.
+
+    @invariant ConfidenceIsExplanatoryNotSorting
+        -- Confidence and its reasons are displayed metadata. Phase, impact,
+        -- effort, dates, dependency, and confidence never silently rewrite or
+        -- substitute the human priority path.
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    priority_nearby_distance: Integer = 3
+    priority_skip_limit: Integer = 2
+    effort_assistance_limit: Integer = 3
+}
+
+------------------------------------------------------------
+-- Defaults
+------------------------------------------------------------
+
+default PriorityScope root_priority = {
+    id: "core/root-priority",
+    members: [],
+    revision: 0
+}
+
+default EffortProfile initial_effort_profile = {
+    id: "core/effort",
+    version: 1,
+    name: "Little Ant default effort profile"
+}
+
+default EffortBand effort_very_easy = {
+    id: "VERY_EASY",
+    profile: initial_effort_profile,
+    ordinal: 1,
+    macro: "EFFORT_2H",
+    optimistic_hours: 2.0,
+    realistic_hours: 3.0,
+    pessimistic_hours: 4.0
+}
+
+default EffortBand effort_easy = {
+    id: "EASY",
+    profile: initial_effort_profile,
+    ordinal: 2,
+    macro: "EFFORT_4H",
+    optimistic_hours: 4.0,
+    realistic_hours: 6.0,
+    pessimistic_hours: 8.0
+}
+
+default EffortBand effort_normal = {
+    id: "NORMAL",
+    profile: initial_effort_profile,
+    ordinal: 3,
+    macro: "EFFORT_1D",
+    optimistic_hours: 8.0,
+    realistic_hours: 12.0,
+    pessimistic_hours: 16.0
+}
+
+default EffortBand effort_moderated = {
+    id: "MODERATED",
+    profile: initial_effort_profile,
+    ordinal: 4,
+    macro: "EFFORT_2D",
+    optimistic_hours: 16.0,
+    realistic_hours: 24.0,
+    pessimistic_hours: 32.0
+}
+
+default EffortBand effort_hard = {
+    id: "HARD",
+    profile: initial_effort_profile,
+    ordinal: 5,
+    macro: "EFFORT_4D",
+    optimistic_hours: 32.0,
+    realistic_hours: 48.0,
+    pessimistic_hours: 64.0
+}
+
+default EffortBand effort_very_hard = {
+    id: "VERY_HARD",
+    profile: initial_effort_profile,
+    ordinal: 6,
+    macro: "EFFORT_8D",
+    optimistic_hours: 64.0,
+    realistic_hours: 96.0,
+    pessimistic_hours: 128.0
+}
+
+default EffortBand effort_mini_project = {
+    id: "MINI_PROJECT",
+    profile: initial_effort_profile,
+    ordinal: 7,
+    macro: "EFFORT_16D",
+    optimistic_hours: 128.0,
+    realistic_hours: 192.0,
+    pessimistic_hours: 256.0
+}
+
+default EffortBand effort_project = {
+    id: "PROJECT",
+    profile: initial_effort_profile,
+    ordinal: 8,
+    macro: "EFFORT_32D",
+    optimistic_hours: 256.0,
+    realistic_hours: 384.0,
+    pessimistic_hours: 512.0
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- Creation and immediate provisional placement ----------------------------
+
+rule FirstRootBrickCreated {
+    when: CreateRootBrick(
+        title,
+        original_title?,
+        title_authority,
+        behavior,
+        phase?,
+        phase_authority?)
+    requires: root_priority.members.count = 0
+    requires: canonical_english_text(title)
+    ensures:
+        let brick = domain/Brick.created(
+            id: new_id(),
+            title: title,
+            original_title: original_title,
+            title_authority: title_authority,
+            description_revision: 0,
+            status: active,
+            phase: phase,
+            phase_authority: phase_authority,
+            work_state: idle,
+            behavior: behavior,
+            atomicity: unknown,
+            date_revision: 0,
+            decomposition_coverage: not_applicable,
+            created_at: now,
+            status_changed_at: now)
+        PriorityScope.created(
+            id: child_scope_id(brick),
+            parent: brick,
+            members: [],
+            revision: 0)
+        root_priority.members = [brick]
+        root_priority.revision = root_priority.revision + 1
+        PriorityInsertion.created(
+            id: new_id(),
+            brick: brick,
+            scope: root_priority,
+            status: resolved,
+            comparisons_recorded: 0,
+            consecutive_skips: 0,
+            random_evidence: initial_placement_evidence(brick),
+            started_at: now,
+            finished_at: now)
+}
+
+rule AdditionalRootBrickCreated {
+    when: CreateRootBrick(
+        title,
+        original_title?,
+        title_authority,
+        behavior,
+        phase?,
+        phase_authority?)
+    requires: root_priority.members.count > 0
+    requires: canonical_english_text(title)
+    ensures:
+        let brick = domain/Brick.created(
+            id: new_id(),
+            title: title,
+            original_title: original_title,
+            title_authority: title_authority,
+            description_revision: 0,
+            status: active,
+            phase: phase,
+            phase_authority: phase_authority,
+            work_state: idle,
+            behavior: behavior,
+            atomicity: unknown,
+            date_revision: 0,
+            decomposition_coverage: not_applicable,
+            created_at: now,
+            status_changed_at: now)
+        let placement_evidence = initial_placement_evidence(brick)
+        let provisional = provisional_insert(
+            root_priority.members,
+            brick,
+            phase,
+            placement_evidence)
+        PriorityScope.created(
+            id: child_scope_id(brick),
+            parent: brick,
+            members: [],
+            revision: 0)
+        root_priority.members = provisional
+        root_priority.revision = root_priority.revision + 1
+        PriorityInsertion.created(
+            id: new_id(),
+            brick: brick,
+            scope: root_priority,
+            status: open,
+            current_candidate: binary_insertion_candidate(provisional, brick),
+            comparisons_recorded: 0,
+            consecutive_skips: 0,
+            random_evidence: placement_evidence,
+            started_at: now)
+}
+
+rule FirstChildBrickCreated {
+    when: CreateChildBrick(
+        parent,
+        title,
+        original_title?,
+        title_authority,
+        behavior,
+        phase?,
+        phase_authority?)
+    let scope = PriorityScope{parent}
+    requires: parent.status = active
+    requires: scope.members.count = 0
+    requires: canonical_english_text(title)
+    ensures:
+        let brick = domain/Brick.created(
+            id: new_id(),
+            title: title,
+            original_title: original_title,
+            title_authority: title_authority,
+            description_revision: 0,
+            status: active,
+            phase: phase,
+            phase_authority: phase_authority,
+            work_state: idle,
+            behavior: behavior,
+            parent: parent,
+            atomicity: unknown,
+            date_revision: 0,
+            decomposition_coverage: not_applicable,
+            created_at: now,
+            status_changed_at: now)
+        PriorityScope.created(
+            id: child_scope_id(brick),
+            parent: brick,
+            members: [],
+            revision: 0)
+        scope.members = [brick]
+        scope.revision = scope.revision + 1
+        parent.decomposition_coverage = open
+        PriorityInsertion.created(
+            id: new_id(),
+            brick: brick,
+            scope: scope,
+            status: resolved,
+            comparisons_recorded: 0,
+            consecutive_skips: 0,
+            random_evidence: initial_placement_evidence(brick),
+            started_at: now,
+            finished_at: now)
+}
+
+rule AdditionalChildBrickCreated {
+    when: CreateChildBrick(
+        parent,
+        title,
+        original_title?,
+        title_authority,
+        behavior,
+        phase?,
+        phase_authority?)
+    let scope = PriorityScope{parent}
+    requires: parent.status = active
+    requires: scope.members.count > 0
+    requires: canonical_english_text(title)
+    ensures:
+        let brick = domain/Brick.created(
+            id: new_id(),
+            title: title,
+            original_title: original_title,
+            title_authority: title_authority,
+            description_revision: 0,
+            status: active,
+            phase: phase,
+            phase_authority: phase_authority,
+            work_state: idle,
+            behavior: behavior,
+            parent: parent,
+            atomicity: unknown,
+            date_revision: 0,
+            decomposition_coverage: not_applicable,
+            created_at: now,
+            status_changed_at: now)
+        let placement_evidence = initial_placement_evidence(brick)
+        let provisional = provisional_insert(
+            scope.members,
+            brick,
+            phase,
+            placement_evidence)
+        PriorityScope.created(
+            id: child_scope_id(brick),
+            parent: brick,
+            members: [],
+            revision: 0)
+        scope.members = provisional
+        scope.revision = scope.revision + 1
+        parent.decomposition_coverage = open
+        PriorityInsertion.created(
+            id: new_id(),
+            brick: brick,
+            scope: scope,
+            status: open,
+            current_candidate: binary_insertion_candidate(provisional, brick),
+            comparisons_recorded: 0,
+            consecutive_skips: 0,
+            random_evidence: placement_evidence,
+            started_at: now)
+}
+
+-- Priority evidence and insertion -----------------------------------------
+
+rule PriorityInsertionAnsweredYes {
+    when: AnswerPriorityComparison(insertion, yes, authority, reason?)
+    requires: insertion.status = open
+    requires: insertion.current_candidate != null
+    ensures:
+        PriorityJudgment.created(
+            id: new_id(),
+            scope: insertion.scope,
+            scope_revision: insertion.scope.revision,
+            more_important: insertion.brick,
+            less_important: insertion.current_candidate,
+            authority: authority,
+            recorded_at: now,
+            reason: reason,
+            applicable: true)
+        insertion.scope.members = apply_binary_answer(
+            insertion.scope.members,
+            insertion.brick,
+            insertion.current_candidate,
+            yes)
+        insertion.scope.revision = insertion.scope.revision + 1
+        insertion.comparisons_recorded = insertion.comparisons_recorded + 1
+        insertion.consecutive_skips = 0
+        if insertion_is_complete(insertion, yes):
+            insertion.status = resolved
+            insertion.current_candidate = null
+            insertion.finished_at = now
+        else:
+            insertion.current_candidate = next_binary_candidate(insertion, yes)
+}
+
+rule PriorityInsertionAnsweredNo {
+    when: AnswerPriorityComparison(insertion, no, authority, reason?)
+    requires: insertion.status = open
+    requires: insertion.current_candidate != null
+    ensures:
+        PriorityJudgment.created(
+            id: new_id(),
+            scope: insertion.scope,
+            scope_revision: insertion.scope.revision,
+            more_important: insertion.current_candidate,
+            less_important: insertion.brick,
+            authority: authority,
+            recorded_at: now,
+            reason: reason,
+            applicable: true)
+        insertion.scope.members = apply_binary_answer(
+            insertion.scope.members,
+            insertion.brick,
+            insertion.current_candidate,
+            no)
+        insertion.scope.revision = insertion.scope.revision + 1
+        insertion.comparisons_recorded = insertion.comparisons_recorded + 1
+        insertion.consecutive_skips = 0
+        if insertion_is_complete(insertion, no):
+            insertion.status = resolved
+            insertion.current_candidate = null
+            insertion.finished_at = now
+        else:
+            insertion.current_candidate = next_binary_candidate(insertion, no)
+}
+
+rule PriorityComparisonSkippedBeforeThreshold {
+    when: SkipPriorityComparison(insertion, kind)
+    requires: insertion.status = open
+    requires: insertion.current_candidate != null
+    requires:
+        insertion.consecutive_skips + 1
+            < config.priority_skip_limit
+    ensures:
+        PriorityComparisonSkip.created(
+            id: new_id(),
+            insertion: insertion,
+            candidate: insertion.current_candidate,
+            kind: kind,
+            recorded_at: now)
+        if kind = tie_break_for_me:
+            insertion.scope.members = apply_replay_safe_tie_break(
+                insertion.scope.members,
+                insertion.brick,
+                insertion.current_candidate,
+                insertion.random_evidence)
+            insertion.scope.revision = insertion.scope.revision + 1
+        insertion.consecutive_skips =
+            insertion.consecutive_skips + 1
+        insertion.current_candidate = nearby_distinct_candidate(
+            insertion.scope.members,
+            insertion.brick,
+            insertion.current_candidate,
+            config.priority_nearby_distance,
+            insertion.random_evidence)
+}
+
+rule PriorityComparisonSkippedAtThreshold {
+    when: SkipPriorityComparison(insertion, kind)
+    requires: insertion.status = open
+    requires: insertion.current_candidate != null
+    requires:
+        insertion.consecutive_skips + 1
+            >= config.priority_skip_limit
+    ensures:
+        PriorityComparisonSkip.created(
+            id: new_id(),
+            insertion: insertion,
+            candidate: insertion.current_candidate,
+            kind: kind,
+            recorded_at: now)
+        if kind = tie_break_for_me:
+            insertion.scope.members = apply_replay_safe_tie_break(
+                insertion.scope.members,
+                insertion.brick,
+                insertion.current_candidate,
+                insertion.random_evidence)
+            insertion.scope.revision = insertion.scope.revision + 1
+        insertion.status = deferred
+        insertion.current_candidate = null
+        insertion.consecutive_skips =
+            insertion.consecutive_skips + 1
+        insertion.finished_at = now
+
+    @guarantee NoFalseComparison
+        -- Skip and tie-break-for-me create no yes/no judgment and no equality.
+        -- The Brick stays strictly but provisionally positioned and gains
+        -- future priority-probe pressure.
+}
+
+rule DeferredInsertionReopened {
+    when: ReopenPriorityInsertion(insertion)
+    requires: insertion.status = deferred
+    ensures:
+        insertion.status = open
+        insertion.current_candidate = binary_insertion_candidate(
+            insertion.scope.members,
+            insertion.brick)
+        insertion.consecutive_skips = 0
+        insertion.finished_at = null
+}
+
+rule DirectPriorityJudgmentRecorded {
+    when: RecordPriorityJudgment(
+        scope,
+        more_important,
+        less_important,
+        authority,
+        reason?)
+    requires: more_important != less_important
+    requires: more_important in scope.members
+    requires: less_important in scope.members
+    ensures: PriorityJudgment.created(
+        id: new_id(),
+        scope: scope,
+        scope_revision: scope.revision,
+        more_important: more_important,
+        less_important: less_important,
+        authority: authority,
+        recorded_at: now,
+        reason: reason,
+        applicable: true)
+}
+
+rule PriorityProbeResolvedByJudgment {
+    when: judgment: PriorityJudgment.created
+    for probe in JudgmentProbes
+        where axis = priority
+        and status in {open, deferred}
+        and scope = judgment.scope
+        and unordered_pair(left, right) =
+            unordered_pair(
+                judgment.more_important,
+                judgment.less_important):
+        ensures:
+            probe.status = resolved
+            probe.resolved_at = now
+}
+
+rule PriorityContradictionStartsRecalibration {
+    when: judgment: PriorityJudgment.created
+    requires: judgment.authority = human
+    requires: contradicts_transitive_order(
+        judgment.scope.members,
+        judgment.more_important,
+        judgment.less_important)
+    requires: not exists PriorityRecalibration{
+        scope: judgment.scope,
+        status: open
+    }
+    ensures: PriorityRecalibration.created(
+        id: new_id(),
+        scope: judgment.scope,
+        segment: smallest_affected_segment(
+            judgment.scope.members,
+            judgment.more_important,
+            judgment.less_important),
+        proposed_order: proposed_coherent_order(
+            judgment.scope,
+            judgment),
+        status: open,
+        created_at: now)
+
+    @guarantee ContradictionIsEvidence
+        -- The answer is retained. The visible canonical order remains a
+        -- clearly provisional strict order until a coherent local segment can
+        -- replace it atomically.
+}
+
+rule CoherentPriorityRecalibrationCommitted {
+    when: CommitPriorityRecalibration(recalibration)
+    requires: recalibration.status = open
+    requires: is_coherent(
+        recalibration.proposed_order,
+        applicable_priority_evidence(recalibration.scope))
+    ensures:
+        recalibration.scope.members = replace_segment(
+            recalibration.scope.members,
+            recalibration.segment,
+            recalibration.proposed_order)
+        recalibration.scope.revision =
+            recalibration.scope.revision + 1
+        recalibration.status = resolved
+        recalibration.resolved_at = now
+}
+
+-- Impact and effort --------------------------------------------------------
+
+rule ImpactClassified {
+    when: ClassifyImpact(root, impact, maturity, authority, reason?)
+    requires: root.parent = null
+    ensures: ImpactAssessment.created(
+        id: new_id(),
+        root: root,
+        impact: impact,
+        maturity: maturity,
+        authority: authority,
+        reason: reason,
+        recorded_at: now,
+        applicable: true)
+}
+
+rule ContradictoryImpactAssessmentStartsRecalibration {
+    when: assessment: ImpactAssessment.created
+    let conflict =
+        strongest_conflicting_impact_comparison(assessment)
+    requires: conflict != null
+    requires: not exists JudgmentProbe{
+        axis: impact,
+        purpose: recalibration,
+        left: assessment.root,
+        right: other_side(conflict, assessment.root),
+        status: open
+    }
+    ensures: JudgmentProbe.created(
+        id: new_id(),
+        axis: impact,
+        purpose: recalibration,
+        left: assessment.root,
+        right: other_side(conflict, assessment.root),
+        reason: "impact class conflicts with retained comparison evidence",
+        status: open,
+        created_at: now)
+}
+
+rule ImpactCompared {
+    when: CompareImpact(left, right, result, authority, reason?)
+    requires: left != right
+    requires: left.parent = null
+    requires: right.parent = null
+    ensures: ImpactComparison.created(
+        id: new_id(),
+        left: left,
+        right: right,
+        result: result,
+        authority: authority,
+        reason: reason,
+        recorded_at: now,
+        applicable: true)
+
+    @guidance
+        -- Similar impact is legitimate evidence. The prohibition on equality
+        -- applies only to strict human priority order.
+}
+
+rule ImpactProbeResolvedByComparison {
+    when: comparison: ImpactComparison.created
+    for probe in JudgmentProbes
+        where axis = impact
+        and status in {open, deferred}
+        and unordered_pair(left, right) =
+            unordered_pair(comparison.left, comparison.right):
+        ensures:
+            probe.status = resolved
+            probe.resolved_at = now
+}
+
+rule ContradictoryImpactComparisonStartsRecalibration {
+    when: comparison: ImpactComparison.created
+    requires: contradicts_applicable_impact_evidence(comparison)
+    requires: not exists JudgmentProbe{
+        axis: impact,
+        purpose: recalibration,
+        left: comparison.left,
+        right: comparison.right,
+        status: open
+    }
+    ensures: JudgmentProbe.created(
+        id: new_id(),
+        axis: impact,
+        purpose: recalibration,
+        left: comparison.left,
+        right: comparison.right,
+        reason: "impact evidence is locally contradictory",
+        status: open,
+        created_at: now)
+}
+
+rule ImpactMaturityExplicitlyRevised {
+    when: ReviseImpactMaturity(root, maturity, authority, reason)
+    requires: root.parent = null
+    let current = current_impact_assessment(root)
+    requires: exists current
+    ensures: ImpactAssessment.created(
+        id: new_id(),
+        root: root,
+        impact: current.impact,
+        maturity: maturity,
+        authority: authority,
+        reason: reason,
+        recorded_at: now,
+        applicable: true)
+
+    @guarantee NoSilentMaturityDowngrade
+        -- Stale or contested evidence creates review pressure. Public maturity
+        -- changes only through an explicit attributed assessment.
+}
+
+rule EffortClassified {
+    when: ClassifyEffort(brick, band, authority, provisional, reason?)
+    requires: brick.status = active
+    requires: brick.behavior.effort = applicable
+    ensures: EffortAssessment.created(
+        id: new_id(),
+        brick: brick,
+        band: band,
+        authority: authority,
+        provisional: provisional,
+        reason: reason,
+        recorded_at: now,
+        applicable: true)
+}
+
+rule ContradictoryEffortAssessmentStartsRecalibration {
+    when: assessment: EffortAssessment.created
+    let conflict =
+        strongest_conflicting_effort_comparison(assessment)
+    requires: conflict != null
+    requires: not exists JudgmentProbe{
+        axis: effort,
+        purpose: recalibration,
+        left: assessment.brick,
+        right: other_side(conflict, assessment.brick),
+        status: open
+    }
+    ensures: JudgmentProbe.created(
+        id: new_id(),
+        axis: effort,
+        purpose: recalibration,
+        left: assessment.brick,
+        right: other_side(conflict, assessment.brick),
+        reason: "effort class conflicts with retained comparison evidence",
+        status: open,
+        created_at: now)
+}
+
+rule EffortComparedWithExemplar {
+    when: CompareEffort(subject, exemplar, result, authority)
+    requires: subject != exemplar
+    requires: subject.behavior.effort = applicable
+    requires: exemplar.behavior.effort = applicable
+    ensures: EffortComparisonEvidence.created(
+        id: new_id(),
+        subject: subject,
+        exemplar: exemplar,
+        result: result,
+        authority: authority,
+        recorded_at: now,
+        applicable: true)
+}
+
+rule EffortProbeResolvedByComparison {
+    when: comparison: EffortComparisonEvidence.created
+    for probe in JudgmentProbes
+        where axis = effort
+        and status in {open, deferred}
+        and unordered_pair(left, right) =
+            unordered_pair(comparison.subject, comparison.exemplar):
+        ensures:
+            probe.status = resolved
+            probe.resolved_at = now
+}
+
+rule ContradictoryEffortComparisonStartsRecalibration {
+    when: comparison: EffortComparisonEvidence.created
+    requires: contradicts_applicable_effort_evidence(comparison)
+    requires: not exists JudgmentProbe{
+        axis: effort,
+        purpose: recalibration,
+        left: comparison.subject,
+        right: comparison.exemplar,
+        status: open
+    }
+    ensures: JudgmentProbe.created(
+        id: new_id(),
+        axis: effort,
+        purpose: recalibration,
+        left: comparison.subject,
+        right: comparison.exemplar,
+        reason: "effort evidence is locally contradictory",
+        status: open,
+        created_at: now)
+}
+
+rule JudgmentProbeDeferred {
+    when: DeferJudgmentProbe(probe)
+    requires: probe.status = open
+    ensures: probe.status = deferred
+
+    @guarantee DeferralRecordsNoJudgment
+        -- Leaving or skipping an impact, effort, or provocative comparison
+        -- records no answer and preserves future validation pressure.
+}
+
+rule JudgmentProbeReopened {
+    when: ReopenJudgmentProbe(probe)
+    requires: probe.status = deferred
+    ensures: probe.status = open
+}
+
+rule TerminalBrickResolvesPendingJudgmentProbes {
+    when: brick: domain/Brick.status transitions_to done | dropped | superseded
+    for probe in JudgmentProbes
+        where status in {open, deferred}
+        and (
+            left = brick
+            or right = brick
+        ):
+        ensures:
+            probe.status = resolved
+            probe.resolved_at = now
+}
+
+rule DecompositionCoverageConfirmed {
+    when: ConfirmDecompositionCoverage(brick)
+    requires: brick.status = active
+    requires: brick.active_children.count > 0
+    requires: brick.decomposition_coverage = open
+    ensures: brick.decomposition_coverage = complete
+}
+
+rule ScopeRevisionConfirmed {
+    when: ConfirmScopeRevision(revised_brick, reason, authority)
+    requires: revised_brick.status = active
+    ensures:
+        ScopeRevision.created(
+            id: new_id(),
+            brick: revised_brick,
+            reason: reason,
+            authority: authority,
+            confirmed_at: now)
+        for assessment in EffortAssessments
+            where brick = revised_brick and applicable:
+            assessment.applicable = false
+        for comparison in EffortComparisonEvidences
+            where applicable
+            and (
+                subject = revised_brick
+                or exemplar = revised_brick
+            ):
+            comparison.applicable = false
+        for judgment in PriorityJudgments
+            where applicable
+            and (
+                more_important = revised_brick
+                or less_important = revised_brick
+            ):
+            judgment.applicable = false
+        if revised_brick.parent = null:
+            for assessment in ImpactAssessments
+                where root = revised_brick and applicable:
+                assessment.applicable = false
+            for comparison in ImpactComparisons
+                where applicable
+                and (
+                    left = revised_brick
+                    or right = revised_brick
+                ):
+                comparison.applicable = false
+        revised_brick.decomposition_coverage = open
+
+    @guarantee RevisionPreservesHistory
+        -- A scope revision invalidates only affected applicability. It never
+        -- deletes evidence, moves the Brick, or rewrites unrelated judgments.
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant OnePriorityScopePerParent {
+    for first in PriorityScopes:
+        for second in PriorityScopes:
+            first.parent = second.parent implies first = second
+}
+
+invariant PriorityScopeContainsNoDuplicates {
+    for scope in PriorityScopes:
+        scope.members.count = scope.members.unique.count
+}
+
+invariant EveryActiveBrickIsPositionedExactlyOnce {
+    for brick in domain/Bricks:
+        brick.status = active implies
+            PriorityScopes.any(scope => brick in scope.members)
+    for brick in domain/Bricks:
+        for first in PriorityScopes:
+            for second in PriorityScopes:
+                (brick in first.members and brick in second.members)
+                    implies first = second
+}
+
+invariant PriorityScopeMatchesComposition {
+    for scope in PriorityScopes:
+        for brick in scope.members:
+            brick.parent = scope.parent
+}
+
+invariant TerminalBricksAreNotInActivePriority {
+    for scope in PriorityScopes:
+        for brick in scope.members:
+            brick.status = active
+}
+
+invariant PriorityJudgmentsAreSiblingOnly {
+    for judgment in PriorityJudgments:
+        judgment.more_important != judgment.less_important
+        and judgment.scope_revision <= judgment.scope.revision
+        and (
+            not judgment.applicable
+            or (
+                judgment.more_important in judgment.scope.members
+                and judgment.less_important in judgment.scope.members
+            )
+        )
+}
+
+invariant PrioritySkipThresholdIsPositive {
+    config.priority_skip_limit >= 1
+}
+
+invariant PriorityProbeIsSiblingScoped {
+    for probe in JudgmentProbes:
+        probe.axis = priority implies
+            (
+                probe.scope != null
+                and (
+                    probe.status = resolved
+                    or (
+                        probe.left in probe.scope.members
+                        and probe.right in probe.scope.members
+                    )
+                )
+            )
+}
+
+invariant ImpactProbeIsRootScoped {
+    for probe in JudgmentProbes:
+        probe.axis = impact implies
+            probe.left.parent = null
+            and probe.right.parent = null
+}
+
+invariant EffortProbeUsesApplicableBricks {
+    for probe in JudgmentProbes:
+        probe.axis = effort implies
+            probe.left.behavior.effort = applicable
+            and probe.right.behavior.effort = applicable
+}
+
+invariant JudgmentProbeComparesDistinctBricks {
+    for probe in JudgmentProbes:
+        probe.left != probe.right
+}
+
+invariant ImpactIsRootScoped {
+    for assessment in ImpactAssessments:
+        assessment.root.parent = null
+}
+
+invariant EffortBandOrdinalIsUniqueWithinProfile {
+    for first in EffortBands:
+        for second in EffortBands:
+            (
+                first.profile = second.profile
+                and first.ordinal = second.ordinal
+            ) implies first = second
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor User {
+    identified_by: domain/Party where party_type = person
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface PriorityAndAssessmentDesk {
+    facing user: User
+
+    exposes:
+        user.id
+        root_priority.view
+
+    provides:
+        CreateRootBrick(
+            title,
+            original_title?,
+            title_authority,
+            behavior,
+            phase?,
+            phase_authority?)
+        CreateChildBrick(
+            parent,
+            title,
+            original_title?,
+            title_authority,
+            behavior,
+            phase?,
+            phase_authority?)
+        AnswerPriorityComparison(insertion, answer, authority, reason?)
+        SkipPriorityComparison(insertion, kind)
+        ReopenPriorityInsertion(insertion)
+        RecordPriorityJudgment(
+            scope,
+            more_important,
+            less_important,
+            authority,
+            reason?)
+        CommitPriorityRecalibration(recalibration)
+        ClassifyImpact(root, impact, maturity, authority, reason?)
+        CompareImpact(left, right, result, authority, reason?)
+        ReviseImpactMaturity(root, maturity, authority, reason)
+        ClassifyEffort(brick, band, authority, provisional, reason?)
+        CompareEffort(subject, exemplar, result, authority)
+        DeferJudgmentProbe(probe)
+        ReopenJudgmentProbe(probe)
+        ConfirmDecompositionCoverage(brick)
+        ConfirmScopeRevision(brick, reason, authority)
+
+    contracts:
+        fulfils JudgmentDerivation
+        fulfils PriorityProjection
+
+    @guarantee CanonicalPriorityQuestion
+        -- Every directional prompt is rendered as:
+        -- Is "X" more important than "Y"?
+        -- [y] yes · [n] no · [s] skip · [?]
+
+    @guarantee HelpPreservesPrompt
+        -- Help records no answer and returns to the same state-scoped prompt.
+
+    @guarantee SkipHasExplicitSubmeaning
+        -- Priority skip distinguishes unresolved from tie-break-for-me in a
+        -- follow-up choice. Neither means equal importance. A delegated
+        -- tie-break remains provisional and is tested against another nearby
+        -- Brick before the configured deferral threshold.
+
+    @guarantee HumanPriorityAuthority
+        -- Applicable recent human evidence defines current judgment. AI
+        -- evidence may lower confidence or provoke validation but never
+        -- silently replaces a human judgment.
+
+    @guarantee LazyAssessment
+        -- Phase, impact, and effort are requested only when applicable and
+        -- useful. Missing optional assessment never blocks capture or work.
+}
+
+------------------------------------------------------------
+-- Open Questions
+------------------------------------------------------------
+
+open question "Initial confidence, decay, validation-rate, and forecast-weight numbers remain inspectable calibration policy."
+open question "EffortProfile editing may create a new version; old assessments always retain their original band and profile."
