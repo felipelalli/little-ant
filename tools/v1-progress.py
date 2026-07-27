@@ -184,6 +184,13 @@ def run_request(
             file=sys.stderr,
         )
 
+    # A malformed or invented result cannot be assigned to any contract item.
+    # Treat the whole request as malformed rather than allowing extra output to
+    # coexist with an apparently perfect count. Duplicate and missing expected
+    # IDs remain failures only for those expected items.
+    if malformed_count or unexpected:
+        return 0
+
     return sum(
         1
         for identifier in expected_ids

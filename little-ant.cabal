@@ -57,6 +57,9 @@ library
         LittleAnt.Grammar
         LittleAnt.Upcast
         LittleAnt.V1.Contract
+        LittleAnt.V1.Implementation
+        LittleAnt.V1.Kernel
+        LittleAnt.V1.PlanCatalog
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions:

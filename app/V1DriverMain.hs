@@ -1,10 +1,11 @@
 -- | Stdin/stdout bridge for the Little Ant 1.0 executable contract.
 module Main (main) where
 
-import Data.Aeson (Value (Null), encode)
+import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as LBS8
 import LittleAnt.V1.Contract
-  (DriverResponse (..), decodeAndRunContractRequest, emptyContractRegistry)
+  (DriverResponse (..), decodeAndRunContractRequest)
+import LittleAnt.V1.Implementation (contractRegistry)
 import System.Environment (getArgs)
 
 main :: IO ()
@@ -13,7 +14,7 @@ main = do
   input <- LBS8.getContents
   let response
         | null arguments =
-            decodeAndRunContractRequest (emptyContractRegistry Null) input
+            decodeAndRunContractRequest contractRegistry input
         | otherwise = DriverResponse
             { driverResponseProtocolVersion = 1
             , driverResponseOk = False

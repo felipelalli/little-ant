@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Data.Aeson (Object, Value (..), object, toJSON, (.=))
+import Data.Aeson (Object, Value (..), encode, object, toJSON, (.=))
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.ByteString.Lazy.Char8 as LBS8
@@ -15,17 +15,133 @@ import LittleAnt.V1.Contract
    ReferenceSnapshot (..), ResultItem (..),
    decodeAndRunContractRequest, emptyContractRegistry,
    evaluateAssertionOperator, runContractRequest, standardAssertionOperators)
+import LittleAnt.V1.Implementation (contractRegistry)
+import LittleAnt.V1.Kernel
+  (AppendRequest (..), AppendResult (..), DomainRevision (..),
+   EventBatch (..), KernelError (..), OpaqueId (..), ProposedEvent (..),
+   ReplayResult (..), appendSemanticAction, emptyKernelState,
+   kernelEventBatches, kernelRevision, kernelValue, replayAll)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
   (Assertion, assertBool, assertFailure, testCase, (@?=))
 
 main :: IO ()
 main = defaultMain $ testGroup "v1 contract runner"
-  [ planTests
+  [ kernelTests
+  , implementationBridgeTests
+  , planTests
   , scenarioTests
   , operatorTests
   , rejectionTests
   , protocolTests
+  ]
+
+kernelTests :: TestTree
+kernelTests = testGroup "v1 action kernel"
+  [ testCase "commits one atomic batch and advances revision once" $ do
+      accepted <- requireKernelSuccess (appendSemanticAction atomicKernelRequest
+        emptyKernelState)
+      let state = appendResultState accepted
+      kernelRevision state @?= DomainRevision 1
+      length (kernelEventBatches state) @?= 1
+      length (eventBatchEvents (appendResultBatch accepted)) @?= 2
+      kernelValue "first" state @?= Just (String "one")
+      kernelValue "second" state @?= Just (toJSON (2 :: Int))
+  , testCase "rejects stale and partially invalid actions without state" $ do
+      accepted <- requireKernelSuccess (appendSemanticAction atomicKernelRequest
+        emptyKernelState)
+      let before = appendResultState accepted
+          stale = atomicKernelRequest
+            { appendSemanticActionId = "test:stale"
+            , appendExpectedRevision = DomainRevision 0
+            }
+      case appendSemanticAction stale before of
+        Left (RevisionConflict (DomainRevision 0) (DomainRevision 1)) -> pure ()
+        result -> assertFailure ("unexpected stale append result: " <> show result)
+      encode before @?= encode (appendResultState accepted)
+      let invalid = atomicKernelRequest
+            { appendSemanticActionId = "test:invalid-batch"
+            , appendProposedEvents =
+                [ ProposeValueStored "would-have-been-partial" (Bool True)
+                , ProposeValueRemoved "missing"
+                ]
+            }
+      case appendSemanticAction invalid emptyKernelState of
+        Left (ValueDoesNotExist "missing") -> pure ()
+        result -> assertFailure ("unexpected invalid append result: " <> show result)
+      kernelRevision emptyKernelState @?= DomainRevision 0
+      kernelValue "would-have-been-partial" emptyKernelState @?= Nothing
+  , testCase "allocates opaque creation-derived identities" $ do
+      accepted <- requireKernelSuccess (appendSemanticAction
+        atomicKernelRequest
+          { appendSemanticActionId = "test:opaque-identities"
+          , appendProposedEvents =
+              [ ProposeEntityCreated "brick"
+                  (objectMap ["title" .= ("Repeated title" :: Text)])
+              , ProposeEntityCreated "brick"
+                  (objectMap ["title" .= ("Repeated title" :: Text)])
+              ]
+          }
+        emptyKernelState)
+      case appendResultAllocatedIds accepted of
+        [first@(OpaqueId firstText), second@(OpaqueId secondText)] -> do
+          assertBool "identities collide" (first /= second)
+          assertBool "first identity contains title"
+            (not ("Repeated title" `Text.isInfixOf` firstText))
+          assertBool "second identity contains title"
+            (not ("Repeated title" `Text.isInfixOf` secondText))
+        identifiers -> assertFailure ("unexpected identities: " <> show identifiers)
+  , testCase "replay is byte-equivalent and adapter-free" $ do
+      first <- requireKernelSuccess (appendSemanticAction atomicKernelRequest
+        emptyKernelState)
+      second <- requireKernelSuccess (appendSemanticAction
+        AppendRequest
+          { appendExpectedRevision = DomainRevision 1
+          , appendSemanticActionId = "test:second-action"
+          , appendActorOrOrigin = "human:test"
+          , appendOccurredAt = Just "2026-07-27T00:00:01Z"
+          , appendProposedEvents = [ProposeValueRemoved "first"]
+          }
+        (appendResultState first))
+      replayed <- case replayAll (kernelEventBatches (appendResultState second)) of
+        Left problem -> assertFailure ("replay failed: " <> show problem)
+        Right result -> pure result
+      encode (replayResultState replayed) @?= encode (appendResultState second)
+      replayResultExternalTrace replayed @?= []
+  ]
+
+implementationBridgeTests :: TestTree
+implementationBridgeTests = testGroup "real implementation registry"
+  [ testCase "populates every contract extension point" $ do
+      assertBool "plan probes are empty" (not (Map.null
+        (registryPlanProbes contractRegistry)))
+      assertBool "operations are empty" (not (Map.null
+        (registryOperations contractRegistry)))
+      assertBool "observations are empty" (not (Map.null
+        (registryObservations contractRegistry)))
+      assertBool "fixtures are empty" (not (Map.null
+        (registryFixtures contractRegistry)))
+      assertBool "paths are empty" (not (Map.null
+        (registryPaths contractRegistry)))
+      assertBool "assertion operators are empty" (not (Map.null
+        (registryAssertionOperators contractRegistry)))
+      assertBool "reference resolvers are empty" (not (Map.null
+        (registryReferences contractRegistry)))
+  , testCase "kernel plan probes execute real append and replay" $ do
+      assertResponsePassed (runContractRequest contractRegistry kernelInteractionPlan)
+        [ "contract-signature.CanonicalEventStore.append"
+        , "contract-signature.CanonicalEventStore.replay"
+        ]
+      assertResponsePassed (runContractRequest contractRegistry kernelRootPlan)
+        ["invariant.GloballyOpaqueEntityIds"]
+  , testCase "dispatches confidence_before and forecast references" $
+      assertResponsePassed (runContractRequest contractRegistry
+        implementationReferenceScenario)
+        ["confidence-reference", "forecast-reference"]
+  , testCase "validates schema presence through a structured response query" $
+      assertResponsePassed (runContractRequest contractRegistry
+        implementationSchemaScenario)
+        ["structured-schema-presence"]
   ]
 
 planTests :: TestTree
@@ -358,6 +474,102 @@ ambientValue ambient = object
   , "parameter_overrides" .= ambientParameterOverrides ambient
   ]
 
+atomicKernelRequest :: AppendRequest
+atomicKernelRequest = AppendRequest
+  { appendExpectedRevision = DomainRevision 0
+  , appendSemanticActionId = "test:atomic-action"
+  , appendActorOrOrigin = "human:test"
+  , appendOccurredAt = Just "2026-07-27T00:00:00Z"
+  , appendProposedEvents =
+      [ ProposeValueStored "first" (String "one")
+      , ProposeValueStored "second" (toJSON (2 :: Int))
+      ]
+  }
+
+kernelInteractionPlan :: Value
+kernelInteractionPlan = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("interaction" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "contract-signature.CanonicalEventStore.append"
+              "contract_signature" "CanonicalEventStore.append"
+          , obligation "contract-signature.CanonicalEventStore.replay"
+              "contract_signature" "CanonicalEventStore.replay"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+kernelRootPlan :: Value
+kernelRootPlan = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("root" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "invariant.GloballyOpaqueEntityIds"
+              "invariant" "GloballyOpaqueEntityIds"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+implementationReferenceScenario :: Value
+implementationReferenceScenario = scenarioRequest
+  [ object
+      [ "id" .= ("fixture" :: Text)
+      , "operation" .= ("CreateFixture" :: Text)
+      , "arguments" .= object
+          ["fixture" .= ("kernel_reference_state" :: Text)]
+      , "bind_result" .= object ["taxes" .= ("taxes" :: Text)]
+      ]
+  , object
+      [ "id" .= ("lower-confidence" :: Text)
+      , "operation" .= ("KernelSetValue" :: Text)
+      , "arguments" .= object
+          [ "key" .= ("confidence" :: Text)
+          , "value" .= (0.4 :: Double)
+          ]
+      ]
+  , object
+      [ "id" .= ("skip-once" :: Text)
+      , "operation" .= ("KernelSetValue" :: Text)
+      , "arguments" .= object
+          [ "key" .= ("skip-recorded" :: Text)
+          , "value" .= True
+          ]
+      ]
+  ]
+  [ object
+      [ "id" .= ("confidence-reference" :: Text)
+      , "after" .= ("lower-confidence" :: Text)
+      , "query" .= ("KernelValue(confidence)" :: Text)
+      , "operator" .= ("less_than" :: Text)
+      , "value_from" .= ("confidence_before:lower-confidence" :: Text)
+      ]
+  , object
+      [ "id" .= ("forecast-reference" :: Text)
+      , "after" .= ("skip-once" :: Text)
+      , "query" .= ("KernelValue(actual_probability)" :: Text)
+      , "operator" .= ("greater_than" :: Text)
+      , "value_from" .= ("forecast:before-skip:$taxes.probability" :: Text)
+      ]
+  ]
+
+implementationSchemaScenario :: Value
+implementationSchemaScenario = scenarioRequest []
+  [ object
+      [ "id" .= ("structured-schema-presence" :: Text)
+      , "query" .= ("LatestOperationalResponse" :: Text)
+      , "operator" .= ("schema_presence_matches_projection" :: Text)
+      , "value" .= True
+      ]
+  ]
+
 planRequest :: Value
 planRequest = object
   [ "protocol_version" .= (1 :: Int)
@@ -619,6 +831,15 @@ assertDetailContains expected result = case resultItemDetail result of
   Just detail -> assertBool
     ("detail does not contain " <> Text.unpack expected <> ": " <> Text.unpack detail)
     (expected `Text.isInfixOf` detail)
+
+requireKernelSuccess ::
+  Either KernelError AppendResult -> IO AppendResult
+requireKernelSuccess result = case result of
+  Left problem -> assertFailure ("kernel action failed: " <> show problem)
+  Right accepted -> pure accepted
+
+objectMap :: [AesonTypes.Pair] -> Object
+objectMap = objectValue
 
 emptyObject :: Object
 emptyObject = KeyMap.empty
