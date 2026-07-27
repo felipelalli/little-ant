@@ -56,6 +56,7 @@ library
         LittleAnt.Render
         LittleAnt.Grammar
         LittleAnt.Upcast
+        LittleAnt.V1.Contract
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions:
@@ -105,6 +106,40 @@ executable lant
     import:  la-exe
     main-is: Main.hs
 
+executable lant-v1-test-driver
+    import:             warnings
+    main-is:            V1DriverMain.hs
+    hs-source-dirs:     app
+    default-language:   GHC2021
+    default-extensions: OverloadedStrings
+    build-depends:
+        base >=4.18 && <5,
+        aeson,
+        bytestring,
+        little-ant
+
+-- Private executable used by the Cabal test launcher so `cabal test all`
+-- can discover the freshly built driver without changing the contract source.
+executable lant-v1-contract-harness
+    import:           warnings
+    main-is:          Spec.hs
+    hs-source-dirs:   test-v1
+    default-language: GHC2021
+    default-extensions:
+        LambdaCase
+        OverloadedStrings
+    build-depends:
+        base >=4.18 && <5,
+        aeson,
+        bytestring,
+        containers,
+        directory,
+        filepath,
+        process,
+        tasty,
+        tasty-hunit,
+        text
+
 test-suite little-ant-test
     import:           warnings
     type:             exitcode-stdio-1.0
@@ -129,15 +164,38 @@ test-suite little-ant-test
         text,
         time
 
-test-suite little-ant-v1-contract-test
+test-suite little-ant-v1-driver-test
     import:           warnings
     type:             exitcode-stdio-1.0
     main-is:          Spec.hs
-    hs-source-dirs:   test-v1
+    hs-source-dirs:   test-v1-driver
     default-language: GHC2021
     default-extensions:
         LambdaCase
         OverloadedStrings
+    build-depends:
+        base >=4.18 && <5,
+        aeson,
+        bytestring,
+        containers,
+        little-ant,
+        tasty,
+        tasty-hunit,
+        text
+
+test-suite little-ant-v1-contract-test
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    main-is:          ContractTestLauncher.hs
+    hs-source-dirs:   test-v1-launcher test-v1
+    default-language: GHC2021
+    default-extensions:
+        LambdaCase
+        OverloadedStrings
+    ghc-options:      -main-is ContractTestLauncher.main
+    build-tool-depends:
+        little-ant:lant-v1-contract-harness,
+        little-ant:lant-v1-test-driver
     build-depends:
         base >=4.18 && <5,
         aeson,

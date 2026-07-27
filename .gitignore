@@ -1,6 +1,20 @@
 # Local scratchpad (never committed)
 DRAFT*
 
+# Local environment and secrets
+.env
+.env.local
+credentials.*
+*.key
+*.pem
+*.secret
+
+# Common tool and platform artifacts
+node_modules/
+__pycache__/
+.DS_Store
+*.log
+
 # Nix
 result
 result-*
