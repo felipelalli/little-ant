@@ -57,6 +57,7 @@ library
         LittleAnt.Grammar
         LittleAnt.Upcast
         LittleAnt.V1.Contract
+        LittleAnt.V1.Domain
         LittleAnt.V1.Implementation
         LittleAnt.V1.Kernel
         LittleAnt.V1.PlanCatalog
@@ -184,7 +185,8 @@ test-suite little-ant-v1-driver-test
         little-ant,
         tasty,
         tasty-hunit,
-        text
+        text,
+        time
 
 test-suite little-ant-v1-contract-test
     import:           warnings

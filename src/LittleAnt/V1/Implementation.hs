@@ -20,18 +20,25 @@ import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Time (UTCTime (..), fromGregorian)
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), ObservationInput (..),
    OperationInput (..), OperationResult (..), ReferenceInput (..),
    ReferenceSnapshot (..), emptyContractRegistry, selectJsonPath,
    standardAssertionOperators)
+import LittleAnt.V1.Domain
+  (Authority (Human), Brick (brickId), DomainError,
+   ListEntryDraft (..), Party (partyId), PartyType (Person),
+   createBrick, createListEntry, createParty, domainCatalog, domainProjection,
+   emptyDomainState, finiteChecklistV1, findBehaviors, findTemplates,
+   focusBrick, mkCanonicalText, ordinaryBrickDraft)
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
    EventBatch (..), KernelError, KernelState, OpaqueId (..), ProposedEvent (..),
    ReplayResult (..), appendSemanticAction, canonicalStateHash,
    emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
    kernelValue, replayAll)
-import LittleAnt.V1.PlanCatalog (kernelPlanProbes)
+import LittleAnt.V1.PlanCatalog (v1PlanProbes)
 
 -- | Isolated v1 state.  Every protocol request obtains a new value through
 -- 'registryInitialState'.
@@ -41,7 +48,7 @@ type V1State = KernelState
 contractRegistry :: ContractRegistry V1State
 contractRegistry = (emptyContractRegistry emptyKernelState)
   { registryInitialState = const emptyKernelState
-  , registryPlanProbes = kernelPlanProbes
+  , registryPlanProbes = v1PlanProbes
   , registryOperations = Map.fromList
       [ ("CanonicalEventStore.append", appendOperation)
       , ("CanonicalEventStore.replay", replayOperation)
@@ -53,8 +60,10 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
+      , ("BuiltInDefinitionCatalog", builtInCatalogObservation)
       , ("CanonicalState", canonicalStateObservation)
       , ("CanonicalStateHash", canonicalStateHashObservation)
+      , ("DomainState", domainStateObservation)
       , ("DomainRevision", domainRevisionObservation)
       , ("EventBatches", eventBatchesObservation)
       , ("KernelEntity", entityObservation)
@@ -64,7 +73,9 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("ReplaySideEffectTrace", adapterTraceObservation)
       ]
   , registryFixtures = Map.fromList
-      [ ("kernel_populated", populatedFixture)
+      [ ("definition_catalog", definitionCatalogFixture)
+      , ("domain_entities", domainEntitiesFixture)
+      , ("kernel_populated", populatedFixture)
       , ("kernel_reference_state", referenceFixture)
       ]
   , registryReferences = Map.fromList
@@ -215,6 +226,28 @@ populatedFixture input state = runSimpleAction input state
   , ProposeEntityCreated "kernel_fixture" KeyMap.empty
   ]
 
+definitionCatalogFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+definitionCatalogFixture input state = do
+  projection <- definitionCatalogProjection
+  accepted <- appendForFixture input "definition-catalog"
+    [ProposeValueStored "v1.definition_catalog" projection] state
+  pure OperationResult
+    { operationResultValue = projection
+    , operationResultState = appendResultState accepted
+    }
+
+domainEntitiesFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+domainEntitiesFixture input state = do
+  projection <- domainFixtureProjection
+  accepted <- appendForFixture input "domain-entities"
+    [ProposeValueStored "v1.domain" projection] state
+  pure OperationResult
+    { operationResultValue = projection
+    , operationResultState = appendResultState accepted
+    }
+
 referenceFixture ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
 referenceFixture input state = do
@@ -251,6 +284,54 @@ appendForFixture input suffix events state = mapKernelError
 
 domainRevisionObservation :: ObservationInput -> V1State -> Either Text Value
 domainRevisionObservation _ = Right . toJSON . kernelRevision
+
+domainStateObservation :: ObservationInput -> V1State -> Either Text Value
+domainStateObservation _ state = maybe
+  (Left "domain entity fixture has not been created")
+  Right
+  (kernelValue "v1.domain" state)
+
+builtInCatalogObservation :: ObservationInput -> V1State -> Either Text Value
+builtInCatalogObservation _ _ = definitionCatalogProjection
+
+definitionCatalogProjection :: Either Text Value
+definitionCatalogProjection = do
+  behaviors <- mapDomainError
+    (findBehaviors "" Nothing 50 (domainCatalog emptyDomainState))
+  templates <- mapDomainError
+    (findTemplates "" Nothing Nothing 50 (domainCatalog emptyDomainState))
+  pure (object
+    [ "behaviors" .= behaviors
+    , "templates" .= templates
+    , "behavior_count" .= length behaviors
+    , "template_count" .= length templates
+    ])
+
+domainFixtureProjection :: Either Text Value
+domainFixtureProjection = do
+  (party, first) <- mapDomainError
+    (createParty "Contract user" Person domainFixtureTime emptyDomainState)
+  title <- mapDomainError
+    (mkCanonicalText "Prepare release" (Just "Preparar lançamento") Human)
+  (brick, second) <- mapDomainError
+    (createBrick (ordinaryBrickDraft title finiteChecklistV1 domainFixtureTime)
+      first)
+  entryLabel <- mapDomainError
+    (mkCanonicalText "Verify package" (Just "Verificar pacote") Human)
+  (_, third) <- mapDomainError
+    (createListEntry (ListEntryDraft (brickId brick) entryLabel Nothing Nothing
+      domainFixtureTime) second)
+  (_, fourth) <- mapDomainError
+    (focusBrick (Just (brickId brick)) domainFixtureTime third)
+  projection <- mapDomainError (domainProjection fourth)
+  pure (object
+    [ "user_id" .= partyId party
+    , "brick_id" .= brickId brick
+    , "state" .= projection
+    ])
+
+domainFixtureTime :: UTCTime
+domainFixtureTime = UTCTime (fromGregorian 2026 7 27) 0
 
 canonicalStateObservation :: ObservationInput -> V1State -> Either Text Value
 canonicalStateObservation _ = Right . toJSON
@@ -397,6 +478,9 @@ ambientText _ = Nothing
 
 mapKernelError :: Either KernelError value -> Either Text value
 mapKernelError = either (Left . Text.pack . show) Right
+
+mapDomainError :: Either DomainError value -> Either Text value
+mapDomainError = either (Left . Text.pack . show) Right
 
 requireArgumentsObject :: OperationInput -> Either Text Object
 requireArgumentsObject input = asObject "operation arguments" (operationArguments input)

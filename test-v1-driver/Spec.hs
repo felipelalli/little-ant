@@ -8,6 +8,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Time (UTCTime (..), fromGregorian)
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), DriverResponse (..),
    ObservationInput (..), OperationInput (..), OperationResult (..),
@@ -15,6 +16,7 @@ import LittleAnt.V1.Contract
    ReferenceSnapshot (..), ResultItem (..),
    decodeAndRunContractRequest, emptyContractRegistry,
    evaluateAssertionOperator, runContractRequest, standardAssertionOperators)
+import LittleAnt.V1.Domain
 import LittleAnt.V1.Implementation (contractRegistry)
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
@@ -28,6 +30,7 @@ import Test.Tasty.HUnit
 main :: IO ()
 main = defaultMain $ testGroup "v1 contract runner"
   [ kernelTests
+  , domainTests
   , implementationBridgeTests
   , planTests
   , scenarioTests
@@ -110,6 +113,169 @@ kernelTests = testGroup "v1 action kernel"
       replayResultExternalTrace replayed @?= []
   ]
 
+domainTests :: TestTree
+domainTests = testGroup "v1 domain model and definition catalog"
+  [ testCase "allocates stable opaque identities and preserves text provenance" $ do
+      (party, first) <- requireDomainSuccess
+        (createParty "Ada" Person domainTestTime emptyDomainState)
+      title <- requireDomainSuccess
+        (mkCanonicalText "Plan migration" (Just "Planejar migração") Human)
+      (brick, second) <- requireDomainSuccess
+        (createBrick (ordinaryBrickDraft title standardV1 domainTestTime) first)
+      (sameTitle, _) <- requireDomainSuccess
+        (createBrick (ordinaryBrickDraft title standardV1 domainTestTime) second)
+      partyRevision party @?= EntityRevision 1
+      brickRevision brick @?= EntityRevision 1
+      brickOriginalTitle brick @?= Just "Planejar migração"
+      assertBool "two entity kinds reused an identity"
+        (unPartyId (partyId party) /= unBrickId (brickId brick))
+      assertBool "equal titles reused an identity" (brickId brick /= brickId sameTitle)
+      assertBool "opaque Brick ID contains its title"
+        (not (brickTitle brick `Text.isInfixOf` unBrickId (brickId brick)))
+  , testCase "increments Party revisions without changing identity" $ do
+      (party, first) <- requireDomainSuccess
+        (createParty "Ada" Person domainTestTime emptyDomainState)
+      (renamed, second) <- requireDomainSuccess
+        (renameParty (partyId party) "Ada Lovelace" first)
+      (withAlternate, _) <- requireDomainSuccess
+        (addAlternatePartyLabel (partyId party) "A. Lovelace" second)
+      partyId renamed @?= partyId party
+      partyAlternateLabels renamed @?= ["Ada"]
+      partyRevision withAlternate @?= EntityRevision 3
+      case addAlternatePartyLabel (partyId party) "Ada Lovelace" second of
+        Left (AlternateLabelMatchesCurrent _) -> pure ()
+        result -> assertFailure ("unexpected alternate-label result: " <> show result)
+  , testCase "enforces parent, focus, phase, entry-owner, and terminal constraints" $ do
+      title <- requireDomainSuccess
+        (mkCanonicalText "Ordinary work" Nothing Human)
+      (ordinary, first) <- requireDomainSuccess
+        (createBrick (ordinaryBrickDraft title standardV1 domainTestTime)
+          emptyDomainState)
+      case setBrickParent (brickId ordinary) (Just (brickId ordinary)) first of
+        Left (InvalidRelationship _) -> pure ()
+        result -> assertFailure ("self-parent unexpectedly accepted: " <> show result)
+      entryLabel <- requireDomainSuccess
+        (mkCanonicalText "Unsupported entry" Nothing Human)
+      case createListEntry (ListEntryDraft (brickId ordinary) entryLabel Nothing
+          Nothing domainTestTime) first of
+        Left (InvalidRelationship _) -> pure ()
+        result -> assertFailure ("unsupported ListEntry unexpectedly accepted: "
+          <> show result)
+      let phaseDraft = (ordinaryBrickDraft title collectionV1 domainTestTime)
+            { brickDraftPhase = Just Idea
+            , brickDraftPhaseAuthority = Just Human
+            }
+      case createBrick phaseDraft first of
+        Left (InvalidRelationship _) -> pure ()
+        result -> assertFailure ("disabled phase unexpectedly accepted: " <> show result)
+      (_, second) <- requireDomainSuccess
+        (setBrickWorkState (brickId ordinary) Wip first)
+      (_, third) <- requireDomainSuccess
+        (focusBrick (Just (brickId ordinary)) domainTestTime second)
+      (terminal, fourth) <- requireDomainSuccess
+        (transitionBrickStatus (brickId ordinary) MarkDone domainTestTime third)
+      brickWorkState terminal @?= Idle
+      focusRegisterCurrent (domainFocusRegister fourth) @?= Nothing
+      case setBrickWorkState (brickId ordinary) Wip fourth of
+        Left (InvalidTransition _) -> pure ()
+        result -> assertFailure ("terminal Brick unexpectedly entered WIP: "
+          <> show result)
+  , testCase "models ListEntry shape and one singleton focus register" $ do
+      firstTitle <- requireDomainSuccess
+        (mkCanonicalText "Packing" Nothing Human)
+      (owner, first) <- requireDomainSuccess
+        (createBrick (ordinaryBrickDraft firstTitle finiteChecklistV1 domainTestTime)
+          emptyDomainState)
+      secondTitle <- requireDomainSuccess
+        (mkCanonicalText "Other work" Nothing Human)
+      (other, second) <- requireDomainSuccess
+        (createBrick (ordinaryBrickDraft secondTitle standardV1 domainTestTime) first)
+      label <- requireDomainSuccess
+        (mkCanonicalText "Passport" (Just "Passaporte") Human)
+      (entry, third) <- requireDomainSuccess
+        (createListEntry (ListEntryDraft (brickId owner) label (Just 1) Nothing
+          domainTestTime) second)
+      (_, fourth) <- requireDomainSuccess
+        (focusBrick (Just (brickId owner)) domainTestTime third)
+      (focus, final) <- requireDomainSuccess
+        (focusBrick (Just (brickId other)) domainTestTime fourth)
+      listEntryOriginalLabel entry @?= Just "Passaporte"
+      listEntryRevision entry @?= EntityRevision 1
+      focusRegisterCurrent focus @?= Just (brickId other)
+      domainFocusRegister final @?= focus
+      requireDomainSuccess (validateDomainState final)
+  , testCase "ships bounded searchable built-in definitions" $ do
+      length (behaviorVersions initialDefinitionCatalog) @?= 8
+      length (templateVersions initialDefinitionCatalog) @?= 8
+      behaviorPage <- requireDomainSuccess
+        (findBehaviors "core" Nothing 3 initialDefinitionCatalog)
+      length behaviorPage @?= 3
+      templatePage <- requireDomainSuccess
+        (findTemplates "shopping" (Just "checklists") Nothing 5
+          initialDefinitionCatalog)
+      map templateId templatePage @?= ["standard/grocery_list"]
+      case findTemplates "" Nothing Nothing 51 initialDefinitionCatalog of
+        Left (InvalidPageSize 51) -> pure ()
+        result -> assertFailure ("unbounded catalog result: " <> show result)
+  , testCase "publishes immutable behavior versions and reuses equivalents" $ do
+      let firstConfiguration = BehaviorConfiguration BrickFocus Standing False
+            False False Disabled Applicable NoRepetition
+          firstDraft = BehaviorDraft "personal/deep_work" "personal/test" 1
+            firstConfiguration
+      (firstResult, firstCatalog) <- requireDomainSuccess
+        (publishPersonalBehavior firstDraft initialDefinitionCatalog)
+      first <- case firstResult of
+        Published value -> pure value
+        result -> assertFailure ("unexpected publication result: " <> show result)
+      let secondDraft = firstDraft
+            { behaviorDraftVersion = 2
+            , behaviorDraftConfiguration = BehaviorConfiguration BrickFocus Finite
+                False False False Applicable Disabled NoRepetition
+            }
+      (secondResult, secondCatalog) <- requireDomainSuccess
+        (publishPersonalBehavior secondDraft firstCatalog)
+      second <- case secondResult of
+        Published value -> pure value
+        result -> assertFailure ("unexpected second publication: " <> show result)
+      behaviorVersion first @?= 1
+      behaviorVersion second @?= 2
+      assertBool "first version disappeared"
+        (first `elem` behaviorVersions secondCatalog)
+      let duplicateDraft = BehaviorDraft "personal/duplicate" "personal/test" 99
+            (behaviorConfiguration standardV1)
+      (duplicateResult, unchanged) <- requireDomainSuccess
+        (publishPersonalBehavior duplicateDraft secondCatalog)
+      duplicateResult @?= ExistingDefinitionSelected standardV1
+      unchanged @?= secondCatalog
+  , testCase "publishes immutable templates and copies one version on expansion" $ do
+      let firstDraft = TemplateDraft
+            { templateDraftId = "personal/deep_work_template"
+            , templateDraftNamespace = "personal/test"
+            , templateDraftVersion = 1
+            , templateDraftDisplayName = "Deep work"
+            , templateDraftCategory = "focus"
+            , templateDraftPurpose = "Create focused work."
+            , templateDraftSearchTerms = ["focus"]
+            , templateDraftBehavior = standardV1
+            , templateDraftDefaultTitle = Just "Focus deeply"
+            , templateDraftDefaultDescription = Nothing
+            }
+      (first, firstCatalog) <- requireDomainSuccess
+        (publishPersonalTemplate firstDraft initialDefinitionCatalog)
+      (second, secondCatalog) <- requireDomainSuccess
+        (publishPersonalTemplate
+          (firstDraft {templateDraftVersion = 2,
+            templateDraftDefaultTitle = Just "Focus deeply today"}) firstCatalog)
+      assertBool "published first template was mutated"
+        (first `elem` templateVersions secondCatalog)
+      templateVersion second @?= 2
+      (brick, _) <- requireDomainSuccess
+        (instantiateTemplate first Nothing domainTestTime
+          (emptyDomainState {domainCatalog = secondCatalog}))
+      brickTitle brick @?= "Focus deeply"
+      brickBehavior brick @?= standardV1
+  ]
+
 implementationBridgeTests :: TestTree
 implementationBridgeTests = testGroup "real implementation registry"
   [ testCase "populates every contract extension point" $ do
@@ -142,6 +308,18 @@ implementationBridgeTests = testGroup "real implementation registry"
       assertResponsePassed (runContractRequest contractRegistry
         implementationSchemaScenario)
         ["structured-schema-presence"]
+  , testCase "serves real domain entity and definition fixtures" $
+      assertResponsePassed (runContractRequest contractRegistry
+        implementationDomainFixtureScenario)
+        ["domain-fixture", "catalog-fixture"]
+  , testCase "executes domain probes by semantic construct" $
+      assertResponsePassed (runContractRequest contractRegistry domainPlanRequest)
+        [ "enum-comparable.Authority"
+        , "entity-fields.Brick"
+        , "contract-signature.DefinitionCatalog.find_templates"
+        , "rule-success.PersonalBehaviorVersionPublished"
+        , "invariant.TerminalBrickIsNotWip"
+        ]
   ]
 
 planTests :: TestTree
@@ -570,6 +748,48 @@ implementationSchemaScenario = scenarioRequest []
       ]
   ]
 
+implementationDomainFixtureScenario :: Value
+implementationDomainFixtureScenario = scenarioRequest []
+  [ object
+      [ "id" .= ("domain-fixture" :: Text)
+      , "fixture" .= ("domain_entities" :: Text)
+      , "query" .= ("DomainState" :: Text)
+      , "path" .= ("state.bricks" :: Text)
+      , "operator" .= ("count_equals" :: Text)
+      , "value" .= (1 :: Int)
+      ]
+  , object
+      [ "id" .= ("catalog-fixture" :: Text)
+      , "fixture" .= ("definition_catalog" :: Text)
+      , "query" .= ("BuiltInDefinitionCatalog" :: Text)
+      , "path" .= ("behavior_count" :: Text)
+      , "operator" .= ("equals" :: Text)
+      , "value" .= (8 :: Int)
+      ]
+  ]
+
+domainPlanRequest :: Value
+domainPlanRequest = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("domain" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "enum-comparable.Authority"
+              "enum_comparable" "Authority"
+          , obligation "entity-fields.Brick" "entity_fields" "Brick"
+          , obligation "contract-signature.DefinitionCatalog.find_templates"
+              "contract_signature" "DefinitionCatalog.find_templates"
+          , obligation "rule-success.PersonalBehaviorVersionPublished"
+              "rule_success" "PersonalBehaviorVersionPublished"
+          , obligation "invariant.TerminalBrickIsNotWip"
+              "invariant" "TerminalBrickIsNotWip"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
 planRequest :: Value
 planRequest = object
   [ "protocol_version" .= (1 :: Int)
@@ -837,6 +1057,14 @@ requireKernelSuccess ::
 requireKernelSuccess result = case result of
   Left problem -> assertFailure ("kernel action failed: " <> show problem)
   Right accepted -> pure accepted
+
+requireDomainSuccess :: Show problem => Either problem value -> IO value
+requireDomainSuccess result = case result of
+  Left problem -> assertFailure ("domain operation failed: " <> show problem)
+  Right value -> pure value
+
+domainTestTime :: UTCTime
+domainTestTime = UTCTime (fromGregorian 2026 7 27) 0
 
 objectMap :: [AesonTypes.Pair] -> Object
 objectMap = objectValue
