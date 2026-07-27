@@ -26,6 +26,9 @@
         };
 
         devShells.default = pkgs.mkShell {
+          # The stdenv puts a readline-less `bash` on PATH; tools that re-exec
+          # themselves via `env bash` (git-sh, for one) then lose `complete`.
+          packages = [ pkgs.bashInteractive ];
           buildInputs = with haskellPackages; [
             ghc
             cabal-install
