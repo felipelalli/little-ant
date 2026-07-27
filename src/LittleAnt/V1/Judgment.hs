@@ -55,6 +55,7 @@ module LittleAnt.V1.Judgment
   , initialEffortBands
   , initialEffortProfile
   , judgmentProjection
+  , moveJudgmentSubtree
   , judgmentProposalKinds
   , judgmentProbeProjection
   , openEffortProbe
@@ -548,6 +549,75 @@ registerJudgmentBrick identifier parent status effortApplicable state = do
           next = state {judgmentStateBricks = withParent}
       validateJudgmentState next
       pure next
+
+-- | Rebind one active subtree root in judgment state. Moving a former root
+-- below another Brick retires its root-scoped impact evidence, but keeps that
+-- evidence addressable as history.
+moveJudgmentSubtree ::
+  BrickId -> Maybe BrickId -> UTCTime -> JudgmentState ->
+  Either JudgmentError JudgmentState
+moveJudgmentSubtree identifier newParent now state = do
+  brick <- requireBrick identifier state
+  unless (judgmentBrickStatus brick == Active)
+    (Left (InvalidJudgmentTransition "only an active subtree can move"))
+  when (judgmentBrickParent brick == newParent)
+    (Left (InvalidJudgmentRelationship "judgment parent is unchanged"))
+  case newParent of
+    Nothing -> pure ()
+    Just parentId -> do
+      parent <- requireBrick parentId state
+      unless (judgmentBrickStatus parent == Active)
+        (Left (InvalidJudgmentRelationship "new judgment parent must be active"))
+      when (judgmentDescendsFrom state parentId identifier)
+        (Left (InvalidJudgmentRelationship "judgment move would create a cycle"))
+  let oldParent = judgmentBrickParent brick
+      reopenWithoutChild child parent = parent
+        { judgmentBrickActiveChildren = Set.delete child
+            (judgmentBrickActiveChildren parent)
+        , judgmentBrickDecompositionCoverage = Open
+        }
+      reopenWithChild child parent = parent
+        { judgmentBrickActiveChildren = Set.insert child
+            (judgmentBrickActiveChildren parent)
+        , judgmentBrickDecompositionCoverage = Open
+        }
+      withoutOld = maybe (judgmentStateBricks state)
+        (\parent -> Map.adjust (reopenWithoutChild identifier) parent
+          (judgmentStateBricks state)) oldParent
+      withMoved = Map.insert identifier
+        (brick {judgmentBrickParent = newParent}) withoutOld
+      bricks = maybe withMoved
+        (\parent -> Map.adjust (reopenWithChild identifier) parent withMoved) newParent
+      ceasedToBeRoot = oldParent == Nothing && newParent /= Nothing
+      retireAssessment assessment
+        | ceasedToBeRoot && impactAssessmentRoot assessment == identifier =
+            assessment {impactAssessmentApplicable = False}
+        | otherwise = assessment
+      retireComparison comparison
+        | ceasedToBeRoot && identifier `elem`
+            [impactComparisonLeft comparison, impactComparisonRight comparison] =
+              comparison {impactComparisonApplicable = False}
+        | otherwise = comparison
+      resolveImpactProbe probe
+        | ceasedToBeRoot
+        , judgmentProbeAxis probe == ImpactAxis
+        , identifier `elem` [judgmentProbeLeft probe, judgmentProbeRight probe]
+        , judgmentProbeStatus probe /= ProbeResolved = probe
+            { judgmentProbeStatus = ProbeResolved
+            , judgmentProbeResolvedAt = Just now
+            }
+        | otherwise = probe
+      next = state
+        { judgmentStateBricks = bricks
+        , judgmentStateImpactAssessments = Map.map retireAssessment
+            (judgmentStateImpactAssessments state)
+        , judgmentStateImpactComparisons = Map.map retireComparison
+            (judgmentStateImpactComparisons state)
+        , judgmentStateProbes = Map.map resolveImpactProbe
+            (judgmentStateProbes state)
+        }
+  validateJudgmentState next
+  pure next
 
 classifyImpact ::
   BrickId -> ImpactClass -> ImpactMaturity -> Authority -> Maybe Text -> UTCTime ->
@@ -1198,12 +1268,14 @@ validateJudgmentState state = do
       violations = concat
         [ ["effort assistance limit is not positive" |
             judgmentStateEffortAssistanceLimit state < 1]
-        , ["impact assessment is not root-scoped" |
-            any (not . isRootId state . impactAssessmentRoot) impactAssessments]
-        , ["impact comparison is not between distinct roots" |
-            any (\value -> impactComparisonLeft value == impactComparisonRight value
-              || not (isRootId state (impactComparisonLeft value))
-              || not (isRootId state (impactComparisonRight value))) impactComparisons]
+        , ["applicable impact assessment is not root-scoped" |
+            any (\value -> impactAssessmentApplicable value
+              && not (isRootId state (impactAssessmentRoot value))) impactAssessments]
+        , ["applicable impact comparison is not between distinct roots" |
+            any (\value -> impactComparisonApplicable value
+              && (impactComparisonLeft value == impactComparisonRight value
+                || not (isRootId state (impactComparisonLeft value))
+                || not (isRootId state (impactComparisonRight value)))) impactComparisons]
         , ["effort assessment uses an inapplicable Brick or unpublished band" |
             any (invalidEffortAssessment state) effortAssessments]
         , ["effort comparison does not use distinct applicable Bricks" |
@@ -1239,6 +1311,7 @@ invalidEffortComparison state value =
 
 invalidProbe :: JudgmentState -> JudgmentProbe -> Bool
 invalidProbe state probe
+  | judgmentProbeStatus probe == ProbeResolved = False
   | judgmentProbeLeft probe == judgmentProbeRight probe = True
   | judgmentProbeAxis probe == ImpactAxis =
       judgmentProbeScope probe /= Nothing
@@ -1476,6 +1549,17 @@ requireProbe identifier state = maybe (Left (UnknownJudgmentProbe identifier)) R
 isRootId :: JudgmentState -> BrickId -> Bool
 isRootId state identifier = maybe False ((== Nothing) . judgmentBrickParent)
   (Map.lookup identifier (judgmentStateBricks state))
+
+judgmentDescendsFrom :: JudgmentState -> BrickId -> BrickId -> Bool
+judgmentDescendsFrom state candidate ancestor = go Set.empty candidate
+  where
+    go seen current
+      | current == ancestor = True
+      | Set.member current seen = True
+      | otherwise = case Map.lookup current (judgmentStateBricks state)
+          >>= judgmentBrickParent of
+            Nothing -> False
+            Just parent -> go (Set.insert current seen) parent
 
 rootOf :: JudgmentState -> JudgmentBrick -> BrickId
 rootOf state brick = case judgmentBrickParent brick of

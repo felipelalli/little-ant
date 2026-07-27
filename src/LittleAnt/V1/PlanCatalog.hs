@@ -20,10 +20,11 @@ import Data.Map.Strict (Map)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Time (UTCTime (..), fromGregorian)
+import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
 import LittleAnt.V1.Contract
   (PlanProbe, PlanProbeInput (..), ProbeKey (..))
 import LittleAnt.V1.Domain
+import LittleAnt.V1.ExecutionPlanCatalog (executionLifecyclePlanProbes)
 import LittleAnt.V1.JudgmentAssessmentPlanCatalog (assessmentPlanProbes)
 import LittleAnt.V1.JudgmentPlanCatalog (priorityPlanProbes)
 import LittleAnt.V1.Kernel
@@ -38,6 +39,7 @@ v1PlanProbes :: Map ProbeKey PlanProbe
 v1PlanProbes = Map.unions
   [ kernelPlanProbes
   , domainPlanProbes
+  , executionLifecyclePlanProbes
   , materialPlanProbes
   , priorityPlanProbes
   , assessmentPlanProbes
@@ -57,6 +59,7 @@ domainPlanProbes = Map.fromList
   ( enumRegistrations
   <> entityFieldRegistrations
   <> optionalFieldRegistrations
+  <> domainShapeRegistrations
   <> catalogRegistrations
   <> partyRuleRegistrations
   <> behaviorRuleRegistrations
@@ -278,6 +281,38 @@ optionalField construct =
         (construct <> " does not represent the absent optional value")
   )
 
+-- These registrations cover the generated shape/transition obligations that
+-- require executable state rather than only a static JSON field fixture.
+domainShapeRegistrations :: [(ProbeKey, PlanProbe)]
+domainShapeRegistrations =
+  [ shape category construct
+  | (category, constructs) <-
+      [ ("when_presence",
+          [ "Brick.superseded_by", "Brick.supersede_reason"
+          , "ListEntry.resolved_at", "ListEntry.removed_at"
+          , "ListEntry.removal_reason"
+          ])
+      , ("transition_edge", ["Brick.status", "Brick.work_state", "ListEntry.status"])
+      , ("transition_rejected", ["Brick.status", "Brick.work_state", "ListEntry.status"])
+      , ("transition_terminal", ["Brick.status", "ListEntry.status"])
+      , ("entity_relationship", ["Brick.children", "Brick.entries"])
+      , ("projection", ["Brick.active_children", "Brick.open_entries"])
+      , ("derived",
+          [ "Brick.is_active", "Brick.has_active_children", "Brick.is_dormant"
+          , "Brick.phase_is_applicable", "Brick.effort_is_applicable"
+          , "Brick.effective_context", "Brick.effective_mode"
+          , "Brick.effective_not_before", "Brick.effective_best_before"
+          , "Brick.effective_deadline", "Brick.effective_date_revision"
+          ])
+      ]
+  , construct <- constructs
+  ]
+  where
+    shape category construct =
+      ( ProbeKey "domain" category construct
+      , semanticProbe category construct domainShapeProbe
+      )
+
 catalogRegistrations :: [(ProbeKey, PlanProbe)]
 catalogRegistrations = map registration
   ["DefinitionCatalog.find_behaviors", "DefinitionCatalog.find_templates"]
@@ -333,6 +368,10 @@ invariantRegistrations =
       , "EntryOwnerSupportsEntries"
       , "TerminalBrickIsNotWip"
       , "PhaseRespectsBehavior"
+      , "EffectiveMetadataUsesNearestExplicitAncestor"
+      , "EffectiveDatesAccumulateConstraints"
+      , "DateRevisionIsNonNegative"
+      , "DormancyFollowsBehaviorCapability"
       ]
   ]
 
@@ -647,7 +686,136 @@ domainInvariantProbe construct = do
           <> Text.pack (show result))
     "TerminalBrickIsNotWip" -> terminalWorkInvariantProbe
     "PhaseRespectsBehavior" -> phaseInvariantProbe
+    "EffectiveMetadataUsesNearestExplicitAncestor" -> metadataInheritanceProbe
+    "EffectiveDatesAccumulateConstraints" -> metadataInheritanceProbe
+    "DateRevisionIsNonNegative" -> metadataInheritanceProbe
+    "DormancyFollowsBehaviorCapability" -> metadataInheritanceProbe
     _ -> Left ("unknown domain invariant probe: " <> construct)
+
+domainShapeProbe :: Either Text ()
+domainShapeProbe = do
+  parentTitle <- mapDomainError (mkCanonicalText "Parent" Nothing Human)
+  let parentDraft = (ordinaryBrickDraft parentTitle projectV1 sampleTime)
+        { brickDraftContext = Just "office"
+        , brickDraftMode = Just Digital
+        , brickDraftNotBefore = Just (addUTCTime 10 sampleTime)
+        , brickDraftBestBefore = Just (addUTCTime 100 sampleTime)
+        , brickDraftDeadline = Just (addUTCTime 200 sampleTime)
+        }
+  (parent, first) <- mapDomainError (createBrick parentDraft emptyDomainState)
+  childTitle <- mapDomainError (mkCanonicalText "Child" Nothing Human)
+  let childDraft = (ordinaryBrickDraft childTitle standardV1 sampleTime)
+        { brickDraftParent = Just (brickId parent)
+        , brickDraftNotBefore = Just (addUTCTime 20 sampleTime)
+        , brickDraftBestBefore = Just (addUTCTime 90 sampleTime)
+        , brickDraftDeadline = Just (addUTCTime 150 sampleTime)
+        }
+  (child, second) <- mapDomainError (createBrick childDraft first)
+  checklistTitle <- mapDomainError (mkCanonicalText "Checklist" Nothing Human)
+  (checklist, third) <- mapDomainError (createBrick
+    (ordinaryBrickDraft checklistTitle finiteChecklistV1 sampleTime) second)
+  entryTitle <- mapDomainError (mkCanonicalText "Entry" Nothing Human)
+  (entry, fourth) <- mapDomainError (createListEntry
+    (ListEntryDraft (brickId checklist) entryTitle Nothing Nothing sampleTime) third)
+  parentValue <- mapDomainError (brickProjection fourth (brickId parent))
+  childValue <- mapDomainError (brickProjection fourth (brickId child))
+  checklistValue <- mapDomainError (brickProjection fourth (brickId checklist))
+  parentObject <- asObject "parent Brick" parentValue
+  childObject <- asObject "child Brick" childValue
+  checklistObject <- asObject "checklist Brick" checklistValue
+  require (KeyMap.lookup "children" parentObject == Just (toJSON [brickId child]))
+    "Brick children relationship did not derive from parent identity"
+  require (KeyMap.lookup "active_children" parentObject
+      == Just (toJSON [brickId child]))
+    "active children projection included the wrong members"
+  require (KeyMap.lookup "entries" checklistObject
+      == Just (toJSON [listEntryId entry]))
+    "Brick entries relationship did not derive from owner identity"
+  require (KeyMap.lookup "open_entries" checklistObject
+      == Just (toJSON [listEntryId entry]))
+    "open entries projection included the wrong members"
+  require (KeyMap.lookup "effective_context" childObject == Just (String "office"))
+    "nearest explicit context was not inherited"
+  require (KeyMap.lookup "effective_mode" childObject == Just (toJSON Digital))
+    "nearest explicit mode was not inherited"
+  require (KeyMap.lookup "effective_not_before" childObject
+      == Just (toJSON (addUTCTime 20 sampleTime)))
+    "effective not-before did not choose the strongest latest constraint"
+  require (KeyMap.lookup "effective_best_before" childObject
+      == Just (toJSON (addUTCTime 90 sampleTime)))
+    "effective best-before did not choose the strongest earliest constraint"
+  require (KeyMap.lookup "effective_deadline" childObject
+      == Just (toJSON (addUTCTime 150 sampleTime)))
+    "effective deadline did not choose the strongest earliest constraint"
+  fingerprint <- mapDomainError (effectiveDateRevision fourth (brickId child))
+  require (not (Text.null fingerprint) && brickDateRevision child >= 0)
+    "effective date fingerprint is empty or uses a negative revision"
+  (_, wipState) <- mapDomainError (setBrickWorkState (brickId child) Wip fourth)
+  (_, idleState) <- mapDomainError (setBrickWorkState (brickId child) Idle wipState)
+  case setBrickWorkState (brickId child) Idle idleState of
+    Left (InvalidTransition _) -> Right ()
+    result -> Left ("rejected work-state edge was accepted: " <> Text.pack (show result))
+  (_, resolvedState) <- mapDomainError
+    (resolveListEntry (listEntryId entry) sampleTime idleState)
+  case resolveListEntry (listEntryId entry) sampleTime resolvedState of
+    Left (InvalidTransition _) -> Right ()
+    result -> Left ("terminal ListEntry resolved twice: " <> Text.pack (show result))
+  entryTwoTitle <- mapDomainError (mkCanonicalText "Entry two" Nothing Human)
+  (entryTwo, withEntryTwo) <- mapDomainError (createListEntry
+    (ListEntryDraft (brickId checklist) entryTwoTitle Nothing Nothing sampleTime)
+    resolvedState)
+  (removed, removedState) <- mapDomainError
+    (removeListEntry (listEntryId entryTwo) (Just "not needed") sampleTime withEntryTwo)
+  require (listEntryRemovedAt removed == Just sampleTime
+      && listEntryRemovalReason removed == Just "not needed")
+    "removed ListEntry did not retain its conditional fields"
+  case removeListEntry (listEntryId entryTwo) Nothing sampleTime removedState of
+    Left (InvalidTransition _) -> Right ()
+    result -> Left ("terminal ListEntry was removed twice: " <> Text.pack (show result))
+  replacementTitle <- mapDomainError (mkCanonicalText "Replacement" Nothing Human)
+  (replacement, supersedeBase) <- mapDomainError (createBrick
+    (ordinaryBrickDraft replacementTitle standardV1 sampleTime) removedState)
+  leafTitle <- mapDomainError (mkCanonicalText "Leaf" Nothing Human)
+  (leaf, withLeaf) <- mapDomainError (createBrick
+    (ordinaryBrickDraft leafTitle standardV1 sampleTime) supersedeBase)
+  (superseded, supersededState) <- mapDomainError (transitionBrickStatus
+    (brickId leaf) (MarkSuperseded (brickId replacement) (Just "replaced"))
+    sampleTime withLeaf)
+  require (brickSupersededBy superseded == Just (brickId replacement)
+      && brickSupersedeReason superseded == Just "replaced")
+    "superseded conditional fields were not retained"
+  case transitionBrickStatus (brickId leaf) MarkDone sampleTime supersededState of
+    Left (InvalidTransition _) -> Right ()
+    result -> Left ("terminal Brick completed twice: " <> Text.pack (show result))
+  doneTitle <- mapDomainError (mkCanonicalText "Done leaf" Nothing Human)
+  (doneLeaf, doneBase) <- mapDomainError (createBrick
+    (ordinaryBrickDraft doneTitle standardV1 sampleTime) supersededState)
+  (done, _) <- mapDomainError
+    (transitionBrickStatus (brickId doneLeaf) MarkDone sampleTime doneBase)
+  require (brickStatus done == Done) "active-to-done edge failed"
+  dropTitle <- mapDomainError (mkCanonicalText "Dropped leaf" Nothing Human)
+  (dropLeaf, dropBase) <- mapDomainError (createBrick
+    (ordinaryBrickDraft dropTitle standardV1 sampleTime) supersededState)
+  (dropped, _) <- mapDomainError
+    (transitionBrickStatus (brickId dropLeaf) MarkDropped sampleTime dropBase)
+  require (brickStatus dropped == Dropped) "active-to-dropped edge failed"
+
+metadataInheritanceProbe :: Either Text ()
+metadataInheritanceProbe = do
+  domainShapeProbe
+  collectionTitle <- mapDomainError (mkCanonicalText "Empty collection" Nothing Human)
+  (collection, state) <- mapDomainError (createBrick
+    (ordinaryBrickDraft collectionTitle collectionV1 sampleTime) emptyDomainState)
+  projection <- mapDomainError (brickProjection state (brickId collection))
+  objectValue <- asObject "collection" projection
+  require (KeyMap.lookup "is_dormant" objectValue == Just (Bool True))
+    "behavior-owned empty dormancy was not derived"
+  (_, dated) <- mapDomainError
+    (setBrickDeadline (brickId collection) (addUTCTime 30 sampleTime) state)
+  updated <- maybe (Left "dated Brick disappeared") Right
+    (Map.lookup (brickId collection) (domainBricks dated))
+  require (brickDateRevision updated == 1)
+    "date mutation did not advance a nonnegative local revision"
 
 terminalWorkInvariantProbe :: Either Text ()
 terminalWorkInvariantProbe = do

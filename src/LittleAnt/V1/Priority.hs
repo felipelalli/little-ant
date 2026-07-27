@@ -40,6 +40,7 @@ module LittleAnt.V1.Priority
   , deferJudgmentProbe
   , invalidatePriorityJudgmentsFor
   , emptyPriorityState
+  , movePrioritySubtree
   , openPriorityProbe
   , priorityEvidence
   , priorityInsertionProjection
@@ -52,11 +53,13 @@ module LittleAnt.V1.Priority
   , priorityViewItem
   , probeProjection
   , recordPriorityDependency
+  , registerPriorityBrick
   , recordPriorityJudgment
   , reopenJudgmentProbe
   , reopenPriorityInsertion
   , setPriorityBrickStatus
   , skipPriorityComparison
+  , transferPriorityChildren
   , validatePriorityState
   ) where
 
@@ -415,6 +418,71 @@ createPriorityChild ::
   Either PriorityError (PriorityBrick, PriorityInsertion, PriorityState)
 createPriorityChild parent title randomEvidence now =
   createPriorityBrick (Just parent) title randomEvidence now
+
+-- | Register a Brick whose opaque identity was allocated by the domain
+-- authority. This is the composition-safe counterpart of the standalone
+-- priority fixture constructors.
+registerPriorityBrick ::
+  BrickId -> Maybe BrickId -> Text -> Text -> UTCTime -> PriorityState ->
+  Either PriorityError (PriorityInsertion, PriorityState)
+registerPriorityBrick identifier parent title randomEvidence now state = do
+  when (Map.member identifier (priorityStateBricks state))
+    (Left (InvalidPriorityRelationship "Brick is already registered in priority"))
+  when (Text.null (Text.strip title))
+    (Left (InvalidPriorityRelationship "Brick title must not be empty"))
+  case parent of
+    Nothing -> pure ()
+    Just parentId -> do
+      parentBrick <- requireBrick parentId state
+      unless (priorityBrickStatus parentBrick == Active)
+        (Left (InvalidPriorityRelationship "parent Brick is terminal"))
+  scope <- requireScope (scopeIdForParent parent) state
+  let ordinal = priorityStateNextOrdinal state
+      insertionId = PriorityInsertionId (opaqueText "priority-insertion" ordinal)
+      previousMembers = priorityScopeMembers scope
+      firstInScope = null previousMembers
+      members = previousMembers <> [identifier]
+      nextScope = scope
+        { priorityScopeMembers = members
+        , priorityScopeRevision = priorityScopeRevision scope + 1
+        }
+      insertion = PriorityInsertion
+        { priorityInsertionId = insertionId
+        , priorityInsertionBrick = identifier
+        , priorityInsertionScope = priorityScopeId scope
+        , priorityInsertionStatus = if firstInScope
+            then InsertionResolved else InsertionOpen
+        , priorityInsertionCurrentCandidate = if firstInScope then Nothing
+            else atMay previousMembers (length previousMembers `div` 2)
+        , priorityInsertionComparisonsRecorded = 0
+        , priorityInsertionConsecutiveSkips = 0
+        , priorityInsertionRandomEvidence = randomEvidence
+        , priorityInsertionStartedAt = now
+        , priorityInsertionFinishedAt = if firstInScope then Just now else Nothing
+        , priorityInsertionSearchLow = 0
+        , priorityInsertionSearchHigh = length previousMembers
+        , priorityInsertionPreviousCandidate = Nothing
+        , priorityInsertionCandidateDistanceFromPrevious = Nothing
+        }
+      brick = PriorityBrick identifier title parent Active
+      childScope = PriorityScope
+        { priorityScopeId = scopeIdForParent (Just identifier)
+        , priorityScopeParent = Just identifier
+        , priorityScopeMembers = []
+        , priorityScopeRevision = 0
+        }
+      next = state
+        { priorityStateNextOrdinal = ordinal + 1
+        , priorityStateBricks = Map.insert identifier brick
+            (priorityStateBricks state)
+        , priorityStateScopes = Map.insert (priorityScopeId childScope) childScope
+            (Map.insert (priorityScopeId nextScope) nextScope
+              (priorityStateScopes state))
+        , priorityStateInsertions = Map.insert insertionId insertion
+            (priorityStateInsertions state)
+        }
+  validatePriorityState next
+  pure (insertion, next)
 
 createPriorityBrick ::
   Maybe BrickId -> Text -> Text -> UTCTime -> PriorityState ->
@@ -847,8 +915,197 @@ supersedeIncoherent segment members judgment
   | otherwise = judgment
 
 ------------------------------------------------------------
--- Lifecycle, dependencies, and derived evidence
+-- Lifecycle, composition rebinding, dependencies, and evidence
 ------------------------------------------------------------
+
+-- | Rebind only a moved subtree root. Descendant scopes and identities remain
+-- byte-for-byte untouched; old-scope judgments become historical.
+movePrioritySubtree ::
+  BrickId -> Maybe BrickId -> Text -> UTCTime -> PriorityState ->
+  Either PriorityError (PriorityInsertion, PriorityState)
+movePrioritySubtree identifier newParent movementEvidence now state = do
+  brick <- requireBrick identifier state
+  unless (priorityBrickStatus brick == Active)
+    (Left (InvalidPriorityTransition "only an active subtree can move"))
+  when (priorityBrickParent brick == newParent)
+    (Left (InvalidPriorityRelationship "priority parent is unchanged"))
+  case newParent of
+    Nothing -> pure ()
+    Just parentId -> do
+      parent <- requireBrick parentId state
+      unless (priorityBrickStatus parent == Active)
+        (Left (InvalidPriorityRelationship "new priority parent must be active"))
+      when (priorityDescendsFrom state parentId identifier)
+        (Left (InvalidPriorityRelationship "priority move would create a cycle"))
+  oldScope <- requireScope (scopeIdForParent (priorityBrickParent brick)) state
+  newScope <- requireScope (scopeIdForParent newParent) state
+  unless (identifier `elem` priorityScopeMembers oldScope)
+    (Left (InvalidPriorityRelationship "moved Brick is absent from its old scope"))
+  let ordinal = priorityStateNextOrdinal state
+      newWasEmpty = null (priorityScopeMembers newScope)
+      oldUpdated = oldScope
+        { priorityScopeMembers = filter (/= identifier) (priorityScopeMembers oldScope)
+        , priorityScopeRevision = priorityScopeRevision oldScope + 1
+        }
+      newUpdated = newScope
+        { priorityScopeMembers = priorityScopeMembers newScope <> [identifier]
+        , priorityScopeRevision = priorityScopeRevision newScope + 1
+        }
+      updatedBrick = brick {priorityBrickParent = newParent}
+      insertion = movedInsertion ordinal identifier newUpdated newWasEmpty
+        movementEvidence now
+      judgments = Map.map (retireMovedJudgment identifier (priorityScopeId oldScope))
+        (priorityStateJudgments state)
+      next = state
+        { priorityStateNextOrdinal = ordinal + 1
+        , priorityStateBricks = Map.insert identifier updatedBrick
+            (priorityStateBricks state)
+        , priorityStateScopes = Map.insert (priorityScopeId newUpdated) newUpdated
+            (Map.insert (priorityScopeId oldUpdated) oldUpdated
+              (priorityStateScopes state))
+        , priorityStateInsertions = Map.insert (priorityInsertionId insertion) insertion
+            (priorityStateInsertions state)
+        , priorityStateJudgments = judgments
+        , priorityStateProbes = Map.map
+            (resolveMovedProbe identifier (priorityScopeId oldScope) now)
+            (priorityStateProbes state)
+        , priorityStateProposalPressure = if newWasEmpty
+            then Set.delete identifier (priorityStateProposalPressure state)
+            else Set.insert identifier (priorityStateProposalPressure state)
+        }
+  validatePriorityState next
+  pure (insertion, next)
+
+-- | Atomically transfer every selected direct child while preserving their
+-- old relative order as one provisional block in the replacement scope.
+transferPriorityChildren ::
+  BrickId -> BrickId -> [BrickId] -> Text -> UTCTime -> PriorityState ->
+  Either PriorityError ([PriorityInsertion], PriorityState)
+transferPriorityChildren source replacement selected transferEvidence now state = do
+  sourceBrick <- requireBrick source state
+  replacementBrick <- requireBrick replacement state
+  unless (priorityBrickStatus sourceBrick == Active
+      && priorityBrickStatus replacementBrick == Active)
+    (Left (InvalidPriorityTransition "child transfer requires active Bricks"))
+  unless (priorityBrickParent sourceBrick == priorityBrickParent replacementBrick)
+    (Left (InvalidPriorityRelationship "superseding Bricks must be siblings"))
+  oldScope <- requireScope (scopeIdForParent (Just source)) state
+  newScope <- requireScope (scopeIdForParent (Just replacement)) state
+  let ordered = filter (`elem` selected) (priorityScopeMembers oldScope)
+  unless (not (null selected) && length ordered == length selected
+      && Set.fromList ordered == Set.fromList selected
+      && Set.fromList selected == Set.fromList (priorityScopeMembers oldScope))
+    (Left (InvalidPriorityRelationship "transfer must name all active direct children exactly once"))
+  let startOrdinal = priorityStateNextOrdinal state
+      oldUpdated = oldScope
+        { priorityScopeMembers = []
+        , priorityScopeRevision = priorityScopeRevision oldScope + 1
+        }
+      newUpdated = newScope
+        { priorityScopeMembers = priorityScopeMembers newScope <> ordered
+        , priorityScopeRevision = priorityScopeRevision newScope + 1
+        }
+      updateParent child = child {priorityBrickParent = Just replacement}
+      bricks = foldr (Map.adjust updateParent) (priorityStateBricks state) ordered
+      makeInsertion (offset, child) = deferredTransferInsertion
+        (startOrdinal + fromIntegral offset) child newUpdated transferEvidence now
+      insertions = map makeInsertion (zip [0 :: Int ..] ordered)
+      insertionMap = foldr (\item -> Map.insert (priorityInsertionId item) item)
+        (priorityStateInsertions state) insertions
+      next = state
+        { priorityStateNextOrdinal = startOrdinal + fromIntegral (length ordered)
+        , priorityStateBricks = bricks
+        , priorityStateScopes = Map.insert (priorityScopeId newUpdated) newUpdated
+            (Map.insert (priorityScopeId oldUpdated) oldUpdated
+              (priorityStateScopes state))
+        , priorityStateInsertions = insertionMap
+        , priorityStateJudgments = Map.map
+            (retireScopeJudgment (priorityScopeId oldScope))
+            (priorityStateJudgments state)
+        , priorityStateProbes = Map.map
+            (resolveScopeProbe (priorityScopeId oldScope) now)
+            (priorityStateProbes state)
+        , priorityStateProposalPressure = foldr Set.insert
+            (priorityStateProposalPressure state) ordered
+        }
+  validatePriorityState next
+  pure (insertions, next)
+
+movedInsertion ::
+  Integer -> BrickId -> PriorityScope -> Bool -> Text -> UTCTime ->
+  PriorityInsertion
+movedInsertion ordinal identifier scope newWasEmpty evidence now = PriorityInsertion
+  { priorityInsertionId = PriorityInsertionId (opaqueText "priority-insertion" ordinal)
+  , priorityInsertionBrick = identifier
+  , priorityInsertionScope = priorityScopeId scope
+  , priorityInsertionStatus = if newWasEmpty then InsertionResolved else InsertionDeferred
+  , priorityInsertionCurrentCandidate = Nothing
+  , priorityInsertionComparisonsRecorded = 0
+  , priorityInsertionConsecutiveSkips = 0
+  , priorityInsertionRandomEvidence = evidence
+  , priorityInsertionStartedAt = now
+  , priorityInsertionFinishedAt = Just now
+  , priorityInsertionSearchLow = 0
+  , priorityInsertionSearchHigh = max 0 (length (priorityScopeMembers scope) - 1)
+  , priorityInsertionPreviousCandidate = Nothing
+  , priorityInsertionCandidateDistanceFromPrevious = Nothing
+  }
+
+deferredTransferInsertion ::
+  Integer -> BrickId -> PriorityScope -> Text -> UTCTime -> PriorityInsertion
+deferredTransferInsertion ordinal identifier scope evidence now =
+  (movedInsertion ordinal identifier scope False
+    (evidence <> ":" <> unBrickId identifier) now)
+      {priorityInsertionStatus = InsertionDeferred}
+
+retireMovedJudgment :: BrickId -> PriorityScopeId -> PriorityJudgment -> PriorityJudgment
+retireMovedJudgment identifier oldScope judgment
+  | priorityJudgmentScope judgment == oldScope
+      && identifier `elem`
+        [priorityJudgmentMoreImportant judgment, priorityJudgmentLessImportant judgment] =
+          judgment {priorityJudgmentApplicable = False}
+  | otherwise = judgment
+
+retireScopeJudgment :: PriorityScopeId -> PriorityJudgment -> PriorityJudgment
+retireScopeJudgment oldScope judgment
+  | priorityJudgmentScope judgment == oldScope =
+      judgment {priorityJudgmentApplicable = False}
+  | otherwise = judgment
+
+-- A probe records evidence from the scope in which it was opened.  Moving a
+-- participant does not erase that evidence, but an unresolved probe cannot
+-- remain actionable after its participants stop being siblings.
+resolveMovedProbe ::
+  BrickId -> PriorityScopeId -> UTCTime -> JudgmentProbe -> JudgmentProbe
+resolveMovedProbe identifier oldScope now probe
+  | judgmentProbeScope probe == Just oldScope
+      && identifier `elem` [judgmentProbeLeft probe, judgmentProbeRight probe] =
+          resolveHistoricalProbe now probe
+  | otherwise = probe
+
+resolveScopeProbe :: PriorityScopeId -> UTCTime -> JudgmentProbe -> JudgmentProbe
+resolveScopeProbe oldScope now probe
+  | judgmentProbeScope probe == Just oldScope = resolveHistoricalProbe now probe
+  | otherwise = probe
+
+resolveHistoricalProbe :: UTCTime -> JudgmentProbe -> JudgmentProbe
+resolveHistoricalProbe now probe
+  | judgmentProbeStatus probe `elem` [ProbeOpen, ProbeDeferred] = probe
+      { judgmentProbeStatus = ProbeResolved
+      , judgmentProbeResolvedAt = Just now
+      }
+  | otherwise = probe
+
+priorityDescendsFrom :: PriorityState -> BrickId -> BrickId -> Bool
+priorityDescendsFrom state candidate ancestor = go Set.empty candidate
+  where
+    go seen current
+      | current == ancestor = True
+      | Set.member current seen = True
+      | otherwise = case Map.lookup current (priorityStateBricks state)
+          >>= priorityBrickParent of
+            Nothing -> False
+            Just parent -> go (Set.insert current seen) parent
 
 setPriorityBrickStatus ::
   BrickId -> BrickStatus -> UTCTime -> PriorityState ->

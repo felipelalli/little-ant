@@ -55,6 +55,18 @@ module LittleAnt.V1.Domain
   , createBrick
   , createListEntry
   , createParty
+  , clearBrickAbout
+  , clearBrickBestBefore
+  , clearBrickContext
+  , clearBrickDeadline
+  , clearBrickDescription
+  , clearBrickMode
+  , clearBrickNotBefore
+  , clearBrickOriginalTitle
+  , clearBrickPhase
+  , clearBrickRequester
+  , closeBrickSubtree
+  , describeBrick
   , domainProjection
   , effectiveBestBefore
   , effectiveContext
@@ -73,21 +85,37 @@ module LittleAnt.V1.Domain
   , mkCanonicalText
   , ordinaryBrickDraft
   , partyProjection
+  , moveBrickSubtree
   , practiceV1
   , projectV1
   , publishPersonalBehavior
   , publishPersonalTemplate
   , recurringObligationV1
+  , renameBrick
   , renameParty
   , repeatableV1
+  , retireStandingBrick
+  , returnBrickToIdle
+  , removeListEntry
   , resolveListEntry
+  , setBrickAbout
+  , setBrickBestBefore
+  , setBrickContext
+  , setBrickDeadline
+  , setBrickMode
+  , setBrickNotBefore
+  , setBrickOriginalTitle
   , setBrickParent
   , setBrickPhase
+  , setBrickRequester
   , setBrickWorkState
   , standardV1
   , standingChecklistV1
+  , subtreeBricks
+  , supersedeBrickWithChildren
   , templateVersions
   , transitionBrickStatus
+  , unfocusCurrentBrick
   , validateDomainState
   ) where
 
@@ -1188,6 +1216,23 @@ resolveListEntry identifier resolvedAt state = do
         {domainListEntries = Map.insert identifier updated (domainListEntries state)}
   validateAndReturn updated next
 
+removeListEntry ::
+  ListEntryId -> Maybe Text -> UTCTime -> DomainState ->
+  Either DomainError (ListEntry, DomainState)
+removeListEntry identifier reason removedAt state = do
+  entry <- lookupListEntry identifier state
+  unless (listEntryStatus entry == EntryOpen)
+    (Left (InvalidTransition "only an open ListEntry can be removed"))
+  let updated = entry
+        { listEntryStatus = EntryRemoved
+        , listEntryRemovedAt = Just removedAt
+        , listEntryRemovalReason = reason
+        , listEntryRevision = bumpRevision (listEntryRevision entry)
+        }
+      next = state
+        {domainListEntries = Map.insert identifier updated (domainListEntries state)}
+  validateAndReturn updated next
+
 setBrickWorkState ::
   BrickId -> WorkState -> DomainState -> Either DomainError (Brick, DomainState)
 setBrickWorkState identifier nextWorkState state = do
@@ -1196,47 +1241,186 @@ setBrickWorkState identifier nextWorkState state = do
     (Left (InvalidTransition "terminal Bricks cannot enter WIP"))
   when (brickWorkState brick == nextWorkState)
     (Left (InvalidTransition "work-state transition must change state"))
-  let updated = brick
-        { brickWorkState = nextWorkState
-        , brickRevision = bumpRevision (brickRevision brick)
-        }
-      next = state {domainBricks = Map.insert identifier updated (domainBricks state)}
-  validateAndReturn updated next
+  when (nextWorkState == Idle
+      && focusRegisterCurrent (domainFocusRegister state) == Just identifier)
+    (Left (InvalidTransition "the currently focused Brick must be unfocused first"))
+  replaceActiveBrick identifier
+    (brick {brickWorkState = nextWorkState}) state
+
+renameBrick ::
+  BrickId -> Text -> Authority -> DomainState ->
+  Either DomainError (Brick, DomainState)
+renameBrick identifier title authority state = do
+  validateCanonicalEnglish title
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier brick
+    { brickTitle = title
+    , brickTitleAuthority = authority
+    } state
+
+setBrickOriginalTitle ::
+  BrickId -> Text -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickOriginalTitle identifier originalTitle state = do
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier brick {brickOriginalTitle = Just originalTitle} state
+
+clearBrickOriginalTitle ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickOriginalTitle identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick original title is already absent" (brickOriginalTitle brick)
+  replaceBrick identifier brick {brickOriginalTitle = Nothing} state
+
+describeBrick ::
+  BrickId -> Text -> DomainState -> Either DomainError (Brick, DomainState)
+describeBrick identifier description state = do
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier brick
+    { brickDescription = Just description
+    , brickDescriptionRevision = brickDescriptionRevision brick + 1
+    } state
+
+clearBrickDescription ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickDescription identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick description is already absent" (brickDescription brick)
+  replaceBrick identifier brick
+    { brickDescription = Nothing
+    , brickDescriptionRevision = brickDescriptionRevision brick + 1
+    } state
 
 setBrickPhase ::
   BrickId -> Maybe BrickPhase -> Maybe Authority -> DomainState ->
   Either DomainError (Brick, DomainState)
 setBrickPhase identifier phase authority state = do
-  brick <- lookupBrick identifier state
-  unless (brickStatus brick == Active)
-    (Left (InvalidTransition "terminal Brick phase cannot change"))
+  brick <- requireActiveBrick identifier state
+  unless (behaviorPhase (brickBehavior brick) == Applicable)
+    (Left (InvalidRelationship "behavior disables phase"))
   validatePhaseSelection (brickBehavior brick) phase authority
-  when (brickPhase brick == phase && brickPhaseAuthority brick == authority)
-    (Left (InvalidTransition "phase transition must change state"))
-  let updated = brick
-        { brickPhase = phase
-        , brickPhaseAuthority = authority
-        , brickRevision = bumpRevision (brickRevision brick)
-        }
-      next = state {domainBricks = Map.insert identifier updated (domainBricks state)}
-  validateAndReturn updated next
+  replaceBrick identifier brick
+    { brickPhase = phase
+    , brickPhaseAuthority = authority
+    } state
+
+clearBrickPhase ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickPhase identifier state = setBrickPhase identifier Nothing Nothing state
+
+setBrickContext ::
+  BrickId -> Text -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickContext identifier context state = do
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier brick {brickContext = Just context} state
+
+clearBrickContext ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickContext identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick context is already absent" (brickContext brick)
+  replaceBrick identifier brick {brickContext = Nothing} state
+
+setBrickMode ::
+  BrickId -> Mode -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickMode identifier mode state = do
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier brick {brickMode = Just mode} state
+
+clearBrickMode ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickMode identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick mode is already absent" (brickMode brick)
+  replaceBrick identifier brick {brickMode = Nothing} state
+
+setBrickNotBefore ::
+  BrickId -> UTCTime -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickNotBefore identifier value = setBrickDate identifier
+  (\brick -> brick {brickNotBefore = Just value})
+
+clearBrickNotBefore ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickNotBefore identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick not-before is already absent" (brickNotBefore brick)
+  setBrickDate identifier (\value -> value {brickNotBefore = Nothing}) state
+
+setBrickBestBefore ::
+  BrickId -> UTCTime -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickBestBefore identifier value = setBrickDate identifier
+  (\brick -> brick {brickBestBefore = Just value})
+
+clearBrickBestBefore ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickBestBefore identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick best-before is already absent" (brickBestBefore brick)
+  setBrickDate identifier (\value -> value {brickBestBefore = Nothing}) state
+
+setBrickDeadline ::
+  BrickId -> UTCTime -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickDeadline identifier value = setBrickDate identifier
+  (\brick -> brick {brickDeadline = Just value})
+
+clearBrickDeadline ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickDeadline identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick deadline is already absent" (brickDeadline brick)
+  setBrickDate identifier (\value -> value {brickDeadline = Nothing}) state
+
+setBrickDate ::
+  BrickId -> (Brick -> Brick) -> DomainState ->
+  Either DomainError (Brick, DomainState)
+setBrickDate identifier change state = do
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier
+    ((change brick) {brickDateRevision = brickDateRevision brick + 1}) state
+
+setBrickRequester ::
+  BrickId -> PartyId -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickRequester identifier requester state = do
+  _ <- lookupParty requester state
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier brick {brickRequester = Just requester} state
+
+clearBrickRequester ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickRequester identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick requester is already absent" (brickRequester brick)
+  replaceBrick identifier brick {brickRequester = Nothing} state
+
+setBrickAbout ::
+  BrickId -> BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+setBrickAbout identifier about state = do
+  when (identifier == about)
+    (Left (InvalidRelationship "a Brick cannot be about itself"))
+  _ <- lookupBrick about state
+  brick <- requireActiveBrick identifier state
+  replaceBrick identifier brick {brickAbout = Just about} state
+
+clearBrickAbout ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+clearBrickAbout identifier state = do
+  brick <- requireActiveBrick identifier state
+  requirePresent "Brick about relationship is already absent" (brickAbout brick)
+  replaceBrick identifier brick {brickAbout = Nothing} state
 
 setBrickParent ::
   BrickId -> Maybe BrickId -> DomainState -> Either DomainError (Brick, DomainState)
 setBrickParent identifier parent state = do
-  brick <- lookupBrick identifier state
+  brick <- requireActiveBrick identifier state
   when (parent == Just identifier)
     (Left (InvalidRelationship "a Brick cannot parent itself"))
-  mapM_ (`lookupBrick` state) parent
+  mapM_ (\parentId -> do
+      parentBrick <- lookupBrick parentId state
+      unless (brickStatus parentBrick == Active)
+        (Left (InvalidRelationship "new parent must be active"))) parent
   mapM_ (rejectDescendant identifier state) parent
   when (brickParent brick == parent)
     (Left (InvalidRelationship "parent relationship is unchanged"))
-  let updated = brick
-        { brickParent = parent
-        , brickRevision = bumpRevision (brickRevision brick)
-        }
-      next = state {domainBricks = Map.insert identifier updated (domainBricks state)}
-  validateAndReturn updated next
+  replaceBrick identifier brick {brickParent = parent} state
 
 rejectDescendant :: BrickId -> DomainState -> BrickId -> Either DomainError ()
 rejectDescendant child state candidate = do
@@ -1247,37 +1431,67 @@ rejectDescendant child state candidate = do
 focusBrick ::
   Maybe BrickId -> UTCTime -> DomainState ->
   Either DomainError (FocusRegister, DomainState)
-focusBrick current changedAt state = do
-  mapM_ validateCandidate current
+focusBrick current changedAt state = case current of
+  Nothing -> unfocusCurrentBrick changedAt state
+  Just identifier -> do
+    brick <- requireActiveBrick identifier state
+    notBefore <- effectiveNotBefore state identifier
+    when (maybe False (> changedAt) notBefore)
+      (Left (InvalidTransition "Brick cannot be focused before its effective not-before"))
+    let focus = domainFocusRegister state
+        updatedFocus = focus
+          { focusRegisterCurrent = Just identifier
+          , focusRegisterChangedAt = Just changedAt
+          , focusRegisterRevision = bumpRevision (focusRegisterRevision focus)
+          }
+        updatedBrick = if brickWorkState brick == Idle
+          then brick
+            { brickWorkState = Wip
+            , brickRevision = bumpRevision (brickRevision brick)
+            }
+          else brick
+        next = state
+          { domainBricks = Map.insert identifier updatedBrick (domainBricks state)
+          , domainFocusRegister = updatedFocus
+          }
+    validateAndReturn updatedFocus next
+
+unfocusCurrentBrick ::
+  UTCTime -> DomainState -> Either DomainError (FocusRegister, DomainState)
+unfocusCurrentBrick changedAt state = do
   let focus = domainFocusRegister state
-  when (focusRegisterCurrent focus == current)
-    (Left (InvalidTransition "focus selection is unchanged"))
+  when (focusRegisterCurrent focus == Nothing)
+    (Left (InvalidTransition "there is no current Brick to unfocus"))
   let updated = focus
-        { focusRegisterCurrent = current
+        { focusRegisterCurrent = Nothing
         , focusRegisterChangedAt = Just changedAt
         , focusRegisterRevision = bumpRevision (focusRegisterRevision focus)
         }
-      next = state {domainFocusRegister = updated}
-  validateAndReturn updated next
-  where
-    validateCandidate identifier = do
-      brick <- lookupBrick identifier state
-      unless (brickStatus brick == Active)
-        (Left (InvalidRelationship "focus must reference an active Brick"))
+  validateAndReturn updated state {domainFocusRegister = updated}
+
+returnBrickToIdle ::
+  BrickId -> DomainState -> Either DomainError (Brick, DomainState)
+returnBrickToIdle identifier state = do
+  brick <- requireActiveBrick identifier state
+  unless (brickWorkState brick == Wip)
+    (Left (InvalidTransition "only WIP can return to idle"))
+  when (focusRegisterCurrent (domainFocusRegister state) == Just identifier)
+    (Left (InvalidTransition "the current Brick must be unfocused first"))
+  replaceBrick identifier brick {brickWorkState = Idle} state
 
 transitionBrickStatus ::
   BrickId -> BrickClosure -> UTCTime -> DomainState ->
   Either DomainError (Brick, DomainState)
 transitionBrickStatus identifier closure changedAt state = do
-  brick <- lookupBrick identifier state
-  unless (brickStatus brick == Active)
-    (Left (InvalidTransition "Brick status is terminal"))
-  let activeChildren = filter ((== Just identifier) . brickParent)
-        (filter ((== Active) . brickStatus) (Map.elems (domainBricks state)))
+  brick <- requireActiveBrick identifier state
+  let activeChildren = directActiveChildren state identifier
   unless (null activeChildren)
-    (Left (InvalidTransition "Brick has active children"))
+    (Left (InvalidTransition "Brick has active children; use an explicit subtree or child-transfer action"))
   (nextStatus, replacement, reason) <- case closure of
-    MarkDone -> Right (Done, Nothing, Nothing)
+    MarkDone -> do
+      unless (behaviorLifetime (brickBehavior brick) == Finite)
+        (Left (InvalidTransition "standing work must be explicitly retired"))
+      Right (Done, Nothing, Nothing)
     MarkDropped -> Right (Dropped, Nothing, Nothing)
     MarkSuperseded replacementId supersedeReason -> do
       when (replacementId == identifier)
@@ -1285,6 +1499,8 @@ transitionBrickStatus identifier closure changedAt state = do
       replacementBrick <- lookupBrick replacementId state
       unless (brickStatus replacementBrick == Active)
         (Left (InvalidRelationship "superseding Brick must be active"))
+      unless (brickParent replacementBrick == brickParent brick)
+        (Left (InvalidRelationship "superseding Bricks must be siblings"))
       Right (Superseded, Just replacementId, supersedeReason)
   let updated = brick
         { brickStatus = nextStatus
@@ -1302,6 +1518,150 @@ transitionBrickStatus identifier closure changedAt state = do
             , focusRegisterRevision = bumpRevision (focusRegisterRevision focus)
             }
         | otherwise = focus
+      next = state
+        { domainBricks = Map.insert identifier updated (domainBricks state)
+        , domainFocusRegister = nextFocus
+        }
+  validateAndReturn updated next
+
+retireStandingBrick ::
+  BrickId -> UTCTime -> DomainState -> Either DomainError (Brick, DomainState)
+retireStandingBrick identifier changedAt state = do
+  brick <- requireActiveBrick identifier state
+  unless (behaviorLifetime (brickBehavior brick) == Standing)
+    (Left (InvalidTransition "only standing work uses explicit retirement"))
+  unless (null (directActiveChildren state identifier))
+    (Left (InvalidTransition "Brick has active children; use an explicit subtree action"))
+  closeOneBrick identifier Done Nothing Nothing changedAt state
+
+supersedeBrickWithChildren ::
+  BrickId -> BrickId -> [BrickId] -> Maybe Text -> UTCTime -> DomainState ->
+  Either DomainError (Brick, [Brick], DomainState)
+supersedeBrickWithChildren identifier replacementId selected reason changedAt state = do
+  brick <- requireActiveBrick identifier state
+  replacement <- requireActiveBrick replacementId state
+  when (identifier == replacementId)
+    (Left (InvalidRelationship "a Brick cannot supersede itself"))
+  unless (brickParent brick == brickParent replacement)
+    (Left (InvalidRelationship "superseding Bricks must be siblings"))
+  let activeChildren = directActiveChildren state identifier
+      activeIds = map brickId activeChildren
+  unless (not (null selected) && Set.fromList selected == Set.fromList activeIds
+      && length selected == length activeIds)
+    (Left (InvalidRelationship "selected children must name every active direct child exactly once"))
+  selectedChildren <- mapM (\childId -> maybe
+      (Left (InvalidRelationship "selected child is not active under source"))
+      Right (find ((== childId) . brickId) activeChildren)) selected
+  let moved =
+        [ child
+            { brickParent = Just replacementId
+            , brickRevision = bumpRevision (brickRevision child)
+            }
+        | child <- selectedChildren
+        ]
+      movedById = Map.fromList [(brickId child, child) | child <- moved]
+      replacementUpdated = replacement
+        { brickDecompositionCoverage = Open
+        , brickRevision = bumpRevision (brickRevision replacement)
+        }
+      beforeClose = state {domainBricks = Map.union movedById
+        (Map.insert replacementId replacementUpdated (domainBricks state))}
+  (closed, final) <- closeOneBrick identifier Superseded
+    (Just replacementId) reason changedAt beforeClose
+  validateDomainState final
+  Right (closed, moved, final)
+
+closeBrickSubtree ::
+  BrickId -> BrickStatus -> UTCTime -> DomainState ->
+  Either DomainError ([Brick], DomainState)
+closeBrickSubtree root status changedAt state = do
+  _ <- requireActiveBrick root state
+  unless (status `elem` [Done, Dropped])
+    (Left (InvalidTransition "a subtree can only be completed or dropped"))
+  members <- subtreeBricks state root
+  let active = filter ((== Active) . brickStatus) members
+      activeIds = Set.fromList (map brickId active)
+      close brick = brick
+        { brickStatus = status
+        , brickStatusChangedAt = changedAt
+        , brickWorkState = Idle
+        , brickSupersededBy = Nothing
+        , brickSupersedeReason = Nothing
+        , brickRevision = bumpRevision (brickRevision brick)
+        }
+      closed = map close active
+      nextBricks = foldr (\brick -> Map.insert (brickId brick) brick)
+        (domainBricks state) closed
+      focus = domainFocusRegister state
+      nextFocus = if maybe False (`Set.member` activeIds) (focusRegisterCurrent focus)
+        then focus
+          { focusRegisterCurrent = Nothing
+          , focusRegisterChangedAt = Just changedAt
+          , focusRegisterRevision = bumpRevision (focusRegisterRevision focus)
+          }
+        else focus
+      next = state {domainBricks = nextBricks, domainFocusRegister = nextFocus}
+  validateDomainState next
+  Right (closed, next)
+
+moveBrickSubtree ::
+  BrickId -> Maybe BrickId -> DomainState ->
+  Either DomainError (Brick, DomainState)
+moveBrickSubtree identifier newParent state = do
+  brick <- requireActiveBrick identifier state
+  when (brickParent brick == newParent)
+    (Left (InvalidRelationship "parent relationship is unchanged"))
+  when (newParent == Just identifier)
+    (Left (InvalidRelationship "a Brick cannot parent itself"))
+  mapM_ (\parentId -> do
+      parent <- requireActiveBrick parentId state
+      rejectDescendant identifier state parentId
+      pure parent) newParent
+  let reopen parentId bricks = Map.adjust (\parent -> parent
+        { brickDecompositionCoverage = Open
+        , brickRevision = bumpRevision (brickRevision parent)
+        }) parentId bricks
+      moved = brick
+        { brickParent = newParent
+        , brickRevision = bumpRevision (brickRevision brick)
+        }
+      withMoved = Map.insert identifier moved (domainBricks state)
+      withOld = maybe withMoved (`reopen` withMoved) (brickParent brick)
+      withNew = maybe withOld (`reopen` withOld) newParent
+      next = state {domainBricks = withNew}
+  validateAndReturn moved next
+
+subtreeBricks :: DomainState -> BrickId -> Either DomainError [Brick]
+subtreeBricks state root = do
+  rootBrick <- lookupBrick root state
+  let collect brick = brick : concatMap collect
+        [ child
+        | child <- Map.elems (domainBricks state)
+        , brickParent child == Just (brickId brick)
+        ]
+  pure (collect rootBrick)
+
+closeOneBrick ::
+  BrickId -> BrickStatus -> Maybe BrickId -> Maybe Text -> UTCTime ->
+  DomainState -> Either DomainError (Brick, DomainState)
+closeOneBrick identifier status replacement reason changedAt state = do
+  brick <- requireActiveBrick identifier state
+  let updated = brick
+        { brickStatus = status
+        , brickStatusChangedAt = changedAt
+        , brickWorkState = Idle
+        , brickSupersededBy = replacement
+        , brickSupersedeReason = reason
+        , brickRevision = bumpRevision (brickRevision brick)
+        }
+      focus = domainFocusRegister state
+      nextFocus = if focusRegisterCurrent focus == Just identifier
+        then focus
+          { focusRegisterCurrent = Nothing
+          , focusRegisterChangedAt = Just changedAt
+          , focusRegisterRevision = bumpRevision (focusRegisterRevision focus)
+          }
+        else focus
       next = state
         { domainBricks = Map.insert identifier updated (domainBricks state)
         , domainFocusRegister = nextFocus
@@ -1485,7 +1845,9 @@ validateDomainState state = case violations of
           any invalidEntryOwner entries]
       , ["ListEntry terminal fields violate conditional presence" |
           any invalidEntryPresence entries]
-      , ["focus register references a non-active Brick" | invalidFocus]
+      , ["focus register references a non-active or non-WIP Brick" | invalidFocus]
+      , ["Brick composition contains a parent cycle" |
+          any (hasParentCycle state . brickId) bricks]
       , catalogViolations (domainCatalog state)
       ]
     invalidBrickRelationship brick =
@@ -1514,7 +1876,8 @@ validateDomainState state = case violations of
         || isJust (listEntryResolvedAt entry)
     invalidFocus = case focusRegisterCurrent (domainFocusRegister state) of
       Nothing -> False
-      Just identifier -> maybe True ((/= Active) . brickStatus)
+      Just identifier -> maybe True
+        (\brick -> brickStatus brick /= Active || brickWorkState brick /= Wip)
         (Map.lookup identifier (domainBricks state))
 
 catalogViolations :: DefinitionCatalog -> [Text]
@@ -1537,6 +1900,49 @@ isLeft :: Either left right -> Bool
 isLeft value = case value of
   Left _ -> True
   Right _ -> False
+
+hasParentCycle :: DomainState -> BrickId -> Bool
+hasParentCycle state start = go Set.empty start
+  where
+    go seen identifier
+      | Set.member identifier seen = True
+      | otherwise = case Map.lookup identifier (domainBricks state) >>= brickParent of
+          Nothing -> False
+          Just parent -> go (Set.insert identifier seen) parent
+
+requireActiveBrick :: BrickId -> DomainState -> Either DomainError Brick
+requireActiveBrick identifier state = do
+  brick <- lookupBrick identifier state
+  unless (brickStatus brick == Active)
+    (Left (InvalidTransition "Brick status is terminal"))
+  pure brick
+
+requirePresent :: Text -> Maybe value -> Either DomainError ()
+requirePresent problem value = unless (isJust value)
+  (Left (InvalidTransition problem))
+
+replaceActiveBrick ::
+  BrickId -> Brick -> DomainState -> Either DomainError (Brick, DomainState)
+replaceActiveBrick identifier replacement state = do
+  _ <- requireActiveBrick identifier state
+  replaceBrick identifier replacement state
+
+replaceBrick ::
+  BrickId -> Brick -> DomainState -> Either DomainError (Brick, DomainState)
+replaceBrick identifier replacement state =
+  let updated = replacement
+        { brickRevision = bumpRevision (brickRevision replacement) }
+      next = state
+        {domainBricks = Map.insert identifier updated (domainBricks state)}
+  in validateAndReturn updated next
+
+directActiveChildren :: DomainState -> BrickId -> [Brick]
+directActiveChildren state identifier =
+  [ child
+  | child <- Map.elems (domainBricks state)
+  , brickParent child == Just identifier
+  , brickStatus child == Active
+  ]
 
 lookupParty :: PartyId -> DomainState -> Either DomainError Party
 lookupParty identifier state = maybe (Left (UnknownParty identifier)) Right

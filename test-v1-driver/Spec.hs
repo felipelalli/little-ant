@@ -18,6 +18,7 @@ import LittleAnt.V1.Contract
    decodeAndRunContractRequest, emptyContractRegistry,
    evaluateAssertionOperator, runContractRequest, standardAssertionOperators)
 import LittleAnt.V1.Domain
+import qualified LittleAnt.V1.Execution as Execution
 import LittleAnt.V1.Implementation (contractRegistry)
 import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
@@ -35,6 +36,7 @@ main :: IO ()
 main = defaultMain $ testGroup "v1 contract runner"
   [ kernelTests
   , domainTests
+  , executionLifecycleTests
   , materialTests
   , priorityTests
   , judgmentTests
@@ -281,6 +283,226 @@ domainTests = testGroup "v1 domain model and definition catalog"
           (emptyDomainState {domainCatalog = secondCatalog}))
       brickTitle brick @?= "Focus deeply"
       brickBehavior brick @?= standardV1
+  ]
+
+executionLifecycleTests :: TestTree
+executionLifecycleTests = testGroup "v1 Brick metadata, focus, lifecycle, and subtree"
+  [ testCase "mutates metadata and derives nearest/strongest inherited values" $ do
+      parentTitle <- requireDomainSuccess (mkCanonicalText "Parent" Nothing Human)
+      let parentDraft = (ordinaryBrickDraft parentTitle projectV1 domainTestTime)
+            { brickDraftContext = Just "office"
+            , brickDraftMode = Just Digital
+            , brickDraftDeadline = Just (addUTCTime 100 domainTestTime)
+            }
+      (parent, first) <- requireDomainSuccess
+        (createBrick parentDraft emptyDomainState)
+      childTitle <- requireDomainSuccess (mkCanonicalText "Child" Nothing Human)
+      (child, second) <- requireDomainSuccess (createBrick
+        ((ordinaryBrickDraft childTitle standardV1 domainTestTime)
+          { brickDraftParent = Just (brickId parent)
+          , brickDraftDeadline = Just (addUTCTime 200 domainTestTime)
+          }) first)
+      (renamed, third) <- requireDomainSuccess
+        (renameBrick (brickId child) "Renamed child" Ai second)
+      (described, fourth) <- requireDomainSuccess
+        (describeBrick (brickId child) " leading is a valid String" third)
+      (_, fifth) <- requireDomainSuccess
+        (setBrickContext (brickId child) "home" fourth)
+      (_, sixth) <- requireDomainSuccess
+        (clearBrickContext (brickId child) fifth)
+      context <- requireDomainSuccess (effectiveContext sixth (brickId child))
+      deadline <- requireDomainSuccess (effectiveDeadline sixth (brickId child))
+      fingerprint <- requireDomainSuccess
+        (effectiveDateRevision sixth (brickId child))
+      brickId renamed @?= brickId child
+      brickTitleAuthority renamed @?= Ai
+      brickDescriptionRevision described @?= 1
+      brickDescription described @?= Just " leading is a valid String"
+      context @?= Just "office"
+      deadline @?= Just (addUTCTime 100 domainTestTime)
+      assertBool "effective date fingerprint is empty" (not (Text.null fingerprint))
+      assertBool "metadata revisions did not advance atomically"
+        (brickRevision described > brickRevision renamed)
+  , testCase "rejects phase clearing when behavior disables phase" $ do
+      title <- requireDomainSuccess (mkCanonicalText "Collection" Nothing Human)
+      (collection, state) <- requireDomainSuccess (createBrick
+        (ordinaryBrickDraft title collectionV1 domainTestTime) emptyDomainState)
+      case clearBrickPhase (brickId collection) state of
+        Left (InvalidRelationship "behavior disables phase") -> pure ()
+        result -> assertFailure
+          ("phase-disabled Brick accepted phase clear: " <> show result)
+  , testCase "keeps singleton focus while multiple Bricks remain WIP" $ do
+      (first, stateOne) <- createUnitExecutionBrick "First" standardV1 Nothing
+        Execution.emptyExecutionState
+      (second, stateTwo) <- createUnitExecutionBrick "Second" standardV1 Nothing
+        stateOne
+      focusedFirst <- requireExecutionSuccess
+        (Execution.focusExecutionBrick (brickId first) domainTestTime stateTwo)
+      focusedSecond <- requireExecutionSuccess
+        (Execution.focusExecutionBrick (brickId second)
+          (addUTCTime 1 domainTestTime) focusedFirst)
+      refocusedFirst <- requireExecutionSuccess
+        (Execution.focusExecutionBrick (brickId first)
+          (addUTCTime 2 domainTestTime) focusedSecond)
+      Execution.activeHumanWipCount refocusedFirst @?= 2
+      focusRegisterCurrent (domainFocusRegister
+        (Execution.executionStateDomain refocusedFirst)) @?= Just (brickId first)
+      delegated <- requireExecutionSuccess
+        (Execution.delegateExecutionBrick (brickId second)
+          (addUTCTime 3 domainTestTime) refocusedFirst)
+      Execution.activeHumanWipCount delegated @?= 1
+  , testCase "closes whole subtrees atomically without cascading parent review" $ do
+      (root, first) <- createUnitExecutionBrick "Root" projectV1 Nothing
+        Execution.emptyExecutionState
+      (child, second) <- createUnitExecutionBrick "Child" projectV1
+        (Just (brickId root)) first
+      (leaf, third) <- createUnitExecutionBrick "Leaf" standardV1
+        (Just (brickId child)) second
+      case Execution.completeExecutionBrick (brickId root) domainTestTime third of
+        Left _ -> pure ()
+        Right _ -> assertFailure "parent with active descendants completed directly"
+      closed <- requireExecutionSuccess
+        (Execution.closeExecutionSubtree (brickId root) Done domainTestTime third)
+      map (\identifier -> brickStatus <$> Map.lookup identifier
+          (domainBricks (Execution.executionStateDomain closed)))
+        [brickId root, brickId child, brickId leaf] @?=
+          replicate 3 (Just Done)
+      Execution.executionStateRevision closed @?=
+        Execution.executionStateRevision third + 1
+      length (Execution.executionStateHistory closed) @?=
+        fromIntegral (Execution.executionStateRevision closed)
+  , testCase "supersedes with child transfer and resolves displaced priority probes" $ do
+      (source, first) <- createUnitExecutionBrick "Source" projectV1 Nothing
+        Execution.emptyExecutionState
+      (replacement, second) <- createUnitExecutionBrick "Replacement" projectV1
+        Nothing first
+      (childA, third) <- createUnitExecutionBrick "Child A" standardV1
+        (Just (brickId source)) second
+      (childB, fourth) <- createUnitExecutionBrick "Child B" standardV1
+        (Just (brickId source)) third
+      case Execution.supersedeExecutionBrickWithChildren (brickId source)
+          (brickId replacement) [brickId childA] Nothing "partial"
+          domainTestTime fourth of
+        Left _ -> pure ()
+        Right _ -> assertFailure "partial child transfer was accepted"
+      oldScope <- requireExactlyOneScope (Just (brickId source))
+        (Execution.executionStatePriority fourth)
+      (probe, priorityWithProbe) <- requirePrioritySuccess
+        (Priority.openPriorityProbe (Priority.priorityScopeId oldScope)
+          (brickId childA) (brickId childB) Priority.Discovery "before transfer"
+          domainTestTime (Execution.executionStatePriority fourth))
+      let withProbe = fourth
+            {Execution.executionStatePriority = priorityWithProbe}
+      (insertions, transferred) <- requireExecutionSuccess
+        (Execution.supersedeExecutionBrickWithChildren (brickId source)
+          (brickId replacement) [brickId childA, brickId childB]
+          (Just "replacement scope") "complete" domainTestTime withProbe)
+      length insertions @?= 2
+      map Priority.priorityInsertionStatus insertions @?=
+        replicate 2 Priority.InsertionDeferred
+      let domain = Execution.executionStateDomain transferred
+      fmap brickStatus (Map.lookup (brickId source) (domainBricks domain)) @?=
+        Just Superseded
+      fmap brickSupersededBy (Map.lookup (brickId source) (domainBricks domain)) @?=
+        Just (Just (brickId replacement))
+      map (fmap brickParent . (`Map.lookup` domainBricks domain))
+        [brickId childA, brickId childB] @?=
+          replicate 2 (Just (Just (brickId replacement)))
+      let retainedProbe = Map.lookup (Priority.judgmentProbeId probe)
+            (Priority.priorityStateProbes
+              (Execution.executionStatePriority transferred))
+      fmap Priority.judgmentProbeStatus retainedProbe @?=
+        Just Priority.ProbeResolved
+      fmap Priority.judgmentProbeResolvedAt retainedProbe @?=
+        Just (Just domainTestTime)
+  , testCase "moves subtree IDs and resolves displaced old-scope probes" $ do
+      (firstParent, first) <- createUnitExecutionBrick "First parent" projectV1
+        Nothing Execution.emptyExecutionState
+      (secondParent, second) <- createUnitExecutionBrick "Second parent" projectV1
+        Nothing first
+      (movedRoot, third) <- createUnitExecutionBrick "Moved root" projectV1
+        (Just (brickId firstParent)) second
+      (oldSibling, fourth) <- createUnitExecutionBrick "Old sibling" standardV1
+        (Just (brickId firstParent)) third
+      (_, fifth) <- createUnitExecutionBrick "Target sibling" standardV1
+        (Just (brickId secondParent)) fourth
+      (grandchild, sixth) <- createUnitExecutionBrick "Grandchild" standardV1
+        (Just (brickId movedRoot)) fifth
+      oldScope <- requireExactlyOneScope (Just (brickId firstParent))
+        (Execution.executionStatePriority sixth)
+      (_, _, priorityWithEvidence) <- requirePrioritySuccess
+        (Priority.recordPriorityJudgment (Priority.priorityScopeId oldScope)
+          (brickId movedRoot) (brickId oldSibling) Human Nothing domainTestTime
+          (Execution.executionStatePriority sixth))
+      (probe, priorityWithProbe) <- requirePrioritySuccess
+        (Priority.openPriorityProbe (Priority.priorityScopeId oldScope)
+          (brickId movedRoot) (brickId oldSibling) Priority.Validation
+          "before move" domainTestTime priorityWithEvidence)
+      let withEvidence = sixth
+            {Execution.executionStatePriority = priorityWithProbe}
+      (insertion, moved) <- requireExecutionSuccess
+        (Execution.moveExecutionSubtree (brickId movedRoot)
+          (Just (brickId secondParent)) "unit-move" domainTestTime withEvidence)
+      Priority.priorityInsertionStatus insertion @?= Priority.InsertionDeferred
+      let domain = Execution.executionStateDomain moved
+      fmap brickParent (Map.lookup (brickId movedRoot) (domainBricks domain)) @?=
+        Just (Just (brickId secondParent))
+      fmap brickParent (Map.lookup (brickId grandchild) (domainBricks domain)) @?=
+        Just (Just (brickId movedRoot))
+      assertBool "old-scope evidence remained current"
+        (all (not . Priority.priorityJudgmentApplicable)
+          (Map.elems (Priority.priorityStateJudgments
+            (Execution.executionStatePriority moved))))
+      let retainedProbe = Map.lookup (Priority.judgmentProbeId probe)
+            (Priority.priorityStateProbes (Execution.executionStatePriority moved))
+      fmap Priority.judgmentProbeStatus retainedProbe @?=
+        Just Priority.ProbeResolved
+      fmap Priority.judgmentProbeResolvedAt retainedProbe @?=
+        Just (Just domainTestTime)
+      case Execution.moveExecutionSubtree (brickId secondParent)
+          (Just (brickId grandchild)) "cycle" domainTestTime moved of
+        Left _ -> pure ()
+        Right _ -> assertFailure "composition cycle was accepted"
+  , testCase "retires but retains impact evidence when a root becomes a child" $ do
+      (movedRoot, first) <- createUnitExecutionBrick "Impact root" projectV1
+        Nothing Execution.emptyExecutionState
+      (newParent, second) <- createUnitExecutionBrick "Impact parent" projectV1
+        Nothing first
+      (movedAssessment, _, firstImpact) <- requireJudgmentSuccess
+        (Judgment.classifyImpact (brickId movedRoot) Judgment.HighImpact
+          Judgment.Supported Human (Just "before nesting") domainTestTime
+          (Execution.executionStateJudgment second))
+      (_, _, secondImpact) <- requireJudgmentSuccess
+        (Judgment.classifyImpact (brickId newParent) Judgment.LowImpact
+          Judgment.Supported Human (Just "target root") domainTestTime firstImpact)
+      (comparison, _, withImpact) <- requireJudgmentSuccess
+        (Judgment.compareImpact (brickId movedRoot) (brickId newParent)
+          Judgment.RelativelyMore Human (Just "before nesting") domainTestTime
+          secondImpact)
+      let before = second {Execution.executionStateJudgment = withImpact}
+          assessmentCount = Map.size
+            (Judgment.judgmentStateImpactAssessments withImpact)
+          comparisonCount = Map.size
+            (Judgment.judgmentStateImpactComparisons withImpact)
+      (_, moved) <- requireExecutionSuccess (Execution.moveExecutionSubtree
+        (brickId movedRoot) (Just (brickId newParent)) "root-to-child"
+        domainTestTime before)
+      let judgment = Execution.executionStateJudgment moved
+      fmap Judgment.impactAssessmentApplicable
+        (Map.lookup (Judgment.impactAssessmentId movedAssessment)
+          (Judgment.judgmentStateImpactAssessments judgment)) @?= Just False
+      fmap Judgment.impactComparisonApplicable
+        (Map.lookup (Judgment.impactComparisonId comparison)
+          (Judgment.judgmentStateImpactComparisons judgment)) @?= Just False
+      Map.size (Judgment.judgmentStateImpactAssessments judgment) @?=
+        assessmentCount
+      Map.size (Judgment.judgmentStateImpactComparisons judgment) @?=
+        comparisonCount
+      fmap Judgment.judgmentBrickParent
+        (Map.lookup (brickId movedRoot) (Judgment.judgmentStateBricks judgment)) @?=
+          Just (Just (brickId newParent))
+      Execution.executionStateRevision moved @?=
+        Execution.executionStateRevision before + 1
   ]
 
 materialTests :: TestTree
@@ -2030,6 +2252,29 @@ requireDomainSuccess :: Show problem => Either problem value -> IO value
 requireDomainSuccess result = case result of
   Left problem -> assertFailure ("domain operation failed: " <> show problem)
   Right value -> pure value
+
+requireExecutionSuccess :: Either Execution.ExecutionError value -> IO value
+requireExecutionSuccess result = case result of
+  Left problem -> assertFailure ("execution operation failed: " <> show problem)
+  Right value -> pure value
+
+createUnitExecutionBrick ::
+  Text -> BrickBehavior -> Maybe BrickId -> Execution.ExecutionState ->
+  IO (Brick, Execution.ExecutionState)
+createUnitExecutionBrick title behavior parent state = do
+  canonical <- requireDomainSuccess (mkCanonicalText title Nothing Human)
+  (brick, _, next) <- requireExecutionSuccess (Execution.createExecutionBrick
+    ((ordinaryBrickDraft canonical behavior domainTestTime)
+      {brickDraftParent = parent}) ("unit:" <> title) domainTestTime state)
+  pure (brick, next)
+
+requireExactlyOneScope ::
+  Maybe BrickId -> Priority.PriorityState -> IO Priority.PriorityScope
+requireExactlyOneScope parent state = case filter
+    ((== parent) . Priority.priorityScopeParent)
+    (Map.elems (Priority.priorityStateScopes state)) of
+  [scope] -> pure scope
+  scopes -> assertFailure ("unexpected priority scopes: " <> show scopes)
 
 requireMaterialSuccess :: Either MaterialError value -> IO value
 requireMaterialSuccess result = case result of
