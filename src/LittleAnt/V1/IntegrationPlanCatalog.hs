@@ -172,7 +172,7 @@ contractFixture = do
   (entry, vault1) <- mapIntegration
     (storeCredential testTime "Example API" "ciphertext:never-runtime" emptyVaultState)
   (slot, vault2) <- mapIntegration
-    (declareCredentialSlot (packComponentId component) "api-token" "api_key" True vault1)
+    (declareCredentialSlot (packComponentId component) "example" "api_key" True vault1)
   (binding, vault3) <- mapIntegration
     (bindCredential testTime (credentialSlotId slot) "felipe" (vaultEntryId entry) vault2)
   pure (installed, defaultPackDeployment {packDeploymentVault = vault3},
@@ -295,24 +295,26 @@ hostHttpProbe _ = do
 credentialBrokerProbe :: PlanProbe
 credentialBrokerProbe _ = do
   (_, deployment, component, binding, _) <- contractFixture
+  let vault = packDeploymentVault deployment
   active <- mapIntegration
-    (authorizeCredential component "felipe" (packDeploymentVault deployment))
+    (authorizeCredential component "example" "felipe" vault)
   require (credentialBindingId active == binding)
     "authorized binding identity changed"
-  (_, locked) <- mapIntegration
-    (lockCredentialBinding binding (packDeploymentVault deployment))
-  expectError CredentialAccessLocked
-    (authorizeCredential component "felipe" locked)
-  (_, revoked) <- mapIntegration
-    (revokeCredentialBinding binding (packDeploymentVault deployment))
-  expectError CredentialAccessRevoked
-    (authorizeCredential component "felipe" revoked)
+  (_, withOtherSlot) <- mapIntegration
+    (declareCredentialSlot component "other-slot" "bearer" True vault)
   expectError CredentialAccessUnauthorized
-    (authorizeCredential component "different-account"
-      (packDeploymentVault deployment))
+    (authorizeCredential component "other-slot" "felipe" withOtherSlot)
+  (_, locked) <- mapIntegration (lockCredentialBinding binding vault)
+  expectError CredentialAccessLocked
+    (authorizeCredential component "example" "felipe" locked)
+  (_, revoked) <- mapIntegration (revokeCredentialBinding binding vault)
+  expectError CredentialAccessRevoked
+    (authorizeCredential component "example" "felipe" revoked)
+  expectError CredentialAccessUnauthorized
+    (authorizeCredential component "example" "different-account" vault)
   expectError VaultUnavailable
-    (authorizeCredential component "felipe"
-      ((packDeploymentVault deployment) {vaultStateUnlocked = False}))
+    (authorizeCredential component "example" "felipe"
+      (vault {vaultStateUnlocked = False}))
 
 valueEnums :: [[Value]]
 valueEnums =
@@ -506,7 +508,7 @@ credentialBoundProbe _ = do
   (_, rebound) <- mapIntegration (bindCredential testTime slotId "felipe"
     (credentialBindingVaultEntryId binding) revoked)
   mapIntegration (validateVaultState rebound)
-  _ <- mapIntegration (authorizeCredential component "felipe" rebound)
+  _ <- mapIntegration (authorizeCredential component slotId "felipe" rebound)
   pure ()
 
 credentialLifecycleProbe :: PlanProbe

@@ -88,15 +88,15 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TextEncoding
-import Data.Time (UTCTime (..), fromGregorian)
+import Data.Time (UTCTime)
 import GHC.Generics (Generic)
 import System.Directory (doesFileExist, findExecutable)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
 import System.IO (BufferMode (LineBuffering), Handle, hSetBuffering)
 import System.Process
-  (CreateProcess (..), StdStream (..), getPid, proc, terminateProcess,
-   waitForProcess, withCreateProcess)
+  (CreateProcess (..), ProcessHandle, StdStream (..), getPid, proc,
+   terminateProcess, waitForProcess, withCreateProcess)
 import System.Timeout (timeout)
 
 ------------------------------------------------------------
@@ -952,18 +952,18 @@ transitionBinding expected target identifier vault = do
   pure (changed, next)
 
 authorizeCredential ::
-  Text -> Text -> VaultState -> Either IntegrationError CredentialBinding
-authorizeCredential component account vault = do
+  Text -> Text -> Text -> VaultState -> Either IntegrationError CredentialBinding
+authorizeCredential component requestedSlot account vault = do
   unless (vaultStateUnlocked vault) (Left VaultUnavailable)
-  let slots = Set.fromList
-        [ credentialSlotId slot
-        | slot <- Map.elems (vaultStateSlots vault)
-        , credentialSlotComponent slot == component
-        ]
-      candidates = sortOn credentialBindingCreatedAt
+  slot <- maybe (Left CredentialAccessUnauthorized) Right
+    (find (matchesRequestedSlot component requestedSlot)
+      (Map.elems (vaultStateSlots vault)))
+  let candidates = sortOn
+        (\binding -> (credentialBindingCreatedAt binding,
+          credentialBindingId binding))
         [ binding
         | binding <- Map.elems (vaultStateBindings vault)
-        , credentialBindingSlot binding `Set.member` slots
+        , credentialBindingSlot binding == credentialSlotId slot
         , credentialBindingAccount binding == account
         ]
   case reverse candidates of
@@ -972,6 +972,11 @@ authorizeCredential component account vault = do
       CredentialActive -> Right binding
       CredentialLocked -> Left CredentialAccessLocked
       CredentialRevoked -> Left CredentialAccessRevoked
+
+matchesRequestedSlot :: Text -> Text -> CredentialSlot -> Bool
+matchesRequestedSlot component requested slot =
+  credentialSlotComponent slot == component
+    && requested `elem` [credentialSlotId slot, credentialSlotName slot]
 
 validateVaultState :: VaultState -> Either IntegrationError ()
 validateVaultState vault = do
@@ -1116,7 +1121,7 @@ prepareExecution ::
   Bool -> Text -> PackExecutionRequest -> PackState -> PackDeployment ->
   Either IntegrationError
     (PackComponent, [Text], PackDeployment,
-      Either IntegrationError CredentialBinding)
+      Either IntegrationError [CredentialBinding])
 prepareExecution duringReplay account request state deployment = do
   when duringReplay (Left ReplayExecutionForbidden)
   unless (packExecutionRequestProtocolVersion request == 1)
@@ -1139,16 +1144,11 @@ prepareExecution duringReplay account request state deployment = do
         { packDeploymentRuntimeInputs = Map.insert componentId sanitized
             (packDeploymentRuntimeInputs deployment)
         }
-      credentialRequested = any ("credential:" `Text.isPrefixOf`) grants
-      authorization
-        | credentialRequested = authorizeCredential componentId account
-            (packDeploymentVault deployment)
-        | otherwise = Right noCredentialBinding
+      credentialSlots = mapMaybe (Text.stripPrefix "credential:") grants
+      authorization = traverse
+        (\slot -> authorizeCredential componentId slot account
+          (packDeploymentVault deployment)) credentialSlots
   pure (component, grants, validatedDeployment, authorization)
-
-noCredentialBinding :: CredentialBinding
-noCredentialBinding = CredentialBinding "none" "none" "none" "none"
-  CredentialActive (UTCTime (fromGregorian 1970 1 1) 0)
 
 failedExecution :: Text -> PackExecutionResult
 failedExecution code = PackExecutionResult 1 False Nothing (Just code) []
@@ -1229,19 +1229,14 @@ runPackRunnerProcess executable limits grants input source hostHandler =
         LBS.hPutStr childInput (encode request <> "\n")
         attempted <- timeout (sandboxLimitWallMicros limits + 250000)
           (try (runnerConversation childInput childOutput traceRef 0 hostHandler) ::
-            IO (Either SomeException PackExecutionResult))
+            IO (Either SomeException RunnerConversationOutcome))
         case attempted of
-          Nothing -> do
-            terminateProcess processHandle
-            _ <- waitForProcess processHandle
-            trace <- readIORef traceRef
-            pure (failedExecution "timeout", trace)
-          Just (Left _) -> do
-            terminateProcess processHandle
-            _ <- waitForProcess processHandle
-            trace <- readIORef traceRef
-            pure (failedExecution "runner_protocol_error", trace)
-          Just (Right result) -> do
+          Nothing -> stopRunner processHandle traceRef (failedExecution "timeout")
+          Just (Left _) -> stopRunner processHandle traceRef
+            (failedExecution "runner_protocol_error")
+          Just (Right (RunnerMustTerminate result)) ->
+            stopRunner processHandle traceRef result
+          Just (Right (RunnerCompleted result)) -> do
             exitCode <- waitForProcess processHandle
             trace <- readIORef traceRef
             pure (if exitCode == ExitSuccess
@@ -1252,12 +1247,26 @@ runPackRunnerProcess executable limits grants input source hostHandler =
     process = (proc executable [])
       {std_in = CreatePipe, std_out = CreatePipe, std_err = Inherit}
 
+data RunnerConversationOutcome
+  = RunnerCompleted PackExecutionResult
+  | RunnerMustTerminate PackExecutionResult
+
+stopRunner ::
+  ProcessHandle -> IORef PackRunnerTrace -> PackExecutionResult ->
+  IO (PackExecutionResult, PackRunnerTrace)
+stopRunner processHandle traceRef result = do
+  terminateProcess processHandle
+  _ <- waitForProcess processHandle
+  trace <- readIORef traceRef
+  pure (result, trace)
+
 runnerConversation ::
   Handle -> Handle -> IORef PackRunnerTrace -> Int ->
   (HostHttpRequest -> IO (Either Text ProviderOutcome)) ->
-  IO PackExecutionResult
+  IO RunnerConversationOutcome
 runnerConversation childInput childOutput traceRef hostCallCount hostHandler
-  | hostCallCount >= 32 = pure (failedExecution "host_call_limit")
+  | hostCallCount >= 32 = pure
+      (RunnerMustTerminate (failedExecution "host_call_limit"))
   | otherwise = do
       line <- BS8.hGetLine childOutput
       message <- either (fail . Text.unpack) pure
@@ -1267,7 +1276,8 @@ runnerConversation childInput childOutput traceRef hostCallCount hostHandler
         "result" -> do
           value <- either (fail . Text.unpack) pure
             (protocolValue "result" message)
-          either (fail . Text.unpack) pure (decodeValue value)
+          RunnerCompleted <$>
+            either (fail . Text.unpack) pure (decodeValue value)
         "host_http_request" -> do
           value <- either (fail . Text.unpack) pure
             (protocolValue "request" message)

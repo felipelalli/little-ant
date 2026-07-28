@@ -19,7 +19,7 @@ import Data.Foldable (toList)
 import Data.List (find, sortOn)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TextEncoding
@@ -950,9 +950,10 @@ credentialBrokerAuthorizeOperation ::
 credentialBrokerAuthorizeOperation input state = do
   arguments <- requireArgumentsObject input
   component <- requiredText "component_id" arguments
+  slot <- requiredText "slot" arguments
   account <- requiredText "account" arguments
   deployment <- packDeploymentFromKernel state
-  let result = case Integration.authorizeCredential component account
+  let result = case Integration.authorizeCredential component slot account
         (Integration.packDeploymentVault deployment) of
         Right binding -> object
           [ "authorized" .= True
@@ -1057,14 +1058,22 @@ credentialBindingFixture input state = do
   slotName <- requiredText "slot" arguments
   account <- requiredText "account" arguments
   integration <- integrationStateFromKernel state
-  _ <- mapIntegrationError (Integration.findComponent component integration)
+  installedComponent <- mapIntegrationError
+    (Integration.findComponent component integration)
+  effectiveSlot <- case mapMaybe (Text.stripPrefix "credential:")
+      (Integration.packComponentCapabilities installedComponent) of
+    [] -> Left "credential fixture component declares no credential slot"
+    [onlySlot] -> Right onlySlot
+    declaredSlots
+      | slotName `elem` declaredSlots -> Right slotName
+      | otherwise -> Left "credential fixture slot is not declared by component"
   now <- operationTime input
   deployment <- packDeploymentFromKernel state
   (entry, vault1) <- mapIntegrationError (Integration.storeCredential now
     "scenario credential" "ciphertext:scenario-secret"
     (Integration.packDeploymentVault deployment))
   (slot, vault2) <- mapIntegrationError (Integration.declareCredentialSlot
-    component slotName "api_key" True vault1)
+    component effectiveSlot "api_key" True vault1)
   (binding, vault3) <- mapIntegrationError (Integration.bindCredential now
     (Integration.credentialSlotId slot) account
     (Integration.vaultEntryId entry) vault2)

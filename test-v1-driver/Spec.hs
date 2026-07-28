@@ -52,6 +52,7 @@ import System.Directory
 import System.Exit (ExitCode (..))
 import System.IO (hClose, hPutStr, openTempFile)
 import System.Process (readProcessWithExitCode)
+import System.Timeout (timeout)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
   (Assertion, assertBool, assertFailure, testCase, (@?=))
@@ -1987,6 +1988,24 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
           "local values={}; while true do values[#values+1]=string.rep('x',65536) end")
       Integration.packExecutionResultErrorCode memoryBound @?=
         Just "memory_limit"
+  , testCase "terminates a runner that exceeds the typed host-call limit" $ do
+      hostCalls <- newIORef (0 :: Integer)
+      let limits = Integration.defaultSandboxLimits
+            { Integration.sandboxLimitWallMicros = 2000000
+            , Integration.sandboxLimitInstructions = 1000000
+            }
+          source = BS8.pack
+            "local result; for i=1,33 do result=lant.http.request {method='GET', url='https://api.example.com/tasks', body_size=0} end; return result"
+          provider _ = do
+            modifyIORef' hostCalls (+ 1)
+            pure (Right (Integration.ProviderSucceeded Null))
+      completed <- timeout 4000000 (Integration.runLuaComponentWithHost limits
+        ["http:api.example.com"] Null source provider)
+      (result, trace) <- maybe
+        (assertFailure "runner survived past its host-call deadline") pure completed
+      Integration.packExecutionResultErrorCode result @?= Just "host_call_limit"
+      readIORef hostCalls >>= (@?= 32)
+      length (Integration.packRunnerTraceProviderRequests trace) @?= 32
   , testCase "performs zero HTTP and backoff for locked, revoked, and absent bindings" $ do
       (installed, deployment, bindingId) <- credentialIntegrationFixture
       (_, lockedVault) <- requireIntegrationSuccess
@@ -1994,6 +2013,18 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
           (Integration.packDeploymentVault deployment))
       let lockedDeployment = deployment
             {Integration.packDeploymentVault = lockedVault}
+          activeVault = Integration.packDeploymentVault deployment
+      activeBinding <- requireIntegrationSuccess
+        (Integration.authorizeCredential "example/source" "example" "felipe"
+          activeVault)
+      Integration.credentialBindingId activeBinding @?= bindingId
+      (_, withUnboundSlot) <- requireIntegrationSuccess
+        (Integration.declareCredentialSlot "example/source" "other-slot"
+          "bearer" True activeVault)
+      case Integration.authorizeCredential "example/source" "other-slot"
+          "felipe" withUnboundSlot of
+        Left Integration.CredentialAccessUnauthorized -> pure ()
+        result -> assertFailure ("cross-slot broker result: " <> show result)
       providerCalls <- newIORef (0 :: Integer)
       let source = BS8.pack
             "return lant.http.request {method='GET', url='https://api.example.com/tasks', body_size=0}"
@@ -2012,6 +2043,21 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
       Integration.packDeploymentHttpTrace lockedAfter @?= []
       Integration.providerBackoff "example/source" "felipe" lockedState @?= 0
       Integration.packDeploymentExecutionCount lockedAfter @?= 0
+      let wrongSlotRequest = integrationRequest
+            { Integration.packExecutionRequestCapabilityGrants =
+                ["http:api.example.com", "credential:other-slot"]
+            }
+      wrongSlotAttempt <- Integration.executePackRuntime False integrationTestTime
+        "felipe" mustNotRun source wrongSlotRequest installed
+        (deployment {Integration.packDeploymentVault = withUnboundSlot})
+      (wrongSlotResult, wrongSlotState, wrongSlotAfter) <-
+        requireIntegrationSuccess wrongSlotAttempt
+      Integration.packExecutionResultErrorCode wrongSlotResult @?=
+        Just "credential_unauthorized"
+      Integration.packDeploymentHttpTrace wrongSlotAfter @?= []
+      Integration.packDeploymentExecutionCount wrongSlotAfter @?= 0
+      Integration.providerBackoff "example/source" "felipe" wrongSlotState @?= 0
+      readIORef providerCalls >>= (@?= 0)
       (_, unlockedVault) <- requireIntegrationSuccess
         (Integration.unlockCredentialBinding bindingId lockedVault)
       providerAttempt <- Integration.executePackRuntime False integrationTestTime
@@ -2146,7 +2192,7 @@ credentialIntegrationFixture = do
       "ciphertext:local-only" Integration.emptyVaultState)
   (slot, vault2) <- requireIntegrationSuccess
     (Integration.declareCredentialSlot (Integration.packComponentId component)
-      "api-token" "api_key" True vault1)
+      "example" "api_key" True vault1)
   (binding, vault3) <- requireIntegrationSuccess
     (Integration.bindCredential integrationTestTime
       (Integration.credentialSlotId slot) "felipe"
@@ -2169,7 +2215,9 @@ integrationManifest = Integration.PackInstallManifest
               Integration.SourceAdapterComponent
           , Integration.packComponentManifestExecutable = True
           , Integration.packComponentManifestCapabilities =
-              ["http:api.example.com", "credential:example"]
+              [ "http:api.example.com", "credential:example"
+              , "credential:other-slot"
+              ]
           }
       ]
   }
@@ -2213,7 +2261,7 @@ productionPackRuntimeRequest = object
               , "arguments" .= object
                   [ "fixture" .= ("credential_binding" :: Text)
                   , "component" .= ("$component" :: Text)
-                  , "slot" .= ("api-token" :: Text)
+                  , "slot" .= ("example" :: Text)
                   , "account" .= ("felipe" :: Text)
                   ]
               ]
