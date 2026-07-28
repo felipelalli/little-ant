@@ -42,6 +42,7 @@ import LittleAnt.V1.Kernel
    kernelArtifact, kernelEventBatches, kernelRevision, kernelValue,
    putKernelArtifact, replayAll)
 import LittleAnt.V1.Material
+import qualified LittleAnt.V1.Planning as Planning
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
@@ -69,6 +70,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , interactionTests
   , integrationTests
   , sourceImportTests
+  , planningTests
   , cliSurfaceTests
   , readModelTests
   , coordinationTests
@@ -2176,6 +2178,185 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
         ]
   ]
 
+planningTests :: TestTree
+planningTests = testGroup "v1 planning export and loopback UI adapter"
+  [ testCase "rejects overlapping cuts and pins immutable TaskJuggler macros" $ do
+      (project, firstChild, secondChild, domain, judgment) <- planningTestFixture
+      let payload = Planning.ExportPayload "text/x-taskjuggler" "release.tjp"
+            "sha256:release-plan" 4096
+          selected = [brickId firstChild, brickId secondChild]
+          domainBefore = encode domain
+          judgmentBefore = encode judgment
+      (manifest, planningExport, prepared) <- requirePlanningSuccess
+        (Planning.createTaskJugglerManifest integrationTestTime 7 7 selected
+          Judgment.initialEffortProfile payload Planning.taskJugglerExporterV1
+          domain judgment Planning.emptyPlanningState)
+      Planning.planningManifestDatasetRevision manifest @?= 7
+      Planning.planningManifestSelectedBricks manifest @?= selected
+      Planning.planningManifestEffortProfile manifest @?=
+        Judgment.initialEffortProfile
+      map Planning.planningItemMacro
+        (Planning.planningProjectionItems
+          (Planning.planningExportProjection planningExport)) @?=
+        ["EFFORT_4D", "EFFORT_2D"]
+      case Planning.createTaskJugglerManifest integrationTestTime 7 7
+          [brickId project, brickId firstChild] Judgment.initialEffortProfile
+          payload Planning.taskJugglerExporterV1 domain judgment
+          Planning.emptyPlanningState of
+        Left (Planning.OverlappingPlanningCut ancestor descendant) -> do
+          ancestor @?= brickId project
+          descendant @?= brickId firstChild
+        result -> assertFailure ("overlapping planning cut result: " <> show result)
+      exported <- Planning.runTaskJugglerExporter
+        (Planning.planningExportProjection planningExport) "release.tjp"
+        >>= requirePlanningSuccess
+      Planning.taskJugglerExportMetadataMacros
+        (Planning.taskJugglerExporterOutputExportMetadata exported) @?=
+        ["EFFORT_4D", "EFFORT_2D"]
+      (_, complete) <- requirePlanningSuccess
+        (Planning.attachTaskJugglerOutput
+          (Planning.planningManifestId manifest) exported prepared)
+      Planning.validatePlanningState complete @?= Right ()
+      encode domain @?= domainBefore
+      encode judgment @?= judgmentBefore
+  , testCase "keeps imported actuals unique and separate from estimates and manifests" $ do
+      (_, firstChild, secondChild, domain, judgment) <- planningTestFixture
+      let payload = Planning.ExportPayload "text/x-taskjuggler" "actuals.tjp"
+            "sha256:actuals-plan" 1024
+      (manifest, _, planned) <- requirePlanningSuccess
+        (Planning.createTaskJugglerManifest integrationTestTime 11 11
+          [brickId firstChild] Judgment.initialEffortProfile payload
+          Planning.taskJugglerExporterV1 domain judgment
+          Planning.emptyPlanningState)
+      let manifestBefore = Planning.planningStateManifests planned
+          judgmentBefore = encode judgment
+      (actual, withActual) <- requirePlanningSuccess
+        (Planning.importTaskJugglerActual integrationTestTime
+          (Planning.planningManifestId manifest) (brickId firstChild) 51.5 planned)
+      Planning.importedActualObservedHours actual @?= 51.5
+      Planning.planningStateManifests withActual @?= manifestBefore
+      encode judgment @?= judgmentBefore
+      case Planning.importTaskJugglerActual integrationTestTime
+          (Planning.planningManifestId manifest) (brickId firstChild) 52 withActual of
+        Left (Planning.DuplicateImportedActual _ duplicateBrick) ->
+          duplicateBrick @?= brickId firstChild
+        result -> assertFailure ("duplicate actual result: " <> show result)
+      case Planning.importTaskJugglerActual integrationTestTime
+          (Planning.planningManifestId manifest) (brickId secondChild) 1 planned of
+        Left (Planning.ActualBrickNotSelected outside) ->
+          outside @?= brickId secondChild
+        result -> assertFailure ("out-of-cut actual result: " <> show result)
+  , testCase "renders and decodes only canonical loopback UI actions" $ do
+      (interactionSession, interactionState) <- requireInteractionSuccess
+        (Interaction.openInteraction "guided" Nothing Nothing Nothing
+          integrationTestTime 7 Interaction.emptyInteractionState)
+      envelope <- requireInteractionSuccess (Interaction.currentInteraction
+        (Interaction.interactionSessionId interactionSession) interactionState)
+      (webSession, opened) <- requirePlanningSuccess
+        (Planning.openLocalWebUi integrationTestTime 4400 Planning.metroWebUiV1
+          Planning.emptyPlanningState)
+      Planning.webUiSessionBindHost webSession @?= "127.0.0.1"
+      rendered <- Planning.runMetroWebUiRender envelope >>= requirePlanningSuccess
+      Planning.uiRenderedEnvelopeReadOnly rendered @?= True
+      Planning.uiRenderedEnvelopeEnvelope rendered @?= envelope
+      let channelInput = object
+            [ "interaction_id" .= Interaction.interactionSessionId interactionSession
+            , "interaction_revision" .= (1 :: Integer)
+            , "domain_revision" .= (7 :: Integer)
+            , "action_id" .= ("continue" :: Text)
+            ]
+      decoded <- Planning.runMetroWebUiDecode envelope channelInput
+        >>= requirePlanningSuccess
+      forwarded <- requirePlanningSuccess (Planning.forwardWebUiInput
+        integrationTestTime (Planning.webUiSessionId webSession) decoded opened)
+      map Planning.webUiTransitionKind
+        (Planning.planningStateWebTransitions forwarded) @?=
+        [Planning.WebUiOpened, Planning.WebUiForwarded]
+      (action, response, _) <- requireInteractionSuccess
+        (Interaction.acceptCurrentInteractionAction
+          (Planning.uiForwardInteractionId decoded)
+          (Planning.uiForwardDomainRevision decoded)
+          (Planning.uiForwardInteractionRevision decoded)
+          7 (Planning.uiForwardActionId decoded) integrationTestTime
+          interactionState)
+      Interaction.interactionActionId action @?= "continue"
+      Interaction.operationalResponseDomainRevision response @?= 8
+      (_, closed) <- requirePlanningSuccess (Planning.closeLocalWebUi
+        (addUTCTime 1 integrationTestTime) (Planning.webUiSessionId webSession)
+        forwarded)
+      case Planning.forwardWebUiInput (addUTCTime 2 integrationTestTime)
+          (Planning.webUiSessionId webSession) decoded closed of
+        Left (Planning.WebUiSessionNotOpen _) -> pure ()
+        result -> assertFailure ("closed UI forward result: " <> show result)
+      let forged = KeyMap.insert "action_id" (String "invented")
+            (case channelInput of Object values -> values; _ -> KeyMap.empty)
+      forgedResult <- Planning.runMetroWebUiDecode envelope (Object forged)
+      case forgedResult of
+        Left (Planning.UiActionNotAvailable "invented") -> pure ()
+        result -> assertFailure ("invented UI action result: " <> show result)
+  , testCase "passes the complete planning-cut scenario and owned plan obligations" $ do
+      scenarioBytes <- LBS.readFile
+        "test-v1/scenarios/15-taskjuggler-planning-cut.json"
+      scenario <- case eitherDecode scenarioBytes of
+        Left problem -> assertFailure problem
+        Right value -> pure (value :: Value)
+      scenarioResponse <- runContractRequestIO contractRegistry (object
+        [ "protocol_version" .= (1 :: Integer)
+        , "request_kind" .= ("scenario" :: Text)
+        , "scenario" .= scenario
+        ])
+      assertResponsePassed scenarioResponse
+        [ "ancestor-descendant-cut-is-rejected"
+        , "valid-manifest-pins-dataset-revision"
+        , "manifest-pins-effort-profile"
+        , "export-uses-profile-macros"
+        , "actual-is-separate-evidence"
+        , "actual-does-not-rewrite-effort-band"
+        , "actual-does-not-mutate-manifest"
+        ]
+  , testCase "reports live focus, WIP, proposals, and notices in status" $ do
+      let statusScenario = scenarioRequest
+            [ object
+                [ "id" .= ("live-status" :: Text)
+                , "operation" .= ("CreateFixture" :: Text)
+                , "arguments" .= object
+                    ["fixture" .= ("live_status_summary" :: Text)]
+                , "bind_result" .= object ["brick" .= ("brick" :: Text)]
+                ]
+            ]
+            [ object
+                [ "id" .= ("focus" :: Text)
+                , "query" .= ("StatusSummary" :: Text)
+                , "path" .= ("current_focus.id" :: Text)
+                , "operator" .= ("equals_reference" :: Text)
+                , "value" .= ("$brick" :: Text)
+                ]
+            , object
+                [ "id" .= ("wip" :: Text)
+                , "query" .= ("StatusSummary" :: Text)
+                , "path" .= ("human_wip_count" :: Text)
+                , "operator" .= ("equals" :: Text)
+                , "value" .= (1 :: Integer)
+                ]
+            , object
+                [ "id" .= ("proposals" :: Text)
+                , "query" .= ("StatusSummary" :: Text)
+                , "path" .= ("open_proposal_count" :: Text)
+                , "operator" .= ("equals" :: Text)
+                , "value" .= (1 :: Integer)
+                ]
+            , object
+                [ "id" .= ("notices" :: Text)
+                , "query" .= ("StatusSummary" :: Text)
+                , "path" .= ("pending_notice_count" :: Text)
+                , "operator" .= ("equals" :: Text)
+                , "value" .= (1 :: Integer)
+                ]
+            ]
+      assertResponsePassed (runContractRequest contractRegistry statusScenario)
+        ["focus", "wip", "proposals", "notices"]
+  ]
+
 sourceImportTests :: TestTree
 sourceImportTests = testGroup "v1 source imports, synchronization, and cleanup"
   [ testCase "validates route-specific profile destinations" $ do
@@ -2723,6 +2904,47 @@ credentialIntegrationFixture = do
   pure (installed, Integration.defaultPackDeployment
     {Integration.packDeploymentVault = vault3},
     Integration.credentialBindingId binding)
+
+planningTestFixture ::
+  IO (Brick, Brick, Brick, DomainState, Judgment.JudgmentState)
+planningTestFixture = do
+  projectTitle <- requireDomainSuccess
+    (mkCanonicalText "Release Little Ant 1.0" Nothing Human)
+  firstTitle <- requireDomainSuccess
+    (mkCanonicalText "Implement event store" Nothing Human)
+  secondTitle <- requireDomainSuccess
+    (mkCanonicalText "Implement REPL" Nothing Human)
+  (project, firstDomain) <- requireDomainSuccess (createBrick
+    (ordinaryBrickDraft projectTitle projectV1 integrationTestTime)
+    emptyDomainState)
+  (firstChild, secondDomain) <- requireDomainSuccess (createBrick
+    ((ordinaryBrickDraft firstTitle standardV1 integrationTestTime)
+      {brickDraftParent = Just (brickId project)}) firstDomain)
+  (secondChild, finalDomain) <- requireDomainSuccess (createBrick
+    ((ordinaryBrickDraft secondTitle standardV1 integrationTestTime)
+      {brickDraftParent = Just (brickId project)}) secondDomain)
+  registeredProject <- requireJudgmentSuccess (Judgment.registerJudgmentBrick
+    (brickId project) Nothing Active True Judgment.emptyJudgmentState)
+  registeredFirst <- requireJudgmentSuccess (Judgment.registerJudgmentBrick
+    (brickId firstChild) (Just (brickId project)) Active True registeredProject)
+  registeredSecond <- requireJudgmentSuccess (Judgment.registerJudgmentBrick
+    (brickId secondChild) (Just (brickId project)) Active True registeredFirst)
+  hard <- requireJudgmentSuccess (Judgment.effortBandById
+    Judgment.initialEffortProfile "HARD" registeredSecond)
+  moderated <- requireJudgmentSuccess (Judgment.effortBandById
+    Judgment.initialEffortProfile "MODERATED" registeredSecond)
+  (_, _, withFirst) <- requireJudgmentSuccess (Judgment.classifyEffort
+    (brickId firstChild) hard Human False (Just "planning test")
+    integrationTestTime registeredSecond)
+  (_, _, finalJudgment) <- requireJudgmentSuccess (Judgment.classifyEffort
+    (brickId secondChild) moderated Human False (Just "planning test")
+    integrationTestTime withFirst)
+  pure (project, firstChild, secondChild, finalDomain, finalJudgment)
+
+requirePlanningSuccess :: Either Planning.PlanningError value -> IO value
+requirePlanningSuccess result = case result of
+  Left problem -> assertFailure ("planning operation failed: " <> show problem)
+  Right value -> pure value
 
 integrationManifest :: Integration.PackInstallManifest
 integrationManifest = Integration.PackInstallManifest

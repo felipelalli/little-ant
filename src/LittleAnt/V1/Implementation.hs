@@ -69,6 +69,7 @@ import LittleAnt.V1.Material
    unarchiveRaw, verifySnapshotBytes)
 import qualified LittleAnt.V1.Material as Material
 import LittleAnt.V1.PlanCatalog (v1PlanProbes, v1RuntimePlanProbes)
+import qualified LittleAnt.V1.Planning as Planning
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
@@ -213,10 +214,16 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("RecordSourceEffectFailed", recordSourceEffectFailedOperation)
       , ("CutOverImport", cutOverImportOperation)
       , ("ProposeEmptyContainerDeletion", proposeEmptyContainerDeletionOperation)
+      , ("ImportTaskJugglerActual", importTaskJugglerActualOperation)
+      , ("OpenLocalWebUi", openLocalWebUiOperation)
+      , ("CloseLocalWebUi", closeLocalWebUiOperation)
       ]
   , registryRuntimeOperations = Map.fromList
       [ ("PackRunner.execute", packRunnerExecuteOperation)
       , ("ProbePackSandbox", probePackSandboxOperation)
+      , ("ExportTaskJuggler", exportTaskJugglerOperation)
+      , ("RenderWebUi", renderWebUiOperation)
+      , ("SubmitWebUiInput", submitWebUiInputOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -304,6 +311,11 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("ImportRun", importRunObservation)
       , ("SourceEffect", sourceEffectObservation)
       , ("SourceEffects", sourceEffectsObservation)
+      , ("PlanningManifest", planningManifestObservation)
+      , ("ExportedTaskJuggler", exportedTaskJugglerObservation)
+      , ("ImportedActual", importedActualObservation)
+      , ("WebUiSession", webUiSessionObservation)
+      , ("WebUiTransitions", webUiTransitionsObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -321,6 +333,8 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("created_and_described_brick", createdAndDescribedBrickFixture)
       , ("credential_binding", credentialBindingFixture)
       , ("verified_migration_from_existing_records", verifiedMigrationFixture)
+      , ("estimated_project", estimatedProjectFixture)
+      , ("live_status_summary", liveStatusSummaryFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -1562,6 +1576,383 @@ mapSourceImportError ::
 mapSourceImportError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
+-- Read-only planning exports and loopback UI adapter
+------------------------------------------------------------
+
+planningArtifactKey :: Text
+planningArtifactKey = "v1.planning"
+
+planningStateFromKernel :: V1State -> Either Text Planning.PlanningState
+planningStateFromKernel state = case kernelArtifact planningArtifactKey state of
+  Nothing -> Right Planning.emptyPlanningState
+  Just value -> case fromJSON value of
+    Success planning -> do
+      mapPlanningError (Planning.validatePlanningState planning)
+      Right planning
+    Error problem -> Left ("stored planning state is malformed: "
+      <> Text.pack problem)
+
+persistPlanningArtifact ::
+  Planning.PlanningState -> V1State -> Either Text V1State
+persistPlanningArtifact planning state = mapKernelError
+  (putKernelArtifact planningArtifactKey (toJSON planning) state)
+
+exportTaskJugglerOperation ::
+  OperationInput -> V1State -> IO (Either Text (OperationResult V1State))
+exportTaskJugglerOperation input state = case do
+    arguments <- requireArgumentsObject input
+    datasetRevision <- requiredInteger "dataset_revision" arguments
+    selected <- requiredAs "selected_bricks" arguments
+    payload <- requiredAs "payload" arguments
+    judgment <- judgmentStateFromKernel state
+    profile <- requiredPlanningEffortProfile "effort_profile" arguments judgment
+    standing <- standingStateFromKernel state
+    planning <- planningStateFromKernel state
+    now <- operationTime input
+    let domain = Execution.executionStateDomain
+          (Coordination.coordinationStateExecution
+            (Standing.standingStateCoordination standing))
+    pure (datasetRevision, selected, payload, profile, domain, judgment,
+      planning, now) of
+  Left problem -> pure (Left problem)
+  Right (datasetRevision, selected, payload, profile, domain, judgment,
+      planning, now) -> case Planning.createTaskJugglerManifest now
+        datasetRevision (unDomainRevision (kernelRevision state)) selected profile
+        payload Planning.taskJugglerExporterV1 domain judgment planning of
+    Left problem -> pure (Right (preconditionRejected problem state))
+    Right (manifest, planningExport, prepared) -> do
+      outputResult <- Planning.runTaskJugglerExporter
+        (Planning.planningExportProjection planningExport)
+        (Planning.exportPayloadSuggestedFilename payload)
+      pure $ case outputResult of
+        Left problem -> Left (Text.pack (show problem))
+        Right output -> do
+          (_, completed) <- mapPlanningError (Planning.attachTaskJugglerOutput
+            (Planning.planningManifestId manifest) output prepared)
+          next <- persistPlanningArtifact completed state
+          pure OperationResult
+            { operationResultValue = object
+                [ "manifest" .= Planning.planningManifestId manifest
+                , "dataset_revision" .= Planning.planningManifestDatasetRevision manifest
+                ]
+            , operationResultState = next
+            }
+
+importTaskJugglerActualOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+importTaskJugglerActualOperation input state = do
+  arguments <- requireArgumentsObject input
+  manifest <- requiredText "manifest" arguments
+  brick <- requiredAs "brick" arguments
+  observedHours <- requiredAs "observed_hours" arguments
+  now <- operationTime input
+  planning <- planningStateFromKernel state
+  case Planning.importTaskJugglerActual now manifest brick observedHours planning of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (actual, nextPlanning) -> do
+      accepted <- appendForFixture input "taskjuggler-actual"
+        [ProposeValueStored
+          ("v1.imported-actual:" <> Planning.importedActualId actual)
+          (toJSON actual)] state
+      next <- persistPlanningArtifact nextPlanning (appendResultState accepted)
+      pure OperationResult
+        { operationResultValue = object
+            [ "actual" .= Planning.importedActualId actual ]
+        , operationResultState = next
+        }
+
+openLocalWebUiOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+openLocalWebUiOperation input state = do
+  arguments <- requireArgumentsObject input
+  port <- requiredInteger "port" arguments
+  now <- operationTime input
+  planning <- planningStateFromKernel state
+  case Planning.openLocalWebUi now port Planning.metroWebUiV1 planning of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (session, nextPlanning) -> do
+      next <- persistPlanningArtifact nextPlanning state
+      pure OperationResult
+        { operationResultValue = object
+            [ "session" .= Planning.webUiSessionId session
+            , "bind_host" .= Planning.webUiSessionBindHost session
+            ]
+        , operationResultState = next
+        }
+
+closeLocalWebUiOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+closeLocalWebUiOperation input state = do
+  arguments <- requireArgumentsObject input
+  sessionId <- requiredText "session" arguments
+  now <- operationTime input
+  planning <- planningStateFromKernel state
+  case Planning.closeLocalWebUi now sessionId planning of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (session, nextPlanning) -> do
+      next <- persistPlanningArtifact nextPlanning state
+      pure OperationResult
+        { operationResultValue = toJSON session
+        , operationResultState = next
+        }
+
+renderWebUiOperation ::
+  OperationInput -> V1State -> IO (Either Text (OperationResult V1State))
+renderWebUiOperation input state = case do
+    arguments <- requireArgumentsObject input
+    sessionId <- requiredText "session" arguments
+    interactionId <- requiredAs "interaction" arguments
+    planning <- planningStateFromKernel state
+    interaction <- interactionStateFromKernel state
+    envelope <- mapInteractionError
+      (Interaction.currentInteraction interactionId interaction)
+    _ <- mapPlanningError
+      (Planning.renderUiEnvelope sessionId envelope planning)
+    pure envelope of
+  Left problem -> pure (Left problem)
+  Right envelope -> do
+    rendered <- Planning.runMetroWebUiRender envelope
+    pure $ do
+      value <- mapPlanningError rendered
+      pure OperationResult
+        { operationResultValue = toJSON value
+        , operationResultState = state
+        }
+
+submitWebUiInputOperation ::
+  OperationInput -> V1State -> IO (Either Text (OperationResult V1State))
+submitWebUiInputOperation input state = case do
+    arguments <- requireArgumentsObject input
+    sessionId <- requiredText "session" arguments
+    interactionId <- requiredAs "interaction_id" arguments
+    interactionRevision <- requiredInteger "interaction_revision" arguments
+    domainRevision <- requiredInteger "domain_revision" arguments
+    actionId <- requiredText "action_id" arguments
+    now <- operationTime input
+    planning <- planningStateFromKernel state
+    interaction <- interactionStateFromKernel state
+    envelope <- mapInteractionError
+      (Interaction.currentInteraction interactionId interaction)
+    _ <- mapPlanningError
+      (Planning.renderUiEnvelope sessionId envelope planning)
+    let channelInput = object
+          [ "interaction_id" .= interactionId
+          , "interaction_revision" .= interactionRevision
+          , "domain_revision" .= domainRevision
+          , "action_id" .= actionId
+          ]
+    pure (sessionId, interactionId, interactionRevision, domainRevision,
+      actionId, now, planning, interaction, envelope, channelInput) of
+  Left problem -> pure (Left problem)
+  Right (sessionId, interactionId, interactionRevision, domainRevision,
+      actionId, now, planning, interaction, envelope, channelInput) -> do
+    decodedResult <- Planning.runMetroWebUiDecode envelope channelInput
+    pure $ do
+      decoded <- mapPlanningError decodedResult
+      forwarded <- mapPlanningError
+        (Planning.forwardWebUiInput now sessionId decoded planning)
+      let currentDomain = unDomainRevision (kernelRevision state)
+      decision <- mapInteractionError (Interaction.classifyInteractionSubmission
+        interactionId domainRevision interactionRevision currentDomain actionId now
+        interaction)
+      case decision of
+        Interaction.StaleSubmission response staleInteraction -> do
+          withInteraction <- persistInteractionArtifact staleInteraction state
+          next <- persistPlanningArtifact forwarded withInteraction
+          pure OperationResult
+            { operationResultValue = toJSON response
+            , operationResultState = next
+            }
+        Interaction.CurrentSubmission action -> do
+          accepted <- appendForFixture input "web-ui-interaction-answer"
+            [ProposeValueStored (Text.intercalate ":"
+                [ "v1.interaction.answer"
+                , Interaction.unInteractionId interactionId
+                , Text.pack (show interactionRevision)
+                ])
+              (object
+                [ "interaction" .= interactionId
+                , "action_id" .= Interaction.interactionActionId action
+                , "prompt_revision" .= interactionRevision
+                , "surface" .= ("standard/web-metro" :: Text)
+                ])]
+            state
+          (_, response, nextInteraction) <- mapInteractionError
+            (Interaction.acceptCurrentInteractionAction interactionId domainRevision
+              interactionRevision currentDomain actionId now interaction)
+          withInteraction <- persistInteractionArtifact nextInteraction
+            (appendResultState accepted)
+          next <- persistPlanningArtifact forwarded withInteraction
+          pure OperationResult
+            { operationResultValue = toJSON response
+            , operationResultState = next
+            }
+
+planningManifestObservation :: ObservationInput -> V1State -> Either Text Value
+planningManifestObservation input state = do
+  identifier <- exactlyOneTextArgument "PlanningManifest" input
+  planning <- planningStateFromKernel state
+  maybe (Left "unknown PlanningManifest") (Right . toJSON)
+    (Map.lookup identifier (Planning.planningStateManifests planning))
+
+exportedTaskJugglerObservation ::
+  ObservationInput -> V1State -> Either Text Value
+exportedTaskJugglerObservation input state = do
+  identifier <- exactlyOneTextArgument "ExportedTaskJuggler" input
+  planning <- planningStateFromKernel state
+  planningExport <- maybe (Left "unknown TaskJuggler export") Right
+    (Map.lookup identifier (Planning.planningStateExports planning))
+  maybe (Left "TaskJuggler output was not recorded") (Right . toJSON)
+    (Planning.planningExportOutput planningExport)
+
+importedActualObservation :: ObservationInput -> V1State -> Either Text Value
+importedActualObservation input state = do
+  identifier <- exactlyOneTextArgument "ImportedActual" input
+  planning <- planningStateFromKernel state
+  maybe (Left "unknown ImportedActual") (Right . toJSON)
+    (Map.lookup identifier (Planning.planningStateActuals planning))
+
+webUiSessionObservation :: ObservationInput -> V1State -> Either Text Value
+webUiSessionObservation input state = do
+  identifier <- exactlyOneTextArgument "WebUiSession" input
+  planning <- planningStateFromKernel state
+  maybe (Left "unknown WebUiSession") (Right . toJSON)
+    (Map.lookup identifier (Planning.planningStateWebSessions planning))
+
+webUiTransitionsObservation :: ObservationInput -> V1State -> Either Text Value
+webUiTransitionsObservation _ state =
+  toJSON . Planning.planningStateWebTransitions <$> planningStateFromKernel state
+
+requiredPlanningEffortProfile ::
+  Text -> Object -> Judgment.JudgmentState -> Either Text Judgment.EffortProfile
+requiredPlanningEffortProfile field arguments judgment = do
+  value <- requiredValue field arguments
+  case value of
+    String reference
+      | reference `elem` ["core/effort", "core/effort@1"] ->
+          Right Judgment.initialEffortProfile
+      | otherwise -> Left ("unknown effort profile: " <> reference)
+    _ -> do
+      profile <- decodeArgument field value
+      _ <- mapJudgmentError (Judgment.effortBandById profile "NORMAL" judgment)
+      pure profile
+
+estimatedProjectFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+estimatedProjectFixture input state = do
+  arguments <- requireArgumentsObject input
+  projectText <- requiredText "project" arguments
+  childValues <- requiredArray "children" arguments
+  unless (length childValues == 2)
+    (Left "estimated_project requires exactly two children")
+  requestedProfile <- requiredText "effort_profile" arguments
+  unless (requestedProfile `elem` ["core/effort", "core/effort@1"])
+    (Left "estimated_project requires core/effort@1")
+  children <- mapM parseEstimatedChild childValues
+  now <- operationTime input
+  projectTitle <- mapDomainError (mkCanonicalText projectText Nothing Human)
+  standing <- standingStateFromKernel state
+  (project, _, withProject) <- mapStandingError
+    (Standing.createStandingBrick
+      (ordinaryBrickDraft projectTitle Domain.projectV1 now)
+      "fixture:estimated-project" now standing)
+  (createdReversed, finalStanding) <- foldM
+    (createEstimatedChild now (brickId project)) ([], withProject) children
+  let created = reverse createdReversed
+  judgment <- judgmentStateFromKernel state
+  withJudgmentProject <- mapJudgmentError (Judgment.registerJudgmentBrick
+    (brickId project) Nothing Active True judgment)
+  finalJudgment <- foldM (registerEstimatedEffort now (brickId project))
+    withJudgmentProject (zip created children)
+  accepted <- appendForFixture input "estimated-project"
+    [ ProposeValueStored "v1.standing" (toJSON finalStanding)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination finalStanding))
+    , ProposeValueStored "v1.judgment" (toJSON finalJudgment)
+    ] state
+  case created of
+    [eventStore, repl] -> pure OperationResult
+      { operationResultValue = object
+          [ "project" .= brickId project
+          , "event_store" .= brickId eventStore
+          , "repl" .= brickId repl
+          , "effort_profile" .= Judgment.effortProfileId Judgment.initialEffortProfile
+          ]
+      , operationResultState = appendResultState accepted
+      }
+    _ -> Left "estimated_project child creation was incomplete"
+  where
+    parseEstimatedChild value = do
+      fields <- asObject "estimated project child" value
+      (,) <$> requiredText "title" fields <*> requiredText "effort_band" fields
+    createEstimatedChild now parent (created, standing) (titleText, band) = do
+      title <- mapDomainError (mkCanonicalText titleText Nothing Human)
+      (brick, _, next) <- mapStandingError (Standing.createStandingBrick
+        ((ordinaryBrickDraft title standardV1 now)
+          {Domain.brickDraftParent = Just parent})
+        ("fixture:estimated:" <> band <> ":" <> titleText) now standing)
+      pure (brick : created, next)
+    registerEstimatedEffort now parent judgmentState (brick, (_, bandId)) = do
+      registered <- mapJudgmentError (Judgment.registerJudgmentBrick
+        (brickId brick) (Just parent) Active True judgmentState)
+      band <- mapJudgmentError (Judgment.effortBandById
+        Judgment.initialEffortProfile bandId registered)
+      (_, _, next) <- mapJudgmentError (Judgment.classifyEffort
+        (brickId brick) band Human False (Just "estimated project fixture")
+        now registered)
+      pure next
+
+liveStatusSummaryFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+liveStatusSummaryFixture input state = do
+  now <- operationTime input
+  title <- mapDomainError
+    (mkCanonicalText "Focused status work" Nothing Human)
+  standing <- standingStateFromKernel state
+  (brick, _, created) <- mapStandingError (Standing.createStandingBrick
+    (ordinaryBrickDraft title standardV1 now) "fixture:live-status" now standing)
+  let coordination0 = Standing.standingStateCoordination created
+  focusedExecution <- mapExecutionError (Execution.focusExecutionBrick
+    (brickId brick) now (Coordination.coordinationStateExecution coordination0))
+  let coordination1 = coordination0
+        {Coordination.coordinationStateExecution = focusedExecution}
+  coordination2 <- mapCoordinationError (Coordination.setCoordinationDeadline
+    (brickId brick) (addUTCTime 3600 now) coordination1)
+  (notices, coordination3) <- mapCoordinationError
+    (Coordination.advanceCoordinationTime now coordination2)
+  unless (not (null notices))
+    (Left "live status fixture did not create a pending date notice")
+  let finalStanding = created
+        {Standing.standingStateCoordination = coordination3}
+  mapStandingError (Standing.validateStandingState finalStanding)
+  material <- materialStateFromKernel state
+  (_, nextMaterial) <- mapMaterialError
+    (captureInlineRaw "Review this source" Nothing Nothing now material)
+  selection <- selectionStateFromKernel state
+  (proposals, nextSelection) <- mapSelectionError (Selection.advanceSelection now
+    (Selection.SelectionContext finalStanding nextMaterial) selection)
+  unless (not (null proposals))
+    (Left "live status fixture did not create an open proposal")
+  accepted <- appendForFixture input "live-status-summary"
+    [ ProposeValueStored "v1.standing" (toJSON finalStanding)
+    , ProposeValueStored "v1.coordination" (toJSON coordination3)
+    , ProposeValueStored "v1.material" (toJSON nextMaterial)
+    , ProposeValueStored "v1.selection" (toJSON nextSelection)
+    ] state
+  pure OperationResult
+    { operationResultValue = object ["brick" .= brickId brick]
+    , operationResultState = appendResultState accepted
+    }
+
+mapExecutionError ::
+  Either Execution.ExecutionError value -> Either Text value
+mapExecutionError = either (Left . Text.pack . show) Right
+
+mapPlanningError ::
+  Either Planning.PlanningError value -> Either Text value
+mapPlanningError = either (Left . Text.pack . show) Right
+
+------------------------------------------------------------
 -- Revision-scoped interactions and powered-up harness state
 ------------------------------------------------------------
 
@@ -1818,7 +2209,36 @@ processInvocationTraceObservation input state = do
 statusSummaryObservation :: ObservationInput -> V1State -> Either Text Value
 statusSummaryObservation _ state = do
   interaction <- interactionStateFromKernel state
-  pure (toJSON (Interaction.statusSummary Nothing 0 0 0 interaction))
+  coordination <- coordinationStateFromKernel state
+  selection <- selectionStateFromKernel state
+  let execution = Coordination.coordinationStateExecution coordination
+      domain = Execution.executionStateDomain execution
+      focused = Domain.focusRegisterCurrent (Domain.domainFocusRegister domain)
+        >>= (`Map.lookup` Domain.domainBricks domain)
+      focusReference = fmap (\brick -> Interaction.CompactEntityReference
+        { Interaction.compactEntityReferenceId = unBrickId (brickId brick)
+        , Interaction.compactEntityReferenceTitle = Just (Domain.brickTitle brick)
+        , Interaction.compactEntityReferenceRevision =
+            Domain.unEntityRevision (Domain.brickRevision brick)
+        , Interaction.compactEntityReferenceState = case toJSON
+            (Domain.brickStatus brick) of
+              String value -> Just value
+              _ -> Nothing
+        }) focused
+      humanWip = fromIntegral (Execution.activeHumanWipCount execution)
+      openProposals = fromIntegral (length
+        [ ()
+        | proposal <- Map.elems (Selection.selectionStateProposals selection)
+        , Selection.proposalStatus proposal == Selection.ProposalOpen
+        ])
+      pendingNotices = fromIntegral (length
+        [ ()
+        | notice <- Map.elems (Coordination.coordinationStateDateNotices coordination)
+        , Coordination.dateNoticeStatus notice `elem`
+            [Coordination.NoticePending, Coordination.NoticeSnoozed]
+        ])
+  pure (toJSON (Interaction.statusSummary focusReference humanWip
+    openProposals pendingNotices interaction))
 
 ------------------------------------------------------------
 -- Routed capture and deterministic duplicate suspicion

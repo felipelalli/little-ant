@@ -40,6 +40,8 @@ import LittleAnt.V1.Kernel
    emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
    kernelValue, replayAll)
 import LittleAnt.V1.MaterialPlanCatalog (materialPlanProbes)
+import LittleAnt.V1.PlanningPlanCatalog
+  (planningPlanProbes, planningRuntimePlanProbes)
 import LittleAnt.V1.ReadModelPlanCatalog (readModelPlanProbes)
 import LittleAnt.V1.SelectionPlanCatalog (selectionPlanProbes)
 import LittleAnt.V1.SourceImportPlanCatalog (sourceImportPlanProbes)
@@ -58,13 +60,15 @@ v1PlanProbes = Map.unions
   , selectionPlanProbes
   , capturePlanProbes
   , integrationPlanProbes
+  , planningPlanProbes
   , sourceImportPlanProbes
   , interactionPlanProbes
   , readModelPlanProbes
   ]
 
 v1RuntimePlanProbes :: Map ProbeKey RuntimePlanProbe
-v1RuntimePlanProbes = integrationRuntimePlanProbes
+v1RuntimePlanProbes = Map.union integrationRuntimePlanProbes
+  planningRuntimePlanProbes
 
 kernelPlanProbes :: Map ProbeKey PlanProbe
 kernelPlanProbes = Map.fromList
