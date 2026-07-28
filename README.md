@@ -422,21 +422,103 @@ re-specify it as an explicit maintenance operation over a `PriorityScope`,
 including when it should be offered, how its questions interact with skip
 semantics and confidence, and how the resulting evidence is recorded.
 
+### 1.1 — The order-maintenance loop, in full
+
+Bulk re-ordering was not a lone command in v0: it was the visible end of a
+self-triggering maintenance loop, specified in `spec/little-ant.allium` as it
+stood at `70cb5b0^`. None of it survives in 1.0.
+
+- `entity OrderWatch` tracked `bricks_readied_since_round` against a
+  `round_threshold`, plus `clock_at` and the currently `open_round`, with
+  derived predicates `round_due` and `no_open_round`.
+- `rule OrderSanityRoundProposedByBurst` fired when enough new Bricks had been
+  readied since the last round, creating the round as a `kind: meta` Brick so
+  it entered the ordinary priority queue instead of interrupting the person.
+- `rule OrderSanityRoundProposedByDrift` fired on elapsed time instead of
+  volume — `watch.clock_at + config.order_sanity_interval <= now` — which is
+  precisely the "the order gets less trustworthy as it ages" case.
+- `rule ComparisonGoesStale` gave every individual comparison a shelf life
+  (`config.comparison_shelf_life`); on expiry it set `revalidation_requested`
+  and emitted `RevalidationDue`. Its guidance was that revalidation is a drip:
+  at most a question or two per flow, prioritising stale comparisons near the
+  top of the order.
+- `invariant NoContradictoryComparisons` and `invariant NoSelfComparison`
+  constrained the comparison graph itself.
+
+So v0 answered three separate questions that 1.0 leaves unanswered: *when*
+should the order be revisited (volume, elapsed time, or an individual
+comparison ageing out), *how* should the revisit be paced (a drip inside a
+flow, and a meta Brick for the full round), and *how many questions* should it
+cost (the merge short-circuit above). 1.1 needs all three, not just the sort.
+
 ### 1.1 — Other capabilities to recover from v0
 
-The bulk re-ordering gap above prompted a sweep of the whole v0 command surface
-against the 1.0 specification. The findings below are graded by how certain the
-loss is; each names the v0 evidence so it can be re-verified.
+Comparing the v0 specification (`spec/little-ant.allium` at `70cb5b0^`, 1145
+lines, 90 named declarations) against the 1.0 modules found 70 v0 declarations
+with no same-name counterpart. Most are renames from the restructuring; the
+items below are the ones verified as genuine losses. Each names its v0
+declaration so it can be re-read directly.
 
-| Capability | v0 evidence | 1.0 status |
-|---|---|---|
-| Bulk re-ordering (`la order --sort`) | `src/LittleAnt/Order.hs`, `b35df00` | absent — see above |
-| Delegation follow-up cycle | `Types.hs` delegation states, `la nudge` | field kept, behaviour dropped |
-| Flow strictness | `la flow open --strictness`, `floStrictness` | absent |
-| Human-readable render formats | `la render --format org\|csv\|html-static` | unspecified |
-| Interaction grammar command | `la grammar` | design record only, not normative |
-| Explicit temporal tick | `la tick` | design record only, not normative |
-| Merging two existing Bricks | `cmdUnify`, `la unify` | needs verification |
+| Capability | v0 declarations | 1.0 status | 1.1 |
+|---|---|---|---|
+| Order-maintenance loop | `OrderWatch`, `OrderSanityRoundProposedBy{Burst,Drift}`, `ComparisonGoesStale` | absent | **in** |
+| Typed skip reactions | nine `*Skip*` rules | enum kept, reactions dropped | **in** |
+| Delegation follow-up cycle | `FollowUpComesDue`, `NudgeApproved`, `NudgeDeclined`, `FollowUpEffect` | field kept, behaviour dropped | **in** |
+| Comparison graph invariants | `NoContradictoryComparisons`, `NoSelfComparison` | absent | **in** |
+| Flow strictness | `enum Strictness` | absent | **in** |
+| Merging two existing Bricks | `BricksUnified` | supersession is a different operation | **in** |
+| Completion effects | `CompletionEffectAdded`, `CompletionEffectsFired`, `EffectKind` | needs verification | to check |
+| Write-back receipts | `WriteBackExecutor`, `WriteBackReceipt` | only `write_back` as a source-effect kind | to check |
+| Taxonomy review | `TaxonomyWatch`, `TaxonomyReviewTriggered` | needs verification | to check |
+| Dangling WIP detection | `DanglingWipDetected` | needs verification | to check |
+| `la grammar`, `la tick` | — | design record only, not normative | to check |
+
+**Typed skip reactions — the largest behavioural loss.** v0 gave every skip
+reason its own consequence: `HardSkipOffersDecomposition`,
+`VagueSkipRegressesBrick`, `PrioritySkipChallenged`,
+`WaitingSkipAsksForDetails`, `TiredSkipOffersRecovery`,
+`MehSkipProposesTinyStep`, `KillSkipDropsBrick`,
+`AlternativesSkipOpensSearch`, `OtherSkipTracked`. Skipping was a
+conversation: *this is too hard* offered to break the Brick down, *this is
+vague* regressed it for clarification, *this isn't the priority* challenged its
+position, *kill it* dropped it.
+
+1.0 keeps the `SkipReason` enum with the identical nine values, and every rule
+consuming `ServedSkipRecorded(brick, reason)` ignores the reason: the three
+survivors start a cooldown, refresh a cooldown, and create a practice-friction
+review. No rule anywhere in 1.0 branches on a specific reason. The vocabulary
+is intact and inert — the person is still asked *why* they skipped, and the
+answer no longer changes anything. **1.1 restores all nine reactions.**
+
+**Delegation follow-up.** 1.1 restores the full cycle: `FollowUpComesDue`
+firing on the due date, a previewed notice the person approves to send, a
+decline that defers and re-asks at the next interval, and the attempt counter
+that separates a first reminder from a fifth.
+
+**Order maintenance.** All four elements are in scope — elapsed-time drift,
+new-work burst, per-comparison shelf life with drip revalidation, and the round
+as a `kind: meta` Brick in the ordinary queue. The instruction for 1.1 is to
+judge what genuinely fits the 1.0 model rather than transplanting v0 verbatim,
+while holding one line: nothing that was good may regress.
+
+**Not a regression: render formats.** v0's `la render --format org|csv|html`
+has no 1.0 counterpart, but that is architecture, not loss. 1.0 defines
+`ReadOnlyExporterContract` — `export: (projection) -> ExportPayload`, pure,
+with no network, filesystem, credential or mutation capability — and Packs
+declare an `exporter: PackComponent`, with `taskjuggler_exporter_v1` shipping
+as a default component. Org-mode, CSV and static HTML belong there as Pack
+exporters. What is missing is not the capability but a default component for
+them, which is packaging work rather than specification work.
+
+**The recurring shape of these losses.** Three of the findings above are the
+same failure, not three coincidences: 1.0 kept the data and dropped the
+behaviour that gave the data meaning. Confidence still decays, but nothing
+repairs a decayed order. Delegations still carry `next_followup_at`, but
+nothing fires when it comes due. Skips still record a typed reason, but no rule
+reads it. A rewrite that preserves vocabulary while losing rules produces a
+specification that looks complete and behaves like a filing cabinet. That
+pattern is worth hunting for deliberately across the rest of 1.0 before 1.1 is
+scoped.
 
 **Delegation follow-up cycle.** v0 modelled delegation as a lifecycle —
 `DToNotify`, `DNotified`, `DNudged`, `DCompleted`, `DRefused`, `DAbandoned` —
@@ -485,13 +567,21 @@ instructs the README to stop using the frontier-only model. The
 *seed → committed* promotion step (`la promote`) was likewise restructured into
 the Raw-to-Brick phase model.
 
-**How this list was produced.** Every v0 sub-command in `app/Main.hs` was
-extracted and each concept was searched across `spec/little-ant/*.allium` and
-`spec/little-ant-1.0/*.md`. Absence of a word is not proof of absence of a
-capability, since 1.0 renamed several concepts, so each zero-hit candidate was
-checked by hand against the module that would own it. The sweep covered the CLI
-surface only; the agent skill, REPL grammar and Pack surface deserve the same
-treatment before 1.1 is scoped.
+**How this list was produced.** Specification against specification: the v0
+model is `spec/little-ant.allium` as it stood at `70cb5b0^` — one file, 1145
+lines, 90 named declarations — and the 1.0 model is the nine modules that
+replaced it. Every v0 declaration was checked for a counterpart in 1.0; 70 had
+no same-name match, and each was then read by hand, because 1.0 renamed a great
+deal and absence of a word proves nothing. The v0 implementation was consulted
+only to describe behaviour the spec named but did not detail, such as the sort
+strategy in `src/LittleAnt/Order.hs`. The in-progress 1.0 implementation was
+not consulted at all: it is still being written, and a specification gap is not
+something an implementation can answer.
+
+**What this sweep did not cover.** Only the v0 Allium model was compared. The
+agent skill, the REPL grammar and the Pack surface deserve the same treatment,
+and the `to check` rows above still need a module-by-module reading before 1.1
+is scoped.
 
 ## Specification map
 
