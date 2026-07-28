@@ -20,6 +20,8 @@ import qualified Data.Text as Text
 import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
 import LittleAnt.V1.Contract (PlanProbe, PlanProbeInput (..), ProbeKey (..))
 import LittleAnt.V1.Interaction
+import LittleAnt.V1.Kernel
+  (DomainRevision (..), emptyKernelState, kernelRevision)
 
 interactionPlanProbes :: Map ProbeKey PlanProbe
 interactionPlanProbes = Map.fromList
@@ -185,11 +187,15 @@ enumRegistration construct values = registration "enum_comparable" construct $ d
 
 domainClockProbe :: Either Text ()
 domainClockProbe = do
-  let encoded = object ["revision" .= (0 :: Integer)]
+  let authoritativeRevision = kernelRevision emptyKernelState
+      encoded = object ["revision" .= authoritativeRevision]
   fields <- asObject "DomainClock" encoded
   requireFields "DomainClock" ["revision"] fields
-  require (KeyMap.lookup "revision" fields == Just (toJSON (0 :: Integer)))
-    "DomainClock default did not begin at revision zero"
+  require (authoritativeRevision == DomainRevision 0)
+    "authoritative kernel DomainClock did not begin at revision zero"
+  require
+    (KeyMap.lookup "revision" fields == Just (toJSON authoritativeRevision))
+    "DomainClock projection did not contain the authoritative kernel revision"
 
 interactionOpenedProbe :: Either Text ()
 interactionOpenedProbe = do

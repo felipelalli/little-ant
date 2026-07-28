@@ -1882,6 +1882,11 @@ implementationBridgeTests = testGroup "real implementation registry"
         ]
       assertResponsePassed (runContractRequest contractRegistry kernelRootPlan)
         ["invariant.GloballyOpaqueEntityIds"]
+  , testCase "binds the DomainClock obligation to authoritative kernel state" $ do
+      kernelRevision emptyKernelState @?= DomainRevision 0
+      assertResponsePassed
+        (runContractRequest contractRegistry interactionDomainClockPlan)
+        ["entity-fields.DomainClock"]
   , testCase "dispatches confidence_before and forecast references" $
       assertResponsePassed (runContractRequest contractRegistry
         implementationReferenceScenario)
@@ -2282,6 +2287,19 @@ kernelInteractionPlan = object
           , obligation "contract-signature.CanonicalEventStore.replay"
               "contract_signature" "CanonicalEventStore.replay"
           ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+interactionDomainClockPlan :: Value
+interactionDomainClockPlan = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("interaction" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [obligation "entity-fields.DomainClock" "entity_fields" "DomainClock"]
       ]
   , "model" .= object ["version" .= (3 :: Int)]
   ]
