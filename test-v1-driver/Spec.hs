@@ -8,6 +8,7 @@ import Data.Aeson
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
+import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as LBS8
 import Data.List (find, isInfixOf)
@@ -29,6 +30,7 @@ import qualified LittleAnt.V1.Coordination as Coordination
 import LittleAnt.V1.Domain
 import qualified LittleAnt.V1.Execution as Execution
 import LittleAnt.V1.Implementation (contractRegistry)
+import qualified LittleAnt.V1.Integration as Integration
 import qualified LittleAnt.V1.Interaction as Interaction
 import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
@@ -61,6 +63,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , selectionTests
   , captureTests
   , interactionTests
+  , integrationTests
   , cliSurfaceTests
   , readModelTests
   , coordinationTests
@@ -1869,6 +1872,274 @@ interactionTests = testGroup "v1 revision-scoped interactions and powered-up mod
       Interaction.processInvocationTraceStdinContainsProbe trace @?= True
   ]
 
+integrationTests :: TestTree
+integrationTests = testGroup "v1 bounded Packs, credentials, and host capabilities"
+  [ testCase "verifies typed manifests and records irreversible Pack lifecycle" $ do
+      (pack, components, installed) <- requireIntegrationSuccess
+        (Integration.installPack integrationTestTime integrationEvidence
+          integrationManifest Integration.emptyPackState)
+      Integration.littleAntPackStatus pack @?= Integration.PackInstalled
+      map Integration.packComponentStatus components @?=
+        [Integration.ComponentEnabled]
+      case Integration.installPack integrationTestTime
+          (integrationEvidence
+            {Integration.packInstallEvidenceVerifiedContentHash = "sha256:wrong"})
+          integrationManifest Integration.emptyPackState of
+        Left Integration.PackArchiveNotVerified -> pure ()
+        result -> assertFailure ("unverified archive result: " <> show result)
+      case Integration.installPack integrationTestTime
+          (integrationEvidence
+            {Integration.packInstallEvidenceCompatibleProtocol = 2})
+          integrationManifest Integration.emptyPackState of
+        Left Integration.PackManifestIncompatible -> pure ()
+        result -> assertFailure ("incompatible manifest result: " <> show result)
+      case Integration.installPack integrationTestTime
+          (integrationEvidence
+            {Integration.packInstallEvidenceTrustedPublisher = False})
+          integrationManifest Integration.emptyPackState of
+        Left Integration.PackPublisherUntrusted -> pure ()
+        result -> assertFailure ("untrusted publisher result: " <> show result)
+      let invalidDeclarative = integrationManifest
+            { Integration.packInstallManifestComponents =
+                [Integration.PackComponentManifest "example/behavior" 1
+                  Integration.BrickBehaviorComponent True []]
+            }
+      case Integration.installPack integrationTestTime integrationEvidence
+          invalidDeclarative Integration.emptyPackState of
+        Left (Integration.InvalidPackManifest _) -> pure ()
+        result -> assertFailure ("executable declarative component result: "
+          <> show result)
+      disabled <- requireIntegrationSuccess
+        (Integration.disablePack "community/example" installed)
+      enabled <- requireIntegrationSuccess
+        (Integration.enablePack "community/example" disabled)
+      revoked <- requireIntegrationSuccess
+        (Integration.revokePack "community/example" enabled)
+      revokedPack <- requireIntegrationSuccess
+        (Integration.findPack "community/example" revoked)
+      Integration.littleAntPackStatus revokedPack @?= Integration.PackRevoked
+      assertBool "revoked component stayed executable"
+        (all ((== Integration.ComponentRevoked)
+          . Integration.packComponentStatus)
+          (Map.elems (Integration.packStateComponents revoked)))
+  , testCase "rejects undeclared capabilities and records redacted invocation metadata" $ do
+      (_, _, installed) <- installedIntegrationFixture
+      case Integration.recordPackInvocation integrationTestTime "example/source"
+          "discover" "3" "sha256:req" ["http:evil.example"]
+          integrationSuccess installed of
+        Left (Integration.UndeclaredCapability "http:evil.example") -> pure ()
+        result -> assertFailure ("undeclared capability result: " <> show result)
+      (invocation, invoked) <- requireIntegrationSuccess
+        (Integration.recordPackInvocation integrationTestTime "example/source"
+          "discover" "3" "sha256:req"
+          ["http:api.example.com", "credential:example"]
+          integrationSuccess installed)
+      Integration.packInvocationPackContentHash invocation @?= "sha256:pack"
+      Integration.packInvocationComponentVersion invocation @?= 1
+      length (Integration.packStateInvocations invoked) @?= 1
+      assertBool "invocation serialized a credential secret"
+        (not ("ciphertext" `BS8.isInfixOf` LBS.toStrict (encode invocation)))
+  , testCase "runs Lua 5.4 in a fresh typed sandbox without raw OS globals" $ do
+      reportResult <- Integration.probePackSandbox ["http:api.example.com"]
+      report <- case reportResult of
+        Left problem -> assertFailure (Text.unpack problem)
+        Right value -> pure value
+      report @?= Integration.SandboxReport False False False False False
+      typed <- Integration.runLuaComponent Integration.defaultSandboxLimits
+        ["http:api.example.com"] Null (BS8.pack
+          "return {version=_VERSION, http=lant ~= nil and lant.http ~= nil and lant.http.request ~= nil, os=os ~= nil, io=io ~= nil, package=package ~= nil}")
+      Integration.packExecutionResultOk typed @?= True
+      Integration.packExecutionResultOutput typed @?= Just (object
+        [ "version" .= ("Lua 5.4" :: Text)
+        , "http" .= True
+        , "os" .= False
+        , "io" .= False
+        , "package" .= False
+        ])
+      withoutGrant <- Integration.runLuaComponent Integration.defaultSandboxLimits
+        [] Null (BS8.pack "return {http=lant ~= nil, loadfile=loadfile ~= nil}")
+      Integration.packExecutionResultOutput withoutGrant @?= Just (object
+        ["http" .= False, "loadfile" .= False])
+      bounded <- Integration.runLuaComponent
+        (Integration.defaultSandboxLimits
+          {Integration.sandboxLimitInstructions = 1000})
+        [] Null (BS8.pack "while true do end")
+      assertBool "unbounded Lua loop did not fail closed"
+        (Integration.packExecutionResultErrorCode bounded
+          `elem` [Just "instruction_limit", Just "timeout"])
+      secretInput <- Integration.runLuaComponent Integration.defaultSandboxLimits
+        [] (object ["token" .= ("must-not-enter-lua" :: Text)])
+        (BS8.pack "return true")
+      Integration.packExecutionResultErrorCode secretInput @?=
+        Just "credential_input_rejected"
+  , testCase "performs zero HTTP and backoff for locked, revoked, and absent bindings" $ do
+      (installed, deployment, bindingId) <- credentialIntegrationFixture
+      (_, lockedVault) <- requireIntegrationSuccess
+        (Integration.lockCredentialBinding bindingId
+          (Integration.packDeploymentVault deployment))
+      let lockedDeployment = deployment
+            {Integration.packDeploymentVault = lockedVault}
+      (lockedResult, lockedState, lockedAfter) <- requireIntegrationSuccess
+        (Integration.executePackBoundary False integrationTestTime "felipe"
+          (Integration.ProviderFailed "must not run") integrationRequest
+          installed lockedDeployment)
+      Integration.packExecutionResultErrorCode lockedResult @?=
+        Just "credential_locked"
+      Integration.packDeploymentHttpTrace lockedAfter @?= []
+      Integration.providerBackoff "example/source" "felipe" lockedState @?= 0
+      Integration.packDeploymentExecutionCount lockedAfter @?= 0
+      (_, unlockedVault) <- requireIntegrationSuccess
+        (Integration.unlockCredentialBinding bindingId lockedVault)
+      (providerResult, providerState, providerAfter) <- requireIntegrationSuccess
+        (Integration.executePackBoundary False integrationTestTime "felipe"
+          (Integration.ProviderFailed "rate limit") integrationRequest
+          installed (deployment {Integration.packDeploymentVault = unlockedVault}))
+      Integration.packExecutionResultErrorCode providerResult @?=
+        Just "provider_failure"
+      length (Integration.packDeploymentHttpTrace providerAfter) @?= 1
+      Integration.providerBackoff "example/source" "felipe" providerState @?= 1
+      (_, revokedVault) <- requireIntegrationSuccess
+        (Integration.revokeCredentialBinding bindingId unlockedVault)
+      (revokedResult, revokedState, revokedAfter) <- requireIntegrationSuccess
+        (Integration.executePackBoundary False integrationTestTime "felipe"
+          (Integration.ProviderFailed "must not run") integrationRequest
+          installed (deployment {Integration.packDeploymentVault = revokedVault}))
+      Integration.packExecutionResultErrorCode revokedResult @?=
+        Just "credential_revoked"
+      Integration.packDeploymentHttpTrace revokedAfter @?= []
+      Integration.providerBackoff "example/source" "felipe" revokedState @?= 0
+      let absentVault = (Integration.packDeploymentVault deployment)
+            {Integration.vaultStateBindings = Map.empty}
+      (absentResult, _, absentAfter) <- requireIntegrationSuccess
+        (Integration.executePackBoundary False integrationTestTime "felipe"
+          (Integration.ProviderFailed "must not run") integrationRequest
+          installed (deployment {Integration.packDeploymentVault = absentVault}))
+      Integration.packExecutionResultErrorCode absentResult @?=
+        Just "credential_unauthorized"
+      Integration.packDeploymentHttpTrace absentAfter @?= []
+  , testCase "keeps vault state outside Pack content and canonical replay" $ do
+      (installed, deployment, _) <- credentialIntegrationFixture
+      assertBool "Pack state contains local encrypted payload"
+        (not ("ciphertext:local-only" `BS8.isInfixOf` LBS.toStrict
+          (encode (Integration.packStateProjection installed))))
+      assertBool "manifest contains local encrypted payload"
+        (not ("ciphertext:local-only" `BS8.isInfixOf` LBS.toStrict
+          (encode (Integration.packContentProjection integrationManifest))))
+      assertBool "test did not create a real local vault"
+        (not (Map.null (Integration.vaultStateEntries
+          (Integration.packDeploymentVault deployment))))
+      accepted <- requireKernelSuccess (appendSemanticAction
+        AppendRequest
+          { appendExpectedRevision = DomainRevision 0
+          , appendSemanticActionId = "test:canonical-pack-state"
+          , appendActorOrOrigin = "human:test"
+          , appendOccurredAt = Just "2026-07-27T22:00:00Z"
+          , appendProposedEvents =
+              [ProposeValueStored "v1.integration" (toJSON installed)]
+          }
+        emptyKernelState)
+      replayed <- case replayAll (kernelEventBatches (appendResultState accepted)) of
+        Left problem -> assertFailure (show problem)
+        Right value -> pure value
+      kernelValue "v1.integration" (replayResultState replayed) @?=
+        Just (toJSON installed)
+      replayResultExternalTrace replayed @?= []
+      case Integration.executePackBoundary True integrationTestTime "felipe"
+          (Integration.ProviderSucceeded Null) integrationRequest
+          installed deployment of
+        Left Integration.ReplayExecutionForbidden -> pure ()
+        result -> assertFailure ("replay Pack execution result: " <> show result)
+  , testCase "passes Pack plan probes and the checked-in sandbox scenario" $ do
+      assertResponsePassed
+        (runContractRequest contractRegistry integrationPackPlanRequest)
+        [ "contract-signature.PackRunner.execute"
+        , "contract-signature.HostHttp.request"
+        , "contract-signature.CredentialBroker.authorize"
+        , "rule-success.VerifiedPackInstalled"
+        , "rule-failure.PackInvocationRecorded.2"
+        , "invariant.VaultIsNotPackContent"
+        ]
+      bytes <- LBS.readFile "test-v1/scenarios/16-pack-sandbox-and-credentials.json"
+      scenario <- case eitherDecode bytes of
+        Left problem -> assertFailure problem
+        Right value -> pure value
+      let scenarioRequestValue = object
+            [ "protocol_version" .= (1 :: Int)
+            , "request_kind" .= ("scenario" :: Text)
+            , "scenario" .= (scenario :: Value)
+            ]
+      assertResponsePassed (runContractRequest contractRegistry scenarioRequestValue)
+        [ "undeclared-capability-is-rejected"
+        , "locked-vault-has-distinct-error"
+        , "locked-vault-performs-no-http"
+        , "locked-vault-does-not-advance-provider-backoff"
+        , "lua-never-receives-secret"
+        , "pack-runtime-has-no-raw-os"
+        , "replay-invokes-no-pack-code"
+        ]
+  ]
+
+installedIntegrationFixture :: IO
+  (Integration.LittleAntPack, [Integration.PackComponent], Integration.PackState)
+installedIntegrationFixture = requireIntegrationSuccess
+  (Integration.installPack integrationTestTime integrationEvidence
+    integrationManifest Integration.emptyPackState)
+
+credentialIntegrationFixture :: IO
+  (Integration.PackState, Integration.PackDeployment, Text)
+credentialIntegrationFixture = do
+  (_, components, installed) <- installedIntegrationFixture
+  component <- case components of
+    value : _ -> pure value
+    [] -> assertFailure "Pack fixture has no component"
+  (entry, vault1) <- requireIntegrationSuccess
+    (Integration.storeCredential integrationTestTime "Example API"
+      "ciphertext:local-only" Integration.emptyVaultState)
+  (slot, vault2) <- requireIntegrationSuccess
+    (Integration.declareCredentialSlot (Integration.packComponentId component)
+      "api-token" "api_key" True vault1)
+  (binding, vault3) <- requireIntegrationSuccess
+    (Integration.bindCredential integrationTestTime
+      (Integration.credentialSlotId slot) "felipe"
+      (Integration.vaultEntryId entry) vault2)
+  pure (installed, Integration.defaultPackDeployment
+    {Integration.packDeploymentVault = vault3},
+    Integration.credentialBindingId binding)
+
+integrationManifest :: Integration.PackInstallManifest
+integrationManifest = Integration.PackInstallManifest
+  { Integration.packInstallManifestId = "community/example"
+  , Integration.packInstallManifestVersion = 1
+  , Integration.packInstallManifestPublisher = "Example"
+  , Integration.packInstallManifestContentHash = "sha256:pack"
+  , Integration.packInstallManifestComponents =
+      [ Integration.PackComponentManifest
+          { Integration.packComponentManifestId = "example/source"
+          , Integration.packComponentManifestVersion = 1
+          , Integration.packComponentManifestKind =
+              Integration.SourceAdapterComponent
+          , Integration.packComponentManifestExecutable = True
+          , Integration.packComponentManifestCapabilities =
+              ["http:api.example.com", "credential:example"]
+          }
+      ]
+  }
+
+integrationEvidence :: Integration.PackInstallEvidence
+integrationEvidence = Integration.PackInstallEvidence "sha256:pack" 1 True
+
+integrationRequest :: Integration.PackExecutionRequest
+integrationRequest = Integration.PackExecutionRequest 1 "example/source" "discover"
+  (object ["account" .= ("felipe" :: Text)])
+  ["http:api.example.com", "credential:example"]
+
+integrationSuccess :: Integration.PackExecutionResult
+integrationSuccess = Integration.PackExecutionResult 1 True
+  (Just (object ["items" .= ([] :: [Value])])) Nothing []
+
+integrationTestTime :: UTCTime
+integrationTestTime = UTCTime (fromGregorian 2026 7 27) (22 * 60 * 60)
+
 cliSurfaceTests :: TestTree
 cliSurfaceTests = testGroup "v1 CLI aliases and deterministic REPL surface"
   [ testCase "executes the canonical surface actor, exposure, and provides probes" $ do
@@ -2856,6 +3127,31 @@ domainPlanRequest = object
   , "model" .= object ["version" .= (3 :: Int)]
   ]
 
+integrationPackPlanRequest :: Value
+integrationPackPlanRequest = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("integration" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "contract-signature.PackRunner.execute"
+              "contract_signature" "PackRunner.execute"
+          , obligation "contract-signature.HostHttp.request"
+              "contract_signature" "HostHttp.request"
+          , obligation "contract-signature.CredentialBroker.authorize"
+              "contract_signature" "CredentialBroker.authorize"
+          , obligation "rule-success.VerifiedPackInstalled"
+              "rule_success" "VerifiedPackInstalled"
+          , obligation "rule-failure.PackInvocationRecorded.2"
+              "rule_failure" "PackInvocationRecorded"
+          , obligation "invariant.VaultIsNotPackContent"
+              "invariant" "VaultIsNotPackContent"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
 materialPlanRequest :: Value
 materialPlanRequest = object
   [ "protocol_version" .= (1 :: Int)
@@ -3773,6 +4069,12 @@ requireKernelSuccess result = case result of
 requireDomainSuccess :: Show problem => Either problem value -> IO value
 requireDomainSuccess result = case result of
   Left problem -> assertFailure ("domain operation failed: " <> show problem)
+  Right value -> pure value
+
+requireIntegrationSuccess ::
+  Either Integration.IntegrationError value -> IO value
+requireIntegrationSuccess result = case result of
+  Left problem -> assertFailure ("integration operation failed: " <> show problem)
   Right value -> pure value
 
 requireExecutionSuccess :: Either Execution.ExecutionError value -> IO value

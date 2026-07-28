@@ -1,6 +1,6 @@
 plan:domain 108/108
 plan:execution 367/374
-plan:integration 0/268
+plan:integration 63/268
 plan:interaction 119/119
 plan:judgment 197/197
 plan:material 121/121
@@ -22,5 +22,5 @@ scenario:repl-revisions-and-powered-up-mode 8/8
 scenario:event-replay-sparse-history 9/9
 scenario:v0-v1-atomic-cutover 0/8
 scenario:taskjuggler-planning-cut 0/7
-scenario:pack-sandbox-and-credentials 0/7
-TOTAL 1182/1566
+scenario:pack-sandbox-and-credentials 7/7
+TOTAL 1252/1566

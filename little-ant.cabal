@@ -66,6 +66,8 @@ library
         LittleAnt.V1.Execution
         LittleAnt.V1.ExecutionPlanCatalog
         LittleAnt.V1.Implementation
+        LittleAnt.V1.Integration
+        LittleAnt.V1.IntegrationPlanCatalog
         LittleAnt.V1.Interaction
         LittleAnt.V1.InteractionPlanCatalog
         LittleAnt.V1.Judgment
@@ -97,6 +99,7 @@ library
         containers,
         directory,
         filepath,
+        hslua ==2.3.1,
         process,
         SHA,
         text,

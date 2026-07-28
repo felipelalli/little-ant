@@ -41,6 +41,7 @@ import LittleAnt.V1.Domain
    templateBehavior, templateId, templateVersion, templateVersions)
 import qualified LittleAnt.V1.Domain as Domain
 import qualified LittleAnt.V1.Execution as Execution
+import qualified LittleAnt.V1.Integration as Integration
 import qualified LittleAnt.V1.Interaction as Interaction
 import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
@@ -178,6 +179,21 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("SaveSurfaceCheckpoint", saveSurfaceCheckpointOperation)
       , ("ValidatePoweredUpAdapter", validatePoweredUpAdapterOperation)
       , ("UseDumbMode", useDumbModeOperation)
+      , ("InstallPack", installPackOperation)
+      , ("DisablePack", disablePackOperation)
+      , ("EnablePack", enablePackOperation)
+      , ("RevokePack", revokePackOperation)
+      , ("RecordPackInvocation", recordPackInvocationOperation)
+      , ("StoreCredential", storeCredentialOperation)
+      , ("BindCredential", bindCredentialOperation)
+      , ("LockCredentialBinding", lockCredentialBindingOperation)
+      , ("UnlockCredentialBinding", unlockCredentialBindingOperation)
+      , ("RevokeCredentialBinding", revokeCredentialBindingOperation)
+      , ("CredentialBroker.authorize", credentialBrokerAuthorizeOperation)
+      , ("HostHttp.request", hostHttpRequestOperation)
+      , ("PackRunner.execute", packRunnerExecuteOperation)
+      , ("InspectPackRuntimeInput", inspectPackRuntimeInputOperation)
+      , ("ProbePackSandbox", probePackSandboxOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -254,6 +270,11 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("HistoryPage", historyPageObservation)
       , ("HistoryBrief", historyBriefObservation)
       , ("TextAnnotation", textAnnotationObservation)
+      , ("PackExecutionResult", packExecutionResultObservation)
+      , ("HostHttpTrace", hostHttpTraceObservation)
+      , ("ProviderBackoff", providerBackoffObservation)
+      , ("PackInvocationInput", packInvocationInputObservation)
+      , ("PackInvocationTrace", packInvocationTraceObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -269,6 +290,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("eligible_priority_run", eligiblePriorityRunFixture)
       , ("two_eligible_root_bricks", twoEligibleRootBricksFixture)
       , ("created_and_described_brick", createdAndDescribedBrickFixture)
+      , ("credential_binding", credentialBindingFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -710,6 +732,385 @@ mapAnnotationError = either (Left . Text.pack . show) Right
 
 mapHistoryError :: Either ReadModel.HistoryError value -> Either Text value
 mapHistoryError = either (Left . Text.pack . show) Right
+
+------------------------------------------------------------
+-- Typed Packs, local credentials, and the capability host
+------------------------------------------------------------
+
+integrationStateFromKernel :: V1State -> Either Text Integration.PackState
+integrationStateFromKernel state = case kernelValue "v1.integration" state of
+  Nothing -> Right Integration.emptyPackState
+  Just value -> case fromJSON value of
+    Success integration -> do
+      mapIntegrationError (Integration.validatePackState integration)
+      Right integration
+    Error problem -> Left ("stored integration state is malformed: "
+      <> Text.pack problem)
+
+packDeploymentFromKernel :: V1State -> Either Text Integration.PackDeployment
+packDeploymentFromKernel state = case kernelArtifact "v1.pack-deployment" state of
+  Nothing -> Right Integration.defaultPackDeployment
+  Just value -> case fromJSON value of
+    Success deployment -> do
+      mapIntegrationError
+        (Integration.validateVaultState (Integration.packDeploymentVault deployment))
+      Right deployment
+    Error problem -> Left ("stored Pack deployment is malformed: "
+      <> Text.pack problem)
+
+persistPackDeployment ::
+  Integration.PackDeployment -> V1State -> Either Text V1State
+persistPackDeployment deployment state = mapKernelError
+  (putKernelArtifact "v1.pack-deployment" (toJSON deployment) state)
+
+persistIntegrationState ::
+  OperationInput -> Text -> Integration.PackState -> V1State ->
+  Either Text (AppendResult)
+persistIntegrationState input suffix integration = appendForFixture input suffix
+  [ProposeValueStored "v1.integration" (toJSON integration)]
+
+installPackOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+installPackOperation input state = do
+  arguments <- requireArgumentsObject input
+  manifest <- requiredAs "manifest" arguments
+  now <- operationTime input
+  let evidence = Integration.PackInstallEvidence
+        { Integration.packInstallEvidenceVerifiedContentHash = fromMaybe
+            (Integration.packInstallManifestContentHash manifest)
+            (optionalText "verified_content_hash" arguments)
+        , Integration.packInstallEvidenceCompatibleProtocol = fromMaybe 1
+            (optionalInteger "compatible_protocol" arguments)
+        , Integration.packInstallEvidenceTrustedPublisher = fromMaybe True
+            (optionalBoolean "trusted_publisher" arguments)
+        }
+  integrationBefore <- integrationStateFromKernel state
+  case Integration.installPack now evidence manifest integrationBefore of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (pack, components, integration) -> do
+      accepted <- persistIntegrationState input "install-pack" integration state
+      component <- case components of
+        first : _ -> Right first
+        [] -> Left "verified Pack installation produced no component"
+      pure OperationResult
+        { operationResultValue = object
+            [ "pack" .= Integration.littleAntPackId pack
+            , "component" .= Integration.packComponentId component
+            , "components" .= map Integration.packComponentId components
+            ]
+        , operationResultState = appendResultState accepted
+        }
+
+disablePackOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+disablePackOperation = packLifecycleOperation "disable-pack" Integration.disablePack
+
+enablePackOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+enablePackOperation = packLifecycleOperation "enable-pack" Integration.enablePack
+
+revokePackOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+revokePackOperation = packLifecycleOperation "revoke-pack" Integration.revokePack
+
+packLifecycleOperation ::
+  Text -> (Text -> Integration.PackState ->
+    Either Integration.IntegrationError Integration.PackState) ->
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+packLifecycleOperation suffix transition input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredText "pack" arguments
+  integration <- integrationStateFromKernel state
+  case transition identifier integration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right next -> do
+      accepted <- persistIntegrationState input suffix next state
+      pack <- mapIntegrationError (Integration.findPack identifier next)
+      pure OperationResult
+        { operationResultValue = object
+            [ "pack" .= Integration.littleAntPackId pack
+            , "status" .= Integration.littleAntPackStatus pack
+            ]
+        , operationResultState = appendResultState accepted
+        }
+
+recordPackInvocationOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordPackInvocationOperation input state = do
+  arguments <- requireArgumentsObject input
+  component <- requiredText "component" arguments
+  operation <- requiredText "operation" arguments
+  inputRevision <- requiredText "input_revision" arguments
+  requestHash <- requiredText "request_hash" arguments
+  grants <- requiredAs "capability_grants" arguments
+  result <- requiredAs "result" arguments
+  now <- operationTime input
+  integration <- integrationStateFromKernel state
+  case Integration.recordPackInvocation now component operation inputRevision
+      requestHash grants result integration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (invocation, next) -> do
+      accepted <- persistIntegrationState input "pack-invocation" next state
+      pure OperationResult
+        { operationResultValue = toJSON invocation
+        , operationResultState = appendResultState accepted
+        }
+
+storeCredentialOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+storeCredentialOperation input state = do
+  arguments <- requireArgumentsObject input
+  label <- requiredText "label" arguments
+  payload <- requiredText "encrypted_payload" arguments
+  now <- operationTime input
+  deployment <- packDeploymentFromKernel state
+  case Integration.storeCredential now label payload
+      (Integration.packDeploymentVault deployment) of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (entry, vault) -> do
+      next <- persistPackDeployment (deployment
+        {Integration.packDeploymentVault = vault}) state
+      pure OperationResult
+        { operationResultValue = object
+            ["vault_entry" .= Integration.vaultEntryId entry]
+        , operationResultState = next
+        }
+
+bindCredentialOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+bindCredentialOperation input state = do
+  arguments <- requireArgumentsObject input
+  slot <- requiredText "slot" arguments
+  account <- requiredText "account" arguments
+  vaultEntry <- requiredText "vault_entry_id" arguments
+  now <- operationTime input
+  deployment <- packDeploymentFromKernel state
+  case Integration.bindCredential now slot account vaultEntry
+      (Integration.packDeploymentVault deployment) of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (binding, vault) -> do
+      next <- persistPackDeployment (deployment
+        {Integration.packDeploymentVault = vault}) state
+      pure OperationResult
+        { operationResultValue = object
+            ["binding" .= Integration.credentialBindingId binding]
+        , operationResultState = next
+        }
+
+lockCredentialBindingOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+lockCredentialBindingOperation = credentialTransitionOperation
+  Integration.lockCredentialBinding
+
+unlockCredentialBindingOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+unlockCredentialBindingOperation = credentialTransitionOperation
+  Integration.unlockCredentialBinding
+
+revokeCredentialBindingOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+revokeCredentialBindingOperation = credentialTransitionOperation
+  Integration.revokeCredentialBinding
+
+credentialTransitionOperation ::
+  (Text -> Integration.VaultState -> Either Integration.IntegrationError
+    (Integration.CredentialBinding, Integration.VaultState)) ->
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+credentialTransitionOperation transition input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredText "binding" arguments
+  deployment <- packDeploymentFromKernel state
+  case transition identifier (Integration.packDeploymentVault deployment) of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (binding, vault) -> do
+      next <- persistPackDeployment (deployment
+        {Integration.packDeploymentVault = vault}) state
+      pure OperationResult
+        { operationResultValue = Integration.credentialBindingProjection binding
+        , operationResultState = next
+        }
+
+credentialBrokerAuthorizeOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+credentialBrokerAuthorizeOperation input state = do
+  arguments <- requireArgumentsObject input
+  component <- requiredText "component_id" arguments
+  account <- requiredText "account" arguments
+  deployment <- packDeploymentFromKernel state
+  let result = case Integration.authorizeCredential component account
+        (Integration.packDeploymentVault deployment) of
+        Right binding -> object
+          [ "authorized" .= True
+          , "binding" .= Integration.credentialBindingId binding
+          ]
+        Left problem -> object
+          [ "authorized" .= False
+          , "error_code" .= credentialErrorCode problem
+          ]
+  pure OperationResult
+    {operationResultValue = result, operationResultState = state}
+
+hostHttpRequestOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+hostHttpRequestOperation input state = do
+  arguments <- requireArgumentsObject input
+  componentId <- requiredText "component_id" arguments
+  request <- requiredAs "request" arguments
+  grants <- requiredAs "capability_grants" arguments
+  integration <- integrationStateFromKernel state
+  component <- mapIntegrationError (Integration.findComponent componentId integration)
+  case Integration.validateHostHttpRequest component grants request of
+    Left problem -> Right (preconditionRejected problem state)
+    Right () -> pure OperationResult
+      { operationResultValue = object
+          [ "accepted" .= True
+          , "redacted" .= True
+          ]
+      , operationResultState = state
+      }
+
+packRunnerExecuteOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+packRunnerExecuteOperation input state = do
+  arguments <- requireArgumentsObject input
+  request <- requiredAs "request" arguments
+  now <- operationTime input
+  integration <- integrationStateFromKernel state
+  deployment <- packDeploymentFromKernel state
+  account <- packRequestAccount request
+  let outcome = if fromMaybe False (optionalBoolean "provider_failure" arguments)
+        then Integration.ProviderFailed "provider failure"
+        else Integration.ProviderSucceeded (object ["items" .= ([] :: [Value])])
+  case Integration.executePackBoundary False now account outcome request
+      integration deployment of
+    Left problem -> pure OperationResult
+      { operationResultValue = toJSON (Integration.PackExecutionResult
+          1 False Nothing (Just (packExecutionErrorCode problem)) [])
+      , operationResultState = state
+      }
+    Right (result, nextIntegration, nextDeployment) -> do
+      withCanonical <- if nextIntegration == integration
+        then Right state
+        else appendResultState <$> persistIntegrationState input
+          "pack-execution" nextIntegration state
+      withDeployment <- persistPackDeployment nextDeployment withCanonical
+      pure OperationResult
+        {operationResultValue = toJSON result, operationResultState = withDeployment}
+
+inspectPackRuntimeInputOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+inspectPackRuntimeInputOperation _ state = pure OperationResult
+  {operationResultValue = Null, operationResultState = state}
+
+probePackSandboxOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+probePackSandboxOperation input state = do
+  arguments <- requireArgumentsObject input
+  componentId <- requiredText "component" arguments
+  integration <- integrationStateFromKernel state
+  _ <- mapIntegrationError (Integration.findComponent componentId integration)
+  let report = Integration.SandboxReport False False False False False
+  pure OperationResult
+    { operationResultValue = Integration.sandboxReportProjection report
+    , operationResultState = state
+    }
+
+credentialBindingFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+credentialBindingFixture input state = do
+  arguments <- requireArgumentsObject input
+  component <- requiredText "component" arguments
+  slotName <- requiredText "slot" arguments
+  account <- requiredText "account" arguments
+  integration <- integrationStateFromKernel state
+  _ <- mapIntegrationError (Integration.findComponent component integration)
+  now <- operationTime input
+  deployment <- packDeploymentFromKernel state
+  (entry, vault1) <- mapIntegrationError (Integration.storeCredential now
+    "scenario credential" "ciphertext:scenario-secret"
+    (Integration.packDeploymentVault deployment))
+  (slot, vault2) <- mapIntegrationError (Integration.declareCredentialSlot
+    component slotName "api_key" True vault1)
+  (binding, vault3) <- mapIntegrationError (Integration.bindCredential now
+    (Integration.credentialSlotId slot) account
+    (Integration.vaultEntryId entry) vault2)
+  next <- persistPackDeployment (deployment
+    {Integration.packDeploymentVault = vault3}) state
+  pure OperationResult
+    { operationResultValue = object
+        [ "binding" .= Integration.credentialBindingId binding
+        , "slot" .= Integration.credentialSlotId slot
+        ]
+    , operationResultState = next
+    }
+
+packExecutionResultObservation :: ObservationInput -> V1State -> Either Text Value
+packExecutionResultObservation input _ = case observationArguments input of
+  [value] -> Right value
+  _ -> Left "PackExecutionResult expects exactly one argument"
+
+hostHttpTraceObservation :: ObservationInput -> V1State -> Either Text Value
+hostHttpTraceObservation _ state = do
+  deployment <- packDeploymentFromKernel state
+  pure (object ["requests" .= Integration.packDeploymentHttpTrace deployment])
+
+providerBackoffObservation :: ObservationInput -> V1State -> Either Text Value
+providerBackoffObservation input state = case observationArguments input of
+  [String component, String account] -> do
+    integration <- integrationStateFromKernel state
+    pure (toJSON (Integration.providerBackoff component account integration))
+  _ -> Left "ProviderBackoff expects component and account text arguments"
+
+packInvocationInputObservation :: ObservationInput -> V1State -> Either Text Value
+packInvocationInputObservation input state = do
+  component <- exactlyOneTextArgument "PackInvocationInput" input
+  deployment <- packDeploymentFromKernel state
+  pure (fromMaybe (Object KeyMap.empty) (Map.lookup component
+    (Integration.packDeploymentRuntimeInputs deployment)))
+
+packInvocationTraceObservation :: ObservationInput -> V1State -> Either Text Value
+packInvocationTraceObservation _ state = do
+  integration <- integrationStateFromKernel state
+  deployment <- packDeploymentFromKernel state
+  pure (object
+    [ "items" .= Integration.packStateInvocations integration
+    , "during_replay" .= Integration.packDeploymentDuringReplay deployment
+    ])
+
+preconditionRejected ::
+  Show problem => problem -> V1State -> OperationResult V1State
+preconditionRejected problem state = OperationResult
+  { operationResultValue = object
+      [ "accepted" .= False
+      , "error_code" .= ("precondition_failed" :: Text)
+      , "detail" .= Text.pack (show problem)
+      ]
+  , operationResultState = state
+  }
+
+packRequestAccount :: Integration.PackExecutionRequest -> Either Text Text
+packRequestAccount request = case Integration.packExecutionRequestInput request of
+  Object fields -> requiredText "account" fields
+  _ -> Left "Pack execution input must be an object with account"
+
+credentialErrorCode :: Integration.IntegrationError -> Text
+credentialErrorCode = \case
+  Integration.VaultUnavailable -> "credential_locked"
+  Integration.CredentialAccessLocked -> "credential_locked"
+  Integration.CredentialAccessRevoked -> "credential_revoked"
+  Integration.CredentialAccessUnauthorized -> "credential_unauthorized"
+  _ -> "credential_failure"
+
+packExecutionErrorCode :: Integration.IntegrationError -> Text
+packExecutionErrorCode = \case
+  Integration.ReplayExecutionForbidden -> "replay_forbidden"
+  Integration.UndeclaredCapability _ -> "capability_denied"
+  Integration.RawOperatingSystemCapability _ -> "raw_os_denied"
+  problem -> credentialErrorCode problem
+
+mapIntegrationError ::
+  Either Integration.IntegrationError value -> Either Text value
+mapIntegrationError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Revision-scoped interactions and powered-up harness state
@@ -3721,6 +4122,12 @@ optionalInteger :: Text -> Object -> Maybe Integer
 optionalInteger field values = KeyMap.lookup (Key.fromText field) values >>= \value ->
   case fromJSON value of
     Success integer -> Just integer
+    Error _ -> Nothing
+
+optionalBoolean :: Text -> Object -> Maybe Bool
+optionalBoolean field values = KeyMap.lookup (Key.fromText field) values >>= \value ->
+  case fromJSON value of
+    Success boolean -> Just boolean
     Error _ -> Nothing
 
 optionalObject :: Text -> Object -> Either Text (Maybe Object)

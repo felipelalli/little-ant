@@ -29,6 +29,7 @@ import LittleAnt.V1.Domain
 import LittleAnt.V1.ExecutionPlanCatalog (executionLifecyclePlanProbes)
 import LittleAnt.V1.JudgmentAssessmentPlanCatalog (assessmentPlanProbes)
 import LittleAnt.V1.JudgmentPlanCatalog (priorityPlanProbes)
+import LittleAnt.V1.IntegrationPlanCatalog (integrationPlanProbes)
 import LittleAnt.V1.InteractionPlanCatalog (interactionPlanProbes)
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
@@ -53,6 +54,7 @@ v1PlanProbes = Map.unions
   , standingPlanProbes
   , selectionPlanProbes
   , capturePlanProbes
+  , integrationPlanProbes
   , interactionPlanProbes
   , readModelPlanProbes
   ]
