@@ -33,7 +33,9 @@ module LittleAnt.V1.Kernel
   ) where
 
 import Control.Monad (foldM, unless, when)
-import Data.Aeson (Object, ToJSON (toJSON), Value (..), encode, object, (.=))
+import Data.Aeson
+  (FromJSON (parseJSON), Object, ToJSON (toJSON), Value (..), encode, object,
+   withObject, (.:), (.=))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.ByteString.Lazy as LBS
@@ -53,12 +55,18 @@ newtype DomainRevision = DomainRevision { unDomainRevision :: Integer }
 instance ToJSON DomainRevision where
   toJSON = toJSON . unDomainRevision
 
+instance FromJSON DomainRevision where
+  parseJSON value = DomainRevision <$> parseJSON value
+
 -- | An identity whose representation is creation-derived, never title-derived.
 newtype OpaqueId = OpaqueId { unOpaqueId :: Text }
   deriving stock (Eq, Ord, Show)
 
 instance ToJSON OpaqueId where
   toJSON = toJSON . unOpaqueId
+
+instance FromJSON OpaqueId where
+  parseJSON value = OpaqueId <$> parseJSON value
 
 -- | Inputs accepted by the generic kernel.  Domain modules translate their
 -- typed operations into these bounded canonical changes.
@@ -95,6 +103,19 @@ instance ToJSON DomainEvent where
       , "fields" .= Object fields
       ]
 
+instance FromJSON DomainEvent where
+  parseJSON = withObject "DomainEvent" $ \fields -> do
+    eventType <- fields .: "type"
+    case (eventType :: Text) of
+      "value_stored" -> ValueStored <$> fields .: "key" <*> fields .: "value"
+      "value_removed" -> ValueRemoved <$> fields .: "key"
+      "entity_created" -> EntityCreated
+        <$> fields .: "identity_ordinal"
+        <*> fields .: "id"
+        <*> fields .: "kind"
+        <*> fields .: "fields"
+      _ -> fail ("unknown domain event type: " <> Text.unpack eventType)
+
 -- | Versioned envelope around one canonical event.
 data EventEnvelope = EventEnvelope
   { eventSchemaVersion :: Int
@@ -120,6 +141,17 @@ instance ToJSON EventEnvelope where
     , "body" .= eventBody event
     ]
 
+instance FromJSON EventEnvelope where
+  parseJSON = withObject "EventEnvelope" $ \fields -> EventEnvelope
+    <$> fields .: "schema_version"
+    <*> fields .: "event_id"
+    <*> fields .: "semantic_action_id"
+    <*> fields .: "domain_revision"
+    <*> fields .: "event_index"
+    <*> fields .: "actor_or_origin"
+    <*> fields .: "occurred_at"
+    <*> fields .: "body"
+
 -- | Every accepted semantic action contributes exactly one batch.
 data EventBatch = EventBatch
   { eventBatchSemanticActionId :: Text
@@ -134,6 +166,12 @@ instance ToJSON EventBatch where
     , "domain_revision" .= eventBatchDomainRevision batch
     , "events" .= eventBatchEvents batch
     ]
+
+instance FromJSON EventBatch where
+  parseJSON = withObject "EventBatch" $ \fields -> EventBatch
+    <$> fields .: "semantic_action_id"
+    <*> fields .: "domain_revision"
+    <*> fields .: "events"
 
 -- | One optimistic semantic append request.  Time and origin are explicit
 -- inputs, so the kernel never consults an ambient clock or process identity.

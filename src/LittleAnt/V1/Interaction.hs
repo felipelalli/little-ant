@@ -718,8 +718,13 @@ actionsFor session
       , interactionActionLabel = label
       , interactionActionShortcut = shortcut
       , interactionActionCanonicalCommand = Text.unwords
-          ["la", "interaction", "submit", unInteractionId
-            (interactionSessionId session), identifier]
+          [ "la", "interaction", "submit", unInteractionId
+              (interactionSessionId session), identifier
+          , "--domain-revision"
+          , Text.pack (show (interactionSessionDomainRevision session))
+          , "--interaction-revision"
+          , Text.pack (show (interactionSessionInteractionRevision session))
+          ]
       , interactionActionDestructive = False
       , interactionActionConfirmationRequired = False
       }

@@ -59,6 +59,7 @@ library
         LittleAnt.V1.Contract
         LittleAnt.V1.Capture
         LittleAnt.V1.CapturePlanCatalog
+        LittleAnt.V1.CLI
         LittleAnt.V1.Coordination
         LittleAnt.V1.CoordinationPlanCatalog
         LittleAnt.V1.Domain
@@ -194,6 +195,9 @@ test-suite little-ant-v1-driver-test
     type:             exitcode-stdio-1.0
     main-is:          Spec.hs
     hs-source-dirs:   test-v1-driver
+    build-tool-depends:
+        little-ant:la,
+        little-ant:lant
     default-language: GHC2021
     default-extensions:
         LambdaCase
@@ -205,6 +209,7 @@ test-suite little-ant-v1-driver-test
         containers,
         directory,
         little-ant,
+        process,
         tasty,
         tasty-hunit,
         text,

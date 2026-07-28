@@ -18,10 +18,16 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
+import LittleAnt.V1.CLI
+  (CanonicalActor (..), CanonicalInteractionSurface (..), CliState (..),
+   SurfaceAccessError (..), captureBrick, emptyCliState, interactionSurface,
+   openCliInteraction, submitCliInteraction)
 import LittleAnt.V1.Contract (PlanProbe, PlanProbeInput (..), ProbeKey (..))
+import LittleAnt.V1.Domain (PartyType (..))
 import LittleAnt.V1.Interaction
 import LittleAnt.V1.Kernel
-  (DomainRevision (..), emptyKernelState, kernelRevision)
+  (AppendRequest (..), AppendResult (..), DomainRevision (..),
+   ProposedEvent (..), appendSemanticAction, emptyKernelState, kernelRevision)
 
 interactionPlanProbes :: Map ProbeKey PlanProbe
 interactionPlanProbes = Map.fromList
@@ -32,6 +38,7 @@ interactionPlanProbes = Map.fromList
   <> transitionRegistrations
   <> ruleRegistrations
   <> invariantRegistrations
+  <> surfaceRegistrations
   )
 
 valueRegistrations :: [(ProbeKey, PlanProbe)]
@@ -160,6 +167,13 @@ invariantRegistrations :: [(ProbeKey, PlanProbe)]
 invariantRegistrations =
   [ registration "invariant" "OneCheckpointPerSurface" checkpointRulesProbe
   , registration "invariant" "HonestProgress" honestProgressProbe
+  ]
+
+surfaceRegistrations :: [(ProbeKey, PlanProbe)]
+surfaceRegistrations =
+  [ registration "surface_actor" "CanonicalInteraction" surfaceActorProbe
+  , registration "surface_exposure" "CanonicalInteraction" surfaceExposureProbe
+  , registration "surface_provides" "CanonicalInteraction" surfaceProvidesProbe
   ]
 
 registration :: Text -> Text -> Either Text () -> (ProbeKey, PlanProbe)
@@ -470,6 +484,130 @@ poweredUpRulesProbe = do
       && replRuntimeMode (interactionStateReplRuntime transportState) == Dumb)
     "non-stdin transport passed powered-up validation"
 
+surfaceActorProbe :: Either Text ()
+surfaceActorProbe = do
+  let person = CanonicalActor "party:user" Person
+  accepted <- mapSurfaceError
+    (interactionSurface person Nothing emptyCliState)
+  require (canonicalSurfaceUserId accepted == "party:user")
+    "canonical person actor identity was not exposed"
+  mapM_ expectRejectedActor
+    [ CanonicalActor "party:ai" AiAgent
+    , CanonicalActor "party:company" Company
+    , CanonicalActor "party:area" Area
+    ]
+  case interactionSurface (CanonicalActor " " Person) Nothing emptyCliState of
+    Left EmptyCanonicalActor -> Right ()
+    result -> Left ("empty user identity reached CanonicalInteraction: "
+      <> Text.pack (show result))
+  where
+    expectRejectedActor actor = case interactionSurface actor Nothing emptyCliState of
+      Left (ActorIsNotUser actual)
+        | actual == canonicalActorPartyType actor -> Right ()
+      result -> Left ("non-person actor reached CanonicalInteraction: "
+        <> Text.pack (show result))
+
+surfaceExposureProbe :: Either Text ()
+surfaceExposureProbe = do
+  dumb <- mapSurfaceError (interactionSurface sampleActor Nothing emptyCliState)
+  require (canonicalSurfaceUserId dumb == "party:user"
+      && canonicalSurfaceDomainRevision dumb == 0
+      && canonicalSurfaceMode dumb == Dumb
+      && canonicalSurfacePoweredBy dumb == Nothing)
+    "dumb surface did not expose user.id, clock.revision, mode, and powered_by"
+  let (captureResponse, advancedState) = captureBrick
+        "Surface revision witness" sampleTime emptyCliState
+  require (operationalResponseOk captureResponse
+      && operationalResponseDomainRevision captureResponse == 1)
+    "surface revision fixture did not advance the canonical kernel"
+  advanced <- mapSurfaceError
+    (interactionSurface sampleActor Nothing advancedState)
+  require (canonicalSurfaceDomainRevision advanced == 1)
+    "surface clock exposure was not read from the advanced canonical kernel"
+  let valid = "{\"protocol_version\":1,\"status\":\"OK\"}"
+      (_, response, poweredInteraction) = validatePoweredUpAdapter
+        "/opt/lant/model" "stdin" valid
+        (cliInteractionState advancedState)
+      poweredState = advancedState
+        {cliInteractionState = poweredInteraction}
+  require (operationalResponseOk response)
+    "real powered-up validator rejected the exposure fixture"
+  powered <- mapSurfaceError
+    (interactionSurface sampleActor Nothing poweredState)
+  require (canonicalSurfaceMode powered == PoweredUp
+      && canonicalSurfacePoweredBy powered == Just "/opt/lant/model")
+    "powered surface hid its validated adapter identity"
+
+surfaceProvidesProbe :: Either Text ()
+surfaceProvidesProbe = do
+  initial <- mapSurfaceError
+    (interactionSurface sampleActor Nothing emptyCliState)
+  require (Set.fromList (canonicalSurfaceProvidedOperations initial)
+      == Set.fromList expectedProvided)
+    "canonical surface declaration omitted or invented a provided operation"
+  require (all (`elem` canonicalSurfaceAvailableOperations initial)
+      [ "OpenInteraction", "SaveSurfaceCheckpoint",
+        "ValidatePoweredUpAdapter", "AnnotatePartyInBrickText",
+        "AnnotateBrickInBrickText", "MarkAnnotationStale"])
+    "base adapter operations were unavailable"
+  require (all (`notElem` canonicalSurfaceAvailableOperations initial)
+      [ "SubmitInteractionAction", "RebaseInteraction",
+        "RequestInteractionHelp", "CompleteInteraction",
+        "AbandonInteraction", "UseDumbMode"])
+    "state-scoped operations appeared without their preconditions"
+  (envelope, openedState) <- mapInteractionError
+    (openCliInteraction "priority_comparison" sampleTime emptyCliState)
+  let identifier = interactionEnvelopeInteractionId envelope
+  opened <- mapSurfaceError
+    (interactionSurface sampleActor (Just identifier) openedState)
+  require (all (`elem` canonicalSurfaceAvailableOperations opened)
+      [ "SubmitInteractionAction", "RequestInteractionHelp",
+        "CompleteInteraction", "AbandonInteraction"])
+    "open interaction hid one of its context-valid operations"
+  require ("RebaseInteraction" `notElem`
+      canonicalSurfaceAvailableOperations opened)
+    "open interaction exposed stale-only rebase"
+  advanced <- mapInteractionError (appendSemanticAction
+    (AppendRequest (DomainRevision 0) "surface:advance" "human:test" Nothing
+      [ProposeValueStored "surface.advance" (Bool True)])
+    emptyKernelState)
+  (staleResponseValue, staleState) <- mapInteractionError
+    (submitCliInteraction identifier 0 1 "yes" sampleTime
+      openedState {cliKernelState = appendResultState advanced})
+  require (not (operationalResponseOk staleResponseValue)
+      && operationalResponseErrorCode staleResponseValue
+        == Just "stale_interaction")
+    "stale surface fixture did not use the core rejection path"
+  stale <- mapSurfaceError
+    (interactionSurface sampleActor (Just identifier) staleState)
+  require (all (`elem` canonicalSurfaceAvailableOperations stale)
+      ["RebaseInteraction", "AbandonInteraction"]
+      && all (`notElem` canonicalSurfaceAvailableOperations stale)
+        ["SubmitInteractionAction", "RequestInteractionHelp",
+         "CompleteInteraction"])
+    "stale interaction exposed the wrong operation set"
+  let valid = "{\"protocol_version\":1,\"status\":\"OK\"}"
+      (_, _, poweredInteraction) = validatePoweredUpAdapter
+        "/opt/lant/model" "stdin" valid
+        (cliInteractionState emptyCliState)
+      poweredState = emptyCliState
+        {cliInteractionState = poweredInteraction}
+  powered <- mapSurfaceError
+    (interactionSurface sampleActor Nothing poweredState)
+  require ("UseDumbMode" `elem` canonicalSurfaceAvailableOperations powered)
+    "validated powered-up surface hid UseDumbMode"
+  where
+    expectedProvided =
+      [ "OpenInteraction", "SubmitInteractionAction", "RebaseInteraction"
+      , "RequestInteractionHelp", "CompleteInteraction", "AbandonInteraction"
+      , "SaveSurfaceCheckpoint", "ValidatePoweredUpAdapter", "UseDumbMode"
+      , "AnnotatePartyInBrickText", "AnnotateBrickInBrickText"
+      , "MarkAnnotationStale"
+      ]
+
+sampleActor :: CanonicalActor
+sampleActor = CanonicalActor "party:user" Person
+
 honestProgressProbe :: Either Text ()
 honestProgressProbe = do
   (session, state) <- sampleOpen
@@ -717,5 +855,9 @@ asObject construct value = case value of
 require :: Bool -> Text -> Either Text ()
 require condition problem = unless condition (Left problem)
 
-mapInteractionError :: Either InteractionError value -> Either Text value
+mapInteractionError :: Show error => Either error value -> Either Text value
 mapInteractionError = either (Left . Text.pack . show) Right
+
+mapSurfaceError ::
+  Either SurfaceAccessError value -> Either Text value
+mapSurfaceError = either (Left . Text.pack . show) Right

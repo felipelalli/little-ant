@@ -2,7 +2,10 @@ module Main (main) where
 
 import Control.Exception (finally)
 import Control.Monad (foldM)
-import Data.Aeson (Object, Value (..), encode, object, toJSON, (.=))
+import Data.Aeson
+  (Object, Result (..), Value (..), eitherDecode, encode, fromJSON, object,
+   toJSON, (.=))
+import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.ByteString.Lazy as LBS
@@ -14,6 +17,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Time (NominalDiffTime, UTCTime (..), addUTCTime, fromGregorian)
 import qualified LittleAnt.V1.Capture as Capture
+import qualified LittleAnt.V1.CLI as CLI
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), DriverResponse (..),
    ObservationInput (..), OperationInput (..), OperationResult (..),
@@ -39,8 +43,11 @@ import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
 import qualified LittleAnt.V1.Standing as Standing
 import System.Directory
-  (executable, getPermissions, getTemporaryDirectory, removeFile, setPermissions)
+  (createDirectory, executable, findExecutable, getPermissions,
+   getTemporaryDirectory, removeDirectoryRecursive, removeFile, setPermissions)
+import System.Exit (ExitCode (..))
 import System.IO (hClose, hPutStr, openTempFile)
+import System.Process (readProcessWithExitCode)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
   (Assertion, assertBool, assertFailure, testCase, (@?=))
@@ -54,6 +61,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , selectionTests
   , captureTests
   , interactionTests
+  , cliSurfaceTests
   , readModelTests
   , coordinationTests
   , materialTests
@@ -1861,6 +1869,201 @@ interactionTests = testGroup "v1 revision-scoped interactions and powered-up mod
       Interaction.processInvocationTraceStdinContainsProbe trace @?= True
   ]
 
+cliSurfaceTests :: TestTree
+cliSurfaceTests = testGroup "v1 CLI aliases and deterministic REPL surface"
+  [ testCase "executes the canonical surface actor, exposure, and provides probes" $ do
+      let response = runContractRequest contractRegistry canonicalSurfacePlan
+      assertResponsePassed response
+        [ "surface-actor.CanonicalInteraction"
+        , "surface-exposure.CanonicalInteraction"
+        , "surface-provides.CanonicalInteraction"
+        ]
+      surface <- case CLI.interactionSurface
+          (CLI.CanonicalActor "party:test-user" Person) Nothing CLI.emptyCliState of
+        Left problem -> assertFailure ("person surface failed: " <> show problem)
+        Right value -> pure value
+      CLI.canonicalSurfaceUserId surface @?= "party:test-user"
+      CLI.canonicalSurfaceDomainRevision surface @?= 0
+      CLI.canonicalSurfaceMode surface @?= Interaction.Dumb
+      CLI.canonicalSurfacePoweredBy surface @?= Nothing
+      mapM_ (\partyType -> case CLI.interactionSurface
+          (CLI.CanonicalActor "party:not-user" partyType) Nothing CLI.emptyCliState of
+        Left (CLI.ActorIsNotUser actual) -> actual @?= partyType
+        result -> assertFailure ("non-person surface result: " <> show result))
+        [AiAgent, Company, Area]
+  , testCase "shares sparse mutations, failures, queries, and history across aliases" $
+      withCliDirectory $ \directory -> do
+        (la, lant) <- requireCliExecutables
+        (captureExit, captureOutput, captureError) <- runCli la directory
+          ["--json", "capture", "Exercise the v1 CLI"] ""
+        captureExit @?= ExitSuccess
+        captureError @?= ""
+        captured <- decodeCliOutput "capture response" captureOutput
+        capturedFields <- requireObject "capture response" captured
+        KeyMap.lookup "ok" capturedFields @?= Just (Bool True)
+        assertBool "sparse response emitted absent dry_run"
+          (not (KeyMap.member "dry_run" capturedFields))
+        entity <- case KeyMap.lookup "entity" capturedFields of
+          Just value -> requireObject "captured entity" value
+          Nothing -> assertFailure "capture response omitted compact entity"
+        identifier <- requireTextField "captured entity" "id" entity
+
+        (projectExit, projectOutput, _) <- runCli lant directory
+          ["--json", "project", "--projection", "summary"] ""
+        projectExit @?= ExitSuccess
+        projectFields <- requireObject "summary projection"
+          =<< decodeCliOutput "summary projection" projectOutput
+        KeyMap.lookup "domain_revision" projectFields @?= Just (toJSON (1 :: Int))
+
+        (failedExit, failedOutput, _) <- runCli lant directory
+          [ "--json", "complete", Text.unpack identifier
+          , "--expected-revision", "0"
+          ] ""
+        failedExit @?= ExitFailure 2
+        failedFields <- requireObject "failed response"
+          =<< decodeCliOutput "failed response" failedOutput
+        KeyMap.lookup "ok" failedFields @?= Just (Bool False)
+        KeyMap.lookup "error_code" failedFields @?=
+          Just (String "revision_conflict")
+        KeyMap.lookup "domain_revision" failedFields @?= Just (toJSON (1 :: Int))
+
+        (historyExit, historyOutput, _) <- runCli la directory
+          ["--json", "history"] ""
+        historyExit @?= ExitSuccess
+        historyFields <- requireObject "history page"
+          =<< decodeCliOutput "history page" historyOutput
+        KeyMap.lookup "exact_total" historyFields @?= Just (toJSON (1 :: Int))
+        KeyMap.lookup "snapshot_domain_revision" historyFields @?=
+          Just (toJSON (1 :: Int))
+
+        (completeExit, completeOutput, _) <- runCli lant directory
+          [ "--json", "complete", Text.unpack identifier
+          , "--expected-revision", "1"
+          ] ""
+        completeExit @?= ExitSuccess
+        completeFields <- requireObject "complete response"
+          =<< decodeCliOutput "complete response" completeOutput
+        KeyMap.lookup "domain_revision" completeFields @?= Just (toJSON (2 :: Int))
+        KeyMap.lookup "changed" completeFields @?=
+          Just (toJSON (["status"] :: [Text]))
+
+        (preconditionExit, preconditionOutput, _) <- runCli la directory
+          [ "--json", "complete", Text.unpack identifier
+          , "--expected-revision", "2"
+          ] ""
+        preconditionExit @?= ExitFailure 2
+        preconditionFields <- requireObject "failed precondition response"
+          =<< decodeCliOutput "failed precondition response" preconditionOutput
+        KeyMap.lookup "error_code" preconditionFields @?=
+          Just (String "failed_precondition")
+        KeyMap.lookup "domain_revision" preconditionFields @?=
+          Just (toJSON (2 :: Int))
+
+        mapM_ (\executablePath -> do
+          (helpExit, helpOutput, _) <- readProcessWithExitCode executablePath
+            ["--help"] ""
+          helpExit @?= ExitSuccess
+          assertBool "alias help omitted v1 repl"
+            ("repl" `isInfixOf` helpOutput && "interaction" `isInfixOf` helpOutput))
+          [la, lant]
+  , testCase "restores checkpoints and rejects stale keys through the shared store" $
+      withCliDirectory $ \directory -> do
+        (la, lant) <- requireCliExecutables
+        _ <- requireCliSuccess =<< runCli la directory
+          ["--json", "capture", "Seed the interaction clock"] ""
+        (_, openedOutput, _) <- requireCliSuccess =<< runCli la directory
+          ["--json", "interaction", "open", "--kind", "priority_comparison"] ""
+        opened <- requireObject "opened interaction"
+          =<< decodeCliOutput "opened interaction" openedOutput
+        identifier <- requireTextField "opened interaction" "interaction_id" opened
+        domainRevision <- requireIntegerField "opened interaction"
+          "domain_revision" opened
+        interactionRevision <- requireIntegerField "opened interaction"
+          "interaction_revision" opened
+
+        (_, helpedOutput, _) <- requireCliSuccess =<< runCli lant directory
+          ["--json", "interaction", "help", Text.unpack identifier] ""
+        helped <- requireObject "help envelope"
+          =<< decodeCliOutput "help envelope" helpedOutput
+        KeyMap.lookup "domain_revision" helped @?= Just (toJSON domainRevision)
+        KeyMap.lookup "interaction_revision" helped @?=
+          Just (toJSON interactionRevision)
+
+        _ <- requireCliSuccess =<< runCli lant directory
+          ["--json", "capture", "Advance outside the displayed prompt"] ""
+        (staleExit, staleOutput, _) <- runCli la directory
+          [ "--json", "interaction", "submit", Text.unpack identifier, "yes"
+          , "--domain-revision", show domainRevision
+          , "--interaction-revision", show interactionRevision
+          ] ""
+        staleExit @?= ExitFailure 2
+        staleFields <- requireObject "stale response"
+          =<< decodeCliOutput "stale response" staleOutput
+        KeyMap.lookup "error_code" staleFields @?=
+          Just (String "stale_interaction")
+        KeyMap.lookup "domain_revision" staleFields @?= Just (toJSON (2 :: Int))
+
+        (_, rebasedOutput, _) <- requireCliSuccess =<< runCli lant directory
+          ["--json", "interaction", "rebase", Text.unpack identifier] ""
+        rebased <- requireObject "rebased envelope"
+          =<< decodeCliOutput "rebased envelope" rebasedOutput
+        rebasedRevision <- requireIntegerField "rebased envelope"
+          "interaction_revision" rebased
+        assertBool "rebase did not advance the prompt revision"
+          (rebasedRevision > interactionRevision)
+        (_, submittedOutput, _) <- requireCliSuccess =<< runCli lant directory
+          [ "--json", "interaction", "submit", Text.unpack identifier, "yes"
+          , "--domain-revision", "2"
+          , "--interaction-revision", show rebasedRevision
+          ] ""
+        submitted <- requireObject "accepted interaction response"
+          =<< decodeCliOutput "accepted interaction response" submittedOutput
+        KeyMap.lookup "ok" submitted @?= Just (Bool True)
+        KeyMap.lookup "domain_revision" submitted @?= Just (toJSON (3 :: Int))
+
+        (replExit, replOutput, _) <- runCli lant directory
+          ["repl", "--surface", "test-terminal"] "q"
+        replExit @?= ExitSuccess
+        assertBool "REPL did not render revision-scoped action commands"
+          ("--domain-revision 3" `isInfixOf` replOutput
+            && "--interaction-revision 1" `isInfixOf` replOutput)
+        (_, resumedOutput, _) <- requireCliSuccess =<< runCli la directory
+          ["--json", "interaction", "resume", "--surface", "test-terminal"] ""
+        resumed <- requireObject "resumed interaction"
+          =<< decodeCliOutput "resumed interaction" resumedOutput
+        KeyMap.lookup "domain_revision" resumed @?= Just (toJSON (3 :: Int))
+
+        (_, historyOutput, _) <- requireCliSuccess =<< runCli la directory
+          ["--json", "history"] ""
+        history <- requireObject "shared history"
+          =<< decodeCliOutput "shared history" historyOutput
+        KeyMap.lookup "exact_total" history @?= Just (toJSON (3 :: Int))
+  , testCase "probes powered-up adapters through stdin under both aliases" $
+      withCliDirectory $ \root -> do
+        (la, lant) <- requireCliExecutables
+        adapter <- createCliProbeAdapter root
+        mapM_ (\(index, executablePath) -> do
+          let directory = root <> "/alias-" <> show index
+          createDirectory directory
+          (replExit, replOutput, replError) <- runCli executablePath directory
+            ["repl", "--power-up", adapter, "--surface", "powered"] "q"
+          replExit @?= ExitSuccess
+          replError @?= ""
+          assertBool "powered REPL hid validated adapter"
+            (("mode: powered up · by: " <> adapter) `isInfixOf` replOutput)
+          argumentCount <- readFile (adapter <> ".args")
+          argumentCount @?= "0"
+          probeInput <- readFile (adapter <> ".stdin")
+          assertBool "adapter did not receive probe through stdin"
+            ("\"kind\":\"probe\"" `isInfixOf` probeInput)
+          (_, projectedOutput, _) <- requireCliSuccess =<< runCli executablePath
+            directory ["--json", "project", "--projection", "summary"] ""
+          projected <- requireObject "powered projection"
+            =<< decodeCliOutput "powered projection" projectedOutput
+          KeyMap.lookup "domain_revision" projected @?= Just (toJSON (0 :: Int)))
+          (zip [1 :: Int ..] [la, lant])
+  ]
+
 readModelTests :: TestTree
 readModelTests = testGroup "v1 sparse commands, history, and annotations"
   [ testCase "preserves required false, zero, and empty response fields" $ do
@@ -2507,6 +2710,25 @@ kernelInteractionPlan = object
               "contract_signature" "CanonicalEventStore.append"
           , obligation "contract-signature.CanonicalEventStore.replay"
               "contract_signature" "CanonicalEventStore.replay"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+canonicalSurfacePlan :: Value
+canonicalSurfacePlan = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("interaction" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "surface-actor.CanonicalInteraction"
+              "surface_actor" "CanonicalInteraction"
+          , obligation "surface-exposure.CanonicalInteraction"
+              "surface_exposure" "CanonicalInteraction"
+          , obligation "surface-provides.CanonicalInteraction"
+              "surface_provides" "CanonicalInteraction"
           ]
       ]
   , "model" .= object ["version" .= (3 :: Int)]
@@ -3776,6 +3998,72 @@ requireObject :: String -> Value -> IO Object
 requireObject _ (Object fields) = pure fields
 requireObject label value = assertFailure
   (label <> " is not an object: " <> show value)
+
+requireTextField :: String -> Text -> Object -> IO Text
+requireTextField label field fields = case KeyMap.lookup
+    (Key.fromText field) fields of
+  Just (String value) -> pure value
+  actual -> assertFailure (label <> " has no text field " <> Text.unpack field
+    <> ": " <> show actual)
+
+requireIntegerField :: String -> Text -> Object -> IO Integer
+requireIntegerField label field fields = case KeyMap.lookup
+    (Key.fromText field) fields of
+  Nothing -> assertFailure (label <> " has no field " <> Text.unpack field)
+  Just value -> case fromJSON value of
+    Success integer -> pure integer
+    Error problem -> assertFailure (label <> " has invalid integer field "
+      <> Text.unpack field <> ": " <> problem)
+
+requireCliExecutables :: IO (FilePath, FilePath)
+requireCliExecutables = do
+  la <- findExecutable "la" >>= maybe
+    (assertFailure "Cabal did not expose the la build tool") pure
+  lant <- findExecutable "lant" >>= maybe
+    (assertFailure "Cabal did not expose the lant build tool") pure
+  pure (la, lant)
+
+runCli ::
+  FilePath -> FilePath -> [String] -> String -> IO (ExitCode, String, String)
+runCli executablePath directory arguments input = readProcessWithExitCode
+  executablePath (["--data", directory] <> arguments) input
+
+requireCliSuccess ::
+  (ExitCode, String, String) -> IO (ExitCode, String, String)
+requireCliSuccess result@(exitCode, _, errorOutput) = case exitCode of
+  ExitSuccess
+    | null errorOutput -> pure result
+    | otherwise -> assertFailure ("CLI wrote stderr on success: " <> errorOutput)
+  ExitFailure code -> assertFailure
+    ("CLI failed with exit " <> show code <> ": " <> errorOutput)
+
+decodeCliOutput :: String -> String -> IO Value
+decodeCliOutput label output = case eitherDecode (LBS8.pack output) of
+  Left problem -> assertFailure (label <> " was not JSON: " <> problem
+    <> "\noutput: " <> output)
+  Right value -> pure value
+
+withCliDirectory :: (FilePath -> IO value) -> IO value
+withCliDirectory action = do
+  temporary <- getTemporaryDirectory
+  (path, handle) <- openTempFile temporary "lant-v1-cli"
+  hClose handle
+  removeFile path
+  createDirectory path
+  action path `finally` removeDirectoryRecursive path
+
+createCliProbeAdapter :: FilePath -> IO FilePath
+createCliProbeAdapter directory = do
+  let path = directory <> "/powered-adapter.sh"
+  writeFile path (unlines
+    [ "#!/bin/sh"
+    , "printf '%s' \"$#\" > \"$0.args\""
+    , "cat > \"$0.stdin\""
+    , "printf '%s\\n' '{\"protocol_version\":1,\"status\":\"OK\"}'"
+    ])
+  permissions <- getPermissions path
+  setPermissions path permissions {executable = True}
+  pure path
 
 focusSelectionContext :: BrickId -> Selection.SelectionContext ->
   IO Selection.SelectionContext

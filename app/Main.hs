@@ -1,867 +1,575 @@
--- | The @la@ CLI. Designed for an LLM operator first: @--json@ everywhere,
--- stable output schemas, @--dry-run@, semantic exit codes, and error
--- messages that teach correct usage.
---
--- Every invocation auto-ticks: temporal rules (dangling WIP, stale
--- comparisons, due nudges, taxonomy review) fire lazily and their events are
--- appended before the command runs (skipped under @--dry-run@).
+-- | The two v1 executable aliases.  Parsing and rendering live here; every
+-- mutation/query is delegated to the typed protocols in 'LittleAnt.V1.CLI'.
 module Main (main) where
 
-import Data.Aeson (Value (..), object, toJSON, (.=))
+import Control.Exception (bracket_)
+import Control.Monad (unless)
+import Data.Aeson (ToJSON (toJSON), Value, encode)
 import qualified Data.Aeson.Encode.Pretty as Pretty
-import qualified Data.ByteString.Lazy.Char8 as BL
-import Data.List (sortOn)
-import qualified Data.Map.Strict as Map
-import Data.Ord (Down (..))
+import qualified Data.ByteString.Lazy.Char8 as LBS8
+import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import qualified Data.Text as Text
+import qualified Data.Text.IO as TextIO
 import Data.Time (UTCTime, getCurrentTime)
-import Options.Applicative
-import System.Exit
-import System.IO (hPutStrLn, stderr)
+import LittleAnt.Store (resolveDataDir)
+import LittleAnt.V1.CLI
+import LittleAnt.V1.Interaction
+  (InteractionAction (..), InteractionEnvelope (..),
+   InteractionError (..), InteractionId (..),
+   OperationalResponse (..), ProjectionKind (..), StatusSummary (..),
+   operationalResponseProjection)
+import LittleAnt.V1.ReadModel
+  (HistoryBrief, HistoryPage (..), HistoryQuery (..), HistoryRelevance,
+   SemanticActionSummary (..), commandFailure)
+import Options.Applicative hiding (action)
+import System.Exit (ExitCode (..), exitWith)
+import System.IO
+  (BufferMode (..), hGetBuffering, hGetEcho, hIsEOF, hIsTerminalDevice,
+   hSetBuffering, hSetEcho, stderr, stdin)
 
-import LittleAnt.Command
-import LittleAnt.Config
-import LittleAnt.Event
-import LittleAnt.Grammar (grammarHuman, grammarView)
-import LittleAnt.Ids (shortId, unId)
-import LittleAnt.Order
-  (SortOutcome (..), mergeSortStep, orderQuestions, placeBrick)
-import LittleAnt.Render
-import LittleAnt.Scheduler
-import LittleAnt.State
-import LittleAnt.Store
-import LittleAnt.Tick (dueBodies)
-import LittleAnt.Types
-import LittleAnt.Views
-
--- --------------------------------------------------------------------------
--- CLI grammar
--- --------------------------------------------------------------------------
+------------------------------------------------------------
+-- Grammar
+------------------------------------------------------------
 
 data Global = Global
-  { gJson :: Bool
-  , gDataDir :: Maybe FilePath
-  , gDryRun :: Bool
+  { globalJson :: Bool
+  , globalDataDirectory :: Maybe FilePath
   }
 
-data Cmd
-  = CPartyAdd Text Text
-  | CPartyLs
-  | CFeed Text Bool
-  | CRawLs
-  | CExtract Text [Text]
-  | CPromote Text
-  | CKill Text
-  | CReady Text
-  | CRequester Text Text
-  | CSet Text (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text) (Maybe Text) (Maybe Double) (Maybe Text) (Maybe Text)
-  | CBreak Text [Text]
-  | CUnify Text Text (Maybe Text)
-  | CSupersede Text Text (Maybe Text)
-  | CFlowOpen (Maybe Text) Text
-  | CFlowStop (Maybe Text)
-  | CFlowLs
-  | CNext (Maybe Text)
-  | CStart Text
-  | CStop Text
-  | CDone Text
-  | CSkip Text Text (Maybe Text)
-  | CClarify Text Text
-  | CWaitAdd Text (Maybe Text) (Maybe Text)
-  | CWaitResolve Text
-  | CWaitLs
-  | CDepAdd Text Text
-  | CCompare Text Text Text
-  | COrder Bool Int (Maybe Text) Bool
-  | CExportTj Double
-  | CDelegate Text Text
-  | CDelegLs
-  | CDelegNotice Text
-  | CDelegCancel Text
-  | CDelegOutcome Text Text
-  | CNudgeApprove Text
-  | CNudgeDecline Text
-  | CEffectAdd Text Text Text
-  | CEffectApprove Text
-  | CEffectDecline Text
-  | CEffectLs
-  | CSourceAttach Text Text Text
-  | CSourceCheck Text Text
-  | CSourceResolve Text Text
-  | CSourceLs
-  | CLs (Maybe Text) Bool Bool Bool Text
-  | CShow Text
-  | CStatus
-  | CGrammar
-  | CMigrate
-  | CTick
-  | CRender Text
-  | CEvents (Maybe Int)
+data Command
+  = Capture Text
+  | Complete Text Integer
+  | Project ProjectionKind (Maybe Text)
+  | Status
+  | History HistoryOptions
+  | Interaction InteractionCommand
+  | Repl ReplOptions
 
-textArg :: String -> String -> Parser Text
-textArg name h = strArgument (metavar name <> help h)
+data HistoryOptions = HistoryOptions
+  { historyOptionPageSize :: Integer
+  , historyOptionCursor :: Maybe Text
+  , historyOptionBrief :: Bool
+  }
 
-textOpt :: String -> String -> Parser Text
-textOpt name h = strOption (long name <> metavar (map toUpperSnake name) <> help h)
-  where toUpperSnake c = if c == '-' then '_' else toUpper' c
-        toUpper' ch = if ch >= 'a' && ch <= 'z'
-                        then toEnum (fromEnum ch - 32) else ch
+data InteractionCommand
+  = InteractionOpen Text
+  | InteractionCurrent InteractionId
+  | InteractionSubmit InteractionId Text Integer Integer
+  | InteractionHelp InteractionId
+  | InteractionRebase InteractionId
+  | InteractionComplete InteractionId
+  | InteractionAbandon InteractionId
+  | InteractionResume Text
 
-optTextOpt :: String -> String -> Parser (Maybe Text)
-optTextOpt name h = optional (textOpt name h)
+data ReplOptions = ReplOptions
+  { replOptionPowerUp :: Maybe FilePath
+  , replOptionSurface :: Text
+  }
 
-pCmd :: Parser Cmd
-pCmd = hsubparser $ mconcat
-  [ command "feed" $ info
-      (CFeed
-        <$> textArg "CONTENT"
-              "a task-shaped title (default: seed) or raw material (--raw)"
-        <*> switch (long "raw"
-              <> help "feed raw material instead: digestion (extract) later"))
-      (progDesc "Feed the ant: seed by default, raw material with --raw")
-  , command "raw" $ info
-      (hsubparser $ mconcat
-        [ command "ls" $ info (pure CRawLs) (progDesc "List raw inputs")
-        ])
-      (progDesc "Raw input (fed, not yet digested)")
-  , command "extract" $ info
-      (CExtract
-        <$> textArg "RAW" "raw input ref"
-        <*> many (strOption (long "seed" <> metavar "TITLE"
-                             <> help "seed title (repeatable; zero is valid)")))
-      (progDesc "Extract 0..n seeds from a raw input")
-  , command "promote" $ info
-      (CPromote <$> textArg "BRICK" "seed ref")
-      (progDesc "Promote a seed to committed")
-  , command "kill" $ info
-      (CKill <$> textArg "BRICK" "brick ref")
-      (progDesc "Drop a brick (shouldn't exist / obsolete)")
-  , command "ready" $ info
-      (CReady <$> textArg "BRICK" "brick ref")
-      (progDesc "Mark a committed brick ready to be served")
-  , command "requester" $ info
-      (CRequester
-        <$> textArg "BRICK" "brick ref"
-        <*> textArg "PARTY" "party ref or name")
-      (progDesc "Attribute who asked for this brick")
-  , command "set" $ info
-      (CSet
-        <$> textArg "BRICK" "brick ref"
-        <*> optional (strOption (long "kind"
-              <> metavar "spec|exec|delegation|decision|meta"))
-        <*> optTextOpt "context" "namespaced context (e.g. acme/api)"
-        <*> optional (option auto (long "weight" <> metavar "0..1"))
-        <*> optional (strOption (long "mode" <> metavar "digital|physical"))
-        <*> optional (strOption (long "atomicity"
-              <> metavar "atomic|divisible|unknown"))
-        <*> optional (option auto (long "estimate" <> metavar "HOURS"
-              <> help "effort estimate in hours"))
-        <*> optional (strOption (long "estimate-by" <> metavar "human|ai"
-              <> help "who estimated (default human; guesses are marked)"))
-        <*> optTextOpt "desc"
-              "longer body/description (content, not identity)")
-      (progDesc "Enrich a brick lazily (never a form — metadata in drips)")
-  , command "break" $ info
-      (CBreak
-        <$> textArg "BRICK" "brick ref"
-        <*> some (strOption (long "part" <> metavar "TITLE"
-                             <> help "part title (repeatable)")))
-      (progDesc "Break a brick into smaller bricks")
-  , command "unify" $ info
-      (CUnify
-        <$> textArg "BRICK" "brick to absorb"
-        <*> textOpt "into" "surviving brick ref"
-        <*> optTextOpt "reason" "why they are the same")
-      (progDesc "Unify two bricks (the first is superseded by the second)")
-  , command "supersede" $ info
-      (CSupersede
-        <$> textArg "BRICK" "brick ref"
-        <*> textOpt "with" "replacement title"
-        <*> optTextOpt "reason" "why the method changed")
-      (progDesc "Replace the method, keep the goal (inherits slot & lineage)")
-  , command "flow" $ info
-      (hsubparser $ mconcat
-        [ command "open" $ info
-            (CFlowOpen
-              <$> optTextOpt "context" "sticky context hint (e.g. acme/api)"
-              <*> strOption (long "strictness" <> value "prefer"
-                             <> metavar "ignore|prefer|require"
-                             <> help "context strictness (default: prefer)"))
-            (progDesc "Open a focus flow")
-        , command "stop" $ info
-            (CFlowStop <$> optional (textArg "FLOW" "flow ref"))
-            (progDesc "Stop a focus flow (default: latest open)")
-        , command "ls" $ info (pure CFlowLs) (progDesc "List flows")
-        ])
-      (progDesc "Focus flows (the state the engine protects)")
-  , command "next" $ info
-      (CNext <$> optional (strOption (long "flow" <> metavar "FLOW")))
-      (progDesc "Where should I focus now?")
-  , command "start" $ info
-      (CStart <$> textArg "BRICK" "brick ref")
-      (progDesc "Start working on a brick")
-  , command "stop" $ info
-      (CStop <$> textArg "BRICK" "brick ref")
-      (progDesc "Stop working on a brick (back to ready)")
-  , command "done" $ info
-      (CDone <$> textArg "BRICK" "brick ref")
-      (progDesc "Complete a brick (fires its completion effects)")
-  , command "skip" $ info
-      (CSkip
-        <$> textArg "BRICK" "brick ref"
-        <*> strOption (long "reason"
-              <> metavar "hard|vague|not_priority|waiting|tired|meh|kill|alternatives|other"
-              <> help "why (a skip is never a bare dismissal)")
-        <*> optTextOpt "text" "the raw utterance (always preserved)")
-      (progDesc "Skip a served brick — with a reason")
-  , command "clarify" $ info
-      (CClarify
-        <$> textArg "BRICK" "vague brick ref"
-        <*> textOpt "title" "title of the clarify meta-brick")
-      (progDesc "Defer clarification of a vague brick to a meta-brick")
-  , command "wait" $ info
-      (hsubparser $ mconcat
-        [ command "add" $ info
-            (CWaitAdd
-              <$> textArg "BRICK" "brick ref"
-              <*> optTextOpt "party" "who the world is waiting on"
-              <*> optTextOpt "condition" "world condition (place, hours...)")
-            (progDesc "Record a wait (person or world condition)")
-        , command "resolve" $ info
-            (CWaitResolve <$> textArg "WAIT" "wait ref")
-            (progDesc "Resolve a wait")
-        , command "ls" $ info (pure CWaitLs) (progDesc "List waits")
-        ])
-      (progDesc "Waits (waiting on a brick? use `la dep add`)")
-  , command "dep" $ info
-      (hsubparser $ mconcat
-        [ command "add" $ info
-            (CDepAdd
-              <$> textArg "BLOCKED" "brick that must wait"
-              <*> textOpt "on" "brick that must come first")
-            (progDesc "Add a dependency (kept acyclic)")
-        ])
-      (progDesc "Dependencies")
-  , command "compare" $ info
-      (CCompare
-        <$> textArg "EARLIER" "brick that should be done first"
-        <*> textArg "LATER" "brick that should be done after"
-        <*> strOption (long "author" <> value "human"
-                       <> metavar "human|ai"
-                       <> help "who judged (default: human)"))
-      (progDesc "Record a pairwise comparison: EARLIER before LATER")
-  , command "order" $ info
-      (COrder
-        <$> switch (long "questions"
-                    <> help "propose the most informative pairs to ask")
-        <*> option auto (long "limit" <> value 3 <> metavar "N"
-                         <> help "max questions (default 3)")
-        <*> optional (strOption (long "place" <> metavar "BRICK"
-              <> help "binary-insertion placement: the next question for ONE brick"))
-        <*> switch (long "sort"
-              <> help "bulk sort (org-sort-tasks strategy): the next question, or the settled order"))
-      (progDesc "Show the frontier's total order (or the open questions)")
-  , command "export" $ info
-      (hsubparser $ mconcat
-        [ command "tj" $ info
-            (CExportTj
-              <$> option auto (long "default-effort" <> value 4
-                    <> metavar "HOURS"
-                    <> help "effort for bricks with no estimate (marked as gap)"))
-            (progDesc "Emit a TaskJuggler 3 project (feed to tj3 to simulate)")
-        ])
-      (progDesc "Exports (projections into other tools)")
-  , command "delegate" $ info
-      (CDelegate
-        <$> textArg "BRICK" "brick ref"
-        <*> textOpt "to" "party ref or name")
-      (progDesc "Delegate a brick to someone (notice is proposed, not sent)")
-  , command "delegation" $ info
-      (hsubparser $ mconcat
-        [ command "ls" $ info (pure CDelegLs) (progDesc "List delegations")
-        , command "notice" $ info
-            (CDelegNotice <$> textArg "DELEGATION" "delegation ref")
-            (progDesc "Approve the delegation notice (content was previewed)")
-        , command "cancel" $ info
-            (CDelegCancel <$> textArg "DELEGATION" "delegation ref")
-            (progDesc "Cancel a delegation before notifying")
-        , command "done" $ info
-            (flip CDelegOutcome "completed" <$> textArg "DELEGATION" "ref")
-            (progDesc "The delegate completed it")
-        , command "refused" $ info
-            (flip CDelegOutcome "refused" <$> textArg "DELEGATION" "ref")
-            (progDesc "The delegate refused it")
-        , command "abandoned" $ info
-            (flip CDelegOutcome "abandoned" <$> textArg "DELEGATION" "ref")
-            (progDesc "Give up on this delegation")
-        ])
-      (progDesc "Delegations and follow-ups")
-  , command "nudge" $ info
-      (hsubparser $ mconcat
-        [ command "approve" $ info
-            (CNudgeApprove <$> textArg "DELEGATION" "delegation ref")
-            (progDesc "Approve the due nudge (content was previewed)")
-        , command "decline" $ info
-            (CNudgeDecline <$> textArg "DELEGATION" "delegation ref")
-            (progDesc "Skip this nudge; re-ask next interval")
-        ])
-      (progDesc "Follow-up nudges")
-  , command "effect" $ info
-      (hsubparser $ mconcat
-        [ command "add" $ info
-            (CEffectAdd
-              <$> textArg "BRICK" "brick ref"
-              <*> strOption (long "kind" <> metavar "write_back|notify|spawn")
-              <*> textOpt "detail" "what should happen on completion")
-            (progDesc "Arm an on-done effect")
-        , command "approve" $ info
-            (CEffectApprove <$> textArg "EFFECT" "effect ref")
-            (progDesc "Approve a proposed external action")
-        , command "decline" $ info
-            (CEffectDecline <$> textArg "EFFECT" "effect ref")
-            (progDesc "Decline a proposed external action")
-        , command "ls" $ info (pure CEffectLs) (progDesc "List effects")
-        ])
-      (progDesc "Completion effects (external ones always stop for approval)")
-  , command "source" $ info
-      (hsubparser $ mconcat
-        [ command "attach" $ info
-            (CSourceAttach
-              <$> textArg "BRICK" "brick ref"
-              <*> textOpt "type"
-                    "source type (free vocab: github_issue, file, chat, ...)"
-              <*> textOpt "url" "URL or path of the source of truth")
-            (progDesc "Attach an external source to a brick")
-        , command "check" $ info
-            (CSourceCheck
-              <$> textArg "LINK" "source link ref"
-              <*> textOpt "fingerprint" "current content fingerprint")
-            (progDesc "Record a source check (drift spawns a reconcile brick)")
-        , command "resolve" $ info
-            (CSourceResolve
-              <$> textArg "LINK" "source link ref"
-              <*> textOpt "fingerprint" "reconciled content fingerprint")
-            (progDesc "Mark a diverged source as reconciled")
-        , command "ls" $ info (pure CSourceLs) (progDesc "List source links")
-        ])
-      (progDesc "External sources (referenced, never copied)")
-  , command "party" $ info
-      (hsubparser $ mconcat
-        [ command "add" $ info
-            (CPartyAdd
-              <$> textArg "NAME" "canonical name (identity = hash of it)"
-              <*> strOption (long "type"
-                    <> metavar "person|ai_agent|company|area"))
-            (progDesc "Register a party in the entity registry")
-        , command "ls" $ info (pure CPartyLs) (progDesc "List parties")
-        ])
-      (progDesc "The entity registry (people, agents, companies, areas)")
-  , command "ls" $ info
-      (CLs
-        <$> optional (strOption (long "stage" <> metavar "STAGE"))
-        <*> switch (long "frontier" <> help "servable frontier only")
-        <*> switch (long "tree" <> help "shorthand for --format tree")
-        <*> switch (long "table" <> help "shorthand for --format table")
-        <*> strOption (long "format" <> value "oneline"
-              <> metavar "oneline|tree|table|csv"
-              <> help "human output shape (default oneline)"))
-      (progDesc "List bricks")
-  , command "show" $ info
-      (CShow <$> textArg "BRICK" "brick ref")
-      (progDesc "Show one brick in full")
-  , command "status" $ info (pure CStatus)
-      (progDesc "Everything the operator needs for the opening line")
-  , command "grammar" $ info (pure CGrammar)
-      (progDesc "The canonical interaction grammar: namespaces, letters, markers")
-  , command "migrate" $ info (pure CMigrate)
-      (progDesc "Rewrite log + archives to the current wire format (admin; backs up originals)")
-  , command "tick" $ info (pure CTick)
-      (progDesc "Fire due temporal rules explicitly (every command auto-ticks)")
-  , command "render" $ info
-      (CRender <$> strOption (long "format" <> value "md"
-                              <> metavar "md|org|html|html-static"
-                              <> help "projection format (default md)"))
-      (progDesc "Render human-readable projections of the truth")
-  , command "events" $ info
-      (CEvents <$> optional (option auto (long "tail" <> metavar "N")))
-      (progDesc "Show the raw event log (the truth)")
-  ]
+options :: ParserInfo (Global, Command)
+options = info (((,) <$> globalParser <*> commandParser) <**> helper)
+  (fullDesc
+    <> header "la / lant - Little Ant 1.0"
+    <> progDesc "Canonical v1 commands and deterministic guided interaction")
 
-pGlobal :: Parser Global
-pGlobal = Global
-  <$> switch (long "json" <> help "machine-readable output (for operators)")
-  <*> optional (strOption (long "data" <> metavar "DIR"
-                           <> help "data directory (default: $ANT_DATA_DIR or XDG)"))
-  <*> switch (long "dry-run" <> help "validate and show events without writing")
+globalParser :: Parser Global
+globalParser = Global
+  <$> switch (long "json" <> help "emit the typed machine-readable projection")
+  <*> optional (strOption
+        (long "data" <> metavar "DIR" <> help "isolated Little Ant data directory"))
 
-opts :: ParserInfo (Global, Cmd)
-opts = info (((,) <$> pGlobal <*> pCmd) <**> helper)
-  ( fullDesc
-  <> progDesc "Little Ant — a personal focus engine. One brick at a time."
-  <> header "la - little ant" )
+commandParser :: Parser Command
+commandParser = hsubparser (mconcat
+  [ command "capture" (info captureParser
+      (progDesc "capture one canonical active Brick"))
+  , command "complete" (info completeParser
+      (progDesc "complete a Brick with an optimistic revision precondition"))
+  , command "project" (info projectParser
+      (progDesc "query a purpose-bounded canonical projection"))
+  , command "status" (info (pure Status)
+      (progDesc "show the one canonical status summary"))
+  , command "history" (info historyParser
+      (progDesc "query bounded semantic-action history"))
+  , command "interaction" (info interactionParser
+      (progDesc "operate a revision-scoped interaction"))
+  , command "repl" (info replParser
+      (progDesc "start the deterministic v1 interaction harness"))
+  ])
 
--- --------------------------------------------------------------------------
+captureParser :: Parser Command
+captureParser = Capture . Text.pack <$> strArgument
+  (metavar "TITLE" <> help "canonical English title")
+
+completeParser :: Parser Command
+completeParser = Complete
+  <$> textArgument "BRICK_ID"
+  <*> option auto
+      (long "expected-revision" <> metavar "N"
+        <> help "current DomainClock revision")
+
+projectParser :: Parser Command
+projectParser = Project
+  <$> option (eitherReader parseProjection)
+      (long "projection" <> short 'p' <> value ProjectionOperational
+        <> metavar "summary|operational|relationships|history|complete")
+  <*> optional (textArgument "REFERENCE")
+
+historyParser :: Parser Command
+historyParser = History <$> (HistoryOptions
+  <$> option auto (long "page-size" <> value 20 <> metavar "1..100")
+  <*> optional (textOption "cursor" "revision-bound page cursor")
+  <*> switch (long "brief" <> help "return a traceable derived brief"))
+
+interactionParser :: Parser Command
+interactionParser = Interaction <$> hsubparser (mconcat
+  [ command "open" (info
+      (InteractionOpen <$> textOptionDefault "kind" "priority_comparison"
+        "deterministic interaction kind")
+      (progDesc "open a new guided interaction"))
+  , command "current" (info
+      (InteractionCurrent <$> interactionArgument)
+      (progDesc "return the current revision-bearing envelope"))
+  , command "submit" (info
+      (InteractionSubmit
+        <$> interactionArgument
+        <*> textArgument "ACTION_ID"
+        <*> option auto (long "domain-revision" <> metavar "N")
+        <*> option auto (long "interaction-revision" <> metavar "N"))
+      (progDesc "submit one exact state-scoped action ID"))
+  , command "help" (info
+      (InteractionHelp <$> interactionArgument)
+      (progDesc "show contextual help without answering"))
+  , command "rebase" (info
+      (InteractionRebase <$> interactionArgument)
+      (progDesc "rebase a stale interaction without reusing its key"))
+  , command "complete" (info
+      (InteractionComplete <$> interactionArgument)
+      (progDesc "finish an open interaction"))
+  , command "abandon" (info
+      (InteractionAbandon <$> interactionArgument)
+      (progDesc "abandon an open or stale interaction"))
+  , command "resume" (info
+      (InteractionResume <$> textOptionDefault "surface" "terminal"
+        "saved surface identity")
+      (progDesc "restore the exact saved interaction checkpoint"))
+  ])
+
+replParser :: Parser Command
+replParser = Repl <$> (ReplOptions
+  <$> optional (strOption
+        (long "power-up" <> metavar "EXECUTABLE"
+          <> help "validate a protocol-v1 model adapter through stdin"))
+  <*> textOptionDefault "surface" "terminal" "checkpoint surface identity")
+
+interactionArgument :: Parser InteractionId
+interactionArgument = InteractionId <$> textArgument "INTERACTION_ID"
+
+textArgument :: String -> Parser Text
+textArgument name = Text.pack <$> strArgument (metavar name)
+
+textOption :: String -> String -> Parser Text
+textOption name description = Text.pack <$> strOption
+  (long name <> metavar (map dashToUnderscore name) <> help description)
+  where
+    dashToUnderscore '-' = '_'
+    dashToUnderscore character = character
+
+textOptionDefault :: String -> Text -> String -> Parser Text
+textOptionDefault name fallback description = Text.pack <$> strOption
+  (long name <> value (Text.unpack fallback) <> showDefault
+    <> help description)
+
+parseProjection :: String -> Either String ProjectionKind
+parseProjection candidate = case candidate of
+  "summary" -> Right ProjectionSummary
+  "operational" -> Right ProjectionOperational
+  "relationships" -> Right ProjectionRelationships
+  "history" -> Right ProjectionHistory
+  "complete" -> Right ProjectionComplete
+  _ -> Left "projection must be summary, operational, relationships, history, or complete"
+
+------------------------------------------------------------
 -- Driver
--- --------------------------------------------------------------------------
+------------------------------------------------------------
 
 main :: IO ()
 main = do
-  (g, cmd) <- execParser opts
-  dir <- resolveDataDir (gDataDir g)
-  case cmd of
-    CMigrate -> runMigrate g dir
-    _ -> runNormal g dir cmd
+  (global, commandValue) <- execParser options
+  directory <- resolveDataDir (globalDataDirectory global)
+  loaded <- loadCliState directory
+  case loaded of
+    Left problem -> fatalText global "storage_error" problem
+    Right state -> case commandValue of
+      Repl replOptions -> runRepl global directory replOptions state
+      _ -> runCommand global directory state commandValue
 
--- | @la migrate@ bypasses the normal replay/tick/dispatch pipeline: it is
--- an offline admin operation on the log's REPRESENTATION, not a domain
--- command — no auto-tick events are appended during a rewrite.
-runMigrate :: Global -> FilePath -> IO ()
-runMigrate g dir = do
-  r <- migrateLog dir (gDryRun g)
-  case r of
-    Left err -> do
-      emitError g CmdError
-        { ceCode = "migrate_failed"
-        , ceMessage = err
-        , ceHint = Just "nothing was rewritten; fix the log (or move the stale backup) and retry"
-        }
-      exitWith (ExitFailure 2)
-    Right files -> emit g "la" Out
-      { oResult = toJSON
-          [ object [ "file" .= f, "events" .= n, "backup" .= b ]
-          | (f, n, b) <- files ]
-      , oHuman = T.intercalate "\n"
-          [ "migrated " <> tshow n <> " events: " <> T.pack f
-              <> " (backup: " <> T.pack b <> ")"
-          | (f, n, b) <- files ]
-      , oEvents = []
-      , oWarnings = []
-      , oDryRun = gDryRun g
-      }
-
-runNormal :: Global -> FilePath -> Cmd -> IO ()
-runNormal g dir cmd = do
-  cfgE <- loadConfigIO dir
-  cfg <- case cfgE of
-    Left e -> hPutStrLn stderr e >> exitWith (ExitFailure 1)
-    Right c -> pure c
-  (events, warns) <- loadEvents dir
+runCommand :: Global -> FilePath -> CliState -> Command -> IO ()
+runCommand global directory before commandValue = do
   now <- getCurrentTime
-  let st0 = replay events
-      tickEvs = mkEvents now (dueBodies cfg now st0)
-      st = foldl (flip applyEvent) st0 tickEvs
-  case dispatch cfg now st cmd of
-    Left err -> do
-      emitError g err
-      exitWith (ExitFailure (exitCodeFor err))
-    Right (bodies, result, human) -> do
-      let newEvs = mkEvents now bodies
-          st' = foldl (flip applyEvent) st newEvs
-      if gDryRun g
-        then pure ()
-        else appendEvents dir (tickEvs ++ newEvs)
-      emit g cmdName Out
-        { oResult = result st'
-        , oHuman = human st'
-        , oEvents = tickEvs ++ newEvs
-        , oWarnings = warns
-        , oDryRun = gDryRun g
-        }
-  where
-    cmdName = "la" :: Text
+  case commandValue of
+    Capture title -> do
+      let (response, after) = captureBrick title now before
+      persistAndEmitResponse global directory before after response
+    Complete identifier revision -> do
+      let (response, after) = completeBrick identifier revision now before
+      persistAndEmitResponse global directory before after response
+    Project kind reference -> case projectCliState kind reference before of
+      Left problem -> emitFailure global before "projection_failed" problem Nothing
+      Right projectionValue -> emitProjection global projectionValue
+        "projection returned"
+    Status -> emitStatus global (statusFor before)
+    History historyOptions -> runHistory global before historyOptions
+    Interaction interactionCommand ->
+      runInteractionCommand global directory now before interactionCommand
+    Repl _ -> fatalText global "internal_error" "REPL dispatch was duplicated."
 
-data Out = Out
-  { oResult :: Value
-  , oHuman :: Text
-  , oEvents :: [Event]
-  , oWarnings :: [Text]
-  , oDryRun :: Bool
+runHistory :: Global -> CliState -> HistoryOptions -> IO ()
+runHistory global state optionsValue =
+  let query = defaultHistoryQuery
+        { historyQueryPageSize = historyOptionPageSize optionsValue
+        , historyQueryCursor = historyOptionCursor optionsValue
+        }
+  in if historyOptionBrief optionsValue
+      then case historyBriefFor query state of
+        Left problem -> emitFailure global state "history_query_failed"
+          (Text.pack (show problem)) Nothing
+        Right brief -> emitHistoryBrief global brief
+      else case historyPageFor query state of
+        Left problem -> emitFailure global state "history_query_failed"
+          (Text.pack (show problem)) Nothing
+        Right page -> emitHistoryPage global page
+
+runInteractionCommand ::
+  Global -> FilePath -> UTCTime -> CliState -> InteractionCommand -> IO ()
+runInteractionCommand global directory now before interactionCommand =
+  case interactionCommand of
+    InteractionOpen kind -> persistEnvelope
+      (openCliInteraction kind now before)
+    InteractionCurrent identifier -> emitEnvelopeResult
+      (currentCliInteraction identifier before)
+    InteractionSubmit identifier action domainRevision interactionRevision ->
+      case submitCliInteraction identifier domainRevision interactionRevision
+          action now before of
+        Left problem -> interactionFailure problem
+        Right (response, after) ->
+          persistAndEmitResponse global directory before after response
+    InteractionHelp identifier -> emitEnvelopeResult
+      (requestCliInteractionHelp identifier before)
+    InteractionRebase identifier -> persistEnvelope
+      (rebaseCliInteraction identifier now before)
+    InteractionComplete identifier -> persistSession
+      (completeCliInteraction identifier now before) "interaction completed"
+    InteractionAbandon identifier -> persistSession
+      (abandonCliInteraction identifier now before) "interaction abandoned"
+    InteractionResume surface -> emitEnvelopeResult
+      (resumeCliInteraction surface before)
+  where
+    persistEnvelope result = case result of
+      Left problem -> interactionFailure problem
+      Right (envelope, after) -> do
+        persisted <- saveCliState directory before after
+        either (fatalText global "storage_error")
+          (const (emitEnvelope global envelope)) persisted
+    persistSession result human = case result of
+      Left problem -> interactionFailure problem
+      Right (session, after) -> do
+        persisted <- saveCliState directory before after
+        either (fatalText global "storage_error")
+          (const (emitTyped global session human)) persisted
+    emitEnvelopeResult = either interactionFailure (emitEnvelope global)
+    interactionFailure problem = emitFailure global before "interaction_error"
+      (Text.pack (show problem)) (Just "Reload or rebase the interaction.")
+
+defaultHistoryQuery :: HistoryQuery
+defaultHistoryQuery = HistoryQuery
+  { historyQueryFrom = Nothing
+  , historyQueryThrough = Nothing
+  , historyQueryBrickIds = []
+  , historyQueryRelatedEntityIds = []
+  , historyQueryScopeIds = []
+  , historyQueryActorIds = []
+  , historyQueryOrigins = []
+  , historyQueryActionFamilies = []
+  , historyQueryMinimumRelevance = Nothing :: Maybe HistoryRelevance
+  , historyQueryCursor = Nothing
+  , historyQueryPageSize = 20
   }
 
-emit :: Global -> Text -> Out -> IO ()
-emit g _ Out {..}
-  | gJson g = BL.putStrLn . Pretty.encodePretty' compactCfg $ object
-      [ "ok" .= True
-      , "dry_run" .= oDryRun
-      , "result" .= oResult
-      , "human" .= oHuman
-      , "events" .= map eventToJSON oEvents
-      , "warnings" .= oWarnings
-      ]
-  | otherwise = do
-      mapM_ (TIO.putStrLn . ("warning: " <>)) oWarnings
-      TIO.putStrLn oHuman
+------------------------------------------------------------
+-- REPL
+------------------------------------------------------------
+
+runRepl :: Global -> FilePath -> ReplOptions -> CliState -> IO ()
+runRepl global directory replOptions initial = do
+  prepared <- prepareMode directory replOptions initial
+  case prepared of
+    Left problem -> fatalText global "invalid_powered_up_adapter" problem
+    Right state -> do
+      now <- getCurrentTime
+      let surface = replOptionSurface replOptions
+      opened <- case resumeCliInteraction surface state of
+        Right envelope -> pure (Right (envelope, state, ["resumed " <> surface]))
+        Left (CheckpointDoesNotExist _) -> pure $ do
+          (envelope, next) <- firstInteraction
+            (openCliInteraction "priority_comparison" now state)
+          pure (envelope, next, ["opened " <> surface])
+        Left problem -> pure (Left (Text.pack (show problem)))
+      case opened of
+        Left problem -> fatalText global "interaction_error" problem
+        Right (envelope, next, transcript) -> do
+          persisted <- saveCliState directory state next
+          case persisted of
+            Left problem -> fatalText global "storage_error" problem
+            Right () -> withInputMode (replLoop global directory surface
+              transcript envelope next)
   where
-    compactCfg = Pretty.defConfig { Pretty.confIndent = Pretty.Spaces 2 }
+    firstInteraction = either (Left . Text.pack . show) Right
 
-emitError :: Global -> CmdError -> IO ()
-emitError g CmdError {..}
-  | gJson g = BL.putStrLn . Pretty.encodePretty $ object
-      [ "ok" .= False
-      , "error" .= object
-          [ "code" .= ceCode, "message" .= ceMessage, "hint" .= ceHint ]
-      , "human" .= ("error (" <> ceCode <> "): " <> ceMessage
-                    <> maybe "" ("\nhint: " <>) ceHint)
-      ]
-  | otherwise = do
-      TIO.hPutStrLn stderr ("error (" <> ceCode <> "): " <> ceMessage)
-      mapM_ (TIO.hPutStrLn stderr . ("hint: " <>)) ceHint
+prepareMode ::
+  FilePath -> ReplOptions -> CliState -> IO (Either Text CliState)
+prepareMode directory optionsValue before = case replOptionPowerUp optionsValue of
+  Just executable -> do
+    powered <- powerUpCli executable before
+    case powered of
+      Left problem -> pure (Left (Text.pack (show problem)))
+      Right (response, after)
+        | not (operationalResponseOk response) ->
+            pure (Left (operationalResponseHuman response))
+        | otherwise -> do
+            saved <- saveCliState directory before after
+            pure (after <$ saved)
+  Nothing -> case statusSummaryMode (statusFor before) of
+    "powered_up" -> case useDumbCli before of
+      Left problem -> pure (Left (Text.pack (show problem)))
+      Right after -> do
+        saved <- saveCliState directory before after
+        pure (after <$ saved)
+    _ -> pure (Right before)
 
-exitCodeFor :: CmdError -> Int
-exitCodeFor e = case ceCode e of
-  "ref_not_found" -> 3
-  "ref_ambiguous" -> 4
-  "title_collision" -> 5
-  _ -> 2
+withInputMode :: IO value -> IO value
+withInputMode action = do
+  terminal <- hIsTerminalDevice stdin
+  if not terminal
+    then action
+    else do
+      oldBuffering <- hGetBuffering stdin
+      oldEcho <- hGetEcho stdin
+      bracket_
+        (hSetBuffering stdin NoBuffering >> hSetEcho stdin False)
+        (hSetEcho stdin oldEcho >> hSetBuffering stdin oldBuffering)
+        action
 
--- --------------------------------------------------------------------------
--- Dispatch
--- --------------------------------------------------------------------------
+replLoop ::
+  Global -> FilePath -> Text -> [Text] -> InteractionEnvelope -> CliState -> IO ()
+replLoop global directory surface transcript envelope state = do
+  now <- getCurrentTime
+  let withCheckpoint = checkpointInteraction surface "prompt" transcript
+        envelope now state
+  checkpointed <- case withCheckpoint of
+    Left problem -> fatalText global "checkpoint_error" (Text.pack (show problem))
+    Right next -> pure next
+  saved <- saveCliState directory state checkpointed
+  case saved of
+    Left problem -> fatalText global "storage_error" problem
+    Right () -> do
+      renderReplFrame envelope checkpointed
+      eof <- hIsEOF stdin
+      unless eof $ do
+        input <- getChar
+        case input of
+          'q' -> TextIO.putStrLn "bye"
+          '\n' -> replLoop global directory surface transcript envelope checkpointed
+          '\r' -> replLoop global directory surface transcript envelope checkpointed
+          '?' -> do
+            case requestCliInteractionHelp
+                (interactionEnvelopeInteractionId envelope) checkpointed of
+              Left problem -> TextIO.putStrLn ("error: " <> Text.pack (show problem))
+              Right helped -> TextIO.putStrLn
+                (fromMaybe "No contextual help." (interactionEnvelopeHelp helped))
+            replLoop global directory surface (transcript <> ["help"])
+              envelope checkpointed
+          '/' -> do
+            commandLine <- Text.strip . Text.pack <$> getLine
+            handleReplCommand global directory surface transcript envelope
+              checkpointed commandLine
+          key -> case find ((== Text.singleton key) . interactionActionShortcut)
+              (interactionEnvelopeActions envelope) of
+            Nothing -> do
+              TextIO.putStrLn "unknown key (? for help, / for commands, q to quit)"
+              replLoop global directory surface transcript envelope checkpointed
+            Just selectedAction -> submitReplAction global directory surface transcript
+              envelope selectedAction
 
-type Output = ([Body], State -> Value, State -> Text)
+handleReplCommand ::
+  Global -> FilePath -> Text -> [Text] -> InteractionEnvelope -> CliState ->
+  Text -> IO ()
+handleReplCommand global directory surface transcript envelope state commandLine =
+  case commandLine of
+    "quit" -> TextIO.putStrLn "bye"
+    "status" -> do
+      emitStatus global (statusFor state)
+      replLoop global directory surface (transcript <> ["status"])
+        envelope state
+    "history" -> do
+      runHistory global state (HistoryOptions 5 Nothing False)
+      replLoop global directory surface (transcript <> ["history"])
+        envelope state
+    "help" -> do
+      TextIO.putStrLn (fromMaybe "No contextual help."
+        (interactionEnvelopeHelp envelope))
+      replLoop global directory surface (transcript <> ["help"])
+        envelope state
+    "resume" -> case resumeCliInteraction surface state of
+      Left problem -> do
+        TextIO.putStrLn ("resume failed: " <> Text.pack (show problem))
+        replLoop global directory surface transcript envelope state
+      Right resumed -> replLoop global directory surface
+        (transcript <> ["resumed " <> surface]) resumed state
+    _ -> do
+      TextIO.putStrLn "commands: /status /history /help /resume /quit"
+      replLoop global directory surface transcript envelope state
 
-pureOut :: Value -> Text -> Output
-pureOut v t = ([], const v, const t)
-
-evOut :: [Body] -> (State -> Value) -> (State -> Text) -> Output
-evOut = (,,)
-
-parseEnum :: Text -> (Text -> Maybe a) -> Text -> Either CmdError a
-parseEnum what parse t = case parse t of
-  Just a -> Right a
-  Nothing -> Left (CmdError "invalid_argument"
-    ("invalid " <> what <> ": " <> t) Nothing)
-
-dispatch :: Config -> UTCTime -> State -> Cmd -> Either CmdError Output
-dispatch cfg now st = \case
-  CMigrate -> Left (CmdError "internal"
-    "migrate is handled before the dispatch pipeline" Nothing)
-  CPartyAdd name ptypeT -> do
-    ptype <- parseEnum "party type" parsePartyType ptypeT
-    bodies <- cmdPartyAdd st name ptype
-    pure $ evOut bodies
-      (\st' -> lastParty st')
-      (\_ -> "party registered: " <> name)
-  CPartyLs ->
-    Right $ pureOut
-      (toJSON (map partyView (Map.elems (stParties st))))
-      (T.unlines [ shortId (pId p) <> "  " <> pName p
-                 | p <- Map.elems (stParties st) ])
-  CFeed content rawMode
-    | rawMode -> do
-        bodies <- cmdFeedRaw st content
-        pure $ evOut bodies
-          (const (toJSON True))
-          (const "✓ fed — digesting in the raw inbox (extract when ready)")
-    | otherwise -> do
-        bodies <- cmdFeed st content
-        pure $ evOut bodies
-          (\st' -> case [ i | BrickCaptured i _ <- bodies ] of
-              (i : _) -> maybe (toJSON True) (brickView st')
-                (Map.lookup i (stBricks st'))
-              [] -> toJSON True)
-          (\st' -> case [ i | BrickCaptured i _ <- bodies ] of
-              (i : _) -> maybe "✓ fed" (\b -> "✓ fed → " <> brickOneLiner b)
-                (Map.lookup i (stBricks st'))
-              [] -> "✓ fed")
-  CRawLs ->
-    Right $ pureOut
-      (toJSON (map rawView (Map.elems (stRawInputs st))))
-      (T.unlines [ "#" <> shortId (rawId r) <> " 🪨 \""
-                     <> T.take 60 (rawContent r) <> "\""
-                     <> (if rawStatus r == RawExtracted then " (extracted)" else "")
-                 | r <- Map.elems (stRawInputs st) ])
-  CExtract rawRef titles -> do
-    bodies <- cmdExtract st rawRef titles
-    pure $ evOut bodies (const (toJSON (length titles)))
-      (const ("extracted " <> tshow (length titles) <> " seed(s)"))
-  CPromote r -> simple (cmdPromote st r) "promoted"
-  CKill r -> simple (cmdKill st r) "killed"
-  CReady r -> simple (cmdReady st r) "ready"
-  CRequester r p -> simple (cmdRequester st r p) "requester attributed"
-  CSet r kT c en mT aT est estByT desc -> do
-    k <- traverse (parseEnum "kind" parseKind) kT
-    m <- traverse (parseEnum "mode" parseMode) mT
-    a <- traverse (parseEnum "atomicity" parseAtomicity) aT
-    estBy <- traverse (parseEnum "estimate author" parseAuthor) estByT
-    simple (cmdEnrich st r k c en m a est estBy desc) "enriched"
-  CBreak r parts -> do
-    bodies <- cmdBreak st r parts
-    pure $ evOut bodies (const (toJSON (length parts)))
-      (const ("broken into " <> tshow (length parts) <> " part(s)"))
-  CUnify r into reason -> simple (cmdUnify st r into reason) "unified"
-  CSupersede r title reason ->
-    simple (cmdSupersede st r title reason) "superseded"
-  CFlowOpen ctx strictT -> do
-    strict <- parseEnum "strictness" parseStrictness strictT
-    bodies <- cmdFlowOpen st ctx strict
-    pure $ evOut bodies
-      (\st' -> maybe (toJSON True) flowView (latestOpenFlow st'))
-      (const "flow open")
-  CFlowStop mref -> simple (cmdFlowStop st mref) "flow stopped"
-  CFlowLs ->
-    Right $ pureOut
-      (toJSON (map flowView
-        (sortOn (Down . floOpenedAt) (Map.elems (stFlows st)))))
-      "flows listed (use --json)"
-  CNext mref -> do
-    (bodies, outcome) <- cmdNext cfg st mref
-    pure $ evOut bodies
-      (\st' -> nextResultJson st' outcome)
-      (\st' -> nextResultHuman st' outcome)
-  CStart r -> simple (cmdStart st r) "started"
-  CStop r -> simple (cmdStop st r) "stopped"
-  CDone r -> do
-    bodies <- cmdDone st r
-    let spawned = length [ () | EffectApplied _ (Just _) <- bodies ]
-        proposed = length [ () | EffectProposed _ <- bodies ]
-    pure $ evOut bodies
-      (const (object
-        [ "completed" .= True
-        , "spawned_bricks" .= spawned
-        , "effects_awaiting_approval" .= proposed
-        ]))
-      (const ("done ✓ (" <> tshow spawned <> " spawned, "
-               <> tshow proposed <> " awaiting approval)"))
-  CSkip r reasonT rawText -> do
-    reason <- parseEnum "skip reason" parseSkipReason reasonT
-    (bodies, reaction) <- cmdSkip st r reason rawText
-    pure $ evOut bodies
-      (const (object [ "reaction" .= reaction ]))
-      (const ("skip recorded → " <> reaction))
-  CClarify r title -> simple (cmdClarify st r title) "clarify meta-brick created"
-  CWaitAdd r p c -> simple (cmdWait st r p c) "wait recorded (off the frontier)"
-  CWaitResolve r -> simple (cmdWaitResolve st r) "wait resolved"
-  CWaitLs ->
-    Right $ pureOut
-      (toJSON (map (waitView st) (Map.elems (stWaits st))))
-      "waits listed (use --json)"
-  CDepAdd blocked blocker ->
-    simple (cmdDepAdd st blocked blocker) "dependency added"
-  CCompare a b authorT -> do
-    author <- parseEnum "author" parseAuthor authorT
-    simple (cmdCompare st a b author) "comparison recorded"
-  COrder _ _ Nothing True ->
-    Right $ case mergeSortStep st (frontier st) of
-      SortedOrder sorted -> pureOut
-        (object
-          [ "sorted" .= True
-          , "order" .= map brickSummary sorted ])
-        (T.unlines $ "fully ordered ✓" :
-          [ tshow i <> ". " <> shortId (bId b) <> "  " <> bTitle b
-          | (i, b) <- zip [1 :: Int ..] sorted ])
-      AskPair a b -> pureOut
-        (object
-          [ "sorted" .= False
-          , "ask" .= object
-              [ "earlier_candidate" .= brickSummary a
-              , "later_candidate" .= brickSummary b ] ])
-        ("? should \"" <> bTitle a <> "\" be done BEFORE \""
-          <> bTitle b <> "\"? (record with `la compare`, then sort again)")
-  COrder _ _ (Just placeRef) _ -> do
-    target <- resolveBrick st placeRef
-    let others = frontier st
-    pure $ case placeBrick st others target of
-      Left pos -> pureOut
-        (object [ "placed" .= True, "position" .= (pos + 1) ])
-        ("placed: position " <> tshow (pos + 1) <> " of "
-          <> tshow (length [ o | o <- others, bId o /= bId target ] + 1))
-      Right m -> pureOut
-        (object
-          [ "placed" .= False
-          , "ask" .= object
-              [ "target" .= brickSummary target
-              , "against" .= brickSummary m ] ])
-        ("? should \"" <> bTitle target <> "\" be done before \""
-          <> bTitle m <> "\"? (record with `la compare`, then place again)")
-  COrder questions limit Nothing False ->
-    Right $
-      if questions
-        then
-          let qs = orderQuestions st (frontier st) limit
-           in pureOut
-                (toJSON [ object [ "earlier_candidate" .= brickSummary a
-                                 , "later_candidate" .= brickSummary b ]
-                        | (a, b) <- qs ])
-                (T.unlines
-                  [ "? " <> bTitle a <> "  vs  " <> bTitle b
-                  | (a, b) <- qs ])
-        else pureOut
-          (toJSON (map brickSummary (frontier st)))
-          (T.unlines
-            [ tshow i <> ". " <> shortId (bId b) <> "  " <> bTitle b
-            | (i, b) <- zip [1 :: Int ..] (frontier st) ])
-  CExportTj defEffort ->
-    let tjp = renderTaskJuggler st now defEffort
-     in Right $ pureOut (toJSON tjp) tjp
-  CDelegate r p -> do
-    bodies <- cmdDelegate st r p
-    pure $ evOut bodies
-      (const (object [ "reaction" .= ("delegation_notice_proposed" :: Text) ]))
-      (const "delegation created — draft the notice and approve it")
-  CDelegLs ->
-    Right $ pureOut
-      (toJSON (map (delegationView st) (Map.elems (stDelegations st))))
-      "delegations listed (use --json)"
-  CDelegNotice r ->
-    simple (cmdDelegationNotice cfg st now r) "notice approved — notified"
-  CDelegCancel r -> simple (cmdDelegationCancel st r) "delegation cancelled"
-  CDelegOutcome r outcome ->
-    simple (cmdDelegationOutcome st r outcome) ("delegation " <> outcome)
-  CNudgeApprove r ->
-    simple (cmdNudgeApprove cfg st now r) "nudge approved"
-  CNudgeDecline r ->
-    simple (cmdNudgeDecline cfg st now r) "nudge declined"
-  CEffectAdd r kindT detail -> do
-    kind <- parseEnum "effect kind" parseEffectKind kindT
-    simple (cmdEffectAdd st r kind detail) "effect armed"
-  CEffectApprove r -> simple (cmdEffectApprove st r) "effect applied"
-  CEffectDecline r -> simple (cmdEffectDecline st r) "effect declined"
-  CEffectLs ->
-    Right $ pureOut
-      (toJSON (map (effectView st) (Map.elems (stEffects st))))
-      "effects listed (use --json)"
-  CSourceAttach r stype url ->
-    simple (cmdSourceAttach st r stype url) "source attached"
-  CSourceCheck l fp -> do
-    bodies <- cmdSourceCheck st l fp
-    let diverged = any isDivergedEv bodies
-    pure $ evOut bodies
-      (const (object [ "diverged" .= diverged ]))
-      (const (if diverged
-                then "source DIVERGED — a reconcile meta-brick was created"
-                else "source fresh"))
-  CSourceResolve l fp -> simple (cmdSourceResolve st l fp) "source reconciled"
-  CSourceLs ->
-    Right $ pureOut
-      (toJSON (map (linkView st) (Map.elems (stSourceLinks st))))
-      "source links listed (use --json)"
-  CLs mstage frontierOnly tree table fmtOpt -> do
-    fmt <- case [ f | (True, f) <- [ (tree, "tree"), (table, "table")
-                                   , (fmtOpt /= "oneline", fmtOpt) ] ] of
-      [] -> Right ("oneline" :: Text)
-      [f]
-        | f `elem` ["oneline", "tree", "table", "csv"] -> Right f
-        | otherwise -> Left (CmdError "invalid"
-            ("unknown format: " <> f)
-            (Just "formats: oneline · tree · table · csv"))
-      _ -> Left (CmdError "invalid"
-            "pick one output format"
-            (Just "--tree/--table are shorthands for --format"))
-    if fmt == "tree"
-      then
-        if frontierOnly || mstage /= Nothing
-          then Left (CmdError "invalid"
-                 "tree renders the whole open forest"
-                 (Just "drop --stage/--frontier"))
-          else Right $ pureOut
-                 (toJSON (map (treeView st) (openForest st)))
-                 (renderTree st)
-      else do
-        bricks <-
-          if frontierOnly
-            then Right (frontier st)
-            else case mstage of
-              Nothing -> Right
-                (sortOn bCreatedSeq
-                  [ b | b <- Map.elems (stBricks st), isOpen b ])
-              Just sT -> do
-                s <- parseEnum "stage" parseStage sT
-                Right (sortOn bCreatedSeq
-                  [ b | b <- Map.elems (stBricks st), bStage b == s ])
-        pure $ pureOut
-          (toJSON (map (brickView st) bricks))
-          (case fmt of
-             "table" -> renderTable st bricks
-             "csv" -> renderCsv st bricks
-             _ -> T.unlines (map brickOneLiner bricks))
-  CShow r -> do
-    b <- resolveBrick st r
-    pure $ pureOut
-      (object
-        [ "brick" .= brickView st b
-        , "skips" .= [ skipView st s
-                     | s <- Map.elems (stSkips st), skBrick s == bId b ]
-        , "waits" .= map (waitView st) (brickWaits st b)
-        , "sources" .= map (linkView st) (brickSources st b)
-        , "effects" .= map (effectView st) (brickEffects st b)
-        , "delegations" .= [ delegationView st d
-                           | d <- Map.elems (stDelegations st)
-                           , dBrick d == bId b ]
-        ])
-      (brickOneLiner b)
-  CStatus ->
-    Right $ pureOut (statusView st) (statusHuman st)
-  CGrammar ->
-    Right $ pureOut grammarView grammarHuman
-  CTick ->
-    -- auto-tick already ran; this command exists to make it explicit
-    Right $ pureOut (toJSON True) "ticked"
-  CRender fmt -> case fmt of
-    "org" -> Right $ pureOut (toJSON (renderOrg st)) (renderOrg st)
-    "html" ->
-      let h = renderHtml st now True
-       in Right $ pureOut (toJSON h) h
-    "html-static" ->
-      let h = renderHtml st now False
-       in Right $ pureOut (toJSON h) h
-    _ -> Right $ pureOut (toJSON (renderMarkdown st)) (renderMarkdown st)
-  CEvents mtail ->
-    Right $ pureOut
-      (toJSON (stEventCount st))
-      ("events: " <> tshow (stEventCount st)
-        <> maybe "" (\n -> " (tail " <> tshow n <> " — use --json / the log file)") mtail)
+submitReplAction ::
+  Global -> FilePath -> Text -> [Text] -> InteractionEnvelope ->
+  InteractionAction -> IO ()
+submitReplAction global directory surface transcript envelope selectedAction = do
+  latestResult <- loadCliState directory
+  case latestResult of
+    Left problem -> fatalText global "storage_error" problem
+    Right latest -> do
+      now <- getCurrentTime
+      let identifier = interactionEnvelopeInteractionId envelope
+      case submitCliInteraction identifier
+          (interactionEnvelopeDomainRevision envelope)
+          (interactionEnvelopeInteractionRevision envelope)
+          (interactionActionId selectedAction) now latest of
+        Left problem -> fatalText global "interaction_error" (Text.pack (show problem))
+        Right (response, after) -> do
+          saved <- saveCliState directory latest after
+          case saved of
+            Left problem -> fatalText global "storage_error" problem
+            Right () -> do
+              TextIO.putStrLn ("$ "
+                <> interactionActionCanonicalCommand selectedAction)
+              TextIO.putStrLn (operationalResponseHuman response)
+              if operationalResponseOk response
+                then nextEnvelope after response
+                else do
+                  let rebased = rebaseCliInteraction identifier now after
+                  case rebased of
+                    Left problem -> fatalText global "interaction_error"
+                      (Text.pack (show problem))
+                    Right (next, rebasedState) -> do
+                      savedRebase <- saveCliState directory after rebasedState
+                      case savedRebase of
+                        Left problem -> fatalText global "storage_error" problem
+                        Right () -> replLoop global directory surface
+                          (transcript <> [operationalResponseHuman response])
+                          next rebasedState
   where
-    simple :: Either CmdError [Body] -> Text -> Either CmdError Output
-    simple e msg = do
-      bodies <- e
-      pure $ evOut bodies (const (toJSON True)) (const ("✓ " <> msg))
+    nextEnvelope after response = case currentCliInteraction
+        (interactionEnvelopeInteractionId envelope) after of
+      Left problem -> fatalText global "interaction_error" (Text.pack (show problem))
+      Right next -> replLoop global directory surface
+        (transcript <> [operationalResponseHuman response]) next after
 
-    lastParty st' =
-      case sortOn (Down . unId . pId) (Map.elems (stParties st')) of
-        (p : _) -> partyView p
-        [] -> toJSON True
+renderReplFrame :: InteractionEnvelope -> CliState -> IO ()
+renderReplFrame envelope state = do
+  TextIO.putStrLn (statusSummaryHuman (statusFor state))
+  TextIO.putStrLn ("interaction "
+    <> unInteractionId (interactionEnvelopeInteractionId envelope)
+    <> " · domain " <> showText (interactionEnvelopeDomainRevision envelope)
+    <> " · prompt " <> showText (interactionEnvelopeInteractionRevision envelope))
+  TextIO.putStrLn (interactionEnvelopePrompt envelope)
+  mapM_ renderAction (interactionEnvelopeActions envelope)
+  TextIO.putStrLn "[?] help  [/] commands  [q] quit"
+  where
+    renderAction availableAction = TextIO.putStrLn
+      ("[" <> interactionActionShortcut availableAction <> "] "
+        <> interactionActionLabel availableAction <> " — $ "
+        <> interactionActionCanonicalCommand availableAction)
 
-    isDivergedEv = \case
-      SourceDiverged {} -> True
-      _ -> False
+------------------------------------------------------------
+-- Rendering and exits
+------------------------------------------------------------
 
-    nextResultJson st' = \case
-      Right ch -> object
-        [ "brick" .= brickView st' (chBrick ch)
-        , "queue" .= chQueue ch
-        , "context_matched" .= chContextMatched ch
-        ]
-      Left nc -> object
-        [ "brick" .= Null
-        , "reason" .= noChoiceText nc
-        ]
-    nextResultHuman _st' = \case
-      Right ch ->
-        "→ focus: " <> shortId (bId (chBrick ch)) <> " · "
-          <> bTitle (chBrick ch)
-          <> " (" <> chQueue ch <> ")"
-      Left nc -> "no focus: " <> noChoiceText nc
-    noChoiceText = \case
-      FrontierEmpty ->
-        "frontier is empty — promote/ready a brick, resolve waits, or triage seeds"
-      ContextExcludedAll ->
-        "strictness=require excluded every candidate — relax it or switch context"
+persistAndEmitResponse ::
+  Global -> FilePath -> CliState -> CliState -> OperationalResponse -> IO ()
+persistAndEmitResponse global directory before after response = do
+  saved <- saveCliState directory before after
+  case saved of
+    Left problem -> fatalText global "storage_error" problem
+    Right () -> emitResponse global response
 
-    statusHuman st' =
-      let fr = frontier st'
-       in "frontier " <> tshow (length fr)
-            <> " · seeds " <> tshow (countStage Seed)
-            <> " · wip " <> tshow (countStage Wip)
-            <> " · nudges " <> tshow (length
-                 [ d | d <- Map.elems (stDelegations st'), dNudgePending d ])
-            <> " · other-skips " <> tshow
-                 (twUnreviewedOtherCount (stTaxonomy st'))
-      where
-        countStage s =
-          length [ b | b <- Map.elems (stBricks st'), bStage b == s ]
+emitResponse :: Global -> OperationalResponse -> IO ()
+emitResponse global response = do
+  if globalJson global
+    then emitJson (operationalResponseProjection response)
+    else if operationalResponseOk response
+      then TextIO.putStrLn (operationalResponseHuman response)
+      else TextIO.hPutStrLn stderr (operationalResponseHuman response)
+  unless (operationalResponseOk response) (exitWith (ExitFailure 2))
 
-tshow :: Show a => a -> Text
-tshow = T.pack . show
+emitFailure ::
+  Global -> CliState -> Text -> Text -> Maybe Text -> IO value
+emitFailure global state code human hint = do
+  emitResponse global (commandFailure code human hint [] (cliKernelState state))
+  exitWith (ExitFailure 2)
+
+fatalText :: Global -> Text -> Text -> IO value
+fatalText global code human = do
+  if globalJson global
+    then emitJson (operationalResponseProjection (OperationalResponse
+      False human Nothing Nothing [] [] (Just code) Nothing Nothing 0))
+    else TextIO.hPutStrLn stderr ("error (" <> code <> "): " <> human)
+  exitWith (ExitFailure 2)
+
+emitProjection :: Global -> Value -> Text -> IO ()
+emitProjection global projectionValue human
+  | globalJson global = emitJson projectionValue
+  | otherwise = TextIO.putStrLn human
+
+emitStatus :: Global -> StatusSummary -> IO ()
+emitStatus global summary
+  | globalJson global = emitJson (toJSON summary)
+  | otherwise = TextIO.putStrLn (statusSummaryHuman summary)
+
+emitEnvelope :: Global -> InteractionEnvelope -> IO ()
+emitEnvelope global envelope
+  | globalJson global = emitJson (toJSON envelope)
+  | otherwise = do
+      TextIO.putStrLn (interactionEnvelopePrompt envelope)
+      mapM_ (TextIO.putStrLn . interactionActionCanonicalCommand)
+        (interactionEnvelopeActions envelope)
+
+emitTyped :: ToJSON value => Global -> value -> Text -> IO ()
+emitTyped global typedValue human
+  | globalJson global = emitJson (toJSON typedValue)
+  | otherwise = TextIO.putStrLn human
+
+emitHistoryPage :: Global -> HistoryPage -> IO ()
+emitHistoryPage global page
+  | globalJson global = emitJson (toJSON page)
+  | otherwise = if null (historyPageItems page)
+      then TextIO.putStrLn "No semantic actions."
+      else mapM_ renderHistoryItem (historyPageItems page)
+  where
+    renderHistoryItem item = TextIO.putStrLn
+      (showText (semanticActionSummaryDomainRevision item) <> " · "
+        <> semanticActionSummaryActorOrOrigin item <> " · "
+        <> semanticActionSummaryOutcome item <> " · "
+        <> semanticActionSummarySummary item)
+
+emitHistoryBrief :: Global -> HistoryBrief -> IO ()
+emitHistoryBrief global brief
+  | globalJson global = emitJson (toJSON brief)
+  | otherwise = LBS8.putStrLn (encode brief)
+
+emitJson :: Value -> IO ()
+emitJson = LBS8.putStrLn . Pretty.encodePretty'
+  Pretty.defConfig {Pretty.confIndent = Pretty.Spaces 2}
+
+showText :: Show value => value -> Text
+showText = Text.pack . show
