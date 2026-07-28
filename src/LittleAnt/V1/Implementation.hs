@@ -9,7 +9,7 @@ module LittleAnt.V1.Implementation
   ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (foldM, when)
+import Control.Monad (foldM, unless, when)
 import Data.Aeson
   (FromJSON, Object, Result (..), Value (..), fromJSON, object, toJSON, (.=))
 import qualified Data.Aeson.Key as Key
@@ -22,6 +22,7 @@ import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as TextEncoding
 import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
 import qualified LittleAnt.V1.Capture as Capture
 import LittleAnt.V1.Contract
@@ -67,7 +68,7 @@ import LittleAnt.V1.Material
    reportSnapshotMissing, retireRawOrigin, reviewRaw, sourceObservationProjection,
    unarchiveRaw, verifySnapshotBytes)
 import qualified LittleAnt.V1.Material as Material
-import LittleAnt.V1.PlanCatalog (v1PlanProbes)
+import LittleAnt.V1.PlanCatalog (v1PlanProbes, v1RuntimePlanProbes)
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
@@ -82,6 +83,7 @@ contractRegistry :: ContractRegistry V1State
 contractRegistry = (emptyContractRegistry emptyKernelState)
   { registryInitialState = const emptyKernelState
   , registryPlanProbes = v1PlanProbes
+  , registryRuntimePlanProbes = v1RuntimePlanProbes
   , registryOperations = Map.fromList
       [ ("CanonicalEventStore.append", appendOperation)
       , ("CanonicalEventStore.replay", replayOperation)
@@ -191,8 +193,10 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("RevokeCredentialBinding", revokeCredentialBindingOperation)
       , ("CredentialBroker.authorize", credentialBrokerAuthorizeOperation)
       , ("HostHttp.request", hostHttpRequestOperation)
-      , ("PackRunner.execute", packRunnerExecuteOperation)
       , ("InspectPackRuntimeInput", inspectPackRuntimeInputOperation)
+      ]
+  , registryRuntimeOperations = Map.fromList
+      [ ("PackRunner.execute", packRunnerExecuteOperation)
       , ("ProbePackSandbox", probePackSandboxOperation)
       ]
   , registryObservations = Map.fromList
@@ -784,11 +788,22 @@ installPackOperation input state = do
         , Integration.packInstallEvidenceTrustedPublisher = fromMaybe True
             (optionalBoolean "trusted_publisher" arguments)
         }
+  componentSources <- fromMaybe Map.empty <$>
+    optionalAs "component_sources" arguments
   integrationBefore <- integrationStateFromKernel state
   case Integration.installPack now evidence manifest integrationBefore of
     Left problem -> Right (preconditionRejected problem state)
     Right (pack, components, integration) -> do
+      let componentIds = map Integration.packComponentId components
+      unless (all (`elem` componentIds) (Map.keys componentSources))
+        (Left "component_sources names a component outside the verified manifest")
       accepted <- persistIntegrationState input "install-pack" integration state
+      deployment <- packDeploymentFromKernel (appendResultState accepted)
+      withSources <- persistPackDeployment (deployment
+        { Integration.packDeploymentComponentSources = Map.union
+            componentSources
+            (Integration.packDeploymentComponentSources deployment)
+        }) (appendResultState accepted)
       component <- case components of
         first : _ -> Right first
         [] -> Left "verified Pack installation produced no component"
@@ -796,9 +811,9 @@ installPackOperation input state = do
         { operationResultValue = object
             [ "pack" .= Integration.littleAntPackId pack
             , "component" .= Integration.packComponentId component
-            , "components" .= map Integration.packComponentId components
+            , "components" .= componentIds
             ]
-        , operationResultState = appendResultState accepted
+        , operationResultState = withSources
         }
 
 disablePackOperation ::
@@ -970,32 +985,44 @@ hostHttpRequestOperation input state = do
       }
 
 packRunnerExecuteOperation ::
-  OperationInput -> V1State -> Either Text (OperationResult V1State)
-packRunnerExecuteOperation input state = do
-  arguments <- requireArgumentsObject input
-  request <- requiredAs "request" arguments
-  now <- operationTime input
-  integration <- integrationStateFromKernel state
-  deployment <- packDeploymentFromKernel state
-  account <- packRequestAccount request
-  let outcome = if fromMaybe False (optionalBoolean "provider_failure" arguments)
-        then Integration.ProviderFailed "provider failure"
-        else Integration.ProviderSucceeded (object ["items" .= ([] :: [Value])])
-  case Integration.executePackBoundary False now account outcome request
-      integration deployment of
-    Left problem -> pure OperationResult
-      { operationResultValue = toJSON (Integration.PackExecutionResult
-          1 False Nothing (Just (packExecutionErrorCode problem)) [])
-      , operationResultState = state
-      }
-    Right (result, nextIntegration, nextDeployment) -> do
-      withCanonical <- if nextIntegration == integration
-        then Right state
-        else appendResultState <$> persistIntegrationState input
-          "pack-execution" nextIntegration state
-      withDeployment <- persistPackDeployment nextDeployment withCanonical
-      pure OperationResult
-        {operationResultValue = toJSON result, operationResultState = withDeployment}
+  OperationInput -> V1State -> IO (Either Text (OperationResult V1State))
+packRunnerExecuteOperation input state = case do
+    arguments <- requireArgumentsObject input
+    request <- requiredAs "request" arguments
+    now <- operationTime input
+    integration <- integrationStateFromKernel state
+    deployment <- packDeploymentFromKernel state
+    account <- packRequestAccount request
+    pure (arguments, request, now, integration, deployment, account) of
+  Left problem -> pure (Left problem)
+  Right (arguments, request, now, integration, deployment, account) -> do
+    let componentId = Integration.packExecutionRequestComponentId request
+        source = TextEncoding.encodeUtf8 (Map.findWithDefault
+          "error('pack_source_unavailable')" componentId
+          (Integration.packDeploymentComponentSources deployment))
+        provider _
+          | fromMaybe False (optionalBoolean "provider_failure" arguments) =
+              pure (Integration.ProviderFailed "provider failure")
+          | otherwise = pure (Integration.ProviderSucceeded
+              (object ["items" .= ([] :: [Value])]))
+    attempted <- Integration.executePackRuntime False now account provider source
+      request integration deployment
+    pure $ case attempted of
+      Left problem -> Right OperationResult
+        { operationResultValue = toJSON (Integration.PackExecutionResult
+            1 False Nothing (Just (packExecutionErrorCode problem)) [])
+        , operationResultState = state
+        }
+      Right (result, nextIntegration, nextDeployment) -> do
+        withCanonical <- if nextIntegration == integration
+          then Right state
+          else appendResultState <$> persistIntegrationState input
+            "pack-execution" nextIntegration state
+        withDeployment <- persistPackDeployment nextDeployment withCanonical
+        pure OperationResult
+          { operationResultValue = toJSON result
+          , operationResultState = withDeployment
+          }
 
 inspectPackRuntimeInputOperation ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
@@ -1003,17 +1030,24 @@ inspectPackRuntimeInputOperation _ state = pure OperationResult
   {operationResultValue = Null, operationResultState = state}
 
 probePackSandboxOperation ::
-  OperationInput -> V1State -> Either Text (OperationResult V1State)
-probePackSandboxOperation input state = do
-  arguments <- requireArgumentsObject input
-  componentId <- requiredText "component" arguments
-  integration <- integrationStateFromKernel state
-  _ <- mapIntegrationError (Integration.findComponent componentId integration)
-  let report = Integration.SandboxReport False False False False False
-  pure OperationResult
-    { operationResultValue = Integration.sandboxReportProjection report
-    , operationResultState = state
-    }
+  OperationInput -> V1State -> IO (Either Text (OperationResult V1State))
+probePackSandboxOperation input state = case do
+    arguments <- requireArgumentsObject input
+    componentId <- requiredText "component" arguments
+    integration <- integrationStateFromKernel state
+    component <- mapIntegrationError
+      (Integration.findComponent componentId integration)
+    pure component of
+  Left problem -> pure (Left problem)
+  Right component -> do
+    probed <- Integration.probePackSandbox
+      (Integration.packComponentCapabilities component)
+    pure $ case probed of
+      Left problem -> Left problem
+      Right report -> Right OperationResult
+        { operationResultValue = Integration.sandboxReportProjection report
+        , operationResultState = state
+        }
 
 credentialBindingFixture ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)

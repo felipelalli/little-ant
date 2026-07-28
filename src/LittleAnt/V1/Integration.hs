@@ -26,6 +26,7 @@ module LittleAnt.V1.Integration
   , PackInstallManifest (..)
   , PackInstallation (..)
   , PackInvocation (..)
+  , PackRunnerTrace (..)
   , PackState (..)
   , PackStatus (..)
   , ProviderOutcome (..)
@@ -43,7 +44,7 @@ module LittleAnt.V1.Integration
   , emptyPackState
   , emptyVaultState
   , enablePack
-  , executePackBoundary
+  , executePackRuntime
   , findComponent
   , findPack
   , installPack
@@ -56,6 +57,7 @@ module LittleAnt.V1.Integration
   , revokeCredentialBinding
   , revokePack
   , runLuaComponent
+  , runLuaComponentWithHost
   , sandboxReportProjection
   , storeCredential
   , unlockCredentialBinding
@@ -67,8 +69,8 @@ module LittleAnt.V1.Integration
 import Control.Exception (SomeException, try)
 import Control.Monad (unless, when)
 import Data.Aeson
-  (FromJSON (parseJSON), Options (..), Result (..), ToJSON (toJSON), Value (..),
-   camelTo2, defaultOptions, encode, fromJSON, genericParseJSON, genericToJSON,
+  (FromJSON (parseJSON), Object, Options (..), Result (..), ToJSON (toJSON), Value (..),
+   camelTo2, defaultOptions, eitherDecode, encode, fromJSON, genericParseJSON, genericToJSON,
    object, withObject, withText, (.:), (.=))
 import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.Aeson.Key as Key
@@ -77,6 +79,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import Data.Digest.Pure.SHA (sha256, showDigest)
+import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Data.List (find, nub, sortOn)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
@@ -84,10 +87,16 @@ import Data.Maybe (fromMaybe, isJust, mapMaybe)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as TextEncoding
 import Data.Time (UTCTime (..), fromGregorian)
 import GHC.Generics (Generic)
-import qualified HsLua as Lua
-import qualified HsLua.Aeson as LuaAeson
+import System.Directory (doesFileExist, findExecutable)
+import System.Environment (lookupEnv)
+import System.Exit (ExitCode (..))
+import System.IO (BufferMode (LineBuffering), Handle, hSetBuffering)
+import System.Process
+  (CreateProcess (..), StdStream (..), getPid, proc, terminateProcess,
+   waitForProcess, withCreateProcess)
 import System.Timeout (timeout)
 
 ------------------------------------------------------------
@@ -270,6 +279,7 @@ data VaultState = VaultState
 -- store, not for @v1.integration@ or a Pack archive.
 data PackDeployment = PackDeployment
   { packDeploymentVault :: VaultState
+  , packDeploymentComponentSources :: Map Text Text
   , packDeploymentRuntimeInputs :: Map Text Value
   , packDeploymentHttpTrace :: [HostHttpRecord]
   , packDeploymentExecutionCount :: Integer
@@ -290,7 +300,7 @@ data SandboxLimits = SandboxLimits
   , sandboxLimitOutputBytes :: Int
   , sandboxLimitNestingDepth :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Show, Generic)
 
 data SandboxReport = SandboxReport
   { sandboxReportOs :: Bool
@@ -300,6 +310,16 @@ data SandboxReport = SandboxReport
   , sandboxReportDynamicLibrary :: Bool
   }
   deriving stock (Eq, Show, Generic)
+
+-- | Non-canonical evidence that one invocation crossed the dedicated runner
+-- process and which typed host calls actually reached the provider boundary.
+data PackRunnerTrace = PackRunnerTrace
+  { packRunnerTraceProcessId :: Maybe Integer
+  , packRunnerTraceProviderRequests :: [HostHttpRequest]
+  , packRunnerTraceProviderFailures :: Integer
+  , packRunnerTraceHostRejections :: [Text]
+  }
+  deriving stock (Eq, Show)
 
 data IntegrationError
   = InvalidPackManifest Text
@@ -499,6 +519,11 @@ instance ToJSON PackDeployment where
 instance FromJSON PackDeployment where
   parseJSON = genericParseJSON (jsonOptions "packDeployment")
 
+instance ToJSON SandboxLimits where
+  toJSON = genericToJSON (jsonOptions "sandboxLimit")
+instance FromJSON SandboxLimits where
+  parseJSON = genericParseJSON (jsonOptions "sandboxLimit")
+
 instance ToJSON SandboxReport where
   toJSON = genericToJSON (jsonOptions "sandboxReport")
 instance FromJSON SandboxReport where
@@ -531,7 +556,8 @@ emptyVaultState :: VaultState
 emptyVaultState = VaultState Map.empty Map.empty Map.empty True 1
 
 defaultPackDeployment :: PackDeployment
-defaultPackDeployment = PackDeployment emptyVaultState Map.empty [] 0 []
+defaultPackDeployment = PackDeployment
+  emptyVaultState Map.empty Map.empty [] 0 []
 
 defaultSandboxLimits :: SandboxLimits
 defaultSandboxLimits = SandboxLimits
@@ -1015,11 +1041,83 @@ httpsHost url = do
     then Just host
     else Nothing
 
-executePackBoundary ::
-  Bool -> UTCTime -> Text -> ProviderOutcome -> PackExecutionRequest ->
-  PackState -> PackDeployment ->
-  Either IntegrationError (PackExecutionResult, PackState, PackDeployment)
-executePackBoundary duringReplay now account outcome request state deployment = do
+-- | Execute an enabled component in a fresh @lant-pack-runner@ process.
+-- Credential authorization happens before process creation.  The injected
+-- host callback is called only after Lua invokes the typed
+-- @lant.http.request@ function and the host has validated the exact request.
+executePackRuntime ::
+  Bool -> UTCTime -> Text ->
+  (HostHttpRequest -> IO ProviderOutcome) ->
+  BS.ByteString -> PackExecutionRequest -> PackState -> PackDeployment ->
+  IO (Either IntegrationError
+    (PackExecutionResult, PackState, PackDeployment))
+executePackRuntime duringReplay now account provider source request state deployment =
+  case prepareExecution duringReplay account request state deployment of
+    Left problem -> pure (Left problem)
+    Right (component, grants, validatedDeployment, authorization) ->
+      case authorization of
+        Left problem | problem `elem` [VaultUnavailable, CredentialAccessLocked] ->
+          pure (Right
+            (failedExecution "credential_locked", state, validatedDeployment))
+        Left CredentialAccessRevoked -> pure (Right
+          (failedExecution "credential_revoked", state, validatedDeployment))
+        Left CredentialAccessUnauthorized -> pure (Right
+          (failedExecution "credential_unauthorized", state, validatedDeployment))
+        Left problem -> pure (Left problem)
+        Right _ -> executeAuthorized component grants validatedDeployment
+  where
+    executeAuthorized component grants validatedDeployment = do
+      (runnerResult, runnerTrace) <- runLuaComponentWithHost
+        defaultSandboxLimits grants (packExecutionRequestInput request) source
+        (validatedProvider component grants)
+      let hostRejections = packRunnerTraceHostRejections runnerTrace
+          providerFailures = packRunnerTraceProviderFailures runnerTrace
+          result
+            | rejection : _ <- hostRejections = failedExecution rejection
+            | providerFailures > 0 = failedExecution "provider_failure"
+            | resultContainsSecret runnerResult =
+                failedExecution "secret_result_rejected"
+            | otherwise = runnerResult
+          componentId = packComponentId component
+          withBackoff
+            | providerFailures > 0 =
+                advanceProviderBackoff componentId account state
+            | otherwise = state
+          traceRecords = map (hostRecord componentId grants)
+            (packRunnerTraceProviderRequests runnerTrace)
+          withTrace = validatedDeployment
+            { packDeploymentHttpTrace = packDeploymentHttpTrace validatedDeployment
+                <> traceRecords
+            , packDeploymentExecutionCount =
+                packDeploymentExecutionCount validatedDeployment + 1
+            }
+          requestHash = digestValue (toJSON request)
+      pure $ do
+        (_, withInvocation) <- recordPackInvocation now componentId
+          (packExecutionRequestOperation request) "1" requestHash grants result
+          withBackoff
+        pure (result, withInvocation, withTrace)
+
+    validatedProvider component grants hostRequest =
+      case validateHostHttpRequest component grants hostRequest of
+        Left problem -> pure (Left (hostRequestErrorCode problem))
+        Right () -> Right <$> provider hostRequest
+
+    hostRecord componentId grants hostRequest = HostHttpRecord
+      { hostHttpRecordComponentId = componentId
+      , hostHttpRecordAccount = account
+      , hostHttpRecordMethod = hostHttpRequestMethod hostRequest
+      , hostHttpRecordUrl = hostHttpRequestUrl hostRequest
+      , hostHttpRecordCredentialInjected =
+          any ("credential:" `Text.isPrefixOf`) grants
+      }
+
+prepareExecution ::
+  Bool -> Text -> PackExecutionRequest -> PackState -> PackDeployment ->
+  Either IntegrationError
+    (PackComponent, [Text], PackDeployment,
+      Either IntegrationError CredentialBinding)
+prepareExecution duringReplay account request state deployment = do
   when duringReplay (Left ReplayExecutionForbidden)
   unless (packExecutionRequestProtocolVersion request == 1)
     (Left (InvalidPackResult "unsupported request protocol version"))
@@ -1042,71 +1140,28 @@ executePackBoundary duringReplay now account outcome request state deployment = 
             (packDeploymentRuntimeInputs deployment)
         }
       credentialRequested = any ("credential:" `Text.isPrefixOf`) grants
-      authorization = if credentialRequested
-        then authorizeCredential componentId account (packDeploymentVault deployment)
-        else Right noCredentialBinding
-  case authorization of
-    Left problem | problem `elem`
-        [VaultUnavailable, CredentialAccessLocked] ->
-      pure (failedExecution "credential_locked", state, validatedDeployment)
-    Left CredentialAccessRevoked ->
-      pure (failedExecution "credential_revoked", state, validatedDeployment)
-    Left CredentialAccessUnauthorized ->
-      pure (failedExecution "credential_unauthorized", state, validatedDeployment)
-    Left problem -> Left problem
-    Right _ -> executeAuthorized component validatedDeployment grants
-  where
-    executeAuthorized component validatedDeployment grants = do
-      let httpCapabilities = mapMaybe (Text.stripPrefix "http:") grants
-          hasHttpRequest = not (null httpCapabilities)
-          host = case httpCapabilities of
-            firstHost : _ -> firstHost
-            [] -> ""
-          hostRequest = HostHttpRequest "GET" ("https://" <> host <> "/") 0 Nothing
-          traceRecord = HostHttpRecord
-            { hostHttpRecordComponentId = packComponentId component
-            , hostHttpRecordAccount = account
-            , hostHttpRecordMethod = "GET"
-            , hostHttpRecordUrl = "https://" <> host <> "/"
-            , hostHttpRecordCredentialInjected =
-                any ("credential:" `Text.isPrefixOf`) grants
-            }
-          withTrace = if hasHttpRequest
-            then validatedDeployment
-              { packDeploymentHttpTrace = packDeploymentHttpTrace validatedDeployment
-                  <> [traceRecord]
-              }
-            else validatedDeployment
-          (result, withBackoff) = case outcome of
-            ProviderSucceeded output ->
-              (successfulExecution output, state)
-            ProviderFailed _ | hasHttpRequest ->
-              (failedExecution "provider_failure", advanceProviderBackoff
-                (packComponentId component) account state)
-            ProviderFailed _ ->
-              (failedExecution "pack_runtime_failure", state)
-          requestHash = digestValue (toJSON request)
-      when hasHttpRequest (validateHostHttpRequest component grants hostRequest)
-      (_, withInvocation) <- recordPackInvocation now
-        (packComponentId component)
-        (packExecutionRequestOperation request)
-        "1"
-        requestHash
-        grants
-        result
-        withBackoff
-      pure (result, withInvocation, withTrace
-        {packDeploymentExecutionCount = packDeploymentExecutionCount withTrace + 1})
+      authorization
+        | credentialRequested = authorizeCredential componentId account
+            (packDeploymentVault deployment)
+        | otherwise = Right noCredentialBinding
+  pure (component, grants, validatedDeployment, authorization)
 
 noCredentialBinding :: CredentialBinding
 noCredentialBinding = CredentialBinding "none" "none" "none" "none"
   CredentialActive (UTCTime (fromGregorian 1970 1 1) 0)
 
-successfulExecution :: Value -> PackExecutionResult
-successfulExecution output = PackExecutionResult 1 True (Just output) Nothing []
-
 failedExecution :: Text -> PackExecutionResult
 failedExecution code = PackExecutionResult 1 False Nothing (Just code) []
+
+resultContainsSecret :: PackExecutionResult -> Bool
+resultContainsSecret result = maybe False containsForbiddenSecret
+  (packExecutionResultOutput result)
+
+hostRequestErrorCode :: IntegrationError -> Text
+hostRequestErrorCode = \case
+  UndeclaredCapability _ -> "undeclared_capability"
+  InvalidHostHttpRequest _ -> "invalid_http_request"
+  _ -> "host_request_rejected"
 
 advanceProviderBackoff :: Text -> Text -> PackState -> PackState
 advanceProviderBackoff component account state = state
@@ -1119,93 +1174,172 @@ providerBackoff component account state = Map.findWithDefault 0
   (backoffKey component account) (packStateProviderBackoff state)
 
 ------------------------------------------------------------
--- HsLua 2.3.1 fresh-VM sandbox
+-- Separate HsLua runner process
 ------------------------------------------------------------
 
--- | Execute one Lua 5.4 chunk in a fresh HsLua state.  Only the typed @lant@
--- table implied by the granted capabilities is installed.  The base library
--- is reduced before Pack code runs; filesystem loaders, printing, package,
--- IO, OS, debug, sockets, and dynamic libraries are absent.  An internal Lua
--- hook enforces the instruction budget while an outer timeout enforces the
--- wall-clock budget.  Source, result size, and result depth are checked at the
--- process boundary.
+-- | Invoke one Lua chunk through the dedicated process with no provider
+-- authority.  Tests and sandbox probes use this convenience wrapper.
 runLuaComponent ::
   SandboxLimits -> [Text] -> Value -> BS.ByteString -> IO PackExecutionResult
-runLuaComponent limits grants input source
-  | not (validLimits limits) = pure (failedExecution "invalid_runtime_limits")
-  | BS.length source > sandboxLimitSourceBytes limits =
-      pure (failedExecution "source_limit")
-  | containsForbiddenSecret input =
-      pure (failedExecution "credential_input_rejected")
+runLuaComponent limits grants input source = fst <$>
+  runLuaComponentWithHost limits grants input source
+    (const (pure (Left "host_call_unavailable")))
+
+-- | Process-backed runner with a synchronous, typed host callback.  The
+-- callback result is redacted before it is sent back to Lua.
+runLuaComponentWithHost ::
+  SandboxLimits -> [Text] -> Value -> BS.ByteString ->
+  (HostHttpRequest -> IO (Either Text ProviderOutcome)) ->
+  IO (PackExecutionResult, PackRunnerTrace)
+runLuaComponentWithHost limits grants input source hostHandler
+  | not (validLimits limits) = pure
+      (failedExecution "invalid_runtime_limits", emptyRunnerTrace)
+  | BS.length source > sandboxLimitSourceBytes limits = pure
+      (failedExecution "source_limit", emptyRunnerTrace)
+  | containsForbiddenSecret input = pure
+      (failedExecution "credential_input_rejected", emptyRunnerTrace)
+  | Left _ <- TextEncoding.decodeUtf8' source = pure
+      (failedExecution "source_encoding", emptyRunnerTrace)
   | otherwise = do
-      attempted <- timeout (sandboxLimitWallMicros limits)
-        (try (Lua.run @Lua.Exception (luaProgram limits grants input source)) ::
-          IO (Either SomeException Value))
-      pure $ case attempted of
-        Nothing -> failedExecution "timeout"
-        Just (Left problem)
-          | "instruction_limit" `Text.isInfixOf` Text.pack (show problem) ->
-              failedExecution "instruction_limit"
-          | "memory_limit" `Text.isInfixOf` Text.pack (show problem) ->
-              failedExecution "memory_limit"
-          | otherwise -> failedExecution "lua_error"
-        Just (Right output)
-          | LBS.length (encode output) > fromIntegral
-              (sandboxLimitOutputBytes limits) -> failedExecution "output_limit"
-          | valueDepth output > sandboxLimitNestingDepth limits ->
-              failedExecution "nesting_limit"
-          | otherwise -> successfulExecution output
+      executable <- resolvePackRunner
+      case executable of
+        Nothing -> pure (failedExecution "runner_unavailable", emptyRunnerTrace)
+        Just path -> runPackRunnerProcess path limits grants input source hostHandler
 
-luaProgram ::
-  SandboxLimits -> [Text] -> Value -> BS.ByteString -> Lua.Lua Value
-luaProgram limits grants input source = do
-  Lua.openbase
-  Lua.opendebug
-  Lua.setglobal "debug"
-  Lua.settop 0
-  mapM_ removeGlobal ["dofile", "loadfile", "print", "warn"]
-  installTypedHost grants
-  LuaAeson.pushValue input
-  Lua.setglobal "input"
-  let hookPeriod = 100 :: Integer
-      hookCalls = max 1 (sandboxLimitInstructions limits `div` hookPeriod)
-      prefix = BS8.pack
-        ("do local __lant_count=0; local __lant_error=error; "
-          <> "debug.sethook(function() __lant_count=__lant_count+1; "
-          <> "if __lant_count>" <> show hookCalls
-          <> " then __lant_error('instruction_limit') end end, '', "
-          <> show hookPeriod <> "); end; debug=nil; ")
-  _ <- Lua.loadstring (prefix <> source)
-  Lua.call 0 1
-  memoryKilobytes <- Lua.gc Lua.GCCount
-  memoryRemainder <- Lua.gc Lua.GCCountb
-  let memoryBytes = fromIntegral memoryKilobytes * 1024
-        + fromIntegral memoryRemainder
-  when (memoryBytes > sandboxLimitMemoryBytes limits)
-    (Lua.failLua "memory_limit")
-  Lua.forcePeek (LuaAeson.peekValue Lua.top)
+runPackRunnerProcess ::
+  FilePath -> SandboxLimits -> [Text] -> Value -> BS.ByteString ->
+  (HostHttpRequest -> IO (Either Text ProviderOutcome)) ->
+  IO (PackExecutionResult, PackRunnerTrace)
+runPackRunnerProcess executable limits grants input source hostHandler =
+  withCreateProcess process $ \maybeInput maybeOutput _ processHandle ->
+    case (maybeInput, maybeOutput) of
+      (Just childInput, Just childOutput) -> do
+        hSetBuffering childInput LineBuffering
+        hSetBuffering childOutput LineBuffering
+        processId <- fmap (fmap fromIntegral) (getPid processHandle)
+        traceRef <- newIORef emptyRunnerTrace
+          {packRunnerTraceProcessId = processId}
+        let request = object
+              [ "protocol_version" .= (1 :: Integer)
+              , "limits" .= limits
+              , "capability_grants" .= grants
+              , "input" .= input
+              , "source" .= either (const "") id (TextEncoding.decodeUtf8' source)
+              ]
+        LBS.hPutStr childInput (encode request <> "\n")
+        attempted <- timeout (sandboxLimitWallMicros limits + 250000)
+          (try (runnerConversation childInput childOutput traceRef 0 hostHandler) ::
+            IO (Either SomeException PackExecutionResult))
+        case attempted of
+          Nothing -> do
+            terminateProcess processHandle
+            _ <- waitForProcess processHandle
+            trace <- readIORef traceRef
+            pure (failedExecution "timeout", trace)
+          Just (Left _) -> do
+            terminateProcess processHandle
+            _ <- waitForProcess processHandle
+            trace <- readIORef traceRef
+            pure (failedExecution "runner_protocol_error", trace)
+          Just (Right result) -> do
+            exitCode <- waitForProcess processHandle
+            trace <- readIORef traceRef
+            pure (if exitCode == ExitSuccess
+              then result
+              else failedExecution "runner_failure", trace)
+      _ -> pure (failedExecution "runner_protocol_error", emptyRunnerTrace)
+  where
+    process = (proc executable [])
+      {std_in = CreatePipe, std_out = CreatePipe, std_err = Inherit}
 
-removeGlobal :: Lua.Name -> Lua.Lua ()
-removeGlobal name = Lua.pushnil *> Lua.setglobal name
+runnerConversation ::
+  Handle -> Handle -> IORef PackRunnerTrace -> Int ->
+  (HostHttpRequest -> IO (Either Text ProviderOutcome)) ->
+  IO PackExecutionResult
+runnerConversation childInput childOutput traceRef hostCallCount hostHandler
+  | hostCallCount >= 32 = pure (failedExecution "host_call_limit")
+  | otherwise = do
+      line <- BS8.hGetLine childOutput
+      message <- either (fail . Text.unpack) pure
+        (decodeProtocolObject (LBS.fromStrict line))
+      kind <- either (fail . Text.unpack) pure (protocolText "message_kind" message)
+      case kind of
+        "result" -> do
+          value <- either (fail . Text.unpack) pure
+            (protocolValue "result" message)
+          either (fail . Text.unpack) pure (decodeValue value)
+        "host_http_request" -> do
+          value <- either (fail . Text.unpack) pure
+            (protocolValue "request" message)
+          request <- either (fail . Text.unpack) pure (decodeValue value)
+          outcome <- hostHandler request
+          modifyIORef' traceRef (recordHostOutcome request outcome)
+          LBS.hPutStr childInput (encode (object
+            [ "protocol_version" .= (1 :: Integer)
+            , "message_kind" .= ("host_http_response" :: Text)
+            , "response" .= hostOutcomeProjection outcome
+            ]) <> "\n")
+          runnerConversation childInput childOutput traceRef
+            (hostCallCount + 1) hostHandler
+        _ -> fail "unknown lant-pack-runner message"
 
-installTypedHost :: [Text] -> Lua.Lua ()
-installTypedHost grants =
-  when (any ("http:" `Text.isPrefixOf`) grants) $ do
-    Lua.newtable
-    Lua.newtable
-    Lua.pushHaskellFunction typedHttpStub
-    Lua.setfield (-2) "request"
-    Lua.setfield (-2) "http"
-    Lua.setglobal "lant"
+recordHostOutcome ::
+  HostHttpRequest -> Either Text ProviderOutcome -> PackRunnerTrace ->
+  PackRunnerTrace
+recordHostOutcome request outcome trace = case outcome of
+  Left problem -> trace
+    { packRunnerTraceHostRejections =
+        packRunnerTraceHostRejections trace <> [problem]
+    }
+  Right providerOutcome -> trace
+    { packRunnerTraceProviderRequests =
+        packRunnerTraceProviderRequests trace <> [request]
+    , packRunnerTraceProviderFailures =
+        packRunnerTraceProviderFailures trace + case providerOutcome of
+          ProviderSucceeded _ -> 0
+          ProviderFailed _ -> 1
+    }
 
-typedHttpStub :: Lua.LuaE Lua.Exception Lua.NumResults
-typedHttpStub = do
-  Lua.newtable
-  Lua.pushboolean False
-  Lua.setfield (-2) "ok"
-  Lua.pushstring "host_call_must_be_brokered"
-  Lua.setfield (-2) "error_code"
-  pure (Lua.NumResults 1)
+hostOutcomeProjection :: Either Text ProviderOutcome -> Value
+hostOutcomeProjection = \case
+  Left problem -> object ["ok" .= False, "error_code" .= problem]
+  Right (ProviderSucceeded output) -> object
+    ["ok" .= True, "output" .= output]
+  Right (ProviderFailed _) -> object
+    ["ok" .= False, "error_code" .= ("provider_failure" :: Text)]
+
+emptyRunnerTrace :: PackRunnerTrace
+emptyRunnerTrace = PackRunnerTrace Nothing [] 0 []
+
+resolvePackRunner :: IO (Maybe FilePath)
+resolvePackRunner = do
+  configured <- lookupEnv "LANT_PACK_RUNNER"
+  case configured of
+    Just candidate -> do
+      exists <- doesFileExist candidate
+      if exists then pure (Just candidate) else findExecutable candidate
+    Nothing -> findExecutable "lant-pack-runner"
+
+decodeProtocolObject :: LBS.ByteString -> Either Text Object
+decodeProtocolObject bytes = case eitherDecode bytes of
+  Left problem -> Left (Text.pack problem)
+  Right (Object value) -> Right value
+  Right _ -> Left "runner message must be an object"
+
+protocolText :: Text -> Object -> Either Text Text
+protocolText field objectValue = case KeyMap.lookup (Key.fromText field) objectValue of
+  Just (String value) -> Right value
+  _ -> Left ("runner message has no text " <> field)
+
+protocolValue :: Text -> Object -> Either Text Value
+protocolValue field objectValue = maybe
+  (Left ("runner message has no " <> field)) Right
+  (KeyMap.lookup (Key.fromText field) objectValue)
+
+decodeValue :: FromJSON value => Value -> Either Text value
+decodeValue value = case fromJSON value of
+  Success decoded -> Right decoded
+  Error problem -> Left (Text.pack problem)
 
 probePackSandbox :: [Text] -> IO (Either Text SandboxReport)
 probePackSandbox grants = do
@@ -1218,16 +1352,11 @@ probePackSandbox grants = do
       <> "dynamic_library = dynamic_library ~= nil or "
       <> "(package ~= nil and package.loadlib ~= nil)}"))
   case packExecutionResultOutput result of
-    Just value | packExecutionResultOk result -> case fromJSONValue value of
+    Just value | packExecutionResultOk result -> case decodeValue value of
       Right report -> pure (Right report)
       Left problem -> pure (Left problem)
     _ -> pure (Left (fromMaybe "sandbox probe failed"
       (packExecutionResultErrorCode result)))
-
-fromJSONValue :: FromJSON value => Value -> Either Text value
-fromJSONValue value = case fromJSON value of
-  Success decoded -> Right decoded
-  Error problem -> Left (Text.pack problem)
 
 validLimits :: SandboxLimits -> Bool
 validLimits limits = and
@@ -1238,16 +1367,6 @@ validLimits limits = and
   , sandboxLimitOutputBytes limits > 0
   , sandboxLimitNestingDepth limits > 0
   ]
-
-valueDepth :: Value -> Int
-valueDepth = \case
-  Object fields -> 1 + maximumOrZero (map valueDepth (KeyMap.elems fields))
-  Array values -> 1 + maximumOrZero (map valueDepth (foldr (:) [] values))
-  _ -> 1
-
-maximumOrZero :: [Int] -> Int
-maximumOrZero [] = 0
-maximumOrZero values = maximum values
 
 ------------------------------------------------------------
 -- Sparse/redacted projections and helpers

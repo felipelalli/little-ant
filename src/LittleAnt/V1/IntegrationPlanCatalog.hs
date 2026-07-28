@@ -5,6 +5,7 @@
 -- visible to this module.
 module LittleAnt.V1.IntegrationPlanCatalog
   ( integrationPlanProbes
+  , integrationRuntimePlanProbes
   ) where
 
 import Control.Monad (unless)
@@ -13,13 +14,16 @@ import Data.Aeson
    (.=))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.ByteString.Char8 as BS8
+import Data.IORef (modifyIORef', newIORef, readIORef)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Time (UTCTime (..), fromGregorian)
-import LittleAnt.V1.Contract (PlanProbe, PlanProbeInput (..), ProbeKey (..))
+import LittleAnt.V1.Contract
+  (PlanProbe, PlanProbeInput (..), ProbeKey (..), RuntimePlanProbe)
 import LittleAnt.V1.Integration
 
 integrationPlanProbes :: Map ProbeKey PlanProbe
@@ -32,6 +36,11 @@ integrationPlanProbes = Map.fromList
   <> ruleRegistrations
   <> invariantRegistrations
   )
+
+integrationRuntimePlanProbes :: Map ProbeKey RuntimePlanProbe
+integrationRuntimePlanProbes = Map.singleton
+  (ProbeKey "integration" "contract_signature" "PackRunner.execute")
+  executionBoundaryProbe
 
 valueRegistrations :: [(ProbeKey, PlanProbe)]
 valueRegistrations = concatMap valueRegistration
@@ -46,8 +55,7 @@ valueRegistrations = concatMap valueRegistration
 
 contractRegistrations :: [(ProbeKey, PlanProbe)]
 contractRegistrations =
-  [ registration "contract_signature" "PackRunner.execute" executionBoundaryProbe
-  , registration "contract_signature" "HostHttp.request" hostHttpProbe
+  [ registration "contract_signature" "HostHttp.request" hostHttpProbe
   , registration "contract_signature" "CredentialBroker.authorize"
       credentialBrokerProbe
   ]
@@ -170,66 +178,95 @@ contractFixture = do
   pure (installed, defaultPackDeployment {packDeploymentVault = vault3},
     packComponentId component, credentialBindingId binding, credentialSlotId slot)
 
-executionBoundaryProbe :: PlanProbe
-executionBoundaryProbe _ = do
-  (installed, deployment, component, binding, _) <- contractFixture
-  (_, lockedVault) <- mapIntegration
-    (lockCredentialBinding binding (packDeploymentVault deployment))
-  let lockedDeployment = deployment {packDeploymentVault = lockedVault}
-      beforeBackoff = providerBackoff component "felipe" installed
-  (lockedResult, afterLocked, lockedAfterDeployment) <- mapIntegration
-    (executePackBoundary False testTime "felipe" (ProviderFailed "not reached")
-      sampleRequest installed lockedDeployment)
-  require (packExecutionResultErrorCode lockedResult == Just "credential_locked")
-    "locked credentials did not return credential_locked"
-  require (null (packDeploymentHttpTrace lockedAfterDeployment))
-    "locked credential performed HTTP"
-  require (packDeploymentExecutionCount lockedAfterDeployment == 0)
-    "locked credential executed Pack code"
-  require (providerBackoff component "felipe" afterLocked == beforeBackoff)
-    "locked credential advanced provider backoff"
-
-  (revokedBinding, revokedVault) <- mapIntegration
-    (revokeCredentialBinding binding (packDeploymentVault deployment))
-  require (credentialBindingStatus revokedBinding == CredentialRevoked)
-    "credential revocation was not retained"
-  (revokedResult, _, revokedDeployment) <- mapIntegration
-    (executePackBoundary False testTime "felipe" (ProviderFailed "not reached")
-      sampleRequest installed (deployment {packDeploymentVault = revokedVault}))
-  require (packExecutionResultErrorCode revokedResult == Just "credential_revoked")
-    "revoked credentials did not return credential_revoked"
-  require (null (packDeploymentHttpTrace revokedDeployment))
-    "revoked credential performed HTTP"
-
-  let unauthorized = deployment
-        {packDeploymentVault = (packDeploymentVault deployment)
-          {vaultStateBindings = Map.empty}}
-  (unauthorizedResult, _, unauthorizedDeployment) <- mapIntegration
-    (executePackBoundary False testTime "felipe" (ProviderFailed "not reached")
-      sampleRequest installed unauthorized)
-  require (packExecutionResultErrorCode unauthorizedResult
-      == Just "credential_unauthorized")
-    "missing authorization did not return credential_unauthorized"
-  require (null (packDeploymentHttpTrace unauthorizedDeployment))
-    "unauthorized request performed HTTP"
-
-  (providerResult, providerState, providerDeployment) <- mapIntegration
-    (executePackBoundary False testTime "felipe" (ProviderFailed "rate limit")
-      sampleRequest installed deployment)
-  require (packExecutionResultErrorCode providerResult == Just "provider_failure")
-    "authorized provider failure was not classified distinctly"
-  require (length (packDeploymentHttpTrace providerDeployment) == 1)
-    "authorized provider request did not enter the HTTP trace exactly once"
-  require (providerBackoff component "felipe" providerState == beforeBackoff + 1)
-    "actual provider failure did not advance backoff"
-  require (length (packStateInvocations providerState) == 1)
-    "authorized Pack execution omitted deterministic invocation evidence"
-  require (not (containsSecretName
-      (toJSON (packStateInvocations providerState))))
-    "invocation evidence contains credential material"
-  expectError ReplayExecutionForbidden
-    (executePackBoundary True testTime "felipe" (ProviderSucceeded Null)
-      sampleRequest installed deployment)
+executionBoundaryProbe :: RuntimePlanProbe
+executionBoundaryProbe input = case do
+    checkMetadata "contract_signature" "PackRunner.execute" input
+    contractFixture of
+  Left problem -> pure (Left problem)
+  Right (installed, deployment, component, binding, _) -> do
+    let source = BS8.pack
+          "return lant.http.request {method='GET', url='https://api.example.com/v1/tasks', body_size=0}"
+        beforeBackoff = providerBackoff component "felipe" installed
+    providerCalls <- newIORef (0 :: Integer)
+    let provider _ = do
+          modifyIORef' providerCalls (+ 1)
+          pure (ProviderFailed "rate limit")
+        notReached _ = do
+          modifyIORef' providerCalls (+ 1000)
+          pure (ProviderFailed "must not run")
+    case lockCredentialBinding binding (packDeploymentVault deployment) of
+      Left problem -> pure (Left (Text.pack (show problem)))
+      Right (_, lockedVault) -> do
+        lockedAttempt <- executePackRuntime False testTime "felipe" notReached
+          source sampleRequest installed
+          (deployment {packDeploymentVault = lockedVault})
+        let revokedResult = do
+              (revokedBinding, revokedVault) <- revokeCredentialBinding binding
+                (packDeploymentVault deployment)
+              pure (revokedBinding, revokedVault)
+        case revokedResult of
+          Left problem -> pure (Left (Text.pack (show problem)))
+          Right (revokedBinding, revokedVault) -> do
+            revokedAttempt <- executePackRuntime False testTime "felipe" notReached
+              source sampleRequest installed
+              (deployment {packDeploymentVault = revokedVault})
+            let unauthorized = deployment
+                  {packDeploymentVault = (packDeploymentVault deployment)
+                    {vaultStateBindings = Map.empty}}
+            unauthorizedAttempt <- executePackRuntime False testTime "felipe"
+              notReached source sampleRequest installed unauthorized
+            providerAttempt <- executePackRuntime False testTime "felipe" provider
+              source sampleRequest installed deployment
+            replayAttempt <- executePackRuntime True testTime "felipe" notReached
+              source sampleRequest installed deployment
+            callCount <- readIORef providerCalls
+            pure $ do
+              (lockedResult, afterLocked, lockedAfterDeployment) <-
+                mapIntegration lockedAttempt
+              require (packExecutionResultErrorCode lockedResult
+                  == Just "credential_locked")
+                "locked credentials did not return credential_locked"
+              require (null (packDeploymentHttpTrace lockedAfterDeployment))
+                "locked credential performed HTTP"
+              require (packDeploymentExecutionCount lockedAfterDeployment == 0)
+                "locked credential executed Pack code"
+              require (providerBackoff component "felipe" afterLocked
+                  == beforeBackoff)
+                "locked credential advanced provider backoff"
+              require (credentialBindingStatus revokedBinding == CredentialRevoked)
+                "credential revocation was not retained"
+              (revokedExecution, _, revokedDeployment) <-
+                mapIntegration revokedAttempt
+              require (packExecutionResultErrorCode revokedExecution
+                  == Just "credential_revoked")
+                "revoked credentials did not return credential_revoked"
+              require (null (packDeploymentHttpTrace revokedDeployment))
+                "revoked credential performed HTTP"
+              (unauthorizedResult, _, unauthorizedDeployment) <-
+                mapIntegration unauthorizedAttempt
+              require (packExecutionResultErrorCode unauthorizedResult
+                  == Just "credential_unauthorized")
+                "missing authorization did not return credential_unauthorized"
+              require (null (packDeploymentHttpTrace unauthorizedDeployment))
+                "unauthorized request performed HTTP"
+              (providerResult, providerState, providerDeployment) <-
+                mapIntegration providerAttempt
+              require (packExecutionResultErrorCode providerResult
+                  == Just "provider_failure")
+                "authorized provider failure was not classified distinctly"
+              require (length (packDeploymentHttpTrace providerDeployment) == 1)
+                "Lua host request did not reach HTTP exactly once"
+              require (providerBackoff component "felipe" providerState
+                  == beforeBackoff + 1)
+                "actual authorized provider failure did not advance backoff"
+              require (length (packStateInvocations providerState) == 1)
+                "authorized Pack execution omitted invocation evidence"
+              require (not (containsSecretName
+                  (toJSON (packStateInvocations providerState))))
+                "invocation evidence contains credential material"
+              require (callCount == 1)
+                "provider was called without one authorized Lua host request"
+              expectError ReplayExecutionForbidden replayAttempt
 
 hostHttpProbe :: PlanProbe
 hostHttpProbe _ = do

@@ -93,6 +93,46 @@ def resolve_driver() -> Path:
     return candidate
 
 
+def resolve_pack_runner() -> Path:
+    configured = os.environ.get("LANT_PACK_RUNNER")
+    if configured:
+        candidate = Path(configured)
+        if not candidate.is_file():
+            discovered = shutil.which(configured)
+            if discovered is None:
+                raise ProgressError(
+                    "LANT_PACK_RUNNER is not an executable path or command: "
+                    f"{configured}"
+                )
+            candidate = Path(discovered)
+    else:
+        try:
+            result = subprocess.run(
+                ["cabal", "list-bin", "exe:lant-pack-runner"],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ProgressError(f"cannot locate lant-pack-runner: {error}") from error
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise ProgressError(f"cabal list-bin failed: {detail}")
+        output_lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        if len(output_lines) != 1:
+            raise ProgressError(
+                "cabal list-bin returned an unexpected runner path: "
+                + repr(result.stdout)
+            )
+        candidate = Path(output_lines[0])
+
+    if not candidate.is_file() or not os.access(candidate, os.X_OK):
+        raise ProgressError(f"Pack runner is not executable: {candidate}")
+    return candidate
+
+
 def summarize_ids(identifiers: list[str]) -> str:
     shown = identifiers[:5]
     suffix = "" if len(identifiers) <= len(shown) else f" (+{len(identifiers) - len(shown)} more)"
@@ -348,6 +388,7 @@ def parse_arguments() -> argparse.Namespace:
 def main() -> int:
     arguments = parse_arguments()
     try:
+        os.environ["LANT_PACK_RUNNER"] = str(resolve_pack_runner())
         counts = collect_progress(resolve_driver())
         lines = count_lines(counts)
         print("\n".join(lines))

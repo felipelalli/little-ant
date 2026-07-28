@@ -11,6 +11,7 @@ import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as LBS8
+import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.List (find, isInfixOf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -25,7 +26,8 @@ import LittleAnt.V1.Contract
    PlanProbeInput (..), ProbeKey (..), ReferenceInput (..),
    ReferenceSnapshot (..), ResultItem (..),
    decodeAndRunContractRequest, emptyContractRegistry,
-   evaluateAssertionOperator, runContractRequest, standardAssertionOperators)
+   evaluateAssertionOperator, runContractRequest, runContractRequestIO,
+   standardAssertionOperators)
 import qualified LittleAnt.V1.Coordination as Coordination
 import LittleAnt.V1.Domain
 import qualified LittleAnt.V1.Execution as Execution
@@ -1972,6 +1974,19 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
         (BS8.pack "return true")
       Integration.packExecutionResultErrorCode secretInput @?=
         Just "credential_input_rejected"
+      (separateResult, separateTrace) <- Integration.runLuaComponentWithHost
+        Integration.defaultSandboxLimits [] Null (BS8.pack "return true")
+        (const (pure (Left "unexpected_host_call")))
+      Integration.packExecutionResultOk separateResult @?= True
+      assertBool "Lua did not cross a separate runner process"
+        (Integration.packRunnerTraceProcessId separateTrace /= Nothing)
+      memoryBound <- Integration.runLuaComponent
+        (Integration.defaultSandboxLimits
+          {Integration.sandboxLimitMemoryBytes = 512 * 1024})
+        [] Null (BS8.pack
+          "local values={}; while true do values[#values+1]=string.rep('x',65536) end")
+      Integration.packExecutionResultErrorCode memoryBound @?=
+        Just "memory_limit"
   , testCase "performs zero HTTP and backoff for locked, revoked, and absent bindings" $ do
       (installed, deployment, bindingId) <- credentialIntegrationFixture
       (_, lockedVault) <- requireIntegrationSuccess
@@ -1979,10 +1994,19 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
           (Integration.packDeploymentVault deployment))
       let lockedDeployment = deployment
             {Integration.packDeploymentVault = lockedVault}
-      (lockedResult, lockedState, lockedAfter) <- requireIntegrationSuccess
-        (Integration.executePackBoundary False integrationTestTime "felipe"
-          (Integration.ProviderFailed "must not run") integrationRequest
-          installed lockedDeployment)
+      providerCalls <- newIORef (0 :: Integer)
+      let source = BS8.pack
+            "return lant.http.request {method='GET', url='https://api.example.com/tasks', body_size=0}"
+          provider _ = do
+            modifyIORef' providerCalls (+ 1)
+            pure (Integration.ProviderFailed "rate limit")
+          mustNotRun _ = do
+            modifyIORef' providerCalls (+ 1000)
+            pure (Integration.ProviderFailed "must not run")
+      lockedAttempt <- Integration.executePackRuntime False integrationTestTime
+        "felipe" mustNotRun source integrationRequest installed lockedDeployment
+      (lockedResult, lockedState, lockedAfter) <-
+        requireIntegrationSuccess lockedAttempt
       Integration.packExecutionResultErrorCode lockedResult @?=
         Just "credential_locked"
       Integration.packDeploymentHttpTrace lockedAfter @?= []
@@ -1990,33 +2014,47 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
       Integration.packDeploymentExecutionCount lockedAfter @?= 0
       (_, unlockedVault) <- requireIntegrationSuccess
         (Integration.unlockCredentialBinding bindingId lockedVault)
-      (providerResult, providerState, providerAfter) <- requireIntegrationSuccess
-        (Integration.executePackBoundary False integrationTestTime "felipe"
-          (Integration.ProviderFailed "rate limit") integrationRequest
-          installed (deployment {Integration.packDeploymentVault = unlockedVault}))
+      providerAttempt <- Integration.executePackRuntime False integrationTestTime
+        "felipe" provider source integrationRequest installed
+        (deployment {Integration.packDeploymentVault = unlockedVault})
+      (providerResult, providerState, providerAfter) <-
+        requireIntegrationSuccess providerAttempt
       Integration.packExecutionResultErrorCode providerResult @?=
         Just "provider_failure"
       length (Integration.packDeploymentHttpTrace providerAfter) @?= 1
       Integration.providerBackoff "example/source" "felipe" providerState @?= 1
+      readIORef providerCalls >>= (@?= 1)
+      noRequestAttempt <- Integration.executePackRuntime False
+        integrationTestTime "felipe" provider (BS8.pack "return {ok=true}")
+        integrationRequest installed
+        (deployment {Integration.packDeploymentVault = unlockedVault})
+      (noRequestResult, noRequestState, noRequestDeployment) <-
+        requireIntegrationSuccess noRequestAttempt
+      Integration.packExecutionResultOk noRequestResult @?= True
+      Integration.packDeploymentHttpTrace noRequestDeployment @?= []
+      Integration.providerBackoff "example/source" "felipe" noRequestState @?= 0
+      readIORef providerCalls >>= (@?= 1)
       (_, revokedVault) <- requireIntegrationSuccess
         (Integration.revokeCredentialBinding bindingId unlockedVault)
-      (revokedResult, revokedState, revokedAfter) <- requireIntegrationSuccess
-        (Integration.executePackBoundary False integrationTestTime "felipe"
-          (Integration.ProviderFailed "must not run") integrationRequest
-          installed (deployment {Integration.packDeploymentVault = revokedVault}))
+      revokedAttempt <- Integration.executePackRuntime False integrationTestTime
+        "felipe" mustNotRun source integrationRequest installed
+        (deployment {Integration.packDeploymentVault = revokedVault})
+      (revokedResult, revokedState, revokedAfter) <-
+        requireIntegrationSuccess revokedAttempt
       Integration.packExecutionResultErrorCode revokedResult @?=
         Just "credential_revoked"
       Integration.packDeploymentHttpTrace revokedAfter @?= []
       Integration.providerBackoff "example/source" "felipe" revokedState @?= 0
       let absentVault = (Integration.packDeploymentVault deployment)
             {Integration.vaultStateBindings = Map.empty}
-      (absentResult, _, absentAfter) <- requireIntegrationSuccess
-        (Integration.executePackBoundary False integrationTestTime "felipe"
-          (Integration.ProviderFailed "must not run") integrationRequest
-          installed (deployment {Integration.packDeploymentVault = absentVault}))
+      absentAttempt <- Integration.executePackRuntime False integrationTestTime
+        "felipe" mustNotRun source integrationRequest installed
+        (deployment {Integration.packDeploymentVault = absentVault})
+      (absentResult, _, absentAfter) <- requireIntegrationSuccess absentAttempt
       Integration.packExecutionResultErrorCode absentResult @?=
         Just "credential_unauthorized"
       Integration.packDeploymentHttpTrace absentAfter @?= []
+      readIORef providerCalls >>= (@?= 1)
   , testCase "keeps vault state outside Pack content and canonical replay" $ do
       (installed, deployment, _) <- credentialIntegrationFixture
       assertBool "Pack state contains local encrypted payload"
@@ -2044,14 +2082,24 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
       kernelValue "v1.integration" (replayResultState replayed) @?=
         Just (toJSON installed)
       replayResultExternalTrace replayed @?= []
-      case Integration.executePackBoundary True integrationTestTime "felipe"
-          (Integration.ProviderSucceeded Null) integrationRequest
-          installed deployment of
+      replayAttempt <- Integration.executePackRuntime True integrationTestTime
+        "felipe" (const (pure (Integration.ProviderSucceeded Null)))
+        (BS8.pack "return true") integrationRequest installed deployment
+      case replayAttempt of
         Left Integration.ReplayExecutionForbidden -> pure ()
         result -> assertFailure ("replay Pack execution result: " <> show result)
+  , testCase "dispatches PackRunner through Lua and the brokered host boundary" $ do
+      runtimeResponse <- runContractRequestIO contractRegistry
+        productionPackRuntimeRequest
+      assertResponsePassed runtimeResponse
+        [ "runtime-provider-error"
+        , "runtime-http-request"
+        , "runtime-provider-backoff"
+        ]
   , testCase "passes Pack plan probes and the checked-in sandbox scenario" $ do
+      planResponse <- runContractRequestIO contractRegistry integrationPackPlanRequest
       assertResponsePassed
-        (runContractRequest contractRegistry integrationPackPlanRequest)
+        planResponse
         [ "contract-signature.PackRunner.execute"
         , "contract-signature.HostHttp.request"
         , "contract-signature.CredentialBroker.authorize"
@@ -2068,7 +2116,8 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
             , "request_kind" .= ("scenario" :: Text)
             , "scenario" .= (scenario :: Value)
             ]
-      assertResponsePassed (runContractRequest contractRegistry scenarioRequestValue)
+      scenarioResponse <- runContractRequestIO contractRegistry scenarioRequestValue
+      assertResponsePassed scenarioResponse
         [ "undeclared-capability-is-rejected"
         , "locked-vault-has-distinct-error"
         , "locked-vault-performs-no-http"
@@ -2136,6 +2185,72 @@ integrationRequest = Integration.PackExecutionRequest 1 "example/source" "discov
 integrationSuccess :: Integration.PackExecutionResult
 integrationSuccess = Integration.PackExecutionResult 1 True
   (Just (object ["items" .= ([] :: [Value])])) Nothing []
+
+productionPackRuntimeRequest :: Value
+productionPackRuntimeRequest = object
+  [ "protocol_version" .= (1 :: Integer)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("production-pack-runtime" :: Text)
+      , "clock" .= ("2026-07-27T22:00:00Z" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("install" :: Text)
+              , "operation" .= ("InstallPack" :: Text)
+              , "arguments" .= object
+                  [ "manifest" .= integrationManifest
+                  , "component_sources" .= object
+                      [ "example/source" .=
+                          ("return lant.http.request {method='GET', url='https://api.example.com/tasks', body_size=0}" :: Text)
+                      ]
+                  ]
+              , "bind_result" .= object
+                  ["component" .= ("component" :: Text)]
+              ]
+          , object
+              [ "id" .= ("credential" :: Text)
+              , "operation" .= ("CreateFixture" :: Text)
+              , "arguments" .= object
+                  [ "fixture" .= ("credential_binding" :: Text)
+                  , "component" .= ("$component" :: Text)
+                  , "slot" .= ("api-token" :: Text)
+                  , "account" .= ("felipe" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("execute" :: Text)
+              , "operation" .= ("PackRunner.execute" :: Text)
+              , "arguments" .= object
+                  [ "request" .= integrationRequest
+                  , "provider_failure" .= True
+                  ]
+              , "bind" .= ("result" :: Text)
+              ]
+          ]
+      , "assertions" .=
+          [ object
+              [ "id" .= ("runtime-provider-error" :: Text)
+              , "query" .= ("PackExecutionResult($result)" :: Text)
+              , "path" .= ("error_code" :: Text)
+              , "operator" .= ("equals" :: Text)
+              , "value" .= ("provider_failure" :: Text)
+              ]
+          , object
+              [ "id" .= ("runtime-http-request" :: Text)
+              , "query" .= ("HostHttpTrace" :: Text)
+              , "path" .= ("requests" :: Text)
+              , "operator" .= ("count_equals" :: Text)
+              , "value" .= (1 :: Integer)
+              ]
+          , object
+              [ "id" .= ("runtime-provider-backoff" :: Text)
+              , "query" .= ("ProviderBackoff(example/source,felipe)" :: Text)
+              , "operator" .= ("equals" :: Text)
+              , "value" .= (1 :: Integer)
+              ]
+          ]
+      ]
+  ]
 
 integrationTestTime :: UTCTime
 integrationTestTime = UTCTime (fromGregorian 2026 7 27) (22 * 60 * 60)
@@ -2557,8 +2672,12 @@ implementationBridgeTests = testGroup "real implementation registry"
   [ testCase "populates every contract extension point" $ do
       assertBool "plan probes are empty" (not (Map.null
         (registryPlanProbes contractRegistry)))
+      assertBool "runtime plan probes are empty" (not (Map.null
+        (registryRuntimePlanProbes contractRegistry)))
       assertBool "operations are empty" (not (Map.null
         (registryOperations contractRegistry)))
+      assertBool "runtime operations are empty" (not (Map.null
+        (registryRuntimeOperations contractRegistry)))
       assertBool "observations are empty" (not (Map.null
         (registryObservations contractRegistry)))
       assertBool "fixtures are empty" (not (Map.null

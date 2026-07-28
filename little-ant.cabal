@@ -99,7 +99,6 @@ library
         containers,
         directory,
         filepath,
-        hslua ==2.3.1,
         process,
         SHA,
         text,
@@ -146,6 +145,26 @@ executable lant-v1-test-driver
         aeson,
         bytestring,
         little-ant
+
+-- Every executable Pack component crosses this process boundary.  HsLua is
+-- intentionally absent from the main library and CLI executables.
+executable lant-pack-runner
+    import:             warnings
+    main-is:            Main.hs
+    hs-source-dirs:     pack-runner
+    default-language:   GHC2021
+    default-extensions:
+        LambdaCase
+        OverloadedStrings
+    ghc-options:        -threaded
+    build-depends:
+        base >=4.18 && <5,
+        aeson,
+        bytestring,
+        hslua ==2.3.1,
+        little-ant,
+        text,
+        unix
 
 -- Private executable used by the Cabal test launcher so `cabal test all`
 -- can discover the freshly built driver without changing the contract source.
@@ -200,7 +219,8 @@ test-suite little-ant-v1-driver-test
     hs-source-dirs:   test-v1-driver
     build-tool-depends:
         little-ant:la,
-        little-ant:lant
+        little-ant:lant,
+        little-ant:lant-pack-runner
     default-language: GHC2021
     default-extensions:
         LambdaCase
@@ -229,6 +249,7 @@ test-suite little-ant-v1-contract-test
         OverloadedStrings
     ghc-options:      -main-is ContractTestLauncher.main
     build-tool-depends:
+        little-ant:lant-pack-runner,
         little-ant:lant-v1-contract-harness,
         little-ant:lant-v1-test-driver
     build-depends:

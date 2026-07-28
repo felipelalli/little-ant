@@ -7,6 +7,7 @@ module LittleAnt.V1.PlanCatalog
   ( domainPlanProbes
   , kernelPlanProbes
   , v1PlanProbes
+  , v1RuntimePlanProbes
   ) where
 
 import Control.Monad (unless)
@@ -23,13 +24,14 @@ import qualified Data.Text as Text
 import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
 import LittleAnt.V1.CapturePlanCatalog (capturePlanProbes)
 import LittleAnt.V1.Contract
-  (PlanProbe, PlanProbeInput (..), ProbeKey (..))
+  (PlanProbe, PlanProbeInput (..), ProbeKey (..), RuntimePlanProbe)
 import LittleAnt.V1.CoordinationPlanCatalog (coordinationPlanProbes)
 import LittleAnt.V1.Domain
 import LittleAnt.V1.ExecutionPlanCatalog (executionLifecyclePlanProbes)
 import LittleAnt.V1.JudgmentAssessmentPlanCatalog (assessmentPlanProbes)
 import LittleAnt.V1.JudgmentPlanCatalog (priorityPlanProbes)
-import LittleAnt.V1.IntegrationPlanCatalog (integrationPlanProbes)
+import LittleAnt.V1.IntegrationPlanCatalog
+  (integrationPlanProbes, integrationRuntimePlanProbes)
 import LittleAnt.V1.InteractionPlanCatalog (interactionPlanProbes)
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
@@ -58,6 +60,9 @@ v1PlanProbes = Map.unions
   , interactionPlanProbes
   , readModelPlanProbes
   ]
+
+v1RuntimePlanProbes :: Map ProbeKey RuntimePlanProbe
+v1RuntimePlanProbes = integrationRuntimePlanProbes
 
 kernelPlanProbes :: Map ProbeKey PlanProbe
 kernelPlanProbes = Map.fromList

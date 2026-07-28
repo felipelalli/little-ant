@@ -10,14 +10,18 @@ import System.Process (rawSystem, readProcessWithExitCode)
 
 main :: IO ()
 main = do
-  configured <- lookupEnv "LANT_V1_TEST_DRIVER"
-  case configured of
-    Just _ -> pure ()
-    Nothing -> resolveBuiltExecutable "lant-v1-test-driver"
-      >>= setEnv "LANT_V1_TEST_DRIVER"
+  ensureExecutableEnv "LANT_V1_TEST_DRIVER" "lant-v1-test-driver"
+  ensureExecutableEnv "LANT_PACK_RUNNER" "lant-pack-runner"
   harness <- resolveBuiltExecutable "lant-v1-contract-harness"
   arguments <- getArgs
   rawSystem harness arguments >>= exitWith
+
+ensureExecutableEnv :: String -> String -> IO ()
+ensureExecutableEnv variable executableName = do
+  configured <- lookupEnv variable
+  case configured of
+    Just _ -> pure ()
+    Nothing -> resolveBuiltExecutable executableName >>= setEnv variable
 
 resolveBuiltExecutable :: String -> IO FilePath
 resolveBuiltExecutable name = do

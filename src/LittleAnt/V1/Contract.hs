@@ -25,11 +25,15 @@ module LittleAnt.V1.Contract
   , ReferenceResolver
   , ReferenceSnapshot (..)
   , ResultItem (..)
+  , RuntimePlanProbe
+  , RuntimeScenarioOperation
   , ScenarioOperation
   , decodeAndRunContractRequest
+  , decodeAndRunContractRequestIO
   , emptyContractRegistry
   , evaluateAssertionOperator
   , runContractRequest
+  , runContractRequestIO
   , selectJsonPath
   , standardAssertionOperators
   ) where
@@ -83,6 +87,14 @@ data OperationResult state = OperationResult
 type ScenarioOperation state =
   OperationInput -> state -> Either Text (OperationResult state)
 
+-- | An operation that must cross a real process or adapter boundary.
+--
+-- The pure runner deliberately ignores these operations.  Executable drivers
+-- use 'runContractRequestIO', preventing process-backed behavior from being
+-- disguised with unsafe evaluation in the deterministic contract core.
+type RuntimeScenarioOperation state =
+  OperationInput -> state -> IO (Either Text (OperationResult state))
+
 -- | A named fixture.  Fixtures have the same shape as operations so a fixture
 -- can augment an already-created isolated scenario state.
 type Fixture state =
@@ -121,6 +133,9 @@ data PlanProbeInput = PlanProbeInput
 -- | A successful probe returns 'Right ()'; a failed probe explains why.
 type PlanProbe = PlanProbeInput -> Either Text ()
 
+-- | A conformance probe that exercises a real runtime boundary.
+type RuntimePlanProbe = PlanProbeInput -> IO (Either Text ())
+
 -- | A custom path selector.  Ordinary object/array paths are handled by
 -- 'selectJsonPath'; this registry is for implementation-specific projections.
 type PathSelector = Value -> Either Text Value
@@ -158,7 +173,9 @@ type ReferenceResolver state = ReferenceInput state -> Either Text Value
 data ContractRegistry state = ContractRegistry
   { registryInitialState :: AmbientInputs -> state
   , registryPlanProbes :: Map ProbeKey PlanProbe
+  , registryRuntimePlanProbes :: Map ProbeKey RuntimePlanProbe
   , registryOperations :: Map Text (ScenarioOperation state)
+  , registryRuntimeOperations :: Map Text (RuntimeScenarioOperation state)
   , registryObservations :: Map Text (Observation state)
   , registryFixtures :: Map Text (Fixture state)
   , registryReferences :: Map Text (ReferenceResolver state)
@@ -204,7 +221,9 @@ emptyContractRegistry :: state -> ContractRegistry state
 emptyContractRegistry initialState = ContractRegistry
   { registryInitialState = const initialState
   , registryPlanProbes = Map.empty
+  , registryRuntimePlanProbes = Map.empty
   , registryOperations = Map.empty
+  , registryRuntimeOperations = Map.empty
   , registryObservations = Map.empty
   , registryFixtures = Map.empty
   , registryReferences = Map.empty
@@ -220,6 +239,16 @@ decodeAndRunContractRequest registry bytes =
   case eitherDecode bytes of
     Left problem -> protocolFailure ("invalid JSON request: " <> Text.pack problem)
     Right request -> runContractRequest registry request
+
+-- | Decode and execute one request, including registered process-backed
+-- operations and probes.
+decodeAndRunContractRequestIO ::
+  ContractRegistry state -> LBS.ByteString -> IO DriverResponse
+decodeAndRunContractRequestIO registry bytes =
+  case eitherDecode bytes of
+    Left problem -> pure (protocolFailure
+      ("invalid JSON request: " <> Text.pack problem))
+    Right request -> runContractRequestIO registry request
 
 -- | Run one decoded protocol request.
 runContractRequest :: ContractRegistry state -> Value -> DriverResponse
@@ -240,6 +269,27 @@ runContractRequest registry request =
                 Right requestKind ->
                   protocolFailure ("unknown request_kind: " <> requestKind)
     _ -> protocolFailure "request must be a JSON object"
+
+-- | IO-capable counterpart of 'runContractRequest'.  Pure requests retain the
+-- exact same semantics, while registered runtime probes and operations are
+-- awaited explicitly.
+runContractRequestIO :: ContractRegistry state -> Value -> IO DriverResponse
+runContractRequestIO registry request =
+  case request of
+    Object requestObject ->
+      case requiredInt "protocol_version" requestObject of
+        Left problem -> pure (protocolFailure problem)
+        Right version
+          | version /= 1 -> pure (protocolFailure
+              ("unsupported protocol_version: " <> Text.pack (show version)))
+          | otherwise ->
+              case requiredText "request_kind" requestObject of
+                Left problem -> pure (protocolFailure problem)
+                Right "allium_plan" -> runPlanRequestIO registry requestObject
+                Right "scenario" -> runScenarioRequestIO registry requestObject
+                Right requestKind -> pure (protocolFailure
+                  ("unknown request_kind: " <> requestKind))
+    _ -> pure (protocolFailure "request must be a JSON object")
 
 protocolFailure :: Text -> DriverResponse
 protocolFailure problem = DriverResponse
@@ -302,6 +352,52 @@ renderProbeKey :: ProbeKey -> Text
 renderProbeKey key = Text.intercalate "/"
   [probeModule key, probeCategory key, probeSourceConstruct key]
 
+runPlanRequestIO :: ContractRegistry state -> Object -> IO DriverResponse
+runPlanRequestIO registry request =
+  case (requiredText "module" request, requiredValue "plan" request,
+        requiredValue "model" request) of
+    (Right moduleName, Right planValue, Right modelValue) ->
+      case identifiedObjects "obligations" planValue of
+        Left problem -> pure (protocolFailure problem)
+        Right (obligations, duplicateIds) -> do
+          results <- mapM (runPlanProbeIO registry moduleName modelValue) obligations
+          let duplicateDiagnostics =
+                [ "duplicate obligation IDs were collapsed: "
+                    <> Text.intercalate ", " duplicateIds
+                | not (null duplicateIds)
+                ]
+              passed = all resultItemPassed results
+          pure DriverResponse
+            { driverResponseProtocolVersion = 1
+            , driverResponseOk = passed && null duplicateIds
+            , driverResponseResults = results
+            , driverResponseDiagnostics = duplicateDiagnostics
+            }
+    (Left problem, _, _) -> pure (protocolFailure problem)
+    (_, Left problem, _) -> pure (protocolFailure problem)
+    (_, _, Left problem) -> pure (protocolFailure problem)
+
+runPlanProbeIO ::
+  ContractRegistry state -> Text -> Value -> (Text, Object) -> IO ResultItem
+runPlanProbeIO registry moduleName modelValue item@(identifier, obligation) =
+  case (requiredText "category" obligation,
+        requiredText "source_construct" obligation) of
+    (Right category, Right construct) ->
+      let key = ProbeKey moduleName category construct
+          input = PlanProbeInput
+            { planProbeModule = moduleName
+            , planProbeCategory = category
+            , planProbeSourceConstruct = construct
+            , planProbeObligation = Object obligation
+            , planProbeModel = modelValue
+            }
+      in case Map.lookup key (registryRuntimePlanProbes registry) of
+          Just probe -> probe input >>= \case
+            Left problem -> pure (failedItem identifier problem)
+            Right () -> pure (passedItem identifier)
+          Nothing -> pure (runPlanProbe registry moduleName modelValue item)
+    _ -> pure (runPlanProbe registry moduleName modelValue item)
+
 -- Internal scenario state.  Haskell values are immutable, so retaining a
 -- state value is a real checkpoint rather than a lossy serialization.
 data Checkpoint state = Checkpoint
@@ -355,6 +451,47 @@ runScenarioRequest registry request =
         (Left problem, _) -> protocolFailure problem
         (_, Left problem) -> protocolFailure problem
     Right _ -> protocolFailure "scenario must be a JSON object"
+
+runScenarioRequestIO :: ContractRegistry state -> Object -> IO DriverResponse
+runScenarioRequestIO registry request =
+  case requiredValue "scenario" request of
+    Left problem -> pure (protocolFailure problem)
+    Right (Object scenario) ->
+      case (requiredArray "steps" scenario, requiredArray "assertions" scenario) of
+        (Right steps, Right assertions) -> do
+          let ambient = ambientFromScenario scenario
+              initial = ScenarioRuntime
+                { runtimeState = registryInitialState registry ambient
+                , runtimeBindings = Map.empty
+                , runtimeCheckpoints = Map.empty
+                , runtimeAmbient = ambient
+                }
+          (afterSteps, stepProblems) <- runScenarioStepsIO registry initial steps
+          let (identifiedAssertions, malformedProblems, duplicateIds) =
+                identifyScenarioAssertions assertions
+          results <- mapM (runOneAssertion afterSteps stepProblems)
+            identifiedAssertions
+          let diagnostics = malformedProblems <>
+                [ "duplicate assertion IDs were collapsed: "
+                    <> Text.intercalate ", " duplicateIds
+                | not (null duplicateIds)
+                ]
+          pure DriverResponse
+            { driverResponseProtocolVersion = 1
+            , driverResponseOk = all resultItemPassed results
+                && null diagnostics
+            , driverResponseResults = results
+            , driverResponseDiagnostics = diagnostics
+            }
+        (Left problem, _) -> pure (protocolFailure problem)
+        (_, Left problem) -> pure (protocolFailure problem)
+    Right _ -> pure (protocolFailure "scenario must be a JSON object")
+  where
+    runOneAssertion runtime stepProblems (identifier, assertion)
+      | null stepProblems =
+          runScenarioAssertionIO registry runtime identifier assertion
+      | otherwise = pure (failedItem identifier
+          ("scenario setup failed: " <> Text.intercalate "; " stepProblems))
 
 ambientFromScenario :: Object -> AmbientInputs
 ambientFromScenario scenario = AmbientInputs
@@ -418,6 +555,61 @@ runScenarioSteps registry initial = foldl' runOne (initial, [])
             (_, Left problem) -> (runtime, problems <> [problem])
         _ -> (runtime, problems <> ["scenario step must be an object"])
 
+runScenarioStepsIO ::
+  ContractRegistry state ->
+  ScenarioRuntime state ->
+  [Value] ->
+  IO (ScenarioRuntime state, [Text])
+runScenarioStepsIO registry initial steps = foldM runOne (initial, []) steps
+  where
+    runOne (runtime, problems) stepValue =
+      case stepValue of
+        Object step ->
+          case (requiredText "id" step, requiredText "operation" step) of
+            (Right stepId, Right operationNameValue) -> do
+              let withBefore = runtime
+                    { runtimeCheckpoints = Map.insert ("before:" <> stepId)
+                        (runtimeCheckpoint runtime)
+                        (runtimeCheckpoints runtime)
+                    }
+              execution <- executeNamedOperationIO
+                registry withBefore stepId operationNameValue
+                (fromMaybe (Object KeyMap.empty)
+                  (optionalNonNull "arguments" step))
+              pure $ case execution of
+                Left problem ->
+                  let withAfter = withBefore
+                        { runtimeCheckpoints = Map.insert ("after:" <> stepId)
+                            (runtimeCheckpoint withBefore)
+                            (runtimeCheckpoints withBefore)
+                        }
+                  in (withAfter, problems <>
+                        ["step " <> stepId <> ": " <> problem])
+                Right (resultValue, nextState) ->
+                  case applyStepBindings step resultValue withBefore
+                        {runtimeState = nextState} of
+                    Left problem ->
+                      let nextRuntime = withBefore {runtimeState = nextState}
+                          withAfter = nextRuntime
+                            { runtimeCheckpoints = Map.insert
+                                ("after:" <> stepId)
+                                (runtimeCheckpoint nextRuntime)
+                                (runtimeCheckpoints nextRuntime)
+                            }
+                      in (withAfter, problems <>
+                            ["step " <> stepId <> ": " <> problem])
+                    Right boundRuntime ->
+                      let withAfter = boundRuntime
+                            { runtimeCheckpoints = Map.insert
+                                ("after:" <> stepId)
+                                (runtimeCheckpoint boundRuntime)
+                                (runtimeCheckpoints boundRuntime)
+                            }
+                      in (withAfter, problems)
+            (Left problem, _) -> pure (runtime, problems <> [problem])
+            (_, Left problem) -> pure (runtime, problems <> [problem])
+        _ -> pure (runtime, problems <> ["scenario step must be an object"])
+
 runtimeCheckpoint :: ScenarioRuntime state -> Checkpoint state
 runtimeCheckpoint runtime = Checkpoint
   { checkpointState = runtimeState runtime
@@ -456,6 +648,48 @@ executeNamedOperation registry runtime stepId name unresolvedArguments = do
         (Map.lookup name (registryOperations registry))
   result <- operation input (runtimeState runtime)
   pure (operationResultValue result, operationResultState result)
+
+executeNamedOperationIO ::
+  ContractRegistry state ->
+  ScenarioRuntime state ->
+  Text ->
+  Text ->
+  Value ->
+  IO (Either Text (Value, state))
+executeNamedOperationIO registry runtime stepId name unresolvedArguments =
+  case resolveValue registry runtime (runtimeCheckpoint runtime)
+      unresolvedArguments of
+    Left problem -> pure (Left problem)
+    Right arguments -> do
+      let input = OperationInput
+            { operationStepId = stepId
+            , operationName = name
+            , operationArguments = arguments
+            , operationAmbient = runtimeAmbient runtime
+            }
+          state = runtimeState runtime
+      if name == "CreateFixture"
+        then pure $ do
+          fixtureName <- case arguments of
+            Object argumentObject -> requiredText "fixture" argumentObject
+            _ -> Left "CreateFixture arguments must be an object"
+          fixture <- maybe
+            (Left ("unregistered fixture: " <> fixtureName))
+            Right
+            (Map.lookup fixtureName (registryFixtures registry))
+          result <- fixture input state
+          pure (operationResultValue result, operationResultState result)
+        else case Map.lookup name (registryRuntimeOperations registry) of
+          Just operation -> fmap (fmap (\result ->
+            (operationResultValue result, operationResultState result)))
+            (operation input state)
+          Nothing -> pure $ do
+            operation <- maybe
+              (Left ("unregistered operation: " <> name))
+              Right
+              (Map.lookup name (registryOperations registry))
+            result <- operation input state
+            pure (operationResultValue result, operationResultState result)
 
 applyStepBindings ::
   Object -> Value -> ScenarioRuntime state -> Either Text (ScenarioRuntime state)
@@ -530,6 +764,42 @@ runScenarioAssertion registry runtime identifier assertion =
   case evaluateScenarioAssertion registry runtime assertion of
     Left problem -> failedItem identifier problem
     Right () -> passedItem identifier
+
+runScenarioAssertionIO ::
+  ContractRegistry state ->
+  ScenarioRuntime state ->
+  Text ->
+  Object ->
+  IO ResultItem
+runScenarioAssertionIO registry runtime identifier assertion =
+  evaluateScenarioAssertionIO registry runtime assertion >>= \case
+    Left problem -> pure (failedItem identifier problem)
+    Right () -> pure (passedItem identifier)
+
+evaluateScenarioAssertionIO ::
+  ContractRegistry state ->
+  ScenarioRuntime state ->
+  Object ->
+  IO (Either Text ())
+evaluateScenarioAssertionIO registry runtime assertion =
+  case assertionCheckpoint registry runtime assertion of
+    Left problem -> pure (Left problem)
+    Right checkpoint -> do
+      actualResult <- evaluateAssertionSubjectIO
+        registry runtime checkpoint assertion
+      pure $ do
+        actual <- actualResult
+        selected <- case optionalNonNull "path" assertion of
+          Nothing -> Right actual
+          Just (String path) -> selectRegisteredPath registry path actual
+          Just _ -> Left "assertion path must be text"
+        operatorNameValue <- requiredText "operator" assertion
+        operator <- maybe
+          (Left ("unregistered assertion operator: " <> operatorNameValue))
+          Right
+          (Map.lookup operatorNameValue (registryAssertionOperators registry))
+        expected <- assertionExpected registry runtime checkpoint assertion
+        operator selected expected assertion
 
 evaluateScenarioAssertion ::
   ContractRegistry state -> ScenarioRuntime state -> Object -> Either Text ()
@@ -622,6 +892,38 @@ evaluateAssertionSubject registry runtime checkpoint assertion = do
       (Left "assertion must declare an operation or query")
       Right
       operationValue
+
+evaluateAssertionSubjectIO ::
+  ContractRegistry state ->
+  ScenarioRuntime state ->
+  Checkpoint state ->
+  Object ->
+  IO (Either Text Value)
+evaluateAssertionSubjectIO registry runtime checkpoint assertion = do
+  operationResult <- case optionalNonNull "operation" assertion of
+    Nothing -> pure (Right (Nothing, checkpointState checkpoint))
+    Just (String operationNameValue) -> do
+      let atCheckpoint = runtime
+            { runtimeState = checkpointState checkpoint
+            , runtimeBindings = checkpointBindings checkpoint
+            }
+      fmap (fmap (\(value, state) -> (Just value, state))) $
+        executeNamedOperationIO registry atCheckpoint
+          (assertionIdentifier assertion) operationNameValue
+          (fromMaybe (Object KeyMap.empty)
+            (optionalNonNull "arguments" assertion))
+    Just _ -> pure (Left "assertion operation must be text")
+  pure $ do
+    (operationValue, stateAfterOperation) <- operationResult
+    case optionalNonNull "query" assertion of
+      Just (String queryText) ->
+        executeObservation registry runtime checkpoint
+          {checkpointState = stateAfterOperation} queryText
+      Just _ -> Left "assertion query must be text"
+      Nothing -> maybe
+        (Left "assertion must declare an operation or query")
+        Right
+        operationValue
 
 assertionIdentifier :: Object -> Text
 assertionIdentifier assertion =
