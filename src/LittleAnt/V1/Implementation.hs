@@ -14,8 +14,9 @@ import Data.Aeson
   (FromJSON, Object, Result (..), Value (..), fromJSON, object, toJSON, (.=))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Aeson.Types as AesonTypes
 import Data.Foldable (toList)
-import Data.List (find)
+import Data.List (find, sortOn)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe)
@@ -35,7 +36,8 @@ import LittleAnt.V1.Domain
    behaviorEffort, behaviorId, behaviorVersions, createBrick, createListEntry,
    createParty, domainCatalog, domainProjection, emptyDomainState,
    finiteChecklistV1, findBehaviors, findTemplates, initialDefinitionCatalog,
-   focusBrick, mkCanonicalText, ordinaryBrickDraft, standardV1)
+   focusBrick, mkCanonicalText, ordinaryBrickDraft, standardV1,
+   templateBehavior, templateId, templateVersion, templateVersions)
 import qualified LittleAnt.V1.Domain as Domain
 import qualified LittleAnt.V1.Execution as Execution
 import qualified LittleAnt.V1.Judgment as Judgment
@@ -63,6 +65,7 @@ import LittleAnt.V1.Material
    unarchiveRaw, verifySnapshotBytes)
 import LittleAnt.V1.PlanCatalog (v1PlanProbes)
 import qualified LittleAnt.V1.Priority as Priority
+import qualified LittleAnt.V1.Standing as Standing
 
 -- | Isolated v1 state.  Every protocol request obtains a new value through
 -- 'registryInitialState'.
@@ -123,6 +126,23 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("SetBrickDeadline", setCoordinationDeadlineOperation)
       , ("MoveSubtreeUnderParent", moveCoordinationSubtreeOperation)
       , ("AdvanceTime", advanceCoordinationTimeOperation)
+      , ("StartStandingExecution", startStandingExecutionOperation)
+      , ("FinishStandingExecution", finishStandingExecutionOperation)
+      , ("FinishRepeatableAndSchedule", finishRepeatableAndScheduleOperation)
+      , ("FinishRepeatableAndRetire", finishRepeatableAndRetireOperation)
+      , ("AbandonExecution", abandonStandingExecutionOperation)
+      , ("ConfigureRecurrence", configureRecurrenceOperation)
+      , ("PauseRecurrence", pauseRecurrenceOperation)
+      , ("ResumeRecurrence", resumeRecurrenceOperation)
+      , ("RetireRecurrence", retireRecurrenceOperation)
+      , ("ReviseRecurrence", reviseRecurrenceOperation)
+      , ("AdvanceSchedules", advanceSchedulesOperation)
+      , ("CompletePracticeOpportunity", completePracticeOpportunityOperation)
+      , ("AbandonPracticeOpportunity", abandonPracticeOpportunityOperation)
+      , ("ConfigureOpportunityTrigger", configureOpportunityTriggerOperation)
+      , ("RetireOpportunityTrigger", retireOpportunityTriggerOperation)
+      , ("CompleteBrick", completeStandingBrickOperation)
+      , ("AddDependency", addStandingDependencyOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -165,6 +185,15 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("DateNotice", dateNoticeObservation)
       , ("ActiveDateNotices", activeDateNoticesObservation)
       , ("PlaceEvaluation", placeEvaluationObservation)
+      , ("LatestExecution", latestExecutionObservation)
+      , ("ExecutionHistory", executionHistoryObservation)
+      , ("BricksByCanonicalTitle", bricksByCanonicalTitleObservation)
+      , ("PracticeOpportunity", practiceOpportunityObservation)
+      , ("PracticeOpportunities", practiceOpportunitiesObservation)
+      , ("PracticeHistory", practiceHistoryObservation)
+      , ("ObligationOccurrences", obligationOccurrencesObservation)
+      , ("ObligationHistory", obligationHistoryObservation)
+      , ("PriorityPath", priorityPathObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -176,6 +205,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("material_entities", materialEntitiesFixture)
       , ("strict_root_priority", strictRootPriorityFixture)
       , ("two_projects_with_child", twoProjectsWithChildFixture)
+      , ("template_brick", templateBrickFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -317,6 +347,388 @@ parseProposedEvent value = do
       <$> requiredText "kind" event
       <*> (fromMaybe KeyMap.empty <$> optionalObject "fields" event)
     _ -> Left ("unknown kernel event type: " <> eventType)
+
+------------------------------------------------------------
+-- Standing execution, deterministic recurrence, and practices
+------------------------------------------------------------
+
+standingStateFromKernel :: V1State -> Either Text Standing.StandingState
+standingStateFromKernel state = case kernelValue "v1.standing" state of
+  Just value -> case fromJSON value of
+    Success standing -> do
+      mapStandingError (Standing.validateStandingState standing)
+      Right standing
+    Error problem -> Left ("stored standing state is malformed: "
+      <> Text.pack problem)
+  Nothing -> do
+    coordination <- coordinationStateFromKernel state
+    let standing = Standing.emptyStandingState
+          {Standing.standingStateCoordination = coordination}
+    mapStandingError (Standing.validateStandingState standing)
+    Right standing
+
+persistStanding ::
+  OperationInput -> Text -> Standing.StandingState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistStanding input suffix standing resultValue state = do
+  accepted <- appendForFixture input suffix
+    [ ProposeValueStored "v1.standing" (toJSON standing)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination standing))
+    ] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+startStandingExecutionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+startStandingExecutionOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (execution, next) <- mapStandingError
+    (Standing.startStandingExecution brick now standing)
+  persistStanding input "standing-start" next (object
+    ["execution" .= Standing.executionOccurrenceId execution]) state
+
+finishStandingExecutionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+finishStandingExecutionOperation input state = do
+  arguments <- requireArgumentsObject input
+  execution <- requiredAs "execution" arguments
+  outcome <- requiredAs "outcome" arguments
+  note <- optionalAs "note" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.finishStandingExecution execution outcome note now standing)
+  persistStanding input "standing-finish" next (toJSON updated) state
+
+finishRepeatableAndScheduleOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+finishRepeatableAndScheduleOperation input state = do
+  arguments <- requireArgumentsObject input
+  execution <- requiredAs "execution" arguments
+  note <- optionalAs "note" arguments
+  baseDelay <- requiredText "base_delay" arguments
+  jitterRange <- requiredText "jitter_range" arguments
+  randomEvidence <- requiredText "random_evidence" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, evidence, next) <- mapStandingError
+    (Standing.finishRepeatableAndSchedule execution note baseDelay jitterRange
+      randomEvidence now standing)
+  persistStanding input "repeat-schedule" next (object
+    [ "execution" .= Standing.executionOccurrenceId updated
+    , "not_before" .= Standing.repeatScheduleNotBefore evidence
+    ]) state
+
+finishRepeatableAndRetireOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+finishRepeatableAndRetireOperation input state = do
+  arguments <- requireArgumentsObject input
+  execution <- requiredAs "execution" arguments
+  note <- optionalAs "note" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.finishRepeatableAndRetire execution note now standing)
+  persistStanding input "repeat-retire" next (toJSON updated) state
+
+abandonStandingExecutionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+abandonStandingExecutionOperation input state = do
+  arguments <- requireArgumentsObject input
+  execution <- requiredAs "execution" arguments
+  note <- optionalAs "note" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.abandonExecution execution note now standing)
+  persistStanding input "standing-abandon" next (toJSON updated) state
+
+configureRecurrenceOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+configureRecurrenceOperation input state = do
+  arguments <- requireArgumentsObject input
+  target <- requiredAs "target" arguments
+  kind <- requiredAs "kind" arguments
+  schedule <- requiredText "schedule" arguments
+  timezone <- requiredText "timezone" arguments
+  firstRelease <- requiredAs "first_release" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (recurrence, next) <- mapStandingError (Standing.configureRecurrence target kind
+    schedule timezone firstRelease now standing)
+  persistStanding input "recurrence-configure" next (object
+    ["recurrence" .= Standing.recurrenceRuleId recurrence]) state
+
+pauseRecurrenceOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+pauseRecurrenceOperation input state = do
+  arguments <- requireArgumentsObject input
+  recurrence <- requiredAs "recurrence" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.pauseRecurrence recurrence now standing)
+  persistStanding input "recurrence-pause" next (toJSON updated) state
+
+resumeRecurrenceOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+resumeRecurrenceOperation input state = do
+  arguments <- requireArgumentsObject input
+  recurrence <- requiredAs "recurrence" arguments
+  nextRelease <- requiredAs "next_release" arguments
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.resumeRecurrence recurrence nextRelease standing)
+  persistStanding input "recurrence-resume" next (toJSON updated) state
+
+retireRecurrenceOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+retireRecurrenceOperation input state = do
+  arguments <- requireArgumentsObject input
+  recurrence <- requiredAs "recurrence" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.retireRecurrence recurrence now standing)
+  persistStanding input "recurrence-retire" next (toJSON updated) state
+
+reviseRecurrenceOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+reviseRecurrenceOperation input state = do
+  arguments <- requireArgumentsObject input
+  recurrence <- requiredAs "recurrence" arguments
+  schedule <- requiredText "schedule" arguments
+  timezone <- requiredText "timezone" arguments
+  nextRelease <- requiredAs "next_release" arguments
+  reason <- requiredText "reason" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (revision, next) <- mapStandingError (Standing.reviseRecurrence recurrence
+    schedule timezone nextRelease reason authority now standing)
+  persistStanding input "recurrence-revise" next (object
+    ["revision" .= Standing.recurrenceRevisionId revision]) state
+
+advanceSchedulesOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+advanceSchedulesOperation input state = do
+  arguments <- requireArgumentsObject input
+  at <- requiredAs "at" arguments
+  standing <- standingStateFromKernel state
+  (obligations, practices, next) <- mapStandingError
+    (Standing.advanceSchedules at standing)
+  persistStanding input "schedules-advance" next (object
+    [ "occurrence" .= fmap Standing.obligationOccurrenceBrick (lastMay obligations)
+    , "occurrences" .= map Standing.obligationOccurrenceBrick obligations
+    , "opportunities" .= map Standing.practiceOpportunityId practices
+    ]) state
+
+completePracticeOpportunityOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+completePracticeOpportunityOperation input state = do
+  arguments <- requireArgumentsObject input
+  opportunity <- requiredAs "opportunity" arguments
+  note <- optionalAs "note" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, execution, next) <- mapStandingError
+    (Standing.completePracticeOpportunity opportunity note now standing)
+  persistStanding input "practice-complete" next (object
+    [ "opportunity" .= Standing.practiceOpportunityId updated
+    , "execution" .= Standing.executionOccurrenceId execution
+    ]) state
+
+abandonPracticeOpportunityOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+abandonPracticeOpportunityOperation input state = do
+  arguments <- requireArgumentsObject input
+  opportunity <- requiredAs "opportunity" arguments
+  reason <- optionalAs "reason" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.abandonPracticeOpportunity opportunity reason now standing)
+  persistStanding input "practice-abandon" next (toJSON updated) state
+
+configureOpportunityTriggerOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+configureOpportunityTriggerOperation input state = do
+  arguments <- requireArgumentsObject input
+  source <- requiredAs "source" arguments
+  target <- requiredAs "target" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (trigger, next) <- mapStandingError
+    (Standing.configureOpportunityTrigger source target now standing)
+  persistStanding input "trigger-configure" next (object
+    ["trigger" .= Standing.opportunityTriggerId trigger]) state
+
+retireOpportunityTriggerOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+retireOpportunityTriggerOperation input state = do
+  arguments <- requireArgumentsObject input
+  trigger <- requiredAs "trigger" arguments
+  standing <- standingStateFromKernel state
+  (updated, next) <- mapStandingError
+    (Standing.retireOpportunityTrigger trigger standing)
+  persistStanding input "trigger-retire" next (toJSON updated) state
+
+completeStandingBrickOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+completeStandingBrickOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  note <- optionalAs "note" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  next <- mapStandingError (Standing.completeStandingBrick brick note
+    (actionIdFor input) now standing)
+  persistStanding input "brick-complete" next (object ["brick" .= brick]) state
+
+addStandingDependencyOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+addStandingDependencyOperation input state = do
+  arguments <- requireArgumentsObject input
+  blocked <- requiredAs "blocked" arguments
+  blocker <- requiredAs "blocker" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  next <- mapStandingError
+    (Standing.addStandingDependency blocked blocker now standing)
+  persistStanding input "dependency-add" next (object
+    ["blocked" .= blocked, "blocker" .= blocker]) state
+
+latestExecutionObservation :: ObservationInput -> V1State -> Either Text Value
+latestExecutionObservation input state = do
+  brick <- exactlyOneAsArgument "LatestExecution" input
+  standing <- standingStateFromKernel state
+  case lastMay (sortOn Standing.executionOccurrenceId
+      [execution | execution <- Map.elems (Standing.standingStateExecutions standing),
+        Standing.executionOccurrenceBrick execution == brick]) of
+    Nothing -> Right Null
+    Just execution -> Right (toJSON execution)
+
+executionHistoryObservation :: ObservationInput -> V1State -> Either Text Value
+executionHistoryObservation input state = do
+  brick <- exactlyOneAsArgument "ExecutionHistory" input
+  standing <- standingStateFromKernel state
+  let items = sortOn Standing.executionOccurrenceId
+        [execution | execution <- Map.elems (Standing.standingStateExecutions standing),
+          Standing.executionOccurrenceBrick execution == brick]
+  pure (object ["items" .= items])
+
+bricksByCanonicalTitleObservation ::
+  ObservationInput -> V1State -> Either Text Value
+bricksByCanonicalTitleObservation input state = do
+  title <- exactlyOneAsArgument "BricksByCanonicalTitle" input
+  standing <- standingStateFromKernel state
+  let domain = Execution.executionStateDomain
+        (Coordination.coordinationStateExecution
+          (Standing.standingStateCoordination standing))
+      identifiers = [brickId brick | brick <- Map.elems (Domain.domainBricks domain),
+        Domain.brickTitle brick == title]
+  items <- mapM (mapDomainError . standingBrickProjection domain) identifiers
+  pure (object ["items" .= items])
+
+practiceOpportunityObservation ::
+  ObservationInput -> V1State -> Either Text Value
+practiceOpportunityObservation input state = do
+  identifier <- exactlyOneAsArgument "PracticeOpportunity" input
+  standing <- standingStateFromKernel state
+  maybe (Left "unknown PracticeOpportunity") (Right . toJSON)
+    (Map.lookup identifier (Standing.standingStatePracticeOpportunities standing))
+
+practiceOpportunitiesObservation ::
+  ObservationInput -> V1State -> Either Text Value
+practiceOpportunitiesObservation input state = do
+  (recurrence, period) <- case observationArguments input of
+    [recurrenceValue, periodValue] -> (,)
+      <$> decodeArgument "PracticeOpportunities" recurrenceValue
+      <*> (Just <$> decodeArgument "PracticeOpportunities" periodValue)
+    [recurrenceValue] -> (,)
+      <$> decodeArgument "PracticeOpportunities" recurrenceValue
+      <*> pure Nothing
+    _ -> Left "PracticeOpportunities expects a recurrence and optional period"
+  standing <- standingStateFromKernel state
+  pure (object ["items" .= Standing.practiceOpportunitiesFor recurrence period standing])
+
+practiceHistoryObservation :: ObservationInput -> V1State -> Either Text Value
+practiceHistoryObservation input state = do
+  recurrence <- exactlyOneAsArgument "PracticeHistory" input
+  standing <- standingStateFromKernel state
+  toJSON <$> mapStandingError (Standing.practiceHistory recurrence Nothing 1000 standing)
+
+obligationOccurrencesObservation ::
+  ObservationInput -> V1State -> Either Text Value
+obligationOccurrencesObservation input state = do
+  (recurrence, period) <- case observationArguments input of
+    [recurrenceValue, periodValue] -> (,)
+      <$> decodeArgument "ObligationOccurrences" recurrenceValue
+      <*> (Just <$> decodeArgument "ObligationOccurrences" periodValue)
+    [recurrenceValue] -> (,)
+      <$> decodeArgument "ObligationOccurrences" recurrenceValue
+      <*> pure Nothing
+    _ -> Left "ObligationOccurrences expects a recurrence and optional period"
+  standing <- standingStateFromKernel state
+  let occurrences = Standing.obligationOccurrencesFor recurrence period standing
+      domain = Execution.executionStateDomain
+        (Coordination.coordinationStateExecution
+          (Standing.standingStateCoordination standing))
+  items <- mapM (\occurrence -> do
+      projection <- mapDomainError (standingBrickProjection domain
+        (Standing.obligationOccurrenceBrick occurrence))
+      pure (projection `mergeValueFields`
+        [ "period_key" .= Standing.obligationOccurrencePeriodKey occurrence
+        ])) occurrences
+  pure (object ["items" .= items])
+
+obligationHistoryObservation :: ObservationInput -> V1State -> Either Text Value
+obligationHistoryObservation input state = do
+  recurrence <- exactlyOneAsArgument "ObligationHistory" input
+  standing <- standingStateFromKernel state
+  let occurrences = Standing.obligationOccurrencesFor recurrence Nothing standing
+  pure (object
+    [ "period_keys" .= map Standing.obligationOccurrencePeriodKey occurrences
+    , "items" .= occurrences
+    ])
+
+priorityPathObservation :: ObservationInput -> V1State -> Either Text Value
+priorityPathObservation input state = do
+  brick <- exactlyOneAsArgument "PriorityPath" input
+  standing <- standingStateFromKernel state
+  let priority = Execution.executionStatePriority
+        (Coordination.coordinationStateExecution
+          (Standing.standingStateCoordination standing))
+  item <- mapPriorityError (Priority.priorityViewItem priority brick)
+  pure (object
+    [ "scope" .= Priority.priorityViewItemScope item
+    , "sibling_index" .= Priority.priorityViewItemSiblingIndex item
+    , "tree_path" .= Priority.priorityViewItemTreePath item
+    ])
+
+standingBrickProjection :: Domain.DomainState -> BrickId -> Either DomainError Value
+standingBrickProjection domain identifier = do
+  projection <- Domain.brickProjection domain identifier
+  pure $ case projection of
+    Object fields -> case KeyMap.lookup "parent" fields of
+      Just parent@(String _) -> Object (KeyMap.insert "parent"
+        (object ["id" .= parent]) fields)
+      _ -> projection
+    _ -> projection
+
+mergeValueFields :: Value -> [AesonTypes.Pair] -> Value
+mergeValueFields value pairs = case (value, object pairs) of
+  (Object original, Object extra) -> Object (KeyMap.union extra original)
+  _ -> value
+
+mapStandingError :: Either Standing.StandingError value -> Either Text value
+mapStandingError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Coordination, inherited dates, and explicit places
@@ -1464,13 +1876,43 @@ activeRootBrickFixture ::
 activeRootBrickFixture input state = do
   arguments <- requireArgumentsObject input
   titleText <- requiredText "title" arguments
+  createRegisteredStandingFixture input state titleText standardV1
+
+-- | Expand one immutable template version into the coordinated canonical
+-- state.  The template reference is data (id@version), not executable code.
+templateBrickFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+templateBrickFixture input state = do
+  arguments <- requireArgumentsObject input
+  templateReference <- requiredText "template" arguments
+  titleText <- requiredText "title" arguments
+  template <- maybe (Left ("unknown template version: " <> templateReference)) Right
+    (find (\candidate -> templateId candidate <> "@"
+      <> Text.pack (show (templateVersion candidate)) == templateReference)
+      (templateVersions initialDefinitionCatalog))
+  createRegisteredStandingFixture input state titleText (templateBehavior template)
+
+createRegisteredStandingFixture ::
+  OperationInput -> V1State -> Text -> Domain.BrickBehavior ->
+  Either Text (OperationResult V1State)
+createRegisteredStandingFixture input state titleText behavior = do
+  now <- operationTime input
   title <- mapDomainError (mkCanonicalText titleText Nothing Human)
-  (brick, _) <- mapDomainError
-    (createBrick (ordinaryBrickDraft title standardV1 domainFixtureTime)
-      emptyDomainState)
+  standing <- standingStateFromKernel state
+  (brick, _, nextStanding) <- mapStandingError (Standing.createStandingBrick
+    (ordinaryBrickDraft title behavior now) ("fixture:" <> titleText) now standing)
   material <- materialStateFromKernel state
-  let next = registerMaterialBrick (brickId brick) Active material
-  persistMaterial input next (object ["brick" .= brickId brick]) state
+  let nextMaterial = registerMaterialBrick (brickId brick) Active material
+  accepted <- appendForFixture input "standing-brick"
+    [ ProposeValueStored "v1.standing" (toJSON nextStanding)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination nextStanding))
+    , ProposeValueStored "v1.material" (toJSON nextMaterial)
+    ] state
+  pure OperationResult
+    { operationResultValue = object ["brick" .= brickId brick]
+    , operationResultState = appendResultState accepted
+    }
 
 materialEntitiesFixture ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
@@ -1518,7 +1960,7 @@ materialBrickSummaryObservation input state = do
   case kernelValue "v1.coordination" state of
     Just _ -> do
       coordination <- coordinationStateFromKernel state
-      mapDomainError (Domain.brickProjection
+      mapDomainError (standingBrickProjection
         (Execution.executionStateDomain
           (Coordination.coordinationStateExecution coordination)) brick)
     Nothing -> do
@@ -1918,6 +2360,11 @@ exactlyOneAsArgument name input = case observationArguments input of
     Error problem -> Left (name <> " received an invalid identifier: "
       <> Text.pack problem)
   _ -> Left (name <> " expects exactly one argument")
+
+lastMay :: [value] -> Maybe value
+lastMay [] = Nothing
+lastMay [value] = Just value
+lastMay (_ : rest) = lastMay rest
 
 operationTime :: OperationInput -> Either Text UTCTime
 operationTime input = case ambientClock (operationAmbient input) of

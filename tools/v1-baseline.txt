@@ -1,5 +1,5 @@
 plan:domain 108/108
-plan:execution 250/374
+plan:execution 360/374
 plan:integration 0/268
 plan:interaction 2/119
 plan:judgment 197/197
@@ -13,8 +13,8 @@ scenario:priority-contradiction-recalibration 7/7
 scenario:forecast-lottery-calibration 0/7
 scenario:served-skip-cooldown-and-pressure 0/7
 scenario:article-repeat-with-jitter 0/7
-scenario:practice-streak-and-blocker 0/7
-scenario:recurring-bills 0/7
+scenario:practice-streak-and-blocker 6/7
+scenario:recurring-bills 7/7
 scenario:inherited-dates-after-move 8/8
 scenario:raw-source-reconciliation 7/7
 scenario:microsoft-todo-sync-and-cutover 0/10
@@ -23,4 +23,4 @@ scenario:event-replay-sparse-history 0/9
 scenario:v0-v1-atomic-cutover 0/8
 scenario:taskjuggler-planning-cut 0/7
 scenario:pack-sandbox-and-credentials 0/7
-TOTAL 708/1566
+TOTAL 831/1566

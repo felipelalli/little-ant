@@ -38,6 +38,7 @@ module LittleAnt.V1.Priority
   , createPriorityRoot
   , createStrictRootFixture
   , deferJudgmentProbe
+  , deferPriorityInsertion
   , invalidatePriorityJudgmentsFor
   , emptyPriorityState
   , movePrioritySubtree
@@ -676,6 +677,34 @@ skipPriorityComparison identifier kind now state = do
         }
   validatePriorityState next
   pure (nextInsertion, skip, next)
+
+-- | Mark a newly-created insertion as provisionally positioned without
+-- inventing a comparison.  Deterministic releases use this when a period key
+-- is the only placement evidence, including in an otherwise empty scope.
+deferPriorityInsertion ::
+  PriorityInsertionId -> UTCTime -> PriorityState ->
+  Either PriorityError (PriorityInsertion, PriorityState)
+deferPriorityInsertion identifier now state = do
+  insertion <- requireInsertion identifier state
+  unless (priorityInsertionStatus insertion `elem` [InsertionOpen, InsertionResolved])
+    (Left (InvalidPriorityTransition "priority insertion is already deferred"))
+  unless (priorityInsertionComparisonsRecorded insertion == 0)
+    (Left (InvalidPriorityTransition "compared insertion cannot be release-deferred"))
+  let deferred = insertion
+        { priorityInsertionStatus = InsertionDeferred
+        , priorityInsertionCurrentCandidate = Nothing
+        , priorityInsertionFinishedAt = Just now
+        , priorityInsertionPreviousCandidate = Nothing
+        , priorityInsertionCandidateDistanceFromPrevious = Nothing
+        }
+      next = state
+        { priorityStateInsertions = Map.insert identifier deferred
+            (priorityStateInsertions state)
+        , priorityStateProposalPressure = Set.insert
+            (priorityInsertionBrick insertion) (priorityStateProposalPressure state)
+        }
+  validatePriorityState next
+  pure (deferred, next)
 
 reopenPriorityInsertion ::
   PriorityInsertionId -> PriorityState ->

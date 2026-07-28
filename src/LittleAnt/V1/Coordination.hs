@@ -48,6 +48,7 @@ module LittleAnt.V1.Coordination
   , clearCoordinationBestBefore
   , clearCoordinationDeadline
   , clearCoordinationNotBefore
+  , closeCoordinationSubtree
   , completeCoordinationBrick
   , completeFiniteChecklist
   , completeDelegation
@@ -65,12 +66,15 @@ module LittleAnt.V1.Coordination
   , recordLocationObservation
   , refuseDelegation
   , removeCoordinationListEntry
+  , retireCoordinationStandingBrick
   , resolveCoordinationListEntry
   , resolveCoordinationWait
   , setCoordinationBestBefore
   , setCoordinationDeadline
   , setCoordinationNotBefore
   , snoozeDateNotice
+  , supersedeCoordinationBrick
+  , supersedeCoordinationBrickWithChildren
   , validateCoordinationState
   ) where
 
@@ -100,9 +104,11 @@ import LittleAnt.V1.Domain
    removeListEntry, resolveListEntry, setBrickBestBefore, setBrickDeadline,
    setBrickNotBefore, subtreeBricks)
 import LittleAnt.V1.Execution
-  (ExecutionError, ExecutionState (..), completeExecutionBrick,
-   createExecutionBrick, dropExecutionBrick, emptyExecutionState,
-   moveExecutionSubtree, validateExecutionState)
+  (ExecutionError, ExecutionState (..), closeExecutionSubtree,
+   completeExecutionBrick, createExecutionBrick, dropExecutionBrick,
+   emptyExecutionState, moveExecutionSubtree, retireStandingExecutionBrick,
+   supersedeExecutionBrick, supersedeExecutionBrickWithChildren,
+   validateExecutionState)
 import qualified LittleAnt.V1.Priority as Priority
 
 ------------------------------------------------------------
@@ -433,6 +439,54 @@ dropCoordinationBrick identifier now state = do
     (dropExecutionBrick identifier now (coordinationStateExecution state))
   commit "brick_dropped" (settleTerminal identifier Dropped now state
     {coordinationStateExecution = execution})
+
+retireCoordinationStandingBrick ::
+  BrickId -> UTCTime -> CoordinationState -> Either CoordinationError CoordinationState
+retireCoordinationStandingBrick identifier now state = do
+  execution <- mapExecution
+    (retireStandingExecutionBrick identifier now (coordinationStateExecution state))
+  commit "standing_brick_retired" (settleTerminal identifier Done now state
+    {coordinationStateExecution = execution})
+
+supersedeCoordinationBrick ::
+  BrickId -> BrickId -> Maybe Text -> UTCTime -> CoordinationState ->
+  Either CoordinationError CoordinationState
+supersedeCoordinationBrick identifier replacement reason now state = do
+  execution <- mapExecution
+    (supersedeExecutionBrick identifier replacement reason now
+      (coordinationStateExecution state))
+  commit "brick_superseded" (settleTerminal identifier Superseded now state
+    {coordinationStateExecution = execution})
+
+supersedeCoordinationBrickWithChildren ::
+  BrickId -> BrickId -> [BrickId] -> Maybe Text -> Text -> UTCTime ->
+  CoordinationState -> Either CoordinationError
+    ([Priority.PriorityInsertion], CoordinationState)
+supersedeCoordinationBrickWithChildren identifier replacement selected reason
+    evidence now state = do
+  affected <- concat <$> mapM
+    (mapDomain . subtreeBricks (coordinationDomain state)) selected
+  (insertions, execution) <- mapExecution
+    (supersedeExecutionBrickWithChildren identifier replacement selected reason
+      evidence now (coordinationStateExecution state))
+  let changed = resolveNoticesFor (Set.fromList (map brickId affected))
+        (settleTerminal identifier Superseded now state
+          {coordinationStateExecution = execution})
+  committed <- commit "brick_superseded_with_children" changed
+  pure (insertions, committed)
+
+closeCoordinationSubtree ::
+  BrickId -> BrickStatus -> UTCTime -> CoordinationState ->
+  Either CoordinationError CoordinationState
+closeCoordinationSubtree root status now state = do
+  members <- mapDomain (subtreeBricks (coordinationDomain state) root)
+  let active = filter ((== Active) . brickStatus) members
+  execution <- mapExecution
+    (closeExecutionSubtree root status now (coordinationStateExecution state))
+  let changed = foldl'
+        (\current brick -> settleTerminal (brickId brick) status now current)
+        state {coordinationStateExecution = execution} active
+  commit (if status == Done then "subtree_completed" else "subtree_dropped") changed
 
 moveCoordinationSubtree ::
   BrickId -> Maybe BrickId -> Text -> UTCTime -> CoordinationState ->

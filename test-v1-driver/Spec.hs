@@ -9,7 +9,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
+import Data.Time (NominalDiffTime, UTCTime (..), addUTCTime, fromGregorian)
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), DriverResponse (..),
    ObservationInput (..), OperationInput (..), OperationResult (..),
@@ -29,6 +29,7 @@ import LittleAnt.V1.Kernel
    kernelEventBatches, kernelRevision, kernelValue, replayAll)
 import LittleAnt.V1.Material
 import qualified LittleAnt.V1.Priority as Priority
+import qualified LittleAnt.V1.Standing as Standing
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
   (Assertion, assertBool, assertFailure, testCase, (@?=))
@@ -38,6 +39,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   [ kernelTests
   , domainTests
   , executionLifecycleTests
+  , standingExecutionTests
   , coordinationTests
   , materialTests
   , priorityTests
@@ -505,6 +507,190 @@ executionLifecycleTests = testGroup "v1 Brick metadata, focus, lifecycle, and su
           Just (Just (brickId newParent))
       Execution.executionStateRevision moved @?=
         Execution.executionStateRevision before + 1
+  ]
+
+standingExecutionTests :: TestTree
+standingExecutionTests = testGroup "standing execution and recurrence"
+  [ testCase "keeps one running occurrence and records honest outcomes" $ do
+      (owner, first) <- createUnitStandingBrick "Standing checklist"
+        standingChecklistV1 Standing.emptyStandingState
+      (running, second) <- requireStandingSuccess
+        (Standing.startStandingExecution (brickId owner) domainTestTime first)
+      Standing.executionOccurrenceStartedAt running @?= Just domainTestTime
+      case Standing.startStandingExecution (brickId owner) domainTestTime second of
+        Left _ -> pure ()
+        Right _ -> assertFailure "second running occurrence was accepted"
+      (finished, third) <- requireStandingSuccess
+        (Standing.finishStandingExecution (Standing.executionOccurrenceId running)
+          Standing.OutcomePartial (Just "some work remains")
+          (addUTCTime 1 domainTestTime) second)
+      Standing.executionOccurrenceStatus finished @?= Standing.ExecutionFinished
+      Standing.executionOccurrenceOutcome finished @?= Just Standing.OutcomePartial
+      let ownerAfter = lookupStandingBrick (brickId owner) third
+      fmap brickStatus ownerAfter @?= Just Active
+      fmap brickWorkState ownerAfter @?= Just Idle
+      case Standing.finishStandingExecution (Standing.executionOccurrenceId running)
+          Standing.OutcomeDone Nothing (addUTCTime 2 domainTestTime) third of
+        Left _ -> pure ()
+        Right _ -> assertFailure "terminal occurrence transitioned twice"
+  , testCase "chooses repeat jitter deterministically and reuses its Brick" $ do
+      (repeatable, first) <- createUnitStandingBrick "Read again" repeatableV1
+        Standing.emptyStandingState
+      (running, second) <- requireStandingSuccess
+        (Standing.startStandingExecution (brickId repeatable) domainTestTime first)
+      (_, evidence, third) <- requireStandingSuccess
+        (Standing.finishRepeatableAndSchedule
+          (Standing.executionOccurrenceId running) (Just "annotated")
+          "P6M" "P3M" "repeat-seed" domainTestTime second)
+      replayed <- requireStandingSuccess
+        (Standing.deterministicRepeatDate domainTestTime "P6M" "P3M" "repeat-seed")
+      replayed @?= (Standing.repeatScheduleSelectedMonths evidence,
+        Standing.repeatScheduleNotBefore evidence)
+      assertBool "selected jitter escaped range"
+        (Standing.repeatScheduleSelectedMonths evidence >= 3
+          && Standing.repeatScheduleSelectedMonths evidence <= 9)
+      let sameBrick = lookupStandingBrick (brickId repeatable) third
+      fmap brickId sameBrick @?= Just (brickId repeatable)
+      fmap brickNotBefore sameBrick @?= Just
+        (Just (Standing.repeatScheduleNotBefore evidence))
+  , testCase "revises recurrence without replacing identity or history" $ do
+      (practice, first) <- createUnitStandingBrick "Swim" practiceV1
+        Standing.emptyStandingState
+      (rule, second) <- requireStandingSuccess (Standing.configureRecurrence
+        (brickId practice) Standing.PracticeRecurrence "2 times per ISO week"
+        "UTC" domainTestTime domainTestTime first)
+      (_, opportunities, third) <- requireStandingSuccess
+        (Standing.advanceSchedules domainTestTime second)
+      length opportunities @?= 2
+      (revision, fourth) <- requireStandingSuccess (Standing.reviseRecurrence
+        (Standing.recurrenceRuleId rule) "2 times per ISO week" "UTC"
+        (addUTCTime standingWeek domainTestTime) "new pool" Human
+        domainTestTime third)
+      Standing.recurrenceRevisionRule revision @?= Standing.recurrenceRuleId rule
+      Map.size (Standing.standingStatePracticeOpportunities fourth) @?= 2
+      Map.size (Standing.standingStateRecurrenceRevisions fourth) @?= 1
+  , testCase "releases one positioned obligation per period idempotently" $ do
+      (owner, first) <- createUnitStandingBrick "Pay electricity bill"
+        recurringObligationV1 Standing.emptyStandingState
+      (rule, second) <- requireStandingSuccess (Standing.configureRecurrence
+        (brickId owner) Standing.ObligationRecurrence "monthly on day 1" "UTC"
+        domainTestTime domainTestTime first)
+      (released, _, third) <- requireStandingSuccess
+        (Standing.advanceSchedules domainTestTime second)
+      length released @?= 1
+      (_, _, fourth) <- requireStandingSuccess
+        (Standing.advanceSchedules domainTestTime third)
+      length (Standing.obligationOccurrencesFor (Standing.recurrenceRuleId rule)
+        Nothing fourth) @?= 1
+      occurrence <- case released of
+        [value] -> pure value
+        values -> assertFailure ("unexpected obligations: " <> show values)
+      fmap brickParent (lookupStandingBrick
+        (Standing.obligationOccurrenceBrick occurrence) fourth) @?=
+          Just (Just (brickId owner))
+      let priority = Execution.executionStatePriority
+            (Coordination.coordinationStateExecution
+              (Standing.standingStateCoordination fourth))
+      item <- requirePrioritySuccess (Priority.priorityViewItem priority
+        (Standing.obligationOccurrenceBrick occurrence))
+      Priority.priorityViewItemProvisional item @?= True
+      completed <- requireStandingSuccess (Standing.completeStandingBrick
+        (Standing.obligationOccurrenceBrick occurrence) (Just "paid")
+        "test:paid" domainTestTime fourth)
+      fmap brickStatus (lookupStandingBrick (brickId owner) completed) @?= Just Active
+  , testCase "derives practice marks and excludes blocked windows from failures" $ do
+      (practice, first) <- createUnitStandingBrick "Swim twice per week" practiceV1
+        Standing.emptyStandingState
+      (rule, second) <- requireStandingSuccess (Standing.configureRecurrence
+        (brickId practice) Standing.PracticeRecurrence "2 times per ISO week"
+        "UTC" domainTestTime domainTestTime first)
+      (_, opportunities, third) <- requireStandingSuccess
+        (Standing.advanceSchedules domainTestTime second)
+      (firstOpportunity, secondOpportunity) <- case opportunities of
+        [firstValue, secondValue] -> pure (firstValue, secondValue)
+        values -> assertFailure ("unexpected practice opportunities: " <> show values)
+      (_, directExecution, fourth) <- requireStandingSuccess
+        (Standing.completePracticeOpportunity
+          (Standing.practiceOpportunityId firstOpportunity) (Just "morning")
+          domainTestTime third)
+      Standing.executionOccurrenceStartedAt directExecution @?= Nothing
+      (_, fifth) <- requireStandingSuccess (Standing.abandonPracticeOpportunity
+        (Standing.practiceOpportunityId secondOpportunity) (Just "cold")
+        domainTestTime fourth)
+      (blocker, sixth) <- createUnitStandingBrick "Find pool" standardV1 fifth
+      blocked <- requireStandingSuccess (Standing.addStandingDependency
+        (brickId practice) (brickId blocker) domainTestTime sixth)
+      (_, blockedOpportunities, seventh) <- requireStandingSuccess
+        (Standing.advanceSchedules (addUTCTime standingWeek domainTestTime) blocked)
+      map Standing.practiceOpportunityStatus blockedOpportunities @?=
+        replicate 2 Standing.OpportunityNotApplicable
+      history <- requireStandingSuccess (Standing.practiceHistory
+        (Standing.recurrenceRuleId rule) Nothing 20 seventh)
+      Standing.practiceHistoryMarks history @?= ["x", "-", "n/a", "n/a"]
+      Standing.practiceHistoryNotDoneCount history @?= 1
+  , testCase "releases triggers idempotently and consumes at most one" $ do
+      (source, first) <- createUnitStandingBrick "Have lunch" standingChecklistV1
+        Standing.emptyStandingState
+      (target, second) <- createUnitStandingBrick "Brush teeth" practiceV1 first
+      (trigger, third) <- requireStandingSuccess (Standing.configureOpportunityTrigger
+        (brickId source) (brickId target) domainTestTime second)
+      (sourceRun, fourth) <- requireStandingSuccess
+        (Standing.startStandingExecution (brickId source) domainTestTime third)
+      (_, fifth) <- requireStandingSuccess (Standing.finishStandingExecution
+        (Standing.executionOccurrenceId sourceRun) Standing.OutcomeDone Nothing
+        (addUTCTime 1 domainTestTime) fourth)
+      Map.size (Standing.standingStateTriggeredOpportunities fifth) @?= 1
+      let sourceEventId = "execution-finished:"
+            <> Standing.unExecutionOccurrenceId
+              (Standing.executionOccurrenceId sourceRun)
+      retried <- requireStandingSuccess (Standing.releaseTriggeredOpportunities
+        (brickId source) sourceEventId (addUTCTime 1 domainTestTime) fifth)
+      Map.size (Standing.standingStateTriggeredOpportunities retried) @?= 1
+      (targetRun, sixth) <- requireStandingSuccess
+        (Standing.startStandingExecution (brickId target)
+          (addUTCTime 2 domainTestTime) retried)
+      (_, seventh) <- requireStandingSuccess (Standing.finishStandingExecution
+        (Standing.executionOccurrenceId targetRun) Standing.OutcomeDone Nothing
+        (addUTCTime 3 domainTestTime) sixth)
+      length [opportunity | opportunity <- Map.elems
+        (Standing.standingStateTriggeredOpportunities seventh),
+        Standing.triggeredOpportunityConsumedAt opportunity /= Nothing] @?= 1
+      retired <- requireStandingSuccess (Standing.retireStandingTarget
+        (brickId target) (addUTCTime 4 domainTestTime) seventh)
+      fmap Standing.opportunityTriggerStatus
+        (Map.lookup (Standing.opportunityTriggerId trigger)
+          (Standing.standingStateOpportunityTriggers retired)) @?=
+            Just Standing.TriggerRetired
+  , testCase "retires recurrence, opportunities, and triggers for every terminal status" $
+      mapM_ assertStandingTerminalTransition [Done, Dropped, Superseded]
+  , testCase "retires mechanics for done and dropped standing subtrees" $
+      mapM_ assertStandingTerminalSubtree [Done, Dropped]
+  , testCase "retires source mechanics when superseding with child transfer" $ do
+      (source, first) <- createUnitStandingBrick "Old recurring owner"
+        recurringObligationV1 Standing.emptyStandingState
+      (replacement, second) <- createUnitStandingBrick "New recurring owner"
+        recurringObligationV1 first
+      (child, third) <- createUnitStandingChild "Transferred occurrence" standardV1
+        (brickId source) second
+      (practiceTarget, fourth) <- createUnitStandingBrick "Practice target" practiceV1
+        third
+      (rule, fifth) <- requireStandingSuccess (Standing.configureRecurrence
+        (brickId source) Standing.ObligationRecurrence "monthly on day 1" "UTC"
+        (addUTCTime standingWeek domainTestTime) domainTestTime fourth)
+      (trigger, sixth) <- requireStandingSuccess
+        (Standing.configureOpportunityTrigger (brickId source) (brickId practiceTarget)
+          domainTestTime fifth)
+      (_, terminal) <- requireStandingSuccess
+        (Standing.supersedeStandingBrickWithChildren (brickId source)
+          (brickId replacement) [brickId child] (Just "replace series")
+          "transfer-child" domainTestTime sixth)
+      fmap brickStatus (lookupStandingBrick (brickId source) terminal) @?=
+        Just Superseded
+      fmap brickParent (lookupStandingBrick (brickId child) terminal) @?=
+        Just (Just (brickId replacement))
+      fmap brickStatus (lookupStandingBrick (brickId child) terminal) @?= Just Active
+      assertTerminalStandingMechanics Superseded source rule [] [trigger]
+        domainTestTime terminal
   ]
 
 coordinationTests :: TestTree
@@ -2594,6 +2780,115 @@ createUnitExecutionBrick title behavior parent state = do
     ((ordinaryBrickDraft canonical behavior domainTestTime)
       {brickDraftParent = parent}) ("unit:" <> title) domainTestTime state)
   pure (brick, next)
+
+createUnitStandingBrick ::
+  Text -> BrickBehavior -> Standing.StandingState ->
+  IO (Brick, Standing.StandingState)
+createUnitStandingBrick title behavior state = do
+  canonical <- requireDomainSuccess (mkCanonicalText title Nothing Human)
+  (brick, _, next) <- requireStandingSuccess (Standing.createStandingBrick
+    (ordinaryBrickDraft canonical behavior domainTestTime)
+    ("unit:" <> title) domainTestTime state)
+  pure (brick, next)
+
+createUnitStandingChild ::
+  Text -> BrickBehavior -> BrickId -> Standing.StandingState ->
+  IO (Brick, Standing.StandingState)
+createUnitStandingChild title behavior parent state = do
+  canonical <- requireDomainSuccess (mkCanonicalText title Nothing Human)
+  (brick, _, next) <- requireStandingSuccess (Standing.createStandingBrick
+    ((ordinaryBrickDraft canonical behavior domainTestTime)
+      {brickDraftParent = Just parent}) ("unit:" <> title) domainTestTime state)
+  pure (brick, next)
+
+assertStandingTerminalTransition :: BrickStatus -> Assertion
+assertStandingTerminalTransition status = do
+  (target, first) <- createUnitStandingBrick "Terminal practice" practiceV1
+    Standing.emptyStandingState
+  (replacement, second) <- createUnitStandingBrick "Replacement practice" practiceV1
+    first
+  (source, third) <- createUnitStandingBrick "Trigger source" standingChecklistV1
+    second
+  (rule, fourth) <- requireStandingSuccess (Standing.configureRecurrence
+    (brickId target) Standing.PracticeRecurrence "2 times per ISO week" "UTC"
+    domainTestTime domainTestTime third)
+  (_, opportunities, fifth) <- requireStandingSuccess
+    (Standing.advanceSchedules domainTestTime fourth)
+  (incoming, sixth) <- requireStandingSuccess (Standing.configureOpportunityTrigger
+    (brickId source) (brickId target) domainTestTime fifth)
+  (outgoing, seventh) <- requireStandingSuccess (Standing.configureOpportunityTrigger
+    (brickId target) (brickId replacement) domainTestTime sixth)
+  terminal <- case status of
+    Done -> requireStandingSuccess
+      (Standing.retireStandingTarget (brickId target) domainTestTime seventh)
+    Dropped -> requireStandingSuccess
+      (Standing.dropStandingBrick (brickId target) domainTestTime seventh)
+    Superseded -> requireStandingSuccess
+      (Standing.supersedeStandingBrick (brickId target) (brickId replacement)
+        (Just "method changed") domainTestTime seventh)
+    Active -> assertFailure "active is not a terminal test transition"
+  assertTerminalStandingMechanics status target rule opportunities
+    [incoming, outgoing] domainTestTime terminal
+
+assertStandingTerminalSubtree :: BrickStatus -> Assertion
+assertStandingTerminalSubtree status = do
+  (root, first) <- createUnitStandingBrick "Standing collection" collectionV1
+    Standing.emptyStandingState
+  (target, second) <- createUnitStandingChild "Nested practice" practiceV1
+    (brickId root) first
+  (rule, third) <- requireStandingSuccess (Standing.configureRecurrence
+    (brickId target) Standing.PracticeRecurrence "2 times per ISO week" "UTC"
+    domainTestTime domainTestTime second)
+  (_, opportunities, fourth) <- requireStandingSuccess
+    (Standing.advanceSchedules domainTestTime third)
+  (trigger, fifth) <- requireStandingSuccess (Standing.configureOpportunityTrigger
+    (brickId root) (brickId target) domainTestTime fourth)
+  terminal <- requireStandingSuccess
+    (Standing.closeStandingSubtree (brickId root) status domainTestTime fifth)
+  fmap brickStatus (lookupStandingBrick (brickId root) terminal) @?= Just status
+  assertTerminalStandingMechanics status target rule opportunities [trigger]
+    domainTestTime terminal
+
+assertTerminalStandingMechanics ::
+  BrickStatus -> Brick -> Standing.RecurrenceRule ->
+  [Standing.PracticeOpportunity] -> [Standing.OpportunityTrigger] -> UTCTime ->
+  Standing.StandingState -> Assertion
+assertTerminalStandingMechanics status target rule opportunities triggers now state = do
+  fmap brickStatus (lookupStandingBrick (brickId target) state) @?= Just status
+  fmap Standing.recurrenceRuleStatus
+    (Map.lookup (Standing.recurrenceRuleId rule)
+      (Standing.standingStateRecurrences state)) @?= Just Standing.ScheduleRetired
+  mapM_ (assertOpportunityClosed state) opportunities
+  mapM_ (assertTriggerRetired state) triggers
+  requireStandingSuccess (Standing.validateStandingState state)
+  where
+    assertOpportunityClosed current original = do
+      let retained = Map.lookup (Standing.practiceOpportunityId original)
+            (Standing.standingStatePracticeOpportunities current)
+      fmap Standing.practiceOpportunityStatus retained @?=
+        Just Standing.OpportunityNotApplicable
+      fmap Standing.practiceOpportunityResolvedAt retained @?= Just (Just now)
+      fmap Standing.practiceOpportunityReason retained @?=
+        Just (Just "target_terminal")
+    assertTriggerRetired current original =
+      fmap Standing.opportunityTriggerStatus
+        (Map.lookup (Standing.opportunityTriggerId original)
+          (Standing.standingStateOpportunityTriggers current)) @?=
+            Just Standing.TriggerRetired
+
+lookupStandingBrick :: BrickId -> Standing.StandingState -> Maybe Brick
+lookupStandingBrick identifier state = Map.lookup identifier
+  (domainBricks (Execution.executionStateDomain
+    (Coordination.coordinationStateExecution
+      (Standing.standingStateCoordination state))))
+
+requireStandingSuccess :: Either Standing.StandingError value -> IO value
+requireStandingSuccess result = case result of
+  Left problem -> assertFailure ("unexpected standing error: " <> show problem)
+  Right value -> pure value
+
+standingWeek :: NominalDiffTime
+standingWeek = 7 * 24 * 60 * 60
 
 requireExactlyOneScope ::
   Maybe BrickId -> Priority.PriorityState -> IO Priority.PriorityScope
