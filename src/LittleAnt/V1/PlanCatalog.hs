@@ -35,6 +35,7 @@ import LittleAnt.V1.Kernel
    emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
    kernelValue, replayAll)
 import LittleAnt.V1.MaterialPlanCatalog (materialPlanProbes)
+import LittleAnt.V1.SelectionPlanCatalog (selectionPlanProbes)
 import LittleAnt.V1.StandingPlanCatalog (standingPlanProbes)
 
 v1PlanProbes :: Map ProbeKey PlanProbe
@@ -47,6 +48,7 @@ v1PlanProbes = Map.unions
   , priorityPlanProbes
   , assessmentPlanProbes
   , standingPlanProbes
+  , selectionPlanProbes
   ]
 
 kernelPlanProbes :: Map ProbeKey PlanProbe

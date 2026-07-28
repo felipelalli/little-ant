@@ -1,10 +1,12 @@
 module Main (main) where
 
+import Control.Monad (foldM)
 import Data.Aeson (Object, Value (..), encode, object, toJSON, (.=))
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as LBS8
+import Data.List (isInfixOf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Text (Text)
@@ -29,6 +31,7 @@ import LittleAnt.V1.Kernel
    kernelEventBatches, kernelRevision, kernelValue, replayAll)
 import LittleAnt.V1.Material
 import qualified LittleAnt.V1.Priority as Priority
+import qualified LittleAnt.V1.Selection as Selection
 import qualified LittleAnt.V1.Standing as Standing
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
@@ -40,6 +43,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , domainTests
   , executionLifecycleTests
   , standingExecutionTests
+  , selectionTests
   , coordinationTests
   , materialTests
   , priorityTests
@@ -691,6 +695,122 @@ standingExecutionTests = testGroup "standing execution and recurrence"
       fmap brickStatus (lookupStandingBrick (brickId child) terminal) @?= Just Active
       assertTerminalStandingMechanics Superseded source rule [] [trigger]
         domainTestTime terminal
+  ]
+
+selectionTests :: TestTree
+selectionTests = testGroup "v1 proposals, forecast, next, and skip pressure"
+  [ testCase "builds a read-only explained forecast and replays simulation" $ do
+      (bricks, context) <- selectionFixture
+        [("Critical", standardV1), ("Guide", standardV1),
+         ("Background", standardV1)]
+      beforeContext <- pure context
+      forecast <- requireSelectionSuccess (Selection.buildForecast domainTestTime 9
+        context Selection.emptySelectionState)
+      context @?= beforeContext
+      length (Selection.forecastViewItems forecast) @?= 3
+      assertBool "forecast omitted positive explained mass" (all
+        (\item -> Selection.forecastItemWeight item > 0
+          && Selection.forecastItemProbability item > 0
+          && not (null (Selection.forecastItemReasons item)))
+        (Selection.forecastViewItems forecast))
+      first <- requireSelectionSuccess (Selection.simulateReplaySafeDraws
+        "unit-selection-seed" 10000 forecast)
+      second <- requireSelectionSuccess (Selection.simulateReplaySafeDraws
+        "unit-selection-seed" 10000 forecast)
+      first @?= second
+      assertBool "simulation escaped declared tolerance" (all
+        (\metric -> abs (Selection.simulationCandidateObservedFrequency metric
+          - Selection.simulationCandidateForecastProbability metric) <= 0.02)
+        (Selection.simulationMetricsPerCandidate first))
+      assertBool "fixture identity disappeared" (all (\brick ->
+        Selection.forecastItemForBrick (brickId brick) forecast /= Nothing) bricks)
+  , testCase "returns valid focus first and otherwise draws one forecast item" $ do
+      (bricks, context) <- selectionFixture
+        [("Focus me", standardV1), ("Alternate", standardV1)]
+      (focusBrickValue, _) <- requireExactlyTwo "selection focus Bricks" bricks
+      focused <- focusSelectionContext (brickId focusBrickValue) context
+      (focusedDraw, focusedState) <- requireSelectionSuccess (Selection.requestNext
+        domainTestTime 3 "focus-seed" focused Selection.emptySelectionState)
+      Selection.nextDrawSelectedBrick focusedDraw @?= Just (brickId focusBrickValue)
+      Selection.nextDrawSelectedProposal focusedDraw @?= Nothing
+      Selection.nextDrawReasons focusedDraw @?= ["current focus remains valid"]
+      requireSelectionSuccess
+        (Selection.validateSelectionState focused focusedState)
+      assertBool "canonical draw persisted its derived source forecast"
+        (not ("source_forecast" `isInfixOf`
+          LBS8.unpack (encode focusedState)))
+      (ordinary, _) <- requireSelectionSuccess (Selection.requestNext domainTestTime
+        3 "ordinary-seed" context Selection.emptySelectionState)
+      assertBool "ordinary next selected zero or two kinds"
+        ((Selection.nextDrawSelectedBrick ordinary /= Nothing)
+          /= (Selection.nextDrawSelectedProposal ordinary /= Nothing))
+  , testCase "retains repeated skips, cools immediately, and restores pressure" $ do
+      (bricks, context) <- selectionFixture
+        [("Taxes", standardV1), ("Tidy", standardV1)]
+      (taxes, _) <- requireExactlyTwo "selection skip Bricks" bricks
+      baseline <- requireSelectionSuccess (Selection.buildForecast domainTestTime 1
+        context Selection.emptySelectionState)
+      baselineItem <- requireSelectionForecastItem (brickId taxes) baseline
+      (_, firstCooldown, first) <- requireSelectionSuccess
+        (Selection.recordServedSkip (brickId taxes) Selection.SkipVague
+          (Just "find statements") domainTestTime context Selection.emptySelectionState)
+      Selection.selectionCooldownRecentSkipCount firstCooldown @?= 1
+      during <- requireSelectionSuccess (Selection.buildForecast
+        (addUTCTime 1800 domainTestTime) 1 context first)
+      duringItem <- requireSelectionForecastItem (brickId taxes) during
+      assertBool "cooldown did not lower probability"
+        (Selection.forecastItemProbability duringItem
+          < Selection.forecastItemProbability baselineItem)
+      (_, repeatedCooldown, repeated) <- requireSelectionSuccess
+        (Selection.recordServedSkip (brickId taxes) Selection.SkipVague Nothing
+          (addUTCTime 7201 domainTestTime) context first)
+      Selection.selectionCooldownRecentSkipCount repeatedCooldown @?= 2
+      after <- requireSelectionSuccess (Selection.buildForecast
+        (addUTCTime 7200 domainTestTime) 1 context first)
+      afterItem <- requireSelectionForecastItem (brickId taxes) after
+      assertBool "expired cooldown did not restore retained pressure"
+        ("retained served-skip pressure" `elem`
+          Selection.forecastItemReasons afterItem)
+      requireSelectionSuccess (Selection.validateSelectionState context repeated)
+  , testCase "derives practice review and blocker unlock pressure" $ do
+      (bricks, context) <- selectionFixture
+        [("Swim", practiceV1), ("Find pool", standardV1)]
+      (practice, blocker) <- requireExactlyTwo "selection practice Bricks" bricks
+      blockedStanding <- requireStandingSuccess (Standing.addStandingDependency
+        (brickId practice) (brickId blocker) domainTestTime
+        (Selection.selectionContextStanding context))
+      let blocked = context {Selection.selectionContextStanding = blockedStanding}
+      forecast <- requireSelectionSuccess (Selection.buildForecast domainTestTime 2
+        blocked Selection.emptySelectionState)
+      blockerItem <- requireSelectionForecastItem (brickId blocker) forecast
+      assertBool "blocker lacks practice unlock explanation"
+        ("unlocks important practice" `elem` Selection.forecastItemReasons blockerItem)
+      (_, _, first) <- requireSelectionSuccess (Selection.recordServedSkip
+        (brickId practice) Selection.SkipHard Nothing domainTestTime context
+        Selection.emptySelectionState)
+      (_, _, second) <- requireSelectionSuccess (Selection.recordServedSkip
+        (brickId practice) Selection.SkipHard Nothing
+        (addUTCTime 1 domainTestTime) context first)
+      (_, _, third) <- requireSelectionSuccess (Selection.recordServedSkip
+        (brickId practice) Selection.SkipHard Nothing
+        (addUTCTime 2 domainTestTime) context second)
+      (_, proposed) <- requireSelectionSuccess (Selection.advanceSelection
+        (addUTCTime 2 domainTestTime) context third)
+      assertBool "practice review was not derived" (any
+        ((== Selection.PracticeReview) . Selection.proposalKind)
+        (Map.elems (Selection.selectionStateProposals proposed)))
+  , testCase "resolves forecast checkpoint references from real state" $
+      assertResponsePassed
+        (runContractRequest contractRegistry selectionForecastReferenceScenario)
+        ["real-forecast-reference"]
+  , testCase "keeps build, simulation, and next forecast orders noncanonical" $
+      assertResponsePassed
+        (runContractRequest contractRegistry selectionForecastPersistenceScenario)
+        [ "build-kept-forecast-derived"
+        , "simulation-kept-forecast-derived"
+        , "next-kept-forecast-derived"
+        , "observation-detects-persisted-forecast"
+        ]
   ]
 
 coordinationTests :: TestTree
@@ -2659,6 +2779,130 @@ unknownOperationScenario = scenarioRequest
   [step "unknown" "NotRegistered"]
   [assertion "still-returned" "State" "equals" (toJSON (0 :: Int))]
 
+selectionForecastPersistenceScenario :: Value
+selectionForecastPersistenceScenario = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("selection-forecast-persistence-test" :: Text)
+      , "clock" .= ("2026-07-27T12:00:00Z" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("create-work" :: Text)
+              , "operation" .= ("CreateFixture" :: Text)
+              , "arguments" .= object
+                  [ "fixture" .= ("two_eligible_root_bricks" :: Text)
+                  , "titles" .= (["Critical", "Background"] :: [Text])
+                  ]
+              ]
+          , object
+              [ "id" .= ("build" :: Text)
+              , "operation" .= ("BuildForecast" :: Text)
+              , "arguments" .= object
+                  [ "at" .= ("2026-07-27T12:00:00Z" :: Text)
+                  , "domain_revision" .= ("$current_domain_revision" :: Text)
+                  ]
+              , "bind" .= ("forecast" :: Text)
+              ]
+          , object
+              [ "id" .= ("simulate" :: Text)
+              , "operation" .= ("SimulateReplaySafeDraws" :: Text)
+              , "arguments" .= object
+                  [ "forecast" .= ("$forecast" :: Text)
+                  , "samples" .= (1000 :: Int)
+                  , "seed" .= ("persistence-test-seed" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("next" :: Text)
+              , "operation" .= ("RequestNext" :: Text)
+              , "arguments" .= object
+                  [ "at" .= ("2026-07-27T12:00:00Z" :: Text)
+                  , "domain_revision" .= ("$current_domain_revision" :: Text)
+                  , "random_evidence" .= ("persistence-next-seed" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("inject-order" :: Text)
+              , "operation" .= ("KernelSetValue" :: Text)
+              , "arguments" .= object
+                  [ "key" .= ("test.injected-forecast" :: Text)
+                  , "value" .= ("$forecast" :: Text)
+                  ]
+              ]
+          ]
+      , "assertions" .=
+          [ noStoredForecastAssertion "build-kept-forecast-derived" "build" 0
+          , noStoredForecastAssertion
+              "simulation-kept-forecast-derived" "simulate" 0
+          , noStoredForecastAssertion "next-kept-forecast-derived" "next" 0
+          , noStoredForecastAssertion
+              "observation-detects-persisted-forecast" "inject-order" 1
+          ]
+      ]
+  ]
+  where
+    noStoredForecastAssertion identifier checkpoint expected = object
+      [ "id" .= (identifier :: Text)
+      , "after" .= (checkpoint :: Text)
+      , "query" .= ("CanonicalEntities" :: Text)
+      , "path" .= ("stored_forecast_orders" :: Text)
+      , "operator" .= ("count_equals" :: Text)
+      , "value" .= (expected :: Int)
+      ]
+
+selectionForecastReferenceScenario :: Value
+selectionForecastReferenceScenario = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("selection-reference-test" :: Text)
+      , "clock" .= ("2026-07-27T13:00:00Z" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("create-work" :: Text)
+              , "operation" .= ("CreateFixture" :: Text)
+              , "arguments" .= object
+                  [ "fixture" .= ("two_eligible_root_bricks" :: Text)
+                  , "titles" .= (["Taxes", "Tidy"] :: [Text])
+                  ]
+              , "bind_result" .= object
+                  [ "Taxes" .= ("taxes" :: Text)
+                  , "Tidy" .= ("tidy" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("skip-once" :: Text)
+              , "operation" .= ("SkipServedBrick" :: Text)
+              , "arguments" .= object
+                  [ "brick" .= ("$taxes" :: Text)
+                  , "reason" .= ("vague" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("cooldown-forecast" :: Text)
+              , "operation" .= ("BuildForecast" :: Text)
+              , "arguments" .= object
+                  [ "at" .= ("2026-07-27T13:30:00Z" :: Text)
+                  , "domain_revision" .= ("$current_domain_revision" :: Text)
+                  ]
+              , "bind" .= ("cooldown" :: Text)
+              ]
+          ]
+      , "assertions" .=
+          [ object
+              [ "id" .= ("real-forecast-reference" :: Text)
+              , "after" .= ("cooldown-forecast" :: Text)
+              , "query" .= ("ForecastItem($cooldown,$taxes)" :: Text)
+              , "path" .= ("probability" :: Text)
+              , "operator" .= ("less_than" :: Text)
+              , "value_from" .=
+                  ("forecast:before-skip:$taxes.probability" :: Text)
+              ]
+          ]
+      ]
+  ]
+
 scenarioWithAssertion :: Value -> Value
 scenarioWithAssertion assertionValue = scenarioRequest [] [assertionValue]
 
@@ -2886,6 +3130,50 @@ requireStandingSuccess :: Either Standing.StandingError value -> IO value
 requireStandingSuccess result = case result of
   Left problem -> assertFailure ("unexpected standing error: " <> show problem)
   Right value -> pure value
+
+requireSelectionSuccess :: Either Selection.SelectionError value -> IO value
+requireSelectionSuccess result = case result of
+  Left problem -> assertFailure ("selection action failed: " <> show problem)
+  Right value -> pure value
+
+selectionFixture :: [(Text, BrickBehavior)] -> IO ([Brick], Selection.SelectionContext)
+selectionFixture values = do
+  (reversed, standing) <- foldM create
+    ([], Standing.emptyStandingState) values
+  let bricks = reverse reversed
+      material = foldr (\brick -> registerMaterialBrick (brickId brick) Active)
+        emptyMaterialState bricks
+  pure (bricks, Selection.SelectionContext standing material)
+  where
+    create (bricks, standing) (titleText, behavior) = do
+      title <- requireDomainSuccess (mkCanonicalText titleText Nothing Human)
+      (brick, _, next) <- requireStandingSuccess (Standing.createStandingBrick
+        (ordinaryBrickDraft title behavior domainTestTime)
+        ("test:" <> titleText) domainTestTime standing)
+      pure (brick : bricks, next)
+
+focusSelectionContext :: BrickId -> Selection.SelectionContext ->
+  IO Selection.SelectionContext
+focusSelectionContext identifier context = do
+  let standing = Selection.selectionContextStanding context
+      coordination = Standing.standingStateCoordination standing
+  execution <- requireExecutionSuccess (Execution.focusExecutionBrick identifier
+    domainTestTime (Coordination.coordinationStateExecution coordination))
+  let standing' = standing {Standing.standingStateCoordination = coordination
+        {Coordination.coordinationStateExecution = execution}}
+  requireStandingSuccess (Standing.validateStandingState standing')
+  pure context {Selection.selectionContextStanding = standing'}
+
+requireExactlyTwo :: String -> [value] -> IO (value, value)
+requireExactlyTwo _ [first, second] = pure (first, second)
+requireExactlyTwo label values = assertFailure (label <> " expected two values, found "
+  <> show (length values))
+
+requireSelectionForecastItem :: BrickId -> Selection.ForecastView ->
+  IO Selection.ForecastItem
+requireSelectionForecastItem identifier forecast = maybe
+  (assertFailure "forecast omitted expected Brick") pure
+  (Selection.forecastItemForBrick identifier forecast)
 
 standingWeek :: NominalDiffTime
 standingWeek = 7 * 24 * 60 * 60

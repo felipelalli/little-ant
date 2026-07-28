@@ -19,10 +19,10 @@ import Data.Foldable (toList)
 import Data.List (find, sortOn)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Time (UTCTime (..), fromGregorian)
+import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), ObservationInput (..),
    OperationInput (..), OperationResult (..), ReferenceInput (..),
@@ -65,6 +65,7 @@ import LittleAnt.V1.Material
    unarchiveRaw, verifySnapshotBytes)
 import LittleAnt.V1.PlanCatalog (v1PlanProbes)
 import qualified LittleAnt.V1.Priority as Priority
+import qualified LittleAnt.V1.Selection as Selection
 import qualified LittleAnt.V1.Standing as Standing
 
 -- | Isolated v1 state.  Every protocol request obtains a new value through
@@ -143,6 +144,14 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("RetireOpportunityTrigger", retireOpportunityTriggerOperation)
       , ("CompleteBrick", completeStandingBrickOperation)
       , ("AddDependency", addStandingDependencyOperation)
+      , ("AdvanceSelection", advanceSelectionOperation)
+      , ("BuildForecast", buildForecastOperation)
+      , ("RequestNext", requestNextOperation)
+      , ("SkipServedBrick", skipServedBrickOperation)
+      , ("ResolveProposal", resolveSelectionProposalOperation)
+      , ("DismissProposal", dismissSelectionProposalOperation)
+      , ("SimulateReplaySafeDraws", simulateReplaySafeDrawsOperation)
+      , ("RepeatSimulation", repeatSimulationOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -194,6 +203,13 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("ObligationOccurrences", obligationOccurrencesObservation)
       , ("ObligationHistory", obligationHistoryObservation)
       , ("PriorityPath", priorityPathObservation)
+      , ("Forecast", forecastObservation)
+      , ("ForecastItem", forecastItemObservation)
+      , ("ForecastReasons", forecastReasonsObservation)
+      , ("SelectionCooldown", selectionCooldownObservation)
+      , ("SimulationMetrics", simulationMetricsObservation)
+      , ("CanonicalEntities", canonicalEntitiesObservation)
+      , ("PriorityScope", selectionPriorityScopeObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -206,6 +222,8 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("strict_root_priority", strictRootPriorityFixture)
       , ("two_projects_with_child", twoProjectsWithChildFixture)
       , ("template_brick", templateBrickFixture)
+      , ("eligible_priority_run", eligiblePriorityRunFixture)
+      , ("two_eligible_root_bricks", twoEligibleRootBricksFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -729,6 +747,338 @@ mergeValueFields value pairs = case (value, object pairs) of
 
 mapStandingError :: Either Standing.StandingError value -> Either Text value
 mapStandingError = either (Left . Text.pack . show) Right
+
+------------------------------------------------------------
+-- Rebuildable proposals, forecast, next, and served-skip pressure
+------------------------------------------------------------
+
+selectionStateFromKernel :: V1State -> Either Text Selection.SelectionState
+selectionStateFromKernel state = case kernelValue "v1.selection" state of
+  Nothing -> Right Selection.emptySelectionState
+  Just value -> case fromJSON value of
+    Success selection -> Right selection
+    Error problem -> Left ("stored selection state is malformed: "
+      <> Text.pack problem)
+
+selectionStateForAmbient :: AmbientInputs -> V1State -> Either Text Selection.SelectionState
+selectionStateForAmbient ambient state = do
+  selection <- selectionStateFromKernel state
+  let threshold = case ambientParameterOverrides ambient of
+        Just (Object fields) -> case KeyMap.lookup "practice_review_threshold" fields of
+          Just encoded -> case fromJSON encoded of
+            Success value | value > (0 :: Integer) -> value
+            _ -> Selection.selectionStatePracticeReviewThreshold selection
+          Nothing -> Selection.selectionStatePracticeReviewThreshold selection
+        _ -> Selection.selectionStatePracticeReviewThreshold selection
+  pure selection {Selection.selectionStatePracticeReviewThreshold = threshold}
+
+selectionContextFromKernel :: V1State -> Either Text Selection.SelectionContext
+selectionContextFromKernel state = Selection.SelectionContext
+  <$> standingStateFromKernel state
+  <*> materialStateFromKernel state
+
+persistSelection ::
+  OperationInput -> Text -> Selection.SelectionState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistSelection input suffix selection resultValue state = do
+  accepted <- appendForFixture input suffix
+    [ProposeValueStored "v1.selection" (toJSON selection)] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+persistSelectionAndStanding ::
+  OperationInput -> Text -> Selection.SelectionState -> Standing.StandingState ->
+  Value -> V1State -> Either Text (OperationResult V1State)
+persistSelectionAndStanding input suffix selection standing resultValue state = do
+  accepted <- appendForFixture input suffix
+    [ ProposeValueStored "v1.selection" (toJSON selection)
+    , ProposeValueStored "v1.standing" (toJSON standing)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination standing))
+    ] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+buildForecastOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+buildForecastOperation input state = do
+  arguments <- requireArgumentsObject input
+  at <- requiredAs "at" arguments
+  domainRevision <- requiredInteger "domain_revision" arguments
+  context <- selectionContextFromKernel state
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  forecast <- mapSelectionError
+    (Selection.buildForecast at domainRevision context selection)
+  -- Forecast construction is deliberately read-only: no kernel append, random
+  -- cursor, cache, or selection entity is written here.
+  pure OperationResult
+    { operationResultValue = forecastProtocolValue forecast
+    , operationResultState = state
+    }
+
+requestNextOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+requestNextOperation input state = do
+  arguments <- requireArgumentsObject input
+  at <- requiredAs "at" arguments
+  domainRevision <- requiredInteger "domain_revision" arguments
+  randomEvidence <- requiredText "random_evidence" arguments
+  context <- selectionContextFromKernel state
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  (draw, next) <- mapSelectionError
+    (Selection.requestNext at domainRevision randomEvidence context selection)
+  persistSelection input "next" next (toJSON draw) state
+
+advanceSelectionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+advanceSelectionOperation input state = do
+  arguments <- requireArgumentsObject input
+  at <- requiredAs "at" arguments
+  context <- selectionContextFromKernel state
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  (created, next) <- mapSelectionError
+    (Selection.advanceSelection at context selection)
+  persistSelection input "advance-selection" next (object
+    ["proposals" .= map Selection.proposalId created]) state
+
+skipServedBrickOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+skipServedBrickOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  reason <- requiredAs "reason" arguments
+  rawText <- optionalAs "raw_text" arguments
+  at <- case KeyMap.lookup "at" arguments of
+    Nothing -> operationTime input
+    Just value -> decodeArgument "SkipServedBrick.at" value
+  context <- selectionContextFromKernel state
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  (served, cooldown, next) <- mapSelectionError
+    (Selection.recordServedSkip brick reason rawText at context selection)
+  persistSelection input "served-skip" next (object
+    [ "served_skip" .= Selection.servedSkipId served
+    , "cooldown" .= Selection.selectionCooldownId cooldown
+    ]) state
+
+resolveSelectionProposalOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+resolveSelectionProposalOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "proposal" arguments
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  (updated, next) <- mapSelectionError
+    (Selection.resolveProposal identifier selection)
+  persistSelection input "proposal-resolve" next (toJSON updated) state
+
+dismissSelectionProposalOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+dismissSelectionProposalOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "proposal" arguments
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  original <- maybe (Left "unknown Proposal") Right
+    (Map.lookup identifier (Selection.selectionStateProposals selection))
+  (updated, next) <- mapSelectionError
+    (Selection.dismissProposal identifier selection)
+  case Selection.proposalJudgmentProbe original of
+    Nothing -> persistSelection input "proposal-dismiss" next (toJSON updated) state
+    Just probe -> do
+      standing <- standingStateFromKernel state
+      deferred <- deferSelectionProbe probe standing
+      persistSelectionAndStanding input "proposal-dismiss-probe" next deferred
+        (toJSON updated) state
+
+-- Dismissing a guided judgment opportunity defers its canonical probe rather
+-- than inventing a separate resolution path.
+deferSelectionProbe ::
+  Priority.JudgmentProbeId -> Standing.StandingState ->
+  Either Text Standing.StandingState
+deferSelectionProbe identifier standing = do
+  let coordination = Standing.standingStateCoordination standing
+      execution = Coordination.coordinationStateExecution coordination
+      priority = Execution.executionStatePriority execution
+      judgment = Execution.executionStateJudgment execution
+  execution' <- if Map.member identifier (Priority.priorityStateProbes priority)
+    then do
+      (_, next) <- mapPriorityError (Priority.deferJudgmentProbe identifier priority)
+      Right execution {Execution.executionStatePriority = next}
+    else if Map.member identifier (Judgment.judgmentStateProbes judgment)
+      then do
+        (_, next) <- mapJudgmentError
+          (Judgment.deferAssessmentProbe identifier judgment)
+        Right execution {Execution.executionStateJudgment = next}
+      else Left "Proposal references an unknown JudgmentProbe"
+  let coordination' = coordination
+        {Coordination.coordinationStateExecution = execution'}
+      standing' = standing {Standing.standingStateCoordination = coordination'}
+  mapStandingError (Standing.validateStandingState standing')
+  pure standing'
+
+simulateReplaySafeDrawsOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+simulateReplaySafeDrawsOperation input state = do
+  arguments <- requireArgumentsObject input
+  forecastValue <- requiredValue "forecast" arguments
+  suppliedForecast <- decodeArgument
+    "SimulateReplaySafeDraws.forecast" forecastValue
+  samples <- requiredInteger "samples" arguments
+  seed <- requiredText "seed" arguments
+  context <- selectionContextFromKernel state
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  rebuiltForecast <- mapSelectionError (Selection.buildForecast
+    (Selection.forecastViewGeneratedAt suppliedForecast)
+    (Selection.forecastViewDomainRevision suppliedForecast) context selection)
+  when (suppliedForecast /= rebuiltForecast)
+    (Left "simulation forecast does not match its canonical pinned inputs")
+  metrics <- mapSelectionError
+    (Selection.simulateReplaySafeDraws seed samples rebuiltForecast)
+  accepted <- appendForFixture input "forecast-simulation"
+    [ProposeValueStored "v1.forecast-simulation" (object
+      [ "domain_revision" .= Selection.forecastViewDomainRevision rebuiltForecast
+      , "generated_at" .= Selection.forecastViewGeneratedAt rebuiltForecast
+      , "samples" .= samples
+      , "seed" .= seed
+      ])] state
+  pure OperationResult
+    { operationResultValue = toJSON metrics
+    , operationResultState = appendResultState accepted
+    }
+
+repeatSimulationOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+repeatSimulationOperation input state = do
+  descriptor <- maybe (Left "no replay-safe simulation has been recorded") Right
+    (kernelValue "v1.forecast-simulation" state)
+  fields <- asObject "forecast simulation descriptor" descriptor
+  domainRevision <- requiredInteger "domain_revision" fields
+  generatedAt <- requiredAs "generated_at" fields
+  samples <- requiredInteger "samples" fields
+  seed <- requiredText "seed" fields
+  context <- selectionContextFromKernel state
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  forecast <- mapSelectionError
+    (Selection.buildForecast generatedAt domainRevision context selection)
+  metrics <- mapSelectionError
+    (Selection.simulateReplaySafeDraws seed samples forecast)
+  pure OperationResult
+    { operationResultValue = toJSON metrics
+    , operationResultState = state
+    }
+
+forecastObservation :: ObservationInput -> V1State -> Either Text Value
+forecastObservation input _ = do
+  forecast <- exactlyOneAsArgument "Forecast" input
+  pure (forecastProtocolValue (forecast :: Selection.ForecastView))
+
+forecastItemObservation :: ObservationInput -> V1State -> Either Text Value
+forecastItemObservation input _ = case observationArguments input of
+  [forecastValue, brickValue] -> do
+    forecast <- decodeArgument "ForecastItem" forecastValue
+    brick <- decodeArgument "ForecastItem" brickValue
+    maybe (Left "Brick is absent from forecast") (Right . toJSON)
+      (Selection.forecastItemForBrick brick forecast)
+  _ -> Left "ForecastItem expects a forecast and Brick"
+
+forecastReasonsObservation :: ObservationInput -> V1State -> Either Text Value
+forecastReasonsObservation input state = do
+  brick <- exactlyOneAsArgument "ForecastReasons" input
+  at <- observationTime input
+  context <- selectionContextFromKernel state
+  selection <- selectionStateForAmbient (observationAmbient input) state
+  forecast <- mapSelectionError (Selection.buildForecast at
+    (unDomainRevision (kernelRevision state)) context selection)
+  item <- maybe (Left "Brick is not currently forecast-eligible") Right
+    (Selection.forecastItemForBrick brick forecast)
+  pure (object ["items" .= Selection.forecastItemReasons item])
+
+selectionCooldownObservation :: ObservationInput -> V1State -> Either Text Value
+selectionCooldownObservation input state = do
+  brick <- exactlyOneAsArgument "SelectionCooldown" input
+  selection <- selectionStateFromKernel state
+  maybe (Left "Brick has no SelectionCooldown") (Right . toJSON)
+    (Map.lookup brick (Selection.selectionStateCooldowns selection))
+
+simulationMetricsObservation :: ObservationInput -> V1State -> Either Text Value
+simulationMetricsObservation input _ = do
+  metrics <- exactlyOneAsArgument "SimulationMetrics" input
+  pure (toJSON (metrics :: Selection.SimulationMetrics))
+
+canonicalEntitiesObservation :: ObservationInput -> V1State -> Either Text Value
+canonicalEntitiesObservation _ state = Right (object
+  ["stored_forecast_orders" .= canonicalForecastOrderPaths state])
+
+-- Forecasts are projections.  Search the current canonical values and
+-- entities structurally so this observation reports accidental persistence
+-- instead of asserting the desired answer.  Event envelopes are history, not
+-- current canonical entities, and are deliberately outside this projection.
+canonicalForecastOrderPaths :: V1State -> [Text]
+canonicalForecastOrderPaths state = case toJSON state of
+  Object root -> concat
+    [ maybe [] (forecastOrderPaths ("$." <> name))
+        (KeyMap.lookup (Key.fromText name) root)
+    | name <- ["values", "entities"]
+    ]
+  _ -> []
+
+forecastOrderPaths :: Text -> Value -> [Text]
+forecastOrderPaths path value = case value of
+  Object fields
+    | isForecastViewObject fields -> [path]
+    | otherwise -> concat
+        [ forecastOrderPaths (path <> "." <> Key.toText key) child
+        | (key, child) <- KeyMap.toList fields
+        ]
+  Array values -> concat
+    [ forecastOrderPaths
+        (path <> "[" <> Text.pack (show index) <> "]") child
+    | (index, child) <- zip [(0 :: Int) ..] (toList values)
+    ]
+  _ -> []
+
+isForecastViewObject :: Object -> Bool
+isForecastViewObject fields =
+  KeyMap.member "domain_revision" fields
+  && KeyMap.member "generated_at" fields
+  && case KeyMap.lookup "items" fields of
+      Just (Array _) -> True
+      _ -> False
+
+selectionPriorityScopeObservation :: ObservationInput -> V1State -> Either Text Value
+selectionPriorityScopeObservation input state = do
+  identifier <- exactlyOneAsArgument "PriorityScope" input
+  context <- selectionContextFromKernel state
+  maybe (Left "unknown PriorityScope") (Right . toJSON)
+    (Map.lookup identifier (Priority.priorityStateScopes
+      (Execution.executionStatePriority
+        (Coordination.coordinationStateExecution
+          (Standing.standingStateCoordination
+            (Selection.selectionContextStanding context))))))
+
+forecastProtocolValue :: Selection.ForecastView -> Value
+forecastProtocolValue forecast = mergeValueFields (toJSON forecast)
+  [ "items" .= map forecastItemProtocolValue (Selection.forecastViewItems forecast)
+  , "ordinary_eligible_items" .= map forecastItemProtocolValue
+      (filter (isJust . Selection.forecastItemBrick)
+        (Selection.forecastViewItems forecast))
+  ]
+
+forecastItemProtocolValue :: Selection.ForecastItem -> Value
+forecastItemProtocolValue item = mergeValueFields (toJSON item)
+  ["nonzero_weight_has_nonempty_reasons" .=
+    (Selection.forecastItemWeight item == 0
+      || not (null (Selection.forecastItemReasons item)))]
+
+observationTime :: ObservationInput -> Either Text UTCTime
+observationTime input = case ambientClock (observationAmbient input) of
+  Nothing -> Right domainFixtureTime
+  Just value -> decodeArgument "observation clock" value
+
+mapSelectionError :: Either Selection.SelectionError value -> Either Text value
+mapSelectionError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Coordination, inherited dates, and explicit places
@@ -1871,6 +2221,90 @@ removeRawFromShelfOperation input state = do
     , "removed" .= True
     ]) state
 
+eligiblePriorityRunFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+eligiblePriorityRunFixture input state = do
+  arguments <- requireArgumentsObject input
+  titleValues <- requiredArray "titles" arguments
+  titles <- mapM (decodeArgument "eligible_priority_run title") titleValues
+  phaseValues <- requiredArray "phases" arguments
+  phases <- mapM (decodeArgument "eligible_priority_run phase") phaseValues
+  pressureValues <- requiredArray "skip_pressure" arguments
+  pressures <- mapM (decodeArgument "eligible_priority_run skip pressure")
+    pressureValues
+  unlessEqualLength "fixture phases" titles phases
+  unlessEqualLength "fixture skip pressure" titles pressures
+  selectionBrickFixture input state titles phases pressures
+
+twoEligibleRootBricksFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+twoEligibleRootBricksFixture input state = do
+  arguments <- requireArgumentsObject input
+  titleValues <- requiredArray "titles" arguments
+  titles <- mapM (decodeArgument "two_eligible_root_bricks title") titleValues
+  selectionBrickFixture input state titles (replicate (length titles) Nothing)
+    (replicate (length titles) 0)
+
+selectionBrickFixture ::
+  OperationInput -> V1State -> [Text] -> [Maybe Domain.BrickPhase] -> [Integer] ->
+  Either Text (OperationResult V1State)
+selectionBrickFixture input state titles phases pressures = do
+  when (null titles) (Left "selection fixture requires at least one title")
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (createdReversed, nextStanding) <- foldM (createOne now) ([], standing)
+    (zip titles phases)
+  let created = reverse createdReversed
+      coordination = Standing.standingStateCoordination nextStanding
+      priority = Execution.executionStatePriority
+        (Coordination.coordinationStateExecution coordination)
+  scope <- maybe (Left "selection fixture root priority scope is absent") Right
+    (Map.lookup Priority.priorityRootScopeId (Priority.priorityStateScopes priority))
+  material <- materialStateFromKernel state
+  let nextMaterial = foldr (\brick -> registerMaterialBrick
+        (brickId brick) Active) material created
+  selection <- selectionStateForAmbient (operationAmbient input) state
+  let seeded = foldl (seedPressure now) selection (zip created pressures)
+      context = Selection.SelectionContext nextStanding nextMaterial
+  mapSelectionError (Selection.validateSelectionState context seeded)
+  accepted <- appendForFixture input "selection-bricks"
+    [ ProposeValueStored "v1.standing" (toJSON nextStanding)
+    , ProposeValueStored "v1.coordination" (toJSON coordination)
+    , ProposeValueStored "v1.material" (toJSON nextMaterial)
+    , ProposeValueStored "v1.selection" (toJSON seeded)
+    ] state
+  let fields = ("scope", toJSON (Priority.priorityScopeId scope)) :
+        [(Key.fromText title, toJSON (brickId brick)) |
+          (title, brick) <- zip titles created]
+  pure OperationResult
+    { operationResultValue = Object (KeyMap.fromList fields)
+    , operationResultState = appendResultState accepted
+    }
+  where
+    createOne now (created, standing) (titleText, phase) = do
+      title <- mapDomainError (mkCanonicalText titleText Nothing Human)
+      let draft = (ordinaryBrickDraft title standardV1 now)
+            { Domain.brickDraftPhase = phase
+            , Domain.brickDraftPhaseAuthority = Human <$ phase
+            }
+      (brick, _, next) <- mapStandingError
+        (Standing.createStandingBrick draft ("fixture:" <> titleText) now standing)
+      pure (brick : created, next)
+    seedPressure now selection (brick, count)
+      | count <= 0 = selection
+      | otherwise =
+          let identifier = brickId brick
+              cooldown = Selection.SelectionCooldown
+                (Selection.SelectionCooldownId
+                  ("la1:fixture-cooldown:" <> unBrickId identifier))
+                identifier (addUTCTime (-1) now) count Selection.SkipOther
+          in selection {Selection.selectionStateCooldowns = Map.insert identifier
+              cooldown (Selection.selectionStateCooldowns selection)}
+
+unlessEqualLength :: Text -> [left] -> [right] -> Either Text ()
+unlessEqualLength label left right = when (length left /= length right)
+  (Left (label <> " count differs from titles"))
+
 activeRootBrickFixture ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
 activeRootBrickFixture input state = do
@@ -2220,10 +2654,23 @@ forecastReference input = do
       (referenceSnapshotBindings (referenceInputCurrent input))
       <|> Map.lookup bindingName (referenceSnapshotBindings snapshot))
   forecast <- case bound of
-    String identifier -> maybe
-      (Left ("forecast is unavailable for: " <> identifier))
-      Right
-      (kernelValue ("forecast:" <> identifier) (referenceSnapshotState snapshot))
+    String identifier -> case kernelValue ("forecast:" <> identifier)
+        (referenceSnapshotState snapshot) of
+      Just captured -> Right captured
+      Nothing -> do
+        brick <- decodeArgument "forecast checkpoint Brick" (String identifier)
+        context <- selectionContextFromKernel (referenceSnapshotState snapshot)
+        selection <- selectionStateForAmbient (referenceInputAmbient input)
+          (referenceSnapshotState snapshot)
+        at <- case ambientClock (referenceInputAmbient input) of
+          Nothing -> Right domainFixtureTime
+          Just value -> decodeArgument "forecast checkpoint clock" value
+        rebuilt <- mapSelectionError (Selection.buildForecast at
+          (unDomainRevision (kernelRevision (referenceSnapshotState snapshot)))
+          context selection)
+        maybe (Left ("forecast is unavailable for: " <> identifier))
+          (Right . toJSON)
+          (Selection.forecastItemForBrick brick rebuilt)
     value -> Right value
   if Text.null path then Right forecast else selectJsonPath path forecast
 
@@ -2233,10 +2680,12 @@ findForecastCheckpoint ::
 findForecastCheckpoint label checkpoints =
   case direct <|> normalized of
     Just checkpoint -> Right checkpoint
-    Nothing -> case fuzzyMatches of
-      [checkpoint] -> Right checkpoint
+    Nothing -> case sortOn
+        (kernelRevision . referenceSnapshotState) fuzzyMatches of
       [] -> Left ("unknown forecast checkpoint: " <> label)
-      _ -> Left ("ambiguous forecast checkpoint: " <> label)
+      first : rest
+        | "after-" `Text.isPrefixOf` label -> Right (lastOr first rest)
+        | otherwise -> Right first
   where
     direct = Map.lookup label checkpoints
     normalized = Map.lookup (normalizeCheckpointLabel label) checkpoints
@@ -2251,6 +2700,7 @@ findForecastCheckpoint label checkpoints =
       , expectedPrefix `Text.isPrefixOf` key
       , token `Text.isInfixOf` Text.toLower key
       ]
+    lastOr fallback values = foldl (\_ value -> value) fallback values
 
 normalizeCheckpointLabel :: Text -> Text
 normalizeCheckpointLabel label
