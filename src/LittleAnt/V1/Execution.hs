@@ -16,7 +16,9 @@ module LittleAnt.V1.Execution
   , dropExecutionBrick
   , emptyExecutionState
   , focusExecutionBrick
+  , describeExecutionBrick
   , moveExecutionSubtree
+  , renameExecutionBrick
   , retireStandingExecutionBrick
   , softWipLimit
   , supersedeExecutionBrick
@@ -38,10 +40,11 @@ import Data.Text (Text)
 import Data.Time (UTCTime)
 import GHC.Generics (Generic)
 import LittleAnt.V1.Domain
-  (Applicability (..), Brick (..), BrickClosure (..), BrickDraft, BrickId,
-   BrickStatus (..), DomainError, DomainState (..), Lifetime (..), WorkState (..),
-   behaviorEffort, behaviorLifetime, closeBrickSubtree, createBrick,
-   emptyDomainState, focusBrick, moveBrickSubtree, retireStandingBrick,
+  (Applicability (..), Authority, Brick (..), BrickClosure (..), BrickDraft,
+   BrickId, BrickStatus (..), DomainError, DomainState (..), Lifetime (..),
+   WorkState (..), behaviorEffort, behaviorLifetime, closeBrickSubtree,
+   createBrick, describeBrick, emptyDomainState, focusBrick, moveBrickSubtree,
+   renameBrick, retireStandingBrick,
    supersedeBrickWithChildren, transitionBrickStatus, validateDomainState)
 import qualified LittleAnt.V1.Judgment as Judgment
 import qualified LittleAnt.V1.Priority as Priority
@@ -130,6 +133,26 @@ focusExecutionBrick identifier now state = do
   (_, domain) <- mapDomain
     (focusBrick (Just identifier) now (executionStateDomain state))
   commit "brick_focused" [identifier] now state {executionStateDomain = domain}
+
+renameExecutionBrick ::
+  BrickId -> Text -> Authority -> UTCTime -> ExecutionState ->
+  Either ExecutionError (Brick, ExecutionState)
+renameExecutionBrick identifier title authority now state = do
+  (brick, domain) <- mapDomain
+    (renameBrick identifier title authority (executionStateDomain state))
+  next <- commit "brick_renamed" [identifier] now state
+    {executionStateDomain = domain}
+  pure (brick, next)
+
+describeExecutionBrick ::
+  BrickId -> Text -> UTCTime -> ExecutionState ->
+  Either ExecutionError (Brick, ExecutionState)
+describeExecutionBrick identifier description now state = do
+  (brick, domain) <- mapDomain
+    (describeBrick identifier description (executionStateDomain state))
+  next <- commit "brick_described" [identifier] now state
+    {executionStateDomain = domain}
+  pure (brick, next)
 
 completeExecutionBrick ::
   BrickId -> UTCTime -> ExecutionState -> Either ExecutionError ExecutionState

@@ -30,10 +30,12 @@ import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
    EventBatch (..), KernelError (..), OpaqueId (..), ProposedEvent (..),
-   ReplayResult (..), appendSemanticAction, emptyKernelState, kernelArtifact,
-   kernelEventBatches, kernelRevision, kernelValue, putKernelArtifact, replayAll)
+   ReplayResult (..), appendSemanticAction, canonicalStateHash, emptyKernelState,
+   kernelArtifact, kernelEventBatches, kernelRevision, kernelValue,
+   putKernelArtifact, replayAll)
 import LittleAnt.V1.Material
 import qualified LittleAnt.V1.Priority as Priority
+import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
 import qualified LittleAnt.V1.Standing as Standing
 import System.Directory
@@ -52,6 +54,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , selectionTests
   , captureTests
   , interactionTests
+  , readModelTests
   , coordinationTests
   , materialTests
   , priorityTests
@@ -1858,6 +1861,223 @@ interactionTests = testGroup "v1 revision-scoped interactions and powered-up mod
       Interaction.processInvocationTraceStdinContainsProbe trace @?= True
   ]
 
+readModelTests :: TestTree
+readModelTests = testGroup "v1 sparse commands, history, and annotations"
+  [ testCase "preserves required false, zero, and empty response fields" $ do
+      let reference = Interaction.CompactEntityReference "brick:response"
+            Nothing 0 (Just "active")
+          request = AppendRequest (DomainRevision 0) "test:command-response"
+            "human:test" (Just "2026-07-27T19:00:00Z")
+            [ProposeValueStored "response.false" (Bool False)]
+      (response, accepted) <- case ReadModel.runOperationalMutation request
+          "Updated." "brick_changed" (Just reference) ["title"] []
+          (Just False) emptyKernelState of
+        Left problem -> assertFailure ("command mutation failed: " <> show problem)
+        Right result -> pure result
+      kernelRevision (appendResultState accepted) @?= DomainRevision 1
+      let sparse = Interaction.operationalResponseProjection response
+      assertBool "valid sparse response failed its schema"
+        (Interaction.operationalResponseMatchesProjection sparse)
+      fields <- requireObject "sparse response" sparse
+      KeyMap.lookup "ok" fields @?= Just (Bool True)
+      KeyMap.lookup "domain_revision" fields @?= Just (toJSON (1 :: Integer))
+      KeyMap.lookup "warnings" fields @?= Just (toJSON ([] :: [Text]))
+      KeyMap.lookup "dry_run" fields @?= Just (Bool False)
+      assertBool "absent hint was encoded" (not (KeyMap.member "hint" fields))
+      let failed = ReadModel.commandFailure "precondition_failed" "Rejected."
+            Nothing [] emptyKernelState
+          failedProjection = Interaction.operationalResponseProjection failed
+      assertBool "valid failure response failed its schema"
+        (Interaction.operationalResponseMatchesProjection failedProjection)
+      ReadModel.commandProject Interaction.ProjectionOperational
+        (Just "response.false") (appendResultState accepted) @?=
+          Right (object
+            [ "domain_revision" .= DomainRevision 1
+            , "reference" .= ("response.false" :: Text)
+            , "value" .= False
+            ])
+  , testCase "rejects missing, mistyped, null, and undeclared response fields" $ do
+      let valid = object
+            [ "ok" .= True
+            , "human" .= ("Accepted." :: Text)
+            , "result_kind" .= ("brick_changed" :: Text)
+            , "changed" .= ([] :: [Text])
+            , "warnings" .= ([] :: [Text])
+            , "domain_revision" .= (0 :: Integer)
+            ]
+      assertBool "valid protocol response was rejected"
+        (Interaction.operationalResponseMatchesProjection valid)
+      fields <- requireObject "valid response" valid
+      let missing = Object (KeyMap.delete "changed" fields)
+          mistyped = Object (KeyMap.insert "domain_revision" (String "zero") fields)
+          explicitNull = Object (KeyMap.insert "hint" Null fields)
+          undeclared = Object (KeyMap.insert "raw_events" (Array mempty) fields)
+      mapM_ (assertBool "invalid protocol response was accepted" . not
+        . Interaction.operationalResponseMatchesProjection)
+        [missing, mistyped, explicitNull, undeclared]
+  , testCase "paginates one traceable summary per semantic action" $ do
+      let reference = Interaction.CompactEntityReference "brick:history"
+            (Just "History") 2 (Just "active")
+          appendHistory expected action family relevance summary state =
+            appendSemanticAction AppendRequest
+              { appendExpectedRevision = expected
+              , appendSemanticActionId = action
+              , appendActorOrOrigin = "human:test"
+              , appendOccurredAt = Just (if expected == DomainRevision 0
+                  then "2026-07-27T19:00:00Z" else "2026-07-27T19:01:00Z")
+              , appendProposedEvents =
+                  [ ProposeValueStored ("history:" <> action) (Bool False)
+                  , ReadModel.historyMetadataEvent ReadModel.SemanticActionMetadata
+                      { ReadModel.semanticActionMetadataActionId = action
+                      , ReadModel.semanticActionMetadataFamily = family
+                      , ReadModel.semanticActionMetadataRelevance = relevance
+                      , ReadModel.semanticActionMetadataOutcome = "accepted"
+                      , ReadModel.semanticActionMetadataSummary = summary
+                      , ReadModel.semanticActionMetadataAffected = [reference]
+                      , ReadModel.semanticActionMetadataRelatedEntityIds =
+                          ["party:history"]
+                      , ReadModel.semanticActionMetadataScopeIds = ["scope:history"]
+                      }
+                  ]
+              } state
+      first <- requireKernelSuccess (appendHistory (DomainRevision 0)
+        "history:create" "lifecycle" ReadModel.Important "Created."
+        emptyKernelState)
+      second <- requireKernelSuccess (appendHistory (DomainRevision 1)
+        "history:rename" "content" ReadModel.Relevant "Renamed."
+        (appendResultState first))
+      let query = ReadModel.HistoryQuery Nothing Nothing ["brick:history"]
+            ["party:history"] ["scope:history"] ["human:test"] ["human:test"]
+            ["lifecycle", "content"] (Just ReadModel.Relevant) Nothing 1
+          state = appendResultState second
+      pageOne <- requireHistorySuccess (ReadModel.historyQuery query state)
+      length (ReadModel.historyPageItems pageOne) @?= 1
+      cursor <- maybe (assertFailure "first history page omitted cursor") pure
+        (ReadModel.historyPageNextCursor pageOne)
+      pageTwo <- requireHistorySuccess (ReadModel.historyQuery
+        query {ReadModel.historyQueryCursor = Just cursor} state)
+      case ReadModel.historyQuery query
+          { ReadModel.historyQueryCursor = Just cursor
+          , ReadModel.historyQueryActionFamilies = ["content"]
+          } state of
+        Left ReadModel.HistoryCursorQueryMismatch -> pure ()
+        result -> assertFailure
+          ("cursor was reused with another query: " <> show result)
+      third <- requireKernelSuccess (appendHistory (DomainRevision 2)
+        "history:third" "content" ReadModel.Relevant "Third." state)
+      case ReadModel.historyQuery query
+          {ReadModel.historyQueryCursor = Just cursor}
+          (appendResultState third) of
+        Left (ReadModel.StaleHistoryCursor 2 3) -> pure ()
+        result -> assertFailure
+          ("cursor was reused at another revision: " <> show result)
+      let items = ReadModel.historyPageItems pageOne
+            <> ReadModel.historyPageItems pageTwo
+      map ReadModel.semanticActionSummaryActionId items @?=
+        ["history:create", "history:rename"]
+      assertBool "history IDs are not unique" (Set.size (Set.fromList
+        (map ReadModel.semanticActionSummaryActionId items)) == 2)
+      assertBool "history omitted drilldown references" (all
+        (not . null . ReadModel.semanticActionSummaryEventReferences) items)
+      mapM_ (\item -> do
+        itemFields <- requireObject "history summary" (toJSON item)
+        assertBool "history leaked event body"
+          (not (KeyMap.member "event_payload" itemFields))) items
+      brief <- requireHistorySuccess (ReadModel.historyBrief
+        query {ReadModel.historyQueryCursor = Nothing,
+          ReadModel.historyQueryPageSize = 10} state)
+      ReadModel.historyBriefSourceActionIds brief @?=
+        ["history:create", "history:rename"]
+  , testCase "binds cursors to a domain revision and query fingerprint" $ do
+      let request = AppendRequest (DomainRevision 0) "history:one" "human:test"
+            (Just "2026-07-27T19:00:00Z")
+            [ ProposeValueStored "history:one" (Bool True)
+            , ReadModel.historyMetadataEvent ReadModel.SemanticActionMetadata
+                { ReadModel.semanticActionMetadataActionId = "history:one"
+                , ReadModel.semanticActionMetadataFamily = "content"
+                , ReadModel.semanticActionMetadataRelevance = ReadModel.Relevant
+                , ReadModel.semanticActionMetadataOutcome = "accepted"
+                , ReadModel.semanticActionMetadataSummary = "One."
+                , ReadModel.semanticActionMetadataAffected = []
+                , ReadModel.semanticActionMetadataRelatedEntityIds = []
+                , ReadModel.semanticActionMetadataScopeIds = []
+                }
+            ]
+      first <- requireKernelSuccess (appendSemanticAction request emptyKernelState)
+      let query = ReadModel.HistoryQuery Nothing Nothing [] [] [] [] [] []
+            Nothing Nothing 1
+      page <- requireHistorySuccess
+        (ReadModel.historyQuery query (appendResultState first))
+      ReadModel.historyPageNextCursor page @?= Nothing
+      case ReadModel.historyQuery query {ReadModel.historyQueryPageSize = 0}
+          (appendResultState first) of
+        Left (ReadModel.InvalidHistoryPageSize 0) -> pure ()
+        result -> assertFailure ("invalid page size was accepted: " <> show result)
+  , testCase "retains exactly one kind-matching annotation target" $ do
+      (party, first) <- requireDomainSuccess
+        (createParty "Ada" Person domainTestTime emptyDomainState)
+      targetTitle <- requireDomainSuccess
+        (mkCanonicalText "Target" Nothing Human)
+      (target, second) <- requireDomainSuccess
+        (createBrick (ordinaryBrickDraft targetTitle standardV1 domainTestTime) first)
+      ownerTitle <- requireDomainSuccess
+        (mkCanonicalText "Owner" Nothing Human)
+      let ownerDraft = (ordinaryBrickDraft ownerTitle standardV1 domainTestTime)
+            {brickDraftDescription = Just "Ask @Ada about #Target"}
+      (owner, domain) <- requireDomainSuccess (createBrick ownerDraft second)
+      (partyAnnotation, annotations) <- requireAnnotationSuccess
+        (ReadModel.annotatePartyInBrickText domain (brickId owner) "description"
+          1 4 8 "@Ada" (partyId party) Human domainTestTime
+          ReadModel.emptyAnnotationState)
+      ReadModel.textAnnotationTargetKind partyAnnotation @?=
+        ReadModel.AnnotationParty
+      ReadModel.textAnnotationTargetParty partyAnnotation @?= Just (partyId party)
+      ReadModel.textAnnotationTargetBrick partyAnnotation @?= Nothing
+      (brickAnnotation, both) <- requireAnnotationSuccess
+        (ReadModel.annotateBrickInBrickText domain (brickId owner) "description"
+          1 15 22 "#Target" (brickId target) Human domainTestTime annotations)
+      ReadModel.textAnnotationTargetKind brickAnnotation @?=
+        ReadModel.AnnotationBrick
+      ReadModel.textAnnotationTargetParty brickAnnotation @?= Nothing
+      ReadModel.textAnnotationTargetBrick brickAnnotation @?= Just (brickId target)
+      requireAnnotationSuccess (ReadModel.validateAnnotationState both)
+  , testCase "marks prior text revisions stale and replays annotations canonically" $ do
+      (party, first) <- requireDomainSuccess
+        (createParty "Ada" Person domainTestTime emptyDomainState)
+      ownerTitle <- requireDomainSuccess (mkCanonicalText "Owner" Nothing Human)
+      let ownerDraft = (ordinaryBrickDraft ownerTitle standardV1 domainTestTime)
+            {brickDraftDescription = Just "Ask @Ada"}
+      (owner, domain) <- requireDomainSuccess (createBrick ownerDraft first)
+      (annotation, active) <- requireAnnotationSuccess
+        (ReadModel.annotatePartyInBrickText domain (brickId owner) "description"
+          1 4 8 "@Ada" (partyId party) Human domainTestTime
+          ReadModel.emptyAnnotationState)
+      (edited, _) <- requireDomainSuccess
+        (describeBrick (brickId owner) "Ask @Ada tomorrow" domain)
+      let stale = ReadModel.staleAnnotationsAfterTextEdit (brickId owner)
+            "description" (brickDescriptionRevision edited) active
+      fmap ReadModel.textAnnotationStatus (Map.lookup
+        (ReadModel.textAnnotationId annotation)
+        (ReadModel.annotationStateAnnotations stale)) @?=
+          Just ReadModel.AnnotationStale
+      accepted <- requireKernelSuccess (appendSemanticAction
+        AppendRequest
+          { appendExpectedRevision = DomainRevision 0
+          , appendSemanticActionId = "test:annotation:canonical"
+          , appendActorOrOrigin = "human:test"
+          , appendOccurredAt = Just "2026-07-27T19:00:00Z"
+          , appendProposedEvents =
+              [ProposeValueStored "v1.annotations" (toJSON stale)]
+          }
+        emptyKernelState)
+      replayed <- case replayAll (kernelEventBatches (appendResultState accepted)) of
+        Left problem -> assertFailure ("annotation replay failed: " <> show problem)
+        Right result -> pure result
+      canonicalStateHash (replayResultState replayed) @?=
+        canonicalStateHash (appendResultState accepted)
+      replayResultExternalTrace replayed @?= []
+  ]
+
 implementationBridgeTests :: TestTree
 implementationBridgeTests = testGroup "real implementation registry"
   [ testCase "populates every contract extension point" $ do
@@ -2041,6 +2261,7 @@ operatorTests = testGroup "declared assertion operators"
             , "human" .= ("precondition failed" :: Text)
             , "changed" .= ([] :: [Text])
             , "warnings" .= ([] :: [Text])
+            , "error_code" .= ("precondition_failed" :: Text)
             , "domain_revision" .= (0 :: Int)
             , "entity" .= object
                 [ "id" .= ("brick:zero" :: Text)
@@ -3540,6 +3761,21 @@ requireInteractionSuccess :: Either Interaction.InteractionError value -> IO val
 requireInteractionSuccess result = case result of
   Left problem -> assertFailure ("interaction action failed: " <> show problem)
   Right value -> pure value
+
+requireHistorySuccess :: Either ReadModel.HistoryError value -> IO value
+requireHistorySuccess result = case result of
+  Left problem -> assertFailure ("history operation failed: " <> show problem)
+  Right value -> pure value
+
+requireAnnotationSuccess :: Either ReadModel.AnnotationError value -> IO value
+requireAnnotationSuccess result = case result of
+  Left problem -> assertFailure ("annotation operation failed: " <> show problem)
+  Right value -> pure value
+
+requireObject :: String -> Value -> IO Object
+requireObject _ (Object fields) = pure fields
+requireObject label value = assertFailure
+  (label <> " is not an object: " <> show value)
 
 focusSelectionContext :: BrickId -> Selection.SelectionContext ->
   IO Selection.SelectionContext

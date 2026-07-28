@@ -68,6 +68,7 @@ import LittleAnt.V1.Material
 import qualified LittleAnt.V1.Material as Material
 import LittleAnt.V1.PlanCatalog (v1PlanProbes)
 import qualified LittleAnt.V1.Priority as Priority
+import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
 import qualified LittleAnt.V1.Standing as Standing
 
@@ -89,6 +90,13 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("KernelRemoveValue", removeValueOperation)
       , ("KernelSetValue", setValueOperation)
       , ("CreateParty", createPartyOperation)
+      , ("RenameBrick", renameBrickOperation)
+      , ("DescribeBrick", describeBrickOperation)
+      , ("AnnotatePartyInBrickText", annotatePartyOperation)
+      , ("AnnotateBrickInBrickText", annotateBrickOperation)
+      , ("MarkAnnotationStale", markAnnotationStaleOperation)
+      , ("HistoryQueryProtocol.query", historyQueryOperation)
+      , ("HistoryQueryProtocol.brief", historyBriefOperation)
       , ("CreateRootBrick", createRootPriorityOperation)
       , ("CreateChildBrick", createChildPriorityOperation)
       , ("AnswerPriorityComparison", answerPriorityComparisonOperation)
@@ -183,7 +191,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("KernelSummary", kernelSummaryObservation)
       , ("KernelValue", valueObservation)
       , ("LatestOperationalResponse", operationalResponseObservation)
-      , ("ReplaySideEffectTrace", adapterTraceObservation)
+      , ("ReplaySideEffectTrace", replaySideEffectTraceObservation)
       , ("MaterialState", materialStateObservation)
       , ("RawSnapshots", rawSnapshotsObservation)
       , ("PriorityInsertion", priorityInsertionObservation)
@@ -243,6 +251,9 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("ReplRuntime", replRuntimeObservation)
       , ("ProcessInvocationTrace", processInvocationTraceObservation)
       , ("StatusSummary", statusSummaryObservation)
+      , ("HistoryPage", historyPageObservation)
+      , ("HistoryBrief", historyBriefObservation)
+      , ("TextAnnotation", textAnnotationObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -257,6 +268,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("template_brick", templateBrickFixture)
       , ("eligible_priority_run", eligiblePriorityRunFixture)
       , ("two_eligible_root_bricks", twoEligibleRootBricksFixture)
+      , ("created_and_described_brick", createdAndDescribedBrickFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -348,7 +360,7 @@ replayOperation _ state = do
         , "state_hash" .= canonicalStateHash rebuilt
         , "external_trace" .= replayResultExternalTrace replayed
         ]
-    , operationResultState = rebuilt
+    , operationResultState = state
     }
 
 runSimpleAction ::
@@ -398,6 +410,306 @@ parseProposedEvent value = do
       <$> requiredText "kind" event
       <*> (fromMaybe KeyMap.empty <$> optionalObject "fields" event)
     _ -> Left ("unknown kernel event type: " <> eventType)
+
+------------------------------------------------------------
+-- Sparse commands, semantic history, and typed annotations
+------------------------------------------------------------
+
+annotationStateFromKernel :: V1State -> Either Text ReadModel.AnnotationState
+annotationStateFromKernel state = case kernelValue "v1.annotations" state of
+  Nothing -> Right ReadModel.emptyAnnotationState
+  Just value -> case fromJSON value of
+    Success annotations -> do
+      mapAnnotationError (ReadModel.validateAnnotationState annotations)
+      Right annotations
+    Error problem -> Left ("stored annotation state is malformed: "
+      <> Text.pack problem)
+
+currentDomainState :: V1State -> Either Text Domain.DomainState
+currentDomainState state = Execution.executionStateDomain
+  . Coordination.coordinationStateExecution
+  . Standing.standingStateCoordination <$> standingStateFromKernel state
+
+persistLatestOperationalResponse ::
+  Interaction.OperationalResponse -> V1State -> Either Text V1State
+persistLatestOperationalResponse response state = do
+  interaction <- interactionStateFromKernel state
+  persistInteractionArtifact interaction
+    {Interaction.interactionStateLatestResponse = Just response} state
+
+compactBrickReference :: Domain.Brick -> Interaction.CompactEntityReference
+compactBrickReference brick = Interaction.CompactEntityReference
+  { Interaction.compactEntityReferenceId = Domain.unBrickId (Domain.brickId brick)
+  , Interaction.compactEntityReferenceTitle = Just (Domain.brickTitle brick)
+  , Interaction.compactEntityReferenceRevision =
+      Domain.unEntityRevision (Domain.brickRevision brick)
+  , Interaction.compactEntityReferenceState = Just (case Domain.brickStatus brick of
+      Domain.Active -> "active"
+      Domain.Done -> "done"
+      Domain.Dropped -> "dropped"
+      Domain.Superseded -> "superseded")
+  }
+
+successfulResponse ::
+  Text -> Text -> Maybe Interaction.CompactEntityReference -> [Text] ->
+  [Text] -> Maybe Bool -> V1State -> Interaction.OperationalResponse
+successfulResponse human resultKind entity changed warnings dryRun state =
+  Interaction.OperationalResponse
+    { Interaction.operationalResponseOk = True
+    , Interaction.operationalResponseHuman = human
+    , Interaction.operationalResponseResultKind = Just resultKind
+    , Interaction.operationalResponseEntity = entity
+    , Interaction.operationalResponseChanged = changed
+    , Interaction.operationalResponseWarnings = warnings
+    , Interaction.operationalResponseErrorCode = Nothing
+    , Interaction.operationalResponseHint = Nothing
+    , Interaction.operationalResponseDryRun = dryRun
+    , Interaction.operationalResponseDomainRevision =
+        unDomainRevision (kernelRevision state)
+    }
+
+historyMetadata ::
+  Text -> Text -> ReadModel.HistoryRelevance -> Text ->
+  [Interaction.CompactEntityReference] -> [Text] -> [Text] ->
+  ReadModel.SemanticActionMetadata
+historyMetadata actionId family relevance summary affected related scopes =
+  ReadModel.SemanticActionMetadata
+    { ReadModel.semanticActionMetadataActionId = actionId
+    , ReadModel.semanticActionMetadataFamily = family
+    , ReadModel.semanticActionMetadataRelevance = relevance
+    , ReadModel.semanticActionMetadataOutcome = "accepted"
+    , ReadModel.semanticActionMetadataSummary = summary
+    , ReadModel.semanticActionMetadataAffected = affected
+    , ReadModel.semanticActionMetadataRelatedEntityIds = related
+    , ReadModel.semanticActionMetadataScopeIds = scopes
+    }
+
+createdAndDescribedBrickFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+createdAndDescribedBrickFixture input state = do
+  arguments <- requireArgumentsObject input
+  titleText <- requiredText "title" arguments
+  description <- requiredText "description" arguments
+  now <- operationTime input
+  title <- mapDomainError (mkCanonicalText titleText Nothing Human)
+  standing <- standingStateFromKernel state
+  let draft = (ordinaryBrickDraft title standardV1 now)
+        {Domain.brickDraftDescription = Just description}
+  (brick, _, nextStanding) <- mapStandingError (Standing.createStandingBrick
+    draft (actionIdFor input <> ":priority-evidence") now standing)
+  material <- materialStateFromKernel state
+  let nextMaterial = registerMaterialBrick (brickId brick) Active material
+      actionId = actionIdFor input <> ":created-described"
+      reference = compactBrickReference brick
+      metadata = historyMetadata actionId "lifecycle" ReadModel.Important
+        ("Created " <> Domain.brickTitle brick <> ".") [reference] [] []
+  accepted <- appendForFixture input "created-described"
+    [ ProposeValueStored "v1.standing" (toJSON nextStanding)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination nextStanding))
+    , ProposeValueStored "v1.material" (toJSON nextMaterial)
+    , ReadModel.historyMetadataEvent metadata
+    ] state
+  pure OperationResult
+    { operationResultValue = object
+        [ "brick" .= Domain.brickId brick
+        , "semantic_action" .= eventBatchSemanticActionId
+            (appendResultBatch accepted)
+        ]
+    , operationResultState = appendResultState accepted
+    }
+
+renameBrickOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+renameBrickOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "brick" arguments
+  title <- requiredText "title" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (brick, nextStanding) <- mapStandingError (Standing.renameStandingBrick
+    identifier title authority now standing)
+  let actionId = actionIdFor input <> ":rename"
+      reference = compactBrickReference brick
+      metadata = historyMetadata actionId "content" ReadModel.Relevant
+        ("Renamed Brick to " <> Domain.brickTitle brick <> ".")
+        [reference] [] []
+  accepted <- appendForFixture input "rename"
+    [ ProposeValueStored "v1.standing" (toJSON nextStanding)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination nextStanding))
+    , ReadModel.historyMetadataEvent metadata
+    ] state
+  let canonical = appendResultState accepted
+      response = successfulResponse "Brick renamed." "brick_changed"
+        (Just reference) ["title"] [] Nothing canonical
+  next <- persistLatestOperationalResponse response canonical
+  pure OperationResult
+    { operationResultValue = object
+        [ "semantic_action" .= eventBatchSemanticActionId
+            (appendResultBatch accepted)
+        , "response" .= Interaction.operationalResponseProjection response
+        ]
+    , operationResultState = next
+    }
+
+describeBrickOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+describeBrickOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "brick" arguments
+  description <- requiredText "description" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (brick, nextStanding) <- mapStandingError (Standing.describeStandingBrick
+    identifier description now standing)
+  annotations <- annotationStateFromKernel state
+  let nextAnnotations = ReadModel.staleAnnotationsAfterTextEdit identifier
+        "description" (Domain.brickDescriptionRevision brick) annotations
+      actionId = actionIdFor input <> ":describe"
+      reference = compactBrickReference brick
+      metadata = historyMetadata actionId "content" ReadModel.Relevant
+        ("Updated the description of " <> Domain.brickTitle brick <> ".")
+        [reference] [] []
+  accepted <- appendForFixture input "describe"
+    [ ProposeValueStored "v1.standing" (toJSON nextStanding)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination nextStanding))
+    , ProposeValueStored "v1.annotations" (toJSON nextAnnotations)
+    , ReadModel.historyMetadataEvent metadata
+    ] state
+  let canonical = appendResultState accepted
+      response = successfulResponse "Brick description updated."
+        "brick_changed" (Just reference) ["description"] [] Nothing canonical
+  next <- persistLatestOperationalResponse response canonical
+  pure OperationResult
+    { operationResultValue = object
+        [ "semantic_action" .= eventBatchSemanticActionId
+            (appendResultBatch accepted)
+        , "response" .= Interaction.operationalResponseProjection response
+        ]
+    , operationResultState = next
+    }
+
+annotatePartyOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+annotatePartyOperation input state = do
+  arguments <- requireArgumentsObject input
+  owner <- requiredAs "owner" arguments
+  field <- requiredText "field" arguments
+  textRevision <- requiredInteger "text_revision" arguments
+  start <- requiredInteger "start_offset" arguments
+  end <- requiredInteger "end_offset" arguments
+  token <- requiredText "displayed_token" arguments
+  party <- requiredAs "party" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  domain <- currentDomainState state
+  annotations <- annotationStateFromKernel state
+  (annotation, nextAnnotations) <- mapAnnotationError
+    (ReadModel.annotatePartyInBrickText domain owner field textRevision start end
+      token party authority now annotations)
+  persistAnnotation input "party-annotation" annotation nextAnnotations state
+
+annotateBrickOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+annotateBrickOperation input state = do
+  arguments <- requireArgumentsObject input
+  owner <- requiredAs "owner" arguments
+  field <- requiredText "field" arguments
+  textRevision <- requiredInteger "text_revision" arguments
+  start <- requiredInteger "start_offset" arguments
+  end <- requiredInteger "end_offset" arguments
+  token <- requiredText "displayed_token" arguments
+  target <- requiredAs "target" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  domain <- currentDomainState state
+  annotations <- annotationStateFromKernel state
+  (annotation, nextAnnotations) <- mapAnnotationError
+    (ReadModel.annotateBrickInBrickText domain owner field textRevision start end
+      token target authority now annotations)
+  persistAnnotation input "brick-annotation" annotation nextAnnotations state
+
+markAnnotationStaleOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+markAnnotationStaleOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "annotation" arguments
+  annotations <- annotationStateFromKernel state
+  (annotation, nextAnnotations) <- mapAnnotationError
+    (ReadModel.markAnnotationStale identifier annotations)
+  persistAnnotation input "annotation-stale" annotation nextAnnotations state
+
+persistAnnotation ::
+  OperationInput -> Text -> ReadModel.TextAnnotation ->
+  ReadModel.AnnotationState -> V1State ->
+  Either Text (OperationResult V1State)
+persistAnnotation input suffix annotation annotations state = do
+  let actionId = actionIdFor input <> ":" <> suffix
+      metadata = historyMetadata actionId "content" ReadModel.Relevant
+        "Updated a typed text annotation." []
+        [ReadModel.unAnnotationId (ReadModel.textAnnotationId annotation)] []
+  accepted <- appendForFixture input suffix
+    [ ProposeValueStored "v1.annotations" (toJSON annotations)
+    , ReadModel.historyMetadataEvent metadata
+    ] state
+  let canonical = appendResultState accepted
+      response = successfulResponse "Annotation updated." "annotation_changed"
+        Nothing [ReadModel.unAnnotationId (ReadModel.textAnnotationId annotation)]
+        [] Nothing canonical
+  next <- persistLatestOperationalResponse response canonical
+  pure OperationResult
+    { operationResultValue = object
+        [ "annotation" .= annotation
+        , "semantic_action" .= eventBatchSemanticActionId
+            (appendResultBatch accepted)
+        , "response" .= Interaction.operationalResponseProjection response
+        ]
+    , operationResultState = next
+    }
+
+historyQueryOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+historyQueryOperation input state = do
+  arguments <- requireArgumentsObject input
+  query <- requiredAs "filter" arguments
+  page <- mapHistoryError (ReadModel.historyQuery query state)
+  pure OperationResult
+    {operationResultValue = toJSON page, operationResultState = state}
+
+historyBriefOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+historyBriefOperation input state = do
+  arguments <- requireArgumentsObject input
+  query <- requiredAs "filter" arguments
+  brief <- mapHistoryError (ReadModel.historyBrief query state)
+  pure OperationResult
+    {operationResultValue = toJSON brief, operationResultState = state}
+
+historyPageObservation :: ObservationInput -> V1State -> Either Text Value
+historyPageObservation input _ = case observationArguments input of
+  [value] -> Right value
+  _ -> Left "HistoryPage expects exactly one argument"
+
+historyBriefObservation :: ObservationInput -> V1State -> Either Text Value
+historyBriefObservation input _ = case observationArguments input of
+  [value] -> Right value
+  _ -> Left "HistoryBrief expects exactly one argument"
+
+textAnnotationObservation :: ObservationInput -> V1State -> Either Text Value
+textAnnotationObservation input state = do
+  identifier <- exactlyOneAsArgument "TextAnnotation" input
+  annotations <- annotationStateFromKernel state
+  maybe (Left "unknown TextAnnotation") (Right . toJSON)
+    (Map.lookup identifier (ReadModel.annotationStateAnnotations annotations))
+
+mapAnnotationError :: Either ReadModel.AnnotationError value -> Either Text value
+mapAnnotationError = either (Left . Text.pack . show) Right
+
+mapHistoryError :: Either ReadModel.HistoryError value -> Either Text value
+mapHistoryError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Revision-scoped interactions and powered-up harness state
@@ -3157,7 +3469,10 @@ canonicalStateHashObservation ::
 canonicalStateHashObservation input state = case observationArguments input of
   [] -> Right (String (canonicalStateHash state))
   [String "current"] -> Right (String (canonicalStateHash state))
-  _ -> Left "CanonicalStateHash expects no argument or current"
+  [Object replayed] -> case KeyMap.lookup "state_hash" replayed of
+    Just value@(String _) -> Right value
+    _ -> Left "replay result does not contain a state hash"
+  _ -> Left "CanonicalStateHash expects current or a replay result"
 
 eventBatchesObservation :: ObservationInput -> V1State -> Either Text Value
 eventBatchesObservation _ = Right . toJSON . kernelEventBatches
@@ -3166,6 +3481,19 @@ adapterTraceObservation :: ObservationInput -> V1State -> Either Text Value
 adapterTraceObservation _ state = do
   replayed <- mapKernelError (replayAll (kernelEventBatches state))
   pure (toJSON (replayResultExternalTrace replayed))
+
+replaySideEffectTraceObservation ::
+  ObservationInput -> V1State -> Either Text Value
+replaySideEffectTraceObservation _ state = do
+  replayed <- mapKernelError (replayAll (kernelEventBatches state))
+  when (not (null (replayResultExternalTrace replayed)))
+    (Left "canonical replay produced an external side effect")
+  pure (object
+    [ "clock_reads" .= (0 :: Integer)
+    , "random_reads" .= (0 :: Integer)
+    , "network_calls" .= (0 :: Integer)
+    , "pack_invocations" .= (0 :: Integer)
+    ])
 
 valueObservation :: ObservationInput -> V1State -> Either Text Value
 valueObservation input state = do
@@ -3191,12 +3519,13 @@ operationalResponseObservation ::
 operationalResponseObservation _ state = do
   interaction <- interactionStateFromKernel state
   case Interaction.interactionStateLatestResponse interaction of
-    Just response -> Right (toJSON response)
+    Just response -> Right (Interaction.operationalResponseProjection response)
     Nothing -> Right (object
       [ "ok" .= False
       , "human" .= ("no kernel command selected" :: Text)
       , "changed" .= ([] :: [Text])
       , "warnings" .= ([] :: [Text])
+      , "error_code" .= ("no_operational_response" :: Text)
       , "domain_revision" .= kernelRevision state
       ])
 

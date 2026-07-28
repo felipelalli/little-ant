@@ -38,6 +38,8 @@ module LittleAnt.V1.Interaction
   , emptyInteractionState
   , honestInteractionProgress
   , openInteraction
+  , operationalResponseMatchesProjection
+  , operationalResponseProjection
   , parsePoweredUpProbe
   , poweredUpInvocation
   , probePoweredUpAdapter
@@ -67,6 +69,7 @@ import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import Data.Maybe (isJust)
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TextEncoding
@@ -229,6 +232,88 @@ instance ToJSON StatusSummary where
   toJSON = genericToJSON (recordOptions "statusSummary")
 instance FromJSON StatusSummary where
   parseJSON = genericParseJSON (recordOptions "statusSummary")
+
+-- | Serialize the sparse operational projection declared by the command
+-- schema. Required false, zero, and empty values remain present; only absent
+-- optional fields are omitted.
+operationalResponseProjection :: OperationalResponse -> Value
+operationalResponseProjection response = Object (KeyMap.fromList
+  ( [ ("ok", toJSON (operationalResponseOk response))
+    , ("human", toJSON (operationalResponseHuman response))
+    , ("changed", toJSON (operationalResponseChanged response))
+    , ("warnings", toJSON (operationalResponseWarnings response))
+    , ("domain_revision", toJSON (operationalResponseDomainRevision response))
+    ]
+  <> optional "result_kind" toJSON (operationalResponseResultKind response)
+  <> optional "entity" compactProjection (operationalResponseEntity response)
+  <> optional "error_code" toJSON (operationalResponseErrorCode response)
+  <> optional "hint" toJSON (operationalResponseHint response)
+  <> optional "dry_run" toJSON (operationalResponseDryRun response)
+  ))
+  where
+    optional _ _ Nothing = []
+    optional field encodeValue (Just value) = [(field, encodeValue value)]
+    compactProjection entity = Object (KeyMap.fromList
+      ( [ ("id", toJSON (compactEntityReferenceId entity))
+        , ("revision", toJSON (compactEntityReferenceRevision entity))
+        ]
+      <> optional "title" toJSON (compactEntityReferenceTitle entity)
+      <> optional "state" toJSON (compactEntityReferenceState entity)
+      ))
+
+-- | Validate the exact sparse schema used by 'operationalResponseProjection'.
+-- Success must identify its typed result and cannot carry an error code;
+-- failure must carry an error code. Unknown, null, missing, and mistyped fields
+-- fail validation instead of being silently interpreted as omission defaults.
+operationalResponseMatchesProjection :: Value -> Bool
+operationalResponseMatchesProjection = \case
+  Object response ->
+    Set.fromList (KeyMap.keys response) `Set.isSubsetOf` allowedFields
+      && requiredField "ok" isBoolean response
+      && requiredField "human" isText response
+      && requiredField "changed" isTextArray response
+      && requiredField "warnings" isTextArray response
+      && requiredField "domain_revision" isNonnegativeInteger response
+      && optionalField "result_kind" isText response
+      && optionalField "entity" compactMatches response
+      && optionalField "error_code" isText response
+      && optionalField "hint" isText response
+      && optionalField "dry_run" isBoolean response
+      && outcomeFieldsMatch response
+  _ -> False
+  where
+    allowedFields = Set.fromList
+      [ "ok", "human", "result_kind", "entity", "changed", "warnings"
+      , "error_code", "hint", "dry_run", "domain_revision"
+      ]
+    outcomeFieldsMatch response = case KeyMap.lookup "ok" response of
+      Just (Bool True) -> KeyMap.member "result_kind" response
+        && not (KeyMap.member "error_code" response)
+      Just (Bool False) -> KeyMap.member "error_code" response
+      _ -> False
+    compactMatches = \case
+      Object entity ->
+        Set.fromList (KeyMap.keys entity) `Set.isSubsetOf` compactFields
+          && requiredField "id" isText entity
+          && requiredField "revision" isNonnegativeInteger entity
+          && optionalField "title" isText entity
+          && optionalField "state" isText entity
+      _ -> False
+    compactFields = Set.fromList ["id", "title", "revision", "state"]
+    requiredField field predicate fields =
+      maybe False predicate (KeyMap.lookup field fields)
+    optionalField field predicate fields =
+      maybe True predicate (KeyMap.lookup field fields)
+    isBoolean (Bool _) = True
+    isBoolean _ = False
+    isText (String _) = True
+    isText _ = False
+    isTextArray value = case Aeson.fromJSON value :: Result [Text] of
+      Success _ -> True
+      Error _ -> False
+    isNonnegativeInteger value = case Aeson.fromJSON value :: Result Integer of
+      Success number -> number >= 0
+      Error _ -> False
 
 ------------------------------------------------------------
 -- Interaction and checkpoint state

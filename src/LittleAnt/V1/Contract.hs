@@ -49,6 +49,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TextEncoding
+import qualified LittleAnt.V1.Interaction as Interaction
 import Text.Read (readMaybe)
 
 -- | Ambient values pinned by a scenario.  Operations receive these values
@@ -1165,67 +1166,9 @@ schemaPresenceOperator actual expected _ = do
   expectedMatch <- case expectedValue of
     Bool value -> Right value
     _ -> Left "schema_presence_matches_projection expected value must be Boolean"
-  let actualMatch = operationalResponseMatchesSchema actual
+  let actualMatch = Interaction.operationalResponseMatchesProjection actual
   unless (actualMatch == expectedMatch)
     (Left "schema_presence_matches_projection comparison failed")
-
-operationalResponseMatchesSchema :: Value -> Bool
-operationalResponseMatchesSchema = \case
-  Object response ->
-    Set.fromList (KeyMap.keys response) `Set.isSubsetOf` operationalResponseFields
-      && requiredField "ok" isBoolean response
-      && requiredField "human" isText response
-      && requiredField "changed" isTextArray response
-      && requiredField "warnings" isTextArray response
-      && requiredField "domain_revision" isInteger response
-      && optionalField "result_kind" isText response
-      && optionalField "entity" compactEntityMatchesSchema response
-      && optionalField "error_code" isText response
-      && optionalField "hint" isText response
-      && optionalField "dry_run" isBoolean response
-  _ -> False
-  where
-    operationalResponseFields = Set.fromList
-      [ "ok", "human", "result_kind", "entity", "changed", "warnings"
-      , "error_code", "hint", "dry_run", "domain_revision"
-      ]
-
-compactEntityMatchesSchema :: Value -> Bool
-compactEntityMatchesSchema = \case
-  Object entity ->
-    Set.fromList (KeyMap.keys entity) `Set.isSubsetOf` compactEntityFields
-      && requiredField "id" isText entity
-      && requiredField "revision" isInteger entity
-      && optionalField "title" isText entity
-      && optionalField "state" isText entity
-  _ -> False
-  where
-    compactEntityFields = Set.fromList ["id", "title", "revision", "state"]
-
-requiredField :: Key.Key -> (Value -> Bool) -> Object -> Bool
-requiredField field predicate value =
-  maybe False predicate (KeyMap.lookup field value)
-
-optionalField :: Key.Key -> (Value -> Bool) -> Object -> Bool
-optionalField field predicate value =
-  maybe True predicate (KeyMap.lookup field value)
-
-isBoolean :: Value -> Bool
-isBoolean (Bool _) = True
-isBoolean _ = False
-
-isText :: Value -> Bool
-isText (String _) = True
-isText _ = False
-
-isTextArray :: Value -> Bool
-isTextArray (Array values) = all isText (toList values)
-isTextArray _ = False
-
-isInteger :: Value -> Bool
-isInteger value = case fromJSON value :: Result Integer of
-  Success _ -> True
-  Error _ -> False
 
 passedItem :: Text -> ResultItem
 passedItem identifier = ResultItem

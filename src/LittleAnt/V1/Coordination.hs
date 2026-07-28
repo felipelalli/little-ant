@@ -56,6 +56,7 @@ module LittleAnt.V1.Coordination
   , createCoordinationParty
   , createPlace
   , deadlineNoticeLead
+  , describeCoordinationBrick
   , draftDelegation
   , dropCoordinationBrick
   , emptyCoordinationState
@@ -65,6 +66,7 @@ module LittleAnt.V1.Coordination
   , moveCoordinationSubtree
   , recordLocationObservation
   , refuseDelegation
+  , renameCoordinationBrick
   , removeCoordinationListEntry
   , retireCoordinationStandingBrick
   , resolveCoordinationListEntry
@@ -105,8 +107,9 @@ import LittleAnt.V1.Domain
    setBrickNotBefore, subtreeBricks)
 import LittleAnt.V1.Execution
   (ExecutionError, ExecutionState (..), closeExecutionSubtree,
-   completeExecutionBrick, createExecutionBrick, dropExecutionBrick,
-   emptyExecutionState, moveExecutionSubtree, retireStandingExecutionBrick,
+   completeExecutionBrick, createExecutionBrick, describeExecutionBrick,
+   dropExecutionBrick, emptyExecutionState, moveExecutionSubtree,
+   renameExecutionBrick, retireStandingExecutionBrick,
    supersedeExecutionBrick, supersedeExecutionBrickWithChildren,
    validateExecutionState)
 import qualified LittleAnt.V1.Priority as Priority
@@ -838,6 +841,24 @@ activeDateNotices brick kind state = sortOn dateNoticeCreatedAt
 ------------------------------------------------------------
 -- Places and explicit observations
 ------------------------------------------------------------
+
+renameCoordinationBrick ::
+  BrickId -> Text -> Authority -> UTCTime -> CoordinationState ->
+  Either CoordinationError (Brick, CoordinationState)
+renameCoordinationBrick identifier title authority now state = do
+  (brick, execution) <- mapExecution (renameExecutionBrick identifier title
+    authority now (coordinationStateExecution state))
+  next <- commit "brick_renamed" state {coordinationStateExecution = execution}
+  pure (brick, next)
+
+describeCoordinationBrick ::
+  BrickId -> Text -> UTCTime -> CoordinationState ->
+  Either CoordinationError (Brick, CoordinationState)
+describeCoordinationBrick identifier description now state = do
+  (brick, execution) <- mapExecution (describeExecutionBrick identifier
+    description now (coordinationStateExecution state))
+  next <- commit "brick_described" state {coordinationStateExecution = execution}
+  pure (brick, next)
 
 createPlace ::
   Text -> UTCTime -> CoordinationState -> Either CoordinationError (Place, CoordinationState)

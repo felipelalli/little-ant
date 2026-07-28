@@ -44,6 +44,7 @@ module LittleAnt.V1.Standing
   , configureRecurrence
   , createStandingBrick
   , createStandingParty
+  , describeStandingBrick
   , deterministicRepeatDate
   , dropStandingBrick
   , emptyStandingState
@@ -55,6 +56,7 @@ module LittleAnt.V1.Standing
   , practiceHistory
   , practiceOpportunitiesFor
   , releaseTriggeredOpportunities
+  , renameStandingBrick
   , retireOpportunityTrigger
   , retireRecurrence
   , retireStandingTarget
@@ -87,7 +89,8 @@ import LittleAnt.V1.Coordination
   (CoordinationError, CoordinationState (..), Dependency (..),
    DependencyStatus (..), addCoordinationDependency, addCoordinationListEntry,
    closeCoordinationSubtree, completeCoordinationBrick, createCoordinationBrick,
-   createCoordinationParty, dropCoordinationBrick, emptyCoordinationState,
+   createCoordinationParty, describeCoordinationBrick, dropCoordinationBrick,
+   emptyCoordinationState, renameCoordinationBrick,
    retireCoordinationStandingBrick,
    supersedeCoordinationBrick, supersedeCoordinationBrickWithChildren,
    validateCoordinationState)
@@ -420,6 +423,25 @@ addStandingListEntry draft state = do
     (addCoordinationListEntry draft (standingStateCoordination state))
   next <- commit "list_entry_created" state {standingStateCoordination = coordination}
   pure (entry, next)
+
+renameStandingBrick ::
+  BrickId -> Text -> Authority -> UTCTime -> StandingState ->
+  Either StandingError (Brick, StandingState)
+renameStandingBrick identifier title authority now state = do
+  (brick, coordination) <- mapCoordination (renameCoordinationBrick identifier
+    title authority now (standingStateCoordination state))
+  next <- commit "brick_renamed" state {standingStateCoordination = coordination}
+  pure (brick, next)
+
+describeStandingBrick ::
+  BrickId -> Text -> UTCTime -> StandingState ->
+  Either StandingError (Brick, StandingState)
+describeStandingBrick identifier description now state = do
+  (brick, coordination) <- mapCoordination (describeCoordinationBrick identifier
+    description now (standingStateCoordination state))
+  next <- commit "brick_described" state
+    {standingStateCoordination = coordination}
+  pure (brick, next)
 
 addStandingDependency ::
   BrickId -> BrickId -> UTCTime -> StandingState ->
