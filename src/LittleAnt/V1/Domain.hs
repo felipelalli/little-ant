@@ -122,7 +122,8 @@ module LittleAnt.V1.Domain
 import Control.Monad (unless, when)
 import Data.Aeson
   (FromJSON (parseJSON), FromJSONKey, ToJSON (toJSON), ToJSONKey,
-   Value (..), object, withText, (.=))
+   Value (..), defaultOptions, genericParseJSON, object, withObject, withText,
+   (.:), (.=))
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.ByteString.Lazy as LBS
@@ -362,6 +363,7 @@ newtype ListEntryId = ListEntryId { unListEntryId :: Text }
   deriving newtype (ToJSON, FromJSON, ToJSONKey, FromJSONKey)
 
 instance ToJSON EntityRevision where toJSON = toJSON . unEntityRevision
+instance FromJSON EntityRevision where parseJSON value = EntityRevision <$> parseJSON value
 
 data CanonicalText = CanonicalText
   { canonicalTextEnglish :: Text
@@ -477,6 +479,24 @@ data FocusRegister = FocusRegister
   , focusRegisterChangedAt :: Maybe UTCTime
   }
   deriving stock (Eq, Show, Generic)
+
+instance FromJSON Party where parseJSON = genericParseJSON (recordOptions "party")
+instance FromJSON BrickBehavior where parseJSON = genericParseJSON (recordOptions "behavior")
+instance FromJSON BrickTemplate where parseJSON = genericParseJSON (recordOptions "template")
+instance FromJSON Brick where parseJSON = genericParseJSON (recordOptions "brick")
+instance FromJSON ListEntry where parseJSON = genericParseJSON (recordOptions "listEntry")
+instance FromJSON FocusRegister where parseJSON = genericParseJSON (recordOptions "focusRegister")
+
+recordOptions :: String -> AesonTypes.Options
+recordOptions prefix = defaultOptions
+  {AesonTypes.fieldLabelModifier = snakeField . drop (length prefix)}
+  where
+    snakeField [] = []
+    snakeField (first : rest) = AesonTypes.camelTo2 '_' (toLowerAscii first : rest)
+    toLowerAscii character
+      | character >= 'A' && character <= 'Z' =
+          toEnum (fromEnum character + fromEnum 'a' - fromEnum 'A')
+      | otherwise = character
 
 instance ToJSON Party where
   toJSON party = object
@@ -968,6 +988,36 @@ data DomainState = DomainState
   , domainFocusRegister :: FocusRegister
   }
   deriving stock (Eq, Show, Generic)
+
+-- The immutable built-in catalog is reconstructed rather than duplicated in
+-- every persisted domain slice.  Personal catalog publication will gain its
+-- own event representation when that operation is exposed through the v1
+-- kernel; operational entities round-trip here without derived projections.
+instance ToJSON DomainState where
+  toJSON state = object
+    [ "next_identity_ordinal" .= domainNextIdentityOrdinal state
+    , "parties" .= Map.elems (domainParties state)
+    , "bricks" .= Map.elems (domainBricks state)
+    , "list_entries" .= Map.elems (domainListEntries state)
+    , "focus_register" .= domainFocusRegister state
+    ]
+
+instance FromJSON DomainState where
+  parseJSON = withObject "DomainState" $ \value -> do
+    nextOrdinal <- value .: "next_identity_ordinal"
+    parties <- value .: "parties"
+    bricks <- value .: "bricks"
+    entries <- value .: "list_entries"
+    focus <- value .: "focus_register"
+    pure DomainState
+      { domainNextIdentityOrdinal = nextOrdinal
+      , domainCatalog = initialDefinitionCatalog
+      , domainParties = Map.fromList [(partyId party, party) | party <- parties]
+      , domainBricks = Map.fromList [(brickId brick, brick) | brick <- bricks]
+      , domainListEntries = Map.fromList
+          [(listEntryId entry, entry) | entry <- entries]
+      , domainFocusRegister = focus
+      }
 
 data BrickDraft = BrickDraft
   { brickDraftTitle :: CanonicalText

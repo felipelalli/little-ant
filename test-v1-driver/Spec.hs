@@ -17,6 +17,7 @@ import LittleAnt.V1.Contract
    ReferenceSnapshot (..), ResultItem (..),
    decodeAndRunContractRequest, emptyContractRegistry,
    evaluateAssertionOperator, runContractRequest, standardAssertionOperators)
+import qualified LittleAnt.V1.Coordination as Coordination
 import LittleAnt.V1.Domain
 import qualified LittleAnt.V1.Execution as Execution
 import LittleAnt.V1.Implementation (contractRegistry)
@@ -37,6 +38,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   [ kernelTests
   , domainTests
   , executionLifecycleTests
+  , coordinationTests
   , materialTests
   , priorityTests
   , judgmentTests
@@ -503,6 +505,227 @@ executionLifecycleTests = testGroup "v1 Brick metadata, focus, lifecycle, and su
           Just (Just (brickId newParent))
       Execution.executionStateRevision moved @?=
         Execution.executionStateRevision before + 1
+  ]
+
+coordinationTests :: TestTree
+coordinationTests = testGroup "v1 coordination, entries, date notices, and places"
+  [ testCase "enforces Wait and acyclic Dependency lifecycles" $ do
+      (_, firstBrick, initial) <- coordinationFixture "Blocked"
+      (blocker, second) <- createUnitCoordinationBrick "Blocker" standardV1 Nothing
+        initial
+      (thirdBrick, third) <- createUnitCoordinationBrick "Third" standardV1 Nothing
+        second
+      (wait, fourth) <- requireCoordinationSuccess
+        (Coordination.addCoordinationWait (brickId firstBrick) Nothing
+          "response received" domainTestTime third)
+      (_, fifth) <- requireCoordinationSuccess
+        (Coordination.resolveCoordinationWait (Coordination.waitId wait)
+          domainTestTime fourth)
+      case Coordination.cancelCoordinationWait (Coordination.waitId wait)
+          domainTestTime fifth of
+        Left _ -> pure ()
+        Right _ -> assertFailure "terminal Wait transitioned twice"
+      (dependency, sixth) <- requireCoordinationSuccess
+        (Coordination.addCoordinationDependency (brickId firstBrick)
+          (brickId blocker) domainTestTime fifth)
+      (_, seventh) <- requireCoordinationSuccess
+        (Coordination.addCoordinationDependency (brickId blocker)
+          (brickId thirdBrick) domainTestTime sixth)
+      case Coordination.addCoordinationDependency (brickId thirdBrick)
+          (brickId firstBrick) domainTestTime seventh of
+        Left _ -> pure ()
+        Right _ -> assertFailure "dependency cycle was accepted"
+      satisfied <- requireCoordinationSuccess
+        (Coordination.completeCoordinationBrick (brickId blocker)
+          domainTestTime seventh)
+      fmap Coordination.dependencyStatus
+        (Map.lookup (Coordination.dependencyId dependency)
+          (Coordination.coordinationStateDependencies satisfied)) @?=
+            Just Coordination.DependencySatisfied
+  , testCase "keeps Delegation lifecycle separate from human WIP and focus" $ do
+      (party, brick, initial) <- coordinationFixture "Delegated"
+      focusedExecution <- requireExecutionSuccess (Execution.focusExecutionBrick
+        (brickId brick) domainTestTime
+        (Coordination.coordinationStateExecution initial))
+      let focused = initial
+            {Coordination.coordinationStateExecution = focusedExecution}
+          executionBefore = Coordination.coordinationStateExecution focused
+      Execution.activeHumanWipCount executionBefore @?= 1
+      (draft, first) <- requireCoordinationSuccess
+        (Coordination.draftDelegation (brickId brick) (partyId party)
+          "Handle externally" Nothing domainTestTime focused)
+      Coordination.coordinationStateExecution first @?= executionBefore
+      Execution.activeHumanWipCount
+        (Coordination.coordinationStateExecution first) @?= 1
+      (_, second) <- requireCoordinationSuccess
+        (Coordination.approveDelegationNotice (Coordination.delegationId draft)
+          domainTestTime first)
+      (_, third) <- requireCoordinationSuccess
+        (Coordination.markDelegationInProgress
+          (Coordination.delegationId draft) second)
+      (completed, fourth) <- requireCoordinationSuccess
+        (Coordination.completeDelegation (Coordination.delegationId draft)
+          (Just "finished") third)
+      Coordination.delegationStatus completed @?=
+        Coordination.DelegationCompleted
+      Coordination.coordinationStateExecution fourth @?= executionBefore
+      case Coordination.abandonDelegation (Coordination.delegationId draft)
+          Nothing fourth of
+        Left _ -> pure ()
+        Right _ -> assertFailure "terminal Delegation transitioned twice"
+  , testCase "retains ListEntry identity/history and reviews finite empty owners" $ do
+      (_, _, initial) <- coordinationFixture "Ordinary"
+      (owner, first) <- createUnitCoordinationBrick "Checklist"
+        finiteChecklistV1 Nothing initial
+      (child, second) <- createUnitCoordinationBrick "Checklist child"
+        standardV1 (Just (brickId owner)) first
+      label <- requireDomainSuccess
+        (mkCanonicalText "Passport" (Just "Passaporte") Human)
+      (entry, third) <- requireCoordinationSuccess
+        (Coordination.addCoordinationListEntry
+          (ListEntryDraft (brickId owner) label (Just 1) Nothing domainTestTime)
+          second)
+      (resolved, fourth) <- requireCoordinationSuccess
+        (Coordination.resolveCoordinationListEntry (listEntryId entry)
+          domainTestTime third)
+      listEntryId resolved @?= listEntryId entry
+      Set.member (brickId owner)
+        (Coordination.coordinationStateChecklistReviews fourth) @?= True
+      fmap listEntryStatus (Map.lookup (listEntryId entry)
+        (domainListEntries (Execution.executionStateDomain
+          (Coordination.coordinationStateExecution fourth)))) @?=
+            Just EntryResolved
+      case Coordination.completeFiniteChecklist (brickId owner)
+          domainTestTime fourth of
+        Left _ -> pure ()
+        Right _ -> assertFailure "finite checklist with active child completed"
+      childClosed <- requireCoordinationSuccess
+        (Coordination.completeCoordinationBrick (brickId child)
+          domainTestTime fourth)
+      ownerClosed <- requireCoordinationSuccess
+        (Coordination.completeFiniteChecklist (brickId owner)
+          domainTestTime childClosed)
+      fmap brickStatus (Map.lookup (brickId owner)
+        (domainBricks (Execution.executionStateDomain
+          (Coordination.coordinationStateExecution ownerClosed)))) @?= Just Done
+  , testCase "revises inherited date notices idempotently and preserves history" $ do
+      (_, _, initial) <- coordinationFixture "Ordinary"
+      (parent, first) <- createUnitCoordinationBrick "Dated parent" projectV1
+        Nothing initial
+      (child, second) <- createUnitCoordinationBrick "Dated child" standardV1
+        (Just (brickId parent)) first
+      dated <- requireCoordinationSuccess
+        (Coordination.setCoordinationDeadline (brickId parent)
+          (addUTCTime (2 * 24 * 60 * 60) domainTestTime) second)
+      (created, advanced) <- requireCoordinationSuccess
+        (Coordination.advanceCoordinationTime domainTestTime dated)
+      let childNotices = [notice | notice <- created,
+            Coordination.dateNoticeBrick notice == brickId child]
+      childNotice <- case childNotices of
+        [notice] -> pure notice
+        values -> assertFailure ("expected one child notice: " <> show values)
+      (_, repeated) <- requireCoordinationSuccess
+        (Coordination.advanceCoordinationTime domainTestTime advanced)
+      Map.size (Coordination.coordinationStateDateNotices repeated) @?=
+        Map.size (Coordination.coordinationStateDateNotices advanced)
+      (_, snoozed) <- requireCoordinationSuccess
+        (Coordination.snoozeDateNotice (Coordination.dateNoticeId childNotice)
+          (addUTCTime 60 domainTestTime) repeated)
+      (_, beforeWake) <- requireCoordinationSuccess
+        (Coordination.advanceCoordinationTime (addUTCTime 59 domainTestTime)
+          snoozed)
+      fmap Coordination.dateNoticeStatus
+        (Map.lookup (Coordination.dateNoticeId childNotice)
+          (Coordination.coordinationStateDateNotices beforeWake)) @?=
+            Just Coordination.NoticeSnoozed
+      (_, woken) <- requireCoordinationSuccess
+        (Coordination.advanceCoordinationTime (addUTCTime 60 domainTestTime)
+          beforeWake)
+      fmap Coordination.dateNoticeStatus
+        (Map.lookup (Coordination.dateNoticeId childNotice)
+          (Coordination.coordinationStateDateNotices woken)) @?=
+            Just Coordination.NoticePending
+      revised <- requireCoordinationSuccess
+        (Coordination.setCoordinationDeadline (brickId parent)
+          (addUTCTime (3 * 24 * 60 * 60) domainTestTime) woken)
+      fmap Coordination.dateNoticeStatus
+        (Map.lookup (Coordination.dateNoticeId childNotice)
+          (Coordination.coordinationStateDateNotices revised)) @?=
+            Just Coordination.NoticeResolved
+      (newRevisionNotices, withNewRevision) <- requireCoordinationSuccess
+        (Coordination.advanceCoordinationTime domainTestTime revised)
+      let newChildNotices = [notice | notice <- newRevisionNotices,
+            Coordination.dateNoticeBrick notice == brickId child]
+      assertBool "new date revision emitted no child notice"
+        (not (null newChildNotices))
+      withNotBefore <- requireCoordinationSuccess
+        (Coordination.setCoordinationNotBefore (brickId child)
+          (addUTCTime 30 domainTestTime) withNewRevision)
+      assertBool "not-before revision did not resolve superseded notices"
+        (all ((== Coordination.NoticeResolved) . Coordination.dateNoticeStatus)
+          [notice | notice <- Map.elems
+            (Coordination.coordinationStateDateNotices withNotBefore),
+            Coordination.dateNoticeBrick notice == brickId child])
+      _ <- requireCoordinationSuccess
+        (Coordination.clearCoordinationNotBefore (brickId child) withNotBefore)
+      pure ()
+  , testCase "derives hard and soft Place conditions from non-stale evidence only" $ do
+      (_, hardBrick, initial) <- coordinationFixture "At home"
+      (softBrick, first) <- createUnitCoordinationBrick "Near office"
+        standardV1 Nothing initial
+      (home, second) <- requireCoordinationSuccess
+        (Coordination.createPlace "Home" domainTestTime first)
+      (office, third) <- requireCoordinationSuccess
+        (Coordination.createPlace "Office" domainTestTime second)
+      (_, fourth) <- requireCoordinationSuccess
+        (Coordination.addPlaceCondition (brickId hardBrick)
+          (Coordination.placeId home) Coordination.PlaceHard domainTestTime third)
+      (_, fifth) <- requireCoordinationSuccess
+        (Coordination.addPlaceCondition (brickId softBrick)
+          (Coordination.placeId office) Coordination.PlaceSoft domainTestTime fourth)
+      hardBefore <- requireCoordinationSuccess
+        (Coordination.evaluatePlaceConditions domainTestTime (brickId hardBrick)
+          fifth)
+      softBefore <- requireCoordinationSuccess
+        (Coordination.evaluatePlaceConditions domainTestTime (brickId softBrick)
+          fifth)
+      Coordination.placeEvaluationEligible hardBefore @?= False
+      Coordination.placeEvaluationEligible softBefore @?= True
+      let executionBefore = Coordination.coordinationStateExecution fifth
+      (observation, observed) <- requireCoordinationSuccess
+        (Coordination.recordLocationObservation (Coordination.placeId home)
+          Coordination.LocationEntered domainTestTime Nothing Human "manual"
+          (Just "manual:home:1") fifth)
+      Coordination.locationObservationExpiresAt observation @?=
+        addUTCTime Coordination.locationObservationTtl domainTestTime
+      Coordination.coordinationStateExecution observed @?= executionBefore
+      current <- requireCoordinationSuccess
+        (Coordination.evaluatePlaceConditions (addUTCTime 1 domainTestTime)
+          (brickId hardBrick) observed)
+      Coordination.placeEvaluationEligible current @?= True
+      Coordination.placeEvaluationExternalTrace current @?= []
+      stale <- requireCoordinationSuccess
+        (Coordination.evaluatePlaceConditions
+          (addUTCTime Coordination.locationObservationTtl domainTestTime)
+          (brickId hardBrick) observed)
+      Coordination.placeEvaluationEligible stale @?= False
+      case Coordination.recordLocationObservation (Coordination.placeId home)
+          Coordination.LocationPresent domainTestTime Nothing Adapter "manual"
+          (Just "manual:home:1") observed of
+        Left _ -> pure ()
+        Right _ -> assertFailure "duplicate external observation was accepted"
+  , testCase "passes inherited date move scenario through the real protocol" $
+      assertResponsePassed
+        (runContractRequest contractRegistry inheritedDatesScenario)
+        [ "child-inherits-first-deadline-before-move"
+        , "first-notice-uses-effective-fingerprint"
+        , "move-preserves-child-id-and-descendants"
+        , "move-recalculates-inherited-deadline"
+        , "old-notice-is-resolved-not-deleted"
+        , "old-scope-judgments-become-historical"
+        , "new-scope-placement-is-provisional"
+        , "new-date-can-create-one-new-notice"
+        ]
   ]
 
 materialTests :: TestTree
@@ -1863,6 +2086,85 @@ judgmentBridgeScenario = object
       ]
   ]
 
+inheritedDatesScenario :: Value
+inheritedDatesScenario = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("inherited-dates-after-move-unit" :: Text)
+      , "clock" .= ("2026-07-27T15:00:00Z" :: Text)
+      , "steps" .=
+          [ object
+              [ "id" .= ("create-projects" :: Text)
+              , "operation" .= ("CreateFixture" :: Text)
+              , "arguments" .= object
+                  [ "fixture" .= ("two_projects_with_child" :: Text)
+                  , "first_parent" .= ("Launch website" :: Text)
+                  , "second_parent" .= ("Maintain website" :: Text)
+                  , "child" .= ("Write landing page copy" :: Text)
+                  ]
+              , "bind_result" .= object
+                  [ "first_parent" .= ("launch" :: Text)
+                  , "second_parent" .= ("maintain" :: Text)
+                  , "child" .= ("copy" :: Text)
+                  , "first_scope" .= ("launch_scope" :: Text)
+                  , "second_scope" .= ("maintain_scope" :: Text)
+                  ]
+              ]
+          , coordinationStep "set-first-deadline" "SetBrickDeadline" (object
+              [ "brick" .= ("$launch" :: Text)
+              , "value" .= ("2026-08-01T18:00:00Z" :: Text)
+              ]) Nothing
+          , coordinationStep "set-second-deadline" "SetBrickDeadline" (object
+              [ "brick" .= ("$maintain" :: Text)
+              , "value" .= ("2026-09-01T18:00:00Z" :: Text)
+              ]) Nothing
+          , coordinationStep "emit-first-notice" "AdvanceTime" (object
+              ["at" .= ("2026-07-27T15:00:00Z" :: Text)])
+              (Just (object ["deadline_notice_for_copy" .= ("old_notice" :: Text)]))
+          , coordinationStep "move-child" "MoveSubtreeUnderParent" (object
+              [ "root" .= ("$copy" :: Text)
+              , "new_parent" .= ("$maintain" :: Text)
+              ]) (Just (object ["priority_insertion" .= ("new_insertion" :: Text)]))
+          , coordinationStep "advance-near-new-deadline" "AdvanceTime" (object
+              ["at" .= ("2026-08-27T15:00:00Z" :: Text)])
+              (Just (object ["deadline_notice_for_copy" .= ("new_notice" :: Text)]))
+          ]
+      , "assertions" .=
+          [ priorityAssertion "child-inherits-first-deadline-before-move"
+              "set-second-deadline" "BrickSummary($copy)" "effective_deadline"
+              "equals" (String "2026-08-01T18:00:00Z")
+          , priorityAssertion "first-notice-uses-effective-fingerprint"
+              "emit-first-notice" "DateNotice($old_notice)" "date_revision"
+              "equals_reference" (String "BrickSummary($copy).effective_date_revision")
+          , priorityAssertion "move-preserves-child-id-and-descendants" "move-child"
+              "BrickSummary($copy)" "id" "equals_reference" (String "$copy")
+          , priorityAssertion "move-recalculates-inherited-deadline" "move-child"
+              "BrickSummary($copy)" "effective_deadline" "equals"
+              (String "2026-09-01T18:00:00Z")
+          , priorityAssertion "old-notice-is-resolved-not-deleted" "move-child"
+              "DateNotice($old_notice)" "status" "equals" (String "resolved")
+          , priorityAssertion "old-scope-judgments-become-historical" "move-child"
+              "PriorityEvidenceFor($copy,$launch_scope)" "applicable" "all_equal"
+              (Bool False)
+          , priorityAssertion "new-scope-placement-is-provisional" "move-child"
+              "PriorityInsertion($new_insertion)" "status" "equals"
+              (String "deferred")
+          , priorityAssertion "new-date-can-create-one-new-notice"
+              "advance-near-new-deadline"
+              "ActiveDateNotices($copy,deadline_approaching)" "items"
+              "count_equals" (toJSON (1 :: Int))
+          ]
+      ]
+  ]
+
+coordinationStep :: Text -> Text -> Value -> Maybe Value -> Value
+coordinationStep identifier operation arguments bindings = object
+  ([ "id" .= identifier
+   , "operation" .= operation
+   , "arguments" .= arguments
+   ] <> maybe [] (\value -> ["bind_result" .= value]) bindings)
+
 materialScenario :: Value
 materialScenario = object
   [ "protocol_version" .= (1 :: Int)
@@ -2257,6 +2559,31 @@ requireExecutionSuccess :: Either Execution.ExecutionError value -> IO value
 requireExecutionSuccess result = case result of
   Left problem -> assertFailure ("execution operation failed: " <> show problem)
   Right value -> pure value
+
+requireCoordinationSuccess ::
+  Either Coordination.CoordinationError value -> IO value
+requireCoordinationSuccess result = case result of
+  Left problem -> assertFailure ("coordination operation failed: " <> show problem)
+  Right value -> pure value
+
+coordinationFixture :: Text -> IO (Party, Brick, Coordination.CoordinationState)
+coordinationFixture title = do
+  (party, first) <- requireCoordinationSuccess
+    (Coordination.createCoordinationParty "Contract user" Person domainTestTime
+      Coordination.emptyCoordinationState)
+  (brick, second) <- createUnitCoordinationBrick title standardV1 Nothing first
+  pure (party, brick, second)
+
+createUnitCoordinationBrick ::
+  Text -> BrickBehavior -> Maybe BrickId -> Coordination.CoordinationState ->
+  IO (Brick, Coordination.CoordinationState)
+createUnitCoordinationBrick title behavior parent state = do
+  canonical <- requireDomainSuccess (mkCanonicalText title Nothing Human)
+  (brick, _, next) <- requireCoordinationSuccess
+    (Coordination.createCoordinationBrick
+      ((ordinaryBrickDraft canonical behavior domainTestTime)
+        {brickDraftParent = parent}) ("unit:" <> title) domainTestTime state)
+  pure (brick, next)
 
 createUnitExecutionBrick ::
   Text -> BrickBehavior -> Maybe BrickId -> Execution.ExecutionState ->

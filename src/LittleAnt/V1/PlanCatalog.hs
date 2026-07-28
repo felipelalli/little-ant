@@ -23,6 +23,7 @@ import qualified Data.Text as Text
 import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
 import LittleAnt.V1.Contract
   (PlanProbe, PlanProbeInput (..), ProbeKey (..))
+import LittleAnt.V1.CoordinationPlanCatalog (coordinationPlanProbes)
 import LittleAnt.V1.Domain
 import LittleAnt.V1.ExecutionPlanCatalog (executionLifecyclePlanProbes)
 import LittleAnt.V1.JudgmentAssessmentPlanCatalog (assessmentPlanProbes)
@@ -40,6 +41,7 @@ v1PlanProbes = Map.unions
   [ kernelPlanProbes
   , domainPlanProbes
   , executionLifecyclePlanProbes
+  , coordinationPlanProbes
   , materialPlanProbes
   , priorityPlanProbes
   , assessmentPlanProbes

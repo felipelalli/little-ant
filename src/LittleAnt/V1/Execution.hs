@@ -26,6 +26,11 @@ module LittleAnt.V1.Execution
   ) where
 
 import Control.Monad (foldM, unless)
+import Data.Aeson
+  (FromJSON (parseJSON), ToJSON (toJSON), defaultOptions, genericParseJSON,
+   genericToJSON)
+import qualified Data.Aeson.Types as AesonTypes
+import Data.Char (toLower)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -68,6 +73,22 @@ data ExecutionError
   | ExecutionJudgmentError Judgment.JudgmentError
   | ExecutionInvariantViolation [Text]
   deriving stock (Eq, Show, Generic)
+
+instance ToJSON ExecutionRecord where
+  toJSON = genericToJSON (recordOptions "executionRecord")
+instance FromJSON ExecutionRecord where
+  parseJSON = genericParseJSON (recordOptions "executionRecord")
+instance ToJSON ExecutionState where
+  toJSON = genericToJSON (recordOptions "executionState")
+instance FromJSON ExecutionState where
+  parseJSON = genericParseJSON (recordOptions "executionState")
+
+recordOptions :: String -> AesonTypes.Options
+recordOptions prefix = defaultOptions
+  {AesonTypes.fieldLabelModifier = snakeField . drop (length prefix)}
+  where
+    snakeField [] = []
+    snakeField (first : rest) = AesonTypes.camelTo2 '_' (toLower first : rest)
 
 softWipLimit :: Int
 softWipLimit = 3

@@ -27,6 +27,7 @@ import LittleAnt.V1.Contract
    OperationInput (..), OperationResult (..), ReferenceInput (..),
    ReferenceSnapshot (..), emptyContractRegistry, selectJsonPath,
    standardAssertionOperators)
+import qualified LittleAnt.V1.Coordination as Coordination
 import LittleAnt.V1.Domain
   (Applicability (Applicable), Authority (Human), Brick (brickId), BrickId (..),
    BrickStatus (Active), DomainError,
@@ -35,6 +36,8 @@ import LittleAnt.V1.Domain
    createParty, domainCatalog, domainProjection, emptyDomainState,
    finiteChecklistV1, findBehaviors, findTemplates, initialDefinitionCatalog,
    focusBrick, mkCanonicalText, ordinaryBrickDraft, standardV1)
+import qualified LittleAnt.V1.Domain as Domain
+import qualified LittleAnt.V1.Execution as Execution
 import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
@@ -117,6 +120,9 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("CreateRawShelf", createRawShelfOperation)
       , ("AddRawToShelf", addRawToShelfOperation)
       , ("RemoveRawFromShelf", removeRawFromShelfOperation)
+      , ("SetBrickDeadline", setCoordinationDeadlineOperation)
+      , ("MoveSubtreeUnderParent", moveCoordinationSubtreeOperation)
+      , ("AdvanceTime", advanceCoordinationTimeOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -156,6 +162,9 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("LatestSourceObservation", latestSourceObservationQuery)
       , ("RawLink", rawLinkObservation)
       , ("ExternalIoTrace", externalIoTraceObservation)
+      , ("DateNotice", dateNoticeObservation)
+      , ("ActiveDateNotices", activeDateNoticesObservation)
+      , ("PlaceEvaluation", placeEvaluationObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -166,6 +175,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("judgment_entities", judgmentEntitiesFixture)
       , ("material_entities", materialEntitiesFixture)
       , ("strict_root_priority", strictRootPriorityFixture)
+      , ("two_projects_with_child", twoProjectsWithChildFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -309,12 +319,191 @@ parseProposedEvent value = do
     _ -> Left ("unknown kernel event type: " <> eventType)
 
 ------------------------------------------------------------
+-- Coordination, inherited dates, and explicit places
+------------------------------------------------------------
+
+coordinationStateFromKernel :: V1State -> Either Text Coordination.CoordinationState
+coordinationStateFromKernel state = case kernelValue "v1.coordination" state of
+  Nothing -> Right Coordination.emptyCoordinationState
+  Just value -> case fromJSON value of
+    Success coordination -> do
+      mapCoordinationError (Coordination.validateCoordinationState coordination)
+      Right coordination
+    Error problem -> Left ("stored coordination state is malformed: "
+      <> Text.pack problem)
+
+persistCoordination ::
+  OperationInput -> Text -> Coordination.CoordinationState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistCoordination input suffix coordination resultValue state = do
+  accepted <- appendForFixture input suffix
+    [ProposeValueStored "v1.coordination" (toJSON coordination)] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+setCoordinationDeadlineOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+setCoordinationDeadlineOperation input state = do
+  arguments <- requireArgumentsObject input
+  brick <- requiredAs "brick" arguments
+  value <- requiredAs "value" arguments
+  coordination <- coordinationStateFromKernel state
+  next <- mapCoordinationError
+    (Coordination.setCoordinationDeadline brick value coordination)
+  persistCoordination input "deadline" next (object ["brick" .= brick]) state
+
+moveCoordinationSubtreeOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+moveCoordinationSubtreeOperation input state = do
+  arguments <- requireArgumentsObject input
+  root <- requiredAs "root" arguments
+  newParent <- requiredAs "new_parent" arguments
+  now <- operationTime input
+  coordination <- coordinationStateFromKernel state
+  let evidence = fromMaybe (actionIdFor input)
+        (ambientText (ambientRandomEvidence (operationAmbient input)))
+  (insertion, next) <- mapCoordinationError
+    (Coordination.moveCoordinationSubtree root (Just newParent) evidence now coordination)
+  persistCoordination input "subtree-move" next (object
+    ["priority_insertion" .= Priority.priorityInsertionId insertion]) state
+
+advanceCoordinationTimeOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+advanceCoordinationTimeOperation input state = do
+  arguments <- requireArgumentsObject input
+  at <- requiredAs "at" arguments
+  coordination <- coordinationStateFromKernel state
+  (created, next) <- mapCoordinationError
+    (Coordination.advanceCoordinationTime at coordination)
+  let fixtureChild = kernelValue "v1.fixture.inherited_date_child" state
+      childDeadlineNotice = fixtureChild >>= \childValue -> case fromJSON childValue of
+        Error _ -> Nothing
+        Success child -> Coordination.dateNoticeId <$> find (\notice ->
+          Coordination.dateNoticeBrick notice == child
+          && Coordination.dateNoticeKind notice == Coordination.DeadlineApproaching)
+          created
+      common = ["date_notices" .= map Coordination.dateNoticeId created]
+      resultFields = case childDeadlineNotice of
+        Nothing -> common
+        Just notice -> ("deadline_notice_for_copy" .= notice) : common
+  persistCoordination input "advance-time" next (object resultFields) state
+
+twoProjectsWithChildFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+twoProjectsWithChildFixture input state = do
+  arguments <- requireArgumentsObject input
+  firstTitle <- requiredText "first_parent" arguments
+  secondTitle <- requiredText "second_parent" arguments
+  childTitle <- requiredText "child" arguments
+  now <- operationTime input
+  firstCanonical <- mapDomainError (mkCanonicalText firstTitle Nothing Human)
+  secondCanonical <- mapDomainError (mkCanonicalText secondTitle Nothing Human)
+  childCanonical <- mapDomainError (mkCanonicalText childTitle Nothing Human)
+  siblingCanonical <- mapDomainError (mkCanonicalText "Existing launch sibling" Nothing Human)
+  targetCanonical <- mapDomainError (mkCanonicalText "Existing maintenance child" Nothing Human)
+  (firstParent, _, first) <- mapCoordinationError
+    (Coordination.createCoordinationBrick
+      (Domain.ordinaryBrickDraft firstCanonical Domain.projectV1 now)
+      "fixture:first-parent" now Coordination.emptyCoordinationState)
+  (secondParent, _, second) <- mapCoordinationError
+    (Coordination.createCoordinationBrick
+      (Domain.ordinaryBrickDraft secondCanonical Domain.projectV1 now)
+      "fixture:second-parent" now first)
+  (child, _, third) <- mapCoordinationError
+    (Coordination.createCoordinationBrick
+      ((Domain.ordinaryBrickDraft childCanonical Domain.standardV1 now)
+        {Domain.brickDraftParent = Just (brickId firstParent)})
+      "fixture:child" now second)
+  (oldSibling, _, fourth) <- mapCoordinationError
+    (Coordination.createCoordinationBrick
+      ((Domain.ordinaryBrickDraft siblingCanonical Domain.standardV1 now)
+        {Domain.brickDraftParent = Just (brickId firstParent)})
+      "fixture:old-sibling" now third)
+  (_, _, fifth) <- mapCoordinationError
+    (Coordination.createCoordinationBrick
+      ((Domain.ordinaryBrickDraft targetCanonical Domain.standardV1 now)
+        {Domain.brickDraftParent = Just (brickId secondParent)})
+      "fixture:target-sibling" now fourth)
+  firstScope <- exactlyOnePriorityScope (Just (brickId firstParent))
+    (Execution.executionStatePriority (Coordination.coordinationStateExecution fifth))
+  secondScope <- exactlyOnePriorityScope (Just (brickId secondParent))
+    (Execution.executionStatePriority (Coordination.coordinationStateExecution fifth))
+  (_, _, withEvidence) <- mapPriorityError (Priority.recordPriorityJudgment
+    (Priority.priorityScopeId firstScope) (brickId child) (brickId oldSibling)
+    Human (Just "fixture old-scope evidence") now
+    (Execution.executionStatePriority (Coordination.coordinationStateExecution fifth)))
+  let execution = (Coordination.coordinationStateExecution fifth)
+        {Execution.executionStatePriority = withEvidence}
+      coordination = fifth {Coordination.coordinationStateExecution = execution}
+  mapCoordinationError (Coordination.validateCoordinationState coordination)
+  accepted <- appendForFixture input "inherited-dates"
+    [ ProposeValueStored "v1.coordination" (toJSON coordination)
+    , ProposeValueStored "v1.fixture.inherited_date_child" (toJSON (brickId child))
+    ] state
+  pure OperationResult
+    { operationResultValue = object
+        [ "first_parent" .= brickId firstParent
+        , "second_parent" .= brickId secondParent
+        , "child" .= brickId child
+        , "first_scope" .= Priority.priorityScopeId firstScope
+        , "second_scope" .= Priority.priorityScopeId secondScope
+        ]
+    , operationResultState = appendResultState accepted
+    }
+
+exactlyOnePriorityScope ::
+  Maybe BrickId -> Priority.PriorityState -> Either Text Priority.PriorityScope
+exactlyOnePriorityScope parent priority = case filter
+    ((== parent) . Priority.priorityScopeParent)
+    (Map.elems (Priority.priorityStateScopes priority)) of
+  [scope] -> Right scope
+  _ -> Left "expected exactly one priority scope for parent"
+
+dateNoticeObservation :: ObservationInput -> V1State -> Either Text Value
+dateNoticeObservation input state = do
+  identifier <- exactlyOneAsArgument "DateNotice" input
+  coordination <- coordinationStateFromKernel state
+  maybe (Left "unknown DateNotice") (Right . toJSON)
+    (Map.lookup identifier (Coordination.coordinationStateDateNotices coordination))
+
+activeDateNoticesObservation :: ObservationInput -> V1State -> Either Text Value
+activeDateNoticesObservation input state = do
+  (brick, kind) <- case observationArguments input of
+    [brickValue, kindValue] -> (,)
+      <$> decodeArgument "ActiveDateNotices" brickValue
+      <*> decodeArgument "ActiveDateNotices" kindValue
+    _ -> Left "ActiveDateNotices expects a Brick and NoticeKind"
+  coordination <- coordinationStateFromKernel state
+  pure (object ["items" .= Coordination.activeDateNotices brick kind coordination])
+
+placeEvaluationObservation :: ObservationInput -> V1State -> Either Text Value
+placeEvaluationObservation input state = do
+  brick <- exactlyOneAsArgument "PlaceEvaluation" input
+  now <- case ambientClock (observationAmbient input) of
+    Nothing -> Right domainFixtureTime
+    Just value -> case fromJSON value of
+      Success timestamp -> Right timestamp
+      Error problem -> Left ("observation clock is malformed: " <> Text.pack problem)
+  coordination <- coordinationStateFromKernel state
+  toJSON <$> mapCoordinationError
+    (Coordination.evaluatePlaceConditions now brick coordination)
+
+mapCoordinationError ::
+  Either Coordination.CoordinationError value -> Either Text value
+mapCoordinationError = either (Left . Text.pack . show) Right
+
+------------------------------------------------------------
 -- Strict human priority operations and observations
 ------------------------------------------------------------
 
 priorityStateFromKernel :: V1State -> Either Text Priority.PriorityState
 priorityStateFromKernel state = case kernelValue "v1.priority" state of
-  Nothing -> Right Priority.emptyPriorityState
+  Nothing -> case kernelValue "v1.coordination" state of
+    Nothing -> Right Priority.emptyPriorityState
+    Just _ -> Execution.executionStatePriority . Coordination.coordinationStateExecution
+      <$> coordinationStateFromKernel state
   Just value -> case fromJSON value of
     Success priority -> Right priority
     Error problem -> Left ("stored priority state is malformed: " <> Text.pack problem)
@@ -579,21 +768,37 @@ priorityJudgmentsForObservation input state = do
 
 priorityEvidenceForObservation :: ObservationInput -> V1State -> Either Text Value
 priorityEvidenceForObservation input state = do
-  brick <- exactlyOneAsArgument "PriorityEvidenceFor" input
   priority <- priorityStateFromKernel state
-  _ <- maybe (Left "unknown priority Brick") Right
-    (Map.lookup brick (Priority.priorityStateBricks priority))
-  pure (object
-    [ "contains_equality" .= False
-    , "history" .=
-        [ judgment
-        | judgment <- Map.elems (Priority.priorityStateJudgments priority)
-        , brick `elem`
-            [ Priority.priorityJudgmentMoreImportant judgment
-            , Priority.priorityJudgmentLessImportant judgment
-            ]
-        ]
-    ])
+  case observationArguments input of
+    [brickValue] -> do
+      brick <- decodeArgument "PriorityEvidenceFor" brickValue
+      _ <- maybe (Left "unknown priority Brick") Right
+        (Map.lookup brick (Priority.priorityStateBricks priority))
+      pure (object
+        [ "contains_equality" .= False
+        , "history" .= judgmentsFor brick priority
+        ])
+    [brickValue, scopeValue] -> do
+      brick <- decodeArgument "PriorityEvidenceFor" brickValue
+      scope <- decodeArgument "PriorityEvidenceFor" scopeValue
+      _ <- maybe (Left "unknown priority Brick") Right
+        (Map.lookup brick (Priority.priorityStateBricks priority))
+      let evidence = [judgment | judgment <- judgmentsFor brick priority,
+            Priority.priorityJudgmentScope judgment == scope]
+      pure (object
+        [ "applicable" .= map Priority.priorityJudgmentApplicable evidence
+        , "history" .= evidence
+        ])
+    _ -> Left "PriorityEvidenceFor expects a Brick and optional scope"
+  where
+    judgmentsFor brick priority =
+      [ judgment
+      | judgment <- Map.elems (Priority.priorityStateJudgments priority)
+      , brick `elem`
+          [ Priority.priorityJudgmentMoreImportant judgment
+          , Priority.priorityJudgmentLessImportant judgment
+          ]
+      ]
 
 rootPriorityObservation :: ObservationInput -> V1State -> Either Text Value
 rootPriorityObservation input state = do
@@ -1310,10 +1515,17 @@ openProposalsObservation input state = do
 materialBrickSummaryObservation :: ObservationInput -> V1State -> Either Text Value
 materialBrickSummaryObservation input state = do
   brick <- exactlyOneAsArgument "BrickSummary" input
-  material <- materialStateFromKernel state
-  status <- maybe (Left "unknown material Brick owner") Right
-    (Map.lookup brick (materialBrickStatuses material))
-  pure (object ["id" .= brick, "status" .= status])
+  case kernelValue "v1.coordination" state of
+    Just _ -> do
+      coordination <- coordinationStateFromKernel state
+      mapDomainError (Domain.brickProjection
+        (Execution.executionStateDomain
+          (Coordination.coordinationStateExecution coordination)) brick)
+    Nothing -> do
+      material <- materialStateFromKernel state
+      status <- maybe (Left "unknown material Brick owner") Right
+        (Map.lookup brick (materialBrickStatuses material))
+      pure (object ["id" .= brick, "status" .= status])
 
 rawSummaryObservation :: ObservationInput -> V1State -> Either Text Value
 rawSummaryObservation input state = do
