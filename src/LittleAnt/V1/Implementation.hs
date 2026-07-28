@@ -41,13 +41,14 @@ import LittleAnt.V1.Domain
    templateBehavior, templateId, templateVersion, templateVersions)
 import qualified LittleAnt.V1.Domain as Domain
 import qualified LittleAnt.V1.Execution as Execution
+import qualified LittleAnt.V1.Interaction as Interaction
 import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
    EventBatch (..), KernelError, KernelState, OpaqueId (..), ProposedEvent (..),
    ReplayResult (..), appendSemanticAction, canonicalStateHash,
-   emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
-   kernelValue, replayAll)
+   emptyKernelState, kernelArtifact, kernelEntity, kernelEventBatches,
+   kernelRevision, kernelValue, putKernelArtifact, replayAll)
 import LittleAnt.V1.Material
   (MaterialError, MaterialState (..), Raw (..), RawId,
    RawLink (rawLinkId), RawOrigin (rawOriginId),
@@ -160,6 +161,15 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("ConfirmDuplicateDecision", confirmDuplicateDecisionOperation)
       , ("ConfirmSeparateCapture", confirmSeparateCaptureOperation)
       , ("CancelCapture", cancelCaptureOperation)
+      , ("OpenInteraction", openInteractionOperation)
+      , ("RequestInteractionHelp", requestInteractionHelpOperation)
+      , ("SubmitInteractionAction", submitInteractionActionOperation)
+      , ("RebaseInteraction", rebaseInteractionOperation)
+      , ("CompleteInteraction", completeInteractionOperation)
+      , ("AbandonInteraction", abandonInteractionOperation)
+      , ("SaveSurfaceCheckpoint", saveSurfaceCheckpointOperation)
+      , ("ValidatePoweredUpAdapter", validatePoweredUpAdapterOperation)
+      , ("UseDumbMode", useDumbModeOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -227,6 +237,12 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("OperationalProjection", captureOperationalProjectionObservation)
       , ("RawLinksToEntry", rawLinksToEntryObservation)
       , ("RawLinksToBrick", rawLinksToBrickObservation)
+      , ("Interaction", interactionObservation)
+      , ("InteractionEnvelope", interactionEnvelopeObservation)
+      , ("SurfaceCheckpoint", surfaceCheckpointObservation)
+      , ("ReplRuntime", replRuntimeObservation)
+      , ("ProcessInvocationTrace", processInvocationTraceObservation)
+      , ("StatusSummary", statusSummaryObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -382,6 +398,265 @@ parseProposedEvent value = do
       <$> requiredText "kind" event
       <*> (fromMaybe KeyMap.empty <$> optionalObject "fields" event)
     _ -> Left ("unknown kernel event type: " <> eventType)
+
+------------------------------------------------------------
+-- Revision-scoped interactions and powered-up harness state
+------------------------------------------------------------
+
+interactionArtifactKey :: Text
+interactionArtifactKey = "v1.interaction"
+
+interactionStateFromKernel :: V1State -> Either Text Interaction.InteractionState
+interactionStateFromKernel state = case kernelArtifact interactionArtifactKey state of
+  Nothing -> Right Interaction.emptyInteractionState
+  Just value -> case fromJSON value of
+    Success interaction -> do
+      mapInteractionError (Interaction.validateInteractionState interaction)
+      Right interaction
+    Error problem -> Left ("stored interaction state is malformed: "
+      <> Text.pack problem)
+
+persistInteractionArtifact ::
+  Interaction.InteractionState -> V1State -> Either Text V1State
+persistInteractionArtifact interaction state = mapKernelError
+  (putKernelArtifact interactionArtifactKey (toJSON interaction) state)
+
+openInteractionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+openInteractionOperation input state = do
+  arguments <- requireArgumentsObject input
+  kind <- requiredText "kind" arguments
+  subjectBrick <- optionalAs "subject_brick" arguments
+  subjectRaw <- optionalAs "subject_raw" arguments
+  randomEvidence <- optionalAs "random_evidence" arguments
+  now <- operationTime input
+  interaction <- interactionStateFromKernel state
+  (session, nextInteraction) <- mapInteractionError (Interaction.openInteraction
+    kind subjectBrick subjectRaw randomEvidence now
+    (unDomainRevision (kernelRevision state)) interaction)
+  next <- persistInteractionArtifact nextInteraction state
+  pure OperationResult
+    { operationResultValue = object
+        [ "interaction" .= Interaction.interactionSessionId session
+        , "domain_revision" .= Interaction.interactionSessionDomainRevision session
+        , "interaction_revision" .=
+            Interaction.interactionSessionInteractionRevision session
+        , "prompt_key" .= Interaction.interactionSessionPromptKey session
+        ]
+    , operationResultState = next
+    }
+
+requestInteractionHelpOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+requestInteractionHelpOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "interaction" arguments
+  interaction <- interactionStateFromKernel state
+  envelope <- mapInteractionError
+    (Interaction.requestInteractionHelp identifier interaction)
+  pure OperationResult
+    { operationResultValue = toJSON envelope
+    , operationResultState = state
+    }
+
+submitInteractionActionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+submitInteractionActionOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "interaction" arguments
+  displayedDomain <- requiredInteger "displayed_domain_revision" arguments
+  displayedInteraction <- requiredInteger
+    "displayed_interaction_revision" arguments
+  actionId <- requiredText "action_id" arguments
+  now <- operationTime input
+  interaction <- interactionStateFromKernel state
+  let currentDomain = unDomainRevision (kernelRevision state)
+  decision <- mapInteractionError (Interaction.classifyInteractionSubmission
+    identifier displayedDomain displayedInteraction currentDomain actionId now
+    interaction)
+  case decision of
+    Interaction.StaleSubmission response staleInteraction -> do
+      next <- persistInteractionArtifact staleInteraction state
+      pure OperationResult
+        { operationResultValue = toJSON response
+        , operationResultState = next
+        }
+    Interaction.CurrentSubmission action -> do
+      accepted <- appendForFixture input "interaction-answer"
+        [ProposeValueStored (Text.intercalate ":"
+            [ "v1.interaction.answer"
+            , Interaction.unInteractionId identifier
+            , Text.pack (show displayedInteraction)
+            ])
+          (object
+            [ "interaction" .= identifier
+            , "action_id" .= Interaction.interactionActionId action
+            , "prompt_revision" .= displayedInteraction
+            ])]
+        state
+      (_, response, nextInteraction) <- mapInteractionError
+        (Interaction.acceptCurrentInteractionAction identifier displayedDomain
+          displayedInteraction currentDomain actionId now interaction)
+      next <- persistInteractionArtifact nextInteraction
+        (appendResultState accepted)
+      pure OperationResult
+        { operationResultValue = toJSON response
+        , operationResultState = next
+        }
+
+rebaseInteractionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+rebaseInteractionOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "interaction" arguments
+  now <- operationTime input
+  interaction <- interactionStateFromKernel state
+  (session, nextInteraction) <- mapInteractionError
+    (Interaction.rebaseInteraction identifier
+      (unDomainRevision (kernelRevision state)) now interaction)
+  next <- persistInteractionArtifact nextInteraction state
+  pure OperationResult
+    { operationResultValue = toJSON session
+    , operationResultState = next
+    }
+
+completeInteractionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+completeInteractionOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "interaction" arguments
+  now <- operationTime input
+  interaction <- interactionStateFromKernel state
+  (session, nextInteraction) <- mapInteractionError
+    (Interaction.completeInteraction identifier now interaction)
+  next <- persistInteractionArtifact nextInteraction state
+  pure OperationResult
+    { operationResultValue = toJSON session
+    , operationResultState = next
+    }
+
+abandonInteractionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+abandonInteractionOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredAs "interaction" arguments
+  now <- operationTime input
+  interaction <- interactionStateFromKernel state
+  (session, nextInteraction) <- mapInteractionError
+    (Interaction.abandonInteraction identifier now interaction)
+  next <- persistInteractionArtifact nextInteraction state
+  pure OperationResult
+    { operationResultValue = toJSON session
+    , operationResultState = next
+    }
+
+saveSurfaceCheckpointOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+saveSurfaceCheckpointOperation input state = do
+  arguments <- requireArgumentsObject input
+  draft <- Interaction.SurfaceCheckpointDraft
+    <$> requiredText "surface_id" arguments
+    <*> optionalAs "interaction_id" arguments
+    <*> requiredInteger "displayed_domain_revision" arguments
+    <*> optionalAs "displayed_interaction_revision" arguments
+    <*> requiredText "screen" arguments
+    <*> optionalAs "selected_item" arguments
+    <*> optionalAs "text_buffer" arguments
+    <*> optionalAs "cursor_offset" arguments
+    <*> requiredAs "transcript" arguments
+    <*> optionalAs "last_response" arguments
+    <*> optionalAs "last_status" arguments
+    <*> optionalAs "last_projection" arguments
+    <*> optionalAs "history_query" arguments
+    <*> optionalAs "last_history_page" arguments
+    <*> optionalAs "last_history_brief" arguments
+  now <- operationTime input
+  interaction <- interactionStateFromKernel state
+  (checkpoint, nextInteraction) <- if Map.member
+      (Interaction.checkpointDraftSurfaceId draft)
+      (Interaction.interactionStateCheckpoints interaction)
+    then mapInteractionError
+      (Interaction.saveExistingSurfaceCheckpoint draft now interaction)
+    else mapInteractionError
+      (Interaction.saveFirstSurfaceCheckpoint draft now interaction)
+  next <- persistInteractionArtifact nextInteraction state
+  pure OperationResult
+    { operationResultValue = toJSON checkpoint
+    , operationResultState = next
+    }
+
+validatePoweredUpAdapterOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+validatePoweredUpAdapterOperation input state = do
+  arguments <- requireArgumentsObject input
+  path <- requiredText "path" arguments
+  transport <- requiredText "transport" arguments
+  responseText <- requiredText "probe_response" arguments
+  interaction <- interactionStateFromKernel state
+  let (_, response, validated) = Interaction.validatePoweredUpAdapter
+        path transport responseText interaction
+      currentRevision = unDomainRevision (kernelRevision state)
+      adjustedResponse = response
+        {Interaction.operationalResponseDomainRevision = currentRevision}
+      nextInteraction = validated
+        {Interaction.interactionStateLatestResponse = Just adjustedResponse}
+  next <- persistInteractionArtifact nextInteraction state
+  pure OperationResult
+    { operationResultValue = toJSON adjustedResponse
+    , operationResultState = next
+    }
+
+useDumbModeOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+useDumbModeOperation _ state = do
+  interaction <- interactionStateFromKernel state
+  nextInteraction <- mapInteractionError (Interaction.useDumbMode interaction)
+  next <- persistInteractionArtifact nextInteraction state
+  pure OperationResult
+    { operationResultValue = toJSON (Interaction.interactionStateReplRuntime
+        nextInteraction)
+    , operationResultState = next
+    }
+
+interactionObservation :: ObservationInput -> V1State -> Either Text Value
+interactionObservation input state = do
+  identifier <- exactlyOneAsArgument "Interaction" input
+  interaction <- interactionStateFromKernel state
+  maybe (Left "unknown InteractionSession") (Right . toJSON)
+    (Map.lookup identifier (Interaction.interactionStateSessions interaction))
+
+interactionEnvelopeObservation ::
+  ObservationInput -> V1State -> Either Text Value
+interactionEnvelopeObservation input state = do
+  identifier <- exactlyOneAsArgument "InteractionEnvelope" input
+  interaction <- interactionStateFromKernel state
+  toJSON <$> mapInteractionError
+    (Interaction.currentInteraction identifier interaction)
+
+surfaceCheckpointObservation ::
+  ObservationInput -> V1State -> Either Text Value
+surfaceCheckpointObservation input state = do
+  surface <- exactlyOneTextArgument "SurfaceCheckpoint" input
+  interaction <- interactionStateFromKernel state
+  maybe (Left "unknown SurfaceCheckpoint") (Right . toJSON)
+    (Map.lookup surface (Interaction.interactionStateCheckpoints interaction))
+
+replRuntimeObservation :: ObservationInput -> V1State -> Either Text Value
+replRuntimeObservation _ state = toJSON . Interaction.interactionStateReplRuntime
+  <$> interactionStateFromKernel state
+
+processInvocationTraceObservation ::
+  ObservationInput -> V1State -> Either Text Value
+processInvocationTraceObservation input state = do
+  path <- exactlyOneTextArgument "ProcessInvocationTrace" input
+  interaction <- interactionStateFromKernel state
+  maybe (Left "unknown powered-up process invocation") (Right . toJSON)
+    (Map.lookup path (Interaction.interactionStateProcessTraces interaction))
+
+statusSummaryObservation :: ObservationInput -> V1State -> Either Text Value
+statusSummaryObservation _ state = do
+  interaction <- interactionStateFromKernel state
+  pure (toJSON (Interaction.statusSummary Nothing 0 0 0 interaction))
 
 ------------------------------------------------------------
 -- Routed capture and deterministic duplicate suspicion
@@ -2913,13 +3188,17 @@ kernelSummaryObservation _ state = Right (object
 -- by schema rather than recursively deleted by value.
 operationalResponseObservation ::
   ObservationInput -> V1State -> Either Text Value
-operationalResponseObservation _ state = Right (object
-  [ "ok" .= False
-  , "human" .= ("no kernel command selected" :: Text)
-  , "changed" .= ([] :: [Text])
-  , "warnings" .= ([] :: [Text])
-  , "domain_revision" .= kernelRevision state
-  ])
+operationalResponseObservation _ state = do
+  interaction <- interactionStateFromKernel state
+  case Interaction.interactionStateLatestResponse interaction of
+    Just response -> Right (toJSON response)
+    Nothing -> Right (object
+      [ "ok" .= False
+      , "human" .= ("no kernel command selected" :: Text)
+      , "changed" .= ([] :: [Text])
+      , "warnings" .= ([] :: [Text])
+      , "domain_revision" .= kernelRevision state
+      ])
 
 confidenceBeforeReference :: ReferenceInput V1State -> Either Text Value
 confidenceBeforeReference input = do
@@ -3063,6 +3342,10 @@ ambientText _ = Nothing
 
 mapKernelError :: Either KernelError value -> Either Text value
 mapKernelError = either (Left . Text.pack . show) Right
+
+mapInteractionError ::
+  Either Interaction.InteractionError value -> Either Text value
+mapInteractionError = either (Left . Text.pack . show) Right
 
 mapDomainError :: Either DomainError value -> Either Text value
 mapDomainError = either (Left . Text.pack . show) Right

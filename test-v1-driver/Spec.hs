@@ -1,5 +1,6 @@
 module Main (main) where
 
+import Control.Exception (finally)
 import Control.Monad (foldM)
 import Data.Aeson (Object, Value (..), encode, object, toJSON, (.=))
 import qualified Data.Aeson.KeyMap as KeyMap
@@ -24,16 +25,20 @@ import qualified LittleAnt.V1.Coordination as Coordination
 import LittleAnt.V1.Domain
 import qualified LittleAnt.V1.Execution as Execution
 import LittleAnt.V1.Implementation (contractRegistry)
+import qualified LittleAnt.V1.Interaction as Interaction
 import qualified LittleAnt.V1.Judgment as Judgment
 import LittleAnt.V1.Kernel
   (AppendRequest (..), AppendResult (..), DomainRevision (..),
    EventBatch (..), KernelError (..), OpaqueId (..), ProposedEvent (..),
-   ReplayResult (..), appendSemanticAction, emptyKernelState,
-   kernelEventBatches, kernelRevision, kernelValue, replayAll)
+   ReplayResult (..), appendSemanticAction, emptyKernelState, kernelArtifact,
+   kernelEventBatches, kernelRevision, kernelValue, putKernelArtifact, replayAll)
 import LittleAnt.V1.Material
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.Selection as Selection
 import qualified LittleAnt.V1.Standing as Standing
+import System.Directory
+  (executable, getPermissions, getTemporaryDirectory, removeFile, setPermissions)
+import System.IO (hClose, hPutStr, openTempFile)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit
   (Assertion, assertBool, assertFailure, testCase, (@?=))
@@ -46,6 +51,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , standingExecutionTests
   , selectionTests
   , captureTests
+  , interactionTests
   , coordinationTests
   , materialTests
   , priorityTests
@@ -93,6 +99,16 @@ kernelTests = testGroup "v1 action kernel"
         result -> assertFailure ("unexpected invalid append result: " <> show result)
       kernelRevision emptyKernelState @?= DomainRevision 0
       kernelValue "would-have-been-partial" emptyKernelState @?= Nothing
+  , testCase "keeps bounded interaction artifacts outside the domain clock" $ do
+      withCheckpoint <- case putKernelArtifact "surface:terminal"
+          (object ["text_buffer" .= ("unsubmitted" :: Text)]) emptyKernelState of
+        Left problem -> assertFailure ("artifact update failed: " <> show problem)
+        Right next -> pure next
+      kernelRevision withCheckpoint @?= DomainRevision 0
+      kernelEventBatches withCheckpoint @?= []
+      kernelArtifact "surface:terminal" withCheckpoint @?=
+        Just (object ["text_buffer" .= ("unsubmitted" :: Text)])
+      encode withCheckpoint @?= encode emptyKernelState
   , testCase "allocates opaque creation-derived identities" $ do
       accepted <- requireKernelSuccess (appendSemanticAction
         atomicKernelRequest
@@ -1681,6 +1697,165 @@ judgmentTests = testGroup "impact, effort, and judgment evidence"
       assertBool "affected priority evidence remained applicable"
         (all (not . Priority.priorityJudgmentApplicable)
           (Map.elems (Priority.priorityStateJudgments revised)))
+  ]
+
+interactionTests :: TestTree
+interactionTests = testGroup "v1 revision-scoped interactions and powered-up mode"
+  [ testCase "keeps help read-only and advances current answers exactly once" $ do
+      (session, state) <- requireInteractionSuccess (Interaction.openInteraction
+        "priority_comparison" Nothing Nothing (Just "seed") domainTestTime 0
+        Interaction.emptyInteractionState)
+      before <- requireInteractionSuccess
+        (Interaction.currentInteraction (Interaction.interactionSessionId session) state)
+      helped <- requireInteractionSuccess (Interaction.requestInteractionHelp
+        (Interaction.interactionSessionId session) state)
+      helped @?= before
+      (_, response, accepted) <- requireInteractionSuccess
+        (Interaction.acceptCurrentInteractionAction
+          (Interaction.interactionSessionId session) 0 1 0 "yes" domainTestTime state)
+      let acceptedSession = Map.lookup (Interaction.interactionSessionId session)
+            (Interaction.interactionStateSessions accepted)
+      Interaction.operationalResponseDomainRevision response @?= 1
+      fmap Interaction.interactionSessionDomainRevision acceptedSession @?= Just 1
+      fmap Interaction.interactionSessionInteractionRevision acceptedSession @?=
+        Just 2
+      fmap Interaction.interactionSessionConfirmedActions acceptedSession @?= Just 1
+      assertBool "accepted prompt key was reused"
+        (fmap Interaction.interactionSessionPromptKey acceptedSession
+          /= Just (Interaction.interactionSessionPromptKey session))
+  , testCase "rejects a stale key without domain work and rebases independently" $ do
+      (session, state) <- requireInteractionSuccess (Interaction.openInteraction
+        "priority_comparison" Nothing Nothing Nothing domainTestTime 0
+        Interaction.emptyInteractionState)
+      (_, _, accepted) <- requireInteractionSuccess
+        (Interaction.acceptCurrentInteractionAction
+          (Interaction.interactionSessionId session) 0 1 0 "yes" domainTestTime state)
+      decision <- requireInteractionSuccess (Interaction.classifyInteractionSubmission
+        (Interaction.interactionSessionId session) 0 1 1 "yes"
+        (addUTCTime 1 domainTestTime) accepted)
+      stale <- case decision of
+        Interaction.StaleSubmission response next -> do
+          Interaction.operationalResponseErrorCode response @?=
+            Just "stale_interaction"
+          pure next
+        result -> assertFailure ("stale key was accepted: " <> show result)
+      let staleSession = Map.lookup (Interaction.interactionSessionId session)
+            (Interaction.interactionStateSessions stale)
+      fmap Interaction.interactionSessionConfirmedActions staleSession @?= Just 1
+      fmap Interaction.interactionSessionDomainRevision staleSession @?= Just 1
+      (rebased, _) <- requireInteractionSuccess (Interaction.rebaseInteraction
+        (Interaction.interactionSessionId session) 1
+        (addUTCTime 2 domainTestTime) stale)
+      Interaction.interactionSessionStatus rebased @?= Interaction.InteractionOpen
+      Interaction.interactionSessionDomainRevision rebased @?= 1
+      Interaction.interactionSessionInteractionRevision rebased @?= 3
+  , testCase "restores one complete presentation checkpoint per surface" $ do
+      let response = Interaction.OperationalResponse True "accepted"
+            (Just "interaction_action") Nothing ["domain"] [] Nothing Nothing
+            Nothing 4
+          summary = Interaction.StatusSummary "mode: dumb" "dumb" Nothing
+            Nothing 0 0 0
+          query = object ["page_size" .= (20 :: Integer)]
+          page = object ["snapshot_domain_revision" .= (4 :: Integer)]
+          brief = object ["facts" .= (["confirmed"] :: [Text])]
+          firstDraft = Interaction.SurfaceCheckpointDraft "terminal"
+            (Just (Interaction.InteractionId "interaction-1")) 4 (Just 2)
+            "dialog" (Just "row-2") (Just "pending text") (Just 5)
+            ["question", "answer"] (Just response) (Just summary)
+            (Just Interaction.ProjectionHistory) (Just query) (Just page)
+            (Just brief)
+      (first, firstState) <- requireInteractionSuccess
+        (Interaction.saveFirstSurfaceCheckpoint firstDraft domainTestTime
+          Interaction.emptyInteractionState)
+      let updatedDraft = firstDraft
+            { Interaction.checkpointDraftSelectedItem = Just "row-3"
+            , Interaction.checkpointDraftTextBuffer = Just "recovered text"
+            , Interaction.checkpointDraftCursorOffset = Just 9
+            }
+      (updated, updatedState) <- requireInteractionSuccess
+        (Interaction.saveExistingSurfaceCheckpoint updatedDraft
+          (addUTCTime 1 domainTestTime) firstState)
+      Interaction.surfaceCheckpointId updated @?=
+        Interaction.surfaceCheckpointId first
+      Map.size (Interaction.interactionStateCheckpoints updatedState) @?= 1
+      Interaction.surfaceCheckpointSelectedItem updated @?= Just "row-3"
+      Interaction.surfaceCheckpointTextBuffer updated @?= Just "recovered text"
+      Interaction.surfaceCheckpointCursorOffset updated @?= Just 9
+      Interaction.surfaceCheckpointLastResponse updated @?= Just response
+      Interaction.surfaceCheckpointLastStatus updated @?= Just summary
+      Interaction.surfaceCheckpointLastProjection updated @?=
+        Just Interaction.ProjectionHistory
+      Interaction.surfaceCheckpointHistoryQuery updated @?= Just query
+      Interaction.surfaceCheckpointLastHistoryPage updated @?= Just page
+      Interaction.surfaceCheckpointLastHistoryBrief updated @?= Just brief
+  , testCase "reports only confirmed work as adaptive progress" $ do
+      (session, state) <- requireInteractionSuccess (Interaction.openInteraction
+        "priority_comparison" Nothing Nothing Nothing domainTestTime 0
+        Interaction.emptyInteractionState)
+      Interaction.interactionProgressFacts
+        (Interaction.honestInteractionProgress session) @?=
+          ["0 confirmed actions"]
+      _ <- requireInteractionSuccess (Interaction.requestInteractionHelp
+        (Interaction.interactionSessionId session) state)
+      (_, _, accepted) <- requireInteractionSuccess
+        (Interaction.acceptCurrentInteractionAction
+          (Interaction.interactionSessionId session) 0 1 0 "yes" domainTestTime state)
+      acceptedSession <- maybe (assertFailure "accepted session disappeared") pure
+        (Map.lookup (Interaction.interactionSessionId session)
+          (Interaction.interactionStateSessions accepted))
+      let progress = Interaction.honestInteractionProgress acceptedSession
+      Interaction.interactionProgressFacts progress @?= ["1 confirmed action"]
+      assertBool "adaptive estimate is not a range"
+        (Interaction.interactionProgressEstimatedRemainingMin progress
+          <= Interaction.interactionProgressEstimatedRemainingMax progress)
+  , testCase "fails ambiguous adapters and exposes only validated powered mode" $ do
+      let ambiguous = "{\"protocol_version\":1,\"status\":\"OK\"}"
+            <> "{\"protocol_version\":1,\"status\":\"NO\"}"
+          (rejected, _, dumb) = Interaction.validatePoweredUpAdapter
+            "/tmp/broken" "stdin" ambiguous Interaction.emptyInteractionState
+      assertBool "ambiguous adapter was accepted" (case rejected of
+        Interaction.PoweredUpRejected _ -> True
+        _ -> False)
+      Interaction.replRuntimeMode (Interaction.interactionStateReplRuntime dumb)
+        @?= Interaction.Dumb
+      let (acceptedResult, _, powered) = Interaction.validatePoweredUpAdapter
+            "/opt/lant/model" "stdin"
+            "{\"protocol_version\":1,\"status\":\"OK\"}"
+            Interaction.emptyInteractionState
+          summary = Interaction.statusSummary Nothing 0 0 0 powered
+      acceptedResult @?= Interaction.PoweredUpAccepted
+      Interaction.statusSummaryMode summary @?= "powered_up"
+      Interaction.statusSummaryPoweredBy summary @?= Just "/opt/lant/model"
+      trace <- maybe (assertFailure "powered-up trace disappeared") pure
+        (Map.lookup "/opt/lant/model"
+          (Interaction.interactionStateProcessTraces powered))
+      Interaction.processInvocationTraceArgumentCount trace @?= 0
+      Interaction.processInvocationTraceArgumentsContainPrompt trace @?= False
+      Interaction.processInvocationTraceStdinContainsProbe trace @?= True
+      Interaction.processInvocationTraceSecretValuesRecorded trace @?= False
+  , testCase "executes the configured adapter with its probe on stdin only" $ do
+      temporary <- getTemporaryDirectory
+      (path, handle) <- openTempFile temporary "lant-powered-probe.sh"
+      hPutStr handle (unlines
+        [ "#!/bin/sh"
+        , "[ \"$#\" -eq 0 ] || exit 41"
+        , "input=$(cat)"
+        , "case \"$input\" in"
+        , "  *'\"kind\":\"probe\"'*) printf '%s\\n' '{\"protocol_version\":1,\"status\":\"OK\"}' ;;"
+        , "  *) exit 42 ;;"
+        , "esac"
+        ])
+      hClose handle
+      permissions <- getPermissions path
+      setPermissions path permissions {executable = True}
+      result <- Interaction.probePoweredUpAdapter path
+        `finally` removeFile path
+      trace <- case result of
+        Left problem -> assertFailure ("adapter probe failed: " <> show problem)
+        Right value -> pure value
+      Interaction.processInvocationTraceArgumentCount trace @?= 0
+      Interaction.processInvocationTraceArgumentsContainPrompt trace @?= False
+      Interaction.processInvocationTraceStdinContainsProbe trace @?= True
   ]
 
 implementationBridgeTests :: TestTree
@@ -3341,6 +3516,11 @@ capturePriorityMemberships identifier context = length
 requireCaptureSuccess :: Either Capture.CaptureError value -> IO value
 requireCaptureSuccess result = case result of
   Left problem -> assertFailure ("capture action failed: " <> show problem)
+  Right value -> pure value
+
+requireInteractionSuccess :: Either Interaction.InteractionError value -> IO value
+requireInteractionSuccess result = case result of
+  Left problem -> assertFailure ("interaction action failed: " <> show problem)
   Right value -> pure value
 
 focusSelectionContext :: BrickId -> Selection.SelectionContext ->

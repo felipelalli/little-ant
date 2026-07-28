@@ -21,11 +21,13 @@ module LittleAnt.V1.Kernel
   , appendSemanticAction
   , canonicalStateHash
   , emptyKernelState
+  , kernelArtifact
   , kernelEntity
   , kernelEventBatches
   , kernelNextIdentityOrdinal
   , kernelRevision
   , kernelValue
+  , putKernelArtifact
   , replayAll
   , replayThrough
   ) where
@@ -161,6 +163,7 @@ data KernelError
   | EmptySemanticActionId
   | EmptyActorOrOrigin
   | EmptyValueKey
+  | EmptyArtifactKey
   | ValueDoesNotExist Text
   | EmptyEntityKind
   | ReservedEntityField Text
@@ -173,6 +176,7 @@ data KernelState = KernelState
   { stateDomainRevision :: DomainRevision
   , stateNextIdentityOrdinal :: Integer
   , stateValues :: Map Text Value
+  , stateArtifacts :: Map Text Value
   , stateEntities :: Map OpaqueId Value
   , stateBatches :: [EventBatch]
   , stateSemanticActionIds :: Set Text
@@ -204,6 +208,7 @@ emptyKernelState = KernelState
   { stateDomainRevision = DomainRevision 0
   , stateNextIdentityOrdinal = 0
   , stateValues = Map.empty
+  , stateArtifacts = Map.empty
   , stateEntities = Map.empty
   , stateBatches = []
   , stateSemanticActionIds = Set.empty
@@ -217,6 +222,21 @@ kernelNextIdentityOrdinal = stateNextIdentityOrdinal
 
 kernelValue :: Text -> KernelState -> Maybe Value
 kernelValue key = Map.lookup key . stateValues
+
+-- | Read a bounded non-domain artifact such as a presentation checkpoint.
+-- Artifacts are deliberately excluded from canonical JSON, hashes, and event
+-- replay, but immutable 'KernelState' snapshots still retain them.
+kernelArtifact :: Text -> KernelState -> Maybe Value
+kernelArtifact key = Map.lookup key . stateArtifacts
+
+-- | Update presentation or harness state without advancing the authoritative
+-- domain clock.  Callers must never use this path for canonical domain data.
+putKernelArtifact ::
+  Text -> Value -> KernelState -> Either KernelError KernelState
+putKernelArtifact key value state
+  | Text.null (Text.strip key) = Left EmptyArtifactKey
+  | otherwise = Right state
+      {stateArtifacts = Map.insert key value (stateArtifacts state)}
 
 kernelEntity :: OpaqueId -> KernelState -> Maybe Value
 kernelEntity identifier = Map.lookup identifier . stateEntities

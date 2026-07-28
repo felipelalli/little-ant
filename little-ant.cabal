@@ -65,6 +65,8 @@ library
         LittleAnt.V1.Execution
         LittleAnt.V1.ExecutionPlanCatalog
         LittleAnt.V1.Implementation
+        LittleAnt.V1.Interaction
+        LittleAnt.V1.InteractionPlanCatalog
         LittleAnt.V1.Judgment
         LittleAnt.V1.JudgmentAssessmentPlanCatalog
         LittleAnt.V1.Kernel
@@ -92,6 +94,7 @@ library
         containers,
         directory,
         filepath,
+        process,
         SHA,
         text,
         time
@@ -198,6 +201,7 @@ test-suite little-ant-v1-driver-test
         aeson,
         bytestring,
         containers,
+        directory,
         little-ant,
         tasty,
         tasty-hunit,
