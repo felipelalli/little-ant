@@ -915,3 +915,33 @@ allows ordinary product interaction on that channel; arbitrary recipient
 messages and publishing remain explicit external effects. The first-party
 REPL stays a core surface, while the exact initial Pack-based UI adapters
 remain an implementation-planning choice.
+
+## Entry 65 — Begin commit-backed recovery and remove ambiguous priority
+
+After the first attempted 1.0 implementation regressed important v0 behavior,
+the recovery process was changed to record and commit each confirmed decision
+immediately. This prevents context compaction or a later consolidation from
+silently inventing answers. The current v0 operator skill, v0 implementation,
+rewritten Allium, generated tests, and failed implementation are evidence to
+audit; none overrides an explicit 1.0 recovery decision.
+
+The word `priority` was removed from the canonical 1.0 vocabulary because it
+could mean persistent importance, urgency, execution order, or dynamic
+selection. The working separation is now importance order, focus forecast,
+and next suggestion. The old word may appear only in explicitly historical
+v0 material or literal external-source vocabulary. A natural-language
+operator must disambiguate rather than introduce a core alias.
+
+The dynamic focus forecast was confirmed as a derived probability
+distribution. `next` performs a weighted pseudo-random draw whose result is
+reproducible from authoritative state, the candidate set, recorded random
+evidence, and the applicable configuration revision. A useful long tail gives
+unusual eligible work a chance to surface. The LLM comparison is an intuition
+for weighted sampling, not a requirement for a normal distribution or a
+particular formula.
+
+Calibratable selection parameters should have validated factory defaults, be
+revisable over time, and be identifiable by configuration revision so tests
+can compare parameter sets without changing semantic invariants. A
+human-editable YAML profile and exact tail controls remain proposals pending
+further review.

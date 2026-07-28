@@ -6,7 +6,7 @@ Target release: **Little Ant 1.0**
 
 Current implementation baseline: **v0**, package version `0.1.0.0`
 
-Last consolidated: **2026-07-27**
+Last consolidated: **2026-07-28**
 
 This is the index for the Little Ant 1.0 discovery record. Each chapter is a
 small standalone file so a future session can load only the relevant concepts
@@ -23,17 +23,21 @@ For any focused design question, load:
 
 1. [Purpose and authority](little-ant-1.0/01-purpose-and-authority.md);
 2. [Corrections and superseded decisions](little-ant-1.0/17-corrections-and-superseded-decisions.md);
-3. the relevant subject chapter;
-4. the relevant portion of [Open questions](little-ant-1.0/19-open-questions.md);
-5. the latest entries in the [Session log](little-ant-1.0/22-session-log.md).
+3. [V1 recovery ledger](little-ant-1.0/35-v1-recovery-ledger.md);
+4. the relevant subject chapter;
+5. the relevant portion of [Open questions](little-ant-1.0/19-open-questions.md);
+6. the latest entries in the [Session log](little-ant-1.0/22-session-log.md).
 
-Later corrections override earlier proposals. Open questions are
-non-normative.
+Later corrections override earlier proposals. During the current recovery
+review, confirmed entries in chapter 35 override conflicting earlier wording
+until that decision has been propagated through the subject chapters and
+Allium. Open questions are non-normative.
 
 ## Topic-oriented reading paths
 
 | Topic | Load these chapters |
 |---|---|
+| V1 recovery and regression review | [35](little-ant-1.0/35-v1-recovery-ledger.md), [01](little-ant-1.0/01-purpose-and-authority.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md) |
 | Release, terminology, and compatibility | [02](little-ant-1.0/02-release-version-compatibility-and-language.md), [03](little-ant-1.0/03-design-center.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md) |
 | Raw material | [04](little-ant-1.0/04-conceptual-entities.md), [05](little-ant-1.0/05-raw-material-and-shelves.md), [19](little-ant-1.0/19-open-questions.md) |
 | Brick lifecycle and hierarchy | [06](little-ant-1.0/06-brick-state-phase-and-metadata.md), [07](little-ant-1.0/07-composition-tree-and-inheritance.md), [25](little-ant-1.0/25-brick-behaviors-and-template-library.md), [18](little-ant-1.0/18-confirmed-invariants.md) |
@@ -143,16 +147,22 @@ non-normative.
     typed PackComponents, isolated HsLua execution, host-brokered HTTP and
     credentials, read-only exports, the reference TaskJuggler component, and
     alternate interaction surfaces.
+35. [V1 recovery ledger](little-ant-1.0/35-v1-recovery-ledger.md) —
+    commit-backed decisions made while auditing regressions and rebuilding the
+    intended 1.0 contract.
 
 ## Maintenance protocol
 
 When discovery changes the design:
 
-1. update the smallest relevant subject chapter;
-2. add a correction to chapter 17 when it reverses prior wording;
-3. resolve or add the corresponding item in chapter 19;
-4. append a concise entry to chapter 22;
-5. update this index only when chapter structure or reading paths change.
+1. record each confirmed recovery decision in chapter 35 and commit it
+   immediately;
+2. update the smallest relevant subject chapter once the surrounding concept
+   is coherent;
+3. add a correction to chapter 17 when it reverses prior wording;
+4. resolve or add the corresponding item in chapter 19;
+5. append a concise entry to chapter 22;
+6. update this index only when chapter structure or reading paths change.
 
 All files in this record must remain in English. Code and
 `little-ant.allium` remain untouched until the documentation phase explicitly

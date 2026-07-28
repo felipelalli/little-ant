@@ -18,6 +18,13 @@ conflicts with this collection, **Corrections and superseded decisions** wins.
 The Allium specification becomes authoritative again only after the
 documentation phase is deliberately completed and reviewed.
 
+The regression-recovery review that began on 2026-07-28 is recorded
+incrementally in **V1 recovery ledger**. A confirmed recovery entry is the
+latest decision and overrides conflicting wording in an earlier subject
+chapter, README, Allium declaration, generated test, v0 operator skill, or
+failed implementation. The override remains explicit in the ledger until it
+has been propagated and reviewed across the relevant artifacts.
+
 The words **must**, **must not**, **should**, and **may** distinguish confirmed
 requirements from recommendations. Text under **Open questions** is
 deliberately non-normative.
