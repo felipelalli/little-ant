@@ -45,6 +45,7 @@ import LittleAnt.V1.Material
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
+import qualified LittleAnt.V1.SourceImport as SourceImport
 import qualified LittleAnt.V1.Standing as Standing
 import System.Directory
   (createDirectory, executable, findExecutable, getPermissions,
@@ -67,6 +68,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , captureTests
   , interactionTests
   , integrationTests
+  , sourceImportTests
   , cliSurfaceTests
   , readModelTests
   , coordinationTests
@@ -2174,6 +2176,527 @@ integrationTests = testGroup "v1 bounded Packs, credentials, and host capabiliti
         ]
   ]
 
+sourceImportTests :: TestTree
+sourceImportTests = testGroup "v1 source imports, synchronization, and cleanup"
+  [ testCase "validates route-specific profile destinations" $ do
+      base <- sourceImportBase
+      (root, rootImports) <- requireSourceImportSuccess
+        (createSourceImportProfile SourceImport.AdoptBrick Nothing Nothing Nothing
+          True base SourceImport.emptySourceImportState)
+      SourceImport.importProfileRoute root @?= SourceImport.AdoptBrick
+      let ownerId = brickId (sourceImportOwner base)
+          parentId = brickId (sourceImportParent base)
+      (entryProfile, _) <- requireSourceImportSuccess
+        (createSourceImportProfile SourceImport.AdoptListEntry Nothing
+          (Just ownerId) Nothing True base rootImports)
+      SourceImport.importProfileDestinationOwner entryProfile @?= Just ownerId
+      case createSourceImportProfile SourceImport.AdoptListEntry Nothing Nothing
+          Nothing True base rootImports of
+        Left (SourceImport.InvalidImportDestination _) -> pure ()
+        result -> assertFailure ("ownerless ListEntry profile result: " <> show result)
+      case createSourceImportProfile SourceImport.AdoptListEntry Nothing
+          (Just parentId) Nothing True base rootImports of
+        Left (SourceImport.InvalidImportDestination _) -> pure ()
+        result -> assertFailure ("non-entry owner profile result: " <> show result)
+      case createSourceImportProfile SourceImport.AdoptBrick Nothing Nothing
+          (Just (sourceImportShelf base)) True base rootImports of
+        Left (SourceImport.InvalidImportDestination _) -> pure ()
+        result -> assertFailure ("multi-destination Brick profile result: " <> show result)
+  , testCase "preserves Raw and adopts root, child, and ListEntry routes" $ do
+      root <- sourceImportRunning SourceImport.AdoptBrick Nothing Nothing
+      rootResult <- acceptSourceImport sourceImportCandidate root
+      rootBrick <- maybe (assertFailure "root adoption omitted Brick") pure
+        (sourceImportCapturedBrick rootResult)
+      let rootRecord = sourceImportCapturedRecord rootResult
+          rootMaterial = sourceImportCapturedMaterial rootResult
+          raw = (materialRaws rootMaterial) Map.! SourceImport.externalRecordRaw rootRecord
+      rawReviewState raw @?= RawReviewedState
+      assertBool "root adoption omitted source RawLink"
+        (any ((== Just (brickId rootBrick)) . rawLinkOwnerBrick)
+          (Map.elems (materialLinks rootMaterial)))
+      (Priority.priorityInsertionStatus <$>
+        sourceImportInsertion rootResult rootBrick) @?=
+          Just Priority.InsertionDeferred
+      childBase <- sourceImportBase
+      child <- sourceImportRunningFrom childBase SourceImport.AdoptBrick
+        (Just (brickId (sourceImportParent childBase))) Nothing
+      childResult <- acceptSourceImport sourceImportCandidate child
+      childBrick <- maybe (assertFailure "child adoption omitted Brick") pure
+        (sourceImportCapturedBrick childResult)
+      brickParent childBrick @?= Just (brickId (sourceImportParent childBase))
+      entryBase <- sourceImportBase
+      entryRun <- sourceImportRunningFrom entryBase SourceImport.AdoptListEntry Nothing
+        (Just (brickId (sourceImportOwner entryBase)))
+      entryResult <- acceptSourceImport sourceImportCandidate entryRun
+      entry <- maybe (assertFailure "ListEntry adoption omitted entry") pure
+        (sourceImportCapturedEntry entryResult)
+      listEntryOwner entry @?= brickId (sourceImportOwner entryBase)
+      SourceImport.externalRecordBrick (sourceImportCapturedRecord entryResult) @?= Nothing
+      preserved <- sourceImportRunning SourceImport.PreserveRaw Nothing Nothing
+        >>= acceptSourceImport sourceImportCandidate
+      SourceImport.externalRecordBrick (sourceImportCapturedRecord preserved) @?= Nothing
+      let preservedRaw = (materialRaws (sourceImportCapturedMaterial preserved)) Map.!
+            SourceImport.externalRecordRaw (sourceImportCapturedRecord preserved)
+      rawReviewState preservedRaw @?= RawPending
+  , testCase "reconciles stable identity without rewriting local lifecycle" $ do
+      running <- sourceImportRunning SourceImport.AdoptBrick Nothing Nothing
+      first <- acceptSourceImport sourceImportCandidate running
+      let record = sourceImportCapturedRecord first
+          brick = maybe placeholderImportBrick id (sourceImportCapturedBrick first)
+          rawCount = Map.size (materialRaws (sourceImportCapturedMaterial first))
+      second <- acceptSourceImport sourceImportCandidate
+        { SourceImport.importCandidateContentHash = "sha256:task-42-v2"
+        , SourceImport.importCandidateRevision = Just "2"
+        , SourceImport.importCandidatePresence = Removed
+        , SourceImport.importCandidateWorkState = WorkCompleted
+        } (capturedAsRunning first)
+      SourceImport.externalRecordId (sourceImportCapturedRecord second) @?=
+        SourceImport.externalRecordId record
+      Map.size (materialRaws (sourceImportCapturedMaterial second)) @?= rawCount
+      brickStatus (maybe placeholderImportBrick id
+        (sourceImportCapturedBrick second)) @?= brickStatus brick
+      SourceImport.externalRecordPresence (sourceImportCapturedRecord second) @?= Removed
+  , testCase "persists external completion as an open Brick-review Proposal" $ do
+      running <- sourceImportRunning SourceImport.AdoptBrick Nothing Nothing
+      completed <- acceptSourceImport sourceImportCandidate
+        {SourceImport.importCandidateWorkState = WorkCompleted} running
+      completedBrick <- maybe (assertFailure "completion import omitted Brick") pure
+        (sourceImportCapturedBrick completed)
+      let recordId = SourceImport.externalRecordId
+            (sourceImportCapturedRecord completed)
+          completedBrickId = brickId completedBrick
+      (proposal, selection, imports) <- requireSourceImportSuccess
+        (SourceImport.observeExternalCompletion integrationTestTime recordId
+          (sourceImportCapturedStanding completed)
+          (sourceImportCapturedMaterial completed) Selection.emptySelectionState
+          (sourceImportCapturedImports completed))
+      Selection.proposalKind proposal @?= Selection.BrickReview
+      Selection.proposalBrick proposal @?= Just completedBrickId
+      Selection.proposalReason proposal @?=
+        "the attributed external source reports completion"
+      Selection.proposalStatus proposal @?= Selection.ProposalOpen
+      Selection.proposalCreatedAt proposal @?= integrationTestTime
+      Selection.proposalAvailableAt proposal @?= integrationTestTime
+      Map.lookup (Selection.proposalId proposal)
+        (Selection.selectionStateProposals selection) @?= Just proposal
+      (_, advancedSelection) <- requireSelectionSuccess (Selection.advanceSelection
+        integrationTestTime
+        (Selection.SelectionContext (sourceImportCapturedStanding completed)
+          (sourceImportCapturedMaterial completed)) selection)
+      (Selection.proposalStatus <$> Map.lookup (Selection.proposalId proposal)
+        (Selection.selectionStateProposals advancedSelection)) @?=
+          Just Selection.ProposalOpen
+      case SourceImport.observeExternalCompletion integrationTestTime recordId
+          (sourceImportCapturedStanding completed)
+          (sourceImportCapturedMaterial completed) selection imports of
+        Left (SourceImport.InvalidImportCandidate _) -> pure ()
+        result -> assertFailure ("duplicate completion review result: " <> show result)
+      response <- runContractRequestIO contractRegistry externalCompletionRequest
+      assertResponsePassed response
+        [ "completion-proposal-kind"
+        , "completion-proposal-brick"
+        , "completion-proposal-reason"
+        , "completion-proposal-status"
+        , "completion-proposal-created-at"
+        , "completion-proposal-available-at"
+        ]
+  , testCase "plans eligible cleanup independently of lossy and conflicted items" $ do
+      running <- sourceImportRunning SourceImport.AdoptBrick Nothing Nothing
+      first <- acceptSourceImport sourceImportCandidate running
+      second <- acceptSourceImport sourceImportCandidate
+        { SourceImport.importCandidateExternalId = "task-43"
+        , SourceImport.importCandidateContentHash = "sha256:task-43-v1"
+        } (capturedAsRunning first)
+      third <- acceptSourceImport sourceImportCandidate
+        { SourceImport.importCandidateExternalId = "task-44"
+        , SourceImport.importCandidateContentHash = "sha256:task-44-v1"
+        } (capturedAsRunning second)
+      let profileId = SourceImport.importProfileId
+            (sourceImportCapturedProfile third)
+      (migration, planned) <- requireSourceImportSuccess (SourceImport.planImport
+        integrationTestTime profileId SourceImport.Migrate True
+        (sourceImportCapturedStanding third) (sourceImportCapturedMaterial third)
+        (sourceImportCapturedImports third))
+      (verified, prepared) <- requireSourceImportSuccess
+        (SourceImport.prepareVerifiedMigration integrationTestTime
+          (SourceImport.importRunId migration) (sourceImportCapturedStanding third)
+          (sourceImportCapturedMaterial third) planned)
+      let records = Map.elems (SourceImport.sourceImportRecords prepared)
+          recordFor externalId = find
+            ((== externalId) . SourceImport.externalRecordExternalId) records
+      eligible <- maybe (assertFailure "eligible import record missing") pure
+        (recordFor "task-42")
+      unavailable <- maybe (assertFailure "unavailable import record missing") pure
+        (recordFor "task-43")
+      conflicted <- maybe (assertFailure "conflicted import record missing") pure
+        (recordFor "task-44")
+      let unavailableRaw = SourceImport.externalRecordRaw unavailable
+          breakSnapshot snapshot
+            | rawSnapshotRaw snapshot == unavailableRaw = snapshot
+                { rawSnapshotAvailability = SnapshotMissing
+                , rawSnapshotVerifiedAt = Nothing
+                }
+            | otherwise = snapshot
+          brokenMaterial = (sourceImportCapturedMaterial third)
+            {materialSnapshots = Map.map breakSnapshot
+              (materialSnapshots (sourceImportCapturedMaterial third))}
+          conflictedImports = prepared
+            {SourceImport.sourceImportUnresolvedConflicts = Set.singleton
+              (SourceImport.externalRecordId conflicted)}
+      (effects, withEffects) <- requireSourceImportSuccess
+        (SourceImport.planEraseAfterImport integrationTestTime
+          (SourceImport.importRunId verified) (sourceImportCapturedStanding third)
+          brokenMaterial conflictedImports)
+      map SourceImport.sourceEffectRecord effects @?=
+        [Just (SourceImport.externalRecordId eligible)]
+      assertBool "lossy record was removed from explicit import state"
+        (Map.member (SourceImport.externalRecordId unavailable)
+          (SourceImport.sourceImportRecords withEffects))
+      assertBool "conflicted disposition was dropped"
+        (Set.member (SourceImport.externalRecordId conflicted)
+          (SourceImport.sourceImportUnresolvedConflicts withEffects))
+      case SourceImport.cutOverImport integrationTestTime
+          (SourceImport.importRunId verified) "premature"
+          (sourceImportCapturedStanding third) brokenMaterial withEffects of
+        Left SourceImport.ImportCleanupUnresolved -> pure ()
+        result -> assertFailure ("mixed cleanup cutover result: " <> show result)
+      (recovered, _) <- requireSourceImportSuccess
+        (SourceImport.planEraseAfterImport integrationTestTime
+          (SourceImport.importRunId verified) (sourceImportCapturedStanding third)
+          (sourceImportCapturedMaterial third) (withEffects
+            {SourceImport.sourceImportUnresolvedConflicts = Set.empty}))
+      Set.fromList (map SourceImport.sourceEffectRecord recovered) @?=
+        Set.fromList
+          [ Just (SourceImport.externalRecordId unavailable)
+          , Just (SourceImport.externalRecordId conflicted)
+          ]
+  , testCase "records verification failures and keeps synchronization live" $ do
+      running <- sourceImportRunning SourceImport.AdoptBrick Nothing Nothing
+      captured <- acceptSourceImport sourceImportCandidate running
+      let run = sourceImportCapturedRun captured
+      (checkpoint, checkpointImports) <- requireSourceImportSuccess
+        (SourceImport.finishImportCapture (SourceImport.importRunId run) Nothing
+          (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+          (sourceImportCapturedImports captured))
+      (failed, _) <- requireSourceImportSuccess (SourceImport.verifyImport
+        integrationTestTime (SourceImport.importRunId checkpoint) 0 1
+        (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+        checkpointImports)
+      SourceImport.importRunStatus failed @?= SourceImport.ImportFailed
+      runningAgain <- sourceImportRunning SourceImport.AdoptBrick Nothing Nothing
+      capturedAgain <- acceptSourceImport sourceImportCandidate runningAgain
+      let runAgain = sourceImportCapturedRun capturedAgain
+      (captureAgain, importsAgain) <- requireSourceImportSuccess
+        (SourceImport.finishImportCapture (SourceImport.importRunId runAgain) Nothing
+          (sourceImportCapturedStanding capturedAgain)
+          (sourceImportCapturedMaterial capturedAgain)
+          (sourceImportCapturedImports capturedAgain))
+      (verified, verifiedImports) <- requireSourceImportSuccess
+        (SourceImport.verifyImport integrationTestTime
+          (SourceImport.importRunId captureAgain) 1 0
+          (sourceImportCapturedStanding capturedAgain)
+          (sourceImportCapturedMaterial capturedAgain) importsAgain)
+      (completed, completedImports) <- requireSourceImportSuccess
+        (SourceImport.completeSynchronization integrationTestTime
+          (SourceImport.importRunId verified) "sha256:sync"
+          (sourceImportCapturedStanding capturedAgain)
+          (sourceImportCapturedMaterial capturedAgain) verifiedImports)
+      SourceImport.importRunReceiptHash completed @?= Just "sha256:sync"
+      let profile = (SourceImport.sourceImportProfiles completedImports) Map.!
+            SourceImport.importRunProfile completed
+      SourceImport.importProfileStatus profile @?= SourceImport.ImportProfileActive
+  , testCase "requires approval, retries exact cleanup, and blocks early cutover" $ do
+      running <- sourceImportRunning SourceImport.AdoptBrick Nothing Nothing
+      captured <- acceptSourceImport sourceImportCandidate running
+      let profileId = SourceImport.importProfileId (sourceImportCapturedProfile captured)
+      (migration, planned) <- requireSourceImportSuccess (SourceImport.planImport
+        integrationTestTime profileId SourceImport.Migrate True
+        (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+        (sourceImportCapturedImports captured))
+      (verified, prepared) <- requireSourceImportSuccess
+        (SourceImport.prepareVerifiedMigration integrationTestTime
+          (SourceImport.importRunId migration) (sourceImportCapturedStanding captured)
+          (sourceImportCapturedMaterial captured) planned)
+      (effects, withEffects) <- requireSourceImportSuccess
+        (SourceImport.planEraseAfterImport integrationTestTime
+          (SourceImport.importRunId verified) (sourceImportCapturedStanding captured)
+          (sourceImportCapturedMaterial captured) prepared)
+      effect <- case effects of
+        [item] -> pure item
+        _ -> assertFailure "cleanup did not produce one item effect"
+      case SourceImport.cutOverImport integrationTestTime
+          (SourceImport.importRunId verified) "too-early"
+          (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+          withEffects of
+        Left SourceImport.ImportCleanupUnresolved -> pure ()
+        result -> assertFailure ("early cutover result: " <> show result)
+      (approved, approvedState) <- requireSourceImportSuccess
+        (SourceImport.approveSourceEffect integrationTestTime
+          (SourceImport.sourceEffectId effect) (sourceImportCapturedStanding captured)
+          (sourceImportCapturedMaterial captured) withEffects)
+      (failedEffect, failedState) <- requireSourceImportSuccess
+        (SourceImport.failSourceEffect (SourceImport.sourceEffectId approved) "HTTP 503"
+          (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+          approvedState)
+      SourceImport.sourceEffectStatus failedEffect @?= SourceImport.EffectFailed
+      (retried, retriedState) <- requireSourceImportSuccess
+        (SourceImport.retrySourceEffect (SourceImport.sourceEffectId failedEffect)
+          (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+          failedState)
+      SourceImport.sourceEffectId retried @?= SourceImport.sourceEffectId effect
+      (applied, appliedState) <- requireSourceImportSuccess
+        (SourceImport.applySourceEffect integrationTestTime
+          (SourceImport.sourceEffectId retried) "provider:req-1"
+          (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+          retriedState)
+      SourceImport.sourceEffectReceipt applied @?= Just "provider:req-1"
+      (_, _, cutoverState) <- requireSourceImportSuccess
+        (SourceImport.cutOverImport integrationTestTime
+          (SourceImport.importRunId verified) "sha256:migration"
+          (sourceImportCapturedStanding captured) (sourceImportCapturedMaterial captured)
+          appliedState)
+      let kinds = map SourceImport.sourceEffectKind
+            (Map.elems (SourceImport.sourceImportEffects cutoverState))
+      assertBool "item cleanup implied container deletion"
+        (SourceImport.EraseContainer `notElem` kinds)
+  , testCase "passes all Microsoft To Do synchronization assertions" $ do
+      bytes <- LBS.readFile "test-v1/scenarios/11-microsoft-todo-sync-and-cutover.json"
+      scenario <- case eitherDecode bytes of
+        Left problem -> assertFailure problem
+        Right value -> pure value
+      response <- runContractRequestIO contractRegistry (object
+        [ "protocol_version" .= (1 :: Integer)
+        , "request_kind" .= ("scenario" :: Text)
+        , "scenario" .= (scenario :: Value)
+        ])
+      assertResponsePassed response
+        [ "automatic-adoption-preserves-raw-and-brick"
+        , "imported-brick-is-positioned"
+        , "sync-removal-does-not-complete-local-brick"
+        , "sync-completion-keeps-profile-active"
+        , "erase-after-import-is-migration-only"
+        , "cleanup-is-item-scoped-and-previewed"
+        , "failed-effect-remains-retryable"
+        , "cutover-waits-for-resolved-cleanup"
+        , "successful-cutover-retires-profile"
+        , "container-deletion-is-not-implied"
+        ]
+  ]
+
+data SourceImportBase = SourceImportBase
+  { sourceImportBaseStanding :: Standing.StandingState
+  , sourceImportBaseMaterial :: MaterialState
+  , sourceImportParent :: Brick
+  , sourceImportOwner :: Brick
+  , sourceImportShelf :: RawShelfId
+  }
+
+data SourceImportRunning = SourceImportRunning
+  { sourceImportRunningBase :: SourceImportBase
+  , sourceImportRunningProfile :: SourceImport.ImportProfile
+  , sourceImportRunningRun :: SourceImport.ImportRun
+  , sourceImportRunningImports :: SourceImport.SourceImportState
+  }
+
+data SourceImportCaptured = SourceImportCaptured
+  { sourceImportCapturedProfile :: SourceImport.ImportProfile
+  , sourceImportCapturedRun :: SourceImport.ImportRun
+  , sourceImportCapturedRecord :: SourceImport.ExternalRecord
+  , sourceImportCapturedBrick :: Maybe Brick
+  , sourceImportCapturedEntry :: Maybe ListEntry
+  , sourceImportCapturedStanding :: Standing.StandingState
+  , sourceImportCapturedMaterial :: MaterialState
+  , sourceImportCapturedImports :: SourceImport.SourceImportState
+  }
+
+sourceImportBase :: IO SourceImportBase
+sourceImportBase = do
+  parentTitle <- requireDomainSuccess
+    (mkCanonicalText "Import destination" Nothing Human)
+  (parent, _, first) <- requireStandingSuccess (Standing.createStandingBrick
+    (ordinaryBrickDraft parentTitle standardV1 integrationTestTime)
+    "parent-evidence" integrationTestTime Standing.emptyStandingState)
+  ownerTitle <- requireDomainSuccess
+    (mkCanonicalText "Imported checklist" Nothing Human)
+  (owner, _, standing) <- requireStandingSuccess (Standing.createStandingBrick
+    (ordinaryBrickDraft ownerTitle finiteChecklistV1 integrationTestTime)
+    "owner-evidence" integrationTestTime first)
+  (shelf, material) <- requireMaterialSuccess
+    (createRawShelf "imports" integrationTestTime emptyMaterialState)
+  pure (SourceImportBase standing material parent owner (rawShelfId shelf))
+
+createSourceImportProfile :: SourceImport.ImportRoute -> Maybe BrickId ->
+  Maybe BrickId -> Maybe RawShelfId -> Bool -> SourceImportBase ->
+  SourceImport.SourceImportState ->
+  Either SourceImport.ImportError
+    (SourceImport.ImportProfile, SourceImport.SourceImportState)
+createSourceImportProfile route parent owner shelf automatic base =
+  SourceImport.createImportProfile integrationTestTime "Microsoft To Do inbox"
+    SourceImport.microsoftTodoAdapterV1 "account:felipe/list:inbox"
+    "structured_task" route parent owner shelf automatic
+    (sourceImportBaseStanding base) (sourceImportBaseMaterial base)
+
+sourceImportRunning :: SourceImport.ImportRoute -> Maybe BrickId -> Maybe BrickId ->
+  IO SourceImportRunning
+sourceImportRunning route parent owner = do
+  base <- sourceImportBase
+  sourceImportRunningFrom base route parent owner
+
+sourceImportRunningFrom :: SourceImportBase -> SourceImport.ImportRoute ->
+  Maybe BrickId -> Maybe BrickId -> IO SourceImportRunning
+sourceImportRunningFrom base route parent owner = do
+  (profile, first) <- requireSourceImportSuccess
+    (createSourceImportProfile route parent owner Nothing True base
+      SourceImport.emptySourceImportState)
+  (planned, second) <- requireSourceImportSuccess (SourceImport.planImport
+    integrationTestTime (SourceImport.importProfileId profile)
+    SourceImport.Synchronize False (sourceImportBaseStanding base)
+    (sourceImportBaseMaterial base) first)
+  (running, imports) <- requireSourceImportSuccess (SourceImport.startImport
+    (SourceImport.importRunId planned) (sourceImportBaseStanding base)
+    (sourceImportBaseMaterial base) second)
+  pure (SourceImportRunning base profile running imports)
+
+acceptSourceImport :: SourceImport.ImportCandidate -> SourceImportRunning ->
+  IO SourceImportCaptured
+acceptSourceImport candidate running = do
+  let base = sourceImportRunningBase running
+  (record, brick, entry, standing, material, imports) <- requireSourceImportSuccess
+    (SourceImport.acceptImportCandidate integrationTestTime
+      (SourceImport.importRunId (sourceImportRunningRun running)) candidate
+      (sourceImportBaseStanding base) (sourceImportBaseMaterial base)
+      (sourceImportRunningImports running))
+  let run = (SourceImport.sourceImportRuns imports) Map.!
+        SourceImport.importRunId (sourceImportRunningRun running)
+  pure (SourceImportCaptured (sourceImportRunningProfile running) run record brick
+    entry standing material imports)
+
+capturedAsRunning :: SourceImportCaptured -> SourceImportRunning
+capturedAsRunning captured = SourceImportRunning
+  (SourceImportBase (sourceImportCapturedStanding captured)
+    (sourceImportCapturedMaterial captured) placeholderImportBrick
+    placeholderImportBrick (RawShelfId "unused"))
+  (sourceImportCapturedProfile captured) (sourceImportCapturedRun captured)
+  (sourceImportCapturedImports captured)
+
+sourceImportInsertion :: SourceImportCaptured -> Brick -> Maybe Priority.PriorityInsertion
+sourceImportInsertion captured brick = case
+    [ insertion
+    | insertion <- Map.elems (Priority.priorityStateInsertions priority)
+    , Priority.priorityInsertionBrick insertion == brickId brick
+    ] of
+  insertion : _ -> Just insertion
+  [] -> Nothing
+  where
+    priority = Execution.executionStatePriority
+      (Coordination.coordinationStateExecution
+        (Standing.standingStateCoordination (sourceImportCapturedStanding captured)))
+
+externalCompletionRequest :: Value
+externalCompletionRequest = object
+  [ "protocol_version" .= (1 :: Integer)
+  , "request_kind" .= ("scenario" :: Text)
+  , "scenario" .= object
+      [ "id" .= ("external-completion-review-proposal" :: Text)
+      , "clock" .= integrationTestTime
+      , "steps" .=
+          [ object
+              [ "id" .= ("create-profile" :: Text)
+              , "operation" .= ("CreateImportProfile" :: Text)
+              , "arguments" .= object
+                  [ "name" .= ("Microsoft To Do inbox" :: Text)
+                  , "adapter" .= ("standard/microsoft-todo@1" :: Text)
+                  , "source_scope" .= ("account:felipe/list:inbox" :: Text)
+                  , "candidate_kind" .= ("structured_task" :: Text)
+                  , "route" .= ("adopt_brick" :: Text)
+                  , "automatic_adoption" .= True
+                  ]
+              , "bind_result" .= object ["profile" .= ("profile" :: Text)]
+              ]
+          , object
+              [ "id" .= ("plan" :: Text)
+              , "operation" .= ("PlanImport" :: Text)
+              , "arguments" .= object
+                  [ "profile" .= ("$profile" :: Text)
+                  , "mode" .= ("synchronize" :: Text)
+                  , "erase_after_import" .= False
+                  ]
+              , "bind_result" .= object ["run" .= ("run" :: Text)]
+              ]
+          , object
+              [ "id" .= ("start" :: Text)
+              , "operation" .= ("StartImport" :: Text)
+              , "arguments" .= object ["run" .= ("$run" :: Text)]
+              ]
+          , object
+              [ "id" .= ("capture-completed" :: Text)
+              , "operation" .= ("AcceptImportCandidate" :: Text)
+              , "arguments" .= object
+                  [ "run" .= ("$run" :: Text)
+                  , "candidate" .= sourceImportCandidate
+                      {SourceImport.importCandidateWorkState = WorkCompleted}
+                  ]
+              , "bind_result" .= object
+                  [ "record" .= ("record" :: Text)
+                  , "brick" .= ("brick" :: Text)
+                  ]
+              ]
+          , object
+              [ "id" .= ("observe-completion" :: Text)
+              , "operation" .= ("ObserveExternalCompletion" :: Text)
+              , "arguments" .= object ["record" .= ("$record" :: Text)]
+              , "bind_result" .= object ["proposal" .= ("proposal" :: Text)]
+              ]
+          ]
+      , "assertions" .=
+          [ proposalAssertion "completion-proposal-kind" "kind"
+              (String "brick_review")
+          , proposalAssertion "completion-proposal-brick" "brick"
+              (String "$brick")
+          , proposalAssertion "completion-proposal-reason" "reason"
+              (String "the attributed external source reports completion")
+          , proposalAssertion "completion-proposal-status" "status"
+              (String "open")
+          , proposalAssertion "completion-proposal-created-at" "created_at"
+              (toJSON integrationTestTime)
+          , proposalAssertion "completion-proposal-available-at" "available_at"
+              (toJSON integrationTestTime)
+          ]
+      ]
+  ]
+  where
+    proposalAssertion :: Text -> Text -> Value -> Value
+    proposalAssertion identifier path expected = object
+      [ "id" .= identifier
+      , "query" .= ("Proposal($proposal)" :: Text)
+      , "path" .= path
+      , "operator" .= ("equals" :: Text)
+      , "value" .= expected
+      ]
+
+sourceImportCandidate :: SourceImport.ImportCandidate
+sourceImportCandidate = SourceImport.ImportCandidate
+  { SourceImport.importCandidateProvider = "microsoft-todo"
+  , SourceImport.importCandidateAccount = "felipe"
+  , SourceImport.importCandidateExternalId = "task-42"
+  , SourceImport.importCandidateContainerId = Just "inbox"
+  , SourceImport.importCandidateKind = "structured_task"
+  , SourceImport.importCandidateOriginalTitle = Just "Comprar filtro"
+  , SourceImport.importCandidateCanonicalEnglish = Just "Buy a water filter"
+  , SourceImport.importCandidateNormalizationAuthority = Just Adapter
+  , SourceImport.importCandidateBody = Just "For the kitchen"
+  , SourceImport.importCandidateContentHash = "sha256:task-42-v1"
+  , SourceImport.importCandidateRevision = Just "1"
+  , SourceImport.importCandidatePresence = Present
+  , SourceImport.importCandidateWorkState = WorkOpen
+  }
+
+placeholderImportBrick :: Brick
+placeholderImportBrick = Brick (BrickId "missing") (EntityRevision 1) "Missing"
+  Nothing Core Nothing 0 Active Nothing Nothing Idle standardV1 Nothing Unknown
+  Nothing Nothing Nothing Nothing Nothing Nothing Nothing 0 NotApplicable
+  integrationTestTime integrationTestTime Nothing Nothing
+
 installedIntegrationFixture :: IO
   (Integration.LittleAntPack, [Integration.PackComponent], Integration.PackState)
 installedIntegrationFixture = requireIntegrationSuccess
@@ -4242,6 +4765,12 @@ requireIntegrationSuccess ::
   Either Integration.IntegrationError value -> IO value
 requireIntegrationSuccess result = case result of
   Left problem -> assertFailure ("integration operation failed: " <> show problem)
+  Right value -> pure value
+
+requireSourceImportSuccess ::
+  Either SourceImport.ImportError value -> IO value
+requireSourceImportSuccess result = case result of
+  Left problem -> assertFailure ("source-import operation failed: " <> show problem)
   Right value -> pure value
 
 requireExecutionSuccess :: Either Execution.ExecutionError value -> IO value

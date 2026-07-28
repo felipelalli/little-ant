@@ -32,6 +32,7 @@ module LittleAnt.V1.Selection
   , advanceSelection
   , advanceSelectionWithValidation
   , buildForecast
+  , createBrickReviewProposal
   , defaultPracticeReviewThreshold
   , dismissProposal
   , emptySelectionState
@@ -389,6 +390,49 @@ data ProposalCandidate = ProposalCandidate
   , candidateAvailableAt :: UTCTime
   }
 
+-- | Persist one explicit review request originating outside the rebuildable
+-- maintenance proposal projection.  External completions are evidence, not a
+-- local lifecycle transition, so they enter selection as an ordinary open
+-- Brick review with their source identity retained for replay and deduplication.
+createBrickReviewProposal ::
+  UTCTime -> Text -> BrickId -> Text -> SelectionState ->
+  Either SelectionError (Proposal, SelectionState)
+createBrickReviewProposal at source brick reason state = do
+  when (Text.null (Text.strip source))
+    (Left (SelectionInvalidTransition "Proposal source must not be empty"))
+  when (Text.null (Text.strip reason))
+    (Left (SelectionInvalidTransition "Proposal reason must not be empty"))
+  when (any isOpenBrickReview (Map.elems (selectionStateProposals state)))
+    (Left (SelectionInvalidTransition
+      "an open Brick review already exists for this Brick"))
+  let (identifier, allocated) = allocateId "proposal" ProposalId state
+      proposal = Proposal
+        { proposalId = identifier
+        , proposalKind = BrickReview
+        , proposalBrick = Just brick
+        , proposalRaw = Nothing
+        , proposalInsertion = Nothing
+        , proposalJudgmentProbe = Nothing
+        , proposalDelegation = Nothing
+        , proposalReason = reason
+        , proposalStatus = ProposalOpen
+        , proposalCreatedAt = at
+        , proposalAvailableAt = at
+        }
+      withProposal = allocated
+        { selectionStateProposals = Map.insert identifier proposal
+            (selectionStateProposals allocated)
+        , selectionStateProposalSources = Map.insert ("explicit:" <> source) identifier
+            (selectionStateProposalSources allocated)
+        }
+  committed <- commit "brick_review_proposed" withProposal
+  pure (proposal, committed)
+  where
+    isOpenBrickReview proposal =
+      proposalKind proposal == BrickReview
+      && proposalBrick proposal == Just brick
+      && proposalStatus proposal == ProposalOpen
+
 -- | Rebuild current proposal pressure from unresolved canonical state and
 -- materialize any newly discovered proposal exactly once.  Previously
 -- materialized source proposals are resolved when their source ceases to be
@@ -410,8 +454,11 @@ advanceSelection at context state = do
   where
     resolveMissing current original _identifier proposal
       | proposalStatus proposal /= ProposalOpen = proposal
-      | sourceForProposal original (proposalId proposal) `Map.member` current = proposal
+      | explicitProposalSource source = proposal
+      | source `Map.member` current = proposal
       | otherwise = proposal {proposalStatus = ProposalResolved}
+      where
+        source = sourceForProposal original (proposalId proposal)
     materialize (created, current) candidate =
       case Map.lookup (candidateSource candidate)
           (selectionStateProposalSources current) >>= (`Map.lookup`
@@ -514,6 +561,9 @@ sourceForProposal state identifier = fromMaybe ""
   (fst <$> find ((== identifier) . snd)
     (Map.toList (selectionStateProposalSources state)))
 
+explicitProposalSource :: Text -> Bool
+explicitProposalSource = Text.isPrefixOf "explicit:"
+
 resolveProposal :: ProposalId -> SelectionState ->
   Either SelectionError (Proposal, SelectionState)
 resolveProposal identifier state = do
@@ -558,7 +608,8 @@ projectedOpenProposals at context state =
       persisted = [proposal | proposal <- Map.elems (selectionStateProposals state),
         proposalStatus proposal == ProposalOpen,
         proposalAvailableAt proposal <= at,
-        Set.member (sourceForProposal state (proposalId proposal)) candidateSources]
+        let source = sourceForProposal state (proposalId proposal),
+        explicitProposalSource source || Set.member source candidateSources]
       knownOpenSources = Set.fromList
         [source | (source, identifier) <- Map.toList
             (selectionStateProposalSources state),

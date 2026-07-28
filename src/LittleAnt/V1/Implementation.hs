@@ -72,6 +72,7 @@ import LittleAnt.V1.PlanCatalog (v1PlanProbes, v1RuntimePlanProbes)
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.ReadModel as ReadModel
 import qualified LittleAnt.V1.Selection as Selection
+import qualified LittleAnt.V1.SourceImport as SourceImport
 import qualified LittleAnt.V1.Standing as Standing
 
 -- | Isolated v1 state.  Every protocol request obtains a new value through
@@ -194,6 +195,24 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("CredentialBroker.authorize", credentialBrokerAuthorizeOperation)
       , ("HostHttp.request", hostHttpRequestOperation)
       , ("InspectPackRuntimeInput", inspectPackRuntimeInputOperation)
+      , ("CreateImportProfile", createImportProfileOperation)
+      , ("RetireImportProfile", retireImportProfileOperation)
+      , ("PlanImport", planImportOperation)
+      , ("StartImport", startImportOperation)
+      , ("AcceptImportCandidate", acceptImportCandidateOperation)
+      , ("ObserveExternalCompletion", observeExternalCompletionOperation)
+      , ("FinishImportCapture", finishImportCaptureOperation)
+      , ("VerifyImport", verifyImportOperation)
+      , ("FailImport", failImportOperation)
+      , ("CompleteSynchronization", completeSynchronizationOperation)
+      , ("PlanEraseAfterImport", planEraseAfterImportOperation)
+      , ("ApproveSourceEffect", approveSourceEffectOperation)
+      , ("DeclineSourceEffect", declineSourceEffectOperation)
+      , ("RetrySourceEffect", retrySourceEffectOperation)
+      , ("RecordSourceEffectApplied", recordSourceEffectAppliedOperation)
+      , ("RecordSourceEffectFailed", recordSourceEffectFailedOperation)
+      , ("CutOverImport", cutOverImportOperation)
+      , ("ProposeEmptyContainerDeletion", proposeEmptyContainerDeletionOperation)
       ]
   , registryRuntimeOperations = Map.fromList
       [ ("PackRunner.execute", packRunnerExecuteOperation)
@@ -232,6 +251,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("RemainingEffort", remainingEffortObservation)
       , ("JudgmentProjection", judgmentProjectionObservation)
       , ("OpenProposalsFor", openProposalsObservation)
+      , ("Proposal", proposalObservation)
       , ("BrickSummary", materialBrickSummaryObservation)
       , ("RawSummary", rawSummaryObservation)
       , ("LatestSourceObservation", latestSourceObservationQuery)
@@ -279,6 +299,11 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("ProviderBackoff", providerBackoffObservation)
       , ("PackInvocationInput", packInvocationInputObservation)
       , ("PackInvocationTrace", packInvocationTraceObservation)
+      , ("ImportProfile", importProfileObservation)
+      , ("ExternalRecord", externalRecordObservation)
+      , ("ImportRun", importRunObservation)
+      , ("SourceEffect", sourceEffectObservation)
+      , ("SourceEffects", sourceEffectsObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -295,6 +320,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("two_eligible_root_bricks", twoEligibleRootBricksFixture)
       , ("created_and_described_brick", createdAndDescribedBrickFixture)
       , ("credential_binding", credentialBindingFixture)
+      , ("verified_migration_from_existing_records", verifiedMigrationFixture)
       ]
   , registryReferences = Map.fromList
       [ ("confidence_before", confidenceBeforeReference)
@@ -1154,6 +1180,386 @@ packExecutionErrorCode = \case
 mapIntegrationError ::
   Either Integration.IntegrationError value -> Either Text value
 mapIntegrationError = either (Left . Text.pack . show) Right
+
+------------------------------------------------------------
+-- Source imports, synchronization, and reviewed cleanup
+------------------------------------------------------------
+
+sourceImportStateFromKernel :: V1State -> Either Text SourceImport.SourceImportState
+sourceImportStateFromKernel state = case kernelValue "v1.source-imports" state of
+  Nothing -> Right SourceImport.emptySourceImportState
+  Just value -> case fromJSON value of
+    Success imports -> Right imports
+    Error problem -> Left ("stored source-import state is malformed: "
+      <> Text.pack problem)
+
+persistSourceImportSlices ::
+  OperationInput -> Text -> SourceImport.SourceImportState ->
+  Standing.StandingState -> MaterialState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistSourceImportSlices input suffix imports standing material result state = do
+  mapSourceImportError
+    (SourceImport.validateSourceImportState standing material imports)
+  accepted <- appendForFixture input suffix
+    [ ProposeValueStored "v1.source-imports" (toJSON imports)
+    , ProposeValueStored "v1.standing" (toJSON standing)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination standing))
+    , ProposeValueStored "v1.material" (toJSON material)
+    ] state
+  pure OperationResult
+    {operationResultValue = result, operationResultState = appendResultState accepted}
+
+persistSourceImportSelectionSlices ::
+  OperationInput -> Text -> SourceImport.SourceImportState ->
+  Selection.SelectionState -> Standing.StandingState -> MaterialState -> Value ->
+  V1State -> Either Text (OperationResult V1State)
+persistSourceImportSelectionSlices input suffix imports selection standing material
+    result state = do
+  mapSourceImportError
+    (SourceImport.validateSourceImportState standing material imports)
+  mapSelectionError (Selection.validateSelectionState
+    (Selection.SelectionContext standing material) selection)
+  accepted <- appendForFixture input suffix
+    [ ProposeValueStored "v1.source-imports" (toJSON imports)
+    , ProposeValueStored "v1.selection" (toJSON selection)
+    , ProposeValueStored "v1.standing" (toJSON standing)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination standing))
+    , ProposeValueStored "v1.material" (toJSON material)
+    ] state
+  pure OperationResult
+    {operationResultValue = result, operationResultState = appendResultState accepted}
+
+withSourceImportSlices ::
+  V1State -> Either Text
+    (Standing.StandingState, MaterialState, SourceImport.SourceImportState)
+withSourceImportSlices state = (,,)
+  <$> standingStateFromKernel state
+  <*> materialStateFromKernel state
+  <*> sourceImportStateFromKernel state
+
+createImportProfileOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+createImportProfileOperation input state = do
+  arguments <- requireArgumentsObject input
+  name <- requiredText "name" arguments
+  adapterReference <- requiredText "adapter" arguments
+  sourceScope <- requiredText "source_scope" arguments
+  candidateKind <- requiredText "candidate_kind" arguments
+  route <- requiredAs "route" arguments
+  parent <- optionalAs "destination_parent" arguments
+  owner <- optionalAs "destination_owner" arguments
+  shelf <- optionalAs "destination_shelf" arguments
+  automatic <- requiredAs "automatic_adoption" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  integration <- integrationStateFromKernel state
+  adapter <- resolveSourceAdapter adapterReference integration
+  case SourceImport.createImportProfile now name adapter sourceScope candidateKind
+      route parent owner shelf automatic standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (profile, next) -> persistSourceImportSlices input "import-profile"
+      next standing material
+      (object ["profile" .= SourceImport.importProfileId profile]) state
+
+resolveSourceAdapter :: Text -> Integration.PackState -> Either Text Integration.PackComponent
+resolveSourceAdapter reference integration
+  | reference `elem` ["standard/microsoft-todo", "standard/microsoft-todo@1"] =
+      Right SourceImport.microsoftTodoAdapterV1
+  | otherwise = mapIntegrationError (Integration.findComponent
+      (fromMaybe reference (Text.stripSuffix "@1" reference)) integration)
+
+retireImportProfileOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+retireImportProfileOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredText "profile" arguments
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.retireImportProfile identifier standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (profile, nextMaterial, next) -> persistSourceImportSlices input
+      "import-profile-retired" next standing nextMaterial
+      (SourceImport.importProfileProjection profile) state
+
+planImportOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+planImportOperation input state = do
+  arguments <- requireArgumentsObject input
+  profile <- requiredText "profile" arguments
+  mode <- requiredAs "mode" arguments
+  erase <- requiredAs "erase_after_import" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.planImport now profile mode erase standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (run, next) -> persistSourceImportSlices input "import-planned" next
+      standing material (object ["run" .= SourceImport.importRunId run]) state
+
+startImportOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+startImportOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.startImport runId standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (run, next) -> persistSourceImportSlices input "import-started" next
+      standing material (SourceImport.importRunProjection run) state
+
+acceptImportCandidateOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+acceptImportCandidateOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  candidate <- requiredAs "candidate" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.acceptImportCandidate now runId candidate standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (record, brick, entry, nextStanding, nextMaterial, next) ->
+      persistSourceImportSlices input "import-candidate" next nextStanding nextMaterial
+        (object
+          [ "record" .= SourceImport.externalRecordId record
+          , "raw" .= SourceImport.externalRecordRaw record
+          , "brick" .= fmap Domain.brickId brick
+          , "entry" .= fmap Domain.listEntryId entry
+          ]) state
+
+observeExternalCompletionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+observeExternalCompletionOperation input state = do
+  arguments <- requireArgumentsObject input
+  record <- requiredText "record" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  selection <- selectionStateFromKernel state
+  case SourceImport.observeExternalCompletion now record standing material selection
+      imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (proposal, nextSelection, next) ->
+      persistSourceImportSelectionSlices input "external-completion-review" next
+        nextSelection standing material
+        (object
+          [ "record" .= record
+          , "proposal" .= Selection.proposalId proposal
+          ]) state
+
+finishImportCaptureOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+finishImportCaptureOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  cursor <- optionalAs "source_cursor" arguments
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.finishImportCapture runId cursor standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (run, next) -> persistSourceImportSlices input "import-captured" next
+      standing material (SourceImport.importRunProjection run) state
+
+verifyImportOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+verifyImportOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  verifiedCount <- requiredInteger "verified_count" arguments
+  failureCount <- requiredInteger "failure_count" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.verifyImport now runId verifiedCount failureCount
+      standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (run, next) -> persistSourceImportSlices input "import-verified" next
+      standing material (SourceImport.importRunProjection run) state
+
+failImportOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+failImportOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.failImportRun now runId standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (run, next) -> persistSourceImportSlices input "import-failed" next
+      standing material (SourceImport.importRunProjection run) state
+
+completeSynchronizationOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+completeSynchronizationOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  receipt <- requiredText "receipt_hash" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.completeSynchronization now runId receipt standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (run, next) -> persistSourceImportSlices input "synchronization-completed"
+      next standing material (SourceImport.importRunProjection run) state
+
+verifiedMigrationFixture ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+verifiedMigrationFixture input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  reviewed <- requiredAs "reviewed_dispositions" arguments
+  reconstructible <- requiredAs "locally_reconstructible" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  if not reviewed || not reconstructible
+    then Right (preconditionRejected
+      ("verified migration fixture requires reviewed reconstructible records" :: Text)
+      state)
+    else case SourceImport.prepareVerifiedMigration now runId standing material imports of
+      Left problem -> Right (preconditionRejected problem state)
+      Right (run, next) -> persistSourceImportSlices input "migration-prepared"
+        next standing material (object ["run" .= SourceImport.importRunId run]) state
+
+planEraseAfterImportOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+planEraseAfterImportOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.planEraseAfterImport now runId standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (effects, next) -> case effects of
+      [] -> Right (preconditionRejected ("migration contains no item" :: Text) state)
+      effect : _ -> persistSourceImportSlices input "cleanup-planned" next standing
+        material (object
+          [ "item_effect" .= SourceImport.sourceEffectId effect
+          , "effects" .= map SourceImport.sourceEffectId effects
+          ]) state
+
+approveSourceEffectOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+approveSourceEffectOperation = sourceEffectSimpleOperation "effect-approved" $ \now ->
+  SourceImport.approveSourceEffect now
+
+declineSourceEffectOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+declineSourceEffectOperation = sourceEffectSimpleOperation "effect-declined" $ \_ ->
+  SourceImport.declineSourceEffect
+
+retrySourceEffectOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+retrySourceEffectOperation = sourceEffectSimpleOperation "effect-retried" $ \_ ->
+  SourceImport.retrySourceEffect
+
+sourceEffectSimpleOperation ::
+  Text -> (UTCTime -> Text -> Standing.StandingState -> MaterialState ->
+    SourceImport.SourceImportState -> Either SourceImport.ImportError
+      (SourceImport.SourceEffect, SourceImport.SourceImportState)) ->
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+sourceEffectSimpleOperation suffix transition input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredText "effect" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case transition now identifier standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (effect, next) -> persistSourceImportSlices input suffix next standing
+      material (SourceImport.sourceEffectProjection effect) state
+
+recordSourceEffectAppliedOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordSourceEffectAppliedOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredText "effect" arguments
+  receipt <- requiredText "receipt" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.applySourceEffect now identifier receipt standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (effect, next) -> persistSourceImportSlices input "effect-applied" next
+      standing material (SourceImport.sourceEffectProjection effect) state
+
+recordSourceEffectFailedOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordSourceEffectFailedOperation input state = do
+  arguments <- requireArgumentsObject input
+  identifier <- requiredText "effect" arguments
+  failure <- requiredText "failure" arguments
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.failSourceEffect identifier failure standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (effect, next) -> persistSourceImportSlices input "effect-failed" next
+      standing material (SourceImport.sourceEffectProjection effect) state
+
+cutOverImportOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+cutOverImportOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  receipt <- requiredText "receipt_hash" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.cutOverImport now runId receipt standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (run, nextMaterial, next) -> persistSourceImportSlices input
+      "import-cut-over" next standing nextMaterial
+      (SourceImport.importRunProjection run) state
+
+proposeEmptyContainerDeletionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+proposeEmptyContainerDeletionOperation input state = do
+  arguments <- requireArgumentsObject input
+  runId <- requiredText "run" arguments
+  preview <- requiredText "preview" arguments
+  now <- operationTime input
+  (standing, material, imports) <- withSourceImportSlices state
+  case SourceImport.proposeEmptyContainerDeletion now runId preview standing material imports of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (effect, next) -> persistSourceImportSlices input "container-effect"
+      next standing material (object ["effect" .= SourceImport.sourceEffectId effect]) state
+
+importProfileObservation :: ObservationInput -> V1State -> Either Text Value
+importProfileObservation input state = do
+  identifier <- exactlyOneTextArgument "ImportProfile" input
+  imports <- sourceImportStateFromKernel state
+  maybe (Left "unknown ImportProfile")
+    (Right . SourceImport.importProfileProjection)
+    (Map.lookup identifier (SourceImport.sourceImportProfiles imports))
+
+externalRecordObservation :: ObservationInput -> V1State -> Either Text Value
+externalRecordObservation input state = do
+  identifier <- exactlyOneTextArgument "ExternalRecord" input
+  imports <- sourceImportStateFromKernel state
+  maybe (Left "unknown ExternalRecord")
+    (Right . SourceImport.sourceRecordProjection)
+    (Map.lookup identifier (SourceImport.sourceImportRecords imports))
+
+importRunObservation :: ObservationInput -> V1State -> Either Text Value
+importRunObservation input state = do
+  identifier <- exactlyOneTextArgument "ImportRun" input
+  imports <- sourceImportStateFromKernel state
+  maybe (Left "unknown ImportRun") (Right . SourceImport.importRunProjection)
+    (Map.lookup identifier (SourceImport.sourceImportRuns imports))
+
+sourceEffectObservation :: ObservationInput -> V1State -> Either Text Value
+sourceEffectObservation input state = do
+  identifier <- exactlyOneTextArgument "SourceEffect" input
+  imports <- sourceImportStateFromKernel state
+  maybe (Left "unknown SourceEffect") (Right . SourceImport.sourceEffectProjection)
+    (Map.lookup identifier (SourceImport.sourceImportEffects imports))
+
+sourceEffectsObservation :: ObservationInput -> V1State -> Either Text Value
+sourceEffectsObservation input state = do
+  runId <- exactlyOneTextArgument "SourceEffects" input
+  imports <- sourceImportStateFromKernel state
+  pure (SourceImport.sourceEffectsForRunProjection runId imports)
+
+proposalObservation :: ObservationInput -> V1State -> Either Text Value
+proposalObservation input state = do
+  identifier <- exactlyOneAsArgument "Proposal" input
+  selection <- selectionStateFromKernel state
+  maybe (Left "unknown Proposal") (Right . toJSON)
+    (Map.lookup identifier (Selection.selectionStateProposals selection))
+
+mapSourceImportError ::
+  Either SourceImport.ImportError value -> Either Text value
+mapSourceImportError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Revision-scoped interactions and powered-up harness state

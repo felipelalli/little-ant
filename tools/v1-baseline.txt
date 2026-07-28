@@ -1,6 +1,6 @@
 plan:domain 108/108
 plan:execution 367/374
-plan:integration 63/268
+plan:integration 228/268
 plan:interaction 119/119
 plan:judgment 197/197
 plan:material 121/121
@@ -17,10 +17,10 @@ scenario:practice-streak-and-blocker 7/7
 scenario:recurring-bills 7/7
 scenario:inherited-dates-after-move 8/8
 scenario:raw-source-reconciliation 7/7
-scenario:microsoft-todo-sync-and-cutover 0/10
+scenario:microsoft-todo-sync-and-cutover 10/10
 scenario:repl-revisions-and-powered-up-mode 8/8
 scenario:event-replay-sparse-history 9/9
 scenario:v0-v1-atomic-cutover 0/8
 scenario:taskjuggler-planning-cut 0/7
 scenario:pack-sandbox-and-credentials 7/7
-TOTAL 1252/1566
+TOTAL 1427/1566

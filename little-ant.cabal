@@ -81,6 +81,8 @@ library
         LittleAnt.V1.ReadModelPlanCatalog
         LittleAnt.V1.Selection
         LittleAnt.V1.SelectionPlanCatalog
+        LittleAnt.V1.SourceImport
+        LittleAnt.V1.SourceImportPlanCatalog
         LittleAnt.V1.Standing
         LittleAnt.V1.StandingPlanCatalog
         LittleAnt.V1.JudgmentPlanCatalog

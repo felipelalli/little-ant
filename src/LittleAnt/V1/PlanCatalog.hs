@@ -42,6 +42,7 @@ import LittleAnt.V1.Kernel
 import LittleAnt.V1.MaterialPlanCatalog (materialPlanProbes)
 import LittleAnt.V1.ReadModelPlanCatalog (readModelPlanProbes)
 import LittleAnt.V1.SelectionPlanCatalog (selectionPlanProbes)
+import LittleAnt.V1.SourceImportPlanCatalog (sourceImportPlanProbes)
 import LittleAnt.V1.StandingPlanCatalog (standingPlanProbes)
 
 v1PlanProbes :: Map ProbeKey PlanProbe
@@ -57,6 +58,7 @@ v1PlanProbes = Map.unions
   , selectionPlanProbes
   , capturePlanProbes
   , integrationPlanProbes
+  , sourceImportPlanProbes
   , interactionPlanProbes
   , readModelPlanProbes
   ]
