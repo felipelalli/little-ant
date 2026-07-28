@@ -375,6 +375,124 @@ the intentionally red pre-implementation phase.
 See [CHANGELOG.md](CHANGELOG.md) for the detailed release summary and migration
 notes.
 
+## Roadmap
+
+### 1.1 — Bulk re-ordering as priority maintenance
+
+**The gap.** A human priority order decays. People change their minds, work
+changes shape, and evidence recorded months ago stops describing what the
+person believes today. The 1.0 specification recognises this: chapter 8 of the
+design record states that old evidence decays according to axis- and
+event-specific policies, that priority should decay slowly, and that stale
+evidence, reversals, and detected contradictions all reduce confidence.
+
+But 1.0 offers no way to act on that signal. Binary insertion places one new
+Brick into an already-ordered list in `log n` questions, which is the right
+cost model for *placement* — the comparator is a human and every comparison is
+a question. It cannot repair an order that has drifted, because it never
+revisits pairs that were already settled. 1.0 therefore keeps the diagnosis and
+drops the treatment.
+
+**What v0 had.** `la order --sort` ran a resumable, faithful port of
+`org-sort-tasks`' adapted merge sort (`src/LittleAnt/Order.hs`, introduced in
+`b35df00`):
+
+- insertion sort, walking backward from the end, for runs of up to 8 elements,
+  because below that insertion asks fewer questions than merging;
+- a merge that first probes whether two halves are already ordered relative to
+  each other and concatenates them after a single question if they are;
+- every already-known pair — recorded comparisons, dependencies, and their
+  transitive closure — answered from the graph instead of being asked;
+- statelessness across invocations by replay: each recorded answer extends the
+  graph, the replay follows the same deterministic path and stops at the next
+  unknown pair.
+
+**Why that strategy specifically.** The merge short-circuit is what makes
+periodic maintenance affordable. On a mostly-sorted list — which is exactly
+what a drifted priority order is — the sort collapses to near-zero questions,
+and the number of questions grows with how much the order actually moved rather
+than with its length. A sort that ignored existing runs would ask `n log n`
+questions of a human, which nobody answers.
+
+**Status.** This capability exists in the v0 implementation and is documented
+in `skills/little-ant/SKILL.md`, but it appears in neither
+`spec/little-ant.allium` nor the 1.0 design record. It was lost in the
+specification rewrite rather than deliberately removed, so 1.1 should
+re-specify it as an explicit maintenance operation over a `PriorityScope`,
+including when it should be offered, how its questions interact with skip
+semantics and confidence, and how the resulting evidence is recorded.
+
+### 1.1 — Other capabilities to recover from v0
+
+The bulk re-ordering gap above prompted a sweep of the whole v0 command surface
+against the 1.0 specification. The findings below are graded by how certain the
+loss is; each names the v0 evidence so it can be re-verified.
+
+| Capability | v0 evidence | 1.0 status |
+|---|---|---|
+| Bulk re-ordering (`la order --sort`) | `src/LittleAnt/Order.hs`, `b35df00` | absent — see above |
+| Delegation follow-up cycle | `Types.hs` delegation states, `la nudge` | field kept, behaviour dropped |
+| Flow strictness | `la flow open --strictness`, `floStrictness` | absent |
+| Human-readable render formats | `la render --format org\|csv\|html-static` | unspecified |
+| Interaction grammar command | `la grammar` | design record only, not normative |
+| Explicit temporal tick | `la tick` | design record only, not normative |
+| Merging two existing Bricks | `cmdUnify`, `la unify` | needs verification |
+
+**Delegation follow-up cycle.** v0 modelled delegation as a lifecycle —
+`DToNotify`, `DNotified`, `DNudged`, `DCompleted`, `DRefused`, `DAbandoned` —
+carrying `dNudgeCount`, `dNextNudgeAt` and `dNudgePending`, with
+`la nudge approve` to send a previewed follow-up and `la nudge decline` to skip
+it and re-ask at the next interval. 1.0 keeps a `next_followup_at` field on the
+delegation entity and accepts it in `DelegateBrick`, but only one rule
+(`DelegationDrafted`) ever writes it, and nothing fires when it comes due.
+Delegating therefore records an intention to follow up and then never follows
+up. 1.1 should re-specify the due-follow-up trigger, the nudge counter, and the
+approve/decline interaction.
+
+**Flow strictness.** A v0 flow carried a strictness setting
+(`la flow open --context C --strictness prefer`), stored on the flow and
+exposed in its projection, which governed how hard the engine pushed the
+declared context. The word does not appear anywhere in the 1.0 specification.
+1.1 should decide whether context preference is a flow property, a selection
+weight, or something the 1.0 model already expresses differently — and if the
+last, say so explicitly instead of leaving it silently absent.
+
+**Human-readable render formats.** v0 could project the truth as a table,
+one-line summaries, a unified view, Org-mode, CSV, HTML and static HTML.
+1.0 specifies a generic `ReadOnlyExporterContract`, typed sparse projections
+and a loopback web UI, but names no concrete human-readable output format.
+Org-mode output in particular is what let the tool feed an existing Emacs
+workflow, which is where the ordering strategy came from in the first place.
+
+**Interaction grammar and explicit tick.** `la grammar` printed the canonical
+interaction grammar — namespaces, letters, markers — and `la tick` fired due
+temporal rules explicitly (every other command auto-ticks). Both are discussed
+in the 1.0 design record but neither appears in the normative Allium spec, so
+neither is covered by a conformance obligation. This is a specification-coverage
+gap rather than a lost capability: 1.1 should either specify them or state that
+they are deliberately implementation-level affordances.
+
+**Merging two existing Bricks.** v0's `la unify` superseded one Brick with
+another and merged their lineage. 1.0 has duplicate suspicion and supersession,
+but supersession is defined as replacing the method while keeping the goal,
+which is not the same operation. This one needs verification against the
+capture and material modules before being treated as a real gap.
+
+**Not regressions.** Two v0 concepts are absent by design, and 1.1 should not
+resurrect them. The priority *frontier* was deliberately replaced: 1.0 positions
+every active Brick from birth, and chapter 21 of the design record explicitly
+instructs the README to stop using the frontier-only model. The
+*seed → committed* promotion step (`la promote`) was likewise restructured into
+the Raw-to-Brick phase model.
+
+**How this list was produced.** Every v0 sub-command in `app/Main.hs` was
+extracted and each concept was searched across `spec/little-ant/*.allium` and
+`spec/little-ant-1.0/*.md`. Absence of a word is not proof of absence of a
+capability, since 1.0 renamed several concepts, so each zero-hit candidate was
+checked by hand against the module that would own it. The sweep covered the CLI
+surface only; the agent skill, REPL grammar and Pack surface deserve the same
+treatment before 1.1 is scoped.
+
 ## Specification map
 
 | Area | Authoritative file |
