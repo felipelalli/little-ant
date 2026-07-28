@@ -35,6 +35,7 @@ module LittleAnt.V1.Standing
   , abandonExecution
   , abandonPracticeOpportunity
   , addStandingDependency
+  , addStandingListEntry
   , advanceSchedules
   , completePracticeOpportunity
   , completeStandingBrick
@@ -42,6 +43,7 @@ module LittleAnt.V1.Standing
   , closeStandingSubtree
   , configureRecurrence
   , createStandingBrick
+  , createStandingParty
   , deterministicRepeatDate
   , dropStandingBrick
   , emptyStandingState
@@ -83,15 +85,17 @@ import Data.Time.Calendar.WeekDate (toWeekDate)
 import GHC.Generics (Generic)
 import LittleAnt.V1.Coordination
   (CoordinationError, CoordinationState (..), Dependency (..),
-   DependencyStatus (..), addCoordinationDependency, closeCoordinationSubtree,
-   completeCoordinationBrick, createCoordinationBrick, dropCoordinationBrick,
-   emptyCoordinationState, retireCoordinationStandingBrick,
+   DependencyStatus (..), addCoordinationDependency, addCoordinationListEntry,
+   closeCoordinationSubtree, completeCoordinationBrick, createCoordinationBrick,
+   createCoordinationParty, dropCoordinationBrick, emptyCoordinationState,
+   retireCoordinationStandingBrick,
    supersedeCoordinationBrick, supersedeCoordinationBrickWithChildren,
    validateCoordinationState)
 import LittleAnt.V1.Domain
   (Authority, Brick (..), BrickDraft (..), BrickId (..), BrickStatus (..),
    DomainError, DomainState (..), FocusRegister (..), Lifetime (..),
-   RepetitionKind (..), WorkState (..), behaviorLifetime, behaviorRepetition,
+   ListEntry, ListEntryDraft, Party, PartyType, RepetitionKind (..), WorkState (..),
+   behaviorLifetime, behaviorRepetition,
    mkCanonicalText, ordinaryBrickDraft, returnBrickToIdle, setBrickNotBefore,
    standardV1, subtreeBricks, unfocusCurrentBrick)
 import LittleAnt.V1.Execution
@@ -399,6 +403,23 @@ createStandingBrick draft evidence now state = do
     (createCoordinationBrick draft evidence now (standingStateCoordination state))
   next <- commit "brick_created" state {standingStateCoordination = coordination}
   pure (brick, insertion, next)
+
+createStandingParty ::
+  Text -> PartyType -> UTCTime -> StandingState ->
+  Either StandingError (Party, StandingState)
+createStandingParty label kind now state = do
+  (party, coordination) <- mapCoordination
+    (createCoordinationParty label kind now (standingStateCoordination state))
+  next <- commit "party_created" state {standingStateCoordination = coordination}
+  pure (party, next)
+
+addStandingListEntry ::
+  ListEntryDraft -> StandingState -> Either StandingError (ListEntry, StandingState)
+addStandingListEntry draft state = do
+  (entry, coordination) <- mapCoordination
+    (addCoordinationListEntry draft (standingStateCoordination state))
+  next <- commit "list_entry_created" state {standingStateCoordination = coordination}
+  pure (entry, next)
 
 addStandingDependency ::
   BrickId -> BrickId -> UTCTime -> StandingState ->

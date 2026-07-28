@@ -30,6 +30,7 @@ module LittleAnt.V1.Selection
   , SimulationCandidateMetric (..)
   , SimulationMetrics (..)
   , advanceSelection
+  , advanceSelectionWithValidation
   , buildForecast
   , defaultPracticeReviewThreshold
   , dismissProposal
@@ -79,8 +80,8 @@ import LittleAnt.V1.Material
 import qualified LittleAnt.V1.Priority as Priority
 import LittleAnt.V1.Standing
   (PracticeOpportunity (..), PracticeOpportunityStatus (..), RecurrenceKind (..),
-   RecurrenceRule (..), StandingState (..),
-   TriggeredOpportunity (..))
+   RecurrenceRule (..), StandingState (..), TriggeredOpportunity (..),
+   validateStandingState)
 
 ------------------------------------------------------------
 -- Vocabulary, values, and canonical state
@@ -343,6 +344,7 @@ recordOptions prefix = defaultOptions
 
 data SelectionError
   = SelectionDomainError DomainError
+  | SelectionPriorityError Priority.PriorityError
   | SelectionUnknownEntity Text
   | SelectionInvalidTransition Text
   | SelectionNoCandidate
@@ -440,6 +442,73 @@ advanceSelection at context state = do
                 }
           in Right (proposal : created, next)
 
+-- | Advance proposal pressure and, when retained comparable evidence is due,
+-- open one deterministic validation probe in the canonical judgment state.
+-- An already-open probe for the same directed relation suppresses creation.
+advanceSelectionWithValidation ::
+  UTCTime -> SelectionContext -> SelectionState ->
+  Either SelectionError
+    ([Proposal], Maybe Priority.JudgmentProbe, SelectionContext, SelectionState)
+advanceSelectionWithValidation at context state = do
+  (opened, contextWithValidation) <- openDueValidation at context
+  (created, next) <- advanceSelection at contextWithValidation state
+  pure (created, opened, contextWithValidation, next)
+
+openDueValidation ::
+  UTCTime -> SelectionContext ->
+  Either SelectionError (Maybe Priority.JudgmentProbe, SelectionContext)
+openDueValidation at context = case dueCandidates of
+  [] -> Right (Nothing, context)
+  (scope, left, right) : _ -> do
+    let reason = "provocative validation of retained priority evidence"
+    (probe, priority') <- mapPriority (Priority.openPriorityProbe scope left right
+      Priority.Validation reason at priority)
+    nextContext <- replaceSelectionPriority priority' context
+    pure (Just probe, nextContext)
+  where
+    priority = selectionPriority context
+    scopes = Priority.priorityStateScopes priority
+    active = Priority.priorityStateBricks priority
+    openProbes = Map.elems (Priority.priorityStateProbes priority)
+    dueCandidates = sortOn (\(scope, left, right) -> (scope, left, right))
+      [ (scopeId, left, right)
+      | judgment <- Map.elems (Priority.priorityStateJudgments priority)
+      , Priority.priorityJudgmentApplicable judgment
+      , let scopeId = Priority.priorityJudgmentScope judgment
+            left = Priority.priorityJudgmentMoreImportant judgment
+            right = Priority.priorityJudgmentLessImportant judgment
+      , Just scope <- [Map.lookup scopeId scopes]
+      , left `elem` Priority.priorityScopeMembers scope
+      , right `elem` Priority.priorityScopeMembers scope
+      , maybe False ((== Active) . Priority.priorityBrickStatus)
+          (Map.lookup left active)
+      , maybe False ((== Active) . Priority.priorityBrickStatus)
+          (Map.lookup right active)
+      , not (any (sameOpenRelation left right) openProbes)
+      ]
+    sameOpenRelation left right probe =
+      Priority.judgmentProbeAxis probe == Priority.PriorityAxis
+      && Priority.judgmentProbeLeft probe == left
+      && Priority.judgmentProbeRight probe == right
+      && Priority.judgmentProbeStatus probe == Priority.ProbeOpen
+
+replaceSelectionPriority ::
+  Priority.PriorityState -> SelectionContext ->
+  Either SelectionError SelectionContext
+replaceSelectionPriority priority context = do
+  let standing = selectionContextStanding context
+      coordination = standingStateCoordination standing
+      execution = coordinationStateExecution coordination
+      standing' = standing {standingStateCoordination = coordination
+        {coordinationStateExecution = execution
+          {executionStatePriority = priority}}}
+  either (Left . SelectionInvalidTransition . Text.pack . show) Right
+    (validateStandingState standing')
+  pure context {selectionContextStanding = standing'}
+
+mapPriority :: Either Priority.PriorityError value -> Either SelectionError value
+mapPriority = either (Left . SelectionPriorityError) Right
+
 sourceForProposal :: SelectionState -> ProposalId -> Text
 sourceForProposal state identifier = fromMaybe ""
   (fst <$> find ((== identifier) . snd)
@@ -531,6 +600,8 @@ deriveProposalCandidates at context state = deduplicateCandidates
         (Map.elems (Priority.priorityStateRecalibrations priority))
       <> mapMaybe priorityProbeCandidate
         (Map.elems (Priority.priorityStateProbes priority))
+      <> mapMaybe deferredProbeInvestigation
+        (Map.elems (Priority.priorityStateProbes priority))
     insertionCandidates insertion
       | Priority.priorityInsertionStatus insertion /= Priority.InsertionDeferred = []
       | otherwise =
@@ -566,9 +637,21 @@ deriveProposalCandidates at context state = deduplicateCandidates
 
     judgmentCandidates = mapMaybe assessmentProbeCandidate
       (Map.elems (Judgment.judgmentStateProbes judgment))
+      <> mapMaybe deferredProbeInvestigation
+        (Map.elems (Judgment.judgmentStateProbes judgment))
     assessmentProbeCandidate probe
       | Priority.judgmentProbeStatus probe /= Priority.ProbeOpen = Nothing
       | otherwise = Just (probeCandidate "judgment-probe" probe)
+    deferredProbeInvestigation probe
+      | Priority.judgmentProbeStatus probe /= Priority.ProbeDeferred = Nothing
+      | not (highValueProbe probe) = Nothing
+      | otherwise = Just (candidate ("judgment-investigation:"
+          <> Priority.unJudgmentProbeId (Priority.judgmentProbeId probe))
+          InvestigationPlan (Just (Priority.judgmentProbeLeft probe)) Nothing
+          Nothing (Just (Priority.judgmentProbeId probe))
+          "purposeful evidence could resolve a decision-relevant uncertainty")
+    highValueProbe probe = Priority.judgmentProbePurpose probe
+      `elem` [Priority.Discovery, Priority.Recalibration]
     probeCandidate prefix probe =
       let identifier = Priority.unJudgmentProbeId (Priority.judgmentProbeId probe)
       in (candidate (prefix <> ":" <> identifier)

@@ -21,6 +21,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
+import LittleAnt.V1.CapturePlanCatalog (capturePlanProbes)
 import LittleAnt.V1.Contract
   (PlanProbe, PlanProbeInput (..), ProbeKey (..))
 import LittleAnt.V1.CoordinationPlanCatalog (coordinationPlanProbes)
@@ -49,6 +50,7 @@ v1PlanProbes = Map.unions
   , assessmentPlanProbes
   , standingPlanProbes
   , selectionPlanProbes
+  , capturePlanProbes
   ]
 
 kernelPlanProbes :: Map ProbeKey PlanProbe

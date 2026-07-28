@@ -57,6 +57,8 @@ library
         LittleAnt.Grammar
         LittleAnt.Upcast
         LittleAnt.V1.Contract
+        LittleAnt.V1.Capture
+        LittleAnt.V1.CapturePlanCatalog
         LittleAnt.V1.Coordination
         LittleAnt.V1.CoordinationPlanCatalog
         LittleAnt.V1.Domain

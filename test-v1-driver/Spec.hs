@@ -6,12 +6,13 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as LBS8
-import Data.List (isInfixOf)
+import Data.List (find, isInfixOf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Time (NominalDiffTime, UTCTime (..), addUTCTime, fromGregorian)
+import qualified LittleAnt.V1.Capture as Capture
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), DriverResponse (..),
    ObservationInput (..), OperationInput (..), OperationResult (..),
@@ -44,6 +45,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , executionLifecycleTests
   , standingExecutionTests
   , selectionTests
+  , captureTests
   , coordinationTests
   , materialTests
   , priorityTests
@@ -811,6 +813,158 @@ selectionTests = testGroup "v1 proposals, forecast, next, and skip pressure"
         , "next-kept-forecast-derived"
         , "observation-detects-persisted-forecast"
         ]
+  ]
+
+captureTests :: TestTree
+captureTests = testGroup "v1 routed capture and duplicate suspicion"
+  [ testCase "preserves verbatim input and ranks one typed scoped duplicate" $ do
+      (owner, entry, _raw, context) <- captureFixture
+      let draft = Capture.CaptureDraft "comprar leite" (Just "Buy milk") (Just Ai)
+            (Just Capture.CreateListEntry) Nothing (Just (brickId owner))
+            Nothing Nothing
+      (intent, suspicions, state) <- requireCaptureSuccess
+        (Capture.beginCapture draft domainTestTime context Capture.emptyCaptureState)
+      Capture.captureIntentOriginalText intent @?= "comprar leite"
+      Capture.captureIntentCanonicalEnglish intent @?= Just "Buy milk"
+      Capture.captureIntentNormalizationAuthority intent @?= Just Ai
+      case suspicions of
+        [suspicion] -> do
+          Capture.duplicateSuspicionTargetKind suspicion @?=
+            Capture.DuplicateListEntry
+          Capture.duplicateSuspicionTargetBrick suspicion @?= Nothing
+          Capture.duplicateSuspicionTargetEntry suspicion @?=
+            Just (listEntryId entry)
+          Capture.duplicateSuspicionTargetRaw suspicion @?= Nothing
+          assertBool "duplicate reasons are absent"
+            (not (null (Capture.duplicateSuspicionReasons suspicion)))
+          selected <- requireCaptureSuccess (Capture.selectDuplicateSuspicion
+            (Capture.captureIntentId intent) Nothing (Just (listEntryId entry))
+            Nothing state)
+          selected @?= suspicion
+        values -> assertFailure ("expected one entry suspicion, found "
+          <> show (length values))
+      Capture.matchingFingerprints "  Buy\nMILKS! " @?=
+        Capture.matchingFingerprints "Buy MILKS!"
+  , testCase "enriches an entry with reviewed Raw without a second occurrence" $ do
+      (owner, entry, _raw, context) <- captureFixture
+      let draft = Capture.CaptureDraft "comprar leite" (Just "Buy milk") (Just Ai)
+            (Just Capture.CreateListEntry) Nothing (Just (brickId owner))
+            Nothing Nothing
+      (intent, suspicions, opened) <- requireCaptureSuccess
+        (Capture.beginCapture draft domainTestTime context Capture.emptyCaptureState)
+      suspicion <- case suspicions of
+        [value] -> pure value
+        _ -> assertFailure "entry suspicion fixture is not unique"
+      (result, nextContext, routed) <- requireCaptureSuccess
+        (Capture.confirmDuplicateDecision (Capture.captureIntentId intent)
+          (Capture.duplicateSuspicionId suspicion) Capture.DuplicateEnrich Human
+          domainTestTime context opened)
+      let beforeEntries = domainListEntries (captureTestDomain context)
+          afterEntries = domainListEntries (captureTestDomain nextContext)
+      Map.keysSet afterEntries @?= Map.keysSet beforeEntries
+      Map.lookup (listEntryId entry) afterEntries @?= Just entry
+      evidence <- maybe (assertFailure "enrichment omitted Raw evidence") pure
+        (Capture.captureDecisionResultRaw result)
+      let material = Capture.captureContextMaterial nextContext
+          links = [link | link <- Map.elems (materialLinks material),
+            rawLinkRaw link == evidence,
+            rawLinkOwnerEntry link == Just (listEntryId entry),
+            rawLinkRole link == Evidence]
+      length links @?= 1
+      fmap rawOriginalText (Map.lookup evidence (materialRaws material)) @?=
+        Just (Just "comprar leite")
+      case Capture.confirmDuplicateDecision (Capture.captureIntentId intent)
+          (Capture.duplicateSuspicionId suspicion) Capture.DuplicateReuse Human
+          domainTestTime nextContext routed of
+        Left _ -> pure ()
+        Right _ -> assertFailure "capture accepted a second duplicate decision"
+  , testCase "creates positioned template Bricks and owner-scoped original entries" $ do
+      (owner, _entry, _raw, context) <- captureFixture
+      template <- maybe (assertFailure "grocery template is absent") pure
+        (find ((== "standard/grocery_list") . templateId)
+          (templateVersions initialDefinitionCatalog))
+      let brickDraft = Capture.CaptureDraft "Nova lista" (Just "New list")
+            (Just Ai) (Just Capture.InstantiateTemplate) Nothing Nothing Nothing
+            (Just template)
+      (brickIntent, _, brickOpened) <- requireCaptureSuccess
+        (Capture.beginCapture brickDraft domainTestTime context
+          Capture.emptyCaptureState)
+      (brickResult, brickContext, _) <- requireCaptureSuccess
+        (Capture.confirmSeparateCapture (Capture.captureIntentId brickIntent) Human
+          domainTestTime context brickOpened)
+      createdBrickId <- maybe (assertFailure "template route omitted Brick") pure
+        (Capture.captureDecisionResultBrick brickResult)
+      createdBrick <- maybe (assertFailure "template Brick disappeared") pure
+        (Map.lookup createdBrickId (domainBricks (captureTestDomain brickContext)))
+      behaviorId (brickBehavior createdBrick) @?= "core/standing_checklist"
+      brickOriginalTitle createdBrick @?= Just "Nova lista"
+      capturePriorityMemberships createdBrickId brickContext @?= 1
+
+      let entryDraft = Capture.CaptureDraft "ovos" (Just "Eggs") (Just Ai)
+            (Just Capture.CreateListEntry) Nothing (Just (brickId owner))
+            Nothing Nothing
+      (entryIntent, _, entryOpened) <- requireCaptureSuccess
+        (Capture.beginCapture entryDraft domainTestTime context
+          Capture.emptyCaptureState)
+      (entryResult, entryContext, _) <- requireCaptureSuccess
+        (Capture.confirmSeparateCapture (Capture.captureIntentId entryIntent) Human
+          domainTestTime context entryOpened)
+      createdEntryId <- maybe (assertFailure "entry route omitted ListEntry") pure
+        (Capture.captureDecisionResultEntry entryResult)
+      createdEntry <- maybe (assertFailure "created ListEntry disappeared") pure
+        (Map.lookup createdEntryId
+          (domainListEntries (captureTestDomain entryContext)))
+      listEntryOwner createdEntry @?= brickId owner
+      listEntryLabel createdEntry @?= "Eggs"
+      listEntryOriginalLabel createdEntry @?= Just "ovos"
+      capturePriorityMemberships (brickId owner) entryContext @?= 1
+  , testCase "routes one verbatim capture to one canonical Raw" $ do
+      (_owner, _entry, _raw, context) <- captureFixture
+      let draft = Capture.CaptureDraft "  nota exatamente assim  " Nothing Nothing
+            (Just Capture.PreserveRaw) Nothing Nothing Nothing Nothing
+          beforeCount = Map.size
+            (materialRaws (Capture.captureContextMaterial context))
+      (intent, _, opened) <- requireCaptureSuccess
+        (Capture.beginCapture draft domainTestTime context Capture.emptyCaptureState)
+      (result, nextContext, _) <- requireCaptureSuccess
+        (Capture.confirmSeparateCapture (Capture.captureIntentId intent) Human
+          domainTestTime context opened)
+      identifier <- maybe (assertFailure "preserve_raw omitted Raw") pure
+        (Capture.captureDecisionResultRaw result)
+      let material = Capture.captureContextMaterial nextContext
+      Map.size (materialRaws material) @?= beforeCount + 1
+      fmap rawOriginalText (Map.lookup identifier (materialRaws material)) @?=
+        Just (Just "  nota exatamente assim  ")
+  , testCase "cancels terminally and rejects invalid route bindings" $ do
+      (_owner, _entry, _raw, context) <- captureFixture
+      let cancellable = Capture.CaptureDraft "verbatim" Nothing Nothing
+            (Just Capture.PreserveRaw) Nothing Nothing Nothing Nothing
+      (intent, _, opened) <- requireCaptureSuccess
+        (Capture.beginCapture cancellable domainTestTime context
+          Capture.emptyCaptureState)
+      (cancelled, terminal) <- requireCaptureSuccess
+        (Capture.cancelCapture (Capture.captureIntentId intent) context opened)
+      Capture.captureIntentStatus cancelled @?= Capture.CaptureCancelled
+      case Capture.confirmSeparateCapture (Capture.captureIntentId intent) Human
+          domainTestTime context terminal of
+        Left _ -> pure ()
+        Right _ -> assertFailure "cancelled capture was routed"
+      let unsupported = Capture.CaptureDraft "subitem" (Just "Subitem")
+            (Just Human) (Just Capture.CreateListEntry) Nothing Nothing
+            Nothing Nothing
+      (unsupportedIntent, _, unsupportedState) <- requireCaptureSuccess
+        (Capture.beginCapture unsupported domainTestTime context
+          Capture.emptyCaptureState)
+      case Capture.confirmSeparateCapture
+          (Capture.captureIntentId unsupportedIntent) Human domainTestTime context
+          unsupportedState of
+        Left _ -> pure ()
+        Right _ -> assertFailure "ListEntry route accepted no owner"
+      case Capture.beginCapture (cancellable
+          {Capture.captureDraftCanonicalEnglish = Just "Canonical"})
+          domainTestTime context Capture.emptyCaptureState of
+        Left _ -> pure ()
+        Right _ -> assertFailure "unattributed canonical input was accepted"
   ]
 
 coordinationTests :: TestTree
@@ -3151,6 +3305,43 @@ selectionFixture values = do
         (ordinaryBrickDraft title behavior domainTestTime)
         ("test:" <> titleText) domainTestTime standing)
       pure (brick : bricks, next)
+
+captureFixture :: IO (Brick, ListEntry, Raw, Capture.CaptureContext)
+captureFixture = do
+  title <- requireDomainSuccess
+    (mkCanonicalText "Buy groceries" Nothing Human)
+  (owner, _, first) <- requireStandingSuccess (Standing.createStandingBrick
+    (ordinaryBrickDraft title standingChecklistV1 domainTestTime)
+    "test:capture-owner" domainTestTime Standing.emptyStandingState)
+  label <- requireDomainSuccess (mkCanonicalText "Milk" (Just "leite") Ai)
+  (entry, second) <- requireStandingSuccess (Standing.addStandingListEntry
+    (ListEntryDraft (brickId owner) label Nothing Nothing domainTestTime) first)
+  (raw, captured) <- requireMaterialSuccess (captureInlineRaw "source note"
+    (Just "source note") (Just Human) domainTestTime emptyMaterialState)
+  let material = registerMaterialListEntry (listEntryId entry)
+        (registerMaterialBrick (brickId owner) Active captured)
+  pure (owner, entry, raw, Capture.CaptureContext second material)
+
+captureTestDomain :: Capture.CaptureContext -> DomainState
+captureTestDomain = Execution.executionStateDomain
+  . Coordination.coordinationStateExecution
+  . Standing.standingStateCoordination
+  . Capture.captureContextStanding
+
+capturePriorityMemberships :: BrickId -> Capture.CaptureContext -> Int
+capturePriorityMemberships identifier context = length
+  [() | scope <- Map.elems (Priority.priorityStateScopes priority),
+    identifier `elem` Priority.priorityScopeMembers scope]
+  where
+    priority = Execution.executionStatePriority
+      . Coordination.coordinationStateExecution
+      . Standing.standingStateCoordination
+      $ Capture.captureContextStanding context
+
+requireCaptureSuccess :: Either Capture.CaptureError value -> IO value
+requireCaptureSuccess result = case result of
+  Left problem -> assertFailure ("capture action failed: " <> show problem)
+  Right value -> pure value
 
 focusSelectionContext :: BrickId -> Selection.SelectionContext ->
   IO Selection.SelectionContext

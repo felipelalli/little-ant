@@ -480,7 +480,14 @@ data FocusRegister = FocusRegister
   }
   deriving stock (Eq, Show, Generic)
 
-instance FromJSON Party where parseJSON = genericParseJSON (recordOptions "party")
+instance FromJSON Party where
+  parseJSON = withObject "Party" $ \value -> Party
+    <$> value .: "id"
+    <*> value .: "revision"
+    <*> value .: "label"
+    <*> value .: "party_type"
+    <*> value .: "alternate_labels"
+    <*> value .: "created_at"
 instance FromJSON BrickBehavior where parseJSON = genericParseJSON (recordOptions "behavior")
 instance FromJSON BrickTemplate where parseJSON = genericParseJSON (recordOptions "template")
 instance FromJSON Brick where parseJSON = genericParseJSON (recordOptions "brick")
@@ -1195,9 +1202,16 @@ createBrick draft state = do
         , brickSupersededBy = Nothing
         , brickSupersedeReason = Nothing
         }
+      withBrick = Map.insert identifier brick (domainBricks state)
+      withOpenParent = case brickDraftParent draft of
+        Nothing -> withBrick
+        Just parent -> Map.adjust (\existing -> existing
+          { brickDecompositionCoverage = Open
+          , brickRevision = bumpRevision (brickRevision existing)
+          }) parent withBrick
       next = state
         { domainNextIdentityOrdinal = nextOrdinal
-        , domainBricks = Map.insert identifier brick (domainBricks state)
+        , domainBricks = withOpenParent
         }
   validateAndReturn brick next
 

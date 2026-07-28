@@ -23,6 +23,7 @@ import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Time (UTCTime (..), addUTCTime, fromGregorian)
+import qualified LittleAnt.V1.Capture as Capture
 import LittleAnt.V1.Contract
   (AmbientInputs (..), ContractRegistry (..), ObservationInput (..),
    OperationInput (..), OperationResult (..), ReferenceInput (..),
@@ -48,7 +49,7 @@ import LittleAnt.V1.Kernel
    emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
    kernelValue, replayAll)
 import LittleAnt.V1.Material
-  (MaterialError, MaterialState (..), Raw (rawId), RawId,
+  (MaterialError, MaterialState (..), Raw (..), RawId,
    RawLink (rawLinkId), RawOrigin (rawOriginId),
    RawReviewDisposition (rawReviewDispositionId), RawShelf (rawShelfId),
    RawShelfId, RawShelfMembership (rawShelfMembershipId),
@@ -63,6 +64,7 @@ import LittleAnt.V1.Material
    relocateRawOrigin, removeRawFromShelf, reopenRaw, reportSnapshotCorrupt,
    reportSnapshotMissing, retireRawOrigin, reviewRaw, sourceObservationProjection,
    unarchiveRaw, verifySnapshotBytes)
+import qualified LittleAnt.V1.Material as Material
 import LittleAnt.V1.PlanCatalog (v1PlanProbes)
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.Selection as Selection
@@ -85,6 +87,7 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("KernelRejectAction", rejectActionOperation)
       , ("KernelRemoveValue", removeValueOperation)
       , ("KernelSetValue", setValueOperation)
+      , ("CreateParty", createPartyOperation)
       , ("CreateRootBrick", createRootPriorityOperation)
       , ("CreateChildBrick", createChildPriorityOperation)
       , ("AnswerPriorityComparison", answerPriorityComparisonOperation)
@@ -152,6 +155,11 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("DismissProposal", dismissSelectionProposalOperation)
       , ("SimulateReplaySafeDraws", simulateReplaySafeDrawsOperation)
       , ("RepeatSimulation", repeatSimulationOperation)
+      , ("BeginCapture", beginCaptureOperation)
+      , ("SelectDuplicateSuspicion", selectDuplicateSuspicionOperation)
+      , ("ConfirmDuplicateDecision", confirmDuplicateDecisionOperation)
+      , ("ConfirmSeparateCapture", confirmSeparateCaptureOperation)
+      , ("CancelCapture", cancelCaptureOperation)
       ]
   , registryObservations = Map.fromList
       [ ("AdapterTrace", adapterTraceObservation)
@@ -210,6 +218,15 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("SimulationMetrics", simulationMetricsObservation)
       , ("CanonicalEntities", canonicalEntitiesObservation)
       , ("PriorityScope", selectionPriorityScopeObservation)
+      , ("CaptureIntent", captureIntentObservation)
+      , ("DuplicateSuspicions", duplicateSuspicionsObservation)
+      , ("DuplicateDecision", duplicateDecisionObservation)
+      , ("PriorityMemberships", priorityMembershipsObservation)
+      , ("ListEntrySummary", listEntrySummaryObservation)
+      , ("OpenEntries", openEntriesObservation)
+      , ("OperationalProjection", captureOperationalProjectionObservation)
+      , ("RawLinksToEntry", rawLinksToEntryObservation)
+      , ("RawLinksToBrick", rawLinksToBrickObservation)
       ]
   , registryFixtures = Map.fromList
       [ ("active_root_brick", activeRootBrickFixture)
@@ -365,6 +382,192 @@ parseProposedEvent value = do
       <$> requiredText "kind" event
       <*> (fromMaybe KeyMap.empty <$> optionalObject "fields" event)
     _ -> Left ("unknown kernel event type: " <> eventType)
+
+------------------------------------------------------------
+-- Routed capture and deterministic duplicate suspicion
+------------------------------------------------------------
+
+captureStateFromKernel :: V1State -> Either Text Capture.CaptureState
+captureStateFromKernel state = case kernelValue "v1.capture" state of
+  Nothing -> Right Capture.emptyCaptureState
+  Just value -> case fromJSON value of
+    Success captureState -> Right captureState
+    Error problem -> Left ("stored capture state is malformed: "
+      <> Text.pack problem)
+
+captureContextFromKernel :: V1State -> Either Text Capture.CaptureContext
+captureContextFromKernel state = Capture.CaptureContext
+  <$> standingStateFromKernel state
+  <*> materialStateFromKernel state
+
+persistCaptureState ::
+  OperationInput -> Text -> Capture.CaptureState -> Value -> V1State ->
+  Either Text (OperationResult V1State)
+persistCaptureState input suffix captureState resultValue state = do
+  accepted <- appendForFixture input suffix
+    [ProposeValueStored "v1.capture" (toJSON captureState)] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+persistCaptureContext ::
+  OperationInput -> Text -> Capture.CaptureState -> Capture.CaptureContext ->
+  Value -> V1State -> Either Text (OperationResult V1State)
+persistCaptureContext input suffix captureState context resultValue state = do
+  let standing = Capture.captureContextStanding context
+      material = Capture.captureContextMaterial context
+  accepted <- appendForFixture input suffix
+    [ ProposeValueStored "v1.capture" (toJSON captureState)
+    , ProposeValueStored "v1.standing" (toJSON standing)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination standing))
+    , ProposeValueStored "v1.material" (toJSON material)
+    ] state
+  pure OperationResult
+    { operationResultValue = resultValue
+    , operationResultState = appendResultState accepted
+    }
+
+createPartyOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+createPartyOperation input state = do
+  arguments <- requireArgumentsObject input
+  label <- requiredText "label" arguments
+  partyType <- requiredAs "party_type" arguments
+  now <- operationTime input
+  standing <- standingStateFromKernel state
+  (party, next) <- mapStandingError
+    (Standing.createStandingParty label partyType now standing)
+  accepted <- appendForFixture input "party"
+    [ ProposeValueStored "v1.standing" (toJSON next)
+    , ProposeValueStored "v1.coordination"
+        (toJSON (Standing.standingStateCoordination next))
+    ] state
+  pure OperationResult
+    { operationResultValue = toJSON (Domain.partyId party)
+    , operationResultState = appendResultState accepted
+    }
+
+beginCaptureOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+beginCaptureOperation input state = do
+  arguments <- requireArgumentsObject input
+  original <- requiredText "original_text" arguments
+  canonical <- optionalAs "canonical_english" arguments
+  authority <- optionalAs "normalization_authority" arguments
+  route <- optionalAs "proposed_route" arguments
+  parent <- optionalAs "proposed_parent" arguments
+  owner <- optionalAs "proposed_owner" arguments
+  behavior <- optionalDefinition "proposed_behavior" arguments resolveBehaviorReference
+  template <- optionalDefinition "proposed_template" arguments resolveTemplateReference
+  now <- operationTime input
+  context <- captureContextFromKernel state
+  captureState <- captureStateFromKernel state
+  let draft = Capture.CaptureDraft original canonical authority route parent owner
+        behavior template
+  (intent, _suspicions, next) <- mapCaptureError
+    (Capture.beginCapture draft now context captureState)
+  persistCaptureState input "capture-begin" next
+    (toJSON (Capture.captureIntentId intent)) state
+
+selectDuplicateSuspicionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+selectDuplicateSuspicionOperation input state = do
+  arguments <- requireArgumentsObject input
+  captureId <- requiredAs "capture" arguments
+  brick <- optionalAs "target_brick" arguments
+  entry <- optionalAs "target_entry" arguments
+  raw <- optionalAs "target_raw" arguments
+  captureState <- captureStateFromKernel state
+  suspicion <- mapCaptureError (Capture.selectDuplicateSuspicion
+    captureId brick entry raw captureState)
+  pure OperationResult
+    { operationResultValue = toJSON (Capture.duplicateSuspicionId suspicion)
+    , operationResultState = state
+    }
+
+confirmDuplicateDecisionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+confirmDuplicateDecisionOperation input state = do
+  arguments <- requireArgumentsObject input
+  captureId <- requiredAs "capture" arguments
+  suspicion <- requiredAs "suspicion" arguments
+  decision <- requiredAs "decision" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  context <- captureContextFromKernel state
+  captureState <- captureStateFromKernel state
+  (result, nextContext, nextState) <- mapCaptureError
+    (Capture.confirmDuplicateDecision captureId suspicion decision authority now
+      context captureState)
+  persistCaptureContext input "capture-duplicate" nextState nextContext
+    (captureDecisionProtocolValue result) state
+
+confirmSeparateCaptureOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+confirmSeparateCaptureOperation input state = do
+  arguments <- requireArgumentsObject input
+  captureId <- requiredAs "capture" arguments
+  authority <- requiredAs "authority" arguments
+  now <- operationTime input
+  context <- captureContextFromKernel state
+  captureState <- captureStateFromKernel state
+  (result, nextContext, nextState) <- mapCaptureError
+    (Capture.confirmSeparateCapture captureId authority now context captureState)
+  persistCaptureContext input "capture-separate" nextState nextContext
+    (captureDecisionProtocolValue result) state
+
+cancelCaptureOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+cancelCaptureOperation input state = do
+  arguments <- requireArgumentsObject input
+  captureId <- requiredAs "capture" arguments
+  context <- captureContextFromKernel state
+  captureState <- captureStateFromKernel state
+  (cancelled, next) <- mapCaptureError
+    (Capture.cancelCapture captureId context captureState)
+  persistCaptureState input "capture-cancel" next (toJSON cancelled) state
+
+captureDecisionProtocolValue :: Capture.CaptureDecisionResult -> Value
+captureDecisionProtocolValue result = object
+  [ "capture" .= Capture.captureDecisionResultCapture result
+  , "decision" .= Capture.captureDecisionResultDecision result
+  , "created_raw" .= Capture.captureDecisionResultRaw result
+  , "created_brick" .= Capture.captureDecisionResultBrick result
+  , "created_entry" .= Capture.captureDecisionResultEntry result
+  , "priority_insertion" .= Capture.captureDecisionResultInsertion result
+  , "enriched_target" .= Capture.captureDecisionResultEnrichedTarget result
+  ]
+
+optionalDefinition ::
+  Text -> Object -> (Text -> Either Text value) -> Either Text (Maybe value)
+optionalDefinition field values resolve = case KeyMap.lookup (Key.fromText field) values of
+  Nothing -> Right Nothing
+  Just Null -> Right Nothing
+  Just (String reference) -> Just <$> resolve reference
+  Just _ -> Left ("field must be a definition reference: " <> field)
+
+resolveBehaviorReference :: Text -> Either Text Domain.BrickBehavior
+resolveBehaviorReference reference = maybe
+  (Left ("unknown behavior version: " <> reference)) Right
+  (find (matchesDefinition reference Domain.behaviorId Domain.behaviorVersion)
+    (Domain.behaviorVersions Domain.initialDefinitionCatalog))
+
+resolveTemplateReference :: Text -> Either Text Domain.BrickTemplate
+resolveTemplateReference reference = maybe
+  (Left ("unknown template version: " <> reference)) Right
+  (find (matchesDefinition reference Domain.templateId Domain.templateVersion)
+    (Domain.templateVersions Domain.initialDefinitionCatalog))
+
+matchesDefinition ::
+  Text -> (definition -> Text) -> (definition -> Integer) -> definition -> Bool
+matchesDefinition reference identifier version definition =
+  reference == identifier definition
+  || reference == identifier definition <> "@" <> Text.pack (show (version definition))
+
+mapCaptureError :: Either Capture.CaptureError value -> Either Text value
+mapCaptureError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Standing execution, deterministic recurrence, and practices
@@ -840,10 +1043,13 @@ advanceSelectionOperation input state = do
   at <- requiredAs "at" arguments
   context <- selectionContextFromKernel state
   selection <- selectionStateForAmbient (operationAmbient input) state
-  (created, next) <- mapSelectionError
-    (Selection.advanceSelection at context selection)
-  persistSelection input "advance-selection" next (object
-    ["proposals" .= map Selection.proposalId created]) state
+  (created, openedValidation, nextContext, next) <- mapSelectionError
+    (Selection.advanceSelectionWithValidation at context selection)
+  persistSelectionAndStanding input "advance-selection" next
+    (Selection.selectionContextStanding nextContext) (object
+      [ "proposals" .= map Selection.proposalId created
+      , "validation_probe" .= fmap Priority.judgmentProbeId openedValidation
+      ]) state
 
 skipServedBrickOperation ::
   OperationInput -> V1State -> Either Text (OperationResult V1State)
@@ -1057,6 +1263,131 @@ selectionPriorityScopeObservation input state = do
         (Coordination.coordinationStateExecution
           (Standing.standingStateCoordination
             (Selection.selectionContextStanding context))))))
+
+captureIntentObservation :: ObservationInput -> V1State -> Either Text Value
+captureIntentObservation input state = do
+  identifier <- exactlyOneAsArgument "CaptureIntent" input
+  captureState <- captureStateFromKernel state
+  maybe (Left "unknown CaptureIntent") (Right . toJSON)
+    (Map.lookup identifier (Capture.captureStateIntents captureState))
+
+duplicateSuspicionsObservation :: ObservationInput -> V1State -> Either Text Value
+duplicateSuspicionsObservation input state = do
+  captureId <- exactlyOneAsArgument "DuplicateSuspicions" input
+  captureState <- captureStateFromKernel state
+  let items = sortOn Capture.duplicateSuspicionId
+        [ suspicion
+        | suspicion <- Map.elems (Capture.captureStateSuspicions captureState)
+        , Capture.duplicateSuspicionCapture suspicion == captureId
+        ]
+  pure (object ["items" .= items])
+
+duplicateDecisionObservation :: ObservationInput -> V1State -> Either Text Value
+duplicateDecisionObservation input state = do
+  identifier <- exactlyOneAsArgument "DuplicateDecision" input
+  captureState <- captureStateFromKernel state
+  maybe (Left "unknown DuplicateDecision") (Right . toJSON)
+    (Map.lookup identifier (Capture.captureStateDecisions captureState))
+
+priorityMembershipsObservation :: ObservationInput -> V1State -> Either Text Value
+priorityMembershipsObservation input state = do
+  brick <- exactlyOneAsArgument "PriorityMemberships" input
+  standing <- standingStateFromKernel state
+  let priority = Execution.executionStatePriority
+        (Coordination.coordinationStateExecution
+          (Standing.standingStateCoordination standing))
+      memberships =
+        [ Priority.priorityScopeId scope
+        | scope <- Map.elems (Priority.priorityStateScopes priority)
+        , brick `elem` Priority.priorityScopeMembers scope
+        ]
+  pure (object ["count" .= length memberships, "scopes" .= memberships])
+
+listEntrySummaryObservation :: ObservationInput -> V1State -> Either Text Value
+listEntrySummaryObservation input state = do
+  identifier <- exactlyOneAsArgument "ListEntrySummary" input
+  domain <- captureDomainFromKernel state
+  entry <- maybe (Left "unknown ListEntry") Right
+    (Map.lookup identifier (Domain.domainListEntries domain))
+  pure (mergeValueFields (Domain.listEntryProjection entry)
+    ["owner" .= object ["id" .= Domain.listEntryOwner entry]])
+
+openEntriesObservation :: ObservationInput -> V1State -> Either Text Value
+openEntriesObservation input state = do
+  owner <- exactlyOneAsArgument "OpenEntries" input
+  domain <- captureDomainFromKernel state
+  let items = map Domain.listEntryProjection (sortOn Domain.listEntryId
+        [ entry
+        | entry <- Map.elems (Domain.domainListEntries domain)
+        , Domain.listEntryOwner entry == owner
+        , Domain.listEntryStatus entry == Domain.EntryOpen
+        ])
+  pure (object ["items" .= items])
+
+captureOperationalProjectionObservation ::
+  ObservationInput -> V1State -> Either Text Value
+captureOperationalProjectionObservation input state = do
+  owner <- exactlyOneAsArgument "OperationalProjection" input
+  domain <- captureDomainFromKernel state
+  brick <- maybe (Left "unknown operational Brick") Right
+    (Map.lookup owner (Domain.domainBricks domain))
+  let openLabels =
+        [ Domain.listEntryLabel entry
+        | entry <- sortOn Domain.listEntryId
+            (Map.elems (Domain.domainListEntries domain))
+        , Domain.listEntryOwner entry == owner
+        , Domain.listEntryStatus entry == Domain.EntryOpen
+        ]
+      rendered = if Domain.behaviorRendersAllOpenEntries
+          (Domain.brickBehavior brick)
+        then openLabels else []
+  pure (object
+    [ "id" .= owner
+    , "title" .= Domain.brickTitle brick
+    , "open_entries" .= rendered
+    ])
+
+rawLinksToEntryObservation :: ObservationInput -> V1State -> Either Text Value
+rawLinksToEntryObservation input state = do
+  entry <- exactlyOneAsArgument "RawLinksToEntry" input
+  material <- materialStateFromKernel state
+  let links = sortOn Material.rawLinkId
+        [ link | link <- Map.elems (materialLinks material)
+        , Material.rawLinkOwnerEntry link == Just entry
+        ]
+  items <- mapM (captureRawLinkProjection material) links
+  pure (object ["items" .= items])
+
+rawLinksToBrickObservation :: ObservationInput -> V1State -> Either Text Value
+rawLinksToBrickObservation input state = do
+  brick <- exactlyOneAsArgument "RawLinksToBrick" input
+  material <- materialStateFromKernel state
+  let links = sortOn Material.rawLinkId
+        [ link | link <- Map.elems (materialLinks material)
+        , Material.rawLinkOwnerBrick link == Just brick
+        ]
+  pure (object
+    [ "roles" .= map Material.rawLinkRole links
+    , "items" .= map Material.rawLinkId links
+    ])
+
+captureRawLinkProjection :: MaterialState -> Material.RawLink -> Either Text Value
+captureRawLinkProjection material link = do
+  raw <- maybe (Left "RawLink references an unknown Raw") Right
+    (Map.lookup (Material.rawLinkRaw link) (materialRaws material))
+  pure (object
+    [ "id" .= Material.rawLinkId link
+    , "raw" .= Material.rawLinkRaw link
+    , "role" .= Material.rawLinkRole link
+    , "original_text" .= rawOriginalText raw
+    ])
+
+captureDomainFromKernel :: V1State -> Either Text Domain.DomainState
+captureDomainFromKernel state =
+  Execution.executionStateDomain
+    . Coordination.coordinationStateExecution
+    . Standing.standingStateCoordination
+    <$> standingStateFromKernel state
 
 forecastProtocolValue :: Selection.ForecastView -> Value
 forecastProtocolValue forecast = mergeValueFields (toJSON forecast)
