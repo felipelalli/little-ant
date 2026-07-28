@@ -7,6 +7,7 @@ cd "$repo_root"
 cabal build all --ghc-options=-Werror
 cabal test little-ant-test --test-show-details=direct
 cabal test little-ant-v1-driver-test --test-show-details=direct
+python3 -m unittest discover -s tools -p 'test_*.py'
 
 progress_report="$(mktemp "${TMPDIR:-/tmp}/little-ant-v1-progress.XXXXXX")"
 trap 'rm -f -- "$progress_report"' EXIT
@@ -21,5 +22,7 @@ if awk '
   }
   END { if (!seen || incomplete) exit 1 }
 ' "$progress_report"; then
+  bash tools/probe-mutation-check.sh --validate-audit tools/probe-audit.md
+  bash tools/probe-mutation-check.sh --verify-audit tools/probe-audit.md
   cabal test all --test-show-details=direct
 fi

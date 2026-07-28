@@ -44,6 +44,7 @@ import LittleAnt.V1.MigrationPlanCatalog (migrationPlanProbes)
 import LittleAnt.V1.PlanningPlanCatalog
   (planningPlanProbes, planningRuntimePlanProbes)
 import LittleAnt.V1.ReadModelPlanCatalog (readModelPlanProbes)
+import LittleAnt.V1.RootPlanCatalog (rootPlanProbes)
 import LittleAnt.V1.SelectionPlanCatalog (selectionPlanProbes)
 import LittleAnt.V1.SourceImportPlanCatalog (sourceImportPlanProbes)
 import LittleAnt.V1.StandingPlanCatalog (standingPlanProbes)
@@ -51,6 +52,7 @@ import LittleAnt.V1.StandingPlanCatalog (standingPlanProbes)
 v1PlanProbes :: Map ProbeKey PlanProbe
 v1PlanProbes = Map.unions
   [ kernelPlanProbes
+  , rootPlanProbes
   , domainPlanProbes
   , executionLifecyclePlanProbes
   , coordinationPlanProbes

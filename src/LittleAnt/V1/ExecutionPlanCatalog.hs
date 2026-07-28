@@ -6,6 +6,8 @@ module LittleAnt.V1.ExecutionPlanCatalog
   ) where
 
 import Control.Monad (unless)
+import Data.Aeson (Value (..), toJSON)
+import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.Set as Set
@@ -18,6 +20,7 @@ import LittleAnt.V1.Domain
 import LittleAnt.V1.Execution
 import qualified LittleAnt.V1.Judgment as Judgment
 import qualified LittleAnt.V1.Priority as Priority
+import qualified LittleAnt.V1.Standing as Standing
 
 executionLifecyclePlanProbes :: Map ProbeKey PlanProbe
 executionLifecyclePlanProbes = Map.fromList
@@ -28,6 +31,13 @@ executionLifecyclePlanProbes = Map.fromList
   <> registrations ["rule_entity_creation"] moveConstructs moveProbe
   <> [ registration "config_default" "config.soft_wip_limit" focusProbe
      , registration "invariant" "DelegationDoesNotConsumeHumanWip" focusProbe
+     , registration "invariant" "RootPriorityBindingIsCanonical" bindingProbe
+     , registration "invariant" "StandardBehaviorBindingIsCanonical" bindingProbe
+     , registration "surface_actor" "WorkDesk" workDeskActorProbe
+     , registration "surface_exposure" "WorkDesk" workDeskExposureProbe
+     , registration "surface_provides" "WorkDesk" workDeskProvidesProbe
+     , registration "surface_actor" "DeterministicClock" deterministicClockProbe
+     , registration "surface_provides" "DeterministicClock" deterministicClockProbe
      ]
   )
   where
@@ -376,6 +386,97 @@ subtreeCloseProbe = do
       [brickId dropRoot, brickId dropChild])
     "whole-subtree drop was partial"
 
+bindingProbe :: Either Text ()
+bindingProbe = do
+  title <- domain (mkCanonicalText "Canonical binding" Nothing Human)
+  (brick, _, state) <- execution (createExecutionBrick
+    (ordinaryBrickDraft title standardV1 probeTime) "binding" probeTime
+    emptyExecutionState)
+  root <- maybe (Left "canonical root priority scope is absent") Right
+    (Map.lookup Priority.priorityRootScopeId
+      (Priority.priorityStateScopes (executionStatePriority state)))
+  require (Priority.priorityScopeParent root == Nothing
+      && brickId brick `elem` Priority.priorityScopeMembers root)
+    "root priority binding is not the parentless canonical scope"
+  require (behaviorId (brickBehavior brick) == behaviorId standardV1
+      && behaviorId standardV1 == "core/standard"
+      && catalogContainsBehavior (domainCatalog (executionStateDomain state))
+        (brickBehavior brick))
+    "standard behavior binding is not the canonical catalog definition"
+
+workDeskActorProbe :: Either Text ()
+workDeskActorProbe = do
+  (user, _, focused) <- workDeskFixture
+  _ <- execution (workDeskProjection (partyId user) focused)
+  (agent, domainWithAgent) <- domain (createParty "Synthetic agent" AiAgent
+    probeTime (executionStateDomain focused))
+  let withAgent = focused {executionStateDomain = domainWithAgent}
+  case workDeskProjection (partyId agent) withAgent of
+    Left _ -> Right ()
+    Right _ -> Left "non-person Party obtained the user-facing WorkDesk"
+
+workDeskExposureProbe :: Either Text ()
+workDeskExposureProbe = do
+  (user, brick, focused) <- workDeskFixture
+  value <- execution (workDeskProjection (partyId user) focused)
+  fields <- asObject "WorkDesk" value
+  userFields <- case KeyMap.lookup "user" fields of
+    Just (Object values) -> Right values
+    _ -> Left "WorkDesk user exposure is not an object"
+  require (KeyMap.lookup "id" userFields == Just (toJSON (partyId user))
+      && KeyMap.lookup "current" fields == Just (toJSON (Just (brickId brick))))
+    "WorkDesk did not expose user.id and the live current focus"
+
+workDeskProvidesProbe :: Either Text ()
+workDeskProvidesProbe = do
+  workDeskExposureProbe
+  metadataProbe
+  focusProbe
+  lifecycleProbe
+  moveProbe
+
+-- The clock has no user-facing actor: callers supply the instant explicitly.
+-- Reapplying one instant must not release a second occurrence for its key.
+deterministicClockProbe :: Either Text ()
+deterministicClockProbe = do
+  title <- domain (mkCanonicalText "Synthetic monthly obligation" Nothing Human)
+  (owner, _, first) <- mapStanding (Standing.createStandingBrick
+    (ordinaryBrickDraft title recurringObligationV1 probeTime)
+    "clock:owner" probeTime Standing.emptyStandingState)
+  let releaseAt = addUTCTime 60 probeTime
+  (rule, scheduled) <- mapStanding (Standing.configureRecurrence (brickId owner)
+    Standing.ObligationRecurrence "monthly on day 1" "UTC" releaseAt
+    probeTime first)
+  (beforeOccurrences, _, before) <- mapStanding
+    (Standing.advanceSchedules (addUTCTime 59 probeTime) scheduled)
+  (released, _, atRelease) <- mapStanding
+    (Standing.advanceSchedules releaseAt before)
+  (repeated, _, replayed) <- mapStanding
+    (Standing.advanceSchedules releaseAt atRelease)
+  let retained = Standing.obligationOccurrencesFor
+        (Standing.recurrenceRuleId rule) Nothing replayed
+      retainedAt = case retained of
+        [occurrence] -> Just (Standing.obligationOccurrenceReleasedAt occurrence)
+        _ -> Nothing
+  require (null beforeOccurrences && length released == 1 && null repeated
+      && retainedAt == Just releaseAt)
+    "explicit deterministic clock duplicated or mistimed a schedule release"
+
+workDeskFixture :: Either Text (Party, Brick, ExecutionState)
+workDeskFixture = do
+  (user, domainWithUser) <- domain
+    (createParty "Synthetic user" Person probeTime emptyDomainState)
+  title <- domain (mkCanonicalText "Focused desk work" Nothing Human)
+  (brick, _, created) <- execution (createExecutionBrick
+    (ordinaryBrickDraft title standardV1 probeTime) "work-desk" probeTime
+    emptyExecutionState {executionStateDomain = domainWithUser})
+  focused <- execution (focusExecutionBrick (brickId brick) probeTime created)
+  pure (user, brick, focused)
+
+asObject :: Text -> Value -> Either Text (KeyMap.KeyMap Value)
+asObject _ (Object fields) = Right fields
+asObject label _ = Left (label <> " projection is not an object")
+
 moveProbe :: Either Text ()
 moveProbe = do
   firstTitle <- domain (mkCanonicalText "First parent" Nothing Human)
@@ -506,6 +607,9 @@ priority = either (Left . Text.pack . show) Right
 
 judgment :: Either Judgment.JudgmentError value -> Either Text value
 judgment = either (Left . Text.pack . show) Right
+
+mapStanding :: Either Standing.StandingError value -> Either Text value
+mapStanding = either (Left . Text.pack . show) Right
 
 require :: Bool -> Text -> Either Text ()
 require condition problem = unless condition (Left problem)

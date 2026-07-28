@@ -32,9 +32,18 @@ review and test review can happen in the same diff.
 
 ## Implementation bridge
 
-The test suite is intentionally independent of the future internal Haskell
-module layout. Set `LANT_V1_TEST_DRIVER` to an executable that accepts exactly
-one JSON request on stdin and returns exactly one JSON response on stdout:
+The test suite remains independent of the implementation's internal Haskell
+module layout. The repository ships the `lant-v1-test-driver` executable,
+which accepts exactly one JSON request on stdin and returns exactly one JSON
+response on stdout. Cabal's contract launcher discovers the freshly built
+driver automatically:
+
+```sh
+cabal build exe:lant-v1-test-driver
+cabal test little-ant-v1-contract-test
+```
+
+An explicit external driver can still be selected when testing another build:
 
 ```sh
 LANT_V1_TEST_DRIVER=/path/to/lant-v1-test-driver \
@@ -121,10 +130,30 @@ Each scenario starts from an empty isolated domain except for state created by
 its fixture steps. Drivers must not share event history, clocks, random
 evidence, caches, or Pack state across scenarios.
 
-Until the v1 implementation bridge exists, the suite compiles and its
-artifact-integrity tests pass, while behavioral tests fail with an explicit
-missing-driver message. That is the intended red phase; the test contract must
-not be weakened to make it green.
+## Full conformance and release gate
+
+The implementation currently satisfies all 1,446 generated obligations and
+120 scenario assertions. Run the observable progress path and the complete
+release gate with:
+
+```sh
+python3 tools/v1-progress.py              # TOTAL 1566/1566
+bash tools/probe-mutation-check.sh --verify-audit tools/probe-audit.md
+bash tools/story-gate.sh
+```
+
+The mutation checker samples 30 unique obligations across all nine modules.
+For each target it first requires green, changes the corresponding production
+behavior or outside-world boundary, reruns `tools/v1-progress.py`, requires
+that exact target to turn red, and restores and rebuilds pristine sources.
+`tools/probe-audit.md` records every green-to-red outcome and any stayed-green
+fake; the story gate fails closed for a missing, stale, or malformed audit.
+
+The atomic-cutover scenario reads
+`fixtures/v0-v1-atomic-cutover.jsonl`, a wholly synthetic mixed-history v0
+archive. Its exact byte count, event count, SHA-256, and opaque identity maps
+keep the reader and migration projection observable without exposing personal
+v0 data.
 
 ## Mini-simulations
 

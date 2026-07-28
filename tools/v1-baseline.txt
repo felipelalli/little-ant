@@ -1,11 +1,11 @@
 plan:domain 108/108
-plan:execution 367/374
+plan:execution 374/374
 plan:integration 268/268
 plan:interaction 119/119
 plan:judgment 197/197
 plan:material 121/121
 plan:migration-v0-v1 67/67
-plan:root 1/11
+plan:root 11/11
 plan:selection 181/181
 scenario:grocery-capture-and-duplicate 7/7
 scenario:priority-uncertainty 7/7
@@ -23,4 +23,4 @@ scenario:event-replay-sparse-history 9/9
 scenario:v0-v1-atomic-cutover 8/8
 scenario:taskjuggler-planning-cut 7/7
 scenario:pack-sandbox-and-credentials 7/7
-TOTAL 1549/1566
+TOTAL 1566/1566

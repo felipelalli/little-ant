@@ -134,6 +134,19 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Operational projections are rebuildable from canonical events and required
   Raw blobs.
 
+### Release verification
+
+- Shipped the executable `lant-v1-test-driver` implementation bridge for all
+  generated plans and the 16 end-to-end scenarios.
+- Completed all 1,446 Allium plan obligations and 120 scenario assertions;
+  `python3 tools/v1-progress.py` reports `TOTAL 1566/1566`.
+- Added `tools/probe-mutation-check.sh`, a repeatable 30-obligation sample
+  across all nine modules that mutates production behavior one target at a
+  time and requires the exact green probe to turn red.
+- Made `bash tools/story-gate.sh` the final release gate for the Werror build,
+  v0 and v1 tests, monotonic conformance baseline, mutation audit, and full
+  `cabal test all` suite.
+
 ### Migration from v0
 
 - The v0 source is archived and hash-verified before any v1 activation.
@@ -147,6 +160,8 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
   provenance, execution facts, and timestamps are retained as evidence.
 - Activation is atomic and only available after archive and projection
   verification.
+- The checked-in cutover exercise uses a wholly synthetic mixed-history fixture
+  with opaque identity collisions; personal v0 logs are never release data.
 
 See [migration-v0-v1.allium](spec/little-ant/migration-v0-v1.allium) for the
 complete cutover contract.

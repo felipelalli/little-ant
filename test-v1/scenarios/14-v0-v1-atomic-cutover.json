@@ -15,9 +15,9 @@
       "operation": "PlanV0V1Cutover",
       "arguments": {
         "source_path": "fixtures/v0-v1-atomic-cutover.jsonl",
-        "byte_size": 141,
-        "event_count": 1,
-        "sha256": "sha256:c132733bec3d288288ba18d3c9cbb8844ba8adeed0f0c79823242d673516439d"
+        "byte_size": 2125,
+        "event_count": 11,
+        "sha256": "sha256:38156acd5f5222ce93282f41695938ef0e8a2f1cf6f9f9893304555e69a62bb6"
       },
       "bind_result": {
         "archive": "archive",
@@ -29,8 +29,8 @@
       "operation": "VerifyV0Archive",
       "arguments": {
         "cutover": "$cutover",
-        "observed_hash": "sha256:c132733bec3d288288ba18d3c9cbb8844ba8adeed0f0c79823242d673516439d",
-        "observed_event_count": 1
+        "observed_hash": "sha256:38156acd5f5222ce93282f41695938ef0e8a2f1cf6f9f9893304555e69a62bb6",
+        "observed_event_count": 11
       }
     },
     {
@@ -38,21 +38,91 @@
       "operation": "ProjectV1State",
       "arguments": {
         "cutover": "$cutover",
-        "projected_entity_count": 1,
-        "retained_evidence_count": 1
+        "projected_entity_count": 8,
+        "retained_evidence_count": 11
       },
       "bind_result": {
         "v1_log_hash": "v1_log_hash"
       }
     },
     {
-      "id": "map-seed",
+      "id": "map-collision-a",
       "operation": "RecordMigratedIdentity",
       "arguments": {
         "cutover": "$cutover",
-        "old_id": "sha256:old-seed-title",
+        "old_id": "sha256:synthetic-collision-a",
         "new_id": "la1:migration:entity:000000000002",
         "kind": "brick"
+      }
+    },
+    {
+      "id": "map-collision-b",
+      "operation": "RecordMigratedIdentity",
+      "arguments": {
+        "cutover": "$cutover",
+        "old_id": "sha256:synthetic-collision-b",
+        "new_id": "la1:migration:entity:000000000003",
+        "kind": "brick"
+      }
+    },
+    {
+      "id": "map-completed",
+      "operation": "RecordMigratedIdentity",
+      "arguments": {
+        "cutover": "$cutover",
+        "old_id": "sha256:synthetic-completed",
+        "new_id": "la1:migration:entity:000000000004",
+        "kind": "brick"
+      }
+    },
+    {
+      "id": "map-delegated",
+      "operation": "RecordMigratedIdentity",
+      "arguments": {
+        "cutover": "$cutover",
+        "old_id": "sha256:synthetic-delegated",
+        "new_id": "la1:migration:entity:000000000005",
+        "kind": "brick"
+      }
+    },
+    {
+      "id": "map-ordinary",
+      "operation": "RecordMigratedIdentity",
+      "arguments": {
+        "cutover": "$cutover",
+        "old_id": "sha256:synthetic-ordinary",
+        "new_id": "la1:migration:entity:000000000006",
+        "kind": "brick"
+      }
+    },
+    {
+      "id": "map-recurring",
+      "operation": "RecordMigratedIdentity",
+      "arguments": {
+        "cutover": "$cutover",
+        "old_id": "sha256:synthetic-recurring",
+        "new_id": "la1:migration:entity:000000000007",
+        "kind": "brick"
+      }
+    },
+    {
+      "id": "map-raw",
+      "operation": "RecordMigratedIdentity",
+      "arguments": {
+        "cutover": "$cutover",
+        "old_id": "sha256:synthetic-raw",
+        "new_id": "la1:migration:entity:000000000008",
+        "kind": "raw"
+      }
+    },
+    {
+      "id": "map-party",
+      "operation": "RecordMigratedIdentity",
+      "arguments": {
+        "cutover": "$cutover",
+        "old_id": "sha256:synthetic-delegate-party",
+        "new_id": "la1:migration:entity:000000000009",
+        "kind": "party"
       }
     },
     {
@@ -60,10 +130,10 @@
       "operation": "RecordMigrationEvidence",
       "arguments": {
         "cutover": "$cutover",
-        "old_event_id": "event-17",
-        "subject_old_id": "sha256:old-seed-title",
+        "old_event_id": "synthetic-event-ordinary",
+        "subject_old_id": "sha256:synthetic-ordinary",
         "semantic_kind": "legacy_stage",
-        "summary": "seed mapped to active provisionally positioned Brick"
+        "summary": "ordinary synthetic seed mapped to active provisionally positioned Brick"
       }
     },
     {
@@ -71,8 +141,8 @@
       "operation": "VerifyV1Projection",
       "arguments": {
         "cutover": "$cutover",
-        "mapped_identity_count": 1,
-        "projected_entity_count": 1,
+        "mapped_identity_count": 8,
+        "projected_entity_count": 8,
         "v1_log_hash": "$v1_log_hash"
       }
     },
@@ -110,16 +180,16 @@
     },
     {
       "id": "legacy-title-derived-id-is-not-reused",
-      "after": "map-seed",
-      "query": "IdentityMap($archive,sha256:old-seed-title)",
+      "after": "map-ordinary",
+      "query": "IdentityMap($archive,sha256:synthetic-ordinary)",
       "path": "new_id",
       "operator": "not_equals",
-      "value": "sha256:old-seed-title"
+      "value": "sha256:synthetic-ordinary"
     },
     {
       "id": "legacy-stage-maps-to-active-positioned-brick",
       "after": "project-state",
-      "query": "ProjectedBrick(sha256:old-seed-title)",
+      "query": "ProjectedBrick(sha256:synthetic-ordinary)",
       "operator": "contains",
       "value": {
         "status": "active",
@@ -149,7 +219,7 @@
       "query": "V0Archive($archive)",
       "operator": "contains",
       "value": {
-        "sha256": "sha256:c132733bec3d288288ba18d3c9cbb8844ba8adeed0f0c79823242d673516439d",
+        "sha256": "sha256:38156acd5f5222ce93282f41695938ef0e8a2f1cf6f9f9893304555e69a62bb6",
         "immutable": true,
         "verified": true
       }

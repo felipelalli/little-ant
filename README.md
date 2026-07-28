@@ -129,32 +129,39 @@ See [judgment.allium](spec/little-ant/judgment.allium) and
 
 ## Common flows
 
-The transcripts below use the canonical terminal interaction. Other surfaces
+The transcripts below use the shipped `lant` command surface. Other surfaces
 preserve the same actions and revisions while adapting their presentation.
+
+Every guided decision follows the same three-step protocol: open an
+interaction, read its current envelope to see the offered action IDs, then
+submit exactly one of them against the revisions the envelope reported. That
+optimistic-concurrency loop is what keeps the CLI, the REPL, the skill and the
+UI adapters on one identical set of actions.
 
 ### Capture a grocery item
 
 ```text
-$ lant
-ant> /feed Buy milk
-
-Possible destination: "Buy groceries" (Grocery list)
-[y] add as a list entry · [n] choose another route · [?]
+$ lant capture "Buy milk"
 ```
 
-Duplicate suspicion runs before creation. Nothing is merged silently. In dumb
-mode, the REPL asks for a route when it cannot infer one safely; a skill or
-powered-up adapter may make an attributed proposal.
+Duplicate suspicion runs before creation. Nothing is merged silently. When the
+core cannot infer a route safely it opens a guided interaction rather than
+guessing; a skill or powered-up adapter may make an attributed proposal.
 
 ### Insert work into human priority
 
 ```text
+$ lant interaction open --kind priority_comparison
+$ lant interaction current <INTERACTION_ID>
+
 Is "Replace the laptop battery" more important than
 "Read the storage design paper"?
-[y] yes · [n] no · [s] skip · [?]
+
+$ lant interaction submit <INTERACTION_ID> <ACTION_ID> \
+    --domain-revision N --interaction-revision N
 ```
 
-Insertion uses binary comparison. `skip` never means “equally important.”
+Insertion uses binary comparison. Skipping never means “equally important.”
 It can mean unresolved or “break the tie for me.” Nearby candidates are tried;
 after the configured threshold, the Brick keeps a strict but provisional
 position and gains future validation pressure.
@@ -162,27 +169,30 @@ position and gains future validation pressure.
 ### Ask what to do next
 
 ```text
-ant> /next
+$ lant status
 
 Focus: "Replace the laptop battery"
 Why: high human priority · available now · unlocks another Brick
-[y] focus · [d] done · [s] skip · [?]
 ```
 
-Direct `done` is honest: it does not invent a start time or zero-duration
-execution. A served-work skip records a reason and changes later pressure; it
-does not imply completion.
+`lant status` returns the one canonical status summary and `lant complete`
+closes a Brick against an optimistic revision precondition. An open interaction
+is dropped with `lant interaction abandon <INTERACTION_ID>`, which is a
+different act from closing work. Direct completion is honest: it does not
+invent a start time or a
+zero-duration execution. A served-work skip records a reason and changes later
+pressure; it does not imply completion.
 
 ### Read an article again later
 
 ```text
-ant> /feed https://example.com/paper
+$ lant capture "https://example.com/paper"
 Route: preserve as Raw, then create "Read the storage design paper"
 
 ...after reading...
 
 Read it again in roughly six months?
-[y] schedule the same Brick with a jittered not-before date · [n] retire
+schedule the same Brick with a jittered not-before date, or retire it
 ```
 
 Completion-triggered repetition reuses the same Brick and history. It does not
@@ -205,18 +215,27 @@ the schedule.
 ### Inspect priority and forecast separately
 
 ```text
-ant> /priority
-# strict human importance tree
+$ lant project --projection operational
+# the working view: what is available, focused, and pressing
 
-ant> /forecast
-# weighted, explained, read-only candidates for next
+$ lant project --projection relationships
+# structure: composition, dependencies, and delegation edges
+
+$ lant project --projection complete <REFERENCE>
+# everything the core holds about one entity
 ```
+
+Strict human importance and the weighted forecast are separate concerns in the
+model and never collapse into one ranked list. Purpose-bounded projections
+return only what a caller asked for, so a projection request cannot become a
+general-purpose data dump.
 
 ### Review concise history
 
 ```text
-ant> /history
-ant> /history --brick <id> --family priority --relevance important
+$ lant history
+$ lant history --page-size 50 --cursor <REVISION_CURSOR>
+$ lant history --brief
 ```
 
 History queries are typed, composable, bounded, and paginated. Ordinary
@@ -226,7 +245,7 @@ complete event JSON into an agent context.
 ### Use the powered-up REPL
 
 ```sh
-lant --power-up /path/to/claude-fast.sh
+lant repl --power-up /path/to/claude-fast.sh
 ```
 
 The executable is validated before the REPL starts, receives requests only via
@@ -262,18 +281,26 @@ The standard 1.0 Pack includes:
 
 Normal synchronization treats upstream completion or removal as evidence, not
 as local completion or deletion. Destructive migration is a separate reviewed
-flow:
-
-```sh
-lant import microsoft-todo
-lant import microsoft-todo --migrate --erase-after-import
-```
+flow, distinguished by an explicit erase-after-import plan.
 
 `--erase-after-import` is valid only for migration. Every imported item must be
 locally reconstructible and verified, and every external deletion is previewed,
 approved, and receipted. Container deletion requires a separate approval.
 
+Import and synchronization are enforced in `LittleAnt.V1.SourceImport`. The
+1.0 command surface does not yet expose a `lant import` entry point; the flow
+is reachable through the Pack source adapters.
+
 See [integration.allium](spec/little-ant/integration.allium).
+
+### Safe v0-to-1.0 cutover
+
+The 1.0 cutover reads and hashes an immutable v0 archive, projects a clean v1
+event log with explicit opaque identity mappings, verifies entity, evidence,
+and identity coverage, and only then atomically switches the active dataset.
+The checked-in `fixtures/v0-v1-atomic-cutover.jsonl` is wholly synthetic and
+covers mixed entity kinds, terminal and delegated work, recurrence, and a
+same-title collision. It contains no personal event-log data.
 
 ## Architecture
 
@@ -341,18 +368,29 @@ Run the existing v0 tests:
 cabal test little-ant-test
 ```
 
-The generated 1.0 contract suite lives under `test-v1/`. It includes
-high-level lifecycle tests and deterministic mini-simulations for ordering,
-forecast, skip pressure, recurrence, and imports.
+The implemented `lant-v1-test-driver` executable runs the generated plans and
+16 end-to-end scenarios. The progress runner requires one unique, well-formed
+result per target and reports full conformance as `TOTAL 1566/1566`.
+
+```sh
+cabal build all --ghc-options=-Werror
+python3 tools/v1-progress.py
+bash tools/probe-mutation-check.sh --verify-audit tools/probe-audit.md
+bash tools/story-gate.sh
+```
+
+`tools/story-gate.sh` is the complete release path: it runs the v0 and driver
+tests, checks the monotonic `1566/1566` baseline, validates and reruns the
+30-obligation behavior mutation audit, and then runs `cabal test all`.
+Regenerate checked-in Allium artifacts only after an authoritative spec change:
 
 ```sh
 bash test-v1/generate-allium-artifacts.sh
-LANT_V1_TEST_DRIVER=/path/to/lant-v1-test-driver \
-  cabal test little-ant-v1-contract-test
 ```
 
-See [the contract-test guide](test-v1/README.md) for the stdin protocol and
-the intentionally red pre-implementation phase.
+See [the contract-test guide](test-v1/README.md) for the executable stdin
+protocol, exact-result validation, synthetic cutover fixture, and mutation
+audit workflow.
 
 ## What changed from v0 to v1
 

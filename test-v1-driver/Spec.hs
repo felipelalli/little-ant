@@ -2364,7 +2364,51 @@ planningTests = testGroup "v1 planning export and loopback UI adapter"
 
 migrationTests :: TestTree
 migrationTests = testGroup "v1 verified v0-to-v1 atomic cutover"
-  [ testCase "runtime reader rejects a nonexistent metadata-only archive" $ do
+  [ testCase "retains synthetic mixed v0 history and same-title identities" $ do
+      bytes <- LBS.readFile "fixtures/v0-v1-atomic-cutover.jsonl"
+      events <- requireMigrationSuccess (Migration.readV0ArchiveEvents bytes)
+      length events @?= 11
+      LBS.length bytes @?= 2125
+      Migration.hashV0ArchiveBytes bytes @?=
+        "sha256:38156acd5f5222ce93282f41695938ef0e8a2f1cf6f9f9893304555e69a62bb6"
+      let bodies = map evBody events
+          hasBrick identifier = any (\case
+            BrickCaptured (Id actual) _ -> actual == identifier
+            _ -> False) bodies
+          hasRecurringMetadata = any (\case
+            BrickEnriched (Id "sha256:synthetic-recurring") _
+              (Just "synthetic monthly recurrence") _ _ _ _ _ -> True
+            _ -> False) bodies
+          hasDelegation = any (\case
+            DelegationCreated _ (Id "sha256:synthetic-delegated")
+              (Id "sha256:synthetic-delegate-party") -> True
+            _ -> False) bodies
+          hasCompletion = any (\case
+            BrickCompleted (Id "sha256:synthetic-completed") -> True
+            _ -> False) bodies
+          hasRaw = any (\case
+            Fed (Id "sha256:synthetic-raw") content ->
+              "synthetic" `Text.isInfixOf` Text.toLower content
+            _ -> False) bodies
+          collisions = [(identifier, title)
+            | BrickCaptured (Id identifier) title <- bodies
+            , title == "Repeated synthetic title"]
+      assertBool "ordinary synthetic Brick is absent"
+        (hasBrick "sha256:synthetic-ordinary")
+      assertBool "recurring synthetic work is absent"
+        (hasBrick "sha256:synthetic-recurring" && hasRecurringMetadata)
+      assertBool "delegated synthetic work is absent"
+        (hasBrick "sha256:synthetic-delegated" && hasDelegation)
+      assertBool "completed synthetic work is absent"
+        (hasBrick "sha256:synthetic-completed" && hasCompletion)
+      assertBool "synthetic Raw is absent" hasRaw
+      assertBool "same-title entities are not distinct"
+        (length collisions == 2
+          && Set.size (Set.fromList (map fst collisions)) == 2)
+      assertBool "fixture contains non-synthetic text"
+        (all (not . Text.null . Text.strip) (map evId events)
+          && "synthetic" `isInfixOf` LBS8.unpack bytes)
+  , testCase "runtime reader rejects a nonexistent metadata-only archive" $ do
       reader <- maybe (assertFailure "runtime archive reader is unregistered") pure
         (Map.lookup "PlanV0V1Cutover"
           (registryRuntimeOperations contractRegistry))
@@ -2434,8 +2478,19 @@ migrationTests = testGroup "v1 verified v0-to-v1 atomic cutover"
       replayed <- requireMigrationSuccess (Migration.replayProjectedBricks
         (Migration.stagedV1DatasetCleanLog staged))
       replayed @?= Migration.stagedV1DatasetProjectedBricks staged
+      Migration.stagedV1DatasetIdentityCoverageComplete staged @?= False
+      (firstPlan, remainingPlans) <- case Map.toAscList plans of
+        firstPlan : remaining -> pure (firstPlan, remaining)
+        [] -> assertFailure "staged projection has no identity plans"
+      partiallyMapped <- recordMigrationPlan (Migration.v1CutoverId cutover)
+        projected firstPlan
+      Map.size (Migration.migrationStateIdentityMaps partiallyMapped) @?= 1
+      partialStage <- maybe (assertFailure "missing partially mapped stage") pure
+        (Map.lookup (Migration.v1CutoverId cutover)
+          (Migration.migrationStateStagedDatasets partiallyMapped))
+      Migration.stagedV1DatasetIdentityCoverageComplete partialStage @?= False
       mapped <- foldM (recordMigrationPlan (Migration.v1CutoverId cutover))
-        projected (Map.toAscList plans)
+        partiallyMapped remainingPlans
       (evidence, withEvidence) <- requireMigrationSuccess
         (Migration.recordMigrationEvidence integrationTestTime
           (Migration.v1CutoverId cutover) (Just "legacy-event-0")
@@ -3878,6 +3933,31 @@ implementationBridgeTests = testGroup "real implementation registry"
         ]
       assertResponsePassed (runContractRequest contractRegistry kernelRootPlan)
         ["invariant.GloballyOpaqueEntityIds"]
+  , testCase "executes composed-root invariants through real module state" $
+      assertResponsePassed
+        (runContractRequest contractRegistry composedRootPlan)
+        [ "invariant.OneCanonicalBrickModel"
+        , "invariant.RawIsMaterialAndBrickIsWork"
+        , "invariant.EveryActiveBrickHasOneStrictSiblingPosition"
+        , "invariant.PriorityIsImportanceOnly"
+        , "invariant.ForecastIsNotAnotherStoredOrder"
+        , "invariant.OptionalAxesStayLazy"
+        , "invariant.CoreMechanismAndExternalJudgmentAreSeparated"
+        , "invariant.CanonicalEnglishWithVerbatimProvenance"
+        , "invariant.NoGenericPluginAuthority"
+        , "invariant.LegacyBehaviorIsNotSpecAuthority"
+        ]
+  , testCase "executes WorkDesk and deterministic-clock bindings" $
+      assertResponsePassed
+        (runContractRequest contractRegistry composedExecutionPlan)
+        [ "invariant.RootPriorityBindingIsCanonical"
+        , "invariant.StandardBehaviorBindingIsCanonical"
+        , "surface-actor.WorkDesk"
+        , "surface-exposure.WorkDesk"
+        , "surface-provides.WorkDesk"
+        , "surface-actor.DeterministicClock"
+        , "surface-provides.DeterministicClock"
+        ]
   , testCase "binds the DomainClock obligation to authoritative kernel state" $ do
       kernelRevision emptyKernelState @?= DomainRevision 0
       assertResponsePassed
@@ -4330,6 +4410,65 @@ kernelRootPlan = object
       , "obligations" .=
           [ obligation "invariant.GloballyOpaqueEntityIds"
               "invariant" "GloballyOpaqueEntityIds"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+composedRootPlan :: Value
+composedRootPlan = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("root" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "invariant.OneCanonicalBrickModel"
+              "invariant" "OneCanonicalBrickModel"
+          , obligation "invariant.RawIsMaterialAndBrickIsWork"
+              "invariant" "RawIsMaterialAndBrickIsWork"
+          , obligation "invariant.EveryActiveBrickHasOneStrictSiblingPosition"
+              "invariant" "EveryActiveBrickHasOneStrictSiblingPosition"
+          , obligation "invariant.PriorityIsImportanceOnly"
+              "invariant" "PriorityIsImportanceOnly"
+          , obligation "invariant.ForecastIsNotAnotherStoredOrder"
+              "invariant" "ForecastIsNotAnotherStoredOrder"
+          , obligation "invariant.OptionalAxesStayLazy"
+              "invariant" "OptionalAxesStayLazy"
+          , obligation "invariant.CoreMechanismAndExternalJudgmentAreSeparated"
+              "invariant" "CoreMechanismAndExternalJudgmentAreSeparated"
+          , obligation "invariant.CanonicalEnglishWithVerbatimProvenance"
+              "invariant" "CanonicalEnglishWithVerbatimProvenance"
+          , obligation "invariant.NoGenericPluginAuthority"
+              "invariant" "NoGenericPluginAuthority"
+          , obligation "invariant.LegacyBehaviorIsNotSpecAuthority"
+              "invariant" "LegacyBehaviorIsNotSpecAuthority"
+          ]
+      ]
+  , "model" .= object ["version" .= (3 :: Int)]
+  ]
+
+composedExecutionPlan :: Value
+composedExecutionPlan = object
+  [ "protocol_version" .= (1 :: Int)
+  , "request_kind" .= ("allium_plan" :: Text)
+  , "module" .= ("execution" :: Text)
+  , "plan" .= object
+      [ "version" .= (3 :: Int)
+      , "obligations" .=
+          [ obligation "invariant.RootPriorityBindingIsCanonical"
+              "invariant" "RootPriorityBindingIsCanonical"
+          , obligation "invariant.StandardBehaviorBindingIsCanonical"
+              "invariant" "StandardBehaviorBindingIsCanonical"
+          , obligation "surface-actor.WorkDesk" "surface_actor" "WorkDesk"
+          , obligation "surface-exposure.WorkDesk"
+              "surface_exposure" "WorkDesk"
+          , obligation "surface-provides.WorkDesk"
+              "surface_provides" "WorkDesk"
+          , obligation "surface-actor.DeterministicClock"
+              "surface_actor" "DeterministicClock"
+          , obligation "surface-provides.DeterministicClock"
+              "surface_provides" "DeterministicClock"
           ]
       ]
   , "model" .= object ["version" .= (3 :: Int)]

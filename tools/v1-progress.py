@@ -239,11 +239,19 @@ def run_request(
     )
 
 
-def collect_progress(driver: Path) -> list[tuple[str, int, int]]:
+def collect_progress(
+    driver: Path, selected_module: str | None = None
+) -> list[tuple[str, int, int]]:
     counts: list[tuple[str, int, int]] = []
     plan_paths = sorted(GENERATED.glob("*.plan.json"))
+    if selected_module is not None:
+        plan_paths = [
+            path for path in plan_paths
+            if path.name.removesuffix(".plan.json") == selected_module
+        ]
     if not plan_paths:
-        raise ProgressError("no generated v1 plans found")
+        suffix = f" for module {selected_module!r}" if selected_module else ""
+        raise ProgressError(f"no generated v1 plans found{suffix}")
     for plan_path in plan_paths:
         module = plan_path.name.removesuffix(".plan.json")
         model_path = GENERATED / f"{module}.model.json"
@@ -263,22 +271,23 @@ def collect_progress(driver: Path) -> list[tuple[str, int, int]]:
         passed = run_request(driver, label, request, identifiers)
         counts.append((label, passed, len(identifiers)))
 
-    scenario_paths = sorted(SCENARIOS.glob("*.json"))
-    if not scenario_paths:
-        raise ProgressError("no v1 scenarios found")
-    for scenario_path in scenario_paths:
-        scenario = read_json(scenario_path)
-        if not isinstance(scenario, dict) or not isinstance(scenario.get("id"), str):
-            raise ProgressError(f"{scenario_path.relative_to(ROOT)} has no string id")
-        identifiers = item_ids(scenario, "assertions", scenario_path)
-        request = {
-            "protocol_version": 1,
-            "request_kind": "scenario",
-            "scenario": scenario,
-        }
-        label = f"scenario:{scenario['id']}"
-        passed = run_request(driver, label, request, identifiers)
-        counts.append((label, passed, len(identifiers)))
+    if selected_module is None:
+        scenario_paths = sorted(SCENARIOS.glob("*.json"))
+        if not scenario_paths:
+            raise ProgressError("no v1 scenarios found")
+        for scenario_path in scenario_paths:
+            scenario = read_json(scenario_path)
+            if not isinstance(scenario, dict) or not isinstance(scenario.get("id"), str):
+                raise ProgressError(f"{scenario_path.relative_to(ROOT)} has no string id")
+            identifiers = item_ids(scenario, "assertions", scenario_path)
+            request = {
+                "protocol_version": 1,
+                "request_kind": "scenario",
+                "scenario": scenario,
+            }
+            label = f"scenario:{scenario['id']}"
+            passed = run_request(driver, label, request, identifiers)
+            counts.append((label, passed, len(identifiers)))
 
     labels = [label for label, _, _ in counts]
     if len(labels) != len(set(labels)):
@@ -382,6 +391,10 @@ def parse_arguments() -> argparse.Namespace:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--write", metavar="FILE", type=Path)
     mode.add_argument("--check", metavar="FILE", type=Path)
+    parser.add_argument(
+        "--module",
+        help="run one generated plan module (used by source mutation isolation)",
+    )
     return parser.parse_args()
 
 
@@ -389,7 +402,7 @@ def main() -> int:
     arguments = parse_arguments()
     try:
         os.environ["LANT_PACK_RUNNER"] = str(resolve_pack_runner())
-        counts = collect_progress(resolve_driver())
+        counts = collect_progress(resolve_driver(), arguments.module)
         lines = count_lines(counts)
         print("\n".join(lines))
         if arguments.write is not None:

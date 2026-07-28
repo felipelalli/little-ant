@@ -25,12 +25,13 @@ module LittleAnt.V1.Execution
   , supersedeExecutionBrickWithChildren
   , completeExecutionBrick
   , validateExecutionState
+  , workDeskProjection
   ) where
 
 import Control.Monad (foldM, unless)
 import Data.Aeson
-  (FromJSON (parseJSON), ToJSON (toJSON), defaultOptions, genericParseJSON,
-   genericToJSON)
+  (FromJSON (parseJSON), ToJSON (toJSON), Value, defaultOptions,
+   genericParseJSON, genericToJSON, object, (.=))
 import qualified Data.Aeson.Types as AesonTypes
 import Data.Char (toLower)
 import qualified Data.Map.Strict as Map
@@ -41,10 +42,11 @@ import Data.Time (UTCTime)
 import GHC.Generics (Generic)
 import LittleAnt.V1.Domain
   (Applicability (..), Authority, Brick (..), BrickClosure (..), BrickDraft,
-   BrickId, BrickStatus (..), DomainError, DomainState (..), Lifetime (..),
-   WorkState (..), behaviorEffort, behaviorLifetime, closeBrickSubtree,
-   createBrick, describeBrick, emptyDomainState, focusBrick, moveBrickSubtree,
-   renameBrick, retireStandingBrick,
+   BrickId, BrickStatus (..), DomainError, DomainState (..), FocusRegister (..),
+   Lifetime (..), Party (..), PartyId, PartyType (Person), WorkState (..),
+   behaviorEffort, behaviorLifetime, closeBrickSubtree, createBrick,
+   describeBrick, emptyDomainState, focusBrick, moveBrickSubtree, renameBrick,
+   retireStandingBrick,
    supersedeBrickWithChildren, transitionBrickStatus, validateDomainState)
 import qualified LittleAnt.V1.Judgment as Judgment
 import qualified LittleAnt.V1.Priority as Priority
@@ -282,6 +284,22 @@ activeHumanWipCount state = length
   , brickWorkState brick == Wip
   , Set.notMember (brickId brick) (executionStateDelegated state)
   ]
+
+-- | Actor-checked read projection for the WorkDesk surface.  A WorkDesk is
+-- user-facing, so only a registered person Party can obtain its exposed user
+-- identity and singleton current focus.
+workDeskProjection :: PartyId -> ExecutionState -> Either ExecutionError Value
+workDeskProjection user state = do
+  party <- maybe
+    (Left (ExecutionInvariantViolation ["WorkDesk actor is not a registered Party"]))
+    Right (Map.lookup user (domainParties (executionStateDomain state)))
+  unless (partyType party == Person)
+    (Left (ExecutionInvariantViolation ["WorkDesk actor must be a person Party"]))
+  pure (object
+    [ "user" .= object ["id" .= partyId party]
+    , "current" .= focusRegisterCurrent
+        (domainFocusRegister (executionStateDomain state))
+    ])
 
 commitTerminal ::
   Text -> Brick -> UTCTime -> ExecutionState -> DomainState ->

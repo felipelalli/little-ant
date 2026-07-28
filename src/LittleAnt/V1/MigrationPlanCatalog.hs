@@ -148,7 +148,14 @@ writerStageProbe _ = do
   fixture <- projectedFixture
   staged <- fixtureStaged fixture
   let cutoverId = v1CutoverId (fixtureCutover fixture)
-  mapped <- mapEveryIdentity cutoverId (fixtureState fixture)
+  plans <- migration (stagedIdentityPlans cutoverId (fixtureState fixture))
+  (firstPlan, remainingPlans) <- case Map.toAscList plans of
+    firstPlan : remaining -> Right (firstPlan, remaining)
+    [] -> Left "writer stage has no concrete identity plans"
+  partiallyMapped <- recordIdentityPlan cutoverId (fixtureState fixture) firstPlan
+  partialStaged <- maybe (Left "partially mapped writer stage disappeared") Right
+    (Map.lookup cutoverId (migrationStateStagedDatasets partiallyMapped))
+  mapped <- foldM (recordIdentityPlan cutoverId) partiallyMapped remainingPlans
   mappedStaged <- maybe (Left "mapped writer stage disappeared") Right
     (Map.lookup cutoverId (migrationStateStagedDatasets mapped))
   replayed <- migration (replayProjectedBricks (stagedV1DatasetCleanLog staged))
@@ -161,6 +168,8 @@ writerStageProbe _ = do
       && replayed == stagedV1DatasetProjectedBricks staged
       && stagedV1DatasetInvariantsSatisfied staged
       && not (stagedV1DatasetIdentityCoverageComplete staged)
+      && not (Map.null (migrationStateIdentityMaps partiallyMapped))
+      && not (stagedV1DatasetIdentityCoverageComplete partialStaged)
       && stagedV1DatasetIdentityCoverageComplete mappedStaged
       && stagedV1DatasetEvidenceCoverageComplete staged)
     "v1 writer did not stage concrete clean records and derive coverage"
@@ -592,12 +601,15 @@ committedFixture = do
 mapEveryIdentity :: Text -> MigrationState -> Either Text MigrationState
 mapEveryIdentity cutoverId state = do
   plans <- migration (stagedIdentityPlans cutoverId state)
-  foldM record state (Map.toAscList plans)
-  where
-    record current (oldId, (newId, kind)) = do
-      (_, _, next) <- migration (recordMigratedIdentity probeTime cutoverId
-        oldId newId kind current)
-      pure next
+  foldM (recordIdentityPlan cutoverId) state (Map.toAscList plans)
+
+recordIdentityPlan ::
+  Text -> MigrationState -> (Text, (Text, MigratedEntityKind)) ->
+  Either Text MigrationState
+recordIdentityPlan cutoverId state (oldId, (newId, kind)) = do
+  (_, _, next) <- migration (recordMigratedIdentity probeTime cutoverId
+    oldId newId kind state)
+  pure next
 
 verifyFixtureState ::
   Text -> MigrationState -> Either Text (V1Cutover, MigrationState)

@@ -1,1 +1,11 @@
-{"v":1,"id":"event-17","at":"2026-07-27T19:59:00Z","type":"brick_captured","data":{"brick":"sha256:old-seed-title","title":"Migrated seed"}}
+{"v":1,"id":"synthetic-event-ordinary","at":"2026-07-27T19:40:00Z","type":"brick_captured","data":{"brick":"sha256:synthetic-ordinary","title":"Draft a synthetic release note"}}
+{"v":1,"id":"synthetic-event-recurring","at":"2026-07-27T19:41:00Z","type":"brick_captured","data":{"brick":"sha256:synthetic-recurring","title":"Pay synthetic rent monthly"}}
+{"v":2,"id":"synthetic-event-recurring-metadata","at":"2026-07-27T19:42:00Z","type":"brick_enriched","data":{"brick":"sha256:synthetic-recurring","kind":"exec","context":"synthetic monthly recurrence","weight":null,"mode":"digital","atomicity":"atomic","estimate_hours":1,"estimate_by":"human"}}
+{"v":1,"id":"synthetic-event-party","at":"2026-07-27T19:43:00Z","type":"party_registered","data":{"party":"sha256:synthetic-delegate-party","name":"Synthetic Delegate","party_type":"person"}}
+{"v":1,"id":"synthetic-event-delegated","at":"2026-07-27T19:44:00Z","type":"brick_captured","data":{"brick":"sha256:synthetic-delegated","title":"Request a synthetic review"}}
+{"v":1,"id":"synthetic-event-delegation","at":"2026-07-27T19:45:00Z","type":"delegation_created","data":{"delegation":"sha256:synthetic-delegation","brick":"sha256:synthetic-delegated","party":"sha256:synthetic-delegate-party"}}
+{"v":1,"id":"synthetic-event-completed-capture","at":"2026-07-27T19:46:00Z","type":"brick_captured","data":{"brick":"sha256:synthetic-completed","title":"Complete a synthetic migration rehearsal"}}
+{"v":1,"id":"synthetic-event-completed","at":"2026-07-27T19:47:00Z","type":"brick_completed","data":{"brick":"sha256:synthetic-completed"}}
+{"v":1,"id":"synthetic-event-raw","at":"2026-07-27T19:48:00Z","type":"fed","data":{"raw":"sha256:synthetic-raw","content":"Wholly synthetic source material for cutover verification"}}
+{"v":1,"id":"synthetic-event-collision-a","at":"2026-07-27T19:49:00Z","type":"brick_captured","data":{"brick":"sha256:synthetic-collision-a","title":"Repeated synthetic title"}}
+{"v":1,"id":"synthetic-event-collision-b","at":"2026-07-27T19:50:00Z","type":"brick_captured","data":{"brick":"sha256:synthetic-collision-b","title":"Repeated synthetic title"}}

@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               little-ant
-version:            0.1.0.0
+version:            1.0.0.0
 synopsis:           A personal focus engine — one brick at a time
 description:
     Little Ant is a personal focus engine: a small, deterministic CLI that
@@ -30,6 +30,15 @@ extra-source-files:
     test-v1/generated/*.json
     test-v1/scenarios/*.json
     fixtures/v0-v1-atomic-cutover.jsonl
+    tools/contract-changes.md
+    tools/probe-audit.md
+    tools/probe-mutation-check.sh
+    tools/probe_mutation.py
+    tools/story-gate.sh
+    tools/test_probe_mutation.py
+    tools/test_v1_progress.py
+    tools/v1-baseline.txt
+    tools/v1-progress.py
 
 source-repository head
     type:     git
@@ -84,6 +93,7 @@ library
         LittleAnt.V1.Priority
         LittleAnt.V1.ReadModel
         LittleAnt.V1.ReadModelPlanCatalog
+        LittleAnt.V1.RootPlanCatalog
         LittleAnt.V1.Selection
         LittleAnt.V1.SelectionPlanCatalog
         LittleAnt.V1.SourceImport
