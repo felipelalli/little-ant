@@ -945,3 +945,15 @@ revisable over time, and be identifiable by configuration revision so tests
 can compare parameter sets without changing semantic invariants. A
 human-editable YAML profile and exact tail controls remain proposals pending
 further review.
+
+## Entry 66 — Give every eligible Brick a positive draw chance
+
+The long-tail direction was made exact. A hard eligibility rule excludes a
+Brick from the ordinary work lottery and gives it probability zero. Every
+Brick that remains eligible and enters the lottery must have probability
+strictly greater than zero, however small. Soft scoring, normalization, and
+tail calibration cannot silently turn an eligible Brick into an excluded one.
+
+This requirement does not yet promise that every Brick will be served within a
+bounded number of draws. The exact hard eligibility conditions, tail
+allocation, and any future bounded-service guarantee remain open.

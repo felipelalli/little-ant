@@ -137,8 +137,8 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Exact `best_before` and `deadline` pressure curves and notice thresholds.
 - Final date-notice event names, deduplication key, acknowledgment, snooze,
   resolution, and command-surfacing grammar.
-- Whether every candidate needs only positive probability or a bounded service
-  guarantee.
+- Whether the confirmed positive probability for every eligible Brick also
+  needs a bounded service guarantee.
 - Exact deterministic precedence before the lottery.
 - Which proposals are fully derived and which require persisted resumable
   state.

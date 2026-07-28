@@ -59,6 +59,11 @@ Confirmed on 2026-07-28:
 - A useful long tail is intentional. Low-scoring or unusual eligible work
   should retain some opportunity to surface instead of being permanently
   hidden by the head of the distribution.
+- A Brick excluded by a hard eligibility rule has probability zero in the
+  ordinary work lottery.
+- Every Brick admitted to that lottery has probability strictly greater than
+  zero. Weight transformation, normalization, and tail controls must not turn
+  a still-eligible Brick into an implicit exclusion.
 - Viewing the forecast must not consume random evidence or change a future
   draw.
 - A draw changes neither the importance order nor the underlying judgments.
@@ -87,8 +92,8 @@ Current proposal, not yet confirmed:
 
 Open implications:
 
-- whether every eligible candidate has a strictly positive probability floor;
 - which conditions are hard exclusions before weighting;
 - the exact scoring, normalization, tail, and aging functions;
+- whether positive probability also needs a bounded service guarantee;
 - configuration schema, validation ranges, revision storage, and migration;
 - which calibration changes require explicit confirmation.
