@@ -29,6 +29,7 @@ extra-source-files:
     test-v1/generate-allium-artifacts.sh
     test-v1/generated/*.json
     test-v1/scenarios/*.json
+    fixtures/v0-v1-atomic-cutover.jsonl
 
 source-repository head
     type:     git
@@ -75,6 +76,8 @@ library
         LittleAnt.V1.Kernel
         LittleAnt.V1.Material
         LittleAnt.V1.MaterialPlanCatalog
+        LittleAnt.V1.Migration
+        LittleAnt.V1.MigrationPlanCatalog
         LittleAnt.V1.PlanCatalog
         LittleAnt.V1.Planning
         LittleAnt.V1.PlanningPlanCatalog

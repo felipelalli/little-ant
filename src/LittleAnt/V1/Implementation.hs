@@ -9,12 +9,14 @@ module LittleAnt.V1.Implementation
   ) where
 
 import Control.Applicative ((<|>))
+import Control.Exception (IOException, try)
 import Control.Monad (foldM, unless, when)
 import Data.Aeson
   (FromJSON, Object, Result (..), Value (..), fromJSON, object, toJSON, (.=))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Types as AesonTypes
+import qualified Data.ByteString.Lazy as LBS
 import Data.Foldable (toList)
 import Data.List (find, sortOn)
 import qualified Data.Map.Strict as Map
@@ -68,6 +70,7 @@ import LittleAnt.V1.Material
    reportSnapshotMissing, retireRawOrigin, reviewRaw, sourceObservationProjection,
    unarchiveRaw, verifySnapshotBytes)
 import qualified LittleAnt.V1.Material as Material
+import qualified LittleAnt.V1.Migration as Migration
 import LittleAnt.V1.PlanCatalog (v1PlanProbes, v1RuntimePlanProbes)
 import qualified LittleAnt.V1.Planning as Planning
 import qualified LittleAnt.V1.Priority as Priority
@@ -215,11 +218,20 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("CutOverImport", cutOverImportOperation)
       , ("ProposeEmptyContainerDeletion", proposeEmptyContainerDeletionOperation)
       , ("ImportTaskJugglerActual", importTaskJugglerActualOperation)
+      , ("PlanV0V1Cutover", planV0V1CutoverOperation)
+      , ("VerifyV0Archive", verifyV0ArchiveOperation)
+      , ("ProjectV1State", projectV1StateOperation)
+      , ("RecordMigratedIdentity", recordMigratedIdentityOperation)
+      , ("RecordMigrationEvidence", recordMigrationEvidenceOperation)
+      , ("VerifyV1Projection", verifyV1ProjectionOperation)
+      , ("RejectV1Projection", rejectV1ProjectionOperation)
+      , ("CommitV1Cutover", commitV1CutoverOperation)
       , ("OpenLocalWebUi", openLocalWebUiOperation)
       , ("CloseLocalWebUi", closeLocalWebUiOperation)
       ]
   , registryRuntimeOperations = Map.fromList
-      [ ("PackRunner.execute", packRunnerExecuteOperation)
+      [ ("PlanV0V1Cutover", planV0V1CutoverOperationIO)
+      , ("PackRunner.execute", packRunnerExecuteOperation)
       , ("ProbePackSandbox", probePackSandboxOperation)
       , ("ExportTaskJuggler", exportTaskJugglerOperation)
       , ("RenderWebUi", renderWebUiOperation)
@@ -312,6 +324,12 @@ contractRegistry = (emptyContractRegistry emptyKernelState)
       , ("SourceEffect", sourceEffectObservation)
       , ("SourceEffects", sourceEffectsObservation)
       , ("PlanningManifest", planningManifestObservation)
+      , ("ActiveDatasetPointer", activeDatasetPointerObservation)
+      , ("ActiveDataset", activeDatasetObservation)
+      , ("IdentityMap", identityMapObservation)
+      , ("ProjectedBrick", projectedBrickObservation)
+      , ("V0Archive", v0ArchiveObservation)
+      , ("V1Cutover", v1CutoverObservation)
       , ("ExportedTaskJuggler", exportedTaskJugglerObservation)
       , ("ImportedActual", importedActualObservation)
       , ("WebUiSession", webUiSessionObservation)
@@ -776,6 +794,291 @@ mapAnnotationError = either (Left . Text.pack . show) Right
 
 mapHistoryError :: Either ReadModel.HistoryError value -> Either Text value
 mapHistoryError = either (Left . Text.pack . show) Right
+
+------------------------------------------------------------
+-- Verified v0-to-v1 archive migration and atomic activation
+------------------------------------------------------------
+
+migrationStateFromKernel :: V1State -> Either Text Migration.MigrationState
+migrationStateFromKernel state = case kernelValue "v1.migration" state of
+  Nothing -> Right Migration.emptyMigrationState
+  Just value -> case fromJSON value of
+    Success migration -> do
+      mapMigrationError (Migration.validateMigrationState migration)
+      Right migration
+    Error problem -> Left ("stored migration state is malformed: "
+      <> Text.pack problem)
+
+persistMigrationState ::
+  OperationInput -> Text -> Value -> Migration.MigrationState -> V1State ->
+  Either Text (OperationResult V1State)
+persistMigrationState input suffix result migration state = do
+  mapMigrationError (Migration.validateMigrationState migration)
+  accepted <- appendForFixture input suffix
+    [ProposeValueStored "v1.migration" (toJSON migration)] state
+  pure OperationResult
+    { operationResultValue = result
+    , operationResultState = appendResultState accepted
+    }
+
+-- | Pure planning remains metadata-only for construct probes.  Such a plan
+-- cannot verify or activate because verification requires retained archive
+-- bytes.  Executable scenarios use the runtime reader below.
+planV0V1CutoverOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+planV0V1CutoverOperation input state = do
+  arguments <- requireArgumentsObject input
+  sourcePath <- requiredText "source_path" arguments
+  byteSize <- requiredInteger "byte_size" arguments
+  eventCount <- requiredInteger "event_count" arguments
+  archiveHash <- requiredText "sha256" arguments
+  let target = fromMaybe (sourcePath <> ".v1/events.jsonl")
+        (optionalText "target_location" arguments)
+  now <- operationTime input
+  migration <- migrationStateFromKernel state
+  case Migration.planV0V1Cutover now sourcePath target byteSize eventCount
+      archiveHash migration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (archive, cutover, next) -> persistMigrationState input
+      "v0-v1-cutover-planned"
+      (object
+        [ "archive" .= Migration.v0ArchiveId archive
+        , "cutover" .= Migration.v1CutoverId cutover
+        , "target_location" .= target
+        ]) next state
+
+-- | Runtime V0ArchiveReader boundary.  It inspects the named source and binds
+-- the declared metadata to the exact immutable bytes retained in migration
+-- state; nonexistent or mismatched sources never create a cutover plan.
+planV0V1CutoverOperationIO ::
+  OperationInput -> V1State -> IO (Either Text (OperationResult V1State))
+planV0V1CutoverOperationIO input state = case do
+    arguments <- requireArgumentsObject input
+    sourcePath <- requiredText "source_path" arguments
+    byteSize <- requiredInteger "byte_size" arguments
+    eventCount <- requiredInteger "event_count" arguments
+    archiveHash <- requiredText "sha256" arguments
+    let target = fromMaybe (sourcePath <> ".v1/events.jsonl")
+          (optionalText "target_location" arguments)
+    now <- operationTime input
+    migration <- migrationStateFromKernel state
+    pure (sourcePath, target, byteSize, eventCount, archiveHash, now, migration) of
+  Left problem -> pure (Left problem)
+  Right (sourcePath, target, byteSize, eventCount, archiveHash, now, migration) -> do
+    readResult <- try (LBS.readFile (Text.unpack sourcePath))
+      :: IO (Either IOException LBS.ByteString)
+    pure $ case readResult of
+      Left problem -> Right (preconditionRejected
+        ("archive source unavailable: " <> Text.pack (show problem)) state)
+      Right bytes -> case Migration.inspectV0Archive sourcePath bytes of
+        Left problem -> Right (preconditionRejected problem state)
+        Right inspection
+          | Migration.archiveInspectionByteSize inspection /= byteSize
+              || Migration.archiveInspectionEventCount inspection /= eventCount
+              || Migration.archiveInspectionSha256 inspection /= archiveHash ->
+              Right (preconditionRejected
+                ("declared archive metadata differs from inspected bytes" :: Text)
+                state)
+          | otherwise -> case Migration.planV0V1CutoverFromBytes now sourcePath
+              target bytes migration of
+              Left problem -> Right (preconditionRejected problem state)
+              Right (archive, cutover, next) -> persistMigrationState input
+                "v0-v1-cutover-planned"
+                (object
+                  [ "archive" .= Migration.v0ArchiveId archive
+                  , "cutover" .= Migration.v1CutoverId cutover
+                  , "target_location" .= target
+                  ]) next state
+
+verifyV0ArchiveOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+verifyV0ArchiveOperation input state = do
+  arguments <- requireArgumentsObject input
+  observedHash <- requiredText "observed_hash" arguments
+  observedCount <- requiredInteger "observed_event_count" arguments
+  now <- operationTime input
+  migration <- migrationStateFromKernel state
+  cutoverId <- cutoverArgumentOrOnly arguments migration
+  let pointerBefore = Migration.activeDatasetPointer migration
+  case Migration.verifyV0Archive now cutoverId observedHash observedCount migration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (_, cutover, next) -> persistMigrationState input "v0-archive-verified"
+      (object
+        [ "status" .= Migration.v1CutoverStatus cutover
+        , "active_dataset_changed" .=
+            (Migration.activeDatasetPointer next /= pointerBefore)
+        ]) next state
+
+projectV1StateOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+projectV1StateOperation input state = do
+  arguments <- requireArgumentsObject input
+  cutoverId <- requiredText "cutover" arguments
+  projectedCount <- requiredInteger "projected_entity_count" arguments
+  evidenceCount <- requiredInteger "retained_evidence_count" arguments
+  migration <- migrationStateFromKernel state
+  case do
+      cutover <- Migration.findCutover cutoverId migration
+      archive <- Migration.findArchive (Migration.v1CutoverArchive cutover) migration
+      payload <- maybe (Left Migration.ProjectionUnavailable) Right
+        (Migration.archiveBytes (Migration.v0ArchiveId archive) migration)
+      archivedEvents <- Migration.readV0ArchiveEvents payload
+      (projected, next) <- Migration.projectV0Events cutoverId archivedEvents migration
+      unless (Migration.v1CutoverProjectedEntityCount projected == projectedCount
+          && Migration.v1CutoverRetainedEvidenceCount projected == evidenceCount)
+        (Left Migration.ProjectionCountMismatch)
+      staged <- maybe (Left Migration.ProjectionUnavailable) Right
+        (Map.lookup cutoverId (Migration.migrationStateStagedDatasets next))
+      logHash <- maybe (Left Migration.ProjectionHashMismatch) Right
+        (Migration.stagedV1DatasetComputedLogHash staged)
+      pure (projected, logHash, next) of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (cutover, logHash, next) -> persistMigrationState input
+      "v1-state-projected"
+      (object
+        [ "cutover" .= Migration.v1CutoverId cutover
+        , "status" .= Migration.v1CutoverStatus cutover
+        , "projected_entity_count" .= Migration.v1CutoverProjectedEntityCount cutover
+        , "retained_evidence_count" .=
+            Migration.v1CutoverRetainedEvidenceCount cutover
+        , "v1_log_hash" .= logHash
+        ]) next state
+
+recordMigratedIdentityOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordMigratedIdentityOperation input state = do
+  arguments <- requireArgumentsObject input
+  cutoverId <- requiredText "cutover" arguments
+  oldId <- requiredText "old_id" arguments
+  newId <- requiredText "new_id" arguments
+  kind <- requiredAs "kind" arguments
+  now <- operationTime input
+  migration <- migrationStateFromKernel state
+  case Migration.recordMigratedIdentity now cutoverId oldId newId kind migration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (mapping, _, next) -> persistMigrationState input
+      "migrated-identity-recorded"
+      (object ["identity_map" .= Migration.v0V1IdentityMapId mapping]) next state
+
+recordMigrationEvidenceOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+recordMigrationEvidenceOperation input state = do
+  arguments <- requireArgumentsObject input
+  cutoverId <- requiredText "cutover" arguments
+  oldEventId <- optionalAs "old_event_id" arguments
+  subjectOldId <- optionalAs "subject_old_id" arguments
+  semanticKind <- requiredText "semantic_kind" arguments
+  summary <- requiredText "summary" arguments
+  now <- operationTime input
+  migration <- migrationStateFromKernel state
+  case Migration.recordMigrationEvidence now cutoverId oldEventId subjectOldId
+      semanticKind summary migration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (evidence, next) -> persistMigrationState input
+      "migration-evidence-recorded"
+      (object ["evidence" .= Migration.migrationEvidenceId evidence]) next state
+
+verifyV1ProjectionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+verifyV1ProjectionOperation input state = do
+  arguments <- requireArgumentsObject input
+  cutoverId <- requiredText "cutover" arguments
+  mappedCount <- requiredInteger "mapped_identity_count" arguments
+  projectedCount <- requiredInteger "projected_entity_count" arguments
+  logHash <- requiredText "v1_log_hash" arguments
+  migration <- migrationStateFromKernel state
+  case Migration.verifyV1Projection cutoverId mappedCount projectedCount logHash
+      migration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (cutover, next) -> persistMigrationState input "v1-projection-verified"
+      (object
+        [ "cutover" .= Migration.v1CutoverId cutover
+        , "status" .= Migration.v1CutoverStatus cutover
+        , "v1_log_hash" .= Migration.v1CutoverV1LogHash cutover
+        ]) next state
+
+rejectV1ProjectionOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+rejectV1ProjectionOperation input state = do
+  arguments <- requireArgumentsObject input
+  cutoverId <- requiredText "cutover" arguments
+  failure <- requiredText "failure" arguments
+  now <- operationTime input
+  migration <- migrationStateFromKernel state
+  case Migration.rejectV1Projection now cutoverId failure migration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (cutover, next) -> persistMigrationState input "v1-projection-rejected"
+      (toJSON cutover) next state
+
+commitV1CutoverOperation ::
+  OperationInput -> V1State -> Either Text (OperationResult V1State)
+commitV1CutoverOperation input state = do
+  arguments <- requireArgumentsObject input
+  cutoverId <- requiredText "cutover" arguments
+  receiptHash <- requiredText "receipt_hash" arguments
+  now <- operationTime input
+  migration <- migrationStateFromKernel state
+  case Migration.commitV1Cutover now cutoverId receiptHash migration of
+    Left problem -> Right (preconditionRejected problem state)
+    Right (cutover, receipt, next) -> do
+      _ <- mapMigrationError
+        (Migration.verifyCutoverReceipt (Migration.v1CutoverId cutover) next)
+      persistMigrationState input "v1-cutover-committed"
+        (object
+          [ "cutover" .= Migration.v1CutoverId cutover
+          , "status" .= Migration.v1CutoverStatus cutover
+          , "receipt_hash" .= Migration.cutoverReceiptHash receipt
+          ]) next state
+
+activeDatasetPointerObservation ::
+  ObservationInput -> V1State -> Either Text Value
+activeDatasetPointerObservation input state = do
+  requireNoArguments "ActiveDatasetPointer" input
+  migration <- migrationStateFromKernel state
+  pure (String (Migration.activeDatasetPointer migration))
+
+activeDatasetObservation :: ObservationInput -> V1State -> Either Text Value
+activeDatasetObservation input state = do
+  requireNoArguments "ActiveDataset" input
+  toJSON . Migration.migrationStateActiveDataset <$> migrationStateFromKernel state
+
+identityMapObservation :: ObservationInput -> V1State -> Either Text Value
+identityMapObservation input state = case observationArguments input of
+  [String archiveId, String oldId] -> do
+    migration <- migrationStateFromKernel state
+    toJSON <$> mapMigrationError
+      (Migration.findIdentityMap archiveId oldId migration)
+  _ -> Left "IdentityMap expects archive and old identity text arguments"
+
+projectedBrickObservation :: ObservationInput -> V1State -> Either Text Value
+projectedBrickObservation input state = do
+  oldId <- exactlyOneTextArgument "ProjectedBrick" input
+  migration <- migrationStateFromKernel state
+  toJSON <$> mapMigrationError (Migration.findProjectedBrick oldId migration)
+
+v0ArchiveObservation :: ObservationInput -> V1State -> Either Text Value
+v0ArchiveObservation input state = do
+  archiveId <- exactlyOneTextArgument "V0Archive" input
+  migration <- migrationStateFromKernel state
+  toJSON <$> mapMigrationError (Migration.findArchive archiveId migration)
+
+v1CutoverObservation :: ObservationInput -> V1State -> Either Text Value
+v1CutoverObservation input state = do
+  cutoverId <- exactlyOneTextArgument "V1Cutover" input
+  migration <- migrationStateFromKernel state
+  toJSON <$> mapMigrationError (Migration.findCutover cutoverId migration)
+
+cutoverArgumentOrOnly ::
+  Object -> Migration.MigrationState -> Either Text Text
+cutoverArgumentOrOnly arguments migration = case optionalText "cutover" arguments of
+  Just identifier -> Right identifier
+  Nothing -> case Map.keys (Migration.migrationStateCutovers migration) of
+    [identifier] -> Right identifier
+    [] -> Left "no planned cutover is available"
+    _ -> Left "cutover argument is required when several cutovers exist"
+
+mapMigrationError :: Either Migration.MigrationError value -> Either Text value
+mapMigrationError = either (Left . Text.pack . show) Right
 
 ------------------------------------------------------------
 -- Typed Packs, local credentials, and the capability host

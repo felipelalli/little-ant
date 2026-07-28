@@ -40,6 +40,7 @@ import LittleAnt.V1.Kernel
    emptyKernelState, kernelEntity, kernelEventBatches, kernelRevision,
    kernelValue, replayAll)
 import LittleAnt.V1.MaterialPlanCatalog (materialPlanProbes)
+import LittleAnt.V1.MigrationPlanCatalog (migrationPlanProbes)
 import LittleAnt.V1.PlanningPlanCatalog
   (planningPlanProbes, planningRuntimePlanProbes)
 import LittleAnt.V1.ReadModelPlanCatalog (readModelPlanProbes)
@@ -54,6 +55,7 @@ v1PlanProbes = Map.unions
   , executionLifecyclePlanProbes
   , coordinationPlanProbes
   , materialPlanProbes
+  , migrationPlanProbes
   , priorityPlanProbes
   , assessmentPlanProbes
   , standingPlanProbes

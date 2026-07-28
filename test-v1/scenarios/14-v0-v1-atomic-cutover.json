@@ -14,10 +14,10 @@
       "id": "plan-cutover",
       "operation": "PlanV0V1Cutover",
       "arguments": {
-        "source_path": "/backups/little-ant-v0/events.jsonl",
-        "byte_size": 1048576,
-        "event_count": 4200,
-        "sha256": "sha256:v0-archive"
+        "source_path": "fixtures/v0-v1-atomic-cutover.jsonl",
+        "byte_size": 141,
+        "event_count": 1,
+        "sha256": "sha256:c132733bec3d288288ba18d3c9cbb8844ba8adeed0f0c79823242d673516439d"
       },
       "bind_result": {
         "archive": "archive",
@@ -29,8 +29,8 @@
       "operation": "VerifyV0Archive",
       "arguments": {
         "cutover": "$cutover",
-        "observed_hash": "sha256:v0-archive",
-        "observed_event_count": 4200
+        "observed_hash": "sha256:c132733bec3d288288ba18d3c9cbb8844ba8adeed0f0c79823242d673516439d",
+        "observed_event_count": 1
       }
     },
     {
@@ -38,8 +38,11 @@
       "operation": "ProjectV1State",
       "arguments": {
         "cutover": "$cutover",
-        "projected_entity_count": 250,
-        "retained_evidence_count": 3400
+        "projected_entity_count": 1,
+        "retained_evidence_count": 1
+      },
+      "bind_result": {
+        "v1_log_hash": "v1_log_hash"
       }
     },
     {
@@ -48,7 +51,7 @@
       "arguments": {
         "cutover": "$cutover",
         "old_id": "sha256:old-seed-title",
-        "new_id": "opaque:01J4V1",
+        "new_id": "la1:migration:entity:000000000002",
         "kind": "brick"
       }
     },
@@ -69,8 +72,8 @@
       "arguments": {
         "cutover": "$cutover",
         "mapped_identity_count": 1,
-        "projected_entity_count": 250,
-        "v1_log_hash": "sha256:v1-log"
+        "projected_entity_count": 1,
+        "v1_log_hash": "$v1_log_hash"
       }
     },
     {
@@ -92,11 +95,12 @@
     },
     {
       "id": "archive-mismatch-fails-without-projection",
+      "after": "plan-cutover",
       "operation": "VerifyV0Archive",
-      "fixture": "fresh_cutover",
       "arguments": {
+        "cutover": "$cutover",
         "observed_hash": "sha256:wrong",
-        "observed_event_count": 4200
+        "observed_event_count": 1
       },
       "operator": "results_in",
       "value": {
@@ -136,7 +140,7 @@
       "operator": "contains",
       "value": {
         "format": "v1",
-        "log_hash": "sha256:v1-log"
+        "log_hash": "$v1_log_hash"
       }
     },
     {
@@ -145,7 +149,7 @@
       "query": "V0Archive($archive)",
       "operator": "contains",
       "value": {
-        "sha256": "sha256:v0-archive",
+        "sha256": "sha256:c132733bec3d288288ba18d3c9cbb8844ba8adeed0f0c79823242d673516439d",
         "immutable": true,
         "verified": true
       }

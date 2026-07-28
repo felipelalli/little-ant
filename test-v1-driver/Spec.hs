@@ -31,6 +31,9 @@ import LittleAnt.V1.Contract
 import qualified LittleAnt.V1.Coordination as Coordination
 import LittleAnt.V1.Domain
 import qualified LittleAnt.V1.Execution as Execution
+import LittleAnt.Event (Body (..), Event (..), eventToJSON)
+import LittleAnt.Ids (Id (..))
+import qualified LittleAnt.Types as V0
 import LittleAnt.V1.Implementation (contractRegistry)
 import qualified LittleAnt.V1.Integration as Integration
 import qualified LittleAnt.V1.Interaction as Interaction
@@ -42,6 +45,7 @@ import LittleAnt.V1.Kernel
    kernelArtifact, kernelEventBatches, kernelRevision, kernelValue,
    putKernelArtifact, replayAll)
 import LittleAnt.V1.Material
+import qualified LittleAnt.V1.Migration as Migration
 import qualified LittleAnt.V1.Planning as Planning
 import qualified LittleAnt.V1.Priority as Priority
 import qualified LittleAnt.V1.ReadModel as ReadModel
@@ -71,6 +75,7 @@ main = defaultMain $ testGroup "v1 contract runner"
   , integrationTests
   , sourceImportTests
   , planningTests
+  , migrationTests
   , cliSurfaceTests
   , readModelTests
   , coordinationTests
@@ -2356,6 +2361,391 @@ planningTests = testGroup "v1 planning export and loopback UI adapter"
       assertResponsePassed (runContractRequest contractRegistry statusScenario)
         ["focus", "wip", "proposals", "notices"]
   ]
+
+migrationTests :: TestTree
+migrationTests = testGroup "v1 verified v0-to-v1 atomic cutover"
+  [ testCase "runtime reader rejects a nonexistent metadata-only archive" $ do
+      reader <- maybe (assertFailure "runtime archive reader is unregistered") pure
+        (Map.lookup "PlanV0V1Cutover"
+          (registryRuntimeOperations contractRegistry))
+      let input = OperationInput
+            { operationStepId = "missing-archive"
+            , operationName = "PlanV0V1Cutover"
+            , operationArguments = object
+                [ "source_path" .= ("fixtures/does-not-exist.jsonl" :: Text)
+                , "byte_size" .= (141 :: Integer)
+                , "event_count" .= (1 :: Integer)
+                , "sha256" .= ("sha256:declared-only" :: Text)
+                ]
+            , operationAmbient = AmbientInputs Nothing Nothing Nothing
+            }
+      result <- reader input emptyKernelState >>= either
+        (assertFailure . Text.unpack) pure
+      case operationResultValue result of
+        Object fields -> KeyMap.lookup "accepted" fields @?= Just (Bool False)
+        value -> assertFailure ("reader rejection is not structured: " <> show value)
+      kernelValue "v1.migration" (operationResultState result) @?= Nothing
+  , testCase "inspects immutable bytes and fails archive mismatch without staging" $ do
+      inspection <- requireMigrationSuccess
+        (Migration.inspectV0Archive migrationSourcePath migrationArchiveBytes)
+      Migration.archiveInspectionByteSize inspection @?=
+        fromIntegral (LBS.length migrationArchiveBytes)
+      Migration.archiveInspectionEventCount inspection @?=
+        fromIntegral (length migrationArchiveEvents)
+      let expectedHash = Migration.hashV0ArchiveBytes migrationArchiveBytes
+      Migration.archiveInspectionSha256 inspection @?= expectedHash
+      (archive, cutover, planned) <- requireMigrationSuccess
+        (Migration.planV0V1CutoverFromBytes integrationTestTime
+          migrationSourcePath migrationTargetPath migrationArchiveBytes
+          Migration.emptyMigrationState)
+      let pointerBefore = Migration.activeDatasetPointer planned
+          bytesBefore = Migration.archiveBytes (Migration.v0ArchiveId archive) planned
+      (_, failed, afterFailure) <- requireMigrationSuccess
+        (Migration.verifyV0Archive (addUTCTime 1 integrationTestTime)
+          (Migration.v1CutoverId cutover) "sha256:wrong"
+          (Migration.v0ArchiveEventCount archive) planned)
+      Migration.v1CutoverStatus failed @?= Migration.CutoverFailed
+      Migration.v1CutoverFailure failed @?=
+        Just "v0_archive_verification_failed"
+      Migration.activeDatasetPointer afterFailure @?= pointerBefore
+      Migration.migrationStateStagedDatasets afterFailure @?= Map.empty
+      Migration.archiveBytes (Migration.v0ArchiveId archive) afterFailure @?=
+        bytesBefore
+  , testCase "stages canonical stage mappings with unique opaque identity evidence" $ do
+      (archive, cutover, projected) <- requireMigrationProjectedFixture
+      plans <- requireMigrationSuccess (Migration.stagedIdentityPlans
+        (Migration.v1CutoverId cutover) projected)
+      Map.size plans @?= 4
+      let identifiers = map fst (Map.elems plans)
+      Set.size (Set.fromList identifiers) @?= length identifiers
+      assertBool "projected identities are not opaque v1 IDs"
+        (all ("la1:migration:entity:" `Text.isPrefixOf`) identifiers)
+      seed <- requireMigrationSuccess
+        (Migration.findProjectedBrick "sha256:legacy-seed" projected)
+      wip <- requireMigrationSuccess
+        (Migration.findProjectedBrick "sha256:legacy-wip" projected)
+      Migration.projectedBrickStatus seed @?= "active"
+      Migration.projectedBrickBehavior seed @?= behaviorId standardV1
+      Migration.projectedBrickPriorityMembershipCount seed @?= 1
+      Migration.projectedBrickWorkState wip @?= "wip"
+      staged <- maybe (assertFailure "missing staged projection") pure
+        (Map.lookup (Migration.v1CutoverId cutover)
+          (Migration.migrationStateStagedDatasets projected))
+      replayed <- requireMigrationSuccess (Migration.replayProjectedBricks
+        (Migration.stagedV1DatasetCleanLog staged))
+      replayed @?= Migration.stagedV1DatasetProjectedBricks staged
+      mapped <- foldM (recordMigrationPlan (Migration.v1CutoverId cutover))
+        projected (Map.toAscList plans)
+      (evidence, withEvidence) <- requireMigrationSuccess
+        (Migration.recordMigrationEvidence integrationTestTime
+          (Migration.v1CutoverId cutover) (Just "legacy-event-0")
+          (Just "sha256:legacy-seed") "legacy_stage"
+          "seed mapped to active positioned Brick" mapped)
+      Map.lookup (Migration.migrationEvidenceId evidence)
+        (Migration.migrationStateEvidence withEvidence) @?= Just evidence
+      completedStage <- maybe (assertFailure "missing mapped staged projection") pure
+        (Map.lookup (Migration.v1CutoverId cutover)
+          (Migration.migrationStateStagedDatasets withEvidence))
+      Migration.stagedV1DatasetIdentityCoverageComplete completedStage @?= True
+      case Migration.recordMigratedIdentity integrationTestTime
+          (Migration.v1CutoverId cutover) "sha256:title-derived"
+          "sha256:title-derived" Migration.MigratedBrick withEvidence of
+        Left (Migration.InvalidMigratedIdentity _) -> pure ()
+        result -> assertFailure ("title-derived mapping result: " <> show result)
+      Migration.validateMigrationState withEvidence @?= Right ()
+      Migration.archiveBytes (Migration.v0ArchiveId archive) withEvidence @?=
+        Just migrationArchiveBytes
+  , testCase "rejects staged verification without changing active authority" $ do
+      (_, cutover, projected) <- requireMigrationProjectedFixture
+      plans <- requireMigrationSuccess (Migration.stagedIdentityPlans
+        (Migration.v1CutoverId cutover) projected)
+      mapped <- foldM (recordMigrationPlan (Migration.v1CutoverId cutover))
+        projected (Map.toAscList plans)
+      current <- requireMigrationSuccess
+        (Migration.findCutover (Migration.v1CutoverId cutover) mapped)
+      let staged = Map.lookup (Migration.v1CutoverId cutover)
+            (Migration.migrationStateStagedDatasets mapped)
+          logHash = staged >>= Migration.stagedV1DatasetComputedLogHash
+      case logHash of
+        Nothing -> assertFailure "materialized staging omitted its log hash"
+        Just _ -> pure ()
+      case Migration.verifyV1Projection (Migration.v1CutoverId cutover)
+          (Migration.v1CutoverMappedIdentityCount current)
+          (Migration.v1CutoverProjectedEntityCount current)
+          "sha256:wrong" mapped of
+        Left Migration.ProjectionHashMismatch -> pure ()
+        result -> assertFailure ("wrong staged hash result: " <> show result)
+      let pointerBefore = Migration.activeDatasetPointer mapped
+      (failed, rejected) <- requireMigrationSuccess
+        (Migration.rejectV1Projection (addUTCTime 1 integrationTestTime)
+          (Migration.v1CutoverId cutover) "staged_projection_invalid" mapped)
+      Migration.v1CutoverStatus failed @?= Migration.CutoverFailed
+      Migration.activeDatasetPointer rejected @?= pointerBefore
+      assertBool "failed projection became active"
+        (Migration.activeDatasetFormat
+          (Migration.migrationStateActiveDataset rejected) == "v0")
+  , testCase "rejects incomplete writer coverage and arbitrary projection lookup" $ do
+      (archive, cutover, archived) <- requireMigrationArchivedFixture
+      writer <- expectedWriterProjection (Migration.v1CutoverId cutover) archived
+      let archiveHash = Migration.v0ArchiveSha256 archive
+          projectedCount = fromIntegral
+            (Map.size (Migration.writerProjectionIdentityPlans writer))
+          evidenceCount = fromIntegral (length migrationArchiveEvents)
+      case Migration.stageWriterProjection (Migration.v1CutoverId cutover)
+          projectedCount evidenceCount (incompleteWriterProjection archiveHash)
+          archived of
+        Left Migration.ProjectionInvariantFailure -> pure ()
+        result -> assertFailure ("recordless writer stage result: " <> show result)
+      case Migration.stageWriterProjection (Migration.v1CutoverId cutover)
+          projectedCount evidenceCount
+          writer {Migration.writerProjectionArchiveHash = "sha256:different-archive"}
+          archived of
+        Left Migration.ProjectionInvariantFailure -> pure ()
+        result -> assertFailure ("cross-archive writer stage result: " <> show result)
+      (_, staged) <- requireMigrationSuccess
+        (Migration.stageWriterProjection (Migration.v1CutoverId cutover)
+          projectedCount evidenceCount writer archived)
+      case Migration.findProjectedBrick "sha256:not-in-archive" staged of
+        Left Migration.ProjectionUnavailable -> pure ()
+        result -> assertFailure ("arbitrary projected Brick result: " <> show result)
+      (oldId, (newId, kind)) <- maybe (assertFailure "writer has no identity") pure
+        (safeHeadForTest
+          (Map.toAscList (Migration.writerProjectionIdentityPlans writer)))
+      (_, _, mappedOnce) <- requireMigrationSuccess
+        (Migration.recordMigratedIdentity integrationTestTime
+          (Migration.v1CutoverId cutover) oldId newId kind staged)
+      current <- requireMigrationSuccess
+        (Migration.findCutover (Migration.v1CutoverId cutover) mappedOnce)
+      case Migration.verifyV1Projection (Migration.v1CutoverId cutover)
+          (Migration.v1CutoverMappedIdentityCount current)
+          (Migration.v1CutoverProjectedEntityCount current)
+          (Migration.writerProjectionLogHash writer) mappedOnce of
+        Left Migration.ProjectionInvariantFailure -> pure ()
+        result -> assertFailure ("incomplete writer coverage result: " <> show result)
+  , testCase "rejects non-catalog behavior and invalid work state from writer" $ do
+      (_, cutover, archived) <- requireMigrationArchivedFixture
+      writer <- expectedWriterProjection (Migration.v1CutoverId cutover) archived
+      let projectedCount = fromIntegral
+            (Map.size (Migration.writerProjectionIdentityPlans writer))
+          evidenceCount = fromIntegral (length migrationArchiveEvents)
+          badBehavior = mutateWriterBrickField "behavior" "core/nonexistent" writer
+          badWorkState = mutateWriterBrickField "work_state" "paused" writer
+      mapM_ (\(label, candidate) -> case Migration.stageWriterProjection
+          (Migration.v1CutoverId cutover) projectedCount evidenceCount candidate
+          archived of
+            Left Migration.ProjectionInvariantFailure -> pure ()
+            result -> assertFailure (label <> " writer result: " <> show result))
+        [("non-catalog behavior", badBehavior), ("invalid work state", badWorkState)]
+  , testCase "binds projection to exact archive events, not only their count" $ do
+      (_, cutover, archived) <- requireMigrationArchivedFixture
+      let replacement = Event "legacy-event-0" integrationTestTime
+            (BrickCaptured (Id "sha256:legacy-seed") "Different seed bytes")
+          differentSameCount = replacement : drop 1 migrationArchiveEvents
+      length differentSameCount @?= length migrationArchiveEvents
+      case Migration.projectV0Events (Migration.v1CutoverId cutover)
+          differentSameCount archived of
+        Left Migration.ArchiveVerificationMismatch -> pure ()
+        result -> assertFailure ("same-count archive substitution result: "
+          <> show result)
+  , testCase "rejects non-opaque and replaced staged identity allocations" $ do
+      (_, cutover, projected) <- requireMigrationProjectedFixture
+      plans <- requireMigrationSuccess (Migration.stagedIdentityPlans
+        (Migration.v1CutoverId cutover) projected)
+      (oldId, (_, kind)) <- maybe (assertFailure "missing staged identity") pure
+        (safeHeadForTest (Map.toAscList plans))
+      case Migration.recordMigratedIdentity integrationTestTime
+          (Migration.v1CutoverId cutover) oldId "replacement-id" kind projected of
+        Left (Migration.InvalidMigratedIdentity _) -> pure ()
+        result -> assertFailure ("non-opaque identity result: " <> show result)
+      case Migration.recordMigratedIdentity integrationTestTime
+          (Migration.v1CutoverId cutover) oldId "opaque:replacement" kind projected of
+        Left (Migration.InvalidMigratedIdentity _) -> pure ()
+        result -> assertFailure ("replaced staged identity result: " <> show result)
+  , testCase "atomically activates the clean v1 log and verifies its receipt" $ do
+      (archive, cutover, projected) <- requireMigrationProjectedFixture
+      plans <- requireMigrationSuccess (Migration.stagedIdentityPlans
+        (Migration.v1CutoverId cutover) projected)
+      mapped <- foldM (recordMigrationPlan (Migration.v1CutoverId cutover))
+        projected (Map.toAscList plans)
+      current <- requireMigrationSuccess
+        (Migration.findCutover (Migration.v1CutoverId cutover) mapped)
+      staged <- maybe (assertFailure "missing staged dataset") pure
+        (Map.lookup (Migration.v1CutoverId cutover)
+          (Migration.migrationStateStagedDatasets mapped))
+      logHash <- maybe (assertFailure "missing computed v1 log hash") pure
+        (Migration.stagedV1DatasetComputedLogHash staged)
+      (verified, verifiedState) <- requireMigrationSuccess
+        (Migration.verifyV1Projection (Migration.v1CutoverId cutover)
+          (Migration.v1CutoverMappedIdentityCount current)
+          (Migration.v1CutoverProjectedEntityCount current) logHash mapped)
+      Migration.v1CutoverStatus verified @?= Migration.ProjectionVerified
+      Migration.activeDatasetFormat
+        (Migration.migrationStateActiveDataset verifiedState) @?= "v0"
+      let archiveBefore = Migration.archiveBytes
+            (Migration.v0ArchiveId archive) verifiedState
+      (committed, receipt, activated) <- requireMigrationSuccess
+        (Migration.commitV1Cutover (addUTCTime 2 integrationTestTime)
+          (Migration.v1CutoverId cutover) "sha256:test-receipt" verifiedState)
+      Migration.v1CutoverStatus committed @?= Migration.CutoverCommitted
+      Migration.activeDatasetFormat
+        (Migration.migrationStateActiveDataset activated) @?= "v1"
+      Migration.activeDatasetLocation
+        (Migration.migrationStateActiveDataset activated) @?= migrationTargetPath
+      Migration.activeDatasetLogHash
+        (Migration.migrationStateActiveDataset activated) @?= logHash
+      Migration.migrationStateActiveV1Log activated @?=
+        Migration.stagedV1DatasetCleanLog staged
+      activeBricks <- requireMigrationSuccess (Migration.replayProjectedBricks
+        (Migration.migrationStateActiveV1Log activated))
+      activeBricks @?= Migration.stagedV1DatasetProjectedBricks staged
+      Migration.archiveBytes (Migration.v0ArchiveId archive) activated @?=
+        archiveBefore
+      verifiedReceipt <- requireMigrationSuccess
+        (Migration.verifyCutoverReceipt (Migration.v1CutoverId cutover) activated)
+      verifiedReceipt @?= receipt
+  , testCase "passes all migration obligations and atomic-cutover assertions" $ do
+      planBytes <- LBS.readFile
+        "test-v1/generated/migration-v0-v1.plan.json"
+      modelBytes <- LBS.readFile
+        "test-v1/generated/migration-v0-v1.model.json"
+      scenarioBytes <- LBS.readFile
+        "test-v1/scenarios/14-v0-v1-atomic-cutover.json"
+      plan <- decodeTestValue planBytes
+      model <- decodeTestValue modelBytes
+      scenario <- decodeTestValue scenarioBytes
+      let planResponse = runContractRequest contractRegistry (object
+            [ "protocol_version" .= (1 :: Integer)
+            , "request_kind" .= ("allium_plan" :: Text)
+            , "module" .= ("migration-v0-v1" :: Text)
+            , "plan" .= plan
+            , "model" .= model
+            ])
+      scenarioResponse <- runContractRequestIO contractRegistry (object
+        [ "protocol_version" .= (1 :: Integer)
+        , "request_kind" .= ("scenario" :: Text)
+        , "scenario" .= scenario
+        ])
+      length (driverResponseResults planResponse) @?= 67
+      assertBool "a migration obligation failed"
+        (all resultItemPassed (driverResponseResults planResponse))
+      assertResponsePassed scenarioResponse
+        [ "planning-does-not-change-active-dataset"
+        , "archive-mismatch-fails-without-projection"
+        , "legacy-title-derived-id-is-not-reused"
+        , "legacy-stage-maps-to-active-positioned-brick"
+        , "verification-precedes-activation"
+        , "commit-switches-to-clean-v1-log"
+        , "v0-archive-remains-byte-identical"
+        , "committed-cutover-has-receipt"
+        ]
+  ]
+
+requireMigrationArchivedFixture ::
+  IO (Migration.V0Archive, Migration.V1Cutover, Migration.MigrationState)
+requireMigrationArchivedFixture = do
+  (archive, plannedCutover, planned) <- requireMigrationSuccess
+    (Migration.planV0V1CutoverFromBytes integrationTestTime migrationSourcePath
+      migrationTargetPath migrationArchiveBytes Migration.emptyMigrationState)
+  (_, archivedCutover, archived) <- requireMigrationSuccess
+    (Migration.verifyV0Archive integrationTestTime
+      (Migration.v1CutoverId plannedCutover) (Migration.v0ArchiveSha256 archive)
+      (Migration.v0ArchiveEventCount archive) planned)
+  pure (archive, archivedCutover, archived)
+
+requireMigrationProjectedFixture ::
+  IO (Migration.V0Archive, Migration.V1Cutover, Migration.MigrationState)
+requireMigrationProjectedFixture = do
+  (archive, archivedCutover, archived) <- requireMigrationArchivedFixture
+  (projectedCutover, projected) <- requireMigrationSuccess
+    (Migration.projectV0Events (Migration.v1CutoverId archivedCutover)
+      migrationArchiveEvents archived)
+  pure (archive, projectedCutover, projected)
+
+incompleteWriterProjection :: Text -> Migration.WriterProjection
+incompleteWriterProjection archiveHash = Migration.WriterProjection archiveHash
+  Map.empty Map.empty [] "sha256:writer-log"
+
+expectedWriterProjection ::
+  Text -> Migration.MigrationState -> IO Migration.WriterProjection
+expectedWriterProjection cutoverId archived = do
+  (_, materialized) <- requireMigrationSuccess
+    (Migration.projectV0Events cutoverId migrationArchiveEvents archived)
+  staged <- maybe (assertFailure "materialized writer fixture is missing") pure
+    (Map.lookup cutoverId (Migration.migrationStateStagedDatasets materialized))
+  logHash <- maybe (assertFailure "materialized writer hash is missing") pure
+    (Migration.stagedV1DatasetComputedLogHash staged)
+  pure Migration.WriterProjection
+    { Migration.writerProjectionArchiveHash =
+        Migration.stagedV1DatasetArchiveHash staged
+    , Migration.writerProjectionBricks =
+        Migration.stagedV1DatasetProjectedBricks staged
+    , Migration.writerProjectionIdentityPlans =
+        Migration.stagedV1DatasetIdentityPlans staged
+    , Migration.writerProjectionCleanLog =
+        Migration.stagedV1DatasetCleanLog staged
+    , Migration.writerProjectionLogHash = logHash
+    }
+
+mutateWriterBrickField ::
+  Text -> Text -> Migration.WriterProjection -> Migration.WriterProjection
+mutateWriterBrickField field replacement writer = writer
+  { Migration.writerProjectionBricks = Map.map mutateBrick
+      (Migration.writerProjectionBricks writer)
+  , Migration.writerProjectionCleanLog = mutatedLog
+  , Migration.writerProjectionLogHash = Migration.hashCleanLog mutatedLog
+  }
+  where
+    mutateBrick brick
+      | field == "behavior" = brick {Migration.projectedBrickBehavior = replacement}
+      | field == "work_state" = brick
+          {Migration.projectedBrickWorkState = replacement}
+      | otherwise = brick
+    mutatedLog = map mutateRecord (Migration.writerProjectionCleanLog writer)
+    mutateRecord (Object fields)
+      | KeyMap.lookup "kind" fields == Just (String "brick") =
+          Object (KeyMap.insert (Key.fromText field) (String replacement) fields)
+    mutateRecord value = value
+
+safeHeadForTest :: [value] -> Maybe value
+safeHeadForTest [] = Nothing
+safeHeadForTest (value : _) = Just value
+
+recordMigrationPlan ::
+  Text -> Migration.MigrationState ->
+  (Text, (Text, Migration.MigratedEntityKind)) -> IO Migration.MigrationState
+recordMigrationPlan cutoverId state (oldId, (newId, kind)) = do
+  (_, _, next) <- requireMigrationSuccess (Migration.recordMigratedIdentity
+    integrationTestTime cutoverId oldId newId kind state)
+  pure next
+
+migrationArchiveEvents :: [Event]
+migrationArchiveEvents =
+  [ Event "legacy-event-0" integrationTestTime
+      (BrickCaptured (Id "sha256:legacy-seed") "Legacy seed")
+  , Event "legacy-event-1" (addUTCTime 1 integrationTestTime)
+      (BrickCaptured (Id "sha256:legacy-wip") "Legacy WIP")
+  , Event "legacy-event-2" (addUTCTime 2 integrationTestTime)
+      (BrickStarted (Id "sha256:legacy-wip"))
+  , Event "legacy-event-3" (addUTCTime 3 integrationTestTime)
+      (Fed (Id "sha256:legacy-raw") "Legacy material")
+  , Event "legacy-event-4" (addUTCTime 4 integrationTestTime)
+      (PartyRegistered (Id "sha256:legacy-party") "Ada" V0.Person)
+  ]
+
+migrationArchiveBytes :: LBS.ByteString
+migrationArchiveBytes = mconcat
+  [encode (eventToJSON event) <> "\n" | event <- migrationArchiveEvents]
+
+migrationSourcePath :: Text
+migrationSourcePath = "/backups/v0/events.jsonl"
+
+migrationTargetPath :: Text
+migrationTargetPath = "/datasets/v1/events.jsonl"
+
+decodeTestValue :: LBS.ByteString -> IO Value
+decodeTestValue bytes = case eitherDecode bytes of
+  Left problem -> assertFailure problem
+  Right value -> pure value
 
 sourceImportTests :: TestTree
 sourceImportTests = testGroup "v1 source imports, synchronization, and cleanup"
@@ -4993,6 +5383,12 @@ requireSourceImportSuccess ::
   Either SourceImport.ImportError value -> IO value
 requireSourceImportSuccess result = case result of
   Left problem -> assertFailure ("source-import operation failed: " <> show problem)
+  Right value -> pure value
+
+requireMigrationSuccess ::
+  Either Migration.MigrationError value -> IO value
+requireMigrationSuccess result = case result of
+  Left problem -> assertFailure ("migration operation failed: " <> show problem)
   Right value -> pure value
 
 requireExecutionSuccess :: Either Execution.ExecutionError value -> IO value
