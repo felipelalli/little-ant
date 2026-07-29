@@ -853,3 +853,74 @@ Confirmed on 2026-07-29:
 
 This replaces the earlier v0 policy that automatically selected a third-party
 recipient's language.
+
+## 35.30 Restore contextual later and global grammar inspection
+
+Confirmed on 2026-07-29:
+
+- `[l]ater` is not a universal answer. It is available only when the same
+  temporal proposal can be explicitly rescheduled.
+- It does not appear on `Focus?` or comparison screens and does not pretend
+  that the underlying Brick was skipped.
+- Pressing it opens a date choice or input; no deferral is recorded until that
+  choice is confirmed, and the result always renders the absolute date.
+- The context owns the changed time field. A follow-up deferral changes its
+  follow-up time, while a notice deferral snoozes that notice; neither
+  silently changes a Brick's `not_before`.
+- `la grammar`, `la grammar --screen <screen>`, and `la grammar --json` inspect
+  one core-owned versioned global grammar registry.
+- InteractionEnvelope remains the sole state-scoped source of actions valid
+  for one pending interaction revision.
+
+Open implications:
+
+- exact date presets, date-input grammar, timezone rendering, and which
+  temporal opportunity kinds admit `later`;
+- final machine-readable grammar schema and version-negotiation fields.
+
+## 35.31 Restore deterministic time advancement
+
+Confirmed on 2026-07-29:
+
+- Every canonical command first advances all due temporal rules against one
+  captured `now`.
+- Each subject, condition, and revision fires at most once. Repeating a command
+  against unchanged state does not append duplicate temporal events.
+- The phase may release due opportunities but never invokes a Pack, sends a
+  message, approves an effect, or infers a human outcome.
+- `la tick` invokes the same phase explicitly for administration, scheduling,
+  diagnostics, and tests.
+- `la tick --dry-run` previews due changes under the global dry-run contract.
+- The REPL may advance time while idle only at safe screen boundaries.
+
+Open implications:
+
+- exact clock-injection and temporal-event schemas, timezone rules, REPL idle
+  cadence, and concurrency behavior when time advances beside another writer.
+
+## 35.32 Replace ambiguous unify with explicit merge
+
+Confirmed on 2026-07-29:
+
+- Duplicate suspicion, same/different judgment, feeding reuse, and structural
+  merge are four distinct concepts.
+- A new feeding candidate reuses or enriches an existing Brick without first
+  creating another Brick. Two already-existing Bricks require `merge`.
+- Neither `unify` nor `mark as duplicated` survives as a public core command or
+  alias.
+- Merge names one source and one survivor and requires a typed preview of
+  composition, importance position, children, Dependencies, Waits, RawLinks,
+  Domains, dates, recurrence, delegation, effects, annotations, evidence, and
+  invalid would-be self-relations.
+- `--dry-run` exposes the same plan. Unresolved conflicts block confirmation
+  rather than being guessed away.
+- An accepted merge is atomic. The survivor keeps its ID; the source becomes
+  terminal with `merged_into` lineage; immutable historical events remain
+  unchanged and auditable.
+
+Open implications:
+
+- exact per-category transfer defaults, interactive conflict resolution,
+  receipt schema, and compact rendering;
+- placement treatment when source and survivor have different parents or
+  sibling importance scopes.

@@ -26,6 +26,8 @@ The core must remain deterministic, offline-capable, and replayable. It owns:
 - recurrence rules, restricted event-triggered opportunity release,
   occurrence windows and outcomes, standing-work eligibility, and streak
   projections;
+- one idempotent deterministic time-advancement phase used before every
+  command and by the explicit `la tick` administration surface;
 - named Places, explicit Brick-to-Place conditions, attributed time-bounded
   location observations, and their deterministic eligibility or forecast
   effects;
@@ -45,6 +47,8 @@ The core must remain deterministic, offline-capable, and replayable. It owns:
   canonical operation;
 - deterministic lexical normalization, candidate retrieval, and explainable
   duplicate-suspicion evidence;
+- typed, previewable, atomic Brick merge plans with explicit survivor lineage
+  and relationship-conflict validation;
 - validation and replay of explicit field- and revision-bound typed text
   annotations without inferring targets from `@` strings;
 - projections, including priority and forecast;
@@ -53,6 +57,9 @@ The core must remain deterministic, offline-capable, and replayable. It owns:
 - a state-scoped interaction envelope containing the pending prompt, valid
   actions, shortcuts, exact canonical command representations, and relevant
   help, shared with first-party surfaces and UIAdapters;
+- one versioned global interaction-grammar registry exposed read-only through
+  `la grammar`, from which surfaces inspect rather than invent stable meanings
+  and shortcuts;
 - command-specific typed results, compact mutator postconditions,
   schema-declared field-presence rules, complete projections on demand, and
   explicit audit access without attaching full entities or event payloads to

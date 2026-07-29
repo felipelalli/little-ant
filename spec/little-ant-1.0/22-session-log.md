@@ -1449,3 +1449,36 @@ delegation lifecycle requires simplification without losing preview,
 approval, delivery receipts, or due follow-ups. Finally, explicit Brick merge
 semantics must be distinguished from duplicate suspicion, marking evidence,
 and reusing an existing Brick during feeding.
+
+## Entry 91 — Confirm contextual later, grammar inspection, time advancement, and merge
+
+The user accepted the proposed resolution of every residual topic except the
+delegation lifecycle, which remains under discussion.
+
+`[l]ater` now has one narrow meaning: reschedule the same time-deferrable
+proposal through an explicit date choice and render the resulting absolute
+date. It never appears on focus or comparison and does not silently assign a
+Brick's `not_before`. `la grammar`, its screen filter, and its JSON form now
+inspect the global versioned interaction registry, while InteractionEnvelope
+continues to define only what is valid in the current state and revision.
+
+Every canonical command restores the useful v0 temporal behavior through one
+idempotent time-advancement phase evaluated against a single captured time.
+`la tick` invokes that phase explicitly and `la tick --dry-run` previews it.
+Temporal release never authorizes Pack execution, outbound contact, effect
+approval, or a fabricated human outcome.
+
+Existing-Brick consolidation is now `merge`, not `unify` or an ambiguous
+“mark as duplicated” action. Suspicion, same/different judgment, feeding
+reuse, and structural merge are distinct. Merge requires a typed source and
+survivor preview, blocks on unresolved relationship conflicts, applies
+atomically, keeps immutable history, and terminalizes the source with
+`merged_into` lineage.
+
+For delegation, the working recommendation is that delegating a Brick creates
+an independently tracked assignment to a Party and may configure recurring
+follow-up opportunities. The recurrence would schedule human review and
+message approval, never automatic external sends. The compact lifecycle,
+single-versus-multiple assignment rule, project-descendant behavior,
+follow-up anchoring, and relation between delegated completion and Brick
+acceptance remain open for the next discussion.

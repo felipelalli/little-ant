@@ -118,12 +118,14 @@ Response letters form one stable product language across interaction variants
 and rendering channels. When applicable:
 
 ```text
-[y]es · [n]o · [d]one · [s]kip · [?]
+[y]es · [n]o · [d]one · [l]ater · [s]kip · [?]
 ```
 
 - `y` confirms the concrete question or relation currently displayed;
 - `n` rejects it;
 - `d` records completion of the cited Brick;
+- `l` defers the same time-deferrable proposal through an explicit date
+  choice;
 - `s` skips without recording an answer to the question;
 - `?` expresses uncertainty and opens contextual decision assistance without
   answering.
@@ -132,8 +134,19 @@ An interaction omits inapplicable actions rather than reusing their letters
 with another meaning. `n` appears only when rejecting the displayed question
 is semantically distinct from skipping the opportunity. `Focus?` therefore
 uses `y/d/s/?`: adding `n` would duplicate the explicit served-work skip.
-Another question such as `Send this follow-up?` may use `y/n/s/?` when
-rejection and deferral have distinct canonical effects.
+`later` never appears on focus or comparison screens. It appears only when the
+same pending notice, follow-up, reminder, review, or other temporal proposal
+can be rescheduled without pretending that the underlying Brick was skipped.
+
+Pressing `[l]ater` opens a date choice or explicit date input. It does not
+record a deferral until that choice is confirmed. The result always renders
+the selected absolute date, even when the input used a relative phrase. The
+context owns the resulting field, such as a follow-up time or notice snooze;
+`later` does not blindly assign the Brick's `not_before`.
+
+A confirmation such as `Send this follow-up?` may therefore use `y/n/l/?`:
+`yes` approves the displayed effect, `no` rejects that draft, `later`
+reschedules the follow-up opportunity, and `?` assists the decision.
 
 The reusable primary screen grammars are:
 
@@ -259,6 +272,26 @@ remain open.
 
 The command palette and every guided prompt are rendered from the core's
 currently valid actions rather than a second REPL-owned command catalog.
+
+`la grammar` is the canonical read-only inspection surface for the stable
+global interaction grammar. It is generated from the same versioned registry
+that assigns screen kinds, action meanings, shortcut letters, marker
+semantics, undo and redo bindings, and command-palette entries. At minimum:
+
+```text
+la grammar
+la grammar --screen comparison
+la grammar --json
+```
+
+The ordinary form is compact and human-readable. `--screen` restricts it to
+one reusable screen grammar, and `--json` exposes the machine-readable
+registry used by the operator skill and conformance tooling. It is not a
+second command catalog and cannot be hand-maintained independently.
+
+The distinction is strict: `la grammar` describes stable global vocabulary,
+while the current `InteractionEnvelope` remains the sole source of actions
+valid for one pending interaction and revision.
 
 The same boundary applies to `next`: the core exposes a versioned closed set of
 focus-opportunity variants and their valid actions. The REPL never turns that

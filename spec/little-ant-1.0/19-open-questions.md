@@ -193,12 +193,29 @@ unsettled mechanics no longer postpone the existing-Brick review.
   containers and their actionable descendants. Hierarchical selection itself
   is confirmed.
 
-## 19.9 WIP and focus grammar
+## 19.9 WIP, focus, and delegation grammar
 
 - Canonical commands for focus, unfocus, WIP start, and return to idle.
 - Exact stale-focus threshold and what counts as activity.
 - Exact soft-limit review pressure above three WIPs.
 - Whether current focus may point to a temporarily ineligible Brick.
+- Whether 1.0 permits more than one active Delegation for the same Brick, or
+  requires decomposition before assigning the outcome to several Parties.
+- Whether delegating a non-leaf Brick covers its executable descendants for
+  human-focus eligibility or requires explicit child-level assignments.
+- Final compact Delegation lifecycle and which acceptance or progress facts
+  remain observations rather than statuses.
+- Follow-up policy vocabulary: none, one absolute follow-up, and/or an interval
+  anchored to the most recent confirmed contact; exact defaults and limits.
+- Whether an inbound reply resets an interval only after an attributed manual
+  or SourceAdapter observation.
+- Exact follow-up screen semantics for approving a draft, rejecting its
+  content, rescheduling it with `later`, skipping without a decision, and
+  cancelling the entire Delegation.
+- How a completed Delegation produces validation or acceptance work without
+  silently marking its Brick done.
+- Party identity, delivery-route selection, delivery receipts, retry behavior,
+  and operation when no message integration is configured.
 
 ## 19.10 Served-Brick skip taxonomy
 
@@ -265,12 +282,12 @@ implementation for community exporter authors.
 - Exact discreet review-context wording and which honest progress facts appear
   there without inventing a fixed denominator.
 - Exact one-key grammar, including global, screen-local, and answer shortcuts.
-- Whether `la grammar` becomes the canonical read-only global grammar
-  inspection command, with a machine-readable form, while the
-  InteractionEnvelope remains the state-scoped source of currently valid
-  actions.
-- Whether v0 `[l]ater` survives as a general answer or is replaced completely
-  by context-specific skip, snooze, defer, and `not_before` operations.
+- Final machine-readable `la grammar --json` schema, registry versioning,
+  unknown-screen behavior, and whether filters beyond the confirmed
+  `--screen` belong in 1.0.
+- Exact relative-date presets, explicit date-input grammar, timezone
+  rendering, and closed list of temporal proposal kinds that admit
+  contextual `[l]ater`.
 - Which authorities may nominate the action marked by `*`, whether destructive
   or externally visible actions can ever be defaults, and how default
   provenance, confidence, and accessible rendering are exposed.
@@ -381,6 +398,10 @@ Brick with the user.
   separate creation.
 - How confirmed merge and separation decisions influence later suspicion
   without becoming ambiguous global aliases.
+- Exact merge-plan and receipt schemas, per-relationship transfer defaults,
+  compact preview, and interactive conflict-resolution grammar.
+- How source and survivor parentage and sibling importance positions are
+  handled when they belong to different composition scopes.
 - Exact persisted provenance for original input, canonical English, and
   normalization author.
 - Whether a future world-object catalog is ever justified; it is excluded from

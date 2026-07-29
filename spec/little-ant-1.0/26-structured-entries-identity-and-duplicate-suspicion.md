@@ -197,7 +197,55 @@ Examples:
 Even when fed input is merged into an existing entity, the event history must
 preserve that a new input arrived, its original text, and the chosen target.
 
-## 26.7 No global world-object catalog in 1.0
+## 26.7 Explicit Brick merge
+
+Duplicate suspicion, identity judgment, feeding reuse, and structural merge
+are separate operations:
+
+1. duplicate suspicion is derived evidence and mutates nothing;
+2. a same-subject or different-subject judgment records attributed evidence;
+3. feeding reuse attaches or enriches an existing Brick before a second Brick
+   is created;
+4. `merge` consolidates two Bricks that already have distinct opaque
+   identities.
+
+There is no public `mark as duplicated` operation whose structural meaning is
+left implicit. Confirming that two existing Bricks represent the same subject
+leads to an explicit merge proposal. Confirming that they are different
+records separation evidence. The v0 word `unify` is removed rather than kept
+as a core alias; the canonical 1.0 concept and command use `merge`.
+
+A merge names one source and one surviving Brick. Before confirmation, its
+mandatory preview describes the proposed treatment of:
+
+- composition parent and sibling importance position;
+- children;
+- Dependencies and Waits;
+- RawLinks and Domain memberships;
+- dates, recurrence, and standing-work state;
+- delegations and pending effects;
+- annotations, judgments, and duplicate evidence;
+- relationships that would become self-referential, contradictory, or
+  invalid.
+
+`--dry-run` returns the same typed merge plan and postcondition without
+writing. Any unresolved conflict blocks confirmation and exposes concrete
+recovery choices; the core never guesses merely because the subjects were
+judged equal.
+
+An accepted merge is atomic. The survivor keeps its opaque identity. The
+source becomes terminal with explicit `merged_into` lineage and remains
+addressable in history; its ID is never reassigned or recalculated. Historical
+events are not rewritten or physically moved. Current projections may follow
+the lineage to the survivor, and a mutation attempted against the merged
+source returns a typed recovery action targeting that survivor.
+
+Retargeting removes would-be self-relations only according to the confirmed
+merge plan and preserves an auditable receipt of every transferred, retained,
+resolved, or rejected relationship. Exact per-category conflict policies and
+the final merge-plan schema remain open.
+
+## 26.8 No global world-object catalog in 1.0
 
 The label `Milk` does not automatically create or resolve to one global
 real-world object. Product, brand, unit, aisle, price, and stock identity would

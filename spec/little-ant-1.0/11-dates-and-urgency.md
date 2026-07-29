@@ -90,3 +90,29 @@ window:
 
 Timezone, daylight-saving, calendar arithmetic, and release-offset rules remain
 open.
+
+## 11.3 Deterministic time advancement
+
+Every canonical command begins with one deterministic time-advancement phase
+using a single captured `now`. It activates every due temporal rule whose
+guard became true, at most once for the applicable subject, condition, and
+revision, before evaluating the requested command against the advanced state.
+This is the corrected 1.0 form of v0 auto-tick behavior.
+
+Time advancement may release a `not_before`, recurrence occurrence,
+delegation follow-up, snoozed notice, or another specified temporal
+opportunity. It does not execute a Pack, send a message, approve an effect, or
+infer a human outcome. A due external action only becomes an ordinary
+approval-bearing opportunity.
+
+The explicit administrative command is `la tick`. It runs the same phase
+without another domain intent and is suitable for manual maintenance,
+schedulers, diagnostics, and deterministic tests. `la tick --dry-run`
+previews all due changes without persistence, external effects, or persistent
+random-cursor consumption.
+
+Repeated commands at the same effective state do not append duplicate
+temporal events. The REPL may also invoke time advancement at idle,
+safe-screen boundaries, but never while a partially entered answer would be
+invalidated. Exact clock injection, timezone, idle cadence, and temporal event
+schemas remain open.

@@ -585,3 +585,24 @@
 227. The current v0 operator preference manifest is
      `~/.config/little-ant/ANT.md`. Its settings are deployment/operator
      configuration and never canonical Little Ant domain state.
+228. `[l]ater` is contextual rather than universal. It appears only for a
+     time-deferrable proposal, opens an explicit date choice, and renders the
+     resulting absolute date; it never appears in focus or comparison.
+229. `la grammar` is the canonical read-only global grammar inspection
+     command. It and `la grammar --json` derive from the same versioned
+     registry as every surface, while InteractionEnvelope alone defines the
+     actions valid for one pending revision.
+230. Every canonical command first advances due temporal rules once against a
+     single captured time. `la tick` exposes the same idempotent phase
+     explicitly, and `la tick --dry-run` previews it without persistence or
+     external effects.
+231. Duplicate suspicion and same-subject evidence never imply structural
+     mutation. Feeding reuse avoids creating a second Brick; `merge` is the
+     separate explicit operation for two existing Bricks.
+232. A Brick merge requires a typed preview naming one source and one
+     survivor. It is atomic, preserves immutable event history, terminalizes
+     the source with `merged_into` lineage, and never guesses through an
+     unresolved relationship conflict.
+233. `unify` and `mark as duplicated` are not canonical 1.0 core operations or
+     aliases. Their intended inputs map unambiguously to suspicion evidence,
+     same/different judgment, feeding reuse, or explicit `merge`.
