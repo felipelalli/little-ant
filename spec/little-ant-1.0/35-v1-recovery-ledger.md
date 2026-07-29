@@ -151,3 +151,61 @@ Current blocked-work proposal, not yet confirmed:
 - Dependency chains, multiple blockers, external waits, cycles,
   double-counting, attenuation, and pressure caps still require explicit
   rules.
+
+## 35.5 Explain blocker redirection without inventing provenance
+
+Confirmed on 2026-07-28:
+
+- When blocked work materially causes its actionable blocker to become the
+  `next` suggestion, the compact rendering identifies both Bricks and the
+  causal relationship.
+- The rendering has three semantic regions: the actionable result, its
+  containing Brick when relevant, and the reason for that result.
+- A containing project, collection, or other Brick is never rendered as a
+  bare title. It uses the same canonical Brick label as every other Brick
+  reference.
+- Human-facing product output, specification examples, and operator
+  commentary render a Brick label as:
+
+  ```text
+  #shortid "Canonical English title"
+  ```
+
+  Renderer-owned markers may later occupy a defined optional marker slot, but
+  the short ID and quoted canonical English title remain present.
+- A label is presentation, not identity authority. Canonical state and typed
+  annotations continue to refer to the Brick's opaque immutable ID.
+- The explanation must be truthful about recorded selection provenance. It
+  must not say that a blocked Brick was drawn and redirected if the forecast
+  instead selected its blocker from previously aggregated pressure.
+
+Required information shape, with illustrative references:
+
+```text
+Next: #yyyy "Specify importance-order maintenance"
+Within: #zzzz "Recover Little Ant v1"
+Why: <truthful causal explanation naming both
+      #xxxx "Blocked work" and
+      #yyyy "Specify importance-order maintenance">
+```
+
+The exact wording remains open because the underlying semantic choice remains
+open:
+
+1. sample an attention Brick normally and, when it is blocked, resolve the
+   result to an actionable blocker; or
+2. derive blocker pressure before the draw, retain per-source provenance, and
+   sample the already-actionable result.
+
+Both models can produce the same `Next` and `Within` values. They differ in
+what `Why` may honestly claim, how probability is normalized, and what counts
+as the recorded random outcome.
+
+Emoji direction, not yet confirmed:
+
+- reuse the former seed glyph `🌱` as the `idea` phase marker rather than
+  reviving `seed` as lifecycle state;
+- keep phase, status, focus, WIP, blocking, and confidence visually distinct
+  instead of forcing several independent axes into one ambiguous emoji;
+- define a compact marker grammar and precedence before adding glyphs to the
+  canonical one-line renderer.

@@ -384,3 +384,10 @@
 166. A configured personal UI surface may deliver ordinary Little Ant
      interaction. Messages to other recipients, publishing, and unrelated
      notifications remain explicit external effects.
+167. Every compact human-facing citation of a particular Brick uses
+     `#shortid "Canonical English title"`; a containing Brick and a Brick
+     mentioned only in an explanation follow the same rule.
+168. When blocked work materially causes its blocker to become the next
+     actionable suggestion, the rendering names both Bricks and exposes typed
+     causal provenance without claiming that a draw occurred unless it
+     actually did.

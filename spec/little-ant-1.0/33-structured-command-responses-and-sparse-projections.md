@@ -172,6 +172,26 @@ current prompt, valid actions, canonical command representations, and relevant
 help, but it does not attach the full command catalog, complete Brick, and raw
 event history unless the current interaction actually requires them.
 
+When an actionable blocker is suggested because of blocked work, the compact
+human rendering exposes three semantic regions:
+
+```text
+Next: #shortid "Actionable blocker"
+Within: #shortid "Containing Brick"
+Why: <truthful explanation naming the blocked Brick and blocker>
+```
+
+`Within` is omitted when no containing Brick is relevant. Every cited Brick
+uses the canonical compact label, including Bricks mentioned only in `Why`.
+The structured result carries the corresponding opaque identities and typed
+reason provenance; a client never has to parse the human text to recover the
+relationship.
+
+The explanation distinguishes two possible future selection semantics. It may
+say that a blocked Brick was drawn and redirected only if that is the recorded
+outcome. If blocker pressure was aggregated before the draw, it instead states
+that the blocker was suggested because it unlocks the named blocked work.
+
 ## 33.8 LLM context and auditability
 
 Sparse responses are an interface and performance property, not an excuse to

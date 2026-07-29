@@ -67,6 +67,24 @@ projections resolve the current label and enough context for readability.
 Event-log legibility is therefore a projection concern rather than a reason to
 embed a mutable human word in identity.
 
+The canonical compact human-facing Brick label is:
+
+```text
+#shortid "Canonical English title"
+```
+
+Product renderers, specification examples, and operator commentary use that
+complete label whenever they cite a particular Brick; they do not substitute a
+bare title or bare short ID. A parent shown in a `Within` region follows the
+same rule. Renderer-owned emoji or state markers may occupy a separately
+defined optional slot, but they are not title content or identity. The exact
+marker grammar remains open.
+
+This rendered label is distinct from editable `#` annotation syntax. Its short
+ID is a compact disambiguator resolved by the applicable surface, while the
+opaque immutable ID remains authoritative for events, relationships, and typed
+annotations.
+
 Content addressing remains appropriate for immutable bytes. Two snapshots with
 the same content hash may share blob storage while remaining distinct captures
 with distinct provenance. Entity identity, content identity, and duplicate

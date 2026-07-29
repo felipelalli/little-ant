@@ -38,6 +38,9 @@ unsettled mechanics no longer postpone the existing-Brick review.
 ## 19.3 Brick metadata and phase
 
 - Exact phase emojis and terminal markers.
+- Whether the former seed glyph `🌱` becomes the `idea` phase marker.
+- The compact marker grammar and precedence for independent phase, terminal
+  status, focus, WIP, blocking, and confidence indications.
 - Exact direct-completion event grammar, optional completion note or evidence,
   reported-versus-observed provenance, and projection of a Brick completed
   without prior start evidence.
@@ -160,8 +163,13 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Whether blocked demand is represented only by bounded pressure transferred
   to actionable blockers, may also generate a blocked-work review proposal, or
   participates in some other non-executable attention mechanism.
+- Whether `next` first samples an attention Brick and resolves a blocked result
+  to an actionable blocker, or samples from actionable candidates after
+  blocker pressure and per-source provenance have already been derived.
 - How transferred blocked demand handles multiple blockers, dependency chains,
   cycles, external waits, attenuation, caps, and double-counting.
+- Exact `Why` wording and structured provenance for each blocked-work
+  selection model; the renderer must never imply a draw that did not occur.
 - The exact hierarchical sampling rule for project-like containers and their
   actionable descendants.
 

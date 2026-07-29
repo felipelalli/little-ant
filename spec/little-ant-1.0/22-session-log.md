@@ -982,3 +982,29 @@ demand: that demand may add bounded, explainable pressure to an actionable
 blocker and may occasionally create a distinct review or reminder proposal.
 Exact behavior for chains, multiple blockers, external waits, cycles,
 attenuation, and caps remains open.
+
+## Entry 68 — Require truthful blocker provenance and complete Brick labels
+
+The desired blocked-work interface was made concrete without prematurely
+choosing the internal probability model. When blocked work causes an
+actionable blocker to become the next suggestion, the rendering identifies the
+actionable Brick, its containing Brick when relevant, and a causal explanation
+that names both the blocked Brick and blocker.
+
+Two internal models remain open. Little Ant may first sample an attention
+Brick and redirect a blocked result through its dependency, or it may derive
+and aggregate blocker pressure before sampling an actionable result. The first
+can truthfully say “I was going to suggest the blocked Brick”; the second must
+say that the blocker was suggested because it unlocks the blocked Brick.
+Structured provenance must support the truthful explanation in either case.
+
+The canonical compact Brick label was reaffirmed as
+`#shortid "Canonical English title"`. Product renderers, specification
+examples, and operator commentary use the full label for every particular
+Brick, including a parent shown under `Within`; bare titles and bare short IDs
+are insufficient. The opaque immutable ID remains authoritative.
+
+Emoji design was deliberately left open. The former seed glyph `🌱` is a
+candidate for the optional `idea` phase without restoring the removed `seed`
+lifecycle. A later review must define a non-ambiguous marker grammar for
+independent phase, status, focus, WIP, blocking, and confidence.
