@@ -74,6 +74,17 @@ strongest-signal-plus-bonus model. Bonus intensity, cap, and temporal decay are
 calibration parameters; unrelated eligible work always retains positive
 probability.
 
+Forecast weighting and accepted-focus transition are related but distinct. If
+the active Domain is an ancestor of one or more Domains assigned to the
+accepted Brick, focus narrows the active Domain to the most specific applicable
+descendant membership. For example, accepting a Brick in
+`Orbit / R&D / Rock Splitter` while `Orbit / R&D` is active changes the active
+Domain to `Orbit / R&D / Rock Splitter`. The Brick may also belong to an
+unrelated branch; that membership does not prevent narrowing through the
+current branch. A tie among equally specific descendants, or target selection
+without an ancestor-descendant relationship, remains an explicit design
+question rather than an inferred rule.
+
 Composition adds another level to the same hierarchy. When the selected
 subject is a project-like container, its resolved BrickNature determines
 whether selection descends through a locally normalized weighted draw over

@@ -1280,3 +1280,14 @@ multiply classified Brick uses its strongest affinity; memberships never
 manufacture extra tickets. The affinity scales one bounded signal in the
 strongest-signal-plus-bonus model, while intensity, cap, and temporal decay
 remain calibratable.
+
+## Entry 81 — Narrow accepted focus into a specific subdomain
+
+The user confirmed that accepted focus should refine a broad active Domain when
+the Brick belongs to a more specific descendant. With `Orbit / R&D` active,
+focusing a Brick classified under `Orbit / R&D / Rock Splitter` changes the
+active Domain to that descendant even when the Brick also belongs to an
+unrelated branch such as `Research / Fraud Detection`. This records the
+specific cognitive context actually entered. Equal-specificity descendants
+and transitions with no ancestor-descendant relationship remain open rather
+than gaining an unreviewed tie-break rule.

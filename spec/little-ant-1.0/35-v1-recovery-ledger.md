@@ -522,6 +522,30 @@ Confirmed on 2026-07-29:
 Open implications:
 
 - active-Domain event and projection names, lifetime, decay, and clearing;
-- selecting the displayed target Domain for a multiply classified Brick;
+- selecting the displayed target Domain for equal-specificity or unrelated
+  memberships;
 - exact compact terminal rendering and expanded `?` explanation;
 - explicit Domain-switch command and whether a separate hard filter exists.
+
+## 35.18 Narrow accepted focus into the descendant Domain
+
+Confirmed on 2026-07-29:
+
+- When the active Domain is an ancestor of one or more Domains assigned to an
+  accepted Brick, focus narrows the active Domain to the most specific
+  applicable descendant membership.
+- With `Orbit / R&D` active, accepting focus on a Brick in
+  `Orbit / R&D / Rock Splitter` changes the active Domain to
+  `Orbit / R&D / Rock Splitter`.
+- An additional unrelated membership on that Brick, such as
+  `Research / Fraud Detection`, does not prevent narrowing through the active
+  branch.
+- This transition is part of the same atomic focus acceptance already
+  confirmed in section 35.17.
+
+Open implications:
+
+- deterministic selection or human interaction when several qualifying
+  descendant memberships are equally specific;
+- target selection when no candidate membership is an ancestor or descendant
+  of the active Domain.

@@ -572,9 +572,11 @@ UIAdapter is included in the 1.0 component protocol.
 - Exact active-Domain event and projection schema, session lifetime, temporal
   decay or clearing, and explicit switch command. The state is confirmed as
   persisted and `Focus?` acceptance changes it atomically.
-- How the displayed target Domain is chosen when a Brick belongs to several
-  Domains. Weighting already uses the strongest applicable affinity and never
-  adds membership tickets.
+- How the displayed target Domain is chosen when several equally specific
+  descendant memberships qualify, or when no candidate membership has an
+  ancestor-descendant relationship with the active Domain. A unique most
+  specific descendant is already confirmed as the automatic narrowing target;
+  weighting uses the strongest affinity and never adds membership tickets.
 - Domain-continuity signal intensity, cap, configuration range, and calibration
   fixtures. The hierarchical lowest-common-ancestor affinity factor and its
   place inside the strongest-signal-plus-bonus model are fixed.

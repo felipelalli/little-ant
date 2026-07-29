@@ -491,3 +491,6 @@
 198. After a cross-Domain skip, the next selection is another global weighted
      draw. Domain continuity still biases that draw, but related and unrelated
      eligible Domains retain positive probability.
+199. When the active Domain is an ancestor of an accepted Brick membership,
+     focus narrows it to the most specific applicable descendant membership.
+     An unrelated additional membership does not prevent that transition.
