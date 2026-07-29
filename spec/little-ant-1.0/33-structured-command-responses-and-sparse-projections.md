@@ -197,6 +197,12 @@ contain any finite number of steps: if `B0` was drawn, each `Bi` is blocked by
 long path for terminal width, but `?` exposes every step while preserving the
 same pending suggestion.
 
+When one `Bi` has several unresolved immediate blockers, the structured result
+also records the weighted subdraw, admitted branch set, selected dependency
+edge, and replay evidence. The compact `Why` renders only the selected path.
+`?` reveals the unchosen immediate blockers considered at each branch; viewing
+them neither redraws the edge nor changes the pending suggestion.
+
 ## 33.8 LLM context and auditability
 
 Sparse responses are an interface and performance property, not an excuse to

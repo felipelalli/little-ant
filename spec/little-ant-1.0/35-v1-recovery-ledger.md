@@ -157,6 +157,15 @@ Confirmed on 2026-07-28:
   Brick returned as `Next`. An unblocked draw has `N = 0`.
 - Resolution follows as many dependency steps as necessary; it is not limited
   to one redirect.
+- When the current path node has several unresolved immediate Brick blockers,
+  resolution performs a replay-deterministic weighted subdraw among the
+  admitted blocker branches.
+- Every blocker branch admitted to that subdraw has probability strictly
+  greater than zero. The selected edge and its random evidence are recorded,
+  and resolution continues from the chosen blocker.
+- Unchosen blockers remain unresolved relationships. The compact `Why` path
+  shows the selected branch, while `?` exposes the other immediate blockers
+  considered at each branching step.
 - The initial random outcome and complete resolution path are replay-safe
   provenance. A renderer may therefore truthfully say which Brick was drawn,
   which dependency steps were followed, and why the endpoint became the
@@ -199,8 +208,8 @@ multiline rendering, folding of unusually long paths, and cross-parent
 
 Open implications:
 
-- how one next step is chosen when a drawn Brick has several unresolved
-  immediate blockers;
+- the exact subdraw weighting, normalization, random-stream derivation, and
+  configuration inputs for several immediate blockers;
 - how a branching dependency DAG contributes effective probability without
   double-counting;
 - what result is produced when the path reaches an external wait, temporal

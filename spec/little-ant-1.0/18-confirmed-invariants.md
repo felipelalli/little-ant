@@ -400,3 +400,7 @@
 172. The canonical phase set remains `idea | spec | exec | validation`.
      `design` is not an alias for `spec`, and the abandoned seed glyph `🌱`
      is not a 1.0 phase marker. The canonical `spec` marker is `📐`.
+173. At a dependency branch, resolution makes a replay-deterministic weighted
+     subdraw in which every admitted immediate blocker has positive chance,
+     records the chosen edge, and leaves unchosen blockers unresolved and
+     inspectable through `?`.

@@ -160,8 +160,8 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Final command names for priority and forecast views.
 - How internal impact reliability and effort confidence affect selection
   without becoming hidden public scores.
-- How an N-step dependency resolution chooses among several unresolved
-  immediate blockers.
+- Exact weighting, normalization, random-stream derivation, and configuration
+  inputs for replay-deterministic subdraws among immediate blockers.
 - How a branching dependency DAG contributes effective probability without
   double-counting, and whether practical calibration needs attenuation or
   caps.

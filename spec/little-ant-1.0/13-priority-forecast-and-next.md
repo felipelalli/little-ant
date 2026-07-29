@@ -38,6 +38,9 @@ Forecast must not consume randomness or mutate the result of a future draw.
   path, and actionable endpoint;
 - follows `B0 -> B1 -> ... -> BN` when the drawn `B0` is transitively blocked,
   where each Brick is blocked by the next and `BN` is actionable;
+- performs a replay-deterministic weighted subdraw whenever a path node has
+  several admitted immediate blockers, giving every admitted branch a
+  strictly positive chance and recording the selected edge;
 - proposes the endpoint as the next action while explaining the drawn Brick
   and blocker chain;
 - does not rewrite the priority tree.
@@ -49,6 +52,11 @@ attention mass of Bricks whose dependency paths resolve to it; this is derived
 rather than stored as a separate pressure field. Aging increases the chance of
 neglected candidates. There is no confirmed bounded guarantee that every item
 must appear within a fixed number of draws.
+
+An unchosen immediate blocker remains unresolved and may participate in future
+draws. The compact explanation shows the selected dependency path; `?` exposes
+the alternative blockers considered at every branching step without changing
+the recorded path or consuming more randomness.
 
 ## 13.3 Inputs to selection
 

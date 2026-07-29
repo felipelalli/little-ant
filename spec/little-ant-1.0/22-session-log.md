@@ -1043,3 +1043,18 @@ phase. The broader marker grammar and the markers for `idea`, `exec`,
 `validation`, terminal status, focus, WIP, blocking, and confidence remain
 open. `design` remains only a description of the visual metaphor; it is not a
 phase value or alias.
+
+## Entry 71 — Use weighted subdraws at dependency branches
+
+The user confirmed that an N-step dependency path does not collapse a
+branching dependency graph into a fixed first edge. When the current path node
+has several unresolved immediate Brick blockers, Little Ant performs a
+replay-deterministic weighted subdraw among the admitted branches. Every
+admitted blocker has strictly positive probability, and the selected edge and
+random evidence become part of the recorded resolution path.
+
+Unchosen blockers remain unresolved. The compact `Why` rendering shows the
+selected path, while `?` exposes the other immediate blockers considered at
+each branching step without redrawing or changing the pending suggestion. The
+exact subdraw weights, normalization, random-stream derivation, configuration,
+and probability treatment of reconverging branches remain open.
