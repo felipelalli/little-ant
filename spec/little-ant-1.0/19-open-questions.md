@@ -38,7 +38,8 @@ unsettled mechanics no longer postpone the existing-Brick review.
 ## 19.3 Brick metadata and phase
 
 - Exact phase emojis and terminal markers.
-- Whether the former seed glyph `🌱` becomes the `idea` phase marker.
+- Exact clipboard, drafting, ruler, or other design-tool glyph for the
+  canonical `spec` phase.
 - The compact marker grammar and precedence for independent phase, terminal
   status, focus, WIP, blocking, and confidence indications.
 - Exact direct-completion event grammar, optional completion note or evidence,
@@ -160,16 +161,20 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Final command names for priority and forecast views.
 - How internal impact reliability and effort confidence affect selection
   without becoming hidden public scores.
-- Whether blocked demand is represented only by bounded pressure transferred
-  to actionable blockers, may also generate a blocked-work review proposal, or
-  participates in some other non-executable attention mechanism.
-- Whether `next` first samples an attention Brick and resolves a blocked result
-  to an actionable blocker, or samples from actionable candidates after
-  blocker pressure and per-source provenance have already been derived.
-- How transferred blocked demand handles multiple blockers, dependency chains,
-  cycles, external waits, attenuation, caps, and double-counting.
-- Exact `Why` wording and structured provenance for each blocked-work
-  selection model; the renderer must never imply a draw that did not occur.
+- How an N-step dependency resolution chooses among several unresolved
+  immediate blockers.
+- How a branching dependency DAG contributes effective probability without
+  double-counting, and whether practical calibration needs attenuation or
+  caps.
+- What `next` returns when dependency resolution reaches an external wait,
+  temporal gate, unavailable permission, or another condition without an
+  actionable Brick endpoint.
+- How inspection and `next` report imported or corrupted state that violates
+  the acyclic dependency invariant.
+- How dependency resolution composes with behavior-driven descent through
+  projects and collections.
+- Exact compact `Why` formatting, long-path folding, and cross-parent `Within`
+  behavior. `?` must retain access to the complete recorded path.
 - The exact hierarchical sampling rule for project-like containers and their
   actionable descendants.
 

@@ -176,9 +176,12 @@ When an actionable blocker is suggested because of blocked work, the compact
 human rendering exposes three semantic regions:
 
 ```text
-Next: #shortid "Actionable blocker"
-Within: #shortid "Containing Brick"
-Why: <truthful explanation naming the blocked Brick and blocker>
+Next: #cccc "Specify importance-order maintenance"
+Within: #zzzz "Recover Little Ant v1"
+Why:
+  drawn       #aaaa "Release Little Ant v1"
+  blocked by  #bbbb "Implement importance-order maintenance"
+  blocked by  #cccc "Specify importance-order maintenance"
 ```
 
 `Within` is omitted when no containing Brick is relevant. Every cited Brick
@@ -187,10 +190,12 @@ The structured result carries the corresponding opaque identities and typed
 reason provenance; a client never has to parse the human text to recover the
 relationship.
 
-The explanation distinguishes two possible future selection semantics. It may
-say that a blocked Brick was drawn and redirected only if that is the recorded
-outcome. If blocker pressure was aggregated before the draw, it instead states
-that the blocker was suggested because it unlocks the named blocked work.
+The structured result distinguishes the initially drawn Brick, the ordered
+dependency path, and the final actionable Brick. Dependency resolution may
+contain any finite number of steps: if `B0` was drawn, each `Bi` is blocked by
+`B(i+1)`, and the final `BN` is returned as `Next`. The renderer may fold a
+long path for terminal width, but `?` exposes every step while preserving the
+same pending suggestion.
 
 ## 33.8 LLM context and auditability
 

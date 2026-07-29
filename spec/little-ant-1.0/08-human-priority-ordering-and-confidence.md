@@ -167,28 +167,34 @@ The dependency graph and the human priority tree answer different questions:
 
 A dependency therefore does not force a comparison answer, prohibit a pairwise
 importance question, or move either Brick. A blocked Brick keeps its position
-and confidence. It is temporarily excluded from executable selection, while
-its blocker may gain forecast pressure because completing it unlocks important
-work.
+and confidence. Dependency blocking does not exclude it from the initial
+attention draw, but it cannot be returned as the executable endpoint. If
+drawn, Little Ant follows its recorded blocker chain until it reaches the
+actionable Brick returned by `next`. The endpoint's effective probability may
+therefore include attention mass redirected through one or more blocked
+Bricks, without a separately stored pressure field.
 
 Example:
 
 ```text
-human priority
-1. Implement the feature       blocked by Write the specification
-2. Publish the announcement
-3. Write the specification
+human importance
+1. #aaaa "Implement the feature"
+   blocked by #cccc "Write the specification"
+2. #bbbb "Publish the announcement"
+3. #cccc "Write the specification"
 
-currently eligible
-- Publish the announcement
-- Write the specification
+currently directly executable
+- #bbbb "Publish the announcement"
+- #cccc "Write the specification"
 ```
 
-`Implement the feature` remains the most important sibling even though it
-cannot be executed yet. When `Write the specification` completes,
-implementation becomes eligible at its existing position. It is not newly
-inserted, and the human is not asked to reconstruct an importance judgment
-that already exists.
+`#aaaa "Implement the feature"` remains the most important sibling even though
+it cannot be returned as the executable endpoint yet. If the initial attention
+draw selects it, `next` may resolve to `#cccc "Write the specification"` and
+explain that dependency path. When `#cccc "Write the specification"`
+completes, `#aaaa "Implement the feature"` becomes directly executable at its
+existing position. It is not newly inserted, and the human is not asked to
+reconstruct an importance judgment that already exists.
 
 Structural views should show both position and blocking clearly. Forecast and
 `next` use eligibility; the priority projection continues to show the complete

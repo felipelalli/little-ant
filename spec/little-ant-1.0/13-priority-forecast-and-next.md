@@ -21,25 +21,34 @@ order.
 
 `la forecast` is the working name for a read-only projection that exposes:
 
-- eligible candidates and maintenance proposals;
+- initial attention candidates and maintenance proposals;
 - current weight or probability;
 - relevant dates;
 - reasons contributing pressure;
 - confidence;
-- blockers and contextual effects where useful.
+- blockers, derived resolution paths, actionable endpoints, and contextual
+  effects where useful.
 
 Forecast must not consume randomness or mutate the result of a future draw.
 
 `la next`:
 
-- performs one reproducible pseudo-random draw;
-- records the draw seed or cursor and selected outcome;
-- proposes one next action;
+- performs one reproducible pseudo-random attention draw;
+- records the draw seed or cursor, drawn Brick, complete dependency-resolution
+  path, and actionable endpoint;
+- follows `B0 -> B1 -> ... -> BN` when the drawn `B0` is transitively blocked,
+  where each Brick is blocked by the next and `BN` is actionable;
+- proposes the endpoint as the next action while explaining the drawn Brick
+  and blocker chain;
 - does not rewrite the priority tree.
 
-Every eligible candidate has a positive chance. Aging increases the chance of
+Dependency blocking alone does not exclude an otherwise admitted active Brick
+from the initial draw. Every candidate admitted to that draw has a positive
+chance. An actionable endpoint's effective chance may therefore include the
+attention mass of Bricks whose dependency paths resolve to it; this is derived
+rather than stored as a separate pressure field. Aging increases the chance of
 neglected candidates. There is no confirmed bounded guarantee that every item
-must appear within N draws.
+must appear within a fixed number of draws.
 
 ## 13.3 Inputs to selection
 

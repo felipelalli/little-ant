@@ -11,8 +11,11 @@ being mistaken for current decisions.
 | `?` is universal but hidden from menus. | Display `?` in every finite-choice loop as information/help without recording an answer or skip. |
 | Phase or “derived readiness” sorts the human order. | Phase never sorts priority. It only informs provisional placement and dynamic selection. |
 | The dependency DAG constrains priority sorting, forces blocker-before-blocked comparisons, and inserts a Brick only when it becomes unblocked. | Dependency and priority answer different questions. Every active Brick is positioned from birth; blocking affects eligibility and forecast pressure, never human importance or comparison validity. Unblocking preserves the existing position. |
+| A Brick blocked by another Brick has no chance in the initial draw and contributes only a separately calculated blocker-pressure score. | Dependency blocking alone does not exclude an otherwise admitted active Brick from the initial attention draw. If drawn, its complete N-step blocker path resolves to the actionable endpoint; effective blocker pressure is derived from those paths rather than stored separately. |
 | A Brick's stage combines maturity, execution, and completion. | Use independent `status`, optional `phase`, `work_state`, and exclusive current focus. |
 | Every active Brick must receive a phase at capture and defaults to `spec`. | Phase is optional, lazy, behavior-applicable, and neutral when absent. |
+| Restore the former seed glyph `🌱` as an `idea` phase marker. | The plant marker remains abandoned. It is not part of the 1.0 phase design. |
+| Rename `spec` to `design`, or keep both as aliases. | `spec` remains the single canonical planning/specification phase. Design is only a possible visual metaphor for its renderer marker. |
 | Removed `kind` is fully replaced by phase as the Brick's work shape. | `kind` remains removed; phase describes a work phase, while generic interaction differences belong to versioned BrickBehavior. |
 | Only one human WIP may exist. | Multiple WIPs are allowed; only current focus is exclusive. Default soft WIP limit is 3. |
 | Starting a new Brick stops the previous WIP. | It removes focus from the previous Brick but leaves that Brick in WIP. |

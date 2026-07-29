@@ -60,10 +60,11 @@ Confirmed on 2026-07-28:
   should retain some opportunity to surface instead of being permanently
   hidden by the head of the distribution.
 - A Brick excluded by a hard eligibility rule has probability zero in the
-  ordinary work lottery.
-- Every Brick admitted to that lottery has probability strictly greater than
-  zero. Weight transformation, normalization, and tail controls must not turn
-  a still-eligible Brick into an implicit exclusion.
+  initial attention draw. Being blocked by another Brick is not, by itself,
+  such an exclusion.
+- Every Brick admitted to that initial draw has probability strictly greater
+  than zero. Weight transformation, normalization, and tail controls must not
+  turn a still-admitted Brick into an implicit exclusion.
 - Viewing the forecast must not consume random evidence or change a future
   draw.
 - A draw changes neither the importance order nor the underlying judgments.
@@ -138,74 +139,96 @@ Open implications:
 - when uncertain behavior classification must be resolved rather than safely
   retaining the generic `standard` behavior.
 
-Current blocked-work proposal, not yet confirmed:
-
-- A blocked Brick is not returned as though it were an executable result.
-- It remains visible in the focus forecast as blocked demand.
-- Its derived demand may add bounded, explainable pressure to an actionable
-  blocker, so selecting that blocker can also remind the user what it
-  unlocks.
-- A blocked Brick may separately produce a low-frequency review or reminder
-  proposal. Such a result asks the user to inspect or change the blockage; it
-  does not pretend that the blocked work can be executed.
-- Dependency chains, multiple blockers, external waits, cycles,
-  double-counting, attenuation, and pressure caps still require explicit
-  rules.
-
-## 35.5 Explain blocker redirection without inventing provenance
+## 35.5 Resolve a drawn blocked Brick through N dependency steps
 
 Confirmed on 2026-07-28:
 
-- When blocked work materially causes its actionable blocker to become the
-  `next` suggestion, the compact rendering identifies both Bricks and the
-  causal relationship.
-- The rendering has three semantic regions: the actionable result, its
-  containing Brick when relevant, and the reason for that result.
-- A containing project, collection, or other Brick is never rendered as a
-  bare title. It uses the same canonical Brick label as every other Brick
-  reference.
-- Human-facing product output, specification examples, and operator
-  commentary render a Brick label as:
+- `next` distinguishes the initial attention draw from the final actionable
+  result.
+- Being blocked by another Brick does not remove an otherwise admitted active
+  Brick from the initial draw.
+- Let `B0` be the drawn Brick. Dependency resolution produces a recorded path:
 
   ```text
-  #shortid "Canonical English title"
+  B0 -> B1 -> ... -> BN
   ```
 
-  Renderer-owned markers may later occupy a defined optional marker slot, but
-  the short ID and quoted canonical English title remain present.
-- A label is presentation, not identity authority. Canonical state and typed
-  annotations continue to refer to the Brick's opaque immutable ID.
-- The explanation must be truthful about recorded selection provenance. It
-  must not say that a blocked Brick was drawn and redirected if the forecast
-  instead selected its blocker from previously aggregated pressure.
+  For every step `i < N`, `Bi` is blocked by `B(i+1)`. `BN` is the actionable
+  Brick returned as `Next`. An unblocked draw has `N = 0`.
+- Resolution follows as many dependency steps as necessary; it is not limited
+  to one redirect.
+- The initial random outcome and complete resolution path are replay-safe
+  provenance. A renderer may therefore truthfully say which Brick was drawn,
+  which dependency steps were followed, and why the endpoint became the
+  suggestion.
+- Blocker pressure is derived from this resolution model rather than stored as
+  a separate mutable field. An actionable Brick's effective chance may include
+  the attention mass of drawn Bricks whose resolution paths end at it.
+- A blocked Brick is never presented as though it were itself executable.
+- Dependency cycles remain invalid, so a valid resolution path cannot loop.
 
-Required information shape, with illustrative references:
+The compact rendering has three semantic regions: the actionable endpoint, its
+containing Brick when relevant, and the explanation. With an illustrative
+two-edge path:
 
 ```text
-Next: #yyyy "Specify importance-order maintenance"
+Next: #cccc "Specify importance-order maintenance"
 Within: #zzzz "Recover Little Ant v1"
-Why: <truthful causal explanation naming both
-      #xxxx "Blocked work" and
-      #yyyy "Specify importance-order maintenance">
+Why:
+  drawn       #aaaa "Release Little Ant v1"
+  blocked by  #bbbb "Implement importance-order maintenance"
+  blocked by  #cccc "Specify importance-order maintenance"
 ```
 
-The exact wording remains open because the underlying semantic choice remains
-open:
+Every cited Brick uses the canonical compact label:
 
-1. sample an attention Brick normally and, when it is blocked, resolve the
-   result to an actionable blocker; or
-2. derive blocker pressure before the draw, retain per-source provenance, and
-   sample the already-actionable result.
+```text
+#shortid "Canonical English title"
+```
 
-Both models can produce the same `Next` and `Within` values. They differ in
-what `Why` may honestly claim, how probability is normalized, and what counts
-as the recorded random outcome.
+A containing project, collection, or other Brick follows the same rule.
+Renderer-owned markers may later occupy a defined optional marker slot, but
+the short ID and quoted canonical English title remain present. The label is
+presentation, not identity authority; canonical state and typed annotations
+continue to use opaque immutable IDs.
 
-Emoji direction, not yet confirmed:
+`?` exposes the full resolution path and dependency context without consuming
+another draw or changing the pending suggestion. Exact one-line versus
+multiline rendering, folding of unusually long paths, and cross-parent
+`Within` behavior remain open.
 
-- reuse the former seed glyph `🌱` as the `idea` phase marker rather than
-  reviving `seed` as lifecycle state;
+Open implications:
+
+- how one next step is chosen when a drawn Brick has several unresolved
+  immediate blockers;
+- how a branching dependency DAG contributes effective probability without
+  double-counting;
+- what result is produced when the path reaches an external wait, temporal
+  gate, unavailable permission, or another condition with no actionable Brick
+  endpoint;
+- how inspection and `next` fail if imported or corrupted state violates the
+  acyclic dependency invariant;
+- how dependency resolution composes with behavior-driven descent through a
+  project or collection;
+- whether and where attenuation or caps are needed after practical
+  calibration.
+
+## 35.6 Correct the phase and emoji record before renaming anything
+
+Confirmed on 2026-07-28:
+
+- The former seed glyph `🌱` had already been abandoned. It is not a Little
+  Ant 1.0 phase-marker candidate.
+- The canonical optional phase set remains
+  `idea | spec | exec | validation`.
+- `spec` means planning or specification. It remains the one canonical core
+  value; `design` is neither a second phase nor an alias.
+- A design/planning visual metaphor is appropriate for the `spec` marker, but
+  its exact glyph remains open.
+
+Current direction, not yet confirmed:
+
+- consider a clipboard, drafting, ruler, or other design-tool glyph for the
+  planning/specification phase;
 - keep phase, status, focus, WIP, blocking, and confidence visually distinct
-  instead of forcing several independent axes into one ambiguous emoji;
-- define a compact marker grammar and precedence before adding glyphs to the
-  canonical one-line renderer.
+  rather than overloading one emoji with several independent axes.

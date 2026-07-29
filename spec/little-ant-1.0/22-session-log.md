@@ -1008,3 +1008,30 @@ Emoji design was deliberately left open. The former seed glyph `🌱` is a
 candidate for the optional `idea` phase without restoring the removed `seed`
 lifecycle. A later review must define a non-ambiguous marker grammar for
 independent phase, status, focus, WIP, blocking, and confidence.
+
+## Entry 69 — Resolve drawn work through N blockers and correct phase recall
+
+The user selected the draw-then-resolve model and corrected its depth. It is
+not a two-step special case: a drawn Brick may be blocked by another Brick
+that is itself blocked, producing an N-step dependency path. Dependency
+blocking alone does not remove an otherwise admitted active Brick from the
+initial attention draw. If `B0` is drawn, Little Ant records and follows
+`B0 -> B1 -> ... -> BN`, where every Brick is blocked by the next and `BN` is
+the actionable result. Effective blocker pressure emerges from redirected
+attention mass instead of a separately stored mutable field.
+
+The interface therefore preserves the initial draw and ordered blocker path,
+not only the endpoint. `Next` renders `BN`, `Within` renders a relevant
+containing Brick when applicable, and `Why` names `B0` and every displayed
+dependency step. `?` exposes the complete path without consuming another draw.
+Multiple immediate blockers, branches, external or temporal endpoints,
+composition with project descent, and compact folding remain open.
+
+The user also corrected the preceding emoji note: the former seed glyph `🌱`
+had already been abandoned and is not a 1.0 phase-marker candidate. Inspection
+of the durable record found the phase set
+`idea | spec | exec | validation`; `spec` already meant planning or
+specification and had an unresolved design/planning icon. The user then
+explicitly reaffirmed `spec` as the canonical value. `design` is not a second
+phase or alias; a clipboard, drafting, ruler, or similar design-tool glyph
+remains only a visual candidate for `spec`.

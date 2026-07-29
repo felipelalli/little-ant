@@ -387,7 +387,16 @@
 167. Every compact human-facing citation of a particular Brick uses
      `#shortid "Canonical English title"`; a containing Brick and a Brick
      mentioned only in an explanation follow the same rule.
-168. When blocked work materially causes its blocker to become the next
-     actionable suggestion, the rendering names both Bricks and exposes typed
-     causal provenance without claiming that a draw occurred unless it
-     actually did.
+168. Dependency blocking alone does not exclude an otherwise admitted active
+     Brick from the initial attention draw.
+169. If a drawn Brick is blocked, `next` records and follows the finite path
+     `B0 -> B1 -> ... -> BN`, where every Brick is blocked by the next and
+     `BN` is the actionable result.
+170. Effective blocker pressure is derived from attention mass resolved
+     through dependency paths, not stored as a separate mutable field.
+171. The compact `Next`, `Within`, and `Why` rendering identifies the
+     actionable endpoint, relevant container, initially drawn Brick, and
+     ordered blocker path; `?` retains access to the complete path.
+172. The canonical phase set remains `idea | spec | exec | validation`.
+     `design` is not an alias for `spec`, and the abandoned seed glyph `🌱`
+     is not a 1.0 phase marker.
