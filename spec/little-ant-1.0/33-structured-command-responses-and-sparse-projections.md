@@ -219,6 +219,12 @@ consumers may exhaustively dispatch it, while extensions may not inject
 unrecognized kinds or ad hoc commands. The exhaustive 1.0 catalog remains to
 be confirmed.
 
+The replay record distinguishes a newly selected opportunity from a resumed
+pending interaction or current focus. For a new selection, proposal kind alone
+does not create a hidden precedence tier: admitted approval, follow-up, review,
+question, and work opportunities share the recorded weighted draw. A
+consistency diagnostic is a command failure, not a synthetic suggestion.
+
 Human rendering may deliberately omit provenance from the main body when the
 concrete prompt already explains the decision. That does not remove
 provenance from the structured result. The REPL may place a compact reason in

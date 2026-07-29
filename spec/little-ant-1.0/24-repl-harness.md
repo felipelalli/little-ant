@@ -159,6 +159,18 @@ not parse the compact line or define a second set of status facts. The operator
 skill surfaces the canonical human line rather than independently composing
 counts.
 
+Pending approvals, follow-ups, and reviews remain visible in this status region
+without interrupting the main result solely because of their kind:
+
+```text
+🐜 1 approval pending · 2 reviews · focus idle
+```
+
+They participate in the same weighted draw as executable work and questions.
+If another kind wins, the counts remain visible. A genuinely pending
+interaction or active current focus resumes before a new draw because it is
+already in progress, not because its variant has a privileged rank.
+
 Exact region sizes, resize behavior, color use, accessibility behavior, and
 the terminal UI library remain open. Exact status fields, field order,
 wording, timestamp policy, and zero-omission rules are also open.

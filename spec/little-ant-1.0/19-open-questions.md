@@ -146,7 +146,11 @@ unsettled mechanics no longer postpone the existing-Brick review.
   resolution, and command-surfacing grammar.
 - Whether the confirmed positive probability for every eligible Brick also
   needs a bounded service guarantee.
-- Exact deterministic precedence before the lottery.
+- The exact boundary between a genuine continuation that resumes before a new
+  draw and a newly selectable review opportunity that belongs in the lottery.
+- Whether the lottery samples focus opportunities directly or first samples
+  an attention subject and then makes a local subdraw among that subject's
+  applicable opportunities.
 - Which proposals are fully derived and which require persisted resumable
   state.
 - Final interaction-envelope identity, domain revision token, stale-answer

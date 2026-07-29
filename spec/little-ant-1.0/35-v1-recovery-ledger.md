@@ -312,3 +312,23 @@ Confirmed on 2026-07-28:
   or abstention asks the ordinary human placement question.
 - The core never calls a skill. The operator skill and powered-up model adapter
   are alternative judgment providers used by their respective surfaces.
+
+## 35.10 Use one lottery for every newly selectable opportunity kind
+
+Confirmed on 2026-07-28:
+
+- Executable work, questions, reviews, approvals, follow-ups, and every other
+  admitted newly selectable variant participate in the same
+  replay-deterministic weighted draw.
+- Opportunity type alone never creates a fixed precedence lane.
+- Urgency, aging, accumulated pressure, and other forecast evidence may change
+  weights without turning a kind into a deterministic interrupt.
+- Status continues to expose pending counts when another opportunity wins.
+- An already pending interaction resumes with the same identity and revision
+  before a new draw.
+- An active current focus also resumes while genuinely in progress.
+- These are continuations, not privileged new candidates.
+- A consistency failure that makes a valid forecast or mutation impossible
+  stops the draw with an explicit diagnostic. It is not a focus opportunity.
+- The earlier working list that placed approvals and overdue follow-ups before
+  the ordinary lottery is superseded.

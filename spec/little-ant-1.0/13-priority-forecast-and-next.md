@@ -103,15 +103,23 @@ priority substitute.
 
 ## 13.4 Deterministic precedence
 
-Some conditions are resolved before the ordinary lottery:
+Every newly selectable focus-opportunity variant participates in the same
+weighted draw. Work, importance questions, reviews, external-effect approvals,
+delegation follow-ups, and other admitted variants do not receive a fixed
+pre-lottery lane merely because of their type. Urgency, aging, accumulated
+pressure, and other forecast inputs may increase their weights. Pending counts
+remain visible in status even when another opportunity wins.
 
-1. current focus, when it remains valid;
-2. stale-focus resolution;
-3. external effects or messages already proposed and awaiting approval;
-4. overdue follow-ups.
+Only continuity and validity precede a new draw:
 
-The exact ordering and completeness of this precedence list still needs a
-formal review against current delegation and effect semantics.
+1. an already pending interaction resumes with the same identity and revision;
+2. an active current focus resumes when the user asks for the next focus
+   decision while that focus is still in progress;
+3. a consistency failure that prevents a valid forecast or mutation stops the
+   draw and produces an explicit diagnostic.
+
+The first two cases are continuations, not newly privileged candidates. A
+consistency failure is not a `NextSuggestion`.
 
 ## 13.5 Proposal vocabulary
 

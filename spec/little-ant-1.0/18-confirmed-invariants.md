@@ -430,3 +430,12 @@
      confirmation, but its provenance remains visible in recap, history, and
      inspection. Dumb mode or an abstaining adapter asks the human through the
      ordinary insertion flow.
+181. Every newly selectable focus-opportunity variant participates in the same
+     weighted draw. Approval, follow-up, review, question, and executable-work
+     kinds receive no deterministic precedence merely because of their type.
+182. An already pending interaction or active current focus resumes before a
+     new draw because it is a continuation, not a newly selected opportunity.
+     A consistency failure that makes a valid draw impossible produces an
+     explicit diagnostic and is not a `NextSuggestion`.
+183. Pending opportunity counts remain visible in status even when another
+     kind wins the draw.

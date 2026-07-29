@@ -1143,3 +1143,21 @@ falls back to the ordinary human insertion question.
 
 The skill and powered-up adapter are alternative surface-specific judgment
 providers. The deterministic core never invokes the skill itself.
+
+## Entry 75 — Put every new opportunity kind in one lottery
+
+The user confirmed that approvals, delegation follow-ups, reviews, questions,
+and executable work do not occupy fixed precedence lanes. Every newly
+selectable opportunity participates in the same replay-deterministic weighted
+draw. Type alone grants no priority; urgency, aging, accumulated pressure, and
+other forecast evidence may change weights. Status still exposes pending
+counts when a different opportunity wins.
+
+Only genuine continuity and validity happen first. An already pending
+interaction resumes with its identity and revision, and an active current
+focus resumes while it remains in progress. Neither is a new candidate. A
+consistency failure that prevents a valid forecast or mutation stops the draw
+with an explicit diagnostic and is not represented as a focus opportunity.
+
+This supersedes the earlier working precedence list that placed effects,
+messages, or overdue follow-ups ahead of the ordinary lottery.
