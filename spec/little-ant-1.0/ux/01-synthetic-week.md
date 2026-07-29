@@ -84,12 +84,18 @@ Dependencies:
 
 ### SCN-FED-001 — Dumb REPL baseline
 
-Enter `feed comprar leite` at the `ant>` prompt with `mode: dumb`.
+Start the REPL with `mode: dumb`. It automatically serves the fixture's
+current `next` opportunity. Press `[f]eed`, enter `comprar leite` in the Feed
+input screen, and submit it.
 
 Validate:
 
-- the full UX-R00 harness is present rather than only an agent-generated
-  confirmation;
+- the status bar is visibly separate from the automatically served `next`
+  proposal;
+- the first screen contains proposal actions and the global `[f]eed` action,
+  not a default Feed or shell prompt;
+- Escape from Feed input restores the exact served proposal without consuming
+  another draw;
 - no translation, task-shape, target, duplicate, or Nature judgment is
   attributed to a model;
 - original Portuguese is preserved;
@@ -104,16 +110,18 @@ creates unacceptable form-like friction.
 
 ### SCN-FED-002 — Powered-up delta
 
-Reset to the identical fixture revision and replay `feed comprar leite` with:
+Reset to the identical fixture revision and random cursor. Start the REPL with:
 
 ```text
 mode: powered up · by: /bin/claude-fast.sh
 ```
 
-Validate that the model may propose canonical English, ListEntry route,
-`#h12345 "Buy groceries"`, and duplicate interpretation in fewer screens while
-using the same canonical envelope/action IDs. Record every skipped dumb screen
-and the provenance of every added default.
+It must automatically serve the same opening `next` opportunity. Press
+`[f]eed`, enter `comprar leite`, and submit it. Validate that the model may
+propose canonical English, ListEntry route, `#h12345 "Buy groceries"`, and
+duplicate interpretation in fewer screens while using the same canonical
+envelope/action IDs. Record every skipped dumb screen and the provenance of
+every added default.
 
 ### SCN-FED-003 — Article URL
 

@@ -19,10 +19,10 @@
   mobile presentation may claim parity. Other surfaces render the same
   composition with appropriate click, touch, speech, or natural-language
   controls.
-- **UX-005 [core] — Sparse context.** Main content contains the current subject,
-  concrete question, and valid answers. Parentage, Domain, warnings,
-  provenance, mode, recent activity, and statistics occupy a separated
-  secondary region.
+- **UX-005 [core] — Sparse context.** Persistent product status, the current
+  decision, contextual evidence, and global navigation are separate visual
+  regions. Main content contains only the current subject, concrete question,
+  and valid contextual answers.
 
 ## Primary screen grammars
 
@@ -102,9 +102,19 @@ The normative reference renderings live in
 
 ## Status, history, and recovery
 
-- **UX-025 [core] — Secondary status.** `Within`, Domain, one selected warning
-  plus an additional-warning count, mode, and one compact ant-mascot summary
-  are visually separated below the main decision. Empty rows are omitted.
+- **UX-025 [core] — Persistent status bar.** Every first-party guided surface
+  presents a visually bounded status bar outside the current interaction. Its
+  compact reference content is the product and local clock, followed by mode,
+  focus state, eligible count, and pending-review count:
+
+  ```text
+  🐜 Little Ant · Mon, Aug 3 · 09:00
+  mode: dumb · focus: idle · 18 eligible · 3 reviews
+  ```
+
+  A value unavailable to a surface is omitted honestly. The status bar is
+  persistent product chrome, not the main content of an
+  `InteractionEnvelope`.
 - **UX-026 [core] — Discreet warning rotation.** If several warnings apply,
   one is selected replay-deterministically at a screen boundary. Rendering the
   same envelope does not rotate or consume randomness.
@@ -159,6 +169,22 @@ The normative reference renderings live in
   are reviewed only after the corresponding dumb and, when applicable,
   powered-up REPL paths are accepted. A downstream convenience may motivate a
   later REPL-contract revision, but cannot silently fork the product language.
+- **UX-045 [core] — Context panel.** Parentage, Domain path, at most one
+  selected warning plus its overflow count, selection provenance, and one
+  compact ant-mascot recap appear below the main decision. Empty rows are
+  omitted. Mode and aggregate counts belong to the status bar, not this panel.
+- **UX-046 [core] — Automatic opening opportunity.** Starting or restoring the
+  REPL never lands on an idle command prompt. It first restores an exact
+  pending interaction or otherwise invokes the canonical `next` pipeline and
+  displays its useful proposal. `next` itself may return a valid current-focus
+  continuation. The no-eligible case displays the canonical useful empty
+  state.
+- **UX-047 [core] — Feed from the proposal screen.** `[f]eed` is a persistent
+  global action while the current `next` proposal is visible. One keypress
+  opens the Feed input screen; there is no default Feed prompt. Escape from
+  uncommitted input restores the exact proposal without a draw or event. A
+  confirmed Feed changes the domain revision, so the old proposal is
+  revalidated and, when stale, recomputed instead of being applied blindly.
 
 ## Errors and dry-run
 

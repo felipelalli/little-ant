@@ -6,6 +6,8 @@ long paths, but renderers preserve the content order and action order.
 ## Shared composition
 
 ```text
+<persistent status bar>
+
 <primary subject or complete preview>
 
 <concrete question>
@@ -16,34 +18,45 @@ long paths, but renderers preserve the content order and action order.
 <optional Within path>
 <optional Domain/current-Domain context>
 <at most one warning and overflow count>
-<ant recap, provenance, mode, or discreet review state>
+<ant recap, provenance, or discreet review state>
+
+<global actions>
 ```
 
 Empty secondary rows are omitted. Emoji have accessible textual equivalents.
 
 ## UX-R00 — Dumb REPL frame
 
-The screen under review includes the harness, not only an isolated prompt:
+The REPL opens by restoring or obtaining `next`, not by waiting for a command.
+The status bar is bounded product chrome rather than main content:
 
 ```text
-🐜 Little Ant · Mon, Aug 3 · 09:00
-mode: dumb · focus: idle · 18 eligible · 3 reviews
+┌────────────────────────────────────────────────────────────┐
+│ 🐜 Little Ant · Mon, Aug 3 · 09:00                        │
+│ mode: dumb · focus: idle · 18 eligible · 3 reviews        │
+└────────────────────────────────────────────────────────────┘
 
-Recent
-09:00  session opened
+Next:
 
-════════════════════════════════════════
-ant> feed comprar leite
+#r12345 "Review Rock Splitter rules"
 
-<current canonical envelope>
+Focus?
+
+[y]es · [d]one · [s]kip · [?] I don't know
 
 ----------------------------------------
-[/] commands · [?] contextual help
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit > R&D > Rock Splitter
+🐜 selected by next · active Domain continuity
+
+[f]eed · [/] commands
 ```
 
-The header, recent-action region, command/input line, envelope, context region,
-and footer are all part of REPL UX. Adaptive or narrow-terminal rendering may
-fold regions but cannot test only the inner envelope and call that a REPL
+The status bar, automatically served envelope, context panel, and global-action
+footer are all part of REPL UX. `[f]eed` opens UX-I02; it is not preselected.
+`[?] I don't know` belongs to the current Focus decision, while `[/] commands`
+opens the command palette. Adaptive or narrow-terminal rendering may fold
+regions but cannot test only the inner envelope and call that a REPL
 simulation.
 
 Powered-up mode reuses the frame and changes only:
@@ -57,6 +70,8 @@ plus any explicitly attributed proposals that passed the startup handshake.
 ## UX-F01 — Focus
 
 ```text
+Next:
+
 #c12345 "Write the migration specification"
 
 Focus?
@@ -76,6 +91,8 @@ Focus?
 ## UX-F02 — Cross-Domain focus
 
 ```text
+Next:
+
 #h12345 "Buy groceries"
 
 Focus?
@@ -94,6 +111,8 @@ active Domain atomically; `done` and `skip` preserve it.
 ## UX-F03 — Focus reached through blockers
 
 ```text
+Next:
+
 #b30000 "Define the importance-maintenance contract"
 
 Focus?
@@ -212,6 +231,25 @@ Why is this blocked?
 ↳ #r12345 "Review Rock Splitter rules"
 🐜 text is local draft until confirmed
 ```
+
+## UX-I02 — Feed input
+
+The persistent status bar remains visible. The prior `next` proposal becomes a
+navigation checkpoint while text is edited:
+
+```text
+Feed Little Ant
+
+> comprar leite_
+
+[Enter] continue · [Esc] back
+
+----------------------------------------
+🐜 original text is preserved · nothing has been recorded
+```
+
+Enter begins the deterministic Feed route. Escape restores the exact proposal
+and random cursor shown before `[f]eed`.
 
 ## UX-H01 — Contextual uncertainty
 

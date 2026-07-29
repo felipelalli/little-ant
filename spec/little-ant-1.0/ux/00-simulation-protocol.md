@@ -33,8 +33,10 @@ may expose missing or contradictory rules.
   flow, update the screen catalog, scenario, canonical rule if needed, and
   traceability in one small documentation commit.
 - **SCN-009 — Dumb REPL first.** Every new flow begins with the complete dumb
-  REPL, including header/status, command or key input, main envelope,
-  secondary context, and transition. It cannot rely on model judgment.
+  REPL. Startup shows the persistent status bar and automatically restores or
+  obtains the current `next` proposal; it does not wait at a command prompt.
+  The simulation includes the main envelope, contextual panel, global actions,
+  key/input transition, and resulting state. It cannot rely on model judgment.
 - **SCN-010 — Paired powered-up replay.** When powered-up behavior is relevant,
   replay the accepted dumb flow from the same state, clock, configuration, and
   random stream. Record exactly which screens were removed, which default or
@@ -42,6 +44,10 @@ may expose missing or contradictory rules.
 - **SCN-011 — Mirrors last.** Only after the REPL pair is accepted, render the
   same envelopes in the operator skill and web/mobile composition. Those
   mirrors do not supply missing core decisions.
+- **SCN-012 — Feed is entered from `next`.** A Feed scenario starts on the
+  ordinary proposal screen. Pressing `[f]eed` opens text input. Escape restores
+  that exact proposal and random cursor; confirmed input completes its guided
+  route and causes any revision-stale proposal to be recomputed.
 
 ## Critique labels
 
