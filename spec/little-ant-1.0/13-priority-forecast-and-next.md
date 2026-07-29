@@ -31,9 +31,29 @@ order.
 
 Forecast must not consume randomness or mutate the result of a future draw.
 
+The forecast is hierarchical rather than one flat candidate array. Every
+newly selectable opportunity belongs to one canonical attention subject. An
+admitted subject receives one entry in its applicable attention scope,
+regardless of how many opportunity variants currently apply to it. After a
+subject is selected, a replay-deterministic weighted local subdraw chooses
+among its applicable opportunities. Consequently, adding another review or
+question about one Brick does not silently give that Brick another ticket in
+the surrounding attention draw.
+
+Composition adds another level to the same hierarchy. When the selected
+subject is a project-like container, its resolved BrickBehavior determines
+whether selection descends through a locally normalized weighted draw over
+admitted children, presents the container itself, or produces an applicable
+review or decomposition opportunity. Descendant selection repeats by scope
+until it reaches a concrete attention subject or an explicit behavior-defined
+boundary. A flat forecast table may be offered as a derived display, but it
+must preserve the probabilities produced by this hierarchy and must not define
+selection semantics.
+
 `la next`:
 
-- performs one reproducible pseudo-random attention draw;
+- performs one reproducible hierarchical attention selection, recording the
+  random evidence consumed at every weighted branch;
 - records the draw seed or cursor, drawn Brick, complete dependency-resolution
   path, and actionable endpoint;
 - follows `B0 -> B1 -> ... -> BN` when the drawn `B0` is transitively blocked,
@@ -104,11 +124,15 @@ priority substitute.
 ## 13.4 Deterministic precedence
 
 Every newly selectable focus-opportunity variant participates in the same
-weighted draw. Work, importance questions, reviews, external-effect approvals,
-delegation follow-ups, and other admitted variants do not receive a fixed
-pre-lottery lane merely because of their type. Urgency, aging, accumulated
-pressure, and other forecast inputs may increase their weights. Pending counts
-remain visible in status even when another opportunity wins.
+hierarchical weighted lottery. Work, importance questions, reviews,
+external-effect approvals, delegation follow-ups, and other admitted variants
+do not receive a fixed pre-lottery lane merely because of their type. “The
+same lottery” does not mean that all variants are flattened into one
+top-level array: attention is first allocated to a subject and then locally
+among that subject's applicable variants. Urgency, aging, accumulated
+pressure, and other forecast inputs may increase weights at the appropriate
+scope. Pending counts remain visible in status even when another opportunity
+wins.
 
 Only continuity and validity precede a new draw:
 

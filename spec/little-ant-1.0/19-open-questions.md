@@ -148,9 +148,11 @@ unsettled mechanics no longer postpone the existing-Brick review.
   needs a bounded service guarantee.
 - The exact boundary between a genuine continuation that resumes before a new
   draw and a newly selectable review opportunity that belongs in the lottery.
-- Whether the lottery samples focus opportunities directly or first samples
-  an attention subject and then makes a local subdraw among that subject's
-  applicable opportunities.
+- The exact derivation of one subject weight from several applicable
+  opportunity signals without turning opportunity count into extra
+  top-level tickets.
+- The canonical attention-subject catalog and how system-, source-, Raw-, and
+  Brick-scoped opportunities enter an applicable hierarchy.
 - Which proposals are fully derived and which require persisted resumable
   state.
 - Final interaction-envelope identity, domain revision token, stale-answer
@@ -182,10 +184,14 @@ unsettled mechanics no longer postpone the existing-Brick review.
   the acyclic dependency invariant.
 - How dependency resolution composes with behavior-driven descent through
   projects and collections.
+- The ordering and replay-evidence contract among container descent,
+  dependency-chain resolution, and the final subject-local opportunity
+  subdraw.
 - Exact compact `Why` formatting, long-path folding, and cross-parent `Within`
   behavior. `?` must retain access to the complete recorded path.
-- The exact hierarchical sampling rule for project-like containers and their
-  actionable descendants.
+- The exact probability allocation and local normalization for project-like
+  containers and their actionable descendants. Hierarchical selection itself
+  is confirmed.
 
 ## 19.9 WIP and focus grammar
 

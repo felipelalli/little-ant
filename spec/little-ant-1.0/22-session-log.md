@@ -1161,3 +1161,30 @@ with an explicit diagnostic and is not represented as a focus opportunity.
 
 This supersedes the earlier working precedence list that placed effects,
 messages, or overdue follow-ups ahead of the ordinary lottery.
+
+## Entry 76 — Restore hierarchical forecast semantics
+
+The user recalled that the intended 1.0 forecast was hierarchical, consistent
+with both the composition tree and the recently proposed subject-first
+selection model. Repository history confirmed that the pre-propagation
+Markdown made importance and composition hierarchical but left the exact
+forecast formula open. The recovery ledger had already restored
+behavior-aware descent from a selected project-like container. The propagated
+Allium nevertheless represents `ForecastItem` values in one flat list and
+draws directly from that list.
+
+The user confirmed the missing semantic boundary: the focus forecast is not a
+flat lottery in which one subject gains another top-level ticket for every
+applicable question, review, or executable action. Each admitted attention
+subject participates once in its applicable scope. Selection then performs a
+replay-deterministic weighted local subdraw among that subject's admitted
+opportunity variants. Project-like containers add recursive, behavior-aware
+child-scope draws rather than flattening all descendants.
+
+The previously confirmed “one lottery for every opportunity kind” rule remains
+in force. It means that type creates no fixed precedence lane; it does not
+collapse the hierarchy. Exact weight aggregation, container allocation,
+normalization, and ordering relative to dependency resolution remain open
+calibration and protocol questions. The Allium and generated tests are
+therefore divergent on this point and must be corrected only after the
+recovery discussion is complete.

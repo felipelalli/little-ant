@@ -439,3 +439,17 @@
      explicit diagnostic and is not a `NextSuggestion`.
 183. Pending opportunity counts remain visible in status even when another
      kind wins the draw.
+184. Focus forecast is a replay-deterministic hierarchical probability model,
+     not a flat array in which every applicable opportunity independently
+     competes at the top level.
+185. Each admitted attention subject participates once in its applicable
+     attention scope regardless of how many opportunity variants currently
+     apply to it.
+186. After an attention subject is selected, one locally normalized weighted
+     subdraw selects among its admitted opportunity variants. Every admitted
+     local variant retains positive probability, and variant kind creates no
+     fixed precedence lane.
+187. A selected project-like container is resolved according to its
+     BrickBehavior through the applicable descendant scope or an explicit
+     review or decomposition boundary; descendants are not flattened into
+     unrelated top-level tickets.

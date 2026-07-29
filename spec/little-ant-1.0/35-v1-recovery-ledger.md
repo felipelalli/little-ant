@@ -319,7 +319,7 @@ Confirmed on 2026-07-28:
 
 - Executable work, questions, reviews, approvals, follow-ups, and every other
   admitted newly selectable variant participate in the same
-  replay-deterministic weighted draw.
+  replay-deterministic hierarchical weighted lottery.
 - Opportunity type alone never creates a fixed precedence lane.
 - Urgency, aging, accumulated pressure, and other forecast evidence may change
   weights without turning a kind into a deterministic interrupt.
@@ -332,3 +332,45 @@ Confirmed on 2026-07-28:
   stops the draw with an explicit diagnostic. It is not a focus opportunity.
 - The earlier working list that placed approvals and overdue follow-ups before
   the ordinary lottery is superseded.
+
+Clarified on 2026-07-29:
+
+- “The same lottery” rejects deterministic precedence by opportunity type. It
+  does not require a flat top-level array of every applicable opportunity.
+
+## 35.11 Restore hierarchical forecast selection
+
+Confirmed on 2026-07-29:
+
+- The focus forecast is hierarchical. The flat `ForecastItem` draw currently
+  present in the propagated Allium is a specification divergence, not the
+  intended 1.0 model.
+- Every newly selectable opportunity belongs to one canonical attention
+  subject.
+- Each admitted subject participates once in its applicable attention scope,
+  regardless of the number of executable actions, questions, reviews, or
+  other opportunity variants currently attached to it.
+- After selecting a subject, the core makes a replay-deterministic weighted
+  local subdraw among that subject's admitted opportunity variants.
+- Every admitted variant in that local subdraw retains strictly positive
+  probability. Opportunity type creates no fixed lane or automatic winner.
+- A project-like container introduces recursive, behavior-aware selection over
+  its admitted descendant scope. Descendants and their opportunities are not
+  flattened into unrelated top-level tickets.
+- A flattened forecast may exist as a read-only presentation derived from the
+  hierarchical probabilities. It cannot define or alter draw semantics.
+- This restoration is consistent with sibling-scoped human importance but is
+  a separate rule: human comparisons establish strict order among siblings,
+  while hierarchical forecast sampling determines where attention is offered.
+
+Open implications:
+
+- the exact subject catalog and applicable scope for non-Brick opportunities;
+- how several opportunity signals contribute to one subject weight without
+  ticket multiplication;
+- the probability allocation between a selected container and its descendant
+  scopes;
+- the order in which container descent, dependency-path resolution, and the
+  final opportunity subdraw consume replay evidence;
+- the new Allium obligations and high-level simulations required to prevent a
+  future flattening regression.
