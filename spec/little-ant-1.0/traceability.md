@@ -107,7 +107,7 @@ they were successive refinements of the same current rule family.
 | 88–90 | `UX-006..010`, `OPEN-UX-001`, `MIG-020` |
 | 91 | `UX-018`, `UX-022..023`, `WRK-017`, `MOD-012` |
 | 92–93 | `WRK-030..034` |
-| Post-consolidation REPL correction | `UX-025`, `UX-045..047`, `SCN-009`, `SCN-012`, `SCN-FED-001..002`, `UX-R00` |
+| Post-consolidation REPL corrections | `UX-022`, `UX-025`, `UX-045..047`, `SCN-009`, `SCN-012`, `SCN-FED-001..002`, `UX-R00` |
 
 ## Downstream coverage
 

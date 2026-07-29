@@ -89,9 +89,9 @@ The normative reference renderings live in
 - **UX-021 [core] — Semantic redo.** `C-M-_` and `/redo` reapply the compensated
   intent only if current preconditions still hold. Conflict is explicit.
   External effects require a separately approved compensation.
-- **UX-022 [core] — Command palette.** `/` opens a searchable palette of only
-  the commands valid in the current state and guides their arguments. In input
-  mode `/` is literal text.
+- **UX-022 [core] — More palette.** The canonical `[/] more...` action opens a
+  searchable palette of only the commands and secondary actions valid in the
+  current state and guides their arguments. In input mode `/` is literal text.
 - **UX-023 [core] — Grammar inspection.** `la grammar`,
   `la grammar --screen <grammar>`, and `la grammar --json` expose the same
   versioned registry used by all surfaces. The current envelope remains the
@@ -102,18 +102,19 @@ The normative reference renderings live in
 
 ## Status, history, and recovery
 
-- **UX-025 [core] — Persistent status bar.** Every first-party guided surface
-  presents a visually bounded status bar outside the current interaction. Its
-  compact reference content is the product and local clock, followed by mode,
-  focus state, eligible count, and pending-review count:
+- **UX-025 [core] — Persistent bottom status bar.** Every first-party guided
+  surface presents a compact status bar below the horizontal divider and
+  contextual rows. Its first line shows the local clock and operating state.
+  Its final line identifies Little Ant and shows useful aggregate statistics.
+  The lines are contiguous:
 
   ```text
-  🐜 Little Ant · Mon, Aug 3 · 09:00
-  mode: dumb · focus: idle · 18 eligible · 3 reviews
+  Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
+  🐜 Little Ant · 18 eligible · 3 reviews
   ```
 
   A value unavailable to a surface is omitted honestly. The status bar is
-  persistent product chrome, not the main content of an
+  persistent product chrome, not the main content or top header of an
   `InteractionEnvelope`.
 - **UX-026 [core] — Discreet warning rotation.** If several warnings apply,
   one is selected replay-deterministically at a screen boundary. Rendering the
@@ -170,21 +171,24 @@ The normative reference renderings live in
   powered-up REPL paths are accepted. A downstream convenience may motivate a
   later REPL-contract revision, but cannot silently fork the product language.
 - **UX-045 [core] — Context panel.** Parentage, Domain path, at most one
-  selected warning plus its overflow count, selection provenance, and one
-  compact ant-mascot recap appear below the main decision. Empty rows are
-  omitted. Mode and aggregate counts belong to the status bar, not this panel.
+  selected warning plus its overflow count, and concise subject-specific facts
+  may appear below the divider and above the status bar. Empty rows are
+  omitted. Technical selection provenance is available through contextual
+  `?`; it is not shown by default. Mode and aggregate counts belong to the
+  status bar, not this panel.
 - **UX-046 [core] — Automatic opening opportunity.** Starting or restoring the
   REPL never lands on an idle command prompt. It first restores an exact
   pending interaction or otherwise invokes the canonical `next` pipeline and
   displays its useful proposal. `next` itself may return a valid current-focus
   continuation. The no-eligible case displays the canonical useful empty
   state.
-- **UX-047 [core] — Feed from the proposal screen.** `[f]eed` is a persistent
-  global action while the current `next` proposal is visible. One keypress
-  opens the Feed input screen; there is no default Feed prompt. Escape from
-  uncommitted input restores the exact proposal without a draw or event. A
-  confirmed Feed changes the domain revision, so the old proposal is
-  revalidated and, when stale, recomputed instead of being applied blindly.
+- **UX-047 [core] — Global proposal actions.** The proposal screen places
+  `[f]eed · [/] more...` immediately above the divider that begins contextual
+  rows and the bottom status bar. `[f]eed` opens the Feed input screen; there
+  is no default Feed prompt. Escape from uncommitted input restores the exact
+  proposal without a draw or event. A confirmed Feed changes the domain
+  revision, so the old proposal is revalidated and, when stale, recomputed
+  instead of being applied blindly.
 
 ## Errors and dry-run
 

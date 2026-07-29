@@ -6,21 +6,21 @@ long paths, but renderers preserve the content order and action order.
 ## Shared composition
 
 ```text
-<persistent status bar>
-
 <primary subject or complete preview>
 
 <concrete question>
 
 <canonical actions>
 
+<global actions>
+
 ----------------------------------------
 <optional Within path>
 <optional Domain/current-Domain context>
 <at most one warning and overflow count>
-<ant recap, provenance, or discreet review state>
+<optional subject-specific facts>
 
-<global actions>
+<persistent bottom status bar>
 ```
 
 Empty secondary rows are omitted. Emoji have accessible textual equivalents.
@@ -28,14 +28,10 @@ Empty secondary rows are omitted. Emoji have accessible textual equivalents.
 ## UX-R00 — Dumb REPL frame
 
 The REPL opens by restoring or obtaining `next`, not by waiting for a command.
-The status bar is bounded product chrome rather than main content:
+The status bar follows the divider and contextual rows rather than occupying
+the top of the screen:
 
 ```text
-┌────────────────────────────────────────────────────────────┐
-│ 🐜 Little Ant · Mon, Aug 3 · 09:00                        │
-│ mode: dumb · focus: idle · 18 eligible · 3 reviews        │
-└────────────────────────────────────────────────────────────┘
-
 Next:
 
 #r12345 "Review Rock Splitter rules"
@@ -44,25 +40,27 @@ Focus?
 
 [y]es · [d]one · [s]kip · [?] I don't know
 
+[f]eed · [/] more...
+
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
 🏷️ Orbit > R&D > Rock Splitter
-🐜 selected by next · active Domain continuity
 
-[f]eed · [/] commands
+Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
+🐜 Little Ant · 18 eligible · 3 reviews
 ```
 
-The status bar, automatically served envelope, context panel, and global-action
-footer are all part of REPL UX. `[f]eed` opens UX-I02; it is not preselected.
-`[?] I don't know` belongs to the current Focus decision, while `[/] commands`
-opens the command palette. Adaptive or narrow-terminal rendering may fold
-regions but cannot test only the inner envelope and call that a REPL
-simulation.
+The automatically served envelope, global-action row, context panel, and
+bottom status bar are all part of REPL UX. `[f]eed` opens UX-I02; it is not
+preselected. `[?] I don't know` belongs to the current Focus decision, while
+`[/] more...` opens the secondary-action and command palette. Adaptive or
+narrow-terminal rendering may fold regions but cannot test only the inner
+envelope and call that a REPL simulation.
 
 Powered-up mode reuses the frame and changes only:
 
 ```text
-mode: powered up · by: /bin/claude-fast.sh
+Mon, Aug 3 · 09:00 · mode: powered up · by: /bin/claude-fast.sh · focus: idle
 ```
 
 plus any explicitly attributed proposals that passed the startup handshake.
@@ -78,11 +76,15 @@ Focus?
 
 [y]es · [d]one · [s]kip · [?] I don't know
 
+[f]eed · [/] more...
+
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
 🏷️ Personal > Little Ant
 ⚠️ #u11111 "Submit migration report" · deadline in 2h · +2 warnings
-🐜 18 eligible · 3 reviews
+
+Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
+🐜 Little Ant · 18 eligible · 3 reviews
 ```
 
 `yes` focuses and starts WIP. `done` completes directly. `skip` opens UX-S01.
@@ -99,10 +101,14 @@ Focus?
 
 [y]es · [d]one · [s]kip · [?] I don't know
 
+[f]eed · [/] more...
+
 ----------------------------------------
 🏷️ Personal > Housekeeping
    from Orbit > R&D > Rock Splitter
-🐜 unrelated work retained a positive chance
+
+Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
+🐜 Little Ant · 18 eligible · 3 reviews
 ```
 
 There is no preliminary `Switch Domain?`. `yes` starts focus and changes the
@@ -119,12 +125,17 @@ Focus?
 
 [y]es · [d]one · [s]kip · [?] I don't know
 
+[f]eed · [/] more...
+
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
 🏷️ Personal > Little Ant
 🐜 drew #r90000 "Release Little Ant v1"
    → blocked by #i20000 "Restore importance ordering"
    → blocked by this Brick
+
+Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
+🐜 Little Ant · 18 eligible · 3 reviews
 ```
 
 Long paths may fold visually, but every cited Brick retains its complete
@@ -338,7 +349,7 @@ work merely to avoid emptiness.
 |---|---|---|---|
 | primary block | terminal text | text/card with same order | same text block |
 | action | one key, no Enter | button/touch target retaining label and shortcut | natural language or canonical letter mapped to the same action ID |
-| secondary region | separated footer/status | separated context panel | separated block after the prompt |
+| secondary region | context plus bottom status below a divider | separated context/status panel | separated block after the prompt |
 | input | line editor | text field | free text |
 | revision | carried by harness | hidden transport value | included in tool action |
 
