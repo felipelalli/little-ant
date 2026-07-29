@@ -208,10 +208,9 @@ unsettled mechanics no longer postpone the existing-Brick review.
   fear is no longer merely a possible addition.
 - The complete symptom set, ordering, applicability rules, concise labels, and
   optional free-text path for the single first skip screen.
-- Whether the old `waiting` reason becomes one broad symptom or separates
-  external waiting from an actionable blocker or missing prerequisite.
-- Whether the symptom screen repeats the existing context-valid `done` action
-  in a visually separate region or requires returning to the focus screen.
+- Exact boundary examples for `waiting` versus `blocked`, including when an
+  external dependency becomes actionable enough to create or link an enabling
+  Brick.
 - Exact English shortcut letters after all command namespaces are known.
 - Which symptom-specific reactions are proposed on the subsequent screen,
   their ordering, and which always require another confirmation.

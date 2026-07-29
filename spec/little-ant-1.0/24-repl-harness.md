@@ -115,6 +115,30 @@ interaction may propose appropriate reactions. Every screen follows the same
 in-word shortcut typography. Similar symptoms may share a visual row, for
 example `[v]ague / [h]ard / bi[g]`, while remaining separate one-key choices.
 
+The working symptom screen is:
+
+```text
+What's getting in the way?
+
+- [v]ague / [h]ard / bi[g]
+- [w]aiting / bloc[k]ed
+- [t]ired / [b]ored / [f]ear
+- [n]ot important now
+- [o]ther
+- [?] I don't know
+
+Already finished?
+
+- [d]one
+```
+
+`waiting` reports an unresolved external person, event, or condition with no
+known direct action now. `blocked` reports an actionable missing prerequisite
+such as another Brick, information, access, or material. Selecting `blocked`
+may lead to a later proposal to create or connect an enabling Brick, but the
+symptom selection does not perform that reaction. The repeated `done` action
+records only completion and produces no skip evidence, cooldown, or pressure.
+
 `?` is visible and labeled on every finite-choice loop, normally as
 `[?] I don't know`. It means uncertainty about the pending human decision, not
 generic system help. It opens a contextual assistance screen that may reveal

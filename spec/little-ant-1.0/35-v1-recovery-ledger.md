@@ -610,7 +610,31 @@ Confirmed on 2026-07-29:
 
 Open implications:
 
-- whether `waiting` is broad or separates from actionable blocking;
-- whether `done` is repeated on the symptom screen;
+- `waiting` versus actionable blocking and repeated `done` were resolved in
+  section 35.21;
 - final full symptom screen, row order, and exact uncertainty label;
 - contextual uncertainty-screen actions and exact Little Ant help label.
+
+## 35.21 Separate waiting from blocking and repeat direct completion
+
+Confirmed on 2026-07-29:
+
+- `waiting` and `blocked` are separate served-work symptoms.
+- `waiting` means that an external person, event, or condition remains
+  unresolved and there is no known directly actionable work now.
+- `blocked` means that a representable prerequisite is missing, such as
+  another Brick, information, access, or material.
+- A Dependency or enabling Brick is a possible later reaction to `blocked`;
+  choosing the symptom never creates that relationship silently.
+- Their working row is `[w]aiting / bloc[k]ed`.
+- `[d]one` remains on the focus screen and is repeated in a separate
+  “Already finished?” region on the symptom screen.
+- This repeated action records direct completion only. It creates no skip
+  symptom, cooldown, or avoidance pressure.
+
+Open implications:
+
+- exact boundary examples where external waiting becomes actionable blocking;
+- final full-screen visual hierarchy, optional iconography, and context/status
+  placement;
+- the specific subsequent reactions offered for each symptom.

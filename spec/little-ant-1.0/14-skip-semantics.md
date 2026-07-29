@@ -30,31 +30,44 @@ separate from `hard`; it means that the served work feels too large for the
 current focus opportunity, not that its total duration is objectively “too
 long.” `not_important_now` replaces the obsolete priority wording and preserves
 the temporal nature of that judgment. `bored` is distinct from low general
-energy. Confirmed candidate symptom families now include:
+energy. `waiting` and `blocked` are also distinct symptoms. `waiting` means
+that an external person, event, or condition remains unresolved and no
+directly actionable work is currently known. `blocked` means that an
+actionable prerequisite is missing, such as another Brick, information,
+access, or material. A later reaction to `blocked` may therefore propose or
+connect a Dependency or enabling Brick without treating that reaction as the
+symptom itself.
+
+Confirmed candidate symptom families now include:
 
 ```text
-vague | hard | big | tired | bored | fear |
+vague | hard | big | waiting | blocked | tired | bored | fear |
 not_important_now | other
 ```
 
-Whether `waiting` remains one symptom or splits into external waiting and
-actionable blocking remains open. `kill` and `alternatives` are not symptoms:
-the former is a terminal action, while alternative methods may be proposed as
-a reaction to several symptoms.
+`kill` and `alternatives` are not symptoms: the former is a terminal action,
+while alternative methods may be proposed as a reaction to several symptoms.
 
 Similar symptoms are visually grouped on the same row while each retains its
 own one-key choice. A working layout is:
 
 ```text
 - [v]ague / [h]ard / bi[g]
+- [w]aiting / bloc[k]ed
 - [t]ired / [b]ored / [f]ear
 - [n]ot important now
 - [o]ther
 - [?] I don't know
+
+Already finished?
+
+- [d]one
 ```
 
-The final waiting/blocking row and whether `done` is repeated on this screen
-remain open.
+`done` remains available on the preceding focus screen and is repeated in a
+visually separate “Already finished?” region on the symptom screen. It records
+direct completion only: it does not record a skip symptom, create a skip
+cooldown, or add avoidance pressure.
 
 When a later accepted reaction applies a reported symptom to a Domain branch,
 the selected Domain and its descendants receive a short cooldown followed by

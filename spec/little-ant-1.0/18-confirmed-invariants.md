@@ -514,3 +514,14 @@
      decision, not as unlabeled system help. It opens contextual assistance
      without answering; another `?` inside that screen opens Little Ant system
      help, so `??` is the effective help path.
+207. `waiting` and `blocked` are distinct served-work symptoms. `waiting`
+     denotes an unresolved external person, event, or condition with no known
+     directly actionable work now; `blocked` denotes a representable,
+     actionable missing prerequisite such as another Brick, information,
+     access, or material.
+208. Selecting `blocked` does not itself create a Dependency or enabling
+     Brick. Those are possible reactions in a subsequent interaction and
+     require their own accepted action.
+209. The skip-symptom screen repeats `[d]one` in a visually separate
+     “Already finished?” region. It records direct completion only and creates
+     no skip symptom, skip cooldown, or avoidance pressure.

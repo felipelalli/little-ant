@@ -1326,3 +1326,17 @@ system help. A second `?` from inside that assistance screen opens Little Ant
 help, producing an effective `??` help gesture. The distinction between
 external waiting and actionable blocking, and whether `done` is repeated on
 the symptom screen, remain for the focused screen discussion.
+
+## Entry 84 — Split external waiting from actionable blocking
+
+The user confirmed that the symptom screen distinguishes `[w]aiting` from
+`bloc[k]ed`. Waiting means an unresolved external person, event, or condition
+for which no directly actionable work is currently known. Blocking means a
+representable missing prerequisite such as another Brick, information, access,
+or material. The latter may lead to a subsequent proposal for a Dependency or
+enabling Brick, but symptom selection itself performs no remediation.
+
+The focus screen keeps its direct completion action, and the symptom screen
+repeats `[d]one` in a visually separate “Already finished?” region. This is a
+recovery affordance for work that was already completed, not a skip reason:
+it records completion without skip evidence, cooldown, or avoidance pressure.
