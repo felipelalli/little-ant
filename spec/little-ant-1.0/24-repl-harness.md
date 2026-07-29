@@ -113,19 +113,69 @@ and rendering channels. When applicable:
 [y]es · [n]o · [d]one · [s]kip · [?]
 ```
 
-- `y` confirms the concrete proposition currently displayed;
+- `y` confirms the concrete question or relation currently displayed;
 - `n` rejects it;
 - `d` records completion of the cited Brick;
-- `s` skips without recording an answer to the proposition;
+- `s` skips without recording an answer to the question;
 - `?` expresses uncertainty and opens contextual decision assistance without
   answering.
 
 An interaction omits inapplicable actions rather than reusing their letters
-with another meaning. `n` appears only when rejecting the displayed proposition
+with another meaning. `n` appears only when rejecting the displayed question
 is semantically distinct from skipping the opportunity. `Focus?` therefore
 uses `y/d/s/?`: adding `n` would duplicate the explicit served-work skip.
-Another proposition such as `Send this follow-up?` may use `y/n/s/?` when
+Another question such as `Send this follow-up?` may use `y/n/s/?` when
 rejection and deferral have distinct canonical effects.
+
+The reusable primary screen grammars are:
+
+1. **focus** — one served Brick and the concrete `Focus?` decision;
+2. **comparison** — two peer subjects and one directional relation;
+3. **confirmation** — one proposed action or effect and its preview;
+4. **choice** — several mutually exclusive domain choices;
+5. **input** — explicit text entry.
+
+A guided review orchestrates these ordinary grammars and adds only discreet
+secondary context. It is not another primary grammar.
+
+Comparison is not forced through a generic “Proposition” layout. Its reference
+rendering is:
+
+```text
+#a12345 "Launch the landing page"
+
+    is more important than
+
+#b45678 "Interview prospective customers"
+
+Is that right?
+
+*[y]es · [n]o · [s]kip
+[?] I don't know
+
+----------------------------------------
+↳ #p12345 "Release the new website"
+🐜 importance insertion · powered-up suggestion
+```
+
+Confirmation instead presents the action and any necessary preview:
+
+```text
+Send this follow-up?
+
+"Hi Bento, could you confirm whether the review is complete?"
+
+*[y]es · [n]o · [s]kip
+[?] I don't know
+
+----------------------------------------
+👤 Bento Camargo
+🐜 delegation follow-up · due 2 days ago
+```
+
+The `*` in either example is conditional, not a permanent yes bias. It marks
+the one action actually suggested for that interaction and is absent when no
+defensible default exists.
 
 A prospective Domain transition does not add a preliminary yes/no screen. The
 ordinary `Focus?` prompt may display the active and candidate Domains. `y`
@@ -174,12 +224,12 @@ Ant system help. Therefore `??` is the effective system-help gesture. Exact
 labels and assistance-screen actions remain open.
 
 A guided decision renders the concrete domain question rather than an abstract
-operation heading. For example, an importance comparison asks whether one
-cited Brick is more important than the other and offers directional
-`yes`/`no`, `skip`, and `?` responses. The main prompt need not contain a
-prominent `Why` block when the question is self-explanatory. Its provenance
-remains in the interaction envelope and under `?`; an adaptive layout may
-surface a compact reason summary unobtrusively in a status region.
+operation heading. An importance comparison uses the comparison grammar above
+and offers directional `yes`/`no`, `skip`, and `?` responses. The main prompt
+need not contain a prominent `Why` block when the question is
+self-explanatory. Its provenance remains in the interaction envelope and under
+`?`; an adaptive layout may surface a compact reason summary unobtrusively in
+a status region.
 
 For a pending `next` suggestion, `?` is also the only top-level entry point for
 opening its wider context. It may expose the explanation, ancestor path,

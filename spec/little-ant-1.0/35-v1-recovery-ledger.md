@@ -679,7 +679,7 @@ Open implications:
 
 Confirmed on 2026-07-29:
 
-- A guided review does not create a fifth primary screen grammar or a
+- A guided review does not create an additional primary screen grammar or a
   prominent `Review` heading.
 - Each current review question uses the same ordinary concrete layout that it
   would use outside a review.
@@ -725,3 +725,48 @@ Open implications:
 
 The prior four-screen discussion omitted this v0 capability. The final
 comparison and confirmation layouts must demonstrate it explicitly.
+
+## 35.25 Separate comparison from confirmation
+
+Confirmed on 2026-07-29:
+
+- “Proposition” is not the final generic user-facing screen grammar.
+- The reusable primary grammar set is `focus`, `comparison`, `confirmation`,
+  `choice`, and `input`.
+- Comparison and confirmation remain separate even when both expose
+  `yes`, `no`, `skip`, and `?`.
+- Comparison presents two peer subjects and one directional relation. The
+  reference importance layout is:
+
+  ```text
+  #a12345 "Launch the landing page"
+
+      is more important than
+
+  #b45678 "Interview prospective customers"
+
+  Is that right?
+
+  *[y]es · [n]o · [s]kip
+  [?] I don't know
+
+  ----------------------------------------
+  ↳ #p12345 "Release the new website"
+  🐜 importance insertion · powered-up suggestion
+  ```
+
+- `yes` accepts the displayed direction. `no` records the reverse direction
+  because sibling importance is a strict total order with no equality answer.
+- Confirmation presents one proposed action or effect and any preview needed
+  to decide it; it does not imitate the two-subject comparison layout.
+- The displayed `*` remains conditional. It may mark another valid action or
+  be absent according to section 35.24.
+- Guided review remains discreet orchestration over these ordinary grammars;
+  it does not become a sixth primary type.
+
+Open implications:
+
+- exact focus, choice, and input reference layouts;
+- narrow-terminal folding for long titles and comparison context;
+- which confirmation previews permit a suggested default under external
+  effect rules.

@@ -241,21 +241,35 @@ require a prominent `Why` block when the question explains itself.
 The confirmed comparison shape is:
 
 ```text
-Next: Is
+#a12345 "Launch the landing page"
 
-      #a12345 "Launch the landing page"
-      (>>) more important than
-      #b45678 "Interview prospective customers"
-?
+    is more important than
 
-  [y]es · [n]o · [s]kip · [?]
+#b45678 "Interview prospective customers"
+
+Is that right?
+
+*[y]es · [n]o · [s]kip
+[?] I don't know
+
+----------------------------------------
+↳ #p12345 "Release the new website"
+🐜 importance insertion · powered-up suggestion
 ```
 
 This preserves the directional yes/no semantics: `yes` confirms the displayed
-relation, while `no` rejects it. Provenance remains present in the structured
-result and available through `?`. A capable renderer may show a restrained
-reason summary in an optional status region, but the main prompt does not
-repeat a prominent explanation by default.
+relation, while `no` records the reverse relation because the sibling order is
+strict and has no equality answer. The shown `*` is illustrative: it appears
+beside `y`, beside another valid action, or not at all according to the
+suggested-default rules. Provenance remains present in the structured result
+and available through `?`; a restrained summary may appear in the secondary
+context region without becoming a prominent `Why` block.
+
+Comparison is a distinct screen grammar because it presents two peer subjects
+and one directional relationship. Confirmation presents one proposed action
+or external effect and asks whether to apply it. It does not reuse the
+two-subject comparison arrangement merely because both grammars may expose
+`yes`, `no`, `skip`, and `?`.
 
 The confirmed focus shape is:
 
@@ -275,7 +289,7 @@ The prompt preserves the stable response language: `y` confirms the displayed
 question, `d` records that the served Brick is already complete, `s` skips the
 opportunity, and `?` opens contextual information without answering. Parentage,
 Domain, warnings, and compact status are secondary context rather than part of
-the focal proposition.
+the focal question.
 
 A cross-Domain result remains the same focus interaction. It does not introduce
 a preliminary `Switch Domain?` confirmation:

@@ -1386,3 +1386,29 @@ Chapter 36 now records an independent audit that separates valuable behavior
 to restore, stronger 1.0 replacements, deliberate removals, formal drift, and
 still-unreviewed capabilities. This does not revive compatibility aliases or
 obsolete concepts.
+
+## Entry 88 — Split comparison from confirmation
+
+The user accepted the assertion-style importance comparison and rejected
+“Proposition” as one generic layout for unrelated decisions. The primary
+grammar set is now focus, comparison, confirmation, choice, and input.
+Comparison states the relation between two cited peers and asks `Is that
+right?`; confirmation presents one proposed action or effect and its required
+preview. Guided review continues to orchestrate ordinary screens discreetly
+instead of becoming a sixth type.
+
+The reference comparison shows `#A "..." is more important than #B "..."`,
+then `*[y]es`, `[n]o`, `[s]kip`, and `[?] I don't know`. `No` records the
+reverse strict direction, while the shown default remains conditional rather
+than a permanent bias toward yes.
+
+## Entry 89 — Expose two residual v0 policy questions
+
+Completing the capability audit found two smaller v0 behaviors not represented
+in the 1.0 record. The answer namespace included `[l]ater` and required the
+resulting absolute date to be shown. The operator policy also kept canonical UI
+and data in English while composing outbound messages in the recipient's
+language. Neither behavior is restored implicitly: generic `later` may
+conflict with context-specific skip, snooze, defer, and `not_before`, while
+recipient-language choice belongs to an attributed operator or adapter rather
+than deterministic core semantics.

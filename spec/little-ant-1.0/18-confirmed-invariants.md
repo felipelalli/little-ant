@@ -410,8 +410,9 @@
 175. `next` returns one member of a versioned closed set of core-defined
      focus-opportunity variants. `interaction` is not a public catch-all
      command, and extensions cannot invent variants or canonical actions.
-176. A comparison suggestion renders the concrete proposition as its primary
-     prompt and interprets `yes` or `no` against that displayed direction.
+176. A comparison suggestion renders the concrete directional relation as its
+     primary prompt and interprets `yes` or `no` against that displayed
+     direction.
      Provenance remains structured and available through `?`, but a prominent
      `Why` block is not required when the question is self-explanatory.
 177. The REPL is the reference interaction design for Little Ant 1.0. Web,
@@ -548,10 +549,16 @@
 217. Product emoji are renderer-owned markers with an accessible no-emoji
      fallback. The compact statistics line uses the Little Ant mascot `🐜`
      rather than a generic chart marker.
-218. A guided review is orchestration, not a fifth primary screen grammar. Its
+218. A guided review is orchestration, not an additional primary screen
+     grammar. Its
      presence and honest progress appear discreetly in the secondary context
      region while the current concrete question uses an ordinary interaction
      layout.
 219. `*` marks at most one suggested action in a pending interaction, and a
      bare `*` accepts that exact action at the displayed revision. When there
      is no defensible suggestion, no default is displayed.
+220. Comparison and confirmation are distinct primary screen grammars.
+     Comparison presents two peer subjects and one directional relation;
+     confirmation presents one proposed action or effect. The reference
+     comparison layout states `#A "..." is more important than #B "..."`
+     and asks `Is that right?`.

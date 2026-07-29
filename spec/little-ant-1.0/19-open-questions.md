@@ -263,6 +263,8 @@ implementation for community exporter authors.
 - Exact discreet review-context wording and which honest progress facts appear
   there without inventing a fixed denominator.
 - Exact one-key grammar, including global, screen-local, and answer shortcuts.
+- Whether v0 `[l]ater` survives as a general answer or is replaced completely
+  by context-specific skip, snooze, defer, and `not_before` operations.
 - Which authorities may nominate the action marked by `*`, whether destructive
   or externally visible actions can ever be defaults, and how default
   provenance, confidence, and accessible rendering are exposed.
@@ -287,6 +289,8 @@ implementation for community exporter authors.
   multi-device conflict behavior.
 - Exact rebase and recovery choices when the event log advanced.
 - How outbound integrations are displayed without weakening approval rules.
+- How an operator or adapter selects the recipient's language for outbound
+  messages while canonical product UI, commands, and data remain English.
 - Exact state-scoped interaction-envelope schema and action identifiers.
 - Exact powered-up flag, executable-path handling, timeout, stdin handshake,
   response schema, and bounded extraction rule.

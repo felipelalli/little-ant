@@ -90,16 +90,19 @@ behavior spans several rules.
 | Finite choices use one-key input without Enter. | **retained / formal drift** | The conceptual REPL requires it, but the current Allium states it only as a guarantee and generated tests do not exercise the terminal behavior. |
 | The core owns letters and markers, and operators inspect rather than invent them. | **retained, incomplete** | The state-scoped interaction envelope is the stronger 1.0 mechanism. A canonical grammar/catalog inspection surface and its CLI name remain open. |
 | A pending question disambiguates a bare answer letter from a full command word. | **replaced in part / review** | The 1.0 `/` palette may replace full-word command escape. Exact raw-command behavior while a one-key prompt is pending still needs a decision. |
+| `[l]ater` is a canonical answer and displays the resulting absolute date. | **review** | Decide whether it survives as a general response or is replaced by context-specific skip, snooze, defer, and `not_before` operations. Do not restore one ambiguous universal mutation automatically. |
 | `?` means uncertainty, more information, or help deciding. | **retained and refined** | One `?` now opens decision assistance; nested `?` opens system help. |
 | The operator exposes deterministic core output before attributed interpretation. | **retained in principle, review in presentation** | One shared interaction envelope replaces the v0 three-layer shell transcript. Canonical action, provenance, and deeper command detail must remain inspectable without dominating the REPL. |
 | Every session ends with a useful proposal rather than silence. | **review** | Define the observable empty-state behavior for no eligible work, no pending review, and filtered scopes. |
 | `--dry-run` previews mutations without writing. | **review** | Approval previews survive, but the general CLI mutation-preview contract has not been confirmed for 1.0. |
 | Typed errors distinguish precondition, not-found, and ambiguous-reference failures and include a useful hint. | **retained in principle, incomplete** | Preserve machine-readable failure kinds and teachable recovery in the final command protocol. Exact exit codes and fields remain open. |
+| Product UI and data are English, while outbound messages use the recipient's language. | **review at operator boundary** | Canonical product content remains English. Decide and document recipient-language selection as attributed operator or adapter policy rather than core domain semantics. |
 
 The working “Proposition” renderer is not accepted as the final user-facing
-grammar. A likely correction is to separate **comparison** from
-**confirmation** instead of forcing both through one generic layout. The
-concrete layout remains open for the current UI review.
+grammar. The confirmed correction separates **comparison** from
+**confirmation** instead of forcing both through one generic layout.
+Comparison uses the two-subject assertion and `Is that right?` reference
+layout recorded in section 35.25.
 
 ## 36.4 Importance-order maintenance
 
@@ -176,6 +179,7 @@ tolerant, resumable algorithm is not acceptable.
 | V0 capability | 1.0 audit result | Required treatment |
 |---|---|---|
 | Raw input is preserved and may extract zero or more work items. | **retained and strengthened** | Raw is durable, reusable, versioned material with review and archive axes. |
+| Feeding is lazy and does not require a metadata form before work can enter the system. | **retained and strengthened** | Nature is required from birth but may safely fall back to `standard`; phase, effort, Domain, and other enrichment remain lazy. |
 | A source check detects drift and requires explicit reconciliation. | **retained and strengthened** | RawOrigin, snapshots, RawLinks, per-link baselines, source observations, and approved write-back replace one mutable SourceLink fingerprint. |
 | External actions never happen silently. | **retained** | This remains an absolute authority boundary for core, adapters, Packs, REPL, and skill. |
 | TaskJuggler export includes dependencies, ordering, estimates, and visible gaps. | **replaced and strengthened** | Planning cuts, EffortProfiles, immutable manifests, Lua read-only export, and separate actual import are the 1.0 model. |
@@ -188,8 +192,9 @@ tolerant, resumable algorithm is not acceptable.
 
 Before regenerating Allium tests or starting another 1.0 implementation:
 
-1. settle the reusable screen grammars, including comparison, confirmation,
-   focus, choice, input, `*`, `?`, and the status/context region;
+1. settle the remaining focus, choice, input, `*` authority, `?` assistance,
+   and status/context details around the confirmed comparison and confirmation
+   grammars;
 2. specify adaptive sibling-order maintenance as observable core behavior;
 3. review every **review** row above and either restore, replace, defer
    explicitly, or reject it;
