@@ -32,6 +32,16 @@ may expose missing or contradictory rules.
 - **SCN-008 — Commit-backed learning.** After a coherent accepted screen or
   flow, update the screen catalog, scenario, canonical rule if needed, and
   traceability in one small documentation commit.
+- **SCN-009 — Dumb REPL first.** Every new flow begins with the complete dumb
+  REPL, including header/status, command or key input, main envelope,
+  secondary context, and transition. It cannot rely on model judgment.
+- **SCN-010 — Paired powered-up replay.** When powered-up behavior is relevant,
+  replay the accepted dumb flow from the same state, clock, configuration, and
+  random stream. Record exactly which screens were removed, which default or
+  proposal was added, and its AI provenance.
+- **SCN-011 — Mirrors last.** Only after the REPL pair is accepted, render the
+  same envelopes in the operator skill and web/mobile composition. Those
+  mirrors do not supply missing core decisions.
 
 ## Critique labels
 

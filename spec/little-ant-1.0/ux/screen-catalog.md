@@ -21,6 +21,39 @@ long paths, but renderers preserve the content order and action order.
 
 Empty secondary rows are omitted. Emoji have accessible textual equivalents.
 
+## UX-R00 — Dumb REPL frame
+
+The screen under review includes the harness, not only an isolated prompt:
+
+```text
+🐜 Little Ant · Mon, Aug 3 · 09:00
+mode: dumb · focus: idle · 18 eligible · 3 reviews
+
+Recent
+09:00  session opened
+
+════════════════════════════════════════
+ant> feed comprar leite
+
+<current canonical envelope>
+
+----------------------------------------
+[/] commands · [?] contextual help
+```
+
+The header, recent-action region, command/input line, envelope, context region,
+and footer are all part of REPL UX. Adaptive or narrow-terminal rendering may
+fold regions but cannot test only the inner envelope and call that a REPL
+simulation.
+
+Powered-up mode reuses the frame and changes only:
+
+```text
+mode: powered up · by: /bin/claude-fast.sh
+```
+
+plus any explicitly attributed proposals that passed the startup handshake.
+
 ## UX-F01 — Focus
 
 ```text
@@ -272,3 +305,5 @@ work merely to avoid emptiness.
 | revision | carried by harness | hidden transport value | included in tool action |
 
 No surface may replace the canonical question with its own summary.
+The table is evaluated only after the dumb REPL flow and its powered-up delta
+have been accepted.

@@ -13,8 +13,10 @@
 - **UX-003 [core] — Permitted adaptation.** A surface may change wrapping,
   density, pagination, physical control, and accessibility representation.
   It may not rename, reorder, omit, combine, or reinterpret canonical actions.
-- **UX-004 [core] — REPL reference composition.** The first-party REPL is the
-  reference layout and guided-flow harness. Other surfaces render the same
+- **UX-004 [core] — Dumb REPL reference composition.** The first-party dumb
+  REPL is the reference layout and complete guided-flow harness. A screen and
+  transition are approved there before powered-up automation, skill, web, or
+  mobile presentation may claim parity. Other surfaces render the same
   composition with appropriate click, touch, speech, or natural-language
   controls.
 - **UX-005 [core] — Sparse context.** Main content contains the current subject,
@@ -149,6 +151,14 @@ The normative reference renderings live in
 - **UX-039 [standard] — Skill equivalence.** The operator skill may interpret
   unrestricted natural language more deeply, but renders and advances through
   the same envelope and canonical actions.
+- **UX-043 [core] — Powered-up is a measured delta.** A powered-up simulation
+  starts from the same state, clock, configuration, and random stream as the
+  accepted dumb flow. It may remove mechanical questions or add an attributed
+  default; it cannot become the source of screen grammar.
+- **UX-044 [core] — Downstream mirror order.** Skill and web/mobile renderings
+  are reviewed only after the corresponding dumb and, when applicable,
+  powered-up REPL paths are accepted. A downstream convenience may motivate a
+  later REPL-contract revision, but cannot silently fork the product language.
 
 ## Errors and dry-run
 

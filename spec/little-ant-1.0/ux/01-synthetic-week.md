@@ -82,31 +82,50 @@ Dependencies:
 
 ## Day 1 — Feeding and identity
 
-### SCN-FED-001 — Fast powered-up feed
+### SCN-FED-001 — Dumb REPL baseline
 
-Input: `feed comprar leite`
+Enter `feed comprar leite` at the `ant>` prompt with `mode: dumb`.
 
 Validate:
 
+- the full UX-R00 harness is present rather than only an agent-generated
+  confirmation;
+- no translation, task-shape, target, duplicate, or Nature judgment is
+  attributed to a model;
 - original Portuguese is preserved;
-- canonical title is proposed in English;
-- duplicate suspicion finds compatible grocery entries without a global
-  `milk` identity;
-- current context suggests adding a ListEntry under
-  `#h12345 "Buy groceries"`;
-- the exact route and Nature are visible before confirmation;
-- the final result uses the same screen in powered-up REPL and skill.
+- every decision needed to obtain an English canonical title and route is
+  reachable through deterministic one-key/input screens;
+- duplicate suspicion uses core mechanics without a global `milk` identity;
+- the exact route, parent, and Nature are visible before confirmation.
 
-### SCN-FED-002 — Dumb fallback
+Do not predetermine how many screens are required. The baseline exists to
+discover whether language normalization, target selection, or Nature choice
+creates unacceptable form-like friction.
 
-Repeat with powered-up mode disabled. Validate that bounded one-key route and
-template choices reach the same canonical result without hidden keyword rules.
+### SCN-FED-002 — Powered-up delta
+
+Reset to the identical fixture revision and replay `feed comprar leite` with:
+
+```text
+mode: powered up · by: /bin/claude-fast.sh
+```
+
+Validate that the model may propose canonical English, ListEntry route,
+`#h12345 "Buy groceries"`, and duplicate interpretation in fewer screens while
+using the same canonical envelope/action IDs. Record every skipped dumb screen
+and the provenance of every added default.
 
 ### SCN-FED-003 — Article URL
 
-Feed the URL Raw, propose an `article_reading` Brick, attach source material,
-and enter sibling importance insertion without treating the URL as completed
-work.
+Run the URL flow in dumb REPL first, then replay it powered up. Preserve Raw,
+propose an `article_reading` Brick when confirmed, attach source material, and
+enter sibling importance insertion without treating the URL as completed work.
+
+### SCN-FED-004 — Skill and web/mobile mirror
+
+Only after SCN-FED-001 through SCN-FED-003 are accepted, render their existing
+envelopes in the operator skill and web/mobile reference. Validate
+almost-literal parity; do not let the skill supply a missing dumb-core path.
 
 ## Day 2 — Importance and uncertainty
 
