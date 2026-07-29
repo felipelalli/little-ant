@@ -1,0 +1,129 @@
+# 2. Concepts, identity, and hierarchy
+
+## Core concepts
+
+- **MOD-001 [core] — Raw.** Raw is durable material that can be reviewed,
+  linked, enriched, archived, and reconciled with an external origin. It is
+  not work, is not importance-orderable, and has no `done` operation.
+- **MOD-002 [core] — Brick.** A Brick is one durable unit of intention or
+  responsibility. Every active Brick has one Nature and one deterministic
+  position among its siblings from birth.
+- **MOD-003 [standard] — ListEntry.** A ListEntry is a structured member owned
+  by a Nature that treats entries as part of one execution unit. It is not
+  automatically an independent Brick or globally unique world object.
+- **MOD-004 [core] — BrickNature.** A BrickNature is a versioned,
+  core-validated set of observable capabilities governing focus unit,
+  structure, completion, standing execution, recurrence, entry ownership,
+  lazy axes, and delegation scope.
+- **MOD-005 [standard] — BrickTemplate.** A BrickTemplate is an inspectable,
+  one-time creation recipe. After expansion, it has provenance but no hidden
+  runtime authority.
+- **MOD-006 [core] — Domain.** A Domain is a hierarchical, non-exclusive
+  classification used for retrieval, context, and focus continuity. It is not
+  a folder owner, a Brick parent, or an organizational person.
+- **MOD-007 [standard] — ExternalEntity.** An ExternalEntity is a durable
+  reference to a person, team, organization, AI agent, or service involved in
+  requests, delegation, waiting, provenance, or delivery.
+
+## Identity
+
+- **MOD-008 [core] — Opaque identity.** Canonical IDs are opaque and are never
+  hashes of mutable titles. Renaming preserves identity.
+- **MOD-009 [core] — Repeated titles.** Equal canonical titles do not imply
+  identity. Scope, Nature, parent, source, and history participate in
+  duplicate suspicion.
+- **MOD-010 [core] — Complete rendering.** Whenever UI text cites a Brick, it
+  renders `#shortid "canonical title"`; a bare ID is insufficient.
+- **MOD-011 [core] — Suspicion is not equivalence.** Duplicate detection
+  creates a reviewable suspicion. Only an explicit canonical outcome may
+  reuse, enrich, merge, or keep entities separate.
+- **MOD-012 [core] — Explicit merge.** `merge` chooses a surviving identity,
+  previews affected relationships and conflicts, preserves lineage and source
+  provenance, and supports dry-run. It is not a title-based deduplication.
+
+The initial ExternalEntity kinds are:
+
+```text
+person | team | organization | ai_agent | service
+```
+
+`area` is not an entity kind; hierarchical organizational classification uses
+Domain. The exact ContactPoint and local delivery-binding schema remains an
+open release decision rather than an inferred v1 commitment.
+
+## Brick state
+
+- **MOD-013 [core] — Independent axes.**
+
+  ```text
+  status     = active | done | dropped | superseded
+  phase?     = idea | spec | exec | validation
+  work_state = idle | wip
+  focus      = zero or one current Brick globally
+  ```
+
+- **MOD-014 [core] — Direct completion.** `done` is a direct transition from
+  any structurally completable active Brick. It requires no invented
+  intermediate stage or start event.
+- **MOD-015 [core] — Structural completion.** Active descendants, standing
+  execution, repeatable work, and pending external effects follow their
+  Nature-aware closure paths; completing a child never cascades completion to
+  an ancestor.
+- **MOD-016 [core] — Removed stages.** `seed`, `committed`, and `ready` do not
+  exist in v1. Backlog-like or commitment-like meaning derives from importance
+  position, not lifecycle mutation.
+- **MOD-017 [standard] — Optional phase.** A Nature may make phase applicable,
+  irrelevant, or disabled. Missing phase is neutral and never blocks feeding
+  or focus.
+- **MOD-018 [standard] — Descriptive phase.** Phase is not a required workflow
+  and never sorts importance. `spec` uses `📐`; the remaining exact phase
+  markers must be approved through the UX catalog.
+
+## Composition and relationships
+
+- **MOD-019 [core] — Composition tree.** A Brick has at most one parent.
+  Composition expresses scope; moving a Brick changes scope and may require
+  review without changing identity.
+- **MOD-020 [core] — Sibling locality.** Direct human importance comparisons
+  are valid only between Bricks with the same parent, including root siblings.
+  Global display order is the lexicographic traversal of sibling orders.
+- **MOD-021 [core] — Dependency is orthogonal.** A dependency says what must
+  become actionable first. It neither reparents nor reorders either Brick.
+- **MOD-022 [core] — Multi-Domain membership.** A Brick may belong to several
+  Domains. Membership does not duplicate the Brick or give it multiple
+  top-level lottery tickets.
+- **MOD-023 [standard] — Raw links.** Typed links connect Raw to a Brick,
+  ListEntry, or other Raw while retaining exactly one link owner and explicit
+  provenance.
+- **MOD-024 [standard] — External annotations.** Human-readable mentions may
+  resolve to stable ExternalEntity or Brick references, but text tokens never
+  gain behavioral authority by themselves.
+
+## Factory Natures
+
+The factory library contains:
+
+| Nature | Focus and lifetime |
+|---|---|
+| `standard` | the Brick itself is one ordinary finite focus unit |
+| `project` | one finite outcome whose descendant scope participates in review |
+| `collection` | open-ended independently focusable child Bricks |
+| `repeatable` | the same Brick returns after completed executions |
+| `standing_checklist` | parent is the focus unit; all open entries render together |
+| `finite_checklist` | finite parent and entries render together |
+| `recurring_obligation` | standing series releases independent occurrence Bricks |
+| `practice` | standing intention exposes expiring opportunities and history |
+
+- **MOD-025 [core] — Required Nature.** Every Brick receives exactly one
+  validated Nature at birth. If classification is skipped and no route implies
+  another Nature, use `standard`.
+- **MOD-026 [core] — Closed capabilities.** Nature definitions can compose only
+  capabilities implemented by the core. No scripts, prompts, network calls,
+  title-keyword branches, or arbitrary lifecycle hooks are allowed.
+- **MOD-027 [standard] — Version stability.** Existing Bricks retain a
+  replay-safe Nature version or resolved snapshot; editing a definition never
+  silently changes them.
+- **MOD-028 [standard] — Template library.** Standard templates may include
+  `grocery_list`, `packing_checklist`, `reading_list`, `article_reading`,
+  `feature_backlog`, `wishlist`, `bills_to_pay`, and `exercise_practice`.
+  These expand generic Natures rather than add domain branches.
