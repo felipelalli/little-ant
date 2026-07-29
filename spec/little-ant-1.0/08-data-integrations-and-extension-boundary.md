@@ -151,3 +151,21 @@ Exact shipping placement and API feasibility are tracked under
 - **DAT-033 [standard] — Standard and community catalogs.** A standard offline
   Pack ships with 1.0. A separate `little-ant-packs` repository may distribute
   a broader inspectable community catalog without becoming domain authority.
+
+## Planning reproducibility
+
+- **DAT-034 [standard] — One macro per cut item.** Each effort-bearing item in
+  one plan selects exactly one EffortProfile macro, which supplies optimistic,
+  realistic, and pessimistic values. Exporters cannot pick unrelated values
+  per scenario.
+- **DAT-035 [standard] — Non-overlapping planning cut.** The core proposes and
+  validates a human-confirmed cut in which no effort-bearing node has an
+  effort-bearing ancestor or descendant. A Brick with children may still be a
+  leaf of one particular external plan.
+- **DAT-036 [standard] — Immutable manifest.** Every confirmed planning run
+  records source cursor/hash, roots, cut, EffortProfile, macros and warnings,
+  resources/calendars, projection version, and exporter identity/hash required
+  for reproduction.
+- **DAT-037 [standard] — WIP warning.** Planning uses derived remaining effort
+  only when conservative evidence supports it; otherwise it exports total
+  effort with an explicit warning rather than inferring progress from time.

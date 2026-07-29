@@ -6,7 +6,7 @@
   material and intentions into a trustworthy answer to “where should I focus
   now?” without pretending that a static list can answer that question alone.
 - **PRD-002 [core] — UX precedes mechanism.** User flow and cognitive clarity
-  have first design priority; shared UI composition is second; storage,
+  take precedence; shared UI composition is second; storage,
   algorithms, and implementation follow the observable contract.
 - **PRD-003 [core] — Two different judgments.** Human importance is a stable
   hierarchical order. The focus forecast is a dynamic probability

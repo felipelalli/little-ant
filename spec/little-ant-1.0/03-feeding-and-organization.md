@@ -80,13 +80,23 @@
 
 - **FED-019 [core] — Immediate position.** Every new active Brick receives a
   sibling position during the feed interaction. It is never left in an
-  unordered seed pool.
+  unordered staging pool.
 - **FED-020 [core] — Human settlement.** AI or Nature priors may suggest an
   initial direction, but the importance mechanism in `IMP-004` through
   `IMP-009` settles the recorded order and uncertainty.
 - **FED-021 [standard] — Phase prior only.** If phase is already known and
   applicable, it may influence a provisional insertion center. It never forms
   a permanent band or sort key.
+
+## Domain classification and queries
+
+- **FED-022 [core] — Domain is optional classification.** A Brick may be fed
+  without a Domain. Skill or powered-up mode may propose memberships; dumb
+  mode may show a bounded optional choice when useful; skipping never blocks
+  creation.
+- **FED-023 [core] — Domain query.** Canonical queries can select one Domain
+  node with or without descendants, count matching Bricks, and draw within
+  that scope. Multi-membership never duplicates results.
 
 ## Reference flows
 

@@ -127,3 +127,35 @@ The factory library contains:
   `grocery_list`, `packing_checklist`, `reading_list`, `article_reading`,
   `feature_backlog`, `wishlist`, `bills_to_pay`, and `exercise_practice`.
   These expand generic Natures rather than add domain branches.
+
+## Content, movement, and effective metadata
+
+- **MOD-029 [core] — Description is canonical content.** A Brick may keep an
+  English description directly. Durable source material, attachments,
+  original-language bodies, and independently reusable notes remain Raw and
+  link to it; a description is not forced to masquerade as Raw.
+- **MOD-030 [standard] — Explicit participants.** A requester or responsible
+  outside actor references an ExternalEntity. Delegation, waiting, requester,
+  and `about`/annotation relationships remain distinct even when they cite the
+  same entity.
+- **MOD-031 [core] — Break and move preserve truth.** Breaking retains the
+  parent's sibling position and creates a locally ordered child set. Moving a
+  subtree preserves its internal tree/order, reinserts only the moved root in
+  its new sibling set with low confidence, and keeps old-scope comparisons as
+  inactive history.
+- **MOD-032 [core] — Coverage follows structure.** Adding, moving, or removing
+  relevant descendant scope reopens decomposition coverage for affected finite
+  parents and may create a scope review; it never rewrites unrelated evidence.
+- **MOD-033 [core] — Date constraints accumulate.**
+
+  ```text
+  effective_not_before = latest value on self and ancestors
+  effective_best_before = earliest value on self and ancestors
+  effective_deadline = earliest value on self and ancestors
+  ```
+
+- **MOD-034 [standard] — Inheritance must be explicit.** Final mode vocabulary,
+  nearest-ancestor mode behavior, direct versus inherited Domain membership,
+  and inheritance of requester, `about`, or RawLinks remain
+  `OPEN-MOD-003`. Implementations must not infer them from the old free-text
+  `context` field.
