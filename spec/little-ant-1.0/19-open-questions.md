@@ -263,6 +263,9 @@ implementation for community exporter authors.
 - Exact discreet review-context wording and which honest progress facts appear
   there without inventing a fixed denominator.
 - Exact one-key grammar, including global, screen-local, and answer shortcuts.
+- Which authorities may nominate the action marked by `*`, whether destructive
+  or externally visible actions can ever be defaults, and how default
+  provenance, confidence, and accessible rendering are exposed.
 - Deterministic shortcut allocation when several visible labels compete for
   the same letters. A shortcut must be displayed inside its label; unrelated
   prefix letters are forbidden, and exceptional `[?]` fallback should be

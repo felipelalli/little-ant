@@ -691,3 +691,37 @@ Confirmed on 2026-07-29:
 Open implication:
 
 - the exact compact review-context wording and optional renderer marker.
+
+## 35.24 Restore the suggested-default marker
+
+Confirmed on 2026-07-29:
+
+- `*` is part of the canonical Little Ant interaction grammar, not decorative
+  operator prose.
+- It marks one already-valid action as the suggested default. It is neither a
+  separate domain action nor another answer alongside `yes`, `no`, `skip`, or
+  `?`.
+- At most one visible action may be marked on a pending screen.
+- Pressing bare `*` accepts the exact marked action for the displayed
+  interaction revision, with the same result as pressing that action's own
+  shortcut.
+- If the core or an attributed judgment provider has no defensible basis for
+  a suggestion, no default marker is shown. A renderer must never invent one
+  merely to make the dialog faster.
+- The ordinary action label and shortcut remain visible, for example
+  `*[y]es` or `*[d]one`; `*` does not replace them.
+- REPL, operator skill, and UIAdapters preserve the same marker semantics. A
+  stale bare `*` is rejected exactly like any other stale action submission.
+
+Open implications:
+
+- which core derivations, human configuration, operator judgments, or
+  powered-up evidence may nominate a suggested action;
+- whether destructive or externally visible actions may ever receive a
+  default and, if so, under which preview and authority rules;
+- how suggestion provenance and confidence appear through the secondary
+  context region or `?`;
+- exact spacing, accessible rendering, and alternate-channel controls.
+
+The prior four-screen discussion omitted this v0 capability. The final
+comparison and confirmation layouts must demonstrate it explicitly.

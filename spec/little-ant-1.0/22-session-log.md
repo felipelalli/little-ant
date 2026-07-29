@@ -1367,3 +1367,22 @@ while its identity and honest progress remain a discreet line in the
 secondary context region. The line may show known facts such as answers
 accepted in the session, but must not claim a fixed total for an adaptive
 question flow.
+
+## Entry 87 — Restore defaults and start a capability regression audit
+
+The user rejected the working generic “Proposition” layout and noticed that
+the preceding screen review had lost `*`, a useful v0 grammar marker. Repository
+evidence confirmed its exact former contract: it marks a suggested action, a
+bare `*` accepts that action, and no default appears when there is no basis to
+guess. The marker is now restored as a cross-surface 1.0 invariant while its
+authority and risk policy remain open.
+
+The same check exposed a broader specification-pipeline failure. The current
+formal garden structurally validates, but contains no suggested-default or
+adaptive `org-sort-tasks` mechanics. Its `OneKeyFiniteChoices` promise is only
+a guarantee and produces no generated obligation. The failed v1 CLI reduced
+64 v0 parser entries to 15 without a capability-by-capability disposition.
+Chapter 36 now records an independent audit that separates valuable behavior
+to restore, stronger 1.0 replacements, deliberate removals, formal drift, and
+still-unreviewed capabilities. This does not revive compatibility aliases or
+obsolete concepts.

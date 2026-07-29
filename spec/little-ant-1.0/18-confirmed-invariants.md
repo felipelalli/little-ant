@@ -552,3 +552,6 @@
      presence and honest progress appear discreetly in the secondary context
      region while the current concrete question uses an ordinary interaction
      layout.
+219. `*` marks at most one suggested action in a pending interaction, and a
+     bare `*` accepts that exact action at the displayed revision. When there
+     is no defensible suggestion, no default is displayed.

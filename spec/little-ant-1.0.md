@@ -37,7 +37,7 @@ Allium. Open questions are non-normative.
 
 | Topic | Load these chapters |
 |---|---|
-| V1 recovery and regression review | [35](little-ant-1.0/35-v1-recovery-ledger.md), [01](little-ant-1.0/01-purpose-and-authority.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md) |
+| V1 recovery and regression review | [35](little-ant-1.0/35-v1-recovery-ledger.md), [36](little-ant-1.0/36-v0-capability-regression-audit.md), [01](little-ant-1.0/01-purpose-and-authority.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md) |
 | Release, terminology, and compatibility | [02](little-ant-1.0/02-release-version-compatibility-and-language.md), [03](little-ant-1.0/03-design-center.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md) |
 | Raw material | [04](little-ant-1.0/04-conceptual-entities.md), [05](little-ant-1.0/05-raw-material-and-shelves.md), [19](little-ant-1.0/19-open-questions.md) |
 | Brick lifecycle and hierarchy | [06](little-ant-1.0/06-brick-state-phase-and-metadata.md), [07](little-ant-1.0/07-composition-tree-and-inheritance.md), [25](little-ant-1.0/25-brick-natures-and-template-library.md), [18](little-ant-1.0/18-confirmed-invariants.md) |
@@ -150,6 +150,9 @@ Allium. Open questions are non-normative.
 35. [V1 recovery ledger](little-ant-1.0/35-v1-recovery-ledger.md) —
     commit-backed decisions made while auditing regressions and rebuilding the
     intended 1.0 contract.
+36. [V0 capability regression audit](little-ant-1.0/36-v0-capability-regression-audit.md) —
+    evidence-backed classification of v0 behavior to restore, replace,
+    review, or deliberately retire before another implementation.
 
 ## Maintenance protocol
 
