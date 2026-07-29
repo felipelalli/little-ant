@@ -548,3 +548,7 @@
 217. Product emoji are renderer-owned markers with an accessible no-emoji
      fallback. The compact statistics line uses the Little Ant mascot `🐜`
      rather than a generic chart marker.
+218. A guided review is orchestration, not a fifth primary screen grammar. Its
+     presence and honest progress appear discreetly in the secondary context
+     region while the current concrete question uses an ordinary interaction
+     layout.

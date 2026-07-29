@@ -312,6 +312,9 @@ materially change eligibility, selection, execution, or planning.
 A Brick review:
 
 - is an interaction over the target Brick, not another Brick;
+- does not claim a dedicated primary screen grammar or prominent `Review`
+  heading; its presence is shown discreetly in the secondary context region
+  while each current question uses its ordinary concrete layout;
 - has no parent, priority position, phase, effort, status, or terminal event;
 - asks only questions that are applicable and materially useful now;
 - may route into an ordinary priority, impact, effort, phase, dependency,

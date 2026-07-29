@@ -1358,3 +1358,12 @@ visual separator into a sparse context region. Paths read broadest to most
 specific, empty rows disappear, one warning slot shows an additional count,
 and at most one statistics line uses the Little Ant mascot `🐜`. Exact warning
 rotation remains open for the next discussion.
+
+## Entry 86 — Keep review as discreet orchestration
+
+The user confirmed that review should not become a visually prominent fifth
+screen type. A guided review sequences ordinary concrete interaction layouts,
+while its identity and honest progress remain a discreet line in the
+secondary context region. The line may show known facts such as answers
+accepted in the session, but must not claim a fixed total for an adaptive
+question flow.

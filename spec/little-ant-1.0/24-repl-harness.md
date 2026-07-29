@@ -259,6 +259,17 @@ Icons are renderer-owned markers, not title content or entity identity. A
 capable renderer may use the confirmed emoji presentation; every layout also
 has an equivalent accessible no-emoji or ASCII fallback.
 
+A guided review does not introduce a fifth primary layout or a prominent
+`Review` heading. It orchestrates ordinary concrete questions and identifies
+itself discreetly in the context region, for example:
+
+```text
+Review · importance calibration · 3 answered this session
+```
+
+Review progress remains honest and adaptive; this line never invents an exact
+total when the remaining questions depend on future answers.
+
 On a limited terminal it falls back to an inline transcript with a redrawn
 compact status. Both layouts have identical semantics and key bindings. The
 terminal must be restored after normal exit, interruption, and errors.

@@ -260,6 +260,8 @@ implementation for community exporter authors.
   at a new semantic decision boundary.
 - Final context-region row order, width folding, breadcrumb truncation, warning
   severity treatment, and compact mascot-statistics fields.
+- Exact discreet review-context wording and which honest progress facts appear
+  there without inventing a fixed denominator.
 - Exact one-key grammar, including global, screen-local, and answer shortcuts.
 - Deterministic shortcut allocation when several visible labels compete for
   the same letters. A shortcut must be displayed inside its label; unrelated

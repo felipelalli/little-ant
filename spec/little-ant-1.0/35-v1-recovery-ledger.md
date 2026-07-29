@@ -674,3 +674,20 @@ Open implications:
 - final context-region width, truncation, severity, and statistics fields;
 - the exhaustive opportunity catalog and its smaller set of reusable screen
   grammars.
+
+## 35.23 Keep review orchestration visually discreet
+
+Confirmed on 2026-07-29:
+
+- A guided review does not create a fifth primary screen grammar or a
+  prominent `Review` heading.
+- Each current review question uses the same ordinary concrete layout that it
+  would use outside a review.
+- Review identity and honest progress appear discreetly in the secondary
+  context region.
+- The progress label may report known facts such as answers accepted in the
+  current session, but never invents a fixed denominator for an adaptive flow.
+
+Open implication:
+
+- the exact compact review-context wording and optional renderer marker.
