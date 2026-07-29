@@ -119,3 +119,21 @@ cooldown, and pressure; it does not create a missed occurrence, advance the
 repeat schedule, or assign a new `not_before`.
 
 Only finishing an execution may offer and schedule another repeat.
+
+## 14.6 Taxonomy watch
+
+Selecting `other` records the user's verbatim explanation as attributed skip
+evidence. Repeated `other` evidence produces a derived taxonomy-review
+opportunity after a configurable threshold. It does not automatically add a
+symptom, create a meta-Brick, or rewrite historical evidence.
+
+The review presents the recent evidence that triggered it and asks whether a
+recurring missing pattern should become a named symptom or map to an existing
+one. Mechanical counting, deduplication, and scheduling are core-owned.
+Semantic clustering and label proposals may come from the human, operator
+skill, or powered-up REPL. Any accepted taxonomy change is explicit,
+inspectable, and versioned.
+
+The opportunity participates in the ordinary focus lottery. It has no fixed
+priority lane and does not interrupt a pending interaction. Exact default
+thresholds, evidence windows, and decay remain calibration questions.

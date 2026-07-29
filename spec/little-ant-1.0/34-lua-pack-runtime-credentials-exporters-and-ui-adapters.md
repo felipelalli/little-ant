@@ -217,6 +217,28 @@ stable IDs, explicit relationships, source revisions, and typed values; the
 exporter owns only target-format serialization. Export validation distinguishes
 an unsupported input from malformed component output.
 
+### Standard structural exporters
+
+The standard Pack shipped with Little Ant 1.0 includes Lua
+`ReadOnlyExporter` components for:
+
+- hierarchical tree text;
+- aligned human-readable table text;
+- RFC 4180-compatible CSV;
+- Org;
+- self-contained HTML.
+
+These formats are not hard-coded core renderers. The core supplies canonical,
+versioned structural projections and the standard Pack demonstrates how
+first-party and community exporters may render them freely without redefining
+Brick identity, hierarchy, ordering, or other domain semantics. A
+self-contained static HTML document remains an exporter result; a stateful
+interactive HTML client is a `UIAdapter`.
+
+The exact component packaging, format options, projection variants, and output
+fixtures remain open. All five formats ship with 1.0 even if one Pack component
+implements several format variants under the same contract.
+
 ### TaskJuggler as the reference exporter
 
 The standard Pack shipped with Little Ant 1.0 includes a TaskJuggler

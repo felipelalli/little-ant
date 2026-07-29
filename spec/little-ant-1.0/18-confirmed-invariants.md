@@ -562,3 +562,26 @@
      confirmation presents one proposed action or effect. The reference
      comparison layout states `#A "..." is more important than #B "..."`
      and asks `Is that right?`.
+221. `--dry-run` applies to every state-changing canonical CLI operation. It
+     performs ordinary validation and deterministic calculation while writing
+     no state, invoking no Pack or external effect, and consuming no persistent
+     random draw.
+222. A command failure is typed and educational. At minimum, precondition,
+     not-found, and ambiguous-reference failures expose stable codes and only
+     those recovery actions that the core can validate in the current state.
+223. A session with no ordinary eligible opportunity still ends with one
+     bounded useful proposal derived from the actual empty-state reason. It
+     never fabricates work to satisfy this guarantee.
+224. Repeated `other` skip evidence produces a derived taxonomy-review
+     opportunity after a configurable threshold. Taxonomy never changes
+     automatically; an accepted change is explicit and versioned.
+225. The standard 1.0 Pack ships Lua ReadOnlyExporters for tree text, table
+     text, CSV, Org, and self-contained HTML. These formats are not hard-coded
+     domain renderers.
+226. Deterministic product surfaces, canonical content, and Little Ant action
+     or effect drafts remain English. Only the operator skill's conversational
+     wrapper may be localized, and only by explicit request or operator
+     preference.
+227. The current v0 operator preference manifest is
+     `~/.config/little-ant/ANT.md`. Its settings are deployment/operator
+     configuration and never canonical Little Ant domain state.

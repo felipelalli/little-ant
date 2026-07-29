@@ -1412,3 +1412,40 @@ language. Neither behavior is restored implicitly: generic `later` may
 conflict with context-specific skip, snooze, defer, and `not_before`, while
 recipient-language choice belongs to an attributed operator or adapter rather
 than deterministic core semantics.
+
+## Entry 90 — Restore operational safeguards, taxonomy watch, and standard exporters
+
+The user confirmed that 1.0 keeps a global `--dry-run` contract, typed
+educational precondition/not-found/ambiguous-reference errors, and the
+guarantee that a session ends with a useful proposal even when no ordinary
+work is eligible. The resulting proposal must explain or act on the real
+empty-state condition and may offer an explicit end or rest; it must not
+fabricate work. Dry runs perform ordinary validation and deterministic
+calculation while writing nothing, invoking no Pack or external effect, and
+consuming no persistent random draw.
+
+Repeated `other` skip evidence again triggers taxonomy watch. In the corrected
+1.0 form, it creates a derived opportunity in the ordinary weighted draw and
+presents attributed examples for review. Neither counting nor an AI proposal
+may silently mutate the versioned symptom taxonomy.
+
+Tree text, table text, CSV, Org, and self-contained HTML were assigned to Lua
+ReadOnlyExporters in the standard 1.0 Pack. The core owns their versioned
+structural input and semantics, while exporters own target rendering. This
+keeps the deterministic core predictable without dropping useful v0 views.
+
+The user also replaced the residual recipient-language rule. Deterministic
+product surfaces, canonical data, and Little Ant action or effect drafts
+remain English. Only the operator skill's conversational wrapper may localize
+when explicitly requested or selected by an operator preference. The current
+v0 skill obtains such deployment preferences from
+`~/.config/little-ant/ANT.md`; the exact 1.0 preference schema remains open.
+
+Four reviewed topics remain deliberately unresolved. Generic `[l]ater` may be
+too ambiguous and should be considered only for time-deferrable contextual
+opportunities. `la grammar` is a strong candidate for read-only global grammar
+inspection while InteractionEnvelope remains state-scoped. The complete
+delegation lifecycle requires simplification without losing preview,
+approval, delivery receipts, or due follow-ups. Finally, explicit Brick merge
+semantics must be distinguished from duplicate suspicion, marking evidence,
+and reusing an existing Brick during feeding.

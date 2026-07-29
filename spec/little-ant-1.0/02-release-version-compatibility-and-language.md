@@ -33,10 +33,18 @@ Everything belonging to the product must be in English:
 - stored titles, descriptions, reasons, and other user data;
 - README, specification, skill, command documentation, and examples.
 
-The operator may converse in another language when appropriate, but it must
-translate that conversation to canonical English before invoking or recording
-Little Ant data. Messages addressed to third parties remain in the recipient's
-language.
+Deterministic product surfaces, including the CLI, REPL, canonical human
+renderings, and first-party UIAdapter content, remain English. The operator
+skill may localize its conversational wrapper only when the user explicitly
+requests another language or an operator preference selects one. That
+localization never changes commands, shortcuts, stored values, canonical
+renderings, or Little Ant action and effect drafts, which remain English.
+
+The current v0 operator reads personal deployment preferences from
+`~/.config/little-ant/ANT.md`. That Markdown manifest is operator
+configuration, not canonical domain state. Whether 1.0 keeps this exact file
+or introduces a smaller structured preference schema remains open; either
+choice must preserve the core's English-only contract.
 
 Verbatim non-English input may be retained as Raw or provenance so translation
 never destroys information. It is not a second canonical title or searchable

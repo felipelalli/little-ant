@@ -206,7 +206,45 @@ weights come from the same focus-forecast weighting function, evaluated and
 normalized over that local admitted branch set; they do not come from a
 blocker-only ranking policy.
 
-## 33.8 LLM context and auditability
+## 33.8 Dry-run contract
+
+`--dry-run` is a global option for every state-changing canonical CLI
+operation. A dry run executes the ordinary parser, target resolution,
+validation, precondition checks, and deterministic domain calculation, then
+returns the exact typed proposed postcondition, events, notices, and external
+effects with `dry_run: true`.
+
+A dry run:
+
+- appends no domain event or UI checkpoint;
+- performs no Pack invocation or external effect;
+- consumes no persistent random draw or cursor;
+- returns the same typed failure and recovery information that the real
+  operation would return;
+- does not weaken preview or approval requirements for a later real
+  invocation.
+
+The exact time-snapshot and replay-token contract for reproducing a dry-run
+result after wall-clock time or concurrent state changes remains open.
+
+## 33.9 Typed educational errors
+
+Every command failure uses a stable machine-readable kind rather than forcing
+a client to parse prose. The 1.0 minimum includes precondition failure, not
+found, and ambiguous reference. A failure carries:
+
+- a stable error code and canonical English message;
+- the failed target, revision, or precondition when safe and applicable;
+- a concise hint only when the core can validate that it applies;
+- state-scoped recovery actions with canonical action IDs or commands.
+
+Recovery actions are concrete affordances, not generic advice. A not-found
+error may offer a bounded search; an ambiguous reference may return the
+matching compact Brick references; a failed precondition may expose the
+operation that would satisfy it. Exact error-code taxonomy, process exit
+codes, and field names remain open.
+
+## 33.10 LLM context and auditability
 
 Sparse responses are an interface and performance property, not an excuse to
 hide decisions. A compact result remains typed, attributable, and sufficient

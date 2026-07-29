@@ -36,6 +36,14 @@ The dumb REPL, powered-up REPL, and operator skill consume the same
 state-scoped interaction envelope. Mode changes the source of proposals, not
 the available domain actions.
 
+A REPL session never reaches a silent dead end. When no executable Brick or
+other ordinary focus opportunity is eligible, the core returns a bounded,
+useful empty-state proposal derived from the actual condition. Depending on
+state and scope, it may offer inspection of waits or blockers, a Domain or
+scope change, Raw or maintenance review, feeding new material, or an explicit
+end or rest choice. It must not fabricate work merely to satisfy this
+guarantee.
+
 Pack-based UIAdapters also consume that envelope. They extend where an
 interaction is rendered, not what the interaction means. The first-party REPL
 remains a core surface and is not required to load itself as a Pack.
@@ -559,8 +567,10 @@ which it was displayed. The core rejects stale or out-of-scope replies.
 Transport sessions, delivery receipts, pagination cursors, and draft input are
 surface-local checkpoint state. They do not become domain events merely
 because the surface runs remotely. A configured personal UI channel may
-deliver ordinary interaction, while messages to other recipients, publishing,
-and unrelated notifications remain explicit external effects.
+deliver ordinary English interaction, while messages to other recipients,
+publishing, and unrelated notifications remain explicit English external
+effects. An operator skill may localize only its surrounding conversation
+under the language policy in chapter 2.
 
 UIAdapters run through the same isolated Lua Pack runner and credential broker
 as other executable components. They cannot invent actions or shortcuts,

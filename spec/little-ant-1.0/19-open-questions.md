@@ -223,6 +223,8 @@ unsettled mechanics no longer postpone the existing-Brick review.
   skip pressure or records only suggestion-level and Domain evidence.
 - Exact default cooldown, negative-signal decay, cap, inspection, clearing,
   and calibration fixtures for an accepted Domain reaction.
+- Exact taxonomy-watch threshold, evidence window, decay, review layout, and
+  versioned taxonomy-revision event.
 - Whether snooze is distinct from cooldown, wait, and `not_before`.
 
 ## 19.11 TaskJuggler and planning
@@ -263,6 +265,10 @@ implementation for community exporter authors.
 - Exact discreet review-context wording and which honest progress facts appear
   there without inventing a fixed denominator.
 - Exact one-key grammar, including global, screen-local, and answer shortcuts.
+- Whether `la grammar` becomes the canonical read-only global grammar
+  inspection command, with a machine-readable form, while the
+  InteractionEnvelope remains the state-scoped source of currently valid
+  actions.
 - Whether v0 `[l]ater` survives as a general answer or is replaced completely
   by context-specific skip, snooze, defer, and `not_before` operations.
 - Which authorities may nominate the action marked by `*`, whether destructive
@@ -289,8 +295,6 @@ implementation for community exporter authors.
   multi-device conflict behavior.
 - Exact rebase and recovery choices when the event log advanced.
 - How outbound integrations are displayed without weakening approval rules.
-- How an operator or adapter selects the recipient's language for outbound
-  messages while canonical product UI, commands, and data remain English.
 - Exact state-scoped interaction-envelope schema and action identifiers.
 - Exact powered-up flag, executable-path handling, timeout, stdin handshake,
   response schema, and bounded extraction rule.
@@ -544,6 +548,8 @@ Brick with the user.
   preserving the same pack contract.
 - Whether pure-Lua dependency policy needs an allowlist in addition to
   vendoring, hashing, and runtime limits.
+- Whether the five standard structural formats are five exporter components or
+  format variants of fewer components, and their exact options and fixtures.
 
 The following are settled and must not be treated as open: `Little Ant Pack`
 is the distribution unit; there is no generic Plugin entity or arbitrary hook;
@@ -553,6 +559,9 @@ official and community components use the same isolation boundary; Pack code
 never runs during replay; HTTP and credentials are host-brokered; the local
 encrypted vault is excluded from ordinary dataset synchronization; and
 UIAdapter is included in the 1.0 component protocol.
+Tree text, table text, CSV, Org, and self-contained HTML also ship as standard
+Lua ReadOnlyExporters and must not be reconsidered as hard-coded core target
+renderers.
 
 ## 19.23 Structured responses and sparse projections
 
@@ -575,6 +584,9 @@ UIAdapter is included in the 1.0 component protocol.
   progressive-detail links.
 - Compatibility, schema negotiation, and behavior when a client requests an
   unsupported projection or field.
+- Exact dry-run time snapshot, state revision, and replay-token contract;
+  stable error-code taxonomy, process exit codes, field names, and bounded
+  recovery-action catalog.
 
 ## 19.24 Hierarchical organizational classification
 

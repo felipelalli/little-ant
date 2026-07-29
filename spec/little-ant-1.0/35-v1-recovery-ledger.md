@@ -770,3 +770,86 @@ Open implications:
 - narrow-terminal folding for long titles and comparison context;
 - which confirmation previews permit a suggested default under external
   effect rules.
+
+## 35.26 Restore operational safety and productive empty states
+
+Confirmed on 2026-07-29:
+
+- `--dry-run` is a global contract for every state-changing canonical CLI
+  operation, not a command-specific convenience.
+- It performs the real operation's parsing, resolution, validation,
+  preconditions, and deterministic calculation while appending no event,
+  writing no checkpoint, invoking no Pack or external effect, and consuming no
+  persistent random draw.
+- Precondition, not-found, and ambiguous-reference failures remain stable typed
+  errors. Their recovery actions are state-scoped canonical affordances that
+  the core can validate, not prose the client must reinterpret.
+- A session never ends in unexplained silence. When no ordinary opportunity is
+  eligible, Little Ant offers one useful bounded next step derived from the
+  actual reason, including an explicit option to end or rest.
+- The empty-state guarantee never manufactures a Brick or pretends that
+  ineligible work is executable.
+
+Open implications:
+
+- exact error codes, exit codes, response field names, and recovery-action
+  limits;
+- exact time and revision token needed to reproduce a dry-run preview;
+- the closed empty-state reason and proposal catalog.
+
+## 35.27 Restore taxonomy watch without automatic taxonomy mutation
+
+Confirmed on 2026-07-29:
+
+- `other` preserves the user's verbatim skip explanation as attributed
+  evidence.
+- Repeated evidence produces a derived taxonomy-review opportunity after a
+  configurable threshold.
+- The core owns deterministic counting, scheduling, and evidence retrieval.
+  Human, operator, or powered-up judgment may propose semantic clustering.
+- No symptom is added, renamed, or remapped automatically. An accepted
+  taxonomy revision is explicit, inspectable, and versioned.
+- Taxonomy review joins the ordinary weighted focus lottery rather than
+  gaining a fixed lane or interrupting a pending interaction.
+
+Open implication:
+
+- the default threshold, evidence window, decay, review layout, and exact
+  taxonomy-revision event.
+
+## 35.28 Move standard structural formats to the Lua Pack
+
+Confirmed on 2026-07-29:
+
+- Tree text, table text, CSV, Org, and self-contained HTML ship in the
+  standard Little Ant 1.0 Pack as Lua `ReadOnlyExporter` components.
+- The core owns versioned structural projections, stable identities,
+  relationships, and semantic validation. It does not hard-code those target
+  renderers.
+- A static self-contained HTML artifact is an exporter result. A stateful
+  interactive HTML client is a `UIAdapter`.
+- Community exporters may vary presentation freely but cannot redefine domain
+  meaning.
+
+Open implication:
+
+- whether these are five components or format variants of fewer components,
+  plus exact format options and fixtures.
+
+## 35.29 Keep the deterministic product English
+
+Confirmed on 2026-07-29:
+
+- CLI, REPL, first-party UIAdapter content, canonical human renderings,
+  commands, shortcuts, values, stored data, and Little Ant action or effect
+  drafts remain English.
+- The operator skill may localize only its surrounding conversation, and only
+  when the user explicitly asks or an operator preference selects a language.
+- Localization does not change the canonical interaction envelope or persisted
+  content.
+- The current v0 skill reads operator/deployment preferences from
+  `~/.config/little-ant/ANT.md`. The final 1.0 preference-file shape remains a
+  deployment design question, not domain semantics.
+
+This replaces the earlier v0 policy that automatically selected a third-party
+recipient's language.

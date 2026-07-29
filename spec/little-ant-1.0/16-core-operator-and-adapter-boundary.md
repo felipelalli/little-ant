@@ -57,6 +57,10 @@ The core must remain deterministic, offline-capable, and replayable. It owns:
   schema-declared field-presence rules, complete projections on demand, and
   explicit audit access without attaching full entities or event payloads to
   every operation;
+- global side-effect-free dry-run execution for state-changing commands and
+  stable typed failures with core-validated recovery actions;
+- useful state-derived empty-session proposals without fabricating eligible
+  work;
 - non-overlapping planning-cut proposals and canonical versioned read-only
   projections for target-format exporters;
 - explicit evidence ingestion with author, source, reason, and confidence.
@@ -192,9 +196,10 @@ surface remains small, explicit, and contextual.
 The skill may recognize broad natural-language focus requests and legacy human
 vocabulary, but it maps them to the current canonical action rather than
 restoring aliases in the core. Product commands, values, shortcuts, and
-canonical data remain English. Channel-specific presentation rules belong to
-the applicable first-party surface or UIAdapter, not to the permanent skill
-bootstrap.
+canonical data remain English. The skill may localize only its conversational
+wrapper when explicitly requested or selected by an operator preference.
+Channel-specific presentation rules belong to the applicable first-party
+surface or UIAdapter, not to the permanent skill bootstrap.
 
 ## 16.6 Extension package boundary
 
