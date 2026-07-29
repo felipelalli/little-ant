@@ -47,14 +47,32 @@ splitting one concern into several proposal records must not increase the
 weight. The exact bonus curve, independence or correlation treatment, cap,
 and configuration schema remain calibration questions.
 
-Recent accepted focus creates bounded Domain-continuity pressure. A subject
-that shares an applicable Domain with the current work receives a soft bonus,
-because changing work domains has a real cognitive cost. The bonus does not
-create another ticket for each shared Domain, does not rewrite human
-importance, and does not make unrelated eligible work impossible to surface.
-An explicit Domain switch changes the continuity reference rather than
-requiring the forecast to infer a switch from one displayed or skipped
-suggestion.
+The core persists one explicit active Domain as the current focus-continuity
+reference. It is a soft forecast preference, not a hard filter. Merely drawing,
+displaying, completing directly, or skipping a suggestion does not change it.
+Accepting `Focus?` for a suggestion whose displayed target Domain differs
+atomically starts focus and changes the active Domain. An explicit Domain
+command may also change it without requiring a draw.
+
+Domain continuity follows hierarchy rather than exact-label equality. For one
+active Domain `A` and one candidate Domain `C`, the default structural affinity
+is:
+
+```text
+affinity(A, C) =
+  depth(lowest_common_ancestor(A, C))
+  ──────────────────────────────────
+        max(depth(A), depth(C))
+```
+
+Unrelated top-level branches have affinity zero. Exact membership has affinity
+one; a shared nearby ancestor produces a smaller positive affinity. When a
+Brick belongs to several Domains, the subject uses its strongest applicable
+affinity and never receives one ticket or an additive bonus per membership.
+Affinity scales one bounded Domain-continuity signal inside the ordinary
+strongest-signal-plus-bonus model. Bonus intensity, cap, and temporal decay are
+calibration parameters; unrelated eligible work always retains positive
+probability.
 
 Composition adds another level to the same hierarchy. When the selected
 subject is a project-like container, its resolved BrickNature determines
@@ -244,6 +262,32 @@ Next:
 The prompt preserves the stable response language: `y` confirms the displayed
 question, `d` records that the served Brick is already complete, `s` skips the
 opportunity, and `?` opens contextual information without answering.
+
+A cross-Domain result remains the same focus interaction. It does not introduce
+a preliminary `Switch Domain?` confirmation:
+
+```text
+Next:
+
+    #h12345 "Buy groceries"
+    Domain: Personal / Housekeeping
+    Domain switch:
+      Orbit / R&D / Rock Splitter
+      -> Personal / Housekeeping
+
+    Focus?
+
+    [y]es · [d]one · [s]kip · [?]
+```
+
+Here `y` starts focus and changes the active Domain in one atomic canonical
+action. `d` completes the Brick directly without changing the active Domain.
+`s` records the ordinary served-work skip and its cooldown, preserves the
+active Domain, and returns to the global weighted draw; that next draw may
+select the current branch, another related branch, or an unrelated Domain.
+`?` explains the cross-Domain result and its relevant forecast evidence
+without answering. `n` is omitted because rejecting focus would duplicate the
+meaning already carried by the explicit skip action.
 
 ## 13.7 Guided Brick review
 

@@ -77,9 +77,17 @@ and rendering channels. When applicable:
 - `?` requests context, explanation, or help without answering.
 
 An interaction omits inapplicable actions rather than reusing their letters
-with another meaning. Wording such as `Focus?` and `Send this follow-up?`
-allows focus and approval screens to preserve ordinary `yes` and `no` instead
-of relabeling them as local verbs.
+with another meaning. `n` appears only when rejecting the displayed proposition
+is semantically distinct from skipping the opportunity. `Focus?` therefore
+uses `y/d/s/?`: adding `n` would duplicate the explicit served-work skip.
+Another proposition such as `Send this follow-up?` may use `y/n/s/?` when
+rejection and deferral have distinct canonical effects.
+
+A prospective Domain transition does not add a preliminary yes/no screen. The
+ordinary `Focus?` prompt may display the active and candidate Domains. `y`
+starts focus and changes the active Domain atomically; `d` completes without
+changing it; `s` skips the Brick and preserves the active Domain; `?` explains
+the transition and forecast evidence.
 
 `?` is visible in every finite-choice loop. It requests context-sensitive
 information, explanation, or help and then restores the same pending

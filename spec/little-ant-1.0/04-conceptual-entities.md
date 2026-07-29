@@ -13,6 +13,8 @@ change before the Allium specification is edited.
 | `Brick` | A positioned unit or container of work. |
 | `BrickNature` | A persistent, versioned selection of core-supported interaction capabilities. |
 | `BrickTemplate` | A one-time, inspectable creation recipe with no hidden runtime authority after expansion. |
+| `Domain` | One node in a hierarchical, non-exclusive organizational classification; a Brick may belong to several Domains. |
+| active Domain | The explicit persisted continuity reference for the current focus context; it influences forecast softly and is neither human importance nor a hard filter. |
 | `ImportProfile` | An inspectable, versioned policy mapping an external source to feeding, adoption, destination, and reconciliation policy without containing credentials. |
 | `ImportProfilePreset` | A credential-free declarative PackComponent that proposes reusable initial ImportProfile policy without becoming local policy authority. |
 | `Little Ant Pack` | A versioned distributable bundle of declarative or executable extensions; it is not operational domain state. |

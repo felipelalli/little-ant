@@ -569,11 +569,17 @@ UIAdapter is included in the 1.0 component protocol.
   becoming a mandatory form.
 - How proposed memberships participate in duplicate suspicion before atomic
   creation without allowing classification uncertainty to discard input.
-- Exact persisted active-Domain or focus-session model: how accepted focus
-  establishes it, how multiple memberships are resolved, how it decays or is
-  cleared, and how an explicit switch is recorded.
-- Domain-continuity bonus by exact branch, ancestor overlap, and unrelated
-  Domain; its cap and interaction with the strongest-signal-plus-bonus model.
+- Exact active-Domain event and projection schema, session lifetime, temporal
+  decay or clearing, and explicit switch command. The state is confirmed as
+  persisted and `Focus?` acceptance changes it atomically.
+- How the displayed target Domain is chosen when a Brick belongs to several
+  Domains. Weighting already uses the strongest applicable affinity and never
+  adds membership tickets.
+- Domain-continuity signal intensity, cap, configuration range, and calibration
+  fixtures. The hierarchical lowest-common-ancestor affinity factor and its
+  place inside the strongest-signal-plus-bonus model are fixed.
+- Exact compact and expanded rendering for a prospective Domain transition;
+  the normal `Focus?` grammar and its `y/d/s/?` semantics are fixed.
 - Which explicit Domain request means a soft preference and which, if any,
   means a hard filter.
 - Generic recurring preferred-time windows and Place evidence for standing

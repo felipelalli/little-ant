@@ -471,3 +471,23 @@
      sharing an applicable Domain. Mere display or skip does not establish a
      Domain switch, and multiple shared memberships do not create multiple
      tickets.
+193. The active Domain is explicit persisted focus-continuity state. It
+     influences forecast softly and is neither human importance nor an
+     implicit hard filter.
+194. Domain affinity is hierarchical. Its default structural factor is the
+     depth of the lowest common ancestor divided by the greater path depth;
+     exact membership is strongest, nearby shared ancestry is weaker, and
+     unrelated top-level branches receive no continuity bonus.
+195. A subject with several Domain memberships uses its strongest applicable
+     affinity. Membership overlap contributes one bounded signal inside the
+     strongest-signal-plus-bonus model and never manufactures tickets.
+196. A cross-Domain draw remains an ordinary `Focus?` interaction with the
+     prospective transition visible; it never introduces a preliminary
+     `Switch Domain?` confirmation.
+197. On that focus interaction, `y` atomically starts focus and changes the
+     active Domain, `d` completes directly without changing it, `s` records an
+     ordinary served-work skip and preserves it, and `?` explains without
+     answering. `n` is omitted because it would duplicate skip.
+198. After a cross-Domain skip, the next selection is another global weighted
+     draw. Domain continuity still biases that draw, but related and unrelated
+     eligible Domains retain positive probability.

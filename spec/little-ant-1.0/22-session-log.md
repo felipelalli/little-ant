@@ -1259,3 +1259,24 @@ entity or field would duplicate semantics and is forbidden. The chapter and
 conceptual Markdown now use the confirmed name; the current Allium, generated
 tests, skill, and implementation remain explicitly divergent until the
 controlled propagation phase.
+
+## Entry 80 — Make Domain continuity explicit without another prompt
+
+The proposed preliminary `Switch Domain?` dialog exposed an ambiguity between
+rejecting a context transition and skipping the served Brick. The user
+confirmed the simpler model: a cross-Domain result remains the ordinary
+`Focus?` interaction and visibly includes the prospective Domain transition.
+`y` atomically starts focus and changes the persisted active Domain; `d`
+completes directly without changing it; `s` records the ordinary served-work
+skip and cooldown, preserves the active Domain, and returns to a global draw;
+`?` explains the result. `n` is omitted because it would duplicate skip.
+
+Continuity is hierarchical rather than exact-label matching. The default
+structural affinity between active and candidate Domains is the depth of their
+lowest common ancestor divided by the larger path depth. An exact branch is
+strongest, related subdomains retain progressively smaller bonuses, and an
+unrelated top-level branch has no continuity bonus but remains eligible. A
+multiply classified Brick uses its strongest affinity; memberships never
+manufacture extra tickets. The affinity scales one bounded signal in the
+strongest-signal-plus-bonus model, while intensity, cap, and temporal decay
+remain calibratable.

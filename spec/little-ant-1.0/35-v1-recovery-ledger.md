@@ -482,10 +482,46 @@ Confirmed on 2026-07-29:
 
 Open implications:
 
-- the exact focus-session or persisted Domain state and its decay;
-- exact-match versus ancestor-overlap bonuses;
+- the exact active-Domain event and projection schema, lifetime, and decay;
 - choosing an active Domain when the accepted Brick belongs to several;
-- command and REPL grammar for soft Domain preference, explicit switch, and
-  any hard filter;
+- command grammar for an explicit switch and any hard filter;
 - how generic recurring time windows and Place evidence can make standing
   grocery work timely without a grocery-specific core branch.
+
+## 35.17 Keep Domain transitions inside `Focus?`
+
+Confirmed on 2026-07-29:
+
+- The active Domain is explicit persisted focus-continuity state. It remains a
+  soft forecast preference rather than an implicit hard filter.
+- A cross-Domain draw does not open a separate `Switch Domain?` prompt. The
+  ordinary focus suggestion visibly shows the current Domain, candidate
+  Domain, and prospective transition.
+- `y` atomically starts focus and changes the active Domain. No second
+  confirmation follows.
+- `d` directly completes the served Brick without changing the active Domain.
+- `s` records the ordinary served-work skip and cooldown, preserves the active
+  Domain, and returns to another global weighted draw.
+- `?` exposes the Domain transition and relevant forecast evidence without
+  answering.
+- `n` is not offered on `Focus?`, because it would ambiguously duplicate the
+  explicit skip action. Stable letters keep the same meaning, but inapplicable
+  actions are omitted.
+- Domain continuity follows the hierarchy. For active Domain `A` and candidate
+  Domain `C`, the default structural affinity is
+  `depth(LCA(A,C)) / max(depth(A), depth(C))`: exact membership is strongest,
+  shared nearby ancestry is weaker, and unrelated top-level branches receive
+  no continuity bonus.
+- A Brick with several memberships uses the strongest applicable affinity.
+  Memberships never add tickets or independent continuity bonuses.
+- Affinity scales one bounded Domain signal inside the previously confirmed
+  strongest-signal-plus-bonus forecast model. Intensity, cap, and temporal
+  decay remain calibration parameters, and unrelated eligible work retains
+  positive probability.
+
+Open implications:
+
+- active-Domain event and projection names, lifetime, decay, and clearing;
+- selecting the displayed target Domain for a multiply classified Brick;
+- exact compact terminal rendering and expanded `?` explanation;
+- explicit Domain-switch command and whether a separate hard filter exists.
