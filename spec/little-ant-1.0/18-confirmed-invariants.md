@@ -418,3 +418,15 @@
      mobile, UIAdapters, and the operator skill preserve its domain prompts,
      action semantics, information hierarchy, and progressive disclosure while
      adapting controls and layout to their channel.
+178. Canonical response letters keep the same meaning across interaction
+     variants and surfaces whenever applicable: `y` confirms the displayed
+     proposition, `n` rejects it, `d` completes the cited Brick, `s` skips
+     without answering, and `?` requests context or help without answering.
+179. The operator skill or powered-up REPL may provide attributed
+     low-authority comparison evidence before a placement question reaches the
+     user. The core alone validates that evidence and performs provisional
+     binary insertion; human evidence remains authoritative.
+180. AI-assisted provisional placement may proceed without a blocking
+     confirmation, but its provenance remains visible in recap, history, and
+     inspection. Dumb mode or an abstaining adapter asks the human through the
+     ordinary insertion flow.

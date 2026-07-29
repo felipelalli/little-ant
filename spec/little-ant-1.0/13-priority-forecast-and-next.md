@@ -178,6 +178,23 @@ result and available through `?`. A capable renderer may show a restrained
 reason summary in an optional status region, but the main prompt does not
 repeat a prominent explanation by default.
 
+The confirmed focus shape is:
+
+```text
+Next:
+
+    #c12345 "Write the migration specification"
+    Within: #a12345 "Recover Little Ant v1"
+
+    Focus?
+
+    [y]es · [d]one · [s]kip · [?]
+```
+
+The prompt preserves the stable response language: `y` confirms the displayed
+question, `d` records that the served Brick is already complete, `s` skips the
+opportunity, and `?` opens contextual information without answering.
+
 ## 13.7 Guided Brick review
 
 `brick_review` is the working proposal name for inspecting one Brick's

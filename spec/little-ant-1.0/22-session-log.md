@@ -1107,3 +1107,39 @@ to evaluate. The REPL's UX and UI are therefore the 1.0 reference interaction
 design. Later web and mobile surfaces, UIAdapters, and the operator skill
 preserve the same domain prompts, action semantics, information hierarchy, and
 progressive disclosure while adapting physical controls and layout.
+
+## Entry 74 — Stabilize response grammar and pre-order provisionally
+
+The user refined the focus rendering:
+
+```text
+Next:
+
+    #c12345 "Write the migration specification"
+    Within: #a12345 "Recover Little Ant v1"
+
+    Focus?
+
+    [y]es · [d]one · [s]kip · [?]
+```
+
+The explicit proposition keeps `y` as ordinary confirmation rather than
+giving it a screen-specific label such as `focus`. The user requested the same
+grammar and the same letters for the same meanings across screens wherever
+possible. `y` confirms, `n` rejects, `d` completes, `s` skips, and `?` requests
+context or help. An unavailable action is omitted rather than assigning its
+letter another meaning. Approval prompts therefore prefer `yes` and `no`
+instead of labeling the same letters `approve` and `decline`.
+
+The user accepted the concrete review shape and asked whether importance
+questions would already benefit from skill or powered-up pre-ordering. The
+existing authority model answers yes: the active operator skill or powered-up
+REPL adapter may submit attributed AI comparison evidence before a human
+placement prompt. The core still owns and validates binary insertion, records
+the resulting position as provisional, and preserves the evidence in recap,
+history, and inspection. Human judgment remains stronger and may later
+recalibrate the local order. Dumb mode, adapter failure, or model abstention
+falls back to the ordinary human insertion question.
+
+The skill and powered-up adapter are alternative surface-specific judgment
+providers. The deterministic core never invokes the skill itself.

@@ -195,6 +195,9 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Which existing skip reasons survive unchanged in 1.0.
 - Whether fear or anxiety deserves its own reason after evidence review.
 - Exact English shortcut letters after all command namespaces are known.
+- Whether any additional response gesture beyond the stable
+  `yes`/`no`/`done`/`skip`/`help` meanings is truly necessary for 1.0, and how
+  conflicts with text-entry and navigation keys are prevented.
 - How reason-specific reactions become proposals without meta-Bricks.
 - Whether snooze is distinct from cooldown, wait, and `not_before`.
 

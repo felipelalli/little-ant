@@ -34,6 +34,28 @@ There is no tie answer because every sibling set has a total order.
 Placement uses binary insertion and asks one discriminating midpoint question
 at a time.
 
+When an operator skill or powered-up REPL is available, it may answer some
+binary-insertion comparisons with attributed AI evidence before the user sees
+a placement question. This produces a valid but provisional position:
+
+- the core, not the model, owns the insertion algorithm and validates every
+  comparison;
+- the active operator skill and a powered-up REPL adapter are alternative
+  judgment providers; the core does not invoke a skill;
+- AI evidence is recorded with provenance and remains visible in recent
+  activity, history, and detailed inspection;
+- applying AI evidence need not interrupt the user for confirmation;
+- a later human answer has higher authority and may trigger local
+  recalibration;
+- the forecast surfaces a human comparison when validating the provisional
+  relation becomes useful;
+- if no external judgment provider is active or it declines to judge, the dumb
+  REPL asks the ordinary binary-insertion question.
+
+This is pre-ordering only in the sense of low-authority provisional placement.
+It is never hidden human importance, and it does not let AI replace an
+applicable human judgment.
+
 An ordering-skip subreason may be:
 
 ```text

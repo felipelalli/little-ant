@@ -63,6 +63,24 @@ Free text uses an explicit line-editing mode:
 
 The exact key grammar and shortcut letters remain open.
 
+Response letters form one stable product language across interaction variants
+and rendering channels. When applicable:
+
+```text
+[y]es · [n]o · [d]one · [s]kip · [?]
+```
+
+- `y` confirms the concrete proposition currently displayed;
+- `n` rejects it;
+- `d` records completion of the cited Brick;
+- `s` skips without recording an answer to the proposition;
+- `?` requests context, explanation, or help without answering.
+
+An interaction omits inapplicable actions rather than reusing their letters
+with another meaning. Wording such as `Focus?` and `Send this follow-up?`
+allows focus and approval screens to preserve ordinary `yes` and `no` instead
+of relabeling them as local verbs.
+
 `?` is visible in every finite-choice loop. It requests context-sensitive
 information, explanation, or help and then restores the same pending
 interaction; it is not an answer or skip event.
@@ -295,6 +313,15 @@ Configured safe operations may include canonical translation or AI-authored
 provisional comparison evidence without a separate confirmation, provided the
 result is visible in history, remains reversible through ordinary correction,
 and can never displace applicable human judgment.
+
+For importance placement specifically, powered-up mode may answer bounded
+binary-insertion comparisons before the user sees a placement prompt. The core
+performs the insertion and marks the result as provisional. A non-blocking
+recent-activity or status summary may report what was placed, where, and by
+which adapter; full comparison evidence remains available in history and
+inspection. The user is asked later only when human validation or
+recalibration becomes useful. Dumb mode and adapter abstention use the same
+core insertion flow but ask the human directly.
 
 ## 24.10 Template-assisted capture
 

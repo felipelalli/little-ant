@@ -277,3 +277,38 @@ Confirmed on 2026-07-28:
   and layout to the channel.
 - Future elicitation presents concrete REPL mini-simulations for macro
   alternatives so their user-visible consequences can be evaluated directly.
+
+## 35.9 Preserve one response language across focus opportunities
+
+Confirmed on 2026-07-28:
+
+- A Brick focus suggestion uses this reference shape:
+
+  ```text
+  Next:
+
+      #c12345 "Write the migration specification"
+      Within: #a12345 "Recover Little Ant v1"
+
+      Focus?
+
+      [y]es · [d]one · [s]kip · [?]
+  ```
+
+- Response letters retain stable meanings across screens and channels whenever
+  applicable. `y` confirms the displayed proposition, `n` rejects it, `d`
+  completes the cited Brick, `s` skips without answering, and `?` requests
+  information or help without answering.
+- An inapplicable action is omitted; its letter is not reassigned.
+- Approval screens therefore ask a concrete yes/no question instead of
+  relabeling `y` and `n` as local `approve` and `decline` verbs.
+- The previously illustrated review form is acceptable, subject to this
+  stable response grammar.
+- The operator skill or powered-up REPL may pre-order through attributed
+  low-authority comparison evidence. The core validates the evidence and owns
+  provisional binary insertion; applicable human judgment remains stronger.
+- AI-assisted provisional placement need not block on confirmation, but must
+  remain visible in recap, history, and inspection. Dumb mode, model failure,
+  or abstention asks the ordinary human placement question.
+- The core never calls a skill. The operator skill and powered-up model adapter
+  are alternative judgment providers used by their respective surfaces.
