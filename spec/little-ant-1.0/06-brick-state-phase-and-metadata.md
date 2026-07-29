@@ -24,7 +24,7 @@ optional preparation, and it does not fabricate `start`, promotion,
 preparation, or phase-transition history. The event history honestly records
 that completion was reported directly.
 
-Direct does not mean unconditional. Structural and behavior invariants still
+Direct does not mean unconditional. Structural and Nature invariants still
 apply:
 
 - active descendants require the explicit subtree-closure path;
@@ -45,7 +45,7 @@ kind. It is ordinary `done` invoked without prior start evidence:
   skip, never a skip reason;
 - no zero-duration start is synthesized;
 - observed duration remains unknown rather than becoming a false zero;
-- the applicable BrickBehavior still records the normal successful execution,
+- the applicable BrickNature still records the normal successful execution,
   recurrence, practice, streak, or completion effects;
 - completion provenance distinguishes a direct human report from a proposal
   based on external evidence.
@@ -76,8 +76,8 @@ priority order.
 
 ## 6.3 Optional phase
 
-Phase is optional and lazy. A BrickBehavior may declare phase applicable,
-irrelevant, or disabled. Missing phase is neutral: it does not block capture,
+Phase is optional and lazy. A BrickNature may declare phase applicable,
+irrelevant, or disabled. Missing phase is neutral: it does not block feeding,
 create a form, or generate pressure merely because it is absent.
 
 | Marker | Phase | Meaning |
@@ -97,7 +97,7 @@ Phase is descriptive, not a rigid workflow:
 - An active Brick may move explicitly from any phase to any other phase.
 - Validation is optional.
 - There is no required `idea -> spec -> exec -> validation` path.
-- A normal capture does not require or silently default phase.
+- A normal feeding does not require or silently default phase.
 - The operator may infer another phase, but an inferred phase remains
   uncertain until human-confirmed.
 - Repeated `vague` skips should propose a phase review; they must not silently
@@ -122,15 +122,15 @@ provisional insertion prior:
 
 Binary insertion and later judgments determine the actual position. These
 percentages are starting priors, not permanent phase bands and not a sort key.
-When phase is absent or disabled, the core uses a neutral behavior/default
-prior and does not ask for phase as a capture toll.
+When phase is absent or disabled, the core uses a neutral Nature/default
+prior and does not ask for phase as a feeding toll.
 
 ## 6.5 Removed and retained metadata
 
 Confirmed removals:
 
 - `kind` is removed. Generic interaction differences belong to an explicit
-  BrickBehavior; domain language belongs to templates or operator
+  BrickNature; domain language belongs to templates or operator
   interpretation.
 - `role` is not introduced. Maintenance work is represented by proposals, not
   special meta-Bricks.
@@ -140,7 +140,7 @@ Confirmed removals:
 
 Canonical workload and value metadata use the new explicit axes:
 
-- an optional, behavior-applicable, lazily collected effort class plus its
+- an optional, Nature-applicable, lazily collected effort class plus its
   EffortProfile version;
 - a direct impact class and evidence maturity on root Bricks only;
 - decomposition coverage for Bricks with children;

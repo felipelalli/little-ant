@@ -34,7 +34,7 @@ A typed text annotation records at least:
 - author and provenance.
 
 Renaming the target never breaks the semantic reference because the opaque ID
-is authoritative. The original text and captured token remain historical.
+is authoritative. The original text and recorded token remain historical.
 Exact rendering of a renamed target, and whether the visible token is updated
 or supplemented with the current label, remain open.
 
@@ -77,7 +77,7 @@ global parser to guess which namespace was intended.
 
 An explicit CLI short reference and an editor token are separate surfaces. A
 renderer may include a short ID and current title for disambiguation, but the
-annotation's opaque target ID is authoritative. The captured visible token is
+annotation's opaque target ID is authoritative. The recorded visible token is
 historical display data, not a checksum that validates the target title.
 
 ## 29.4 No implicit behavioral effect
@@ -101,7 +101,7 @@ A standard URI in text remains literal content. A capable renderer may make it
 clickable without creating a domain relationship, synchronization policy,
 backlink, or reconciliation obligation.
 
-When external material must be captured, refreshed, synchronized, or
+When external material must be fed, refreshed, synchronized, or
 reconciled, the surface proposes an explicit Raw with RawOrigin. The applicable
 owner then receives a typed RawLink such as `attachment`, `source`, or
 `evidence`. If a future annotation-capable field supports Raw targets, a typed

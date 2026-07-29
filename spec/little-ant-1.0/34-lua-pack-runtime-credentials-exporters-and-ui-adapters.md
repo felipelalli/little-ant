@@ -20,7 +20,7 @@ The 1.0 component kinds are:
 
 | Component | Execution | Result |
 |---|---|---|
-| `BrickBehavior` | declarative | A versioned selection of core-supported capabilities. |
+| `BrickNature` | declarative | A versioned selection of core-supported capabilities. |
 | `BrickTemplate` | declarative | An inspectable, one-time creation recipe. |
 | `ImportProfilePreset` | declarative | A reusable credential-free starting policy for an external source. |
 | `SourceAdapter` | Lua | Normalized candidates, source observations, or receipts for effects already approved through the canonical effect boundary. |
@@ -303,7 +303,7 @@ concrete adapters ship in the initial standard Pack remains open.
 A standard Pack is distributed offline with Little Ant 1.0 and pinned through
 the same installation and compatibility machinery as any other Pack. At
 minimum it contains the Lua TaskJuggler exporter and its reference
-implementation materials. Its remaining initial templates, behaviors,
+implementation materials. Its remaining initial templates, Natures,
 SourceAdapters, Enrichers, ImportProfilePresets, and UIAdapters are selected
 during implementation planning.
 

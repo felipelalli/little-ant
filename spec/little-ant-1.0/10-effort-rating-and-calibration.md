@@ -21,11 +21,11 @@ retained. In this sense effort represents the original total work for the
 current scope, not an immutable first guess.
 
 The selected public name is `effort`. `difficulty`, `complexity`, `size`,
-`cost`, and `load` were considered, but each captures only part of the concept
+`cost`, and `load` were considered, but each expresses only part of the concept
 or introduces another ambiguity.
 
-Effort is optional and behavior-applicable. Missing effort is neutral and must
-not block capture or selection. It should be requested lazily only when it
+Effort is optional and Nature-applicable. Missing effort is neutral and must
+not block feeding or selection. It should be requested lazily only when it
 could materially improve a choice, decomposition review, or planning
 simulation. Standing checklist entries and simple domain items normally have
 no independent effort.
@@ -108,7 +108,7 @@ much more effort
 
 If three comparisons remain ambiguous, the core chooses the best-supported
 provisional class with low confidence and allows future probes. Classification
-must not block capture or ordinary work.
+must not block feeding or ordinary work.
 
 The core selects exemplars mechanically from applicable historical evidence.
 The operator may find semantic analogs or contribute clearly attributed AI
@@ -185,7 +185,7 @@ When actual effort differs from an estimate, Little Ant preserves:
 Actuals never rewrite the historical estimate. A significant mismatch may
 provoke a profile review or scope review.
 
-Effort is gathered lazily when selection or planning needs it; capture should
+Effort is gathered lazily when selection or planning needs it; feeding should
 not become a form. Difficulty and friction remain derived signals from
-behavior, context, and skip reasons. There is no canonical
+Nature, context, and skip reasons. There is no canonical
 `difficulty_score`.

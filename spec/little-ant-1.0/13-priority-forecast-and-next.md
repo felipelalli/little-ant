@@ -57,11 +57,11 @@ requiring the forecast to infer a switch from one displayed or skipped
 suggestion.
 
 Composition adds another level to the same hierarchy. When the selected
-subject is a project-like container, its resolved BrickBehavior determines
+subject is a project-like container, its resolved BrickNature determines
 whether selection descends through a locally normalized weighted draw over
 admitted children, presents the container itself, or produces an applicable
 review or decomposition opportunity. Descendant selection repeats by scope
-until it reaches a concrete attention subject or an explicit behavior-defined
+until it reaches a concrete attention subject or an explicit Nature-defined
 boundary. A flat forecast table may be offered as a derived display, but it
 must preserve the probabilities produced by this hierarchy and must not define
 selection semantics.
@@ -89,7 +89,7 @@ The Brick examples above describe only one variant of the public result.
 variants. A result may therefore ask the user to focus on work, answer a
 domain question, perform a review, or cross another explicitly defined
 decision boundary. `interaction` is not a public catch-all command or an
-extension point for inventing new actions. Behaviors, templates, Packs, the
+extension point for inventing new actions. Natures, templates, Packs, the
 powered-up REPL, and the operator may supply candidates or evidence only
 through variants and canonical actions already supported by the core.
 
@@ -130,7 +130,7 @@ Selection may take into account:
 - stale or contradictory judgments;
 - Raw review and refresh;
 - delegation, approval, and follow-up state;
-- BrickBehavior, standing-work eligibility, recurrence windows, practice
+- BrickNature, standing-work eligibility, recurrence windows, practice
   progress, and unresolved recurring obligations;
 - aging;
 - other derived proposals.

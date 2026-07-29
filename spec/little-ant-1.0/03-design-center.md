@@ -10,7 +10,7 @@ Little Ant 1.0 is centered on an ordered hierarchy of Bricks.
 - Named commitment stages such as `seed`, `committed`, and `ready` disappear.
 - A Brick's optional **phase** describes the currently useful work phase,
   independently of priority. It is collected lazily only when applicable.
-- A versioned **BrickBehavior** selects generic interaction mechanics without
+- A versioned **BrickNature** selects generic interaction mechanics without
   hard-coding domains. A **BrickTemplate** is only a creation recipe.
 - A non-focusable structured **ListEntry** belongs to a batch Brick; it is
   neither Raw nor another independently prioritized Brick.
@@ -25,7 +25,7 @@ Little Ant 1.0 is centered on an ordered hierarchy of Bricks.
   conservative projection rather than a moving second estimate.
 - TaskJuggler planning uses a confirmed, non-overlapping cut through the Brick
   tree so parent and descendant effort are never double-counted.
-- A `Little Ant Pack` contains only typed components. Declarative behaviors,
+- A `Little Ant Pack` contains only typed components. Declarative Natures,
   templates, and import presets select validated core contracts; executable
   SourceAdapters, Enrichers, ReadOnlyExporters, and UIAdapters run as isolated
   Lua 5.4 components and never execute during replay.

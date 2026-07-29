@@ -7,7 +7,7 @@
 4. Priority comparisons are valid only between siblings.
 5. Global priority display is lexicographic by tree path.
 6. Dependencies affect eligibility and pressure, never human priority position.
-7. Phase is optional, behavior-applicable, and never sorts priority.
+7. Phase is optional, Nature-applicable, and never sorts importance.
 8. Human judgments prevail over AI judgments.
 9. All judgment history is retained; current judgment favors newer applicable
    evidence within authority rules.
@@ -43,7 +43,7 @@
     success.
 27. Purposeful investigation may be an ordinary Brick, and completing it
     never silently changes the judgment it informs.
-28. Effort is optional, behavior-applicable, and means total work for the
+28. Effort is optional, Nature-applicable, and means total work for the
     current scope, not remaining work.
 29. Effort uses a discrete, ordered, versioned EffortProfile. There is no
     public effort float or global effort list.
@@ -59,7 +59,7 @@
 35. Every planning-cut item uses one macro that expands into all scenarios.
 36. Every confirmed simulation has an immutable reproducible planning manifest
     outside operational domain state.
-37. BrickBehavior selects only explicit, versioned core capabilities.
+37. BrickNature selects only explicit, versioned core capabilities.
     BrickTemplate is an inspectable creation recipe and gains no hidden runtime
     authority after expansion.
 38. Domain templates never create hard-coded grocery, reading, wishlist, or
@@ -105,7 +105,7 @@
     deterministic, replay-safe, jittered `not_before`; it does not insert the
     Brick again or create another Brick.
 59. A generic repeatable activity has no missed outcome, expiry, streak, quota,
-    or occurrence backlog unless another explicit behavior adds those
+    or occurrence backlog unless another explicit Nature adds those
     semantics.
 60. Separate occurrence Bricks are required when several periods may remain
     independently unresolved, as with recurring obligations.
@@ -118,10 +118,10 @@
 63. The product may ship a broad standard template catalog as versioned,
     inspectable data without creating domain-specific core branches.
 64. Dumb REPL, powered-up REPL, and operator skill use the same core-validated
-    capture routes and template candidates. AI ranks proposals but does not
-    expand an unvalidated template or invent a behavior capability.
-65. A custom template flow reuses an existing behavior when possible and may
-    create a personal behavior only from capabilities already supported by the
+    feeding routes and template candidates. AI ranks proposals but does not
+    expand an unvalidated template or invent a Nature capability.
+65. A custom template flow reuses an existing Nature when possible and may
+    create a personal Nature only from capabilities already supported by the
     core.
 66. RawSnapshot bytes are logically part of the Little Ant dataset and
     participate in synchronization and backup by default.
@@ -148,7 +148,7 @@
 75. `done` transitions any active Brick directly without requiring phase,
     work state, optional metadata, or fabricated intermediate events.
 76. Direct completion still enforces subtree, standing-work, repeatable,
-    external-effect, and other applicable behavior invariants.
+    external-effect, and other applicable Nature invariants.
 77. Raw has review and archive axes but no `done` operation.
 78. The core never materializes a Brick from Raw merely to make a completion
     command succeed.
@@ -212,7 +212,7 @@
 105. Ambiguous or unresolved mention text remains literal and never binds
      silently.
 106. Text annotations support navigation and search only; requester,
-     delegation, dependency, parent, `about`, notification, and other behavior
+     delegation, dependency, parent, `about`, notification, and other semantics
      require their ordinary explicit relationships.
 107. Raw bytes and text are never automatically parsed or rewritten to create
      annotations.
@@ -262,7 +262,7 @@
      literal when no autocomplete candidate was selected.
 124. A URI may be rendered as a clickable literal without creating domain
      authority. External material that needs refresh or reconciliation is
-     captured explicitly as Raw with RawOrigin and the applicable RawLink.
+     fed explicitly as Raw with RawOrigin and the applicable RawLink.
 125. Provider-specific locators may be normalized inside adapter contracts,
      but they do not form a universal core grammar parsed from arbitrary text.
 126. `not_before`, `best_before`, and `deadline` affect eligibility, forecast,
@@ -275,7 +275,7 @@
      pressure.
 129. An ongoing date condition remains inspectable in status and forecast
      without requiring the same warning to be prepended to every CLI result.
-130. External capture and semantic adoption are separate; a configured
+130. External feeding and semantic adoption are separate; a configured
      structured-task source may perform both atomically, while unknown,
      mixed, and note-like sources remain pending Raw for triage.
 131. Every automatically adopted Brick is validly positioned from birth.
@@ -323,7 +323,7 @@
      snapshots, mappings, observations, and an immutable migration receipt.
 147. Ordinary import is read-only. Source cleanup requires an explicit
      destructive migration policy, a separately declared Adapter capability,
-     verified local capture and disposition, a preview of exact scope, and
+     verified local feeding and disposition, a preview of exact scope, and
      human approval before the first deletion.
 148. Migration cleanup is logically item-scoped even when an Adapter batches
      provider calls. Each requested and observed outcome is attributable to
@@ -337,7 +337,7 @@
      Little Ant 1.0 has no generic Plugin entity, command, alias, lifecycle
      hook, or unrestricted extension API.
 152. Every PackComponent has one typed versioned contract. Declarative
-     components are BrickBehavior, BrickTemplate, and ImportProfilePreset;
+     components are BrickNature, BrickTemplate, and ImportProfilePreset;
      executable components are SourceAdapter, Enricher, ReadOnlyExporter, and
      UIAdapter.
 153. Pack components cannot introduce ranking or forecast algorithms,
@@ -450,7 +450,7 @@
      local variant retains positive probability, and variant kind creates no
      fixed precedence lane.
 187. A selected project-like container is resolved according to its
-     BrickBehavior through the applicable descendant scope or an explicit
+     BrickNature through the applicable descendant scope or an explicit
      review or decomposition boundary; descendants are not flattened into
      unrelated top-level tickets.
 188. One attention subject's weight is anchored by its strongest applicable
@@ -464,9 +464,9 @@
 190. `feed` and `feeding` are the sole canonical product-ingress vocabulary.
      The 1.0 core, Allium declarations, commands, responses, code, and tests
      expose no compatibility alias using the superseded term.
-191. Every Brick has exactly one core-validated behavioral classification
-     from birth. If no human, template, skill, or powered-up judgment selects a
-     more specific one, the core uses the generic `standard` classification.
+191. Every Brick has exactly one core-validated `BrickNature` from birth. If
+     no human, template, skill, or powered-up judgment selects a more specific
+     one, the core uses the generic `standard` Nature.
 192. Recent accepted focus gives a bounded soft forecast bonus to subjects
      sharing an applicable Domain. Mere display or skip does not establish a
      Domain switch, and multiple shared memberships do not create multiple

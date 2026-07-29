@@ -24,16 +24,16 @@ external effect and never follows merely from installing or running an
 importer. Deleting imported objects from their source is a destructive
 migration operation, not an ordinary consequence of import or synchronization.
 
-## 32.2 Capture and adoption are separate decisions
+## 32.2 Feeding and adoption are separate decisions
 
 Import has two conceptual steps:
 
 ```text
-capture or refresh external material
+feed or refresh external material
 adopt or route accepted meaning into Little Ant work
 ```
 
-`capture` creates or refreshes one Raw with a RawOrigin and immutable
+`feed` creates or refreshes one Raw with a RawOrigin and immutable
 RawSnapshots. It preserves the upstream object even when no Little Ant work is
 created.
 
@@ -46,9 +46,9 @@ created.
 - record a reviewed disposition that creates no work.
 
 This corrects the earlier absolute rule that every imported item must stop as
-Raw and later pass through one mandatory extraction funnel. Raw capture remains
+Raw and later pass through one mandatory extraction funnel. Raw feeding remains
 mandatory for attributable external content, but a configured structured-task
-source may capture the Raw and adopt it into work atomically.
+source may feed the Raw and adopt it into work atomically.
 
 An accepted structured task from a configured source may therefore create, in
 one validated operation:
@@ -103,7 +103,7 @@ A confirmed ImportProfile may additionally map an external container to:
 - a semantic RawShelf;
 - a Brick parent or collection;
 - a compatible ListEntry-owning Brick;
-- a template or behavior configuration.
+- a template or Nature configuration.
 
 For example, `Microsoft To Do / Personal / Household` may map task adoption to
 the `Keep the house in order` collection and optionally map supporting
@@ -125,7 +125,7 @@ policy. Its exact schema remains open, but it must be able to express:
 - the declared source shape: structured task, material, or mixed;
 - whether adoption is manual, proposed, or authorized automatically;
 - the target parent, collection, ListEntry owner, or optional RawShelf;
-- an applicable template or resolved behavior;
+- an applicable template or resolved Nature;
 - provisional-placement policy and priority-confidence treatment;
 - explicit mappings for dates, completion evidence, recurrence, descriptions,
   labels, and supported provider fields;
@@ -143,7 +143,7 @@ to stable external identity so later imports do not repeatedly present the
 same unchanged item.
 
 An active ImportProfile may authorize scheduled read-only checks, refreshes,
-and incremental capture without requiring a new confirmation for every run.
+and incremental feeding without requiring a new confirmation for every run.
 The activity and any failures still appear in recap and history. Provider
 write-back, source cleanup, and other destructive effects are never implied by
 that standing read authorization.
@@ -159,7 +159,8 @@ adapter + account binding + stable external identity
 That tuple identifies external provenance, not semantic equality. Reimporting
 the same upstream object refreshes the same Raw and reconciles its existing
 adoption; it does not create another Brick. Two different upstream identities
-with similar content remain distinct captures and may raise ordinary duplicate
+with similar content remain distinct fed external objects and may raise
+ordinary duplicate
 suspicion. They are never silently merged.
 
 A changed upstream object appends a RawSnapshot when warranted. Each source
@@ -201,7 +202,7 @@ A migration is a bounded import workflow, not an indefinitely active
 synchronization relationship. Its conceptual sequence is:
 
 ```text
-capture and adopt
+feed and adopt
 review and verify
 prepare cutover
 optionally clean the source
@@ -230,7 +231,7 @@ lant import microsoft-todo --erase-after-import
 
 The exact final command grammar and adapter identifier remain open. The
 semantic decision is fixed: `erase-after-import` means “after the selected
-migration scope is durably captured, adopted or explicitly disposed, and
+migration scope is durably fed, adopted or explicitly disposed, and
 verified, request deletion of those imported objects from the source.” It
 never means “treat disappearance as completion.”
 
@@ -244,7 +245,7 @@ The safe execution contract is:
 4. every object must have a verified local receipt, available required
    snapshots, and a reviewed adoption or no-work disposition before it becomes
    cleanup-eligible;
-5. a changed upstream revision, incomplete capture, unsupported required
+5. a changed upstream revision, incomplete local snapshot, unsupported required
    material, or unresolved route blocks deletion of the affected object;
 6. the user explicitly approves the displayed cleanup plan after verification
    and before the first deletion; specifying the flag expresses intent but
@@ -316,7 +317,7 @@ requirements.
 `Little Ant Pack` is the selected name for a versioned distributable bundle of
 extensions. A pack may contain:
 
-- declarative BrickBehaviors composed only from core-supported capabilities;
+- declarative BrickNatures composed only from core-supported capabilities;
 - BrickTemplates;
 - reusable ImportProfilePresets without credentials or personal bindings;
 - SourceAdapters that return normalized candidates or observations and
@@ -338,7 +339,7 @@ format must also be installable from a local path or immutable archive and
 must not require GitHub.
 
 `little-ant-packs` is preferred over `lant-collection`, because `collection`
-already names a BrickBehavior, over `lant-plus`, which suggests a commercial
+already names a BrickNature, over `lant-plus`, which suggests a commercial
 edition, and over `enrichment`, which does not cover all extension kinds.
 
 The core repository retains the event model, schemas, capability
@@ -354,13 +355,13 @@ component for community authors; it receives no private in-process privilege.
 
 ## 32.9 Package authority, compatibility, and trust
 
-A pack cannot introduce unchecked domain semantics. Declarative behaviors and
+A pack cannot introduce unchecked domain semantics. Declarative Natures and
 templates may select only capabilities implemented and validated by the core.
 An unsupported capability requires a core change and fails explicitly rather
 than degrading or executing hidden logic.
 
 SourceAdapters, Enrichers, ReadOnlyExporters, and UIAdapters are executable and
-have a different trust class from data-only behaviors, templates, and import
+have a different trust class from data-only Natures, templates, and import
 presets. Lua 5.4 is the only first-class executable Pack language in 1.0.
 Every executable component, including the standard Pack, runs with a fresh VM
 inside the separate HsLua-based `lant-pack-runner`; no Pack code runs during
@@ -405,7 +406,7 @@ content hash
 ```
 
 Installed versions are pinned. Template expansion records provenance, and the
-resulting Brick state carries replay-safe resolved behavior configuration.
+resulting Brick state carries replay-safe resolved Nature configuration.
 Updating a pack never silently changes existing Bricks, reroutes prior
 imports, or grants new permissions. Credentials, CredentialBindings, local
 ImportProfiles, and runtime state are excluded from community packages.

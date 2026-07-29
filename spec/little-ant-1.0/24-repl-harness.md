@@ -14,7 +14,7 @@ unrelated commands. It behaves like a deterministic operator or harness:
 - it observes the current state;
 - it invokes the same canonical command pipeline as the CLI;
 - it presents the result;
-- it captures the next human action;
+- it receives the next human action;
 - it advances through mechanical steps until the next human decision boundary.
 
 The default dumb REPL contains no AI and makes no semantic judgment. An
@@ -255,7 +255,7 @@ On startup:
 - otherwise preserve the draft in a recovery area and present an explicit
   conflict choice.
 
-A keypress captured for a stale prompt must never be applied to a different
+A keypress received for a stale prompt must never be applied to a different
 prompt.
 
 Checkpoint naming, retention, size limits, cleanup, and multi-device conflict
@@ -310,7 +310,7 @@ mode: powered up · by: /bin/claude-fast.sh
 Powered-up mode may propose:
 
 - English normalization while preserving original text;
-- a title, parent, BrickBehavior, template, or ListEntry target;
+- a title, parent, BrickNature, template, or ListEntry target;
 - semantic duplicate candidates;
 - attributed AI comparison evidence or provisional placement;
 - a likely pattern behind repeated skips or practice failures;
@@ -335,9 +335,9 @@ inspection. The user is asked later only when human validation or
 recalibration becomes useful. Dumb mode and adapter abstention use the same
 core insertion flow but ask the human directly.
 
-## 24.10 Template-assisted capture
+## 24.10 Template-assisted feeding
 
-The REPL uses the same capture-route and template-candidate envelope as the
+The REPL uses the same feeding-route and template-candidate envelope as the
 operator skill. Powered-up mode may rank a bounded core-provided shortlist and
 suggest a concrete target, template version, and validated inputs. It does not
 invent a hidden nature or send arbitrary template code.

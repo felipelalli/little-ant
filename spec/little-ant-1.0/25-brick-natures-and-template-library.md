@@ -1,4 +1,4 @@
-# 25. Brick behaviors and template library
+# 25. Brick Natures and template library
 
 ## 25.1 One Brick model
 
@@ -10,29 +10,23 @@ The earlier working term `BrickShape` is not introduced as another
 user-configurable Brick field in 1.0:
 
 - leaf and container structure can be derived from relationships;
-- behavior differences belong to `BrickBehavior`;
+- Nature differences belong to `BrickNature`;
 - a genuinely new structural invariant requires a core and event-schema
   change, not an unchecked configuration value.
 
-Recovery correction: every Brick now requires one core-validated behavioral
-classification from birth, and the user prefers `Nature` as its canonical
-name. This supersedes the earlier optional operator-only nature. The simplest
-model is for `BrickNature` to replace `BrickBehavior` rather than coexist with
-it as another axis; that exact rename remains pending confirmation. Until the
-rename is propagated, every reference to `BrickBehavior` in this chapter
-describes the concept proposed to become `BrickNature`.
+Every Brick has exactly one core-validated `BrickNature` from birth. Human
+input, a selected template, the skill, or powered-up mode may select it during
+feeding. If the user skips and no route already implies one, the Brick
+receives the generic `standard` Nature. It never exists without one.
 
-Human input, a selected template, the skill, or powered-up mode may select a
-Nature during feeding. If the user skips and no route already implies one, the
-Brick receives the generic `standard` Nature. It never exists without one.
+## 25.2 BrickNature
 
-## 25.2 BrickBehavior
-
-`BrickBehavior` is the selected working name for a persistent, explicit policy
+`BrickNature` is the canonical name for a persistent, explicit policy
 that tells the deterministic core how a Brick participates in interaction.
-The qualified name avoids conflict with `EffortProfile`.
+The qualified name distinguishes the domain concept from ordinary prose about
+the nature of some material.
 
-A behavior may select only capabilities implemented and validated by the core,
+A Nature may select only capabilities implemented and validated by the core,
 including:
 
 - whether the Brick itself, its descendants, or a batch is normally focused;
@@ -46,18 +40,18 @@ including:
 - how completion, recurrence, future reactivation, and supported
   event-triggered opportunity mechanics are exposed.
 
-Behavior is not arbitrary executable code. It must not contain scripts, network
+Nature is not arbitrary executable code. It must not contain scripts, network
 calls, prompts whose semantics bypass the core, or hidden aliases.
 
-Decomposition is behavior-aware. A high-level title alone never causes Little
+Decomposition is Nature-aware. A high-level title alone never causes Little
 Ant to demand children. Project-like finite outcomes may expose a
 review-or-decompose proposal when they have no suitable focusable descendant;
-atomic work, repeatable practices, checklists, and other behaviors do not gain
+atomic work, repeatable practices, checklists, and other Natures do not gain
 that proposal unless their resolved capabilities explicitly support it.
 
-Working generic factory behaviors include:
+Working generic factory Natures include:
 
-| Behavior | Purpose |
+| Nature | Purpose |
 |---|---|
 | `standard` | The Brick itself is an ordinary focusable unit. |
 | `project` | The parent represents one finite outcome; descendant scope contributes to its reviewed completion. |
@@ -77,20 +71,21 @@ silently change existing Bricks.
 
 `BrickTemplate` is a one-time creation recipe. It may:
 
-- select a `BrickBehavior`;
+- select a `BrickNature`;
 - provide a default English title and description;
 - create an initial Brick structure;
-- provide default context, mode, entry fields, or recurrence configuration;
+- provide default Domain memberships, mode, entry fields, or recurrence
+  configuration;
 - record template provenance for explanation and future duplicate detection.
 
 After expansion, the template has no hidden runtime authority. The resulting
-Brick, behavior reference, entries, opportunity triggers, and relationships
+Brick, Nature reference, entries, opportunity triggers, and relationships
 are ordinary canonical state. Changing a template affects only future
 creations unless an explicit migration is confirmed.
 
 The standard library may ship opinionated domain templates as inspectable data:
 
-| Template | Generic behavior |
+| Template | Generic Nature |
 |---|---|
 | `grocery_list` | `standing_checklist` |
 | `packing_checklist` | `finite_checklist` |
@@ -102,7 +97,7 @@ The standard library may ship opinionated domain templates as inspectable data:
 | `exercise_practice` | `practice` |
 
 These mappings are illustrative working names, not final command grammar. The
-core implements the generic behavior, never a branch such as “if grocery
+core implements the generic Nature, never a branch such as “if grocery
 list.”
 
 For example, an `article_reading` template may create one self-focusable Brick,
@@ -133,7 +128,7 @@ mechanics.
 
 ## 25.4 Factory library and customization
 
-The installed product should provide a small factory behavior library and may
+The installed product should provide a small factory Nature library and may
 provide a considerably broader standard template library. Both are distributed
 with the product and available offline, but templates remain versioned data
 rather than hard-coded domain branches. Canonical core surfaces let the REPL,
@@ -142,12 +137,12 @@ provenance.
 
 Users may:
 
-- clone a factory behavior into a personal namespace;
-- compose a custom behavior from supported capabilities;
+- clone a factory Nature into a personal namespace;
+- compose a custom Nature from supported capabilities;
 - clone or create templates freely;
 - override template defaults without defining a new core concept.
 
-Adding a new behavior capability or fundamental structural invariant requires
+Adding a new Nature capability or fundamental structural invariant requires
 an explicit core version. The exact definition format, commands, validation,
 versioning, import, and migration rules remain open.
 
@@ -171,7 +166,7 @@ persisting an unvalidated semantic guess. A route may:
 
 - add a ListEntry to an existing Brick;
 - create a Brick from a specific template version;
-- create an ordinary Brick with a selected behavior;
+- create an ordinary Brick with a selected Nature;
 - preserve the input as Raw;
 - enrich an existing compatible entity after duplicate review.
 
@@ -180,11 +175,11 @@ bounded, context-sensitive candidate set and validates every route and
 template input. The operator skill or powered-up REPL may rank those candidates
 and populate a structured proposal containing the route, target, template
 version, inputs, confidence, reason, and AI provenance. It cannot submit an
-arbitrary expansion or unsupported behavior.
+arbitrary expansion or unsupported Nature.
 
 Classification assists routing but does not become hidden semantic authority.
-When the proposed nature changes focus, decomposition, recurrence, entry, or
-completion mechanics, the resulting concrete behavior or template choice is
+When the proposed Nature changes focus, decomposition, recurrence, entry, or
+completion mechanics, the resulting concrete Nature or template choice is
 shown and recorded. The dumb REPL draws from the same core candidate set and
 uses bounded deterministic choices; the core never classifies by hard-coded
 title keywords.
@@ -205,8 +200,8 @@ core grammar and remain open.
 The custom builder asks only about observable mechanics, including the focus
 unit, finite versus standing lifetime, entry or child structure, completion
 effect, repetition or recurrence, and applicability of optional axes. It first
-reuses an existing resolved behavior with the same capabilities. If no such
-behavior exists, it may create a versioned personal behavior in a personal
+reuses an existing resolved Nature with the same capabilities. If no such
+Nature exists, it may create a versioned personal Nature in a personal
 namespace using only core-supported capabilities, then offer to save the
 creation recipe as a personal template.
 
@@ -220,7 +215,7 @@ operator skill bounded as the standard library grows.
 core. The canonical operation after interpretation may create a Brick, feed
 Raw material, instantiate a template, or add a ListEntry.
 
-- The operator or powered-up REPL may infer a likely behavior, template,
+- The operator or powered-up REPL may infer a likely Nature, template,
   parent, or entry target and present an attributed proposal.
 - The dumb REPL may use deterministic dialog context, such as the currently
   open list, or offer a default when exactly one compatible target exists.

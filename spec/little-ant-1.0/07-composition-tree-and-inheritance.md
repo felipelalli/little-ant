@@ -85,7 +85,7 @@ Behavior for active waits, delegations, and pending external effects during
 these operations remains open.
 
 ListEntries are not child Bricks. Their resolution does not invoke subtree
-closure or priority-order rules. A behavior may use their aggregate state to
+closure or importance-order rules. A Nature may use their aggregate state to
 propose reviewing a finite parent, finishing an execution occurrence, or
 making standing work derivatively dormant; none of those outcomes is automatic
 terminal Brick completion.
@@ -94,7 +94,7 @@ terminal Brick completion.
 
 A parent-child relationship does not by itself require decomposition.
 Decomposition coverage and review apply only when the parent's resolved
-behavior represents one finite outcome through descendant scope, or exposes
+Nature represents one finite outcome through descendant scope, or exposes
 another explicit decomposition capability. Collections, standing checklists,
 and unrelated structural groupings do not acquire decomposition pressure just
 because they contain other things.

@@ -57,7 +57,7 @@ Permanent deletion and blob garbage collection remain open.
 A Raw has zero or one external `RawOrigin`.
 
 - Inline text or bytes have no external origin. `inline_text` and
-  `inline_blob` describe capture or storage forms, not origin kinds.
+  `inline_blob` describe feeding or storage forms, not origin kinds.
 - An external origin records an adapter kind, live locator, optional stable
   external identity, last check time, and last observed external revision.
 - Origin observation history keeps external work state separate from external
@@ -74,11 +74,12 @@ A Raw has zero or one external `RawOrigin`.
   normally connected through a `derived_from` RawLink. It is not a second
   origin hidden inside the same Raw.
 
-A `RawSnapshot` preserves one captured content version:
+A `RawSnapshot` preserves one snapshotted content version:
 
 - Snapshots are immutable, content-addressed, and versioned.
 - Identical content hashes are deduplicated.
-- Content deduplication does not merge Raw captures or domain entities.
+- Content deduplication does not merge distinct Raw entities or feeding
+  events.
   Distinct provenance remains distinct even when immutable bytes share storage.
 - All distinct versions are retained.
 - Large bytes do not belong inline in JSONL. JSONL stores hashes and metadata;
@@ -88,7 +89,7 @@ A `RawSnapshot` preserves one captured content version:
 - A metadata record whose referenced blob is absent or fails hash verification
   is an explicit incomplete or corrupted state, not a valid metadata-only
   snapshot.
-- A locator or observed external revision without captured bytes remains
+- A locator or observed external revision without snapshotted bytes remains
   RawOrigin information; it does not pretend that a RawSnapshot exists.
 
 The core owns logical blob identity, content-hash verification, reference
@@ -105,7 +106,7 @@ changing RawSnapshot identity or provenance.
 Expected snapshot metadata:
 
 ```text
-captured_at
+snapshotted_at
 content_hash
 size
 media_type
@@ -129,14 +130,14 @@ mutable “source status.”
 
 RawOrigin locators are typed adapter data, not a universal public mention
 grammar embedded in prose. A surface may accept a pasted standard URI or an
-adapter-supported external reference and propose explicit Raw capture. The
+adapter-supported external reference and propose explicit Raw feeding. The
 adapter may then normalize it into `adapter`, `locator`, and `external_id`
 without requiring the user to type a provider-specific scheme.
 
 Identifiers such as `github:...`, `gmail:...`, or `gchat:...` may exist inside
 an adapter contract, import key, or normalized locator. They do not become a
 single core-wide language whose appearance in arbitrary text creates a
-RawOrigin. Until capture is confirmed, a URI or provider-shaped token remains
+RawOrigin. Until feeding is confirmed, a URI or provider-shaped token remains
 literal input.
 
 ## 5.4 Check, refresh, and reconciliation
@@ -161,7 +162,7 @@ A Raw may have an optional freshness policy such as `max_age`.
 - Missing results from a filter, an inaccessible account or container, and a
   failed refresh do not prove deletion.
 - A confirmed active ImportProfile may authorize recurring read-only checks,
-  refreshes, and captures. Deletion from the source still requires a separate
+  refreshes, and feeding runs. Deletion from the source still requires a separate
   destructive migration plan and approval.
 - Current, changed, unavailable, and reconciliation-needed conditions are
   derived from check history, snapshots, and per-link baselines rather than a
@@ -219,8 +220,8 @@ RawShelf. It may also route structured work to a Brick parent, collection, or
 ListEntry owner. Provenance grouping is automatic; semantic grouping is
 explicit policy.
 
-Capturing an external structured task always preserves Raw provenance, but it
-need not stop at pending Raw. A configured task source may atomically capture
+Feeding an external structured task always preserves Raw provenance, but it
+need not stop at pending Raw. A configured task source may atomically feed
 the Raw and adopt it into a positioned Brick or ListEntry. Unknown, mixed, and
 note-like sources remain pending Raw until reviewed. See
 [External imports, source views, and extension packs](32-external-imports-source-views-and-extension-packs.md).

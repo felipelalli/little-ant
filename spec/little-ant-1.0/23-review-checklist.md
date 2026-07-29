@@ -5,8 +5,8 @@
 - [ ] The central distinction between priority and forecast is correct.
 - [ ] Priority asks strict relative importance, with `?`, ordering skip, and
       `tie-break for me` carrying distinct non-equality semantics.
-- [ ] Phase and effort are optional, lazy, behavior-applicable, and never
-      capture forms or hidden priority sorts.
+- [ ] Phase and effort are optional, lazy, Nature-applicable, and never
+      feeding forms or hidden priority sorts.
 - [ ] Raw review, archive, snapshot, and reuse behavior matches the intended
       material model.
 - [ ] Multiple WIPs plus one current focus is correct.
@@ -29,9 +29,9 @@
       canonical CLI parity, and separate exact-dialog recovery state.
 - [ ] Dumb REPL, powered-up REPL, and operator skill share one contextual
       interaction protocol and preserve judgment provenance.
-- [ ] BrickBehavior and BrickTemplate remain generic, inspectable, versioned
+- [ ] BrickNature and BrickTemplate remain generic, inspectable, versioned
       where applicable, and free from hard-coded domain branches.
-- [ ] External capture, semantic adoption, derived source views,
+- [ ] External feeding, semantic adoption, derived source views,
       ImportProfiles, and semantic RawShelves remain distinct.
 - [ ] External completion and presence remain independent; migration uses
       explicit verification and cutover, retains historical provenance, and
@@ -40,7 +40,7 @@
 - [ ] Little Ant Pack is the sole distribution concept; typed PackComponents
       replace a generic Plugin type or arbitrary hooks.
 - [ ] Declarative and executable component kinds remain closed and
-      unambiguous: BrickBehavior, BrickTemplate, ImportProfilePreset,
+      unambiguous: BrickNature, BrickTemplate, ImportProfilePreset,
       SourceAdapter, Enricher, ReadOnlyExporter, and UIAdapter.
 - [ ] Every executable Pack uses Lua 5.4 in the isolated HsLua runner under
       bounded host capabilities, including standard-Pack components, and no

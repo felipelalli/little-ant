@@ -99,7 +99,7 @@ Open implications:
 - configuration schema, validation ranges, revision storage, and migration;
 - which calibration changes require explicit confirmation.
 
-## 35.4 Contextual `?` and behavior-aware decomposition
+## 35.4 Contextual `?` and Nature-aware decomposition
 
 Confirmed on 2026-07-28:
 
@@ -115,20 +115,20 @@ Confirmed on 2026-07-28:
   through bounded, paginated navigation. It does not mean dumping an entire
   sparse projection or event history onto the main prompt.
 - A container selected during hierarchical sampling is resolved according to
-  its `BrickBehavior`. A project-like finite outcome normally directs focus to
+  its `BrickNature`. A project-like finite outcome normally directs focus to
   an eligible descendant rather than being presented as vague executable
   work.
 - If a project-like Brick has no suitable descendant, the system may propose
   reviewing or decomposing it. That is a distinct useful action, not an
   automatic child creation.
 - Decomposition is never a universal reaction to a high-level title. It is
-  available only when the Brick's resolved behavior has finite
+  available only when the Brick's resolved Nature has finite
   descendant-scope or another explicit decomposition capability.
 - The operator skill and powered-up REPL may classify the input's likely
-  nature and propose a concrete behavior or template. The dumb REPL uses the
+  Nature and propose a concrete Nature or template. The dumb REPL uses the
   same core-provided candidates and asks a bounded deterministic question when
   the choice materially changes semantics. The core validates and records the
-  chosen behavior; it does not infer a domain from title keywords.
+  chosen Nature; it does not infer a Nature from title keywords.
 
 Open implications:
 
@@ -136,8 +136,8 @@ Open implications:
   active descendants;
 - the exact hierarchical allocation of probability between a container and
   its descendants;
-- when uncertain behavior classification must be resolved rather than safely
-  retaining the generic `standard` behavior.
+- when uncertain Nature classification must be resolved rather than safely
+  retaining the generic `standard` Nature.
 
 ## 35.5 Resolve a drawn blocked Brick through N dependency steps
 
@@ -207,7 +207,7 @@ continue to use opaque immutable IDs.
 `?` exposes the full resolution path and dependency context without consuming
 another draw or changing the pending suggestion. Exact one-line versus
 multiline rendering, folding of unusually long paths, and cross-parent
-`Within` behavior remain open.
+`Within` rendering remain open.
 
 Open implications:
 
@@ -219,7 +219,7 @@ Open implications:
   endpoint;
 - how inspection and `next` fail if imported or corrupted state violates the
   acyclic dependency invariant;
-- how dependency resolution composes with behavior-driven descent through a
+- how dependency resolution composes with Nature-driven descent through a
   project or collection;
 - whether and where attenuation or caps are needed after practical
   calibration.
@@ -260,7 +260,7 @@ Confirmed on 2026-07-28:
   focus-opportunity variants.
 - The examples previously discussed were illustrative, not an exhaustive list.
   The complete 1.0 catalog remains a macro/core/UI decision.
-- `interaction` is not a public generic command, and neither a behavior,
+- `interaction` is not a public generic command, and neither a Nature,
   template, Pack, powered-up model, operator, nor UIAdapter may invent a new
   fundamental variant or canonical action.
 - A surface presents the concrete action or domain question instead of
@@ -354,7 +354,7 @@ Confirmed on 2026-07-29:
   local subdraw among that subject's admitted opportunity variants.
 - Every admitted variant in that local subdraw retains strictly positive
   probability. Opportunity type creates no fixed lane or automatic winner.
-- A project-like container introduces recursive, behavior-aware selection over
+- A project-like container introduces recursive, Nature-aware selection over
   its admitted descendant scope. Descendants and their opportunities are not
   flattened into unrelated top-level tickets.
 - A flattened forecast may exist as a read-only presentation derived from the
@@ -443,24 +443,26 @@ Confirmed on 2026-07-29:
 
 Confirmed concept on 2026-07-29:
 
-- Behavioral classification is a required core concept, not an optional
-  operator tag.
+- Nature is a required core concept, not an optional operator tag.
 - `Nature` is the preferred canonical term.
 - Every Brick has exactly one Nature from birth.
 - A human may select it explicitly, a template may imply it, and the skill or
   powered-up adapter may submit an attributed judgment.
 - If the user skips and no accepted route implies another Nature, the core
   uses `standard`.
-- Nature governs the generic mechanics currently assigned to
-  `BrickBehavior`, including focus unit, decomposition, entries, standing
-  lifetime, repetition, phase applicability, and effort applicability.
+- Nature governs focus unit, decomposition, entries, standing lifetime,
+  repetition, phase applicability, effort applicability, and the other
+  generic mechanics previously assigned to the obsolete field.
 - Domain templates such as grocery lists remain recipes that select a generic
   Nature and defaults; they do not become hard-coded Natures.
 
-Pending one explicit naming confirmation:
+Naming confirmed on 2026-07-29:
 
-- replace `BrickBehavior` and its public `behavior` field with `BrickNature`
-  and `nature`, rather than retaining both concepts.
+- `BrickNature` is the canonical entity and `nature` is the canonical Brick
+  field.
+- No parallel behavioral-classification entity or field remains.
+- The propagated Allium, generated tests, README, skill, and implementation
+  must be reconciled to this name during their deliberate propagation stages.
 
 ## 35.16 Preserve Domain continuity in `next`
 

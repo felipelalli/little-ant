@@ -8,9 +8,9 @@
 
 > *One brick at a time. Inch by inch, anything's a cinch.*
 
-Little Ant is a personal focus engine. It captures unfinished material, keeps
-work in a human-defined importance order, and helps answer one practical
-question:
+Little Ant is a personal focus engine. It feeds unfinished material into an
+inspectable system, keeps work in a human-defined importance order, and helps
+answer one practical question:
 
 > **Where should I focus now?**
 
@@ -18,10 +18,11 @@ It is designed around a deterministic, inspectable core. Humans and optional
 operators provide judgment; the core owns identity, history, ordering
 mechanics, validation, recurrence, eligibility, and replay.
 
-Little Ant 1.0 is defined by the composed
-[Allium specification](spec/little-ant.allium). The Markdown files under
-[spec/little-ant-1.0](spec/little-ant-1.0.md) retain design history and
-rationale; when they disagree with Allium, Allium wins.
+Little Ant 1.0 is currently defined by the reviewed conceptual specification
+under [spec/little-ant-1.0](spec/little-ant-1.0.md). The composed
+[Allium specification](spec/little-ant.allium) is being deliberately
+reconciled with that baseline; until the recovery is explicitly completed,
+the conceptual specification wins any disagreement.
 
 The core has one unambiguous command vocabulary and no compatibility aliases.
 A skill or operator may translate natural language into those canonical
@@ -68,7 +69,7 @@ Optional phase is a separate axis:
 idea · spec · exec · validation
 ```
 
-Phase does not determine priority, completion, or WIP. Behaviors may disable
+Phase does not determine priority, completion, or WIP. Natures may disable
 phase or effort when those concepts would only add noise.
 
 Brick IDs are opaque and survive renames. Canonical searchable titles are
@@ -87,13 +88,13 @@ render all open entries together.
 This avoids turning every grocery item, packing item, or similar occurrence
 into a full task.
 
-### Behaviors and templates
+### Natures and templates
 
-Behaviors are small, closed combinations of capabilities understood by the
-core. Templates are inspectable recipes that select a behavior and optional
+Natures are small, closed combinations of capabilities understood by the
+core. Templates are inspectable recipes that select a Nature and optional
 defaults; they do not inject hidden domain logic.
 
-The 1.0 catalog includes generic behaviors for standard work, projects,
+The 1.0 catalog includes generic Natures for standard work, projects,
 collections, repeatable work, finite and standing checklists, recurring
 obligations, and practices. Standard templates include:
 
@@ -103,7 +104,7 @@ obligations, and practices. Standard templates include:
 - bills to pay;
 - exercise practices.
 
-Users may publish versioned personal behaviors and templates from the same
+Users may publish versioned personal Natures and templates from the same
 closed capability vocabulary.
 
 ## Two views, two different questions
@@ -132,7 +133,7 @@ See [judgment.allium](spec/little-ant/judgment.allium) and
 The transcripts below use the canonical terminal interaction. Other surfaces
 preserve the same actions and revisions while adapting their presentation.
 
-### Capture a grocery item
+### Feed a grocery item
 
 ```text
 $ lant
@@ -245,7 +246,7 @@ See [interaction.allium](spec/little-ant/interaction.allium).
 ## Imports, Packs, and external effects
 
 Little Ant Packs are the only 1.0 extension unit. Component kinds are closed:
-behaviors, templates, import-profile presets, source adapters, enrichers,
+Natures, templates, import-profile presets, source adapters, enrichers,
 read-only exporters, and UI adapters. There is no generic arbitrary plugin
 hook.
 
@@ -363,8 +364,8 @@ the intentionally red pre-implementation phase.
 | Ordering asked whether one task came before another | Human priority asks which Brick is **more important**; uncertainty is retained instead of treated as equality |
 | `next` and priority were easy to conflate | Human priority and the read-only forecast are explicit, separate views |
 | IDs were derived from original titles | IDs are opaque and survive renames |
-| Most captured items became full tasks | Raw remains material; lightweight ListEntries belong to checklist Bricks |
-| Domain-specific behavior tended to emerge in operator policy | Closed generic behaviors plus inspectable templates cover projects, collections, checklists, repetition, obligations, and practices |
+| Most fed items became full tasks | Raw remains material; lightweight ListEntries belong to checklist Bricks |
+| Domain-specific mechanics tended to emerge in operator policy | Closed generic Natures plus inspectable templates cover projects, collections, checklists, repetition, obligations, and practices |
 | Effort was a generic weight or direct hour estimate | Effort uses subjective comparable bands; hour ranges belong to a versioned planning profile |
 | Recurrence was mostly future work | Repeatable work, recurring obligations, practice opportunities, streaks, and schedule revision have explicit history |
 | JSON responses commonly exposed complete objects | Typed sparse projections, semantic history queries, and concise action summaries keep human and LLM context bounded |
@@ -375,12 +376,16 @@ the intentionally red pre-implementation phase.
 See [CHANGELOG.md](CHANGELOG.md) for the detailed release summary and migration
 notes.
 
-## Specification map
+## Target Allium map
 
-| Area | Authoritative file |
+These modules are the intended executable specification structure. During the
+current recovery, the reviewed
+[conceptual specification](spec/little-ant-1.0.md) remains authoritative.
+
+| Area | Target Allium module |
 |---|---|
 | Composition root and cross-module invariants | [little-ant.allium](spec/little-ant.allium) |
-| Brick, ListEntry, behavior, template, identity | [domain.allium](spec/little-ant/domain.allium) |
+| Brick, ListEntry, Nature, template, identity | [domain.allium](spec/little-ant/domain.allium) |
 | Raw, snapshots, shelves, links, provenance | [material.allium](spec/little-ant/material.allium) |
 | Human priority, confidence, impact, effort | [judgment.allium](spec/little-ant/judgment.allium) |
 | Lifecycle, WIP, dates, recurrence, practices | [execution.allium](spec/little-ant/execution.allium) |

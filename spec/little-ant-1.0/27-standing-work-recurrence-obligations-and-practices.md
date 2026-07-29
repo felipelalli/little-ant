@@ -19,13 +19,13 @@ Natural-language recurrence interpretation remains operator work.
 ## 27.2 Standing work and execution occurrences
 
 A standing Brick remains active across many executions and retains one human
-priority position. Its behavior may make it derivatively dormant when there
+importance position. Its Nature may make it derivatively dormant when there
 is nothing currently useful to do. Dormancy is eligibility, not another
 persisted lifecycle status.
 
 `Buy groceries` is the reference example:
 
-- the Brick uses a standing-checklist behavior;
+- the Brick uses a standing-checklist Nature;
 - open ListEntries are always rendered together;
 - adding an entry makes an empty list eligible again;
 - starting the Brick begins an execution occurrence, or run;
@@ -78,7 +78,7 @@ A repeatable activity is one persistent, independently focusable Brick with an
 execution-occurrence history. Reading an article, watching a film, or reviewing
 reference material may use this pattern. “Consumable” is not a property: the
 same source may be used repeatedly, and whether another execution is useful is
-a behavior decision.
+a Nature decision.
 
 When an execution finishes:
 
@@ -109,7 +109,7 @@ Finishing that execution offers the choice again.
 
 By default this pattern has no `best_before`, deadline, expiry, `not_done`
 outcome, streak, quota, or accumulating occurrence backlog. Those concepts
-belong only to behaviors that explicitly need them. If several periods must be
+belong only to Natures that explicitly need them. If several periods must be
 independently resolvable or may coexist unfinished, the recurring-obligation
 model creates separate occurrence Bricks instead.
 
@@ -128,7 +128,7 @@ This is not generic automation and not Brick rebirth:
 
 - the source is an explicit canonical event, such as finishing one identified
   execution occurrence;
-- the target is an existing standing Brick whose behavior supports
+- the target is an existing standing Brick whose Nature supports
   opportunities;
 - the result releases one target opportunity but does not create, resurrect,
   start, complete, reprioritize, or otherwise change the target's lifecycle;
@@ -218,7 +218,7 @@ done | not_done
 ```
 
 The exact canonical name for an unfulfilled intention remains open, but the
-behavior is settled:
+Nature is settled:
 
 - an applicable opportunity that expires without completion is recorded;
 - it does not create an indefinitely overdue task;

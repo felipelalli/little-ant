@@ -223,8 +223,8 @@ the Brick, or chooses the eventual comparison answer.
 ## Entry 29 — Make phase and effort lazy
 
 The user did not want to remove phase or effort before experiencing them in
-practice. Both became optional, behavior-applicable metadata. Missing values
-are neutral, capture remains formless, and the system asks only when the field
+practice. Both became optional, Nature-applicable metadata. Missing values
+are neutral, feeding remains formless, and the system asks only when the field
 could materially change an action or planning result. Phase no longer acts as
 the replacement for every former `kind` distinction.
 
@@ -243,12 +243,12 @@ shows its adapter in the status line, and attributes all suggestions to AI.
 It may improve normalization, duplicate candidates, parenting, provisional
 ordering, and causal proposals without gaining human authority.
 
-## Entry 31 — Separate behavior from templates and domain nature
+## Entry 31 — Separate Nature from templates and domain-specific recipes
 
 Hard-coded natures such as grocery list, wishlist, reading list, and feature
-backlog were rejected as core branches. `BrickBehavior` became a persistent,
+backlog were rejected as core branches. `BrickNature` became a persistent,
 versioned selection of generic core capabilities. `BrickTemplate` became an
-inspectable one-time creation recipe. A small factory behavior library and an
+inspectable one-time creation recipe. A small factory Nature library and an
 opinionated standard template library may ship as data and be cloned into
 personal namespaces. The earlier public `BrickShape` idea was dropped as an
 unnecessary configurable axis.
@@ -266,11 +266,11 @@ titles may repeat; dates are not forced into names. Content hashes deduplicate
 immutable bytes, while entity identity and duplicate suspicion remain
 separate.
 
-## Entry 33 — Make duplicate suspicion a capture mechanism
+## Entry 33 — Make duplicate suspicion a feeding mechanism
 
 Repeated feed was identified as normal rather than exceptional. Duplicate
 suspicion became an explainable, scope-sensitive pipeline over canonical
-English, type, parent, behavior, context, state, recurrence period, history,
+English, type, parent, Nature, Domain, state, recurrence period, history,
 and optional attributed semantic evidence. It may propose reuse, quantity
 adjustment, merge, enrichment, or separate creation, but it never silently
 discards input. Original non-English text remains provenance while canonical
@@ -303,7 +303,7 @@ does not accrue false failures or lose its streak.
 
 ## Entry 36 — Consolidate the second discovery round
 
-The importance grammar, optional axes, thin operator protocol, behaviors,
+The importance grammar, optional axes, thin operator protocol, Natures,
 templates, structured entries, identity, duplicate suspicion, standing work,
 recurrence, obligations, and practices were transferred into focused English
 chapters. Corrections, invariants, open questions, review paths, and the old
@@ -333,7 +333,7 @@ through provenance.
 
 The consumable Brick was reviewed through the example of reading an article
 and revisiting it approximately six months later. Consumption did not justify
-another Brick property. The accepted generic behavior is `repeatable`: one
+another Brick property. The accepted generic Nature is `repeatable`: one
 Brick keeps its identity, human priority position, source links, and complete
 execution-occurrence history.
 
@@ -346,7 +346,7 @@ without another binary insertion. There is no implied `best_before`, deadline,
 expiry, missed outcome, streak, or backlog. Recurring obligations remain
 different because independently unresolved periods require separate Bricks.
 
-`BrickBehavior` owns these mechanics, while an inspectable template such as
+`BrickNature` owns these mechanics, while an inspectable template such as
 `article_reading` may supply a source role, completion-note convention,
 repeat prompt, and default six-month delay with three-month jitter. The
 `EffortProfile` is unrelated, and no `BrickShape` axis was restored.
@@ -361,18 +361,18 @@ becomes derivatively dormant when empty. A project remains distinct because it
 represents one finite outcome whose descendant scope contributes to closure.
 
 The product may distribute a broad, versioned standard template catalog as
-inspectable data while keeping the factory behavior vocabulary small.
+inspectable data while keeping the factory Nature vocabulary small.
 `packing_checklist` now names the finite travel or event-packing example, and
 `exercise_practice` covers walking, swimming, running, gym work, and similar
 physical practices more naturally than `walking_practice` or
 `sporting_practice`.
 
-Capture routing uses one shared interaction envelope. Dumb mode browses a
+Feeding routes use one shared interaction envelope. Dumb mode browses a
 deterministic shortlist; powered-up mode or the operator may rank the same
 bounded candidates and propose a concrete route, target, template version, and
 inputs. Rejecting a proposal returns to the deterministic flow. The user may
 open more templates or enter a custom capability-guided builder. The builder
-reuses an existing behavior whenever possible and may save a personal template;
+reuses an existing Nature whenever possible and may save a personal template;
 it cannot invent unsupported mechanics.
 
 ## Entry 41 — Make RawSnapshot bytes part of the logical dataset
@@ -459,7 +459,7 @@ creation-derived identity removes that premise. Titles may repeat and renaming
 never changes identity.
 
 The remaining useful concern was split into explicit representations.
-Verbatim `original_text` preserves capture provenance. The human-facing
+Verbatim `original_text` preserves feeding provenance. The human-facing
 canonical English title receives only conservative Unicode composition and
 whitespace cleanup; case, punctuation, and intentional user emoji are not
 silently destroyed. Product-owned status, phase, and warning emoji belong to
@@ -719,7 +719,7 @@ handles, and ordinary punctuation without inventing format-based heuristics.
 An explicit CLI short reference remains a separate command-surface concern.
 
 External references also split by intent. A URI may remain ordinary clickable
-text. If its content must be captured, refreshed, synchronized, or reconciled,
+text. If its content must be fed, refreshed, synchronized, or reconciled,
 the user confirms creation of Raw with RawOrigin and the applicable RawLink.
 Provider-specific normalized locators may exist inside adapter contracts or
 import keys, but `github:`, `gmail:`, and `gchat:` do not become a universal
@@ -744,13 +744,13 @@ eligibility, priority, or pressure. A changed date is a new revision; a later
 threshold may create a distinct occurrence. Date notices never authorize an
 external notification without ordinary approval.
 
-## Entry 61 — Separate external capture, adoption, source views, and packs
+## Entry 61 — Separate external feeding, adoption, source views, and packs
 
 The external-TODO Brick exposed an obsolete absolute rule: imported material
 does not need to stop in one mandatory Raw-only extraction funnel. External
-content is still captured as Raw with stable RawOrigin identity and immutable
+content is still fed as Raw with stable RawOrigin identity and immutable
 snapshots, but a configured structured-task source may atomically adopt that
-capture into a positioned Brick or ListEntry. Unknown, mixed, ambiguous, and
+feeding into a positioned Brick or ListEntry. Unknown, mixed, ambiguous, and
 note-like sources remain pending Raw; reviewing one note may produce zero, one,
 or many Bricks.
 
@@ -777,7 +777,7 @@ the first release.
 
 The selected extension unit is `Little Ant Pack`, with the recommended open
 community repository `little-ant-packs`. Packs may contain declarative
-behaviors and templates, executable importers, attributed enrichers, and
+Natures and templates, executable importers, attributed enrichers, and
 credential-free ImportProfile presets. The core retains schemas, capabilities,
 validation, permission enforcement, replay, and all domain authority.
 Data-only and executable components have distinct trust classes; installing an
@@ -837,14 +837,14 @@ reconciliation and raises one source anomaly instead of cascading lifecycle
 changes.
 
 An active ImportProfile may authorize visible recurring read-only checks and
-capture. Migration has an explicit cutover: capture and adopt, review and
+feeding. Migration has an explicit cutover: feed and adopt, review and
 verify, prepare cutover, optionally clean the source, finalize cutover, and
 retire the profile. Retirement disables scheduled checks and suppresses
 ordinary freshness pressure without discarding RawOrigins, snapshots, links,
 stable external identities, local work, or the immutable migration receipt.
 
 The proposed `erase-after-import` option was accepted as a destructive
-migration policy, not as ordinary sync. The selected scope is durably captured,
+migration policy, not as ordinary sync. The selected scope is durably fed,
 fully dispositioned, verified, previewed, and approved before deletion begins.
 The Adapter requires a separate source-deletion capability and executes
 provider calls, but the core owns scope and eligibility. Cleanup remains
@@ -859,7 +859,7 @@ was completed.
 The extension discussion rejected a generic Plugin abstraction before it
 could become another ambiguous core concept. `Little Ant Pack` remains the
 single versioned distribution unit, while every contained `PackComponent` has
-one closed host contract. Declarative components are BrickBehavior,
+one closed host contract. Declarative components are BrickNature,
 BrickTemplate, and ImportProfilePreset. Executable components are
 SourceAdapter, Enricher, ReadOnlyExporter, and UIAdapter. Packs cannot replace
 ranking, forecast, storage, entities, events, commands, or replay, install
@@ -958,7 +958,7 @@ This requirement does not yet promise that every Brick will be served within a
 bounded number of draws. The exact hard eligibility conditions, tail
 allocation, and any future bounded-service guarantee remain open.
 
-## Entry 67 — Put project context behind `?` and scope decomposition by behavior
+## Entry 67 — Put project context behind `?` and scope decomposition by Nature
 
 The minimal `next` prompt no longer needs a separate `open project` action.
 The existing universal `?` interaction is the single progressive-disclosure
@@ -968,13 +968,13 @@ All relevant context remains reachable without dumping an unbounded projection
 or history, and leaving the view restores the same suggestion without a draw,
 answer, skip, or mutation.
 
-Hierarchical selection follows the Brick's resolved behavior. Project-like
+Hierarchical selection follows the Brick's resolved Nature. Project-like
 finite outcomes normally lead to an eligible descendant; when none exists,
 reviewing or decomposing the outcome may itself be proposed. Decomposition is
 not inferred from a high-level title and is not applicable to every Brick. The
-operator skill or powered-up REPL may propose a behavior or template, while
+operator skill or powered-up REPL may propose a Nature or template, while
 the dumb REPL uses the same bounded core candidates. The selected concrete
-behavior remains explicit and core-validated.
+Nature remains explicit and core-validated.
 
 Blocked-work selection was discussed but not settled. The working proposal
 keeps a blocked Brick out of executable results while preserving it as blocked
@@ -1077,7 +1077,7 @@ recorded as implementation questions rather than consuming interview rounds.
 
 The user confirmed that `next` selects one member of a versioned closed set of
 core-defined focus-opportunity variants. A public catch-all command named
-`interaction` is rejected, and behaviors, templates, Packs, powered-up mode,
+`interaction` is rejected, and Natures, templates, Packs, powered-up mode,
 and the operator cannot invent new fundamental variants or canonical actions.
 
 The examples in the preceding discussion were not exhaustive. The exact 1.0
@@ -1169,7 +1169,7 @@ with both the composition tree and the recently proposed subject-first
 selection model. Repository history confirmed that the pre-propagation
 Markdown made importance and composition hierarchical but left the exact
 forecast formula open. The recovery ledger had already restored
-behavior-aware descent from a selected project-like container. The propagated
+Nature-aware descent from a selected project-like container. The propagated
 Allium nevertheless represents `ForecastItem` values in one flat list and
 draws directly from that list.
 
@@ -1178,7 +1178,7 @@ flat lottery in which one subject gains another top-level ticket for every
 applicable question, review, or executable action. Each admitted attention
 subject participates once in its applicable scope. Selection then performs a
 replay-deterministic weighted local subdraw among that subject's admitted
-opportunity variants. Project-like containers add recursive, behavior-aware
+opportunity variants. Project-like containers add recursive, Nature-aware
 child-scope draws rather than flattening all descendants.
 
 The previously confirmed “one lottery for every opportunity kind” rule remains
@@ -1210,7 +1210,7 @@ the name `Area`. The canonical name therefore remains open. This model is
 orthogonal to the Brick composition tree and to execution conditions such as
 Place and mode.
 
-The working classification flow keeps capture lazy. The core retrieves and
+The working classification flow keeps feeding lazy. The core retrieves and
 validates bounded candidates; a skill or powered-up adapter may rank several
 existing candidates with attributed judgment, while dumb mode uses only
 deterministic evidence such as an explicit current branch, parent membership,
@@ -1232,9 +1232,7 @@ Brick's behavioral type. The user clarified that behavioral classification is
 core and mandatory from birth, prefers the name `Nature`, and requires a
 fallback when the user skips. A Nature may be supplied explicitly, implied by
 a selected template, or proposed by the skill or powered-up adapter; otherwise
-the Brick uses the generic `standard` Nature. The preferred simplification is
-to rename the current `BrickBehavior` concept to `BrickNature`, rather than
-adding another axis, but that exact rename awaits confirmation.
+the Brick uses the generic `standard` Nature.
 
 `Domain` was accepted as the current working name for hierarchical,
 non-exclusive organizational membership. Domain assignment remains distinct
@@ -1252,3 +1250,12 @@ ListEntry under standing grocery work and therefore never surface
 independently. The owning Brick may gain time-window, recurrence, deadline, or
 Place pressure through generic mechanics. Exact recurring preferred-time
 windows remain open.
+
+## Entry 79 — Confirm BrickNature as the sole behavioral classification
+
+The user confirmed the integral rename. `BrickNature` is the one required,
+versioned core concept, and `nature` is the Brick field. A parallel behavioral
+entity or field would duplicate semantics and is forbidden. The chapter and
+conceptual Markdown now use the confirmed name; the current Allium, generated
+tests, skill, and implementation remain explicitly divergent until the
+controlled propagation phase.

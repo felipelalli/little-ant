@@ -87,7 +87,7 @@ The interpretation is evidence-sensitive:
 - `tie-break for me` makes deliberate indifference more plausible without
   asserting equality;
 - this never creates false y/n evidence;
-- uncertainty creates future pressure rather than blocking capture.
+- uncertainty creates future pressure rather than blocking feeding.
 
 If unresolved importance could change a relevant near-term choice, the core
 may propose creating an ordinary Brick such as:

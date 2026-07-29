@@ -7,13 +7,13 @@ change before the Allium specification is edited.
 |---|---|
 | `Raw` | Durable, reusable, unorderable source material. |
 | `RawOrigin` | The optional single live external origin owned by one Raw. |
-| `RawSnapshot` | One immutable, content-addressed version captured from a Raw or its origin. |
+| `RawSnapshot` | One immutable, content-addressed version snapshotted from a Raw or its origin. |
 | `RawLink` | A typed material relationship from a Brick, ListEntry, or Raw to Raw, with per-Brick reconciliation state when applicable. |
 | `RawShelf` | A flat, unordered, many-to-many grouping of Raw material. |
 | `Brick` | A positioned unit or container of work. |
-| `BrickBehavior` | A persistent, versioned selection of core-supported interaction capabilities. |
+| `BrickNature` | A persistent, versioned selection of core-supported interaction capabilities. |
 | `BrickTemplate` | A one-time, inspectable creation recipe with no hidden runtime authority after expansion. |
-| `ImportProfile` | An inspectable, versioned policy mapping an external source to capture, adoption, destination, and reconciliation behavior without containing credentials. |
+| `ImportProfile` | An inspectable, versioned policy mapping an external source to feeding, adoption, destination, and reconciliation policy without containing credentials. |
 | `ImportProfilePreset` | A credential-free declarative PackComponent that proposes reusable initial ImportProfile policy without becoming local policy authority. |
 | `Little Ant Pack` | A versioned distributable bundle of declarative or executable extensions; it is not operational domain state. |
 | `PackComponent` | One typed, versioned component inside a Little Ant Pack. Its kind fixes its input, output, capabilities, and authority boundary. |
@@ -30,10 +30,10 @@ change before the Allium specification is edited.
 | location observation | An attributed, time-bounded report that the user entered, left, or is present at a named Place. |
 | text annotation | A field- and revision-bound typed reference from confirmed text to an opaque entity ID, without implicit behavioral effect. |
 | `Party` | A person, AI agent, company, or area related to work, identified opaquely and presented through mutable labels. |
-| `Dependency` | A blocker relationship between Bricks; it affects eligibility, not human priority. |
+| `Dependency` | A blocker relationship between Bricks; it affects eligibility, not human importance order. |
 | `Wait` | An unresolved external condition or party wait. |
 | `Delegation` | Work assigned to another Party and followed up independently from human focus. |
-| comparison evidence | A timestamped priority, impact, or effort judgment with author, provenance, and applicable scope. |
+| comparison evidence | A timestamped importance, impact, or effort judgment with author, provenance, and applicable scope. |
 | `EffortProfile` | A versioned ordered set of effort classes and their planning calibration. |
 | impact evidence | Evidence supporting an expected-impact class and its public maturity. |
 | scope revision | A human- or operator-confirmed semantic change to what a Brick includes. |

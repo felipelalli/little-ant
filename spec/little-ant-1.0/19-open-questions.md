@@ -13,7 +13,7 @@ After reviewing this consolidation, the next session should:
 3. resolve the remaining questions that block the Allium model and migration;
 4. then follow the documentation and implementation sequence in chapter 21.
 
-Impact evidence, effort confidence, exact REPL grammar, behavior schemas,
+Impact evidence, effort confidence, exact REPL grammar, Nature schemas,
 duplicate suspicion, and recurrence details remain important, but their
 unsettled mechanics no longer postpone the existing-Brick review.
 
@@ -51,7 +51,7 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Exact guided choices when a standing, repeatable, or structurally non-leaf
   Brick receives completion intent.
 - Exact phase-confidence evidence and UI threshold.
-- Whether a behavior declares phase merely applicable or also restricts the
+- Whether a Nature declares phase merely applicable or also restricts the
   allowed phase vocabulary.
 - The neutral provisional placement prior when phase is absent.
 - Whether `atomicity` remains unchanged or needs a better model.
@@ -182,7 +182,7 @@ unsettled mechanics no longer postpone the existing-Brick review.
   actionable Brick endpoint.
 - How inspection and `next` report imported or corrupted state that violates
   the acyclic dependency invariant.
-- How dependency resolution composes with behavior-driven descent through
+- How dependency resolution composes with Nature-driven descent through
   projects and collections.
 - The ordering and replay-evidence contract among container descent,
   dependency-chain resolution, and the final subject-local opportunity
@@ -276,7 +276,7 @@ implementation for community exporter authors.
 - Whether migration rewrites historical events or only upcasts them on read
   before an explicit normalization command.
 - How existing title-derived IDs, collisions, stage, weight, kind, estimate,
-  Raw, and WIP data map into opaque identity, behaviors, optional axes, and
+  Raw, and WIP data map into opaque identity, Natures, optional axes, and
   discrete profiles.
 - Exact version bump point and migration rollback or backup procedure.
 
@@ -292,10 +292,8 @@ implementation for community exporter authors.
 These are not implicitly accepted into 1.0. They will be reviewed Brick by
 Brick with the user.
 
-## 19.15 BrickBehavior and BrickTemplate
+## 19.15 BrickNature and BrickTemplate
 
-- Whether `BrickNature` replaces `BrickBehavior` as the single canonical
-  entity and field name. A second parallel `nature` axis must not be added.
 - Final canonical Nature identifiers. The working factory set remains
   `standard`, `project`, `collection`, `repeatable`, `standing_checklist`,
   `finite_checklist`, `recurring_obligation`, and `practice`.
@@ -305,17 +303,15 @@ Brick with the user.
 - Authority and correction rules for an assisted Nature chosen at birth, and
   which later Nature changes require reconciliation because they alter focus,
   decomposition, recurrence, entries, or completion semantics.
-- Final capability schema and definition syntax for the factory behavior IDs
+- Final capability schema and definition syntax for the factory Nature IDs
   and initial standard template catalog recorded in chapter 25.
 - How factory definitions are stored, inspected, cloned, versioned, and
   migrated.
-- Whether a Brick stores a behavior version reference, a resolved snapshot, or
+- Whether a Brick stores a Nature version reference, a resolved snapshot, or
   both.
-- Which behavior changes are semantic scope revisions.
-- Exact behavior applicability rules for phase, effort, entries, focus unit,
+- Which Nature changes are semantic scope revisions.
+- Exact Nature applicability rules for phase, effort, entries, focus unit,
   standing eligibility, completion, and recurrence.
-- Whether human-facing nature is only operator vocabulary, a searchable tag,
-  or omitted from canonical state.
 - Exact canonical operations for template instantiation and context-sensitive
   `feed` routing.
 - Exact template discovery metadata, lexical candidate retrieval, categories,
@@ -324,7 +320,7 @@ Brick with the user.
   route, template version, target, populated inputs, confidence, and reason.
 - Exact deterministic fallback dialog after a proposal is rejected, including
   the core-assigned shortcuts for `other templates` and `custom`.
-- Exact custom-builder question sequence, behavior-reuse test, personal
+- Exact custom-builder question sequence, Nature-reuse test, personal
   namespace rules, and final offer to save a reusable personal template.
 
 ## 19.16 ListEntry, identity, and duplicate suspicion
@@ -336,7 +332,7 @@ Brick with the user.
 - Exact matching-fingerprint variants, signal weights, candidate retrieval,
   scoring, explanation, thresholds, and performance budget. Their
   non-identifying and non-destructive role is already fixed.
-- Scope rules across parent, context, behavior, recurrence period, active
+- Scope rules across parent, Domain, Nature, recurrence period, active
   state, and terminal history.
 - Exact human dialog for quantity adjustment, reuse, merge, enrichment, and
   separate creation.
@@ -419,7 +415,7 @@ Brick with the user.
 
 - Final annotation entity, event, field, and command names.
 - Exact Party display-label and alternate-name fields, candidate-search
-  behavior, and disambiguating context. Their non-identifying role is fixed.
+  Nature, and disambiguating Domain. Their non-identifying role is fixed.
 - Initial annotation-capable fields and any target types beyond the confirmed
   Party and Brick editor paths.
 - Span and Unicode indexing, text revision identity, edit re-anchoring,
@@ -569,7 +565,7 @@ UIAdapter is included in the 1.0 component protocol.
   branch, removing a human membership, or merging branches must not be
   silently inferred.
 - The dumb REPL's bounded candidate and browse interaction when deterministic
-  evidence is useful, and when capture should remain unclassified rather than
+  evidence is useful, and when feeding should remain unclassified rather than
   becoming a mandatory form.
 - How proposed memberships participate in duplicate suspicion before atomic
   creation without allowing classification uncertainty to discard input.
@@ -581,5 +577,5 @@ UIAdapter is included in the 1.0 component protocol.
 - Which explicit Domain request means a soft preference and which, if any,
   means a hard filter.
 - Generic recurring preferred-time windows and Place evidence for standing
-  work such as grocery shopping, without hard-coded grocery behavior or
+  work such as grocery shopping, without hard-coded grocery mechanics or
   turning each ListEntry into independently focusable work.

@@ -9,7 +9,7 @@ The core must remain deterministic, offline-capable, and replayable. It owns:
 - entity state and lifecycle invariants;
 - tree structure and total sibling orders;
 - opaque entity identity independent from titles;
-- versioned BrickBehaviors, validated behavior capabilities, ListEntries, and
+- versioned BrickNatures, validated Nature capabilities, ListEntries, and
   deterministic template-expansion inputs;
 - versioned standard and personal template catalogs, deterministic discovery
   metadata, contextual candidate retrieval, route validation, and
@@ -34,7 +34,7 @@ The core must remain deterministic, offline-capable, and replayable. It owns:
   per-link reconciliation baselines, and derived freshness or divergence
   conditions;
 - normalized import batches, stable external-identity matching, inspectable
-  ImportProfiles, validated capture and adoption routes, source views, and
+  ImportProfiles, validated feeding and adoption routes, source views, and
   provisional-placement confidence;
 - independent external work-state and presence observations, migration scope
   and verification, explicit cutover, per-object cleanup effects, immutable
@@ -97,11 +97,11 @@ The operator skill owns:
   inventing a Raw-to-Brick conversion;
 - preserving original text while translating non-English interaction into
   canonical English data;
-- proposing titles, descriptions, phases, parents, BrickBehaviors, templates,
+- proposing titles, descriptions, phases, parents, BrickNatures, templates,
   ListEntry targets, and comparison reasons;
 - resolving interface mention syntax into attributed typed-annotation
   proposals over core-provided candidates;
-- ranking core-provided capture routes and template candidates, filling a
+- ranking core-provided feeding routes and template candidates, filling a
   bounded proposal, and explaining why it fits;
 - finding semantic analogs;
 - finding semantic duplicate candidates and mapping them to explicit
@@ -199,8 +199,8 @@ bootstrap.
 ## 16.6 Extension package boundary
 
 A Little Ant Pack is a distribution unit, not another authority layer.
-Data-only behaviors and templates select only core-supported capabilities.
-The declarative component set is BrickBehavior, BrickTemplate, and
+Data-only Natures and templates select only core-supported capabilities.
+The declarative component set is BrickNature, BrickTemplate, and
 ImportProfilePreset. The executable component set is SourceAdapter, Enricher,
 ReadOnlyExporter, and UIAdapter. Each component declares a separate typed
 contract and explicit permissions; there is no generic `Plugin` type or

@@ -2,9 +2,12 @@
 
 All notable user-visible changes to Little Ant are documented here.
 
-The authoritative behavioral definition remains the composed
-[Allium specification](spec/little-ant.allium). This changelog summarizes that
-contract; it does not replace it.
+The reviewed [conceptual specification](spec/little-ant-1.0.md) is
+authoritative during the current recovery. The composed
+[Allium specification](spec/little-ant.allium) is the target executable
+contract and must be deliberately reconciled before it becomes authoritative
+again. This changelog summarizes the intended release; it replaces neither
+specification.
 
 ## 1.0.0
 
@@ -24,7 +27,7 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Separated human priority from the `next` forecast. Forecast results never
   rewrite the priority tree.
 - Split work, material, and checklist occurrences into `Brick`, `Raw`, and
-  `ListEntry` instead of treating all captured content as task-shaped.
+  `ListEntry` instead of treating all fed content as task-shaped.
 - Replaced generic effort weight and direct hour promises with comparable
   effort bands backed by versioned planning profiles.
 - Replaced generic extension hooks with closed, typed Little Ant Pack
@@ -35,7 +38,7 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 #### Human priority and judgment
 
 - Strict sibling importance order for every active Brick.
-- Binary insertion for newly captured or moved Bricks.
+- Binary insertion for newly fed or moved Bricks.
 - Nearby replay-safe comparison selection after an unresolved answer.
 - Explicit `unresolved` and `tie_break_for_me` skip meanings; neither means
   equal importance.
@@ -52,7 +55,7 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Independent Brick lifecycle, optional phase, and WIP state.
 - Composition trees with inherited context, mode, and date constraints.
 - Explicit subtree move, complete, drop, and supersede operations.
-- Behaviors for standard work, projects, collections, checklists, repeatable
+- Natures for standard work, projects, collections, checklists, repeatable
   work, recurring obligations, and practices.
 - Versioned factory and personal templates.
 - Structured checklist entries that remain subordinate to their owner Brick.
@@ -70,13 +73,13 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Schedule and timezone revisions that preserve prior occurrence history.
 - Event-triggered opportunities with replay-safe source-event identities.
 
-#### Selection and capture
+#### Selection and feeding
 
 - Read-only, explainable forecast with replay-safe weighted `next` draws.
 - Separate priority and forecast projections.
 - Proposal pressure for unresolved priority, stale focus, source
   reconciliation, repeated practice friction, approvals, and reviews.
-- Capture intents with explicit routes to Raw, Brick, ListEntry, template
+- Feed intents with explicit routes to Raw, Brick, ListEntry, template
   instantiation, or enrichment of an existing target.
 - Deterministic layered duplicate suspicion with explicit reuse, enrich, or
   separate decisions.
@@ -106,7 +109,7 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 
 #### Integrations and Packs
 
-- Closed Pack components for behaviors, templates, import-profile presets,
+- Closed Pack components for Natures, templates, import-profile presets,
   source adapters, enrichers, read-only exporters, and UI adapters.
 - Fresh bounded Lua 5.4 execution through HsLua.
 - Host-mediated HTTP and credential brokering without exposing secrets to Lua.
@@ -125,7 +128,7 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Canonical searchable work titles and product vocabulary are English, while
   original input remains verbatim and attributed.
 - Phase is now optional (`idea`, `spec`, `exec`, or `validation`) and may be
-  disabled by behavior.
+  disabled by Nature.
 - “Done,” “drop,” and “supersede” are distinct terminal outcomes.
 - `next` considers eligibility, focus, dates, dependencies, places, recurrence,
   pressure, and reviews while treating priority as one contribution.

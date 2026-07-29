@@ -2,7 +2,7 @@
 
 ## 26.1 ListEntry
 
-`ListEntry` is a lightweight occurrence attached to a Brick whose behavior
+`ListEntry` is a lightweight occurrence attached to a Brick whose Nature
 owns a structured list. It represents something that must be visible and
 resolvable inside the batch but is not independently useful as Little Ant
 work.
@@ -12,14 +12,14 @@ A ListEntry:
 - has an immutable occurrence identity;
 - belongs to exactly one owning Brick;
 - has an English canonical label and may have quantity, note, and
-  behavior-specific details;
+  Nature-specific details;
 - retains creation, resolution, removal, and provenance history;
 - may reference Raw attachments;
 - is never inserted into the Brick priority tree;
 - is never selected independently by `next`;
 - has no independent phase or effort.
 
-The working generic lifecycle is `open | resolved | removed`; behavior-specific
+The working generic lifecycle is `open | resolved | removed`; Nature-specific
 surfaces may render `resolved` as checked, bought, packed, or another exact
 outcome. Exact fields and enum names remain open.
 
@@ -86,7 +86,8 @@ opaque immutable ID remains authoritative for events, relationships, and typed
 annotations.
 
 Content addressing remains appropriate for immutable bytes. Two snapshots with
-the same content hash may share blob storage while remaining distinct captures
+the same content hash may share blob storage while remaining distinct fed
+entities
 with distinct provenance. Entity identity, content identity, and duplicate
 suspicion are separate concepts.
 
@@ -103,7 +104,7 @@ normalization_author
 
 These are working field names. They represent three different concerns:
 
-- `original_text` preserves the verbatim input as capture provenance, either
+- `original_text` preserves the verbatim input as feeding provenance, either
   on the applicable event or as Raw;
 - `canonical_english` is the human-facing canonical title or label;
 - `normalization_author` attributes translation or semantic rewriting to the
@@ -123,7 +124,7 @@ normalization decisions rather than hidden deterministic rewrites.
 
 The verbatim original is not an alternative canonical title. The operator or
 powered-up REPL may translate before canonical creation. Exact dumb-REPL
-behavior when it cannot safely normalize language remains open.
+fallback when it cannot safely normalize language remains open.
 
 ## 26.4 Derived matching fingerprints
 
@@ -146,7 +147,7 @@ identity collision.
 ## 26.5 Duplicate-suspicion pipeline
 
 Repeated `feed` input is expected. Duplicate detection is therefore a
-first-class capture mechanism, but suspicion is not identity and never
+first-class feeding mechanism, but suspicion is not identity and never
 silently deletes or merges information.
 
 The pipeline is:
@@ -166,7 +167,7 @@ Deterministic evidence may include:
 - Unicode, case, whitespace, and punctuation normalization;
 - English singularization or other conservative lexical normalization;
 - relevant-token overlap and ordering;
-- the same parent, behavior, template provenance, context, or recurrence
+- the same parent, Nature, template provenance, Domain, or recurrence
   period;
 - active versus resolved or terminal state;
 - prior confirmed merge and separation decisions;
@@ -193,7 +194,7 @@ Examples:
 - A manually fed recurring bill that matches an already generated period
   should normally enrich the existing occurrence rather than create another.
 
-Even when capture is merged into an existing entity, the event history must
+Even when fed input is merged into an existing entity, the event history must
 preserve that a new input arrived, its original text, and the chosen target.
 
 ## 26.7 No global world-object catalog in 1.0
