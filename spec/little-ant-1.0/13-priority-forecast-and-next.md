@@ -40,6 +40,13 @@ among its applicable opportunities. Consequently, adding another review or
 question about one Brick does not silently give that Brick another ticket in
 the surrounding attention draw.
 
+One subject weight is anchored by its strongest applicable opportunity signal.
+Additional independent signals may contribute a bounded bonus with diminishing
+returns. They are never summed as independent top-level tickets, and merely
+splitting one concern into several proposal records must not increase the
+weight. The exact bonus curve, independence or correlation treatment, cap,
+and configuration schema remain calibration questions.
+
 Composition adds another level to the same hierarchy. When the selected
 subject is a project-like container, its resolved BrickBehavior determines
 whether selection descends through a locally normalized weighted draw over

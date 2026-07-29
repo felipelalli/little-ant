@@ -148,9 +148,9 @@ unsettled mechanics no longer postpone the existing-Brick review.
   needs a bounded service guarantee.
 - The exact boundary between a genuine continuation that resumes before a new
   draw and a newly selectable review opportunity that belongs in the lottery.
-- The exact derivation of one subject weight from several applicable
-  opportunity signals without turning opportunity count into extra
-  top-level tickets.
+- The exact diminishing-return bonus curve, cap, correlation or deduplication
+  rule, and configuration schema for additional subject signals. The strongest
+  applicable signal is already confirmed as the anchor.
 - The canonical attention-subject catalog and how system-, source-, Raw-, and
   Brick-scoped opportunities enter an applicable hierarchy.
 - Which proposals are fully derived and which require persisted resumable
@@ -529,3 +529,36 @@ UIAdapter is included in the 1.0 component protocol.
   progressive-detail links.
 - Compatibility, schema negotiation, and behavior when a client requests an
   unsupported projection or field.
+
+## 19.24 Hierarchical organizational classification
+
+- The canonical English name. Current candidates include `domain`,
+  `category`, and `area`; `folder` is misleading because membership is not
+  exclusive storage ownership, while generic `context` conflicts with
+  execution and interaction meanings.
+- The entity, opaque identity, parent relation, label, alternate-label, path,
+  rename, move, merge, archive, duplicate-suspicion, and cycle-prevention
+  schema.
+- Whether classification forms one hierarchy or several named taxonomies.
+- Direct versus inherited membership, additive inheritance, explicit
+  exclusion, and what happens when a Brick or classification branch moves.
+- Exact recursive query semantics for list, count, search, forecast, and
+  `next`, including active-versus-terminal defaults and ambiguous labels.
+- Whether a natural request such as “related to Orbit” defaults only to
+  recursive classification membership or composes classification, requester,
+  `about`, source, annotation, and text-search predicates.
+- Candidate retrieval from an explicit current scope, parent membership,
+  import profile, recent activity, source provenance, title, description, and
+  attributed semantic judgment.
+- Whether the skill or powered-up adapter may attach an existing
+  classification provisionally without a blocking confirmation, and the
+  confidence, provenance, recap, correction, and later-review requirements if
+  it may.
+- Which changes always require confirmation. Creating a new classification
+  branch, removing a human membership, or merging branches must not be
+  silently inferred.
+- The dumb REPL's bounded candidate and browse interaction when deterministic
+  evidence is useful, and when capture should remain unclassified rather than
+  becoming a mandatory form.
+- How proposed memberships participate in duplicate suspicion before atomic
+  creation without allowing classification uncertainty to discard input.

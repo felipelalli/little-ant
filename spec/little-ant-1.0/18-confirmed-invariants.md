@@ -453,3 +453,11 @@
      BrickBehavior through the applicable descendant scope or an explicit
      review or decomposition boundary; descendants are not flattened into
      unrelated top-level tickets.
+188. One attention subject's weight is anchored by its strongest applicable
+     opportunity signal. Additional independent signals may add only a
+     bounded bonus with diminishing returns; opportunity fragmentation cannot
+     manufacture additional top-level probability.
+189. A Brick may belong to several branches of the hierarchical
+     organizational-classification model. Those memberships are orthogonal to
+     Brick composition, importance order, Place, mode, and other execution
+     conditions.

@@ -1188,3 +1188,32 @@ normalization, and ordering relative to dependency resolution remain open
 calibration and protocol questions. The Allium and generated tests are
 therefore divergent on this point and must be corrected only after the
 recovery discussion is complete.
+
+## Entry 77 — Aggregate subject signals and reopen organizational context
+
+The user selected the strongest-signal-plus-bonus model for a subject's
+top-level forecast weight. The strongest applicable opportunity signal anchors
+the weight; additional independent reasons may add a bounded bonus with
+diminishing returns. A flat sum, duplicated proposal, or artificial
+fragmentation cannot manufacture extra tickets. Exact curves and caps remain
+calibration rather than conceptual decisions.
+
+Reviewing examples such as `Orbit / R&D / Antifraud` exposed another gap. The
+v0 implementation gives slash-separated context strings prefix semantics, but
+the propagated v1 Allium retains only one optional string plus nearest-ancestor
+inheritance. It defines no classification entity, hierarchy, recursive list or
+count query, or multiple membership.
+
+The user confirmed that one Brick may belong to several branches of the future
+hierarchical organizational-classification model and expressed doubt about
+the name `Area`. The canonical name therefore remains open. This model is
+orthogonal to the Brick composition tree and to execution conditions such as
+Place and mode.
+
+The working classification flow keeps capture lazy. The core retrieves and
+validates bounded candidates; a skill or powered-up adapter may rank several
+existing candidates with attributed judgment, while dumb mode uses only
+deterministic evidence such as an explicit current branch, parent membership,
+or ImportProfile mapping. Unknown classification never blocks preservation of
+input. Whether a high-confidence assisted suggestion may be attached
+provisionally without a glance remains for user confirmation.

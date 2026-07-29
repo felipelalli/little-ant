@@ -374,3 +374,50 @@ Open implications:
   final opportunity subdraw consume replay evidence;
 - the new Allium obligations and high-level simulations required to prevent a
   future flattening regression.
+
+## 35.12 Aggregate opportunity signals with a bounded bonus
+
+Confirmed on 2026-07-29:
+
+- A subject still receives one participation in its applicable attention
+  scope.
+- Its strongest applicable opportunity signal anchors the subject weight.
+- Additional independent signals may add a bounded bonus with diminishing
+  returns.
+- Additional proposal records never act as additional top-level tickets.
+- Duplicating, splitting, or rewording one underlying concern must not
+  increase the result.
+- The exact curve, cap, correlated-signal treatment, numeric representation,
+  and YAML parameters remain open calibration mechanics.
+
+## 35.13 Replace exclusive string context with multi-membership classification
+
+Confirmed on 2026-07-29:
+
+- The future organizational-classification model is hierarchical.
+- One Brick may belong to several branches simultaneously.
+- Classification is orthogonal to the Brick parent-child composition tree,
+  human importance, Place, mode, waits, and other execution conditions.
+- The current propagated `context: String?` plus nearest-ancestor inheritance
+  is insufficient to express the confirmed model.
+- The canonical name is not decided. `Area` was proposed but not accepted;
+  naming must reflect hierarchical, non-exclusive membership without implying
+  filesystem ownership.
+- The v1 core must support deterministic recursive filtering and aggregation
+  capable of answering requests equivalent to selecting within `Orbit`,
+  selecting within `Housekeeping`, and counting Bricks within `R&D`.
+
+Working classification boundary, not yet fully confirmed:
+
+- The core owns classification identities, hierarchy, membership, candidate
+  retrieval, validation, queries, and provenance.
+- The skill and powered-up adapter may rank bounded existing candidates and
+  submit attributed multi-membership proposals.
+- Dumb mode uses deterministic evidence such as an explicit current branch,
+  parent membership, or configured import route; it never guesses from a
+  title through hidden domain keywords.
+- Missing or uncertain classification does not block `feed`.
+- Creation of a new branch, destructive merge, or removal of an authoritative
+  human membership always requires explicit confirmation.
+- Whether an assisted adapter may attach existing memberships provisionally
+  without a blocking confirmation remains open.
