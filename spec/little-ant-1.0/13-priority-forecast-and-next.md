@@ -48,6 +48,20 @@ Forecast must not consume randomness or mutate the result of a future draw.
   and blocker chain;
 - does not rewrite the priority tree.
 
+The Brick examples above describe only one variant of the public result.
+`next` draws from a versioned, core-defined closed set of focus-opportunity
+variants. A result may therefore ask the user to focus on work, answer a
+domain question, perform a review, or cross another explicitly defined
+decision boundary. `interaction` is not a public catch-all command or an
+extension point for inventing new actions. Behaviors, templates, Packs, the
+powered-up REPL, and the operator may supply candidates or evidence only
+through variants and canonical actions already supported by the core.
+
+The exact exhaustive 1.0 variant catalog and its grouping remain open. Earlier
+examples were illustrative, not an assertion that Brick execution,
+importance comparison, blocker review, project decomposition, Raw triage, and
+duplicate review were the complete set.
+
 Dependency blocking alone does not exclude an otherwise admitted active Brick
 from the initial draw. Every candidate admitted to that draw has a positive
 chance. An actionable endpoint's effective chance may therefore include the
@@ -101,7 +115,7 @@ formal review against current delegation and effect semantics.
 
 ## 13.5 Proposal vocabulary
 
-The current proposal set includes:
+The pre-recovery inventory currently includes:
 
 ```text
 priority_probe
@@ -124,10 +138,13 @@ duplicate_review
 place_batch
 ```
 
-These are maintenance or decision opportunities, not meta-Bricks. Their
-relative weights and the minimum domain state required by atomic multi-step
-operations remain partly open. Every guided proposal follows the shared
-resume protocol in
+This is discovery evidence, not yet the exhaustive or canonical
+`NextSuggestion` variant catalog. Some names still contain vocabulary already
+rejected by the recovery ledger and must not be copied into the 1.0 core
+unchanged. These are maintenance or decision opportunities, not meta-Bricks.
+Their relative weights and the minimum domain state required by atomic
+multi-step operations remain partly open. Every guided proposal follows the
+shared resume protocol in
 [Resumable interactions and honest progress](31-resumable-interactions-and-honest-progress.md);
 interruption never creates a continuation Brick.
 
@@ -136,7 +153,32 @@ when the expected value of information is high. Its exact canonical proposal
 name remains open. The proposal is not itself a Brick and must not
 automatically create a questionnaire, experiment, POC, or MVP.
 
-## 13.6 Guided Brick review
+## 13.6 Concrete question rendering
+
+A decision suggestion presents the actual domain question as the primary UI.
+It does not headline an abstract operation such as `Compare importance` or
+require a prominent `Why` block when the question explains itself.
+
+The confirmed comparison shape is:
+
+```text
+Next: Is
+
+      #a12345 "Launch the landing page"
+      (>>) more important than
+      #b45678 "Interview prospective customers"
+?
+
+  [y]es · [n]o · [s]kip · [?]
+```
+
+This preserves the directional yes/no semantics: `yes` confirms the displayed
+relation, while `no` rejects it. Provenance remains present in the structured
+result and available through `?`. A capable renderer may show a restrained
+reason summary in an optional status region, but the main prompt does not
+repeat a prominent explanation by default.
+
+## 13.7 Guided Brick review
 
 `brick_review` is the working proposal name for inspecting one Brick's
 currently relevant preparation questions. It replaces grooming meta-Bricks.

@@ -134,6 +134,10 @@ unsettled mechanics no longer postpone the existing-Brick review.
 
 ## 19.8 Selection and proposals
 
+- The exhaustive 1.0 `NextSuggestion` variant catalog, how it is grouped
+  without becoming either a flat proliferation of bespoke proposal kinds or
+  an ambiguous generic `interaction`, and the response contract of each
+  variant.
 - Exact forecast formula and normalization.
 - Exact cooldown and aging curves for served-Brick, ordering, and
   classification skips.

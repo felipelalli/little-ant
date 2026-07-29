@@ -251,3 +251,29 @@ Confirmed on 2026-07-28:
 - Calibration details remain explicit open issues, but should return to the
   discussion only when different answers would materially change observable
   behavior.
+
+## 35.8 Define `next` as a closed family of concrete opportunities
+
+Confirmed on 2026-07-28:
+
+- `next` returns one member of a versioned closed set of core-defined
+  focus-opportunity variants.
+- The examples previously discussed were illustrative, not an exhaustive list.
+  The complete 1.0 catalog remains a macro/core/UI decision.
+- `interaction` is not a public generic command, and neither a behavior,
+  template, Pack, powered-up model, operator, nor UIAdapter may invent a new
+  fundamental variant or canonical action.
+- A surface presents the concrete action or domain question instead of
+  foregrounding an abstract proposal-kind label.
+- For importance comparison, the primary prompt is the proposition
+  `Is #A "…" more important than #B "…"?`, with `yes`, `no`, `skip`, and
+  `?` interpreted against that displayed direction.
+- Provenance remains typed and inspectable through `?`. A renderer may show a
+  restrained reason summary in an optional status region, but a prominent
+  `Why` block is not required for a self-explanatory question.
+- The REPL is the reference interaction design. Web, mobile, UIAdapters, and
+  the operator skill preserve its domain prompts, action semantics,
+  information hierarchy, and progressive disclosure while adapting controls
+  and layout to the channel.
+- Future elicitation presents concrete REPL mini-simulations for macro
+  alternatives so their user-visible consequences can be evaluated directly.

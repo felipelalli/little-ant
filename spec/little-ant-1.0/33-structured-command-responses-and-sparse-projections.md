@@ -213,6 +213,18 @@ hide decisions. A compact result remains typed, attributable, and sufficient
 to explain what changed. The full current projection, event history, schema,
 and filtered semantic history remain available on demand.
 
+A `next` result carries a core-defined focus-opportunity variant and only the
+actions valid for that variant. The variant set is versioned and closed:
+consumers may exhaustively dispatch it, while extensions may not inject
+unrecognized kinds or ad hoc commands. The exhaustive 1.0 catalog remains to
+be confirmed.
+
+Human rendering may deliberately omit provenance from the main body when the
+concrete prompt already explains the decision. That does not remove
+provenance from the structured result. The REPL may place a compact reason in
+a secondary status region, and `?` exposes the fuller explanation without
+changing the pending suggestion.
+
 This gives the skill and powered-up REPL a bounded context while preserving
 diagnostic depth:
 

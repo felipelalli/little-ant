@@ -1072,3 +1072,38 @@ prioritize decisions that materially shape the core model, public UI, or the
 authority boundary between them. Mechanical consequences and low-risk
 calibration details should normally be derived from confirmed principles and
 recorded as implementation questions rather than consuming interview rounds.
+
+## Entry 73 — Close the `next` result type, not its current inventory
+
+The user confirmed that `next` selects one member of a versioned closed set of
+core-defined focus-opportunity variants. A public catch-all command named
+`interaction` is rejected, and behaviors, templates, Packs, powered-up mode,
+and the operator cannot invent new fundamental variants or canonical actions.
+
+The examples in the preceding discussion were not exhaustive. The exact 1.0
+catalog still needs a macro-level decision informed by the proposal inventory
+already present in the specification.
+
+The user also replaced the proposed importance-comparison presentation. The
+primary UI asks the concrete proposition:
+
+```text
+Next: Is
+
+      #a12345 "Launch the landing page"
+      (>>) more important than
+      #b45678 "Interview prospective customers"
+?
+
+  [y]es · [n]o · [s]kip · [?]
+```
+
+A large `Why` section is unnecessary for this self-explanatory prompt.
+Provenance remains structured and available through `?`; a capable surface may
+show a subtle summary in an optional status region.
+
+The user emphasized that concrete mini-simulations make macro decisions easier
+to evaluate. The REPL's UX and UI are therefore the 1.0 reference interaction
+design. Later web and mobile surfaces, UIAdapters, and the operator skill
+preserve the same domain prompts, action semantics, information hierarchy, and
+progressive disclosure while adapting physical controls and layout.

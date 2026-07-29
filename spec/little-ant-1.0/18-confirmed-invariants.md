@@ -407,3 +407,14 @@
 174. A dependency-branch subdraw reuses the same focus-forecast weighting
      function, evaluated and normalized locally over the admitted immediate
      blockers; the core has no second blocker-specific ranking policy.
+175. `next` returns one member of a versioned closed set of core-defined
+     focus-opportunity variants. `interaction` is not a public catch-all
+     command, and extensions cannot invent variants or canonical actions.
+176. A comparison suggestion renders the concrete proposition as its primary
+     prompt and interprets `yes` or `no` against that displayed direction.
+     Provenance remains structured and available through `?`, but a prominent
+     `Why` block is not required when the question is self-explanatory.
+177. The REPL is the reference interaction design for Little Ant 1.0. Web,
+     mobile, UIAdapters, and the operator skill preserve its domain prompts,
+     action semantics, information hierarchy, and progressive disclosure while
+     adapting controls and layout to their channel.

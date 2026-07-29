@@ -40,6 +40,12 @@ Pack-based UIAdapters also consume that envelope. They extend where an
 interaction is rendered, not what the interaction means. The first-party REPL
 remains a core surface and is not required to load itself as a Pack.
 
+The REPL is also the reference interaction design for future first-party web
+and mobile surfaces and for operator behavior. Those consumers preserve its
+domain prompts, action meanings, information hierarchy, and progressive
+disclosure. They adapt physical controls and layout to the channel rather than
+copying terminal escape sequences or terminal geometry.
+
 ## 24.2 Input model
 
 Every finite-choice interaction executes with one keypress and no Enter:
@@ -61,6 +67,14 @@ The exact key grammar and shortcut letters remain open.
 information, explanation, or help and then restores the same pending
 interaction; it is not an answer or skip event.
 
+A guided decision renders the concrete domain question rather than an abstract
+operation heading. For example, an importance comparison asks whether one
+cited Brick is more important than the other and offers directional
+`yes`/`no`, `skip`, and `?` responses. The main prompt need not contain a
+prominent `Why` block when the question is self-explanatory. Its provenance
+remains in the interaction envelope and under `?`; an adaptive layout may
+surface a compact reason summary unobtrusively in a status region.
+
 For a pending `next` suggestion, `?` is also the only top-level entry point for
 opening its wider context. It may expose the explanation, ancestor path,
 project or collection context, children, blockers, evidence, and contextual
@@ -81,6 +95,11 @@ remain open.
 
 The command palette and every guided prompt are rendered from the core's
 currently valid actions rather than a second REPL-owned command catalog.
+
+The same boundary applies to `next`: the core exposes a versioned closed set of
+focus-opportunity variants and their valid actions. The REPL never turns that
+set into a generic `interaction` command and no UIAdapter or Pack may append a
+new fundamental variant.
 
 ## 24.3 Command transparency
 

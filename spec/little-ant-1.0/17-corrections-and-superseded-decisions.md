@@ -57,6 +57,8 @@ being mistaken for current decisions.
 | The same label such as `Milk` implies one global world object. | Each need is an occurrence. No global `Thing` or product catalog is introduced in 1.0. |
 | Duplicate detection is exact title collision or silent content deduplication. | Use a ranked duplicate-suspicion pipeline over canonical English, scope, state, history, and attributed semantic evidence; never silently merge or discard input. |
 | Maintenance uses grooming or sanity meta-Bricks. | Use derived proposals such as probes and reviews, not special meta-Bricks. |
+| `next` returns only a Brick, or exposes one generic public `interaction` operation whose extensions may invent new actions. | `next` returns one member of a versioned closed set of core-defined focus-opportunity variants. Surfaces present the concrete domain action or question; extensions cannot add fundamental variants or commands. |
+| An importance-comparison suggestion is headed `Compare importance` and always gives `Why` equal visual prominence. | Render the proposition itself as the primary `Next: Is … more important than … ?` prompt with directional yes/no/skip/help answers. Keep provenance structured and available through `?`; any compact reason summary is secondary. |
 | Priority uncertainty is a stored boolean. | Use derived `priority_confidence`; “uncertain” is a projection threshold. |
 | Contradictory comparison answers are rejected or immediately reorder by opaque weights. | Preserve the answer, mark the smallest affected segment provisional, and run local recalibration before atomic replacement. |
 | Only the latest comparison matters. | Preserve full history, derive a current judgment, and weight newer evidence more strongly within authority rules. |
