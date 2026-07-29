@@ -285,15 +285,19 @@ Confirmed on 2026-07-28:
 - A Brick focus suggestion uses this reference shape:
 
   ```text
-  Next:
+  #c12345 "Write the migration specification"
 
-      #c12345 "Write the migration specification"
-      Within: #a12345 "Recover Little Ant v1"
+  Focus?
 
-      Focus?
+  [y]es · [d]one · [s]kip · [?]
 
-      [y]es · [d]one · [s]kip · [?]
+  ----------------------------------------
+  ↳ #a12345 "Recover Little Ant v1"
+  🏷️ Personal > Little Ant
   ```
+
+- Parentage, Domain, warnings, and compact status are secondary context below
+  the focal proposition rather than fields inside it.
 
 - Response letters retain stable meanings across screens and channels whenever
   applicable. `y` confirms the displayed proposition, `n` rejects it, `d`
@@ -635,6 +639,38 @@ Confirmed on 2026-07-29:
 Open implications:
 
 - exact boundary examples where external waiting becomes actionable blocking;
-- final full-screen visual hierarchy, optional iconography, and context/status
-  placement;
+- main/context visual hierarchy was resolved in section 35.22; the exact
+  symptom-icon catalog remains open;
 - the specific subsequent reactions offered for each symptom.
+
+## 35.22 Separate navigation, semantic reversal, and contextual rendering
+
+Confirmed on 2026-07-29:
+
+- `Escape` cancels an uncommitted screen and restores its prior presentation
+  state. It is not semantic undo.
+- `Backspace` remains text deletion. `C-z`, `C-y`, and `C-S-z` are not
+  repurposed as Little Ant reversal commands.
+- `C-_` and `/undo` perform semantic undo; `C-M-_` and `/redo` perform redo.
+- Undo preserves append-only history through a typed compensating event.
+  It restores the affected interaction with its recorded random evidence and
+  never obtains an approximate replacement by drawing again.
+- Default undo is scoped to the current interaction. Reversing an action from
+  another session, surface, or device requires an explicit event target.
+- Redo must still satisfy current preconditions. External compensation remains
+  a separately proposed and approved effect.
+- The focal panel contains only the subject, concrete question, and answers.
+  Parentage, Domain, warnings, provenance, and compact statistics move to a
+  visually separate sparse context region.
+- Composition and Domain paths run broadest to most specific. Empty rows are
+  omitted, one warning slot exposes an additional count, and statistics use
+  at most one line marked by the Little Ant mascot `🐜`.
+- Product emoji are renderer-owned and have an accessible no-emoji fallback.
+
+Open implications:
+
+- the warning-slot selection and stability policy;
+- exact undoable action inventory and compensating-event schema;
+- final context-region width, truncation, severity, and statistics fields;
+- the exhaustive opportunity catalog and its smaller set of reusable screen
+  grammars.

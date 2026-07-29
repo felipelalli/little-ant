@@ -251,6 +251,15 @@ implementation for community exporter authors.
 
 ## 19.12 REPL harness
 
+- Exact typed compensation schema, reversible-action catalog, conflict
+  response, retention, and event-selection grammar for semantic undo and redo.
+- Whether any safe external effect kind can expose a standard compensating
+  proposal, without ever treating domain undo as proof of external reversal.
+- Exact warning selection and rotation policy for the single context-region
+  warning slot, including what stays stable across navigation and what changes
+  at a new semantic decision boundary.
+- Final context-region row order, width folding, breadcrumb truncation, warning
+  severity treatment, and compact mascot-statistics fields.
 - Exact one-key grammar, including global, screen-local, and answer shortcuts.
 - Deterministic shortcut allocation when several visible labels compete for
   the same letters. A shortcut must be displayed inside its label; unrelated

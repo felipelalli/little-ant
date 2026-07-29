@@ -260,35 +260,36 @@ repeat a prominent explanation by default.
 The confirmed focus shape is:
 
 ```text
-Next:
+#c12345 "Write the migration specification"
 
-    #c12345 "Write the migration specification"
-    Within: #a12345 "Recover Little Ant v1"
+Focus?
 
-    Focus?
+[y]es · [d]one · [s]kip · [?]
 
-    [y]es · [d]one · [s]kip · [?]
+----------------------------------------
+↳ #a12345 "Recover Little Ant v1"
+🏷️ Personal > Little Ant
 ```
 
 The prompt preserves the stable response language: `y` confirms the displayed
 question, `d` records that the served Brick is already complete, `s` skips the
-opportunity, and `?` opens contextual information without answering.
+opportunity, and `?` opens contextual information without answering. Parentage,
+Domain, warnings, and compact status are secondary context rather than part of
+the focal proposition.
 
 A cross-Domain result remains the same focus interaction. It does not introduce
 a preliminary `Switch Domain?` confirmation:
 
 ```text
-Next:
+#h12345 "Buy groceries"
 
-    #h12345 "Buy groceries"
-    Domain: Personal / Housekeeping
-    Domain switch:
-      Orbit / R&D / Rock Splitter
-      -> Personal / Housekeeping
+Focus?
 
-    Focus?
+[y]es · [d]one · [s]kip · [?]
 
-    [y]es · [d]one · [s]kip · [?]
+----------------------------------------
+🏷️ Personal > Housekeeping
+   from Orbit > R&D > Rock Splitter
 ```
 
 Here `y` starts focus and changes the active Domain in one atomic canonical

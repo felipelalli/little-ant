@@ -1340,3 +1340,21 @@ The focus screen keeps its direct completion action, and the symptom screen
 repeats `[d]one` in a visually separate “Already finished?” region. This is a
 recovery affordance for work that was already completed, not a skip reason:
 it records completion without skip evidence, cooldown, or avoidance pressure.
+
+## Entry 85 — Separate screen navigation from append-only undo
+
+The user accepted a split between presentation navigation and semantic
+reversal. `Escape` closes an uncommitted screen, while `Backspace` remains text
+editing. `C-_` and `/undo` reverse the latest reversible action in the current
+interaction by appending a typed compensation; `C-M-_` and `/redo` reapply the
+intent only if it remains valid. Explicit event selection is required across
+sessions or surfaces, recorded randomness is reused instead of redrawn, and
+external effects are never silently claimed to be reversed.
+
+The user also accepted a less dense interaction hierarchy. The main region now
+contains only the cited subject, concrete question, and valid answers.
+Composition, Domain, warnings, provenance, and compact statistics move below a
+visual separator into a sparse context region. Paths read broadest to most
+specific, empty rows disappear, one warning slot shows an additional count,
+and at most one statistics line uses the Little Ant mascot `🐜`. Exact warning
+rotation remains open for the next discussion.

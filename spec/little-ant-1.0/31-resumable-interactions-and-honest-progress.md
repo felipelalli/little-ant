@@ -168,7 +168,28 @@ affected segment remains explicitly provisional. Confirmed comparison evidence
 is retained, the next discriminating prompt is derived, and the coherent
 replacement order is applied atomically. No recalibration Brick is created.
 
-## 31.8 Still open
+## 31.8 Semantic undo and redo
+
+Returning from an uncommitted screen and reversing accepted domain state are
+different operations. `Escape` restores the prior surface checkpoint without
+creating a domain event. Semantic undo never deletes or rewrites accepted
+history; it appends a typed compensating event linked to the action being
+reversed.
+
+The default undo target is the latest reversible semantic action in the
+current interaction. An action created by another session, device, or surface
+requires explicit event selection. Undo restores the affected interaction
+against the compensated domain revision and reuses its recorded random
+evidence, so it does not silently redraw another warning, comparison, or focus
+opportunity.
+
+Redo reapplies the compensated intent as a new attributed event only if its
+preconditions still hold. A conflicting concurrent change causes an explicit
+conflict rather than an inferred rebase. Effects outside Little Ant are not
+claimed to have been reversed by a domain compensation; any possible external
+compensation is a separately proposed and approved effect.
+
+## 31.9 Still open
 
 - Final interaction-envelope identity, revision token, and stale-answer error
   grammar.
@@ -178,3 +199,5 @@ replacement order is applied atomically. No recalibration Brick is created.
 - Checkpoint naming, retention, cleanup, encryption, and multi-device
   conflict behavior.
 - Whether 1.0 needs an explicit cross-surface draft operation.
+- Exact typed compensation schema, reversible-action catalog, event-selection
+  grammar, and redo conflict response.

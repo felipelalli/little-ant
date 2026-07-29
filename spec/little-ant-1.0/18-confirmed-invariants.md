@@ -525,3 +525,26 @@
 209. The skip-symptom screen repeats `[d]one` in a visually separate
      “Already finished?” region. It records direct completion only and creates
      no skip symptom, skip cooldown, or avoidance pressure.
+210. `Escape` reverses only uncommitted presentation navigation. It restores
+     the prior screen without recording or compensating a semantic event.
+211. `Backspace` remains text deletion. `C-_` maps to semantic undo and
+     `C-M-_` maps to semantic redo; `/undo` and `/redo` expose the same
+     operations through the REPL palette.
+212. Semantic undo is append-only. It creates a typed compensating event,
+     restores the affected interaction using its recorded random evidence,
+     and consumes no new focus, comparison, or warning draw.
+213. Default undo is limited to the latest reversible semantic action in the
+     current interaction. Reversal across sessions, surfaces, or devices
+     requires explicit event selection.
+214. Redo reapplies compensated intent only while its preconditions remain
+     valid. Concurrent conflict is explicit, and an external effect is never
+     silently reversed by a Little Ant domain compensation.
+215. The primary interaction region contains only its subject, concrete
+     question, and valid answers. Composition, Domain, warnings, provenance,
+     and compact statistics belong to a visually separate context region.
+216. Composition and Domain breadcrumbs render broadest to most specific.
+     Empty context rows are omitted; at most one warning is shown with a count
+     of additional warnings, and compact statistics occupy at most one line.
+217. Product emoji are renderer-owned markers with an accessible no-emoji
+     fallback. The compact statistics line uses the Little Ant mascot `🐜`
+     rather than a generic chart marker.

@@ -61,7 +61,32 @@ Free text uses an explicit line-editing mode:
 - Escape cancels and restores the prior state;
 - ordinary command hotkeys do not steal characters while text is being edited.
 
-The exact key grammar and shortcut letters remain open.
+Navigation reversal and semantic reversal are distinct:
+
+- `Escape` cancels or closes the current uncommitted screen and returns to its
+  prior screen without recording an event;
+- `Backspace` remains text deletion and is not semantic undo;
+- `C-_` is the canonical one-key REPL binding for semantic undo;
+- `C-M-_` is the canonical one-key REPL binding for semantic redo;
+- `/undo` and `/redo` expose the same operations through the command palette;
+- `C-z`, `C-y`, and `C-S-z` are not rebound because terminal suspension,
+  yank, and terminal key-encoding ambiguity must remain unsurprising.
+
+For example, pressing `s` from `Focus?` merely opens the symptom screen.
+Pressing `Escape` there returns to the same pending `Focus?` interaction
+without recording a skip. Once a symptom is selected, undo is semantic: the
+core appends a compensating event and restores that interaction without
+consuming another forecast draw.
+
+Ordinary undo is scoped to the current interaction and reverses its latest
+reversible semantic action. Reversing an action from another session, surface,
+or device requires explicitly selecting its event through a working core
+surface such as `la undo <event-id>`. Redo reapplies the compensated intent
+only when it remains valid against the current domain revision; otherwise the
+core reports a conflict. An external effect is never silently reversed:
+compensation, when possible, is a new separately approved effect.
+
+The remaining exact key grammar and shortcut letters remain open.
 
 Visible choices use one consistent shortcut typography:
 
@@ -204,6 +229,35 @@ persistent regions:
 - recent activity;
 - main result, prompt, or transcript;
 - footer with keys valid for the current state.
+
+The main interaction region contains only its primary subject, concrete
+question, and valid answers. Parentage, Domain, warnings, provenance, and
+compact statistics belong to a visually separate context region below it.
+They do not compete with the pending decision.
+
+Composition and Domain paths both render from broadest to most specific.
+Empty rows are omitted. The context region shows at most one warning and an
+additional-warning count; the warning-selection policy remains open. Compact
+statistics occupy at most one line and use the Little Ant mascot rather than
+a generic chart marker. A working focus layout is:
+
+```text
+#c12345 "Write the migration specification"
+
+Focus?
+
+[y]es · [d]one · [s]kip · [?]
+
+----------------------------------------
+↳ #a12345 "Recover Little Ant v1"
+🏷️ Personal > Little Ant
+⚠️ #u11111 "Submit migration report" · deadline in 2h · +2 warnings
+🐜 18 eligible · 3 reviews
+```
+
+Icons are renderer-owned markers, not title content or entity identity. A
+capable renderer may use the confirmed emoji presentation; every layout also
+has an equivalent accessible no-emoji or ASCII fallback.
 
 On a limited terminal it falls back to an inline transcript with a redrawn
 compact status. Both layouts have identical semantics and key bindings. The
