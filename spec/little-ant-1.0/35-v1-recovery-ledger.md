@@ -160,6 +160,9 @@ Confirmed on 2026-07-28:
 - When the current path node has several unresolved immediate Brick blockers,
   resolution performs a replay-deterministic weighted subdraw among the
   admitted blocker branches.
+- That subdraw reuses the focus-forecast weighting function, evaluated and
+  normalized locally over those admitted branches. Dependency resolution does
+  not introduce a second blocker-specific ranking policy.
 - Every blocker branch admitted to that subdraw has probability strictly
   greater than zero. The selected edge and its random evidence are recorded,
   and resolution continues from the chosen blocker.
@@ -208,8 +211,7 @@ multiline rendering, folding of unusually long paths, and cross-parent
 
 Open implications:
 
-- the exact subdraw weighting, normalization, random-stream derivation, and
-  configuration inputs for several immediate blockers;
+- how nested subdraws derive and record replay evidence from the random stream;
 - how a branching dependency DAG contributes effective probability without
   double-counting;
 - what result is produced when the path reaches an external wait, temporal
@@ -235,3 +237,17 @@ Confirmed on 2026-07-28:
 - `📐` is the canonical renderer marker for `spec`.
 - Keep phase, status, focus, WIP, blocking, and confidence visually distinct
   rather than overloading one emoji with several independent axes.
+
+## 35.7 Keep recovery discovery at the model boundary
+
+Confirmed on 2026-07-28:
+
+- Subsequent recovery questions should prioritize decisions that change the
+  core domain model, public UI mental model, or authority boundary between
+  them.
+- Low-risk mechanical consequences should be derived from confirmed
+  principles, documented, and validated later rather than presented as
+  interview questions.
+- Calibration details remain explicit open issues, but should return to the
+  discussion only when different answers would materially change observable
+  behavior.

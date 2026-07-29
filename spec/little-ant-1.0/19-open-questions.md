@@ -160,8 +160,10 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Final command names for priority and forecast views.
 - How internal impact reliability and effort confidence affect selection
   without becoming hidden public scores.
-- Exact weighting, normalization, random-stream derivation, and configuration
-  inputs for replay-deterministic subdraws among immediate blockers.
+- How nested dependency-branch subdraws derive and record replay evidence from
+  the random stream. Their weighting policy is no longer open: it reuses the
+  focus-forecast function and normalizes it over the local admitted branch
+  set.
 - How a branching dependency DAG contributes effective probability without
   double-counting, and whether practical calibration needs attenuation or
   caps.

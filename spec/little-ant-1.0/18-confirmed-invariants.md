@@ -404,3 +404,6 @@
      subdraw in which every admitted immediate blocker has positive chance,
      records the chosen edge, and leaves unchosen blockers unresolved and
      inspectable through `?`.
+174. A dependency-branch subdraw reuses the same focus-forecast weighting
+     function, evaluated and normalized locally over the admitted immediate
+     blockers; the core has no second blocker-specific ranking policy.

@@ -1058,3 +1058,17 @@ selected path, while `?` exposes the other immediate blockers considered at
 each branching step without redrawing or changing the pending suggestion. The
 exact subdraw weights, normalization, random-stream derivation, configuration,
 and probability treatment of reconverging branches remain open.
+
+## Entry 72 — Reuse the focus-forecast weighting function locally
+
+The user confirmed that dependency-branch subdraws must not introduce another
+ranking or scoring formula. They reuse the same weighting function as the
+focus forecast, evaluate it for the admitted immediate blockers, and normalize
+the resulting weights within that local branch set. Replay evidence derivation
+and the generic forecast function's eventual calibration remain open.
+
+The user also corrected the discovery granularity: subsequent questions should
+prioritize decisions that materially shape the core model, public UI, or the
+authority boundary between them. Mechanical consequences and low-risk
+calibration details should normally be derived from confirmed principles and
+recorded as implementation questions rather than consuming interview rounds.

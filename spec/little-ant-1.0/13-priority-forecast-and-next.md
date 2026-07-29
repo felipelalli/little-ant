@@ -41,6 +41,9 @@ Forecast must not consume randomness or mutate the result of a future draw.
 - performs a replay-deterministic weighted subdraw whenever a path node has
   several admitted immediate blockers, giving every admitted branch a
   strictly positive chance and recording the selected edge;
+- reuses the same focus-forecast weighting function for that branch subdraw,
+  evaluated over and normalized within the admitted immediate blockers rather
+  than introducing a second blocker-specific ranking policy;
 - proposes the endpoint as the next action while explaining the drawn Brick
   and blocker chain;
 - does not rewrite the priority tree.

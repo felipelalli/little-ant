@@ -201,7 +201,10 @@ When one `Bi` has several unresolved immediate blockers, the structured result
 also records the weighted subdraw, admitted branch set, selected dependency
 edge, and replay evidence. The compact `Why` renders only the selected path.
 `?` reveals the unchosen immediate blockers considered at each branch; viewing
-them neither redraws the edge nor changes the pending suggestion.
+them neither redraws the edge nor changes the pending suggestion. The recorded
+weights come from the same focus-forecast weighting function, evaluated and
+normalized over that local admitted branch set; they do not come from a
+blocker-only ranking policy.
 
 ## 33.8 LLM context and auditability
 
