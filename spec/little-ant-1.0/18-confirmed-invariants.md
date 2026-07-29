@@ -610,3 +610,18 @@
      notice can be approved: one scheduled follow-up, a repeating cadence, or
      explicit no follow-up. Repetition schedules approval-bearing
      opportunities and never sends automatically.
+235. Delegation scope is a core-validated BrickNature capability with exactly
+     four policies: `brick_only`, `whole_scope`, `ask`, and `disabled`.
+236. `whole_scope` derivatively covers the cited Brick, existing and future
+     descendants, and Nature-owned ListEntries. Covered descendants remain
+     inspectable but are not offered for human execution while the ancestor
+     Delegation is active; completion never cascades automatically.
+237. `ask` resolves to a concrete scope before the initial notice preview and
+     stores that choice on the Delegation. `disabled` rejects delegation with
+     typed recovery but does not prohibit separately delegating an enabling
+     Brick.
+238. Factory Nature delegation defaults are: `standard = brick_only`,
+     `project = ask`, `collection = brick_only`,
+     `finite_checklist = whole_scope`, `standing_checklist = ask`,
+     `repeatable = ask`, `recurring_obligation = ask`, and
+     `practice = disabled`.

@@ -53,3 +53,32 @@ event-derived records remain open.
   inspectable decision rather than the absence of data.
 - A repeating policy schedules review and approval opportunities. It never
   authorizes automatic external messages.
+
+Delegation scope is a core-validated `BrickNature` capability:
+
+| Scope policy | Behavior |
+|---|---|
+| `brick_only` | Only the cited Brick is delegated; descendants remain independently eligible. |
+| `whole_scope` | The Brick and its Nature-defined execution scope are delegated together. |
+| `ask` | The user chooses the applicable concrete scope before the initial notice preview. |
+| `disabled` | The Brick's execution cannot be delegated; applicable enabling Bricks may still be delegated separately. |
+
+For `whole_scope`, existing and future descendant Bricks are covered
+derivatively rather than copied into separate Delegations. Nature-owned
+ListEntries are included because they are part of the parent's execution unit,
+not independent Bricks. Covered descendants remain visible for tracking,
+follow-up, and validation but are not offered as human execution while the
+ancestor Delegation remains active.
+
+Adding a descendant later therefore cannot leak delegated work back into the
+human forecast. Existing human focus, WIP, a child Delegation, or another
+incompatible assignment inside the proposed scope must appear in the preview
+and block silent activation until reconciled. Delegation never cascades
+completion: a reported whole-scope result still follows ordinary Nature-aware
+validation and parent-review rules.
+
+For `ask`, the selected concrete scope is stored on the Delegation so later
+follow-ups do not repeat the question. For `disabled`, the typed error may
+offer a concrete enabling Brick, such as delegating pool research for a
+personal swimming practice, but it never fabricates or auto-delegates that
+work.

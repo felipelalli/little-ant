@@ -1504,3 +1504,25 @@ value is newly proposed for intrinsically personal work such as a practice
 that cannot be performed by another Party. The values, factory-Nature
 defaults, treatment of future descendants and ListEntries, and override rules
 remain open pending concrete examples and user confirmation.
+
+## Entry 93 — Confirm Nature-aware delegation scope
+
+The user confirmed the four delegation-scope policies, their examples, and the
+proposed factory defaults. `brick_only` affects only the cited Brick;
+`whole_scope` derivatively covers existing and future descendants plus
+Nature-owned ListEntries; `ask` records one concrete choice before the initial
+notice preview; and `disabled` rejects delegation of intrinsically personal
+execution while allowing separate enabling work.
+
+The factory mapping is `standard: brick_only`, `project: ask`,
+`collection: brick_only`, `repeatable: ask`, `standing_checklist: ask`,
+`finite_checklist: whole_scope`, `recurring_obligation: ask`, and
+`practice: disabled`. A BrickTemplate may select a more opinionated Nature
+during creation but gains no runtime authority.
+
+Whole-scope descendants remain visible but are not offered as human execution
+while the ancestor Delegation is active. Future descendants inherit that
+effective coverage so delegated work cannot leak back into the human
+forecast. Completion remains explicit and Nature-aware rather than cascading.
+Conflict reconciliation, explicit exceptions, and occurrence-versus-series
+choices for standing Natures remain open.

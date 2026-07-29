@@ -168,6 +168,13 @@ There is no fixed global phase multiplier. Phase changes what action is useful
 and may affect contextual selection, but it does not act as a universal
 priority substitute.
 
+An active `whole_scope` Delegation makes its covered Brick and descendants
+ineligible only for human-execution opportunities. They remain in the
+importance tree and may produce follow-up, decision, blocker, assistance, or
+validation opportunities. `brick_only` applies that exclusion only to the
+cited Brick. No Delegation removes the subject from inspection or silently
+completes covered work.
+
 ## 13.4 Deterministic precedence
 
 Every newly selectable focus-opportunity variant participates in the same

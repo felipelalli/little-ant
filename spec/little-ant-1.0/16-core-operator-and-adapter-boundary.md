@@ -27,7 +27,8 @@ The core must remain deterministic, offline-capable, and replayable. It owns:
   occurrence windows and outcomes, standing-work eligibility, and streak
   projections;
 - Delegation state, exactly one explicit follow-up policy per Delegation,
-  replay-safe follow-up scheduling, and approval-bearing due opportunities;
+  BrickNature-governed delegation scope, replay-safe follow-up scheduling, and
+  approval-bearing due opportunities;
 - one idempotent deterministic time-advancement phase used before every
   command and by the explicit `la tick` administration surface;
 - named Places, explicit Brick-to-Place conditions, attributed time-bounded

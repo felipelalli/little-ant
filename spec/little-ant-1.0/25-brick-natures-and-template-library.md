@@ -39,6 +39,8 @@ including:
 - how an execution occurrence affects the standing Brick;
 - how completion, recurrence, future reactivation, and supported
   event-triggered opportunity mechanics are exposed.
+- whether delegation applies only to the Brick, covers its whole execution
+  scope, requires a human choice, or is disabled.
 
 Nature is not arbitrary executable code. It must not contain scripts, network
 calls, prompts whose semantics bypass the core, or hidden aliases.
@@ -62,10 +64,29 @@ Working generic factory Natures include:
 | `recurring_obligation` | A standing series releases independently completable Brick occurrences. |
 | `practice` | A standing Brick exposes expiring opportunities and execution history without overdue accumulation. |
 
-Exact canonical IDs and capability fields remain open. Factory definitions
-must be namespaced, inspectable, and versioned. A Brick keeps the applicable
-version or a replay-safe resolved snapshot. Editing a definition must never
-silently change existing Bricks.
+Other exact canonical IDs and capability fields remain open. Factory
+definitions must be namespaced, inspectable, and versioned. A Brick keeps the
+applicable version or a replay-safe resolved snapshot. Editing a definition
+must never silently change existing Bricks.
+
+The delegation-scope capability and factory defaults are confirmed:
+
+| Nature | Delegation scope |
+|---|---|
+| `standard` | `brick_only` |
+| `project` | `ask` |
+| `collection` | `brick_only` |
+| `repeatable` | `ask` |
+| `standing_checklist` | `ask` |
+| `finite_checklist` | `whole_scope` |
+| `recurring_obligation` | `ask` |
+| `practice` | `disabled` |
+
+`whole_scope` includes existing and future descendant Bricks and
+Nature-owned ListEntries. `brick_only` leaves children independent. `ask`
+stores the selected concrete scope on the Delegation, while `disabled`
+forbids delegating the Brick's own execution without forbidding a separate
+enabling Brick.
 
 ## 25.3 BrickTemplate
 
@@ -82,6 +103,10 @@ After expansion, the template has no hidden runtime authority. The resulting
 Brick, Nature reference, entries, opportunity triggers, and relationships
 are ordinary canonical state. Changing a template affects only future
 creations unless an explicit migration is confirmed.
+
+A template may select a Nature whose delegation scope is more opinionated,
+such as a whole-scope outsourced audit or a disabled personal practice. After
+creation, the resolved Nature rather than the template governs delegation.
 
 The standard library may ship opinionated domain templates as inspectable data:
 

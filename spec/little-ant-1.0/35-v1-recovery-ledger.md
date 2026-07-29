@@ -944,6 +944,36 @@ Open implications:
 - final enum names, one-time date grammar, cadence representation, anchoring,
   defaults, and limits;
 - how replies, approved sends, declined drafts, and contextual `later`
-  recalculate the next occurrence;
-- whether delegation scope is a BrickNature capability and its factory
-  defaults.
+  recalculate the next occurrence.
+
+## 35.34 Make delegation scope Nature-aware
+
+Confirmed on 2026-07-29:
+
+- `delegation_scope` is a core-validated BrickNature capability with
+  `brick_only`, `whole_scope`, `ask`, and `disabled`.
+- `brick_only` delegates only the cited Brick and leaves descendants
+  independently eligible.
+- `whole_scope` derivatively covers existing and future descendant Bricks and
+  Nature-owned ListEntries. Covered work remains visible for tracking,
+  follow-up, and validation but is not offered for human execution.
+- `ask` resolves and stores the concrete scope before the initial notice
+  preview. Follow-ups do not ask again.
+- `disabled` rejects delegation of the Brick's execution while permitting a
+  separately created or existing enabling Brick to be delegated.
+- Whole-scope result reports never cascade completion. Ordinary Nature-aware
+  validation and parent review still apply.
+- Factory defaults are `standard: brick_only`, `project: ask`,
+  `collection: brick_only`, `repeatable: ask`,
+  `standing_checklist: ask`, `finite_checklist: whole_scope`,
+  `recurring_obligation: ask`, and `practice: disabled`.
+- Templates may choose an appropriately configured Nature at creation but
+  retain no runtime authority.
+
+Open implications:
+
+- exact conflict reconciliation for existing human focus, WIP, or child
+  Delegations inside a proposed whole scope;
+- whether 1.0 supports explicit exceptions inside a whole scope;
+- recurring-Nature interaction for choosing one occurrence versus the ongoing
+  responsibility.

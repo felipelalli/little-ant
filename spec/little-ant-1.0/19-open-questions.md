@@ -201,12 +201,14 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Whether current focus may point to a temporarily ineligible Brick.
 - Whether 1.0 permits more than one active Delegation for the same Brick, or
   requires decomposition before assigning the outcome to several Parties.
-- Whether delegation scope becomes a core-validated BrickNature capability
-  with the working values `brick_only`, `whole_scope`, `ask`, and `disabled`;
-  and the final factory-Nature defaults.
-- For `whole_scope`, whether the scope covers existing and future descendants,
-  Nature-owned ListEntries, and standing-work occurrences, and how explicit
-  child Delegations or retained human work override it.
+- Exact representation and migration of the confirmed BrickNature
+  `delegation_scope` capability and the concrete scope stored after `ask`.
+- How an existing human focus, WIP, or child Delegation inside a proposed
+  `whole_scope` is reconciled, and whether explicit retained-human or
+  child-Delegation exceptions are supported in 1.0.
+- For `repeatable`, `standing_checklist`, and `recurring_obligation`, the
+  `ask` dialog that distinguishes one execution or occurrence from the
+  ongoing standing responsibility.
 - Final compact Delegation lifecycle and which acceptance or progress facts
   remain observations rather than statuses.
 - Exact schemas, defaults, and limits for the confirmed one-time, repeating,
