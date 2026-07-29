@@ -77,7 +77,9 @@ inside the word, as in `e[x]change`; a renderer must not invent an unrelated
 prefix such as `[x] exchange`. An exceptional label with no usable character
 may use a `?` fallback such as `[?] dunno`, but the interaction design should
 avoid needing it. Exact collision resolution and the relationship with the
-universal contextual-help `?` remain open.
+uncertainty `?` remain open. Shortcut uniqueness is screen-local: reusing `n`
+on another screen is valid when it selects the `[n]` embedded in that screen's
+label.
 
 Response letters form one stable product language across interaction variants
 and rendering channels. When applicable:
@@ -90,7 +92,8 @@ and rendering channels. When applicable:
 - `n` rejects it;
 - `d` records completion of the cited Brick;
 - `s` skips without recording an answer to the proposition;
-- `?` requests context, explanation, or help without answering.
+- `?` expresses uncertainty and opens contextual decision assistance without
+  answering.
 
 An interaction omits inapplicable actions rather than reusing their letters
 with another meaning. `n` appears only when rejecting the displayed proposition
@@ -109,11 +112,17 @@ Pressing `s` for served work opens one bounded symptom screen with several
 applicable choices visible together. The screen does not present remediation
 actions as if they were symptoms. After a symptom is selected, another
 interaction may propose appropriate reactions. Every screen follows the same
-in-word shortcut typography.
+in-word shortcut typography. Similar symptoms may share a visual row, for
+example `[v]ague / [h]ard / bi[g]`, while remaining separate one-key choices.
 
-`?` is visible in every finite-choice loop. It requests context-sensitive
-information, explanation, or help and then restores the same pending
-interaction; it is not an answer or skip event.
+`?` is visible and labeled on every finite-choice loop, normally as
+`[?] I don't know`. It means uncertainty about the pending human decision, not
+generic system help. It opens a contextual assistance screen that may reveal
+information, ask diagnostic questions, compare relevant examples, or present
+attributed suggestions, then restores the same pending interaction without an
+answer or skip event. Inside that assistance screen, another `?` opens Little
+Ant system help. Therefore `??` is the effective system-help gesture. Exact
+labels and assistance-screen actions remain open.
 
 A guided decision renders the concrete domain question rather than an abstract
 operation heading. For example, an importance comparison asks whether one

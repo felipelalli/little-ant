@@ -504,3 +504,13 @@
      never changes human importance.
 203. Selecting a symptom alone never silently changes the active Domain,
      chooses the affected Domain scope, or accepts a proposed remediation.
+204. `big` is a distinct served-work symptom from `hard`; its label is
+     `bi[g]`. `not_important_now`, labeled `[n]ot important now`, replaces
+     obsolete priority-based wording and explicitly permits later change.
+205. Similar finite choices are grouped on the same visual row without
+     ceasing to be distinct one-key actions. Shortcut uniqueness is local to
+     the displayed screen, so reuse on another screen is not a conflict.
+206. A single `?` is visibly presented as uncertainty about the pending human
+     decision, not as unlabeled system help. It opens contextual assistance
+     without answering; another `?` inside that screen opens Little Ant system
+     help, so `??` is the effective help path.

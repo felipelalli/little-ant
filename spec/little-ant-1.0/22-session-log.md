@@ -1309,3 +1309,20 @@ to avoid. The user accepted a short Domain-subtree cooldown followed by a
 bounded decaying negative forecast signal when a later confirmed reaction
 applies the symptom to that scope. Choosing the symptom alone performs no
 Domain transition or remediation.
+
+## Entry 83 — Refine skip grouping and make `?` mean uncertainty
+
+The user separated work that feels large from work that feels difficult but
+rejected the duration claim in `too long`; the symptom became `big`, rendered
+as `bi[g]`. Timeless `not_priority` wording became `[n]ot important now`,
+allowing its importance to change later. Shortcut reuse across screens is
+intentional because only the currently visible screen owns its one-key
+namespace. Similar symptoms share visual rows without becoming one action.
+
+The user also corrected the universal `?` mental model. It is visibly labeled
+as “I don't know” or an equivalent human-uncertainty phrase and opens
+contextual assistance for the pending decision. It is not merely unlabeled
+system help. A second `?` from inside that assistance screen opens Little Ant
+help, producing an effective `??` help gesture. The distinction between
+external waiting and actionable blocking, and whether `done` is repeated on
+the symptom screen, remain for the focused screen discussion.

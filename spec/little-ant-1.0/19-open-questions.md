@@ -208,9 +208,16 @@ unsettled mechanics no longer postpone the existing-Brick review.
   fear is no longer merely a possible addition.
 - The complete symptom set, ordering, applicability rules, concise labels, and
   optional free-text path for the single first skip screen.
+- Whether the old `waiting` reason becomes one broad symptom or separates
+  external waiting from an actionable blocker or missing prerequisite.
+- Whether the symptom screen repeats the existing context-valid `done` action
+  in a visually separate region or requires returning to the focus screen.
 - Exact English shortcut letters after all command namespaces are known.
 - Which symptom-specific reactions are proposed on the subsequent screen,
   their ordering, and which always require another confirmation.
+- Which symptoms may propose alternative approaches. `alternatives` is a
+  reaction, not a symptom, and may plausibly follow `hard`, `bored`, `fear`,
+  or an actionable blocker.
 - How a selected symptom is scoped to the served Brick, active Domain, another
   Domain ancestor, Place, effort, dependency, or another explicit cause.
 - Whether a Domain-scoped symptom also contributes ordinary Brick-specific
@@ -250,6 +257,9 @@ implementation for community exporter authors.
   the same letters. A shortcut must be displayed inside its label; unrelated
   prefix letters are forbidden, and exceptional `[?]` fallback should be
   avoided.
+- Exact visible uncertainty label (`I don't know` versus a shorter equivalent)
+  and the contents of its contextual-assistance screen. Single `?` is
+  decision uncertainty and nested `?` is system help.
 - Exact command-palette selection behavior and whether it accepts raw canonical
   command syntax.
 - Terminal layout, resize behavior, colors, accessibility, and UI library.

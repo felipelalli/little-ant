@@ -24,14 +24,37 @@ not force a two-choice split between “this Brick” and an action such as
 offer one or more reactions. The core records the selected symptom separately
 from any accepted reaction.
 
-The existing reason family remains evidence for redesign, but `meh` is removed
-and `fear` replaces it in the 1.0 candidate inventory. The complete enum,
-wording, applicability, and shortcuts require the dedicated screen review:
+The existing reason family remains evidence for redesign, but several
+corrections are fixed. `meh` is removed and `fear` replaces it. `big` is
+separate from `hard`; it means that the served work feels too large for the
+current focus opportunity, not that its total duration is objectively “too
+long.” `not_important_now` replaces the obsolete priority wording and preserves
+the temporal nature of that judgment. `bored` is distinct from low general
+energy. Confirmed candidate symptom families now include:
 
 ```text
-hard | vague | not_priority | waiting | tired | fear |
-kill | alternatives | other
+vague | hard | big | tired | bored | fear |
+not_important_now | other
 ```
+
+Whether `waiting` remains one symptom or splits into external waiting and
+actionable blocking remains open. `kill` and `alternatives` are not symptoms:
+the former is a terminal action, while alternative methods may be proposed as
+a reaction to several symptoms.
+
+Similar symptoms are visually grouped on the same row while each retains its
+own one-key choice. A working layout is:
+
+```text
+- [v]ague / [h]ard / bi[g]
+- [t]ired / [b]ored / [f]ear
+- [n]ot important now
+- [o]ther
+- [?] I don't know
+```
+
+The final waiting/blocking row and whether `done` is repeated on this screen
+remain open.
 
 When a later accepted reaction applies a reported symptom to a Domain branch,
 the selected Domain and its descendants receive a short cooldown followed by

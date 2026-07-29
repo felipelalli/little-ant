@@ -586,3 +586,31 @@ Open implications:
 - whether Domain-scoped evidence also adds Brick-specific skip pressure;
 - shortcut collision resolution, especially the exceptional fallback versus
   universal contextual help.
+
+## 35.20 Refine skip labels, grouping, and uncertainty help
+
+Confirmed on 2026-07-29:
+
+- `big` is a distinct symptom from `hard`. It describes work that feels too
+  large for the current opportunity without asserting an objective duration,
+  and its UI label is `bi[g]`.
+- `[n]ot important now` replaces timeless or priority-based wording. Reusing
+  `n` from another screen is valid because shortcut uniqueness is local to the
+  currently displayed finite-choice screen.
+- Related symptoms are grouped on the same visual row while remaining
+  individually selectable, such as `[v]ague / [h]ard / bi[g]` and
+  `[t]ired / [b]ored / [f]ear`.
+- `alternatives` is not a symptom. Alternative approaches are possible
+  reactions to several symptoms rather than belonging to exactly one.
+- A visible bare `[?]` is insufficient. One `?` is labeled as human
+  uncertainty about the pending decision, preferably `[?] I don't know`, and
+  opens contextual decision assistance without answering.
+- Within that assistance screen, another `?` opens Little Ant system help.
+  Thus `??` is the effective system-help route.
+
+Open implications:
+
+- whether `waiting` is broad or separates from actionable blocking;
+- whether `done` is repeated on the symptom screen;
+- final full symptom screen, row order, and exact uncertainty label;
+- contextual uncertainty-screen actions and exact Little Ant help label.
