@@ -97,3 +97,57 @@ Open implications:
 - whether positive probability also needs a bounded service guarantee;
 - configuration schema, validation ranges, revision storage, and migration;
 - which calibration changes require explicit confirmation.
+
+## 35.4 Contextual `?` and behavior-aware decomposition
+
+Confirmed on 2026-07-28:
+
+- A minimal `next` prompt does not need a separate `open project` action.
+- `?` is the single progressive-disclosure entry point for more information
+  about the pending suggestion. It may reveal the suggestion explanation,
+  ancestry, relevant project or collection context, children, blockers,
+  supporting evidence, and navigation actions.
+- Requesting that context preserves the same pending suggestion. It consumes
+  no random evidence, records no answer or skip, and performs no domain
+  mutation.
+- “Full context” means that all relevant canonical context remains reachable
+  through bounded, paginated navigation. It does not mean dumping an entire
+  sparse projection or event history onto the main prompt.
+- A container selected during hierarchical sampling is resolved according to
+  its `BrickBehavior`. A project-like finite outcome normally directs focus to
+  an eligible descendant rather than being presented as vague executable
+  work.
+- If a project-like Brick has no suitable descendant, the system may propose
+  reviewing or decomposing it. That is a distinct useful action, not an
+  automatic child creation.
+- Decomposition is never a universal reaction to a high-level title. It is
+  available only when the Brick's resolved behavior has finite
+  descendant-scope or another explicit decomposition capability.
+- The operator skill and powered-up REPL may classify the input's likely
+  nature and propose a concrete behavior or template. The dumb REPL uses the
+  same core-provided candidates and asks a bounded deterministic question when
+  the choice materially changes semantics. The core validates and records the
+  chosen behavior; it does not infer a domain from title keywords.
+
+Open implications:
+
+- whether a project-like Brick may be directly focusable when it also has
+  active descendants;
+- the exact hierarchical allocation of probability between a container and
+  its descendants;
+- when uncertain behavior classification must be resolved rather than safely
+  retaining the generic `standard` behavior.
+
+Current blocked-work proposal, not yet confirmed:
+
+- A blocked Brick is not returned as though it were an executable result.
+- It remains visible in the focus forecast as blocked demand.
+- Its derived demand may add bounded, explainable pressure to an actionable
+  blocker, so selecting that blocker can also remind the user what it
+  unlocks.
+- A blocked Brick may separately produce a low-frequency review or reminder
+  proposal. Such a result asks the user to inspect or change the blockage; it
+  does not pretend that the blocked work can be executed.
+- Dependency chains, multiple blockers, external waits, cycles,
+  double-counting, attenuation, and pressure caps still require explicit
+  rules.

@@ -61,6 +61,15 @@ The exact key grammar and shortcut letters remain open.
 information, explanation, or help and then restores the same pending
 interaction; it is not an answer or skip event.
 
+For a pending `next` suggestion, `?` is also the only top-level entry point for
+opening its wider context. It may expose the explanation, ancestor path,
+project or collection context, children, blockers, evidence, and contextual
+navigation actions. The ordinary prompt therefore needs no separate
+`open project` shortcut. All relevant context remains reachable through
+bounded and paginated progressive disclosure rather than an unbounded JSON or
+history dump. Leaving that view restores the exact same pending suggestion
+without consuming randomness or recording a semantic action.
+
 In navigation mode, `/` opens a command palette containing only commands that
 are valid in the current state. Typing filters command names and descriptions.
 Choosing a command starts a guided argument dialog. While editing text, `/` is

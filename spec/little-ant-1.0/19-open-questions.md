@@ -157,6 +157,13 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Final command names for priority and forecast views.
 - How internal impact reliability and effort confidence affect selection
   without becoming hidden public scores.
+- Whether blocked demand is represented only by bounded pressure transferred
+  to actionable blockers, may also generate a blocked-work review proposal, or
+  participates in some other non-executable attention mechanism.
+- How transferred blocked demand handles multiple blockers, dependency chains,
+  cycles, external waits, attenuation, caps, and double-counting.
+- The exact hierarchical sampling rule for project-like containers and their
+  actionable descendants.
 
 ## 19.9 WIP and focus grammar
 
@@ -221,6 +228,8 @@ implementation for community exporter authors.
   always require an explicit glance.
 - How non-English input is preserved when the dumb REPL cannot safely produce
   canonical English.
+- How much context one `?` view reveals before pagination, and how nested
+  project or collection navigation restores the exact pending interaction.
 - Exact canonical status fields, ordering, wording, icon, timestamp policy,
   status-specific presence defaults, and conditions whose zero value is itself
   important.

@@ -27,6 +27,8 @@ A behavior may select only capabilities implemented and validated by the core,
 including:
 
 - whether the Brick itself, its descendants, or a batch is normally focused;
+- whether a finite outcome may be reviewed and decomposed into descendant
+  scope;
 - whether it owns structured entries;
 - whether all open entries are rendered together;
 - whether empty standing work is ineligible;
@@ -37,6 +39,12 @@ including:
 
 Behavior is not arbitrary executable code. It must not contain scripts, network
 calls, prompts whose semantics bypass the core, or hidden aliases.
+
+Decomposition is behavior-aware. A high-level title alone never causes Little
+Ant to demand children. Project-like finite outcomes may expose a
+review-or-decompose proposal when they have no suitable focusable descendant;
+atomic work, repeatable practices, checklists, and other behaviors do not gain
+that proposal unless their resolved capabilities explicitly support it.
 
 Working generic factory behaviors include:
 
@@ -164,6 +172,13 @@ template input. The operator skill or powered-up REPL may rank those candidates
 and populate a structured proposal containing the route, target, template
 version, inputs, confidence, reason, and AI provenance. It cannot submit an
 arbitrary expansion or unsupported behavior.
+
+Classification assists routing but does not become hidden semantic authority.
+When the proposed nature changes focus, decomposition, recurrence, entry, or
+completion mechanics, the resulting concrete behavior or template choice is
+shown and recorded. The dumb REPL draws from the same core candidate set and
+uses bounded deterministic choices; the core never classifies by hard-coded
+title keywords.
 
 A high-confidence attributed proposal still asks for confirmation when it
 changes semantic structure. If it is rejected, or if no AI adapter exists, the

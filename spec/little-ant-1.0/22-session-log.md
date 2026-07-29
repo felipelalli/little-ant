@@ -957,3 +957,28 @@ tail calibration cannot silently turn an eligible Brick into an excluded one.
 This requirement does not yet promise that every Brick will be served within a
 bounded number of draws. The exact hard eligibility conditions, tail
 allocation, and any future bounded-service guarantee remain open.
+
+## Entry 67 — Put project context behind `?` and scope decomposition by behavior
+
+The minimal `next` prompt no longer needs a separate `open project` action.
+The existing universal `?` interaction is the single progressive-disclosure
+entry point: it may reveal the pending suggestion's explanation, ancestry,
+project or collection context, children, blockers, evidence, and navigation.
+All relevant context remains reachable without dumping an unbounded projection
+or history, and leaving the view restores the same suggestion without a draw,
+answer, skip, or mutation.
+
+Hierarchical selection follows the Brick's resolved behavior. Project-like
+finite outcomes normally lead to an eligible descendant; when none exists,
+reviewing or decomposing the outcome may itself be proposed. Decomposition is
+not inferred from a high-level title and is not applicable to every Brick. The
+operator skill or powered-up REPL may propose a behavior or template, while
+the dumb REPL uses the same bounded core candidates. The selected concrete
+behavior remains explicit and core-validated.
+
+Blocked-work selection was discussed but not settled. The working proposal
+keeps a blocked Brick out of executable results while preserving it as blocked
+demand: that demand may add bounded, explainable pressure to an actionable
+blocker and may occasionally create a distinct review or reminder proposal.
+Exact behavior for chains, multiple blockers, external waits, cycles,
+attenuation, and caps remains open.

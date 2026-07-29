@@ -92,6 +92,13 @@ terminal Brick completion.
 
 ## 7.4 Decomposition coverage
 
+A parent-child relationship does not by itself require decomposition.
+Decomposition coverage and review apply only when the parent's resolved
+behavior represents one finite outcome through descendant scope, or exposes
+another explicit decomposition capability. Collections, standing checklists,
+and unrelated structural groupings do not acquire decomposition pressure just
+because they contain other things.
+
 A parent effort classification represents its total scope, including children.
 To plan that scope without double-counting, the decomposition has an explicit
 coverage judgment:
