@@ -110,6 +110,12 @@ The exact final catalog is a release-blocking decision tracked as
   proposes the most relevant canonical recovery, such as changing Domain,
   reviewing a temporal gate, feeding work, or inspecting dormant standing
   work.
+- **FOC-029 [core] — Pristine first start.** When no pending interaction,
+  Brick, Raw material, or import candidate exists, `next` returns the
+  canonical first-Brick screen instead of the ordinary no-eligible recovery.
+  This screen creates nothing by itself; Feed remains an explicit user action.
+  A store with historical, blocked, temporal, dormant, delegated, or Raw work
+  is not pristine.
 
 ## Forecast inputs
 

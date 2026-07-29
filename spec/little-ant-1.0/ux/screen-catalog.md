@@ -19,11 +19,11 @@ long paths, but renderers preserve the content order and action order.
 <optional Domain/current-Domain context>
 <at most one warning and overflow count>
 <optional subject-specific facts>
-
 <persistent bottom status bar>
 ```
 
-Empty secondary rows are omitted. Emoji have accessible textual equivalents.
+Empty secondary rows are omitted. Context and status rows are contiguous.
+Emoji have accessible textual equivalents.
 
 ## UX-R00 — Dumb REPL frame
 
@@ -38,16 +38,14 @@ Next:
 
 Focus?
 
-[y]es · [d]one · [s]kip · [?] I don't know
-
-[f]eed · [/] more...
+[y]es    [d]one       [s]kip    [?] I don't know
+[f]eed   [/] more...
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
 🏷️ Orbit > R&D > Rock Splitter
-
-Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
-🐜 Little Ant · 18 eligible · 3 reviews
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 The automatically served envelope, global-action row, context panel, and
@@ -60,7 +58,7 @@ envelope and call that a REPL simulation.
 Powered-up mode reuses the frame and changes only:
 
 ```text
-Mon, Aug 3 · 09:00 · mode: powered up · by: /bin/claude-fast.sh · focus: idle
+   Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
 ```
 
 plus any explicitly attributed proposals that passed the startup handshake.
@@ -74,17 +72,15 @@ Next:
 
 Focus?
 
-[y]es · [d]one · [s]kip · [?] I don't know
-
-[f]eed · [/] more...
+[y]es    [d]one       [s]kip    [?] I don't know
+[f]eed   [/] more...
 
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
 🏷️ Personal > Little Ant
 ⚠️ #u11111 "Submit migration report" · deadline in 2h · +2 warnings
-
-Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
-🐜 Little Ant · 18 eligible · 3 reviews
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 `yes` focuses and starts WIP. `done` completes directly. `skip` opens UX-S01.
@@ -99,16 +95,14 @@ Next:
 
 Focus?
 
-[y]es · [d]one · [s]kip · [?] I don't know
-
-[f]eed · [/] more...
+[y]es    [d]one       [s]kip    [?] I don't know
+[f]eed   [/] more...
 
 ----------------------------------------
 🏷️ Personal > Housekeeping
    from Orbit > R&D > Rock Splitter
-
-Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
-🐜 Little Ant · 18 eligible · 3 reviews
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 There is no preliminary `Switch Domain?`. `yes` starts focus and changes the
@@ -123,19 +117,17 @@ Next:
 
 Focus?
 
-[y]es · [d]one · [s]kip · [?] I don't know
-
-[f]eed · [/] more...
+[y]es    [d]one       [s]kip    [?] I don't know
+[f]eed   [/] more...
 
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
 🏷️ Personal > Little Ant
-🐜 drew #r90000 "Release Little Ant v1"
+🚧 reached through #r90000 "Release Little Ant v1"
    → blocked by #i20000 "Restore importance ordering"
    → blocked by this Brick
-
-Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
-🐜 Little Ant · 18 eligible · 3 reviews
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 Long paths may fold visually, but every cited Brick retains its complete
@@ -321,6 +313,27 @@ Start this run?
 All open entries appear together. `done` is interpreted through the
 standing-checklist Nature and cannot silently retire the standing Brick.
 
+## UX-E00 — Pristine first start
+
+This screen exists only before Little Ant has any Brick, Raw material, or
+import candidate:
+
+```text
+No Bricks yet.
+
+Feed Little Ant its first Brick to get started.
+
+[f]eed   [/] more...
+
+----------------------------------------
+🐜 Little Ant   0 eligible   0 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+Feed opens UX-I02. More may expose import, help, configuration, and exit when
+those actions are valid. The screen does not manufacture a Brick and is not
+used merely because the eligible count is zero.
+
 ## UX-E01 — Useful empty state
 
 ```text
@@ -337,7 +350,9 @@ What next?
 
 ----------------------------------------
 🏷️ Orbit > R&D > Rock Splitter
-🐜 4 active · 3 blocked · 1 not before tomorrow
+4 active · 3 blocked · 1 not before tomorrow
+🐜 Little Ant   0 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 The available choices derive from actual state; the screen never fabricates

@@ -48,6 +48,10 @@ may expose missing or contradictory rules.
   ordinary proposal screen. Pressing `[f]eed` opens text input. Escape restores
   that exact proposal and random cursor; confirmed input completes its guided
   route and causes any revision-stale proposal to be recomputed.
+- **SCN-013 — Empty states remain distinct.** A pristine store renders UX-E00.
+  A non-pristine store with zero eligible work renders a state-derived UX-E01
+  recovery. Tests never use the first-Brick welcome to conceal blocked,
+  temporal, dormant, delegated, Raw, or invalid state.
 
 ## Critique labels
 

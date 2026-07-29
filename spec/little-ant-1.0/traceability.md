@@ -34,7 +34,7 @@ current product authority.
 | [21 sequence](history/21-documentation-and-implementation-sequence.md) | `PRD-019`, `MIG-018..022` | adopted |
 | [22 session log](history/22-session-log.md) | session-entry map below | historical with adopted decisions |
 | [23 checklist](history/23-review-checklist.md) | acceptance gates in canonical index, traceability, simulations, and `MIG-018..022` | superseded checklist |
-| [24 REPL](history/24-repl-harness.md) | `UX-001..047`, UX records, `OPEN-UX-001..002` | adopted/open |
+| [24 REPL](history/24-repl-harness.md) | `UX-001..048`, UX records, `OPEN-UX-001..002` | adopted/open |
 | [25 Natures/templates](history/25-brick-natures-and-template-library.md) | `MOD-004..005`, `MOD-025..028`, `FED-005..009`, `WRK-031..032` | adopted |
 | [26 entries/identity](history/26-structured-entries-identity-and-duplicate-suspicion.md) | `MOD-003`, `MOD-008..012`, `FED-015..018` | adopted |
 | [27 standing work](history/27-standing-work-recurrence-obligations-and-practices.md) | `WRK-019..028`, `OPEN-WRK-001..002` | adopted/open |
@@ -71,7 +71,7 @@ current product authority.
 | 35.23 discreet review and status separation | `UX-005..006`, `UX-025..027`, `UX-045` |
 | 35.24 default marker | `UX-015` |
 | 35.25 comparison versus confirmation | `UX-006..010` |
-| 35.26 safeguards and empty states | `FOC-027..028`, `UX-040..042` |
+| 35.26 safeguards and empty states | `FOC-027..029`, `UX-040..042`, `UX-E00..E01` |
 | 35.27 taxonomy watch | `WRK-012` |
 | 35.28 structural exporters | `DAT-028..030` |
 | 35.29 English product | `PRD-010..012` |
@@ -90,7 +90,7 @@ they were successive refinements of the same current rule family.
 |---|---|
 | 1–9 | `MOD-013..018`, `IMP-001..016`, `PRD-013` |
 | 10–18 | `MOD-001`, `FED-010..014`, `PRD-010..013`, historical preservation |
-| 19–24 | `UX-001..047`, `IMP-022..029`, reproducible scenarios |
+| 19–24 | `UX-001..048`, `IMP-022..029`, reproducible scenarios |
 | 25–30 | `IMP-017..029`, `UX-001..018`, `WRK-007..013` |
 | 31–36 | `MOD-003..005`, `MOD-025..028`, `FED-005..009`, `WRK-019..028` |
 | 37–41 | historical Brick review, `MOD-001`, `DAT-002`, `WRK-021..022` |
@@ -107,7 +107,7 @@ they were successive refinements of the same current rule family.
 | 88–90 | `UX-006..010`, `OPEN-UX-001`, `MIG-020` |
 | 91 | `UX-018`, `UX-022..023`, `WRK-017`, `MOD-012` |
 | 92–93 | `WRK-030..034` |
-| Post-consolidation REPL corrections | `UX-022`, `UX-025`, `UX-045..047`, `SCN-009`, `SCN-012`, `SCN-FED-001..002`, `UX-R00` |
+| Post-consolidation REPL corrections | `UX-022`, `UX-025`, `UX-045..048`, `FOC-029`, `SCN-009`, `SCN-012..013`, `SCN-FED-001..002`, `UX-R00`, `UX-E00` |
 
 ## Downstream coverage
 

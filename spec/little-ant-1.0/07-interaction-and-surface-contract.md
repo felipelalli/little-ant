@@ -104,13 +104,14 @@ The normative reference renderings live in
 
 - **UX-025 [core] — Persistent bottom status bar.** Every first-party guided
   surface presents a compact status bar below the horizontal divider and
-  contextual rows. Its first line shows the local clock and operating state.
-  Its final line identifies Little Ant and shows useful aggregate statistics.
-  The lines are contiguous:
+  contextual rows. There is no blank line between the context and status or
+  between the two status rows. Its first row identifies Little Ant and shows
+  useful aggregate statistics. Its indented second row shows the local clock
+  and operating state. Column spacing replaces decorative separators:
 
   ```text
-  Mon, Aug 3 · 09:00 · mode: dumb · focus: idle
-  🐜 Little Ant · 18 eligible · 3 reviews
+  🐜 Little Ant   18 eligible   3 reviews
+     Mon, Aug 3   09:00         mode: dumb   focus: idle
   ```
 
   A value unavailable to a surface is omitted honestly. The status bar is
@@ -183,12 +184,23 @@ The normative reference renderings live in
   continuation. The no-eligible case displays the canonical useful empty
   state.
 - **UX-047 [core] — Global proposal actions.** The proposal screen places
-  `[f]eed · [/] more...` immediately above the divider that begins contextual
+  `[f]eed   [/] more...` immediately above the divider that begins contextual
   rows and the bottom status bar. `[f]eed` opens the Feed input screen; there
   is no default Feed prompt. Escape from uncommitted input restores the exact
   proposal without a draw or event. A confirmed Feed changes the domain
   revision, so the old proposal is revalidated and, when stale, recomputed
   instead of being applied blindly.
+- **UX-048 [core] — Next action grid.** The reference `next` screen renders
+  contextual answers on the first row and persistent actions on the second,
+  using stable whitespace-aligned columns rather than middle-dot separators:
+
+  ```text
+  [y]es    [d]one       [s]kip    [?] I don't know
+  [f]eed   [/] more...
+  ```
+
+  Narrow renderers may wrap whole actions while preserving row membership and
+  canonical action order.
 
 ## Errors and dry-run
 
