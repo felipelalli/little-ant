@@ -83,15 +83,14 @@ create a form, or generate pressure merely because it is absent.
 | Marker | Phase | Meaning |
 |---|---|---|
 | lightbulb emoji, exact glyph open | `idea` | Immature or exploratory work. |
-| design/planning emoji, exact glyph open | `spec` | Planning or specification; still nebulous or under-defined. |
+| `📐` | `spec` | Planning or specification; still nebulous or under-defined. |
 | current execution marker, exact glyph open | `exec` | Execution is the relevant action. |
 | laboratory emoji, exact glyph open | `validation` | Testing, homologation, proof of concept, or validation. Optional in a Brick's history. |
 
 `spec` remains the canonical core value for the planning/specification phase.
 `design` is a visual description, not another phase or compatibility alias.
-The former seed glyph `🌱` is not a 1.0 phase marker. A clipboard, drafting,
-ruler, or related design-tool glyph remains a candidate for `spec`; the exact
-marker is still open.
+The former seed glyph `🌱` is not a 1.0 phase marker. `📐` is the canonical
+renderer marker for `spec`.
 
 Phase is descriptive, not a rigid workflow:
 

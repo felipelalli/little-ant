@@ -399,4 +399,4 @@
      ordered blocker path; `?` retains access to the complete path.
 172. The canonical phase set remains `idea | spec | exec | validation`.
      `design` is not an alias for `spec`, and the abandoned seed glyph `🌱`
-     is not a 1.0 phase marker.
+     is not a 1.0 phase marker. The canonical `spec` marker is `📐`.

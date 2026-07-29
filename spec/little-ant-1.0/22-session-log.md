@@ -1035,3 +1035,11 @@ specification and had an unresolved design/planning icon. The user then
 explicitly reaffirmed `spec` as the canonical value. `design` is not a second
 phase or alias; a clipboard, drafting, ruler, or similar design-tool glyph
 remains only a visual candidate for `spec`.
+
+## Entry 70 — Fix the `spec` marker as `📐`
+
+The user selected `📐` as the exact canonical renderer marker for the `spec`
+phase. The broader marker grammar and the markers for `idea`, `exec`,
+`validation`, terminal status, focus, WIP, blocking, and confidence remain
+open. `design` remains only a description of the visual metaphor; it is not a
+phase value or alias.

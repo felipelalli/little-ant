@@ -15,7 +15,7 @@ being mistaken for current decisions.
 | A Brick's stage combines maturity, execution, and completion. | Use independent `status`, optional `phase`, `work_state`, and exclusive current focus. |
 | Every active Brick must receive a phase at capture and defaults to `spec`. | Phase is optional, lazy, behavior-applicable, and neutral when absent. |
 | Restore the former seed glyph `🌱` as an `idea` phase marker. | The plant marker remains abandoned. It is not part of the 1.0 phase design. |
-| Rename `spec` to `design`, or keep both as aliases. | `spec` remains the single canonical planning/specification phase. Design is only a possible visual metaphor for its renderer marker. |
+| Rename `spec` to `design`, or keep both as aliases. | `spec` remains the single canonical planning/specification phase and uses `📐` as its renderer marker. `design` is neither another value nor an alias. |
 | Removed `kind` is fully replaced by phase as the Brick's work shape. | `kind` remains removed; phase describes a work phase, while generic interaction differences belong to versioned BrickBehavior. |
 | Only one human WIP may exist. | Multiple WIPs are allowed; only current focus is exclusive. Default soft WIP limit is 3. |
 | Starting a new Brick stops the previous WIP. | It removes focus from the previous Brick but leaves that Brick in WIP. |

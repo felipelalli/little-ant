@@ -37,9 +37,8 @@ unsettled mechanics no longer postpone the existing-Brick review.
 
 ## 19.3 Brick metadata and phase
 
-- Exact phase emojis and terminal markers.
-- Exact clipboard, drafting, ruler, or other design-tool glyph for the
-  canonical `spec` phase.
+- Exact markers for `idea`, `exec`, `validation`, and terminal statuses;
+  `spec` is settled as `📐`.
 - The compact marker grammar and precedence for independent phase, terminal
   status, focus, WIP, blocking, and confidence indications.
 - Exact direct-completion event grammar, optional completion note or evidence,

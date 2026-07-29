@@ -223,12 +223,6 @@ Confirmed on 2026-07-28:
   `idea | spec | exec | validation`.
 - `spec` means planning or specification. It remains the one canonical core
   value; `design` is neither a second phase nor an alias.
-- A design/planning visual metaphor is appropriate for the `spec` marker, but
-  its exact glyph remains open.
-
-Current direction, not yet confirmed:
-
-- consider a clipboard, drafting, ruler, or other design-tool glyph for the
-  planning/specification phase;
-- keep phase, status, focus, WIP, blocking, and confidence visually distinct
+- `📐` is the canonical renderer marker for `spec`.
+- Keep phase, status, focus, WIP, blocking, and confidence visually distinct
   rather than overloading one emoji with several independent axes.
