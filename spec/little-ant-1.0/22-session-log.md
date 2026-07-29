@@ -1291,3 +1291,21 @@ unrelated branch such as `Research / Fraud Detection`. This records the
 specific cognitive context actually entered. Equal-specificity descendants
 and transitions with no ancestor-descendant relationship remain open rather
 than gaining an unreviewed tie-break rule.
+
+## Entry 82 — Separate skip symptoms from their remedies
+
+The user corrected the proposed skip flow. A skip is a symptom report, not an
+action such as changing subject. The first bounded screen must show several
+applicable symptoms together; only after one is selected may another screen
+propose a reaction. Symptom evidence and accepted remediation remain separate.
+The user also restored the earlier intended replacement of vague `meh` with
+`fear`, which the existing conceptual record had incorrectly left as an open
+possibility.
+
+Finite-choice labels expose shortcuts inside their actual English words:
+`[s]kip`, `[c]hange subject`, or `e[x]change` after a collision. Unrelated
+prefix letters are not allowed, and `[?] dunno` is only an exceptional fallback
+to avoid. The user accepted a short Domain-subtree cooldown followed by a
+bounded decaying negative forecast signal when a later confirmed reaction
+applies the symptom to that scope. Choosing the symptom alone performs no
+Domain transition or remediation.

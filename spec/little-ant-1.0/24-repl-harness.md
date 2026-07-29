@@ -63,6 +63,22 @@ Free text uses an explicit line-editing mode:
 
 The exact key grammar and shortcut letters remain open.
 
+Visible choices use one consistent shortcut typography:
+
+```text
+- [s]kip
+- [c]hange subject
+- [?]
+```
+
+The shortcut character appears at its actual position in the English label.
+When a later character is required to avoid a collision, the brackets remain
+inside the word, as in `e[x]change`; a renderer must not invent an unrelated
+prefix such as `[x] exchange`. An exceptional label with no usable character
+may use a `?` fallback such as `[?] dunno`, but the interaction design should
+avoid needing it. Exact collision resolution and the relationship with the
+universal contextual-help `?` remain open.
+
 Response letters form one stable product language across interaction variants
 and rendering channels. When applicable:
 
@@ -88,6 +104,12 @@ ordinary `Focus?` prompt may display the active and candidate Domains. `y`
 starts focus and changes the active Domain atomically; `d` completes without
 changing it; `s` skips the Brick and preserves the active Domain; `?` explains
 the transition and forecast evidence.
+
+Pressing `s` for served work opens one bounded symptom screen with several
+applicable choices visible together. The screen does not present remediation
+actions as if they were symptoms. After a symptom is selected, another
+interaction may propose appropriate reactions. Every screen follows the same
+in-word shortcut typography.
 
 `?` is visible in every finite-choice loop. It requests context-sensitive
 information, explanation, or help and then restores the same pending

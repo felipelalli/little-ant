@@ -203,12 +203,20 @@ unsettled mechanics no longer postpone the existing-Brick review.
 ## 19.10 Served-Brick skip taxonomy
 
 - Which existing skip reasons survive unchanged in 1.0.
-- Whether fear or anxiety deserves its own reason after evidence review.
+- Whether `fear` should remain the broad canonical symptom or whether another
+  precise English label better covers fear and anxiety. `meh` is removed and
+  fear is no longer merely a possible addition.
+- The complete symptom set, ordering, applicability rules, concise labels, and
+  optional free-text path for the single first skip screen.
 - Exact English shortcut letters after all command namespaces are known.
-- Whether any additional response gesture beyond the stable
-  `yes`/`no`/`done`/`skip`/`help` meanings is truly necessary for 1.0, and how
-  conflicts with text-entry and navigation keys are prevented.
-- How reason-specific reactions become proposals without meta-Bricks.
+- Which symptom-specific reactions are proposed on the subsequent screen,
+  their ordering, and which always require another confirmation.
+- How a selected symptom is scoped to the served Brick, active Domain, another
+  Domain ancestor, Place, effort, dependency, or another explicit cause.
+- Whether a Domain-scoped symptom also contributes ordinary Brick-specific
+  skip pressure or records only suggestion-level and Domain evidence.
+- Exact default cooldown, negative-signal decay, cap, inspection, clearing,
+  and calibration fixtures for an accepted Domain reaction.
 - Whether snooze is distinct from cooldown, wait, and `not_before`.
 
 ## 19.11 TaskJuggler and planning
@@ -238,6 +246,10 @@ implementation for community exporter authors.
 ## 19.12 REPL harness
 
 - Exact one-key grammar, including global, screen-local, and answer shortcuts.
+- Deterministic shortcut allocation when several visible labels compete for
+  the same letters. A shortcut must be displayed inside its label; unrelated
+  prefix letters are forbidden, and exceptional `[?]` fallback should be
+  avoided.
 - Exact command-palette selection behavior and whether it accepts raw canonical
   command syntax.
 - Terminal layout, resize behavior, colors, accessibility, and UI library.

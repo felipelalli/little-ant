@@ -494,3 +494,13 @@
 199. When the active Domain is an ancestor of an accepted Brick membership,
      focus narrows it to the most specific applicable descendant membership.
      An unrelated additional membership does not prevent that transition.
+200. A served-work skip records a symptom, not a remediation action. The first
+     skip screen offers several applicable symptoms together; accepted
+     reactions belong to a subsequent interaction.
+201. The 1.0 candidate skip-symptom inventory removes `meh` and includes
+     `fear` in its place. The remaining taxonomy still requires review.
+202. A Domain-scoped reaction may apply one short subtree cooldown followed by
+     one bounded, replay-deterministic decaying negative forecast signal. It
+     never changes human importance.
+203. Selecting a symptom alone never silently changes the active Domain,
+     chooses the affected Domain scope, or accepts a proposed remediation.

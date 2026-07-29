@@ -549,3 +549,40 @@ Open implications:
   descendant memberships are equally specific;
 - target selection when no candidate membership is an ancestor or descendant
   of the active Domain.
+
+## 35.19 Treat skip as a symptom before proposing a reaction
+
+Confirmed on 2026-07-29:
+
+- A served-work skip reports a symptom; it is not itself a remediation action.
+- Pressing `s` opens one bounded screen with several applicable symptoms
+  visible together. It is not limited to “this Brick” and `change subject`.
+- An action such as changing subject, retreating a Domain, snoozing, adding a
+  dependency, or breaking work down may be proposed only on a subsequent
+  screen after the symptom is known.
+- The selected symptom and any later accepted reaction are recorded
+  separately. The symptom alone authorizes no silent remediation.
+- The previously discussed correction is restored: `meh` is removed and
+  `fear` replaces it in the 1.0 candidate symptom inventory.
+- When an accepted later reaction applies the symptom to a Domain branch, that
+  branch and its descendants receive a short cooldown followed by a bounded,
+  replay-deterministic decaying negative forecast signal. It does not change
+  human importance.
+- Exact cooldown duration, decay curve, and caps are configurable calibration
+  parameters.
+- The initial symptom screen and every subsequent finite-choice screen use
+  consistent in-word shortcut notation: `[s]kip`, `[c]hange subject`, or
+  `e[x]change` when a collision requires a later character. An unrelated
+  prefix shortcut is forbidden. `[?] dunno` is an exceptional fallback and
+  should be avoided.
+
+Open implications:
+
+- the complete symptom taxonomy, labels, order, applicability, and free-text
+  route;
+- the reaction catalog and symptom-to-reaction proposal rules;
+- Domain-scope selection and whether the active Domain retreats only after a
+  second confirmation;
+- whether Domain-scoped evidence also adds Brick-specific skip pressure;
+- shortcut collision resolution, especially the exceptional fallback versus
+  universal contextual help.
