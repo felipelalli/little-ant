@@ -46,3 +46,10 @@ event-derived records remain open.
   `ai_agent`.
 - Delegated work returns to the human as follow-up, decision, or validation
   proposals.
+- Before its initial external notice may be approved, every Delegation must
+  declare exactly one follow-up policy: one scheduled follow-up, a repeating
+  follow-up cadence, or explicit no follow-up.
+- Omitting the policy is invalid. Explicit no follow-up is a deliberate,
+  inspectable decision rather than the absence of data.
+- A repeating policy schedules review and approval opportunities. It never
+  authorizes automatic external messages.

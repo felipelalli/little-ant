@@ -201,12 +201,17 @@ unsettled mechanics no longer postpone the existing-Brick review.
 - Whether current focus may point to a temporarily ineligible Brick.
 - Whether 1.0 permits more than one active Delegation for the same Brick, or
   requires decomposition before assigning the outcome to several Parties.
-- Whether delegating a non-leaf Brick covers its executable descendants for
-  human-focus eligibility or requires explicit child-level assignments.
+- Whether delegation scope becomes a core-validated BrickNature capability
+  with the working values `brick_only`, `whole_scope`, `ask`, and `disabled`;
+  and the final factory-Nature defaults.
+- For `whole_scope`, whether the scope covers existing and future descendants,
+  Nature-owned ListEntries, and standing-work occurrences, and how explicit
+  child Delegations or retained human work override it.
 - Final compact Delegation lifecycle and which acceptance or progress facts
   remain observations rather than statuses.
-- Follow-up policy vocabulary: none, one absolute follow-up, and/or an interval
-  anchored to the most recent confirmed contact; exact defaults and limits.
+- Exact schemas, defaults, and limits for the confirmed one-time, repeating,
+  and explicit-none follow-up policies; including whether a repeating cadence
+  is anchored to the most recent confirmed contact.
 - Whether an inbound reply resets an interval only after an attributed manual
   or SourceAdapter observation.
 - Exact follow-up screen semantics for approving a draft, rejecting its

@@ -606,3 +606,7 @@
 233. `unify` and `mark as duplicated` are not canonical 1.0 core operations or
      aliases. Their intended inputs map unambiguously to suspicion evidence,
      same/different judgment, feeding reuse, or explicit `merge`.
+234. Every Delegation declares exactly one follow-up policy before its initial
+     notice can be approved: one scheduled follow-up, a repeating cadence, or
+     explicit no follow-up. Repetition schedules approval-bearing
+     opportunities and never sends automatically.

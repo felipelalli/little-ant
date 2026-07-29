@@ -924,3 +924,26 @@ Open implications:
   receipt schema, and compact rendering;
 - placement treatment when source and survivor have different parents or
   sibling importance scopes.
+
+## 35.33 Require an explicit delegation follow-up policy
+
+Confirmed on 2026-07-29:
+
+- Before its initial external notice may be approved, every Delegation declares
+  exactly one follow-up policy.
+- The policy choices are one scheduled follow-up, a repeating cadence, or
+  explicit no follow-up.
+- Missing policy is invalid; `none` is an inspectable decision rather than a
+  null that might mean forgotten configuration.
+- A repeating policy creates due review and approval opportunities. It never
+  authorizes automatic message delivery.
+- Terminal Delegation outcomes stop future follow-up opportunities.
+
+Open implications:
+
+- final enum names, one-time date grammar, cadence representation, anchoring,
+  defaults, and limits;
+- how replies, approved sends, declined drafts, and contextual `later`
+  recalculate the next occurrence;
+- whether delegation scope is a BrickNature capability and its factory
+  defaults.

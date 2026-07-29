@@ -1482,3 +1482,25 @@ message approval, never automatic external sends. The compact lifecycle,
 single-versus-multiple assignment rule, project-descendant behavior,
 follow-up anchoring, and relation between delegated completion and Brick
 acceptance remain open for the next discussion.
+
+## Entry 92 — Require a follow-up policy and locate delegation scope in Nature
+
+The user confirmed that every Delegation must choose exactly one follow-up
+policy before its initial notice is approved: one scheduled follow-up, a
+repeating cadence, or explicit no follow-up. A missing policy is invalid, while
+`none` is a deliberate recorded decision. Repetition creates due opportunities
+for review and approval and never sends an external message automatically.
+
+The user observed that delegating a parent may mean the whole scope, only the
+Brick while children remain independent, or a question at delegation time,
+depending on its behavioral classification. The canonical classification is
+`BrickNature`, not another profile or parallel behavior field. A
+BrickTemplate may select or configure a Nature during creation, but retains no
+runtime authority.
+
+The working Nature-capability proposal is therefore
+`delegation_scope = brick_only | whole_scope | ask | disabled`. The fourth
+value is newly proposed for intrinsically personal work such as a practice
+that cannot be performed by another Party. The values, factory-Nature
+defaults, treatment of future descendants and ListEntries, and override rules
+remain open pending concrete examples and user confirmation.
