@@ -47,6 +47,15 @@ splitting one concern into several proposal records must not increase the
 weight. The exact bonus curve, independence or correlation treatment, cap,
 and configuration schema remain calibration questions.
 
+Recent accepted focus creates bounded Domain-continuity pressure. A subject
+that shares an applicable Domain with the current work receives a soft bonus,
+because changing work domains has a real cognitive cost. The bonus does not
+create another ticket for each shared Domain, does not rewrite human
+importance, and does not make unrelated eligible work impossible to surface.
+An explicit Domain switch changes the continuity reference rather than
+requiring the forecast to infer a switch from one displayed or skipped
+suggestion.
+
 Composition adds another level to the same hierarchy. When the selected
 subject is a project-like container, its resolved BrickBehavior determines
 whether selection descends through a locally normalized weighted draw over
@@ -112,6 +121,8 @@ Selection may take into account:
 - total effort class, derived remaining effort, and applicable confidence;
 - dates and overdue state;
 - context and mode;
+- Domain membership, explicit Domain scope, and recent accepted-focus
+  continuity;
 - hard or soft Place conditions and current location observations;
 - dependencies and waits;
 - current focus and WIP review pressure;

@@ -294,6 +294,17 @@ Brick with the user.
 
 ## 19.15 BrickBehavior and BrickTemplate
 
+- Whether `BrickNature` replaces `BrickBehavior` as the single canonical
+  entity and field name. A second parallel `nature` axis must not be added.
+- Final canonical Nature identifiers. The working factory set remains
+  `standard`, `project`, `collection`, `repeatable`, `standing_checklist`,
+  `finite_checklist`, `recurring_obligation`, and `practice`.
+- Exact feeding-time Nature interaction for explicit human input, template
+  implication, attributed skill or powered-up judgment, dumb browsing, skip,
+  and the required `standard` fallback.
+- Authority and correction rules for an assisted Nature chosen at birth, and
+  which later Nature changes require reconciliation because they alter focus,
+  decomposition, recurrence, entries, or completion semantics.
 - Final capability schema and definition syntax for the factory behavior IDs
   and initial standard template catalog recorded in chapter 25.
 - How factory definitions are stored, inspected, cloned, versioned, and
@@ -532,10 +543,10 @@ UIAdapter is included in the 1.0 component protocol.
 
 ## 19.24 Hierarchical organizational classification
 
-- The canonical English name. Current candidates include `domain`,
-  `category`, and `area`; `folder` is misleading because membership is not
-  exclusive storage ownership, while generic `context` conflicts with
-  execution and interaction meanings.
+- Whether `Domain`, now accepted as the working product term, needs any final
+  correction before Allium propagation. `Folder` is misleading because
+  membership is not exclusive storage ownership, while generic `context`
+  conflicts with execution and interaction meanings.
 - The entity, opaque identity, parent relation, label, alternate-label, path,
   rename, move, merge, archive, duplicate-suspicion, and cycle-prevention
   schema.
@@ -562,3 +573,13 @@ UIAdapter is included in the 1.0 component protocol.
   becoming a mandatory form.
 - How proposed memberships participate in duplicate suspicion before atomic
   creation without allowing classification uncertainty to discard input.
+- Exact persisted active-Domain or focus-session model: how accepted focus
+  establishes it, how multiple memberships are resolved, how it decays or is
+  cleared, and how an explicit switch is recorded.
+- Domain-continuity bonus by exact branch, ancestor overlap, and unrelated
+  Domain; its cap and interaction with the strongest-signal-plus-bonus model.
+- Which explicit Domain request means a soft preference and which, if any,
+  means a hard filter.
+- Generic recurring preferred-time windows and Place evidence for standing
+  work such as grocery shopping, without hard-coded grocery behavior or
+  turning each ListEntry into independently focusable work.

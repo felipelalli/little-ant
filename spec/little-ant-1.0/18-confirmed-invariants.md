@@ -461,3 +461,13 @@
      organizational-classification model. Those memberships are orthogonal to
      Brick composition, importance order, Place, mode, and other execution
      conditions.
+190. `feed` and `feeding` are the sole canonical product-ingress vocabulary.
+     The 1.0 core, Allium declarations, commands, responses, code, and tests
+     expose no compatibility alias using the superseded term.
+191. Every Brick has exactly one core-validated behavioral classification
+     from birth. If no human, template, skill, or powered-up judgment selects a
+     more specific one, the core uses the generic `standard` classification.
+192. Recent accepted focus gives a bounded soft forecast bonus to subjects
+     sharing an applicable Domain. Mere display or skip does not establish a
+     Domain switch, and multiple shared memberships do not create multiple
+     tickets.

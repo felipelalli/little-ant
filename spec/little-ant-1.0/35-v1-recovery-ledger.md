@@ -400,9 +400,9 @@ Confirmed on 2026-07-29:
   human importance, Place, mode, waits, and other execution conditions.
 - The current propagated `context: String?` plus nearest-ancestor inheritance
   is insufficient to express the confirmed model.
-- The canonical name is not decided. `Area` was proposed but not accepted;
-  naming must reflect hierarchical, non-exclusive membership without implying
-  filesystem ownership.
+- `Domain` is accepted as the current working product name. It may receive one
+  final naming review before Allium propagation, but `Area`, `Folder`, and
+  generic `context` are not current choices.
 - The v1 core must support deterministic recursive filtering and aggregation
   capable of answering requests equivalent to selecting within `Orbit`,
   selecting within `Housekeeping`, and counting Bricks within `R&D`.
@@ -421,3 +421,69 @@ Working classification boundary, not yet fully confirmed:
   human membership always requires explicit confirmation.
 - Whether an assisted adapter may attach existing memberships provisionally
   without a blocking confirmation remains open.
+
+## 35.14 Make feeding the sole ingress vocabulary
+
+Confirmed on 2026-07-29:
+
+- `feed` and `feeding` replace the previous product-ingress term everywhere in
+  1.0.
+- Commands, prompts, responses, README examples, Markdown specification,
+  Allium entity and trigger names, implementation identifiers, tests, and
+  generated artifacts must converge on this vocabulary.
+- The core provides no compatibility alias.
+- A mechanical replacement is not always correct. Snapshot, observation,
+  refresh, import, and reconciliation operations use their own precise names
+  when they are not the act of feeding input into Little Ant.
+- This checkpoint records the cross-artifact requirement; Allium, generated
+  tests, and implementation are changed only during their deliberate
+  propagation stages.
+
+## 35.15 Require one Nature from Brick birth
+
+Confirmed concept on 2026-07-29:
+
+- Behavioral classification is a required core concept, not an optional
+  operator tag.
+- `Nature` is the preferred canonical term.
+- Every Brick has exactly one Nature from birth.
+- A human may select it explicitly, a template may imply it, and the skill or
+  powered-up adapter may submit an attributed judgment.
+- If the user skips and no accepted route implies another Nature, the core
+  uses `standard`.
+- Nature governs the generic mechanics currently assigned to
+  `BrickBehavior`, including focus unit, decomposition, entries, standing
+  lifetime, repetition, phase applicability, and effort applicability.
+- Domain templates such as grocery lists remain recipes that select a generic
+  Nature and defaults; they do not become hard-coded Natures.
+
+Pending one explicit naming confirmation:
+
+- replace `BrickBehavior` and its public `behavior` field with `BrickNature`
+  and `nature`, rather than retaining both concepts.
+
+## 35.16 Preserve Domain continuity in `next`
+
+Confirmed on 2026-07-29:
+
+- Recently accepted focus creates cognitive continuity pressure for its
+  applicable Domain.
+- Subjects sharing that Domain receive a bounded soft forecast bonus.
+- A displayed, rejected, or skipped suggestion does not itself switch the
+  continuity Domain.
+- An explicit user request may switch Domain.
+- Multiple shared Domain memberships contribute evidence to one subject
+  weight; they never create multiple subject tickets.
+- Unrelated eligible work retains positive probability unless the user has
+  explicitly requested a future hard Domain filter.
+- Domain continuity affects the focus forecast, never human importance order.
+
+Open implications:
+
+- the exact focus-session or persisted Domain state and its decay;
+- exact-match versus ancestor-overlap bonuses;
+- choosing an active Domain when the accepted Brick belongs to several;
+- command and REPL grammar for soft Domain preference, explicit switch, and
+  any hard filter;
+- how generic recurring time windows and Place evidence can make standing
+  grocery work timely without a grocery-specific core branch.

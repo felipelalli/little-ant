@@ -1217,3 +1217,38 @@ deterministic evidence such as an explicit current branch, parent membership,
 or ImportProfile mapping. Unknown classification never blocks preservation of
 input. Whether a high-confidence assisted suggestion may be attached
 provisionally without a glance remains for user confirmation.
+
+## Entry 78 — Separate required Nature from optional Domain membership
+
+The user rejected the remaining product vocabulary based on “capture” and
+required `feed` or `feeding` throughout commands, responses, specification,
+tests, and implementation. The v1 propagation must rename `Capture*`
+declarations and use more precise terms for snapshotting, observation, or
+import where those operations are not product feeding. The core provides no
+compatibility alias.
+
+The previous classification discussion concerned Domain membership, not the
+Brick's behavioral type. The user clarified that behavioral classification is
+core and mandatory from birth, prefers the name `Nature`, and requires a
+fallback when the user skips. A Nature may be supplied explicitly, implied by
+a selected template, or proposed by the skill or powered-up adapter; otherwise
+the Brick uses the generic `standard` Nature. The preferred simplification is
+to rename the current `BrickBehavior` concept to `BrickNature`, rather than
+adding another axis, but that exact rename awaits confirmation.
+
+`Domain` was accepted as the current working name for hierarchical,
+non-exclusive organizational membership. Domain assignment remains distinct
+from required Nature selection.
+
+The user also confirmed cognitive continuity as a forecast input. After
+accepted work in one Domain, subjects sharing that Domain receive a bounded
+soft bonus until an explicit switch or another defined transition. A displayed
+or skipped suggestion does not switch Domains, several shared memberships do
+not manufacture tickets, and unrelated eligible work retains positive
+probability.
+
+A grocery item illustrates a separate concern. It should normally be a
+ListEntry under standing grocery work and therefore never surface
+independently. The owning Brick may gain time-window, recurrence, deadline, or
+Place pressure through generic mechanics. Exact recurring preferred-time
+windows remain open.

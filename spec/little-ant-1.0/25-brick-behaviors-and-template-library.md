@@ -14,8 +14,17 @@ user-configurable Brick field in 1.0:
 - a genuinely new structural invariant requires a core and event-schema
   change, not an unchecked configuration value.
 
-A human-facing “nature” may remain useful to the operator for classification,
-search, or template selection. It does not silently activate core behavior.
+Recovery correction: every Brick now requires one core-validated behavioral
+classification from birth, and the user prefers `Nature` as its canonical
+name. This supersedes the earlier optional operator-only nature. The simplest
+model is for `BrickNature` to replace `BrickBehavior` rather than coexist with
+it as another axis; that exact rename remains pending confirmation. Until the
+rename is propagated, every reference to `BrickBehavior` in this chapter
+describes the concept proposed to become `BrickNature`.
+
+Human input, a selected template, the skill, or powered-up mode may select a
+Nature during feeding. If the user skips and no route already implies one, the
+Brick receives the generic `standard` Nature. It never exists without one.
 
 ## 25.2 BrickBehavior
 
@@ -157,8 +166,8 @@ name, category, concise purpose, search terms, examples, compatible targets,
 required inputs, and the concrete structure it expands. Discovery metadata
 helps retrieve candidates but never gains runtime authority.
 
-The capture flow proposes a concrete route rather than persisting an abstract
-guessed nature. A route may:
+The feeding flow proposes a concrete route and a required Nature rather than
+persisting an unvalidated semantic guess. A route may:
 
 - add a ListEntry to an existing Brick;
 - create a Brick from a specific template version;
@@ -205,16 +214,16 @@ The full catalog is never required in permanent LLM context. Candidate
 retrieval, filtering, and progressive disclosure keep powered-up mode and the
 operator skill bounded as the standard library grows.
 
-## 25.6 Capture and routing
+## 25.6 Feeding and routing
 
-`feed` remains the general capture intent, not a semantic guess embedded in the
-core. The canonical operation after interpretation may create a Brick, capture
-Raw, instantiate a template, or add a ListEntry.
+`feed` is the canonical ingress intent, not a semantic guess embedded in the
+core. The canonical operation after interpretation may create a Brick, feed
+Raw material, instantiate a template, or add a ListEntry.
 
 - The operator or powered-up REPL may infer a likely behavior, template,
   parent, or entry target and present an attributed proposal.
 - The dumb REPL may use deterministic dialog context, such as the currently
   open list, or offer a default when exactly one compatible target exists.
 - Ambiguous global input must not be silently routed.
-- Capture must remain fast; behavior, phase, and effort are not a mandatory
-  form.
+- Feeding must remain fast. Nature is required but always has the generic
+  `standard` fallback; phase and effort are not a mandatory form.
