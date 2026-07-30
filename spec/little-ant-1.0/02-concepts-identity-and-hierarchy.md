@@ -198,3 +198,9 @@ The factory library contains:
   ExternalEntity target so relationship-specific history remains honest, and
   `social_time`, which creates a `habit` without requiring one fixed person or
   group. They are distinct Templates, not aliases for one another.
+- **MOD-041 [standard] — Physical-activity Template.** The standard library
+  includes `physical_activity` with root Nature `habit`. It preserves the
+  already fed title as the chosen activity and requires either a fixed-slot or
+  quota-window schedule under `WRK-038`. Place, preferred time, weather,
+  season, and blockers remain optional enrichment. No compatibility alias is
+  defined.

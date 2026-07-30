@@ -115,7 +115,7 @@ specialized recipes that do not justify the offline standard-library cost.
 
 | Template | Status | Example or purpose |
 |---|---|---|
-| `physical_activity` | candidate | Track a chosen activity such as walking, swimming, or geocaching. |
+| `physical_activity` | confirmed | Track the fed activity through fixed slots or quota windows. |
 | `keep_in_touch` | confirmed | Maintain one habit Brick for one specific ExternalEntity target. |
 | `social_time` | confirmed | Maintain social contact without requiring one fixed target. |
 | `reading_habit` | candidate | Complete reading opportunities on a fixed-slot or quota schedule. |
@@ -125,6 +125,17 @@ specialized recipes that do not justify the offline standard-library cost.
 | `sleep_routine` | candidate | Track a recurring sleep-related intention and missed windows. |
 | `housekeeping_habit` | candidate | Track recurring housekeeping opportunities without overdue accumulation. |
 | `outdoor_time` | candidate | Track regular time outdoors. |
+
+### Confirmed recipe: `physical_activity`
+
+- Root Nature: `habit`.
+- The existing Feed title names the activity, such as `Walk`, `Swim`, or
+  `Go geocaching`; the Template does not replace it with a generic title.
+- Required creation input: one structured fixed-slot or quota-window schedule
+  under `WRK-038`.
+- Lazy optional enrichment: Place, preferred time, weather, season, blockers,
+  and other ordinary metadata.
+- No compatibility alias is defined.
 
 ## Review checklist
 

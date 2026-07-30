@@ -1614,3 +1614,14 @@ each recipe, and requires review of root Nature, meaningful defaults, required
 inputs, expanded structure, offline-versus-companion placement, and overlap.
 This preserves a broad design space without hard-coding domains or keeping
 aliases merely because two candidate names overlap.
+
+## Entry 100 — Confirm the physical-activity Template
+
+The user confirmed `physical_activity` as an offline standard Template with
+root Nature `habit`. The existing Feed title identifies the actual activity,
+such as walking, swimming, or geocaching. The Template requires one structured
+fixed-slot or quota-window schedule and leaves Place, preferred time, weather,
+season, blockers, and other contextual metadata for optional later enrichment.
+
+`physical_activity` replaces the old candidate name `exercise_habit`
+completely. The core and standard catalog retain no alias.
