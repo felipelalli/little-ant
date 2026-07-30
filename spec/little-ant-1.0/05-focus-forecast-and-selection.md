@@ -139,6 +139,13 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   explicit continuation and is excluded from the ordinary eligible-draw count
   until focus ends. Other selectable opportunities remain eligible but are
   not surfaced over the resting focus screen.
+- **FOC-033 [core] — Transactional browsing from focus.** `/next` from a
+  current-focus screen draws and presents another proposal without first
+  clearing or pausing the current focus. Escape, uncertainty, or rejecting the
+  proposal leaves the current focus unchanged. Accepting another Brick
+  atomically leaves the previous Brick WIP, starts the accepted Brick when
+  needed, and moves current focus to it. Merely browsing never destroys the
+  user's working context.
 
 ## Forecast inputs
 

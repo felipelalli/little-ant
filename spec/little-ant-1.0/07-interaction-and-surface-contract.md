@@ -352,6 +352,12 @@ no-emoji rendering remain `OPEN-UX-001`.
   The paraphrase adds no factual claim, deadline, advice, guilt, or pressure.
   This bounded personality text is the only ordinary wording variation allowed
   between otherwise equivalent dumb, powered-up, and Skill screens.
+- **UX-066 [core] — Next does not preempt focus.** `/next` is a contextual
+  current-focus palette command. Invoking it creates a new pending Focus
+  proposal while the current focus remains visible in status and unchanged in
+  state. Only accepting the new proposal switches focus under `FOC-033`.
+  Escape and any proposal outcome that does not accept another Brick return to
+  the prior current-focus screen.
 
 ## Errors and dry-run
 

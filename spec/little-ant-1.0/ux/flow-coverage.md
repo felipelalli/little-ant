@@ -42,7 +42,7 @@ run as an interactive transcript.
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |
 | 4 | Served-work symptom | `UX-S01`, `WRK-007..013`, `WRK-047` | partial | every reaction screen under `OPEN-SKIP-001` |
 | 4 | Atomic break/reclassification | `UX-B01`, `MOD-045..047` | screened | accepted/rejected result transitions |
-| 4 | Focus/WIP interruption | `WRK-001..006` | missing | `OPEN-WRK-001` |
+| 4 | Focus/WIP interruption | `FOC-033`, `UX-066`, `WRK-001..006` | partial | pause/idle command grammar, result screens, and `OPEN-WRK-001` |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032` | missing | `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `SCN-UNDO-001` | missing | exact screens and conflict result |
 | 5 | Cross-Domain focus | `UX-F02`, `FOC-014..019` | partial | hard scope and equal-specificity target |

@@ -208,8 +208,10 @@ occurs, and the selected `focus_started` phrase remains stable when the screen
 is redrawn. Replay powered up and allow only the bounded UX-065 paraphrase.
 Close and reopen five minutes later; validate sober UX-F05 with no event,
 draw, repeated phrase, or premature stale-focus question. Then switch to
-another Brick, inspect several WIPs, and return one to idle. Validate one
-current focus and honest WIP history.
+another Brick through `/next`: cancel the first proposal and confirm that the
+old focus survives, then accept a second proposal and confirm that the switch
+is atomic while the old Brick remains WIP. Inspect several WIPs and return one
+to idle. Validate one current focus and honest WIP history.
 
 ### SCN-WRK-002 — Symptom then reaction
 
