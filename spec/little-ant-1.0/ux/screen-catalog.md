@@ -191,6 +191,35 @@ Long paths may fold visually, but every cited Brick retains its complete
 compact label. `?` shows the entire selected path, alternatives at branching
 nodes, and recorded probabilities without redrawing.
 
+## UX-F04 — Current focus resting state
+
+Pressing `y` on UX-R00 starts the Brick immediately and does not draw another
+opportunity:
+
+```text
+Current focus:
+
+#r12345 "Review Rock Splitter rules"
+
+💪 Nice! Roll up your sleeves and give it a go.
+Come back when you're done—or when something gets in the way. 😌
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   17 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #r12345
+```
+
+The phrase is one `focus_started` entry from the 16-phrase factory catalog.
+Rendering this interaction again does not choose another phrase. Powered-up
+and Skill surfaces may apply UX-065 without changing anything else. The
+opening UX-R00 intentionally has no personality line: Focus remains its single
+visual decision. The palette exposes only commands valid for the current
+focus; their final public names remain under `OPEN-WRK-001`.
+
 ## UX-C01 — Importance comparison
 
 ```text

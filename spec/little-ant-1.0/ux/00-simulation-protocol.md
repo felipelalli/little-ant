@@ -54,6 +54,12 @@ may expose missing or contradictory rules.
   A non-pristine store with zero eligible work renders a state-derived UX-E01
   recovery. Tests never use the first-Brick welcome to conceal blocked,
   temporal, dormant, delegated, Raw, or invalid state.
+- **SCN-014 — Personality follows meaning.** The opening Focus decision has no
+  decorative message. An eligible completed transition selects one of exactly
+  16 factory English phrases for its declared intent without advancing the
+  forecast stream. Re-rendering keeps it stable. A powered-up or Skill replay
+  may change only that phrase under UX-065; semantic and high-stakes screens
+  remain exact.
 
 ## Critique labels
 

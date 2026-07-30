@@ -134,6 +134,11 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   determine when preparation first becomes selectable; `best_before` and
   `deadline` contribute their ordinary meanings. Preparation never gives the
   commitment extra root tickets.
+- **FOC-032 [core] — Current focus rests outside the draw.** Accepting a Focus
+  opportunity does not invoke `next` again. The current Brick becomes an
+  explicit continuation and is excluded from the ordinary eligible-draw count
+  until focus ends. Other selectable opportunities remain eligible but are
+  not surfaced over the resting focus screen.
 
 ## Forecast inputs
 

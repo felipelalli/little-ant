@@ -6,15 +6,19 @@
   one Brick globally. Several Bricks may remain `wip`; focusing another Brick
   removes attention from the previous one but leaves it WIP.
 - **WRK-002 [core] — Focus starts WIP.** Accepting focus on an idle Brick
-  atomically makes it WIP and current. Focus changes are event history.
+  atomically makes it WIP and current. Focus changes are event history. The
+  guided surface then rests on the current focus without another draw or an
+  immediate completion question.
 - **WRK-003 [calibration] — Soft WIP limit.** The factory soft limit is three.
   Additional WIPs are allowed and increase review pressure.
 - **WRK-004 [core] — No silent clearing.** Stale focus and WIP create
   opportunities to continue, unfocus, return to idle, complete, drop, or
   supersede. Nothing is silently completed or cleared.
-- **WRK-005 [core] — Done is direct.** A served Brick exposes `done` alongside
-  focus and skip. Completion without a prior start is ordinary `done` with
-  unknown observed duration, not `already done` or a synthetic zero-length run.
+- **WRK-005 [core] — Done is direct.** A served Brick can be completed without
+  first starting it through the contextual `/done` command. Completion
+  without a prior start is ordinary `done` with unknown observed duration,
+  not `already done` or a synthetic zero-length run. Direct completion remains
+  available without competing visually with Focus and skip.
 - **WRK-006 [core] — Terminal distinctions.** `done`, `dropped`, and
   `superseded` preserve different outcomes and lineage. Stopping an execution,
   missing a habit opportunity, and abandoning an external delegation are

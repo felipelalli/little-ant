@@ -183,12 +183,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   pending question, options, order, shortcuts, and action IDs as the dumb
   REPL. Only a flow that explicitly declares an assisted proposal gateway
   under `UX-060` may precede its dumb entry with one canonical proposal.
+  Contextual personality microcopy may vary only under `UX-064..065`.
 - **UX-043 [core] — Powered-up is a measured delta.** A powered-up simulation
   starts from the same state, clock, configuration, and random stream as the
   accepted dumb flow. It normally renders the same question and complete
-  option set, with optional assistance under `UX-059`. A declared `UX-060`
-  gateway may instead offer one complete canonical result before that flow.
-  Powered-up mode never becomes the source of screen grammar.
+  option set, with optional assistance under `UX-059` and bounded personality
+  paraphrase under `UX-065`. A declared `UX-060` gateway may instead offer one
+  complete canonical result before that flow. Powered-up mode never becomes
+  the source of screen grammar.
 - **UX-044 [core] — Downstream mirror order.** Skill and web/mobile renderings
   are reviewed only after the corresponding dumb and, when applicable,
   powered-up REPL paths are accepted. A downstream convenience may motivate a
@@ -316,6 +318,36 @@ no-emoji rendering remain `OPEN-UX-001`.
   pressing `n` says `[n] is not available here. To decline this suggestion,
   use [s]kip.` It records no event, changes no revision, consumes no draw,
   and applies no cooldown.
+- **UX-063 [core] — Current-focus resting screen.** Accepting `Focus?`
+  immediately starts or resumes the Brick and enters a stable current-focus
+  screen. It asks no new question, invokes no draw, and exposes only
+  `[/] more...` as its secondary command escape. The status bar identifies the
+  focused Brick. Restarting or restoring the REPL resumes this screen while
+  that focus remains valid.
+- **UX-064 [standard] — Contextual personality catalog.** Decorative
+  personality microcopy appears only after a transition where warmth or light
+  humor helps; it never appears on the opening `Focus?` screen, where it would
+  compete with the decision. The closed 1.0 intent catalog is:
+
+  ```text
+  focus_started | work_completed | skip_acknowledged | safe_end
+  ```
+
+  The factory English catalog contains exactly 16 phrases for each intent.
+  Phrase selection is replay-deterministic, remains stable for the same
+  interaction, and is isolated from forecast randomness. Microcopy is never a
+  domain event or evidence. Errors, warnings, external-effect approvals,
+  evidence questions, and active decision screens remain canonical and sober.
+  No phrase may shame, manipulate, invent facts, imply a hidden action, or
+  discourage the user from reporting an obstacle.
+- **UX-065 [standard] — Assisted personality paraphrase.** Powered-up mode or
+  the Skill may paraphrase the selected dumb phrase once per interaction in
+  one or two English lines. It retains the selected intent and factory phrase
+  identity, stays stable when the screen is redrawn, and cannot alter the
+  subject, question, actions, ordering, shortcut, status, or semantic result.
+  The paraphrase adds no factual claim, deadline, advice, guilt, or pressure.
+  This bounded personality text is the only ordinary wording variation allowed
+  between otherwise equivalent dumb, powered-up, and Skill screens.
 
 ## Errors and dry-run
 

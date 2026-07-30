@@ -94,6 +94,7 @@ Validate:
   proposal;
 - the first screen contains only the Focus decision and `[/] more...`, not a
   direct Feed action, default Feed, or shell prompt;
+- no decorative personality message competes with the opening Focus decision;
 - the palette initially suggests valid contextual commands, makes implicit
   targets visible, and opens Feed through `/feed`;
 - Escape from Feed input restores the exact served proposal without consuming
@@ -201,8 +202,12 @@ because its title sounds large.
 
 ### SCN-WRK-001 — Focus lifecycle
 
-Accept focus, switch to another Brick, inspect several WIPs, and return one to
-idle. Validate one current focus and honest WIP history.
+Accept focus and validate UX-F04 before any further action: focus starts
+immediately, the ordinary eligible count drops from 18 to 17, no second draw
+occurs, and the selected `focus_started` phrase remains stable when the screen
+is redrawn. Replay powered up and allow only the bounded UX-065 paraphrase.
+Then switch to another Brick, inspect several WIPs, and return one to idle.
+Validate one current focus and honest WIP history.
 
 ### SCN-WRK-002 — Symptom then reaction
 
