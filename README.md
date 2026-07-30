@@ -31,17 +31,24 @@ commands.
 
 ### Raw
 
-`Raw` is source material, not work: a URL, note, pasted conversation,
-brainstorm, file, or imported object that has not yet been routed.
+`Raw` is the general durable content record, not work: a Brick description,
+URL, note, pasted conversation, brainstorm, file, source snapshot, attachment,
+or imported object. Linking or routing a Raw never consumes it.
 
 Raw material:
 
-- is never prioritized, focused, started, or completed;
-- preserves verbatim content and attributed provenance;
-- may have an attributed canonical English representation for search;
+- is never ordered by importance, focused, started, or completed;
+- preserves its original representation and attributed provenance;
+- may keep an attributed canonical English normalization on the same Raw;
 - may live on one or more flat shelves;
-- may be linked to a Brick or ListEntry as source, evidence, or attachment;
+- may be linked to a Brick, ListEntry, or Raw as description, source,
+  evidence, attachment, or another typed role;
 - is archived rather than permanently deleted.
+
+A Brick does not own a separate scalar description field. Its description is
+linked Raw content. Translating that content does not create a second Raw: the
+original and canonical-English normalization remain distinguishable on the
+same identity.
 
 See [concepts and identity](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md)
 and [feeding and organization](spec/little-ant-1.0/03-feeding-and-organization.md).

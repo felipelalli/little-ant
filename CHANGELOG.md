@@ -16,8 +16,8 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 ### Breaking changes
 
 - Removed the `seed`, `committed`, and `ready` Brick stages.
-- Removed title-derived identity. Brick, Raw, Party, and ListEntry IDs are now
-  opaque and remain stable across renames.
+- Removed title-derived identity. Brick, Raw, ExternalEntity, and ListEntry IDs
+  are now opaque and remain stable across renames.
 - Removed core compatibility aliases. Operators may interpret natural
   language, but the core exposes one canonical English command vocabulary.
 - Changed the ordering question from “Does X come before Y?” to “Is X more
@@ -88,7 +88,10 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Immutable Raw snapshots backed by a content-addressed blob-store contract.
 - Flat Raw shelves.
 - Source, evidence, attachment, and derived-from links.
-- Attributed canonical English alongside verbatim original content.
+- Brick descriptions represented as linked Raw content rather than a separate
+  scalar field.
+- Attributed canonical English alongside verbatim original content on the same
+  Raw identity.
 - Explicit missing and corrupt snapshot states.
 - Archive and restore without permanent Raw deletion.
 
@@ -103,7 +106,8 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Typed, composable, paginated history queries.
 - One concise history summary per semantic action, with event-level
   drill-down.
-- Typed `@Party` and `#Brick` annotations without implicit behavioral effects.
+- Typed `@ExternalEntity` and `#Brick` annotations without implicit behavioral
+  effects.
 
 #### Integrations and Packs
 

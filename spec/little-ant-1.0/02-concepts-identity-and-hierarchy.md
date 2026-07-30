@@ -2,9 +2,11 @@
 
 ## Core concepts
 
-- **MOD-001 [core] — Raw.** Raw is durable material that can be reviewed,
-  linked, enriched, archived, and reconciled with an external origin. It is
-  not work, is not importance-orderable, and has no `done` operation.
+- **MOD-001 [core] — Raw.** Raw is the durable general content record. It may
+  hold a description, note, URL, imported object, pasted conversation, source
+  snapshot, attachment, or other material. It can be reviewed, linked,
+  enriched, archived, and reconciled with an external origin. It is not work,
+  is not importance-orderable, and has no `done` operation.
 - **MOD-002 [core] — Brick.** A Brick is one durable unit of intention or
   responsibility. Every active Brick has one Nature and one deterministic
   position among its siblings from birth.
@@ -93,8 +95,8 @@ open release decision rather than an inferred v1 commitment.
   Domains. Membership does not duplicate the Brick or give it multiple
   top-level lottery tickets.
 - **MOD-023 [standard] — Raw links.** Typed links connect Raw to a Brick,
-  ListEntry, or other Raw while retaining exactly one link owner and explicit
-  provenance.
+  ListEntry, or other Raw with an explicit content role and provenance. The
+  same Raw may participate in several links without being consumed or copied.
 - **MOD-024 [standard] — External annotations.** Human-readable mentions may
   resolve to stable ExternalEntity or Brick references, but text tokens never
   gain behavioral authority by themselves.
@@ -137,10 +139,11 @@ The factory library contains:
 
 ## Content, movement, and effective metadata
 
-- **MOD-029 [core] — Description is canonical content.** A Brick may keep an
-  English description directly. Durable source material, attachments,
-  original-language bodies, and independently reusable notes remain Raw and
-  link to it; a description is not forced to masquerade as Raw.
+- **MOD-029 [core] — Description is Raw.** A Brick has no scalar description
+  field. Descriptive content is a Raw linked to the Brick in a description
+  role, so it retains the same provenance, original-representation,
+  normalization, revision, and reuse semantics as other durable content. This
+  does not make the Raw focusable or importance-orderable.
 - **MOD-030 [standard] — Explicit participants.** A requester or responsible
   outside actor references an ExternalEntity. Delegation, waiting, requester,
   and `about`/annotation relationships remain distinct even when they cite the
@@ -248,3 +251,9 @@ The factory library contains:
   exhaustive keyword list nor executable behavior. A Pack cannot inject a
   free-form prompt for the host to obey; the Skill or powered-up host composes
   its own bounded classification request over validated catalog data.
+- **MOD-049 [core] — Same-Raw English normalization.** A Raw preserves its
+  original representation and may also carry one attributed canonical-English
+  normalization on the same Raw identity. Translation or normalization alone
+  never creates a second Raw. The normalization records its source and remains
+  distinguishable from the original; exact revision and stale-normalization
+  behavior is settled under `OPEN-RAW-002`.

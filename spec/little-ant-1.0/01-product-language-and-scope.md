@@ -37,15 +37,15 @@
 ## Canonical language
 
 - **PRD-010 [core] — English canonical product.** Commands, action labels,
-  identifiers, canonical titles, descriptions, responses, documentation, and
-  default UI are English.
+  identifiers, canonical titles, Raw English normalizations, responses,
+  documentation, and default UI are English.
 - **PRD-011 [standard] — Presentation preference.** A skill or UI adapter may
   translate presentation only when the user explicitly requests it or a
   user-owned preference selects it. Canonical data and action identity remain
   English.
-- **PRD-012 [standard] — Original input.** When input is normalized or
-  translated, the original text and its language remain attributable evidence
-  instead of being discarded.
+- **PRD-012 [standard] — Original input.** When Raw content is normalized or
+  translated, the original representation and its language remain on that
+  same Raw as attributable evidence instead of being discarded.
 - **PRD-013 [core] — No compatibility aliases.** The 1.0 core exposes one
   unambiguous term and command per concept. Natural-language mapping belongs
   to the operator or powered-up layer.

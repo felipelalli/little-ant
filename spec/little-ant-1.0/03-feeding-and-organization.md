@@ -12,8 +12,8 @@
   retained before normalization, translation, extraction, or routing, so a
   rejected proposal cannot lose user material.
 - **FED-004 [core] — Fast path.** Creating a Brick requires a title and one
-  Nature. Phase, effort, impact, Domain, description, dates, and other optional
-  axes are enriched later when useful.
+  Nature. Phase, effort, impact, Domain, descriptive Raw, dates, and other
+  optional axes are enriched later when useful.
 
 ## Classification and confirmation
 
@@ -45,9 +45,10 @@
 
 ## Raw, shelves, and sources
 
-- **FED-010 [core] — Material is not work.** A bare URL, pasted conversation,
-  document, note, or malformed fragment may enter as Raw. The system may then
-  propose ordinary Brick work such as reading or reviewing it.
+- **FED-010 [core] — Content is not work.** A description, bare URL, pasted
+  conversation, document, note, imported object, or malformed fragment may
+  enter as Raw. Raw remains durable after it is linked or routed. The system
+  may separately propose ordinary Brick work such as reading or reviewing it.
 - **FED-011 [standard] — Raw review.** Raw has independent review and storage
   axes. Reviewing, reopening, archiving, and unarchiving are explicit; no
   synthetic Brick is created to mark Raw done.
@@ -63,9 +64,10 @@
 
 ## Duplicate suspicion
 
-- **FED-015 [core] — Normalize for matching.** Canonical English, original
-  input, title fingerprints, source identity, parent, Nature, Domain, and
-  historical continuity may generate a bounded duplicate candidate set.
+- **FED-015 [core] — Normalize for matching.** A Raw's canonical-English
+  normalization and original representation, plus title fingerprints, source
+  identity, parent, Nature, Domain, and historical continuity, may generate a
+  bounded duplicate candidate set.
 - **FED-016 [core] — Scope-sensitive review.** The review distinguishes:
 
   ```text
@@ -187,8 +189,8 @@
 
 Feeding `comprar leite` may produce:
 
-1. preserved original Portuguese input;
-2. proposed canonical English `milk`;
+1. a Raw preserving the original Portuguese input;
+2. attributed canonical English `milk` on that same Raw;
 3. duplicate and compatible-target candidates;
 4. a proposal to add one ListEntry under `#… "Buy groceries"`;
 5. a deterministic choice rather than silent routing.
