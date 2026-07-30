@@ -1734,3 +1734,19 @@ can instead support the `physical_activity` habit Template, while a one-off
 session can remain a scheduled commitment. The proposal is attributed and
 confirmed; rejection enters the ordinary dumb classification flow. The
 deterministic core gains no hidden keyword classifier.
+
+## Entry 106 — Make assisted Template discovery catalog-wide
+
+The user corrected the calendar examples: flight, meeting, and recurring
+swimming illustrate the mechanism but must not become the classifier's implied
+scope. Assisted discovery needs to cover the much broader installed Template
+catalog.
+
+Templates may therefore supply bounded declarative classification guidance:
+representative canonical-English examples, positive semantic or structural
+cues, counterexamples, and relevant source shapes. Skill or powered-up mode
+uses that guidance together with Feed input and canonical context to evaluate
+the compatible catalog and propose an attributed, confirmable result. Template
+guidance is neither exhaustive recognition logic nor a free-form Pack prompt
+that the host executes. The deterministic core retains no domain keyword
+branches, and uncertain classification returns to the ordinary dumb flow.

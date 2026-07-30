@@ -175,6 +175,13 @@
   catalog contains at least one candidate. The user may select one Template or
   explicitly continue with no Template. Absence of a Template never prevents
   creation because the resolved Nature is already sufficient.
+- **FED-029 [standard] — Catalog-wide assisted discovery.** Skill and
+  powered-up classification consider the full installed compatible Template
+  catalog rather than a hard-coded shortlist. Template guidance under
+  `MOD-048` may improve recall and explain candidate evidence, but judgment may
+  also use the preserved Feed input and canonical context. The attributed
+  proposal identifies the winning Template and catalog version; low
+  confidence or no suitable candidate enters the unchanged dumb route.
 
 ## Reference flows
 

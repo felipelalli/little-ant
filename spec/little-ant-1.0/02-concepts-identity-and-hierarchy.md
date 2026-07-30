@@ -241,3 +241,10 @@ The factory library contains:
   before creation. After acceptance, ordinary canonical relationships and
   temporal constraints own the behavior; the Template retains provenance but
   no runtime authority.
+- **MOD-048 [standard] — Declarative classification guidance.** A Template
+  may publish bounded, inspectable guidance containing representative
+  canonical-English examples, positive semantic or structural cues,
+  counterexamples, and source-shape evidence. Guidance is neither an
+  exhaustive keyword list nor executable behavior. A Pack cannot inject a
+  free-form prompt for the host to obey; the Skill or powered-up host composes
+  its own bounded classification request over validated catalog data.

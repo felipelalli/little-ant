@@ -18,6 +18,13 @@ common situations. Companion Packs remain available for highly specialized
 domains, integrations, or recipes rather than carrying ordinary everyday
 choices by default.
 
+Each Template may also publish declarative classification guidance: varied
+examples, positive semantic or structural cues, counterexamples, and relevant
+source shapes. These are aids for catalog-wide Skill or powered-up judgment,
+not a finite keyword classifier and not prompt text that a Pack can execute.
+The catalog examples below explain recipes; they do not delimit what the
+classifier can recognize.
+
 ## `atomic_task`
 
 | Template | Status | Example or purpose |
@@ -194,4 +201,7 @@ Review one root Nature at a time. For each Template, decide:
    configuration;
 5. whether it belongs in the offline standard library or a companion Pack;
 6. whether another Template overlaps enough that one should be removed rather
-   than retained as an alias.
+   than retained as an alias;
+7. which examples, positive cues, counterexamples, and source shapes make its
+   classification guidance useful without pretending to define recognition
+   exhaustively.

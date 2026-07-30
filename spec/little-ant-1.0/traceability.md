@@ -113,6 +113,7 @@ they were successive refinements of the same current rule family.
 | 103 | `MOD-043..044`, `FED-024..025`, `FOC-011`, `UX-056`, `UX-K01`, `UX-K06`, `OPEN-SCH-001` |
 | 104 | `MOD-045..047`, `FOC-030..031`, `WRK-046`, `UX-057`, `UX-B01`, `OPEN-SCH-001..002` |
 | 105 | `DAT-038..041`, `FED-005..009`, `OPEN-EXT-002`, `OPEN-CAL-001` |
+| 106 | `MOD-048`, `FED-005..009`, `FED-029`, `DAT-040..041` |
 
 ## Downstream coverage
 

@@ -189,7 +189,9 @@ Exact shipping placement and API feasibility are tracked under
 - **DAT-040 [standard] — Assisted calendar classification.** Event title and
   structured evidence such as recurrence, interval, organizer, attendees,
   location, and source may support an attributed Skill or powered-up proposal
-  for Nature and Template. For example, `Flight AD123` may propose
+  for Nature and Template. Template-owned guidance under `MOD-048` participates
+  in catalog-wide discovery; the following cases are illustrative, not a
+  closed recognition list. `Flight AD123` may propose
   `scheduled_commitment` with `flight`, and `Quarterly planning meeting` may
   propose `scheduled_commitment` with `meeting`. A recurring `Swimming` event
   may support `habit` with `physical_activity`, while an isolated session may
@@ -197,6 +199,7 @@ Exact shipping placement and API feasibility are tracked under
   instead of hiding the distinction.
 - **DAT-041 [core] — No lexical domain rules.** Calendar words and provider
   metadata do not create hard-coded title branches in the deterministic core.
-  Assisted classification follows `FED-005` through `FED-009`: the proposed
-  route is attributed and previewed, `[y]es` accepts it, `[n]o` enters the
-  ordinary dumb classification flow, and uncertainty remains explicit.
+  Assisted classification follows `FED-005` through `FED-009` and `FED-029`:
+  the proposed route is attributed and previewed, `[y]es` accepts it, `[n]o`
+  enters the ordinary dumb classification flow, and uncertainty remains
+  explicit.
