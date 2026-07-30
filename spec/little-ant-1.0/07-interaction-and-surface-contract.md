@@ -212,10 +212,12 @@ The normative reference renderings live in
 
   Narrow renderers may wrap whole actions while preserving row membership and
   canonical action order.
-- **UX-049 [standard] — Dumb Feed language hint.** In dumb mode, the Feed
-  input displays `Tip: prefer English for consistent titles and search.`
-  This is advice, not validation: any language remains accepted and the
-  original input is preserved under `PRD-012`.
+- **UX-049 [standard] — Dumb free-text language hint.** Every dumb-mode screen
+  that accepts free text displays `Tip: prefer English for consistent titles
+  and search.` discreetly beside or immediately above that input. The hint is
+  not repeated on single-key choice screens, where the user cannot write
+  content. This is advice, not validation: any language remains accepted and
+  the original input is preserved under `PRD-012`.
 - **UX-050 [core] — Nature before Template.** Dumb Feed resolves one Nature
   through UX-K01, or through UX-K02 followed by UX-K03, before optionally
   offering compatible Templates.

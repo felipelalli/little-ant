@@ -445,9 +445,10 @@ Tip: prefer English for consistent titles and search.
 ```
 
 Enter begins the deterministic Feed route. Escape restores the exact proposal
-and random cursor shown before `[f]eed`. The tip is advisory and specific to
-dumb mode. Until Enter, the text remains only a local draft; this guarantee is
-behavioral and is not rendered as status text.
+and random cursor shown before `[f]eed`. The tip is advisory and, under
+`UX-049`, appears beside every dumb-mode free-text input rather than only on
+Feed. Single-key choice screens omit it. Until Enter, the text remains only a
+local draft; this guarantee is behavioral and is not rendered as status text.
 
 ## UX-H01 — Contextual uncertainty
 

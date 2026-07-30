@@ -1817,3 +1817,14 @@ and explain the evidence beneath the options, but it cannot replace that
 question with a complete clarification proposal. This is an explicit
 flow-level denial of `UX-060`, not a rollback of proposal gateways for Nature
 and Template classification or other separately reviewed flows.
+
+## Entry 111 — Remind dumb-mode writers to prefer English
+
+The user broadened the existing Feed-only language hint. Every dumb-mode screen
+that accepts free text now displays the same discreet advice to prefer English
+for consistent titles and search. The hint stays next to the field rather than
+occupying the persistent status bar, and single-key choice screens omit it
+because no user-authored text can be entered there.
+
+This remains advice rather than validation. Non-English input is accepted and
+its original form is preserved under the existing canonical-language rules.
