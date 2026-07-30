@@ -205,8 +205,11 @@ Already finished?
 🐜 served after 9 days · active Domain unchanged
 ```
 
-Selecting a symptom records evidence and opens a separate reaction screen.
-Escape before selection returns to the exact Focus screen without a skip.
+Selecting a symptom opens its separate reaction screen without recording
+evidence. Escape from the reaction screen restores this exact symptom screen;
+Escape here restores the exact Focus screen. Only the final reaction commits
+the symptom and reaction together. An explicit `skip anyway` reaction commits
+the symptom, cooldown, and no additional remediation.
 
 ## UX-K01 — Nature choice
 

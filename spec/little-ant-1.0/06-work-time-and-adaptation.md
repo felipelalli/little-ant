@@ -22,9 +22,9 @@
 
 ## Skip as evidence
 
-- **WRK-007 [core] — Symptom before reaction.** Served-work skip first records
-  what prevented focus, then may offer a separate remedy. Skip is not itself a
-  remediation command.
+- **WRK-007 [core] — Symptom before reaction.** Served-work skip first asks
+  what prevented focus, then opens a separate reaction decision. Choosing a
+  symptom is provisional navigation, not yet a recorded skip or remediation.
 - **WRK-008 [core] — Canonical symptom family.**
 
   ```text
@@ -38,9 +38,11 @@
   external person, event, or condition with no known action. `blocked` means a
   missing actionable prerequisite such as a Brick, information, access, or
   material.
-- **WRK-010 [core] — Cooldown plus memory.** A served skip creates a short,
-  replay-deterministic cooldown while preserving longer-term evidence and
-  pressure. It never changes importance.
+- **WRK-010 [core] — Cooldown plus memory.** Explicitly deferring the served
+  Brick after a symptom creates a short, replay-deterministic cooldown while
+  preserving longer-term evidence and pressure. A recovery that returns to
+  the Brick without deferral creates no skip cooldown. Neither path changes
+  importance.
 - **WRK-011 [standard] — Scoped fatigue.** An accepted reaction may apply
   tiredness or boredom to a Domain branch, producing a bounded decaying signal.
   The symptom alone never chooses scope or changes Domain.
@@ -50,6 +52,12 @@
 - **WRK-013 [core] — Contextual skip.** Ordering, effort/impact
   classification, repeatable work, and habit opportunities each have
   distinct skip semantics and never reuse served-work evidence incorrectly.
+- **WRK-047 [core] — Atomic symptom resolution.** A final reaction records the
+  selected symptom and accepted reaction atomically. `skip anyway` records the
+  symptom without another remediation and applies the ordinary cooldown.
+  Escape from a reaction returns to the symptom screen; Escape from the
+  symptom screen returns to the original Focus screen. Neither Escape path
+  records evidence, applies cooldown, changes Domain, or consumes a new draw.
 
 ## Time
 

@@ -1750,3 +1750,19 @@ the compatible catalog and propose an attributed, confirmable result. Template
 guidance is neither exhaustive recognition logic nor a free-form Pack prompt
 that the host executes. The deterministic core retains no domain keyword
 branches, and uncertain classification returns to the ordinary dumb flow.
+
+## Entry 107 — Keep symptom and reaction navigation provisional
+
+The user confirmed that choosing a served-work symptom does not immediately
+record a skip. It opens a symptom-specific reaction screen as an uncommitted
+navigation checkpoint. Escape returns first to the symptom screen and then to
+the original Focus screen without evidence, cooldown, Domain changes, or a new
+draw.
+
+Selecting a final reaction atomically records the symptom and accepted
+reaction. `skip anyway` is the explicit defer-only outcome: it records the
+symptom, applies the ordinary short cooldown, and requests another draw
+without pretending that a remedy occurred. A successful recovery may return
+to the same Brick without a skip cooldown. The exact reaction catalog,
+starting with what `clarify now` does for `vague`, remains the next focused UX
+decision rather than being inferred from the v0 operator skill.

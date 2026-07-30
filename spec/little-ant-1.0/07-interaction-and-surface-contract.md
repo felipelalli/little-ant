@@ -258,6 +258,11 @@ The normative reference renderings live in
   why the Brick cannot remain atomic. `yes` commits the Nature change and
   structure together; `no`, uncertainty, or Escape follow their ordinary
   confirmation and navigation semantics without creating partial structure.
+- **UX-058 [core] — Provisional skip navigation.** The served-work symptom
+  screen and its symptom-specific reaction screen are uncommitted navigation
+  checkpoints. A symptom shortcut opens the matching reaction screen without
+  recording evidence. Only a final reaction action commits the symptom and
+  reaction under `WRK-047`; `skip anyway` is the explicit defer-only action.
 
 ## Errors and dry-run
 
