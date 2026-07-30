@@ -1,0 +1,327 @@
+# 1.0 specification completion plan
+
+Status: **active closure plan**
+
+This plan gives the remaining specification journey a beginning, middle, and
+end. It is deliberately UX-first: the dumb REPL exposes one concrete human
+decision at a time, and the event, invariant, command, and projection
+contracts are derived from the accepted transition. Powered-up mode, the Skill,
+web/mobile, Allium, tests, and code follow in that order.
+
+## Definition of finished
+
+The 1.0 specification is finished when:
+
+1. there is one live product specification and no linked shadow authority;
+2. every meaningful v0 capability has an explicit disposition;
+3. every core rule is observable through at least one exact dumb-REPL flow;
+4. every flow identifies entry state, screen, valid action, mutation or
+   non-mutation, resulting state, and next envelope;
+5. uncertainty, Escape, undo/redo, stale input, errors, and empty state never
+   produce an unexplained dead end;
+6. every Nature has a complete capability row before a Template can rely on
+   it;
+7. every external effect has authority, preview, failure, retry, and
+   compensation semantics;
+8. powered-up and downstream surfaces reproduce rather than invent the core
+   route;
+9. the synthetic week and isolated v0 shadow day pass;
+10. all core-affecting open decisions are closed and every remaining
+    non-core deferral has an explicit release disposition;
+11. only then is Markdown promoted to Allium and tests.
+
+Coding and data migration remain separately authorized phases.
+
+## Working rule
+
+For each flow:
+
+1. show exactly one dumb-REPL screen;
+2. critique it as meaning, wording, hierarchy, density, shortcut, transition,
+   provenance, parity, or accessibility;
+3. settle the visible action and immediate transition;
+4. derive the core state/event/invariant contract;
+5. update the canonical chapter, screen, scenario, matrix, and traceability;
+6. commit the coherent decision immediately;
+7. do not reopen it without a concrete conflicting scenario or regression.
+
+No new core concept is added merely to make prose elegant. It must be required
+by a blocked flow, invariant, migration fact, or regression row. Additional
+Templates pause while the Nature capability matrix is incomplete.
+
+## Beginning — recover and bound the product
+
+### Gate 1 — One authoritative truth
+
+Status: **complete**
+
+Deliverables:
+
+- correct the Raw/description/English-normalization baseline;
+- replace the historical regression chapter with the maintained
+  [v0→1.0 matrix](v0-v1-capability-matrix.md);
+- harvest unique safety guarantees and open questions;
+- rewrite traceability around Git evidence and canonical IDs;
+- remove the entire live `history/` shadow tree;
+- validate links, rejected vocabulary, and contradictory claims.
+
+Exit:
+
+- no behavior exists only in chat or the deleted shadow tree;
+- Git retains exact recovery anchors;
+- every v0 capability is retained, strengthened, replaced, simplified,
+  retired, or visibly unresolved;
+- the next discussion never needs to load the historical corpus.
+
+### Gate 2 — Close the interaction vocabulary
+
+Status: **next**
+
+Decisions:
+
+- exhaustive versioned `next` opportunity variants;
+- the five screen grammars and which opportunity uses each;
+- convert the [flow coverage inventory](ux/flow-coverage.md) into explicit
+  state transitions as each route is accepted;
+- minimum `InteractionEnvelope` identity, revision, provenance, commands,
+  valid actions, and bounded context;
+- shared chrome: status bar, context panel, warnings, global actions, `*`,
+  `[?] I don't know`, nested help, `/`, Escape, semantic undo/redo, and stale
+  response;
+- canonical executable and reference grammar;
+- hard temporary Domain scope versus soft Domain continuity.
+
+Exit:
+
+- no generic public `interaction`;
+- no uncatalogued opportunity type;
+- every opportunity has one grammar and a complete valid-action set;
+- every capable surface can render and answer the same envelope without
+  inventing policy.
+
+## Middle — complete the dumb REPL state machine
+
+### Gate 3 — Golden daily loop
+
+Close this complete route:
+
+```text
+start or restore
+→ next or useful empty state
+→ feed
+→ preserve original / normalize English
+→ choose Raw, Brick, ListEntry, or enrichment route
+→ resolve Nature and optional Template
+→ review duplicate and target
+→ choose parent and optional Domain
+→ attach descriptive/source Raw
+→ settle sibling importance position
+→ preview and confirm
+→ revalidate next
+→ focus
+→ done
+→ next or safe end
+```
+
+Run it dumb-first for:
+
+1. `fix a bug on website`;
+2. `comprar leite`;
+3. one article URL with a descriptive Raw.
+
+Exit:
+
+- all three finish without AI, hidden fallback, unordered Brick, silent merge,
+  lost original content, or dead end;
+- rejecting a proposal returns to the unchanged deterministic route;
+- the resulting command, state, and next envelope are explicit at every turn.
+
+### Gate 4 — Uncertainty and correction
+
+Close:
+
+- importance first skip, nearby comparator, second skip, provisional
+  placement, `tie-break for me`, contradiction, and recalibration;
+- contextual uncertainty and nested help;
+- every served-work symptom and its bounded reaction screen;
+- `other` plus taxonomy watch;
+- atomic break and Nature change;
+- WIP review, unfocus, return-to-idle, direct done, drop, supersede, and merge;
+- Escape versus semantic undo, redo conflict, stale answer, and restored draft.
+
+Exit:
+
+- every uncertainty, back, skip, and correction path states exactly what is
+  recorded and what remains unchanged;
+- adaptive `org-sort-tasks` maintenance is demonstrated end to end, not merely
+  named.
+
+### Gate 5 — Hierarchy and focus forecast
+
+Close:
+
+- project, collection, and checklist descent;
+- same-parent importance and global tree projection;
+- one subject ticket plus local opportunity selection;
+- N-step and branching blocker resolution;
+- non-Brick blocker endpoints;
+- Domain continuity, narrowing, multi-membership, explicit change, hard scope,
+  and empty-scope recovery;
+- current-focus continuation and safe no-eligible ending.
+
+Exit:
+
+- every possible `next` result terminates in one actionable endpoint, bounded
+  review, concrete recovery, or explicit safe end;
+- selection provenance can be inspected without redrawing;
+- forecast never rewrites importance.
+
+### Gate 6 — Nature capability matrix
+
+For each factory Nature, settle:
+
+```text
+focus unit
+completion and retirement
+standing identity
+child or ListEntry ownership
+importance scope
+break/decompose behavior
+delegation scope
+temporal behavior
+phase and effort applicability
+empty/dormant behavior
+```
+
+Cover:
+
+```text
+atomic_task | project | collection | finite_checklist | living_checklist
+repeatable | recurring_obligation | habit | scheduled_commitment
+```
+
+Exit:
+
+- every cell is explicit;
+- ListEntry outcomes and checklist-run semantics are closed;
+- Templates only select settled capabilities and declarative defaults.
+
+### Gate 7 — Time and standing work
+
+Render and settle:
+
+- `not_before`, `best_before`, deadline, notice, acknowledgment, and snooze;
+- civil instant versus habit day and workday;
+- repeatable completion and deterministic jitter;
+- recurring-obligation occurrence release and overdue coexistence;
+- habit schedule, pause/block, outcome, streak, and introspection;
+- scheduled commitment preparation, active precedence, overlap, reschedule,
+  attended/missed/cancelled outcome, and exact timezone.
+
+Exit:
+
+- no operational-day convenience can move an exact event;
+- one standing execution never accidentally retires the standing identity;
+- all terminal and missed outcomes use canonical non-generic vocabulary.
+
+### Gate 8 — External truth and effects
+
+Render and settle:
+
+- Raw editing, description, shelves, source observations, reconciliation, and
+  `/translate`;
+- ExternalEntity contacts and local delivery bindings;
+- Delegation from draft through terminal reconciliation;
+- typed write-back and notification;
+- import, synchronization, migration cleanup, mass-removal guard, and partial
+  failure;
+- Calendar observation and approved write-back;
+- Pack capability/credential boundaries;
+- dry-run, typed failures, corrupt event history, repair, backup, and rollback.
+
+Exit:
+
+- every external effect is previewed and attributable;
+- source absence never silently becomes work completion or deletion;
+- failure is resumable and leaves canonical truth inspectable.
+
+## End — validate, freeze, and hand off
+
+### Gate 9 — Paired powered-up replay
+
+Replay every accepted dumb route from the same state, clock, configuration,
+and random cursor. A powered-up delta may only:
+
+- place one attributed `*` on an existing action;
+- add one concise attributed note; or
+- use a declared gateway to preview one complete result reachable through the
+  unchanged dumb route.
+
+Exit:
+
+- every removed screen and suggestion has provenance;
+- powered-up mode never supplies a missing core route or mutates directly.
+
+### Gate 10 — Surface mirrors
+
+Render accepted envelopes through the operator Skill and first-party
+web/mobile reference.
+
+Exit:
+
+- wording, subject order, actions, shortcuts, defaults, provenance, and
+  transitions preserve almost-literal parity;
+- presentation differences are limited to wrapping, density, physical
+  control, pagination, and accessibility.
+
+### Gate 11 — Regression, realism, and calibration
+
+- execute the synthetic week as exact turn-by-turn transcripts;
+- run the authorized isolated v0 shadow day without mutating personal data;
+- resolve every row in the capability matrix;
+- sweep forecast, Domain, cooldown, warning, and validation parameters only
+  after semantics freeze;
+- add a synthetic reproduction for every accepted real-use correction.
+
+Exit:
+
+- no unresolved v0 regression;
+- no semantic change is still being disguised as calibration;
+- no personal source data appears in the repository.
+
+### Gate 12 — Specification freeze
+
+- close all core-affecting `OPEN-*` items;
+- explicitly include, defer, or remove each remaining standard item;
+- validate links, IDs, terminology, opportunity/flow coverage, and
+  contradictions;
+- update the README and version summary from the frozen truth;
+- promote to Allium with originating IDs;
+- inspect generated obligations before generating high-level tests.
+
+Exit:
+
+- every core rule has an exact flow;
+- every flow cites canonical rules;
+- every retained capability has an executable obligation or a reviewed
+  non-testable rationale;
+- the user can authorize Allium/tests as the next phase without reopening
+  product discovery.
+
+## Ordered decision queue
+
+Tomorrow's discussion starts at Gate 2, not with another broad brainstorm:
+
+1. opportunity catalog and shared envelope/chrome;
+2. golden Feed route, including Raw/description/normalization;
+3. importance uncertainty and adaptive maintenance;
+4. complete skip symptom-to-reaction matrix;
+5. hierarchy, blockers, Domain scope, and `next`;
+6. Nature capability matrix;
+7. time and standing work;
+8. external effects and integrations;
+9. powered-up and mirrors;
+10. regression/calibration/freeze.
+
+Each item closes before the next begins. A later concrete counterexample may
+reopen the smallest affected flow, never the whole specification.

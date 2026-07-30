@@ -2,9 +2,10 @@
 
 All notable user-visible changes to Little Ant are documented here.
 
-The authoritative behavioral definition remains the composed
-[Allium specification](spec/little-ant.allium). This changelog summarizes that
-contract; it does not replace it.
+The reviewed [1.0 specification](spec/little-ant-1.0.md) is authoritative.
+Removed implementation, Allium, and generated-test artifacts are historical
+evidence only. This changelog summarizes the intended release; it does not
+replace the specification.
 
 ## 1.0.0
 
@@ -15,16 +16,16 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 ### Breaking changes
 
 - Removed the `seed`, `committed`, and `ready` Brick stages.
-- Removed title-derived identity. Brick, Raw, Party, and ListEntry IDs are now
-  opaque and remain stable across renames.
+- Removed title-derived identity. Brick, Raw, ExternalEntity, and ListEntry IDs
+  are now opaque and remain stable across renames.
 - Removed core compatibility aliases. Operators may interpret natural
   language, but the core exposes one canonical English command vocabulary.
 - Changed the ordering question from “Does X come before Y?” to “Is X more
   important than Y?”
-- Separated human priority from the `next` forecast. Forecast results never
-  rewrite the priority tree.
+- Separated human importance order from the `next` forecast. Forecast results
+  never rewrite the importance tree.
 - Split work, material, and checklist occurrences into `Brick`, `Raw`, and
-  `ListEntry` instead of treating all captured content as task-shaped.
+  `ListEntry` instead of treating all fed content as task-shaped.
 - Replaced generic effort weight and direct hour promises with comparable
   effort bands backed by versioned planning profiles.
 - Replaced generic extension hooks with closed, typed Little Ant Pack
@@ -32,16 +33,16 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 
 ### Added
 
-#### Human priority and judgment
+#### Human importance and judgment
 
 - Strict sibling importance order for every active Brick.
-- Binary insertion for newly captured or moved Bricks.
+- Binary insertion for newly fed or moved Bricks.
 - Nearby replay-safe comparison selection after an unresolved answer.
 - Explicit `unresolved` and `tie_break_for_me` skip meanings; neither means
   equal importance.
 - Provisional placement, confidence explanations, contradiction detection, and
   local recalibration.
-- Provocative validation probes for direct checks of transitive priority,
+- Provocative validation probes for direct checks of transitive importance,
   impact, and effort evidence.
 - Root-scoped impact classes with maturity and attributed evidence.
 - Comparable effort bands with optimistic, realistic, and pessimistic planning
@@ -52,8 +53,8 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Independent Brick lifecycle, optional phase, and WIP state.
 - Composition trees with inherited context, mode, and date constraints.
 - Explicit subtree move, complete, drop, and supersede operations.
-- Behaviors for standard work, projects, collections, checklists, repeatable
-  work, recurring obligations, and practices.
+- Natures for atomic tasks, projects, collections, finite and living
+  checklists, repeatable work, recurring obligations, and habits.
 - Versioned factory and personal templates.
 - Structured checklist entries that remain subordinate to their owner Brick.
 - Direct completion without fabricated execution history.
@@ -63,20 +64,20 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Completion-triggered repetition on the same Brick with a jittered
   `not_before`.
 - Recurring obligation occurrences with stable period identities.
-- Practice opportunities recorded as `done`, `not_done`, or
+- Habit opportunities recorded as `done`, `not_done`, or
   `not_applicable`.
 - Derived streak history that does not count paused or blocked periods as
   failures.
 - Schedule and timezone revisions that preserve prior occurrence history.
 - Event-triggered opportunities with replay-safe source-event identities.
 
-#### Selection and capture
+#### Selection and feeding
 
 - Read-only, explainable forecast with replay-safe weighted `next` draws.
-- Separate priority and forecast projections.
-- Proposal pressure for unresolved priority, stale focus, source
-  reconciliation, repeated practice friction, approvals, and reviews.
-- Capture intents with explicit routes to Raw, Brick, ListEntry, template
+- Separate importance and forecast projections.
+- Proposal pressure for unresolved importance, stale focus, source
+  reconciliation, repeated habit friction, approvals, and reviews.
+- Feed intents with explicit routes to Raw, Brick, ListEntry, template
   instantiation, or enrichment of an existing target.
 - Deterministic layered duplicate suspicion with explicit reuse, enrich, or
   separate decisions.
@@ -87,7 +88,10 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Immutable Raw snapshots backed by a content-addressed blob-store contract.
 - Flat Raw shelves.
 - Source, evidence, attachment, and derived-from links.
-- Attributed canonical English alongside verbatim original content.
+- Brick descriptions represented as linked Raw content rather than a separate
+  scalar field.
+- Attributed canonical English alongside verbatim original content on the same
+  Raw identity.
 - Explicit missing and corrupt snapshot states.
 - Archive and restore without permanent Raw deletion.
 
@@ -102,16 +106,19 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Typed, composable, paginated history queries.
 - One concise history summary per semantic action, with event-level
   drill-down.
-- Typed `@Party` and `#Brick` annotations without implicit behavioral effects.
+- Typed `@ExternalEntity` and `#Brick` annotations without implicit behavioral
+  effects.
 
 #### Integrations and Packs
 
-- Closed Pack components for behaviors, templates, import-profile presets,
+- Closed Pack components for Natures, templates, import-profile presets,
   source adapters, enrichers, read-only exporters, and UI adapters.
 - Fresh bounded Lua 5.4 execution through HsLua.
 - Host-mediated HTTP and credential brokering without exposing secrets to Lua.
 - Pinned Pack manifests, capability grants, and invocation provenance.
-- Microsoft To Do and Notesnook source adapters in the standard Pack.
+- Microsoft To Do and Notesnook as official 1.0 source-adapter targets; their
+  final offline-standard versus pinned-companion packaging remains under
+  review.
 - TaskJuggler exporter with immutable planning manifests and separate imported
   actuals.
 - Loopback-only Metro-style local web UI adapter.
@@ -125,10 +132,10 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Canonical searchable work titles and product vocabulary are English, while
   original input remains verbatim and attributed.
 - Phase is now optional (`idea`, `spec`, `exec`, or `validation`) and may be
-  disabled by behavior.
+  disabled by Nature.
 - “Done,” “drop,” and “supersede” are distinct terminal outcomes.
 - `next` considers eligibility, focus, dates, dependencies, places, recurrence,
-  pressure, and reviews while treating priority as one contribution.
+  pressure, and reviews while treating importance as one contribution.
 - External reads and writes are explicit. Ordinary rendering performs no
   hidden I/O, and external mutations always require approved effects.
 - Operational projections are rebuildable from canonical events and required
@@ -148,5 +155,5 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Activation is atomic and only available after archive and projection
   verification.
 
-See [migration-v0-v1.allium](spec/little-ant/migration-v0-v1.allium) for the
-complete cutover contract.
+See [the migration and release contract](spec/little-ant-1.0/09-migration-and-release-contract.md)
+for the complete cutover contract.

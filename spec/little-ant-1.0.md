@@ -1,159 +1,127 @@
-# Little Ant 1.0 — Conceptual Design Record
+# Little Ant 1.0
 
-Status: **draft for review; no implementation has started**
+Status: **canonical product-specification draft**
 
 Target release: **Little Ant 1.0**
 
-Current implementation baseline: **v0**, package version `0.1.0.0`
+Implementation baseline: **none; 1.0 is a greenfield implementation**
 
-Last consolidated: **2026-07-27**
+Last consolidated: **2026-07-30**
 
-This is the index for the Little Ant 1.0 discovery record. Each chapter is a
-small standalone file so a future session can load only the relevant concepts
-instead of the entire design history.
+This is the canonical index for Little Ant 1.0. The compact chapters linked
+below define what the product must do. A normative answer must be discoverable
+from this index and one subject chapter. Chronological discovery evidence is
+recoverable through the commits listed in `traceability.md`; it is never
+required to operate or implement the product.
 
-The chapters are preparatory design material. They do not yet replace
-[`little-ant.allium`](little-ant.allium). The Allium specification becomes
-authoritative for 1.0 only after the remaining questions are resolved and the
-documentation phase is deliberately completed and reviewed.
+The previous implementation, Allium garden, and generated tests were removed
+from the working tree after their divergence was diagnosed. Git history and a
+versioned v0 archive remain migration evidence only. The current README and v0
+operator skill are not authoritative for 1.0.
 
-## Minimum safe reading
+## Authority
 
-For any focused design question, load:
+When sources disagree, use this order:
 
-1. [Purpose and authority](little-ant-1.0/01-purpose-and-authority.md);
-2. [Corrections and superseded decisions](little-ant-1.0/17-corrections-and-superseded-decisions.md);
-3. the relevant subject chapter;
-4. the relevant portion of [Open questions](little-ant-1.0/19-open-questions.md);
-5. the latest entries in the [Session log](little-ant-1.0/22-session-log.md).
+1. the compact canonical chapters below;
+2. [open release decisions](little-ant-1.0/open-release-decisions.md), only to
+   identify an intentionally unresolved boundary;
+3. the [v0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md),
+   to require an explicit regression disposition rather than define new
+   behavior;
+4. [traceability](little-ant-1.0/traceability.md), to locate provenance rather
+   than define behavior;
+5. Git evidence anchors and the retained v0 skill, as non-authoritative
+   historical evidence.
 
-Later corrections override earlier proposals. Open questions are
-non-normative.
+Deleted code, Allium, and generated artifacts must not be consulted as current
+product evidence merely because Git can recover them.
 
-## Topic-oriented reading paths
+`skills/little-ant/SKILL.md` is explicitly a **v0 operator skill** during this
+specification phase. It may provide historical evidence, but it must not name,
+infer, or fill a 1.0 route. It is replaced only after the dumb and powered-up
+contracts reach the Skill-mirror gate.
 
-| Topic | Load these chapters |
-|---|---|
-| Release, terminology, and compatibility | [02](little-ant-1.0/02-release-version-compatibility-and-language.md), [03](little-ant-1.0/03-design-center.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md) |
-| Raw material | [04](little-ant-1.0/04-conceptual-entities.md), [05](little-ant-1.0/05-raw-material-and-shelves.md), [19](little-ant-1.0/19-open-questions.md) |
-| Brick lifecycle and hierarchy | [06](little-ant-1.0/06-brick-state-phase-and-metadata.md), [07](little-ant-1.0/07-composition-tree-and-inheritance.md), [25](little-ant-1.0/25-brick-behaviors-and-template-library.md), [18](little-ant-1.0/18-confirmed-invariants.md) |
-| Priority and contradictions | [08](little-ant-1.0/08-human-priority-ordering-and-confidence.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md), [18](little-ant-1.0/18-confirmed-invariants.md) |
-| Impact and effort | [09](little-ant-1.0/09-impact-rating.md), [10](little-ant-1.0/10-effort-rating-and-calibration.md), [19](little-ant-1.0/19-open-questions.md) |
-| Dates, WIP, and current focus | [11](little-ant-1.0/11-dates-and-urgency.md), [12](little-ant-1.0/12-wip-focus-and-delegation.md) |
-| Forecast, next, and skip | [13](little-ant-1.0/13-priority-forecast-and-next.md), [14](little-ant-1.0/14-skip-semantics.md), [19](little-ant-1.0/19-open-questions.md) |
-| TaskJuggler | [10](little-ant-1.0/10-effort-rating-and-calibration.md), [15](little-ant-1.0/15-taskjuggler-planning-boundary.md), [34](little-ant-1.0/34-lua-pack-runtime-credentials-exporters-and-ui-adapters.md), [17](little-ant-1.0/17-corrections-and-superseded-decisions.md), [19](little-ant-1.0/19-open-questions.md) |
-| REPL harness and powered-up mode | [24](little-ant-1.0/24-repl-harness.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [19](little-ant-1.0/19-open-questions.md) |
-| Core/operator boundary | [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [18](little-ant-1.0/18-confirmed-invariants.md) |
-| Behaviors and templates | [25](little-ant-1.0/25-brick-behaviors-and-template-library.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [19](little-ant-1.0/19-open-questions.md) |
-| Structured entries, identity, and duplicates | [26](little-ant-1.0/26-structured-entries-identity-and-duplicate-suspicion.md), [02](little-ant-1.0/02-release-version-compatibility-and-language.md), [05](little-ant-1.0/05-raw-material-and-shelves.md), [19](little-ant-1.0/19-open-questions.md) |
-| Standing work, recurrence, and practices | [27](little-ant-1.0/27-standing-work-recurrence-obligations-and-practices.md), [11](little-ant-1.0/11-dates-and-urgency.md), [13](little-ant-1.0/13-priority-forecast-and-next.md), [19](little-ant-1.0/19-open-questions.md) |
-| Places and location observations | [28](little-ant-1.0/28-place-conditions-and-location-observations.md), [13](little-ant-1.0/13-priority-forecast-and-next.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [19](little-ant-1.0/19-open-questions.md) |
-| Text mentions and typed annotations | [29](little-ant-1.0/29-text-mentions-and-typed-annotations.md), [04](little-ant-1.0/04-conceptual-entities.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [19](little-ant-1.0/19-open-questions.md) |
-| Domain authority and persistence | [30](little-ant-1.0/30-domain-authority-blobs-and-rebuildable-projections.md), [05](little-ant-1.0/05-raw-material-and-shelves.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [19](little-ant-1.0/19-open-questions.md) |
-| Resumable interactions and progress | [31](little-ant-1.0/31-resumable-interactions-and-honest-progress.md), [24](little-ant-1.0/24-repl-harness.md), [13](little-ant-1.0/13-priority-forecast-and-next.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md) |
-| External imports and extension packs | [32](little-ant-1.0/32-external-imports-source-views-and-extension-packs.md), [34](little-ant-1.0/34-lua-pack-runtime-credentials-exporters-and-ui-adapters.md), [05](little-ant-1.0/05-raw-material-and-shelves.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [25](little-ant-1.0/25-brick-behaviors-and-template-library.md), [19](little-ant-1.0/19-open-questions.md) |
-| Pack runtime, credentials, exporters, and UI adapters | [34](little-ant-1.0/34-lua-pack-runtime-credentials-exporters-and-ui-adapters.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [24](little-ant-1.0/24-repl-harness.md), [30](little-ant-1.0/30-domain-authority-blobs-and-rebuildable-projections.md), [32](little-ant-1.0/32-external-imports-source-views-and-extension-packs.md), [19](little-ant-1.0/19-open-questions.md) |
-| Structured responses and sparse projections | [33](little-ant-1.0/33-structured-command-responses-and-sparse-projections.md), [16](little-ant-1.0/16-core-operator-and-adapter-boundary.md), [24](little-ant-1.0/24-repl-harness.md), [31](little-ant-1.0/31-resumable-interactions-and-honest-progress.md), [19](little-ant-1.0/19-open-questions.md) |
-| Existing Brick review | [20](little-ant-1.0/20-existing-brick-review.md), [21](little-ant-1.0/21-documentation-and-implementation-sequence.md) |
-| Resume the discovery session | [19](little-ant-1.0/19-open-questions.md), [22](little-ant-1.0/22-session-log.md), [23](little-ant-1.0/23-review-checklist.md) |
+Normative rules have stable IDs. Later Allium obligations and tests must carry
+the same IDs so a rule cannot silently disappear between layers.
 
-## Chapters
+## Current closure state
 
-1. [Purpose and authority](little-ant-1.0/01-purpose-and-authority.md) —
-   authority, scope, and normative language.
-2. [Release, version, compatibility, and language](little-ant-1.0/02-release-version-compatibility-and-language.md) —
-   1.0 target, no core aliases, and English-only product artifacts.
-3. [Design center](little-ant-1.0/03-design-center.md) — concise statement of
-   the new model.
-4. [Conceptual entities](little-ant-1.0/04-conceptual-entities.md) — entity
-   map and persistence caveats.
-5. [Raw material and shelves](little-ant-1.0/05-raw-material-and-shelves.md) —
-   Raw, external origins, immutable snapshots, typed links, reconciliation,
-   review, archive, and RawShelf.
-6. [Brick state, phase, and metadata](little-ant-1.0/06-brick-state-phase-and-metadata.md) —
-   independent state axes and removed legacy fields.
-7. [Composition tree and inheritance](little-ant-1.0/07-composition-tree-and-inheritance.md) —
-   hierarchy, breaking, moving, closure, and effective metadata.
-8. [Human priority, ordering, and confidence](little-ant-1.0/08-human-priority-ordering-and-confidence.md) —
-   sibling order, binary insertion, skip, evidence, and recalibration.
-9. [Impact and evidence maturity](little-ant-1.0/09-impact-rating.md) —
-   root-scoped expected-impact classes, evidence maturity, and validation work.
-10. [Effort rating and calibration](little-ant-1.0/10-effort-rating-and-calibration.md) —
-    total effort classes, versioned profiles, derived remaining work, and scope
-    revision.
-11. [Dates and urgency](little-ant-1.0/11-dates-and-urgency.md) —
-    `not_before`, `best_before`, and `deadline`.
-12. [WIP, focus, and delegation](little-ant-1.0/12-wip-focus-and-delegation.md) —
-    multiple WIPs, exclusive current focus, and parallel delegation.
-13. [Priority, forecast, and next](little-ant-1.0/13-priority-forecast-and-next.md) —
-    the stable priority tree versus the dynamic selection distribution.
-14. [Skip semantics](little-ant-1.0/14-skip-semantics.md) — served-Brick,
-    ordering, rating, and practice-opportunity skip.
-15. [TaskJuggler planning boundary](little-ant-1.0/15-taskjuggler-planning-boundary.md) —
-    effort macros, non-overlapping planning cuts, immutable manifests, and
-    actuals.
-16. [Core, operator, and adapter boundary](little-ant-1.0/16-core-operator-and-adapter-boundary.md) —
-    deterministic mechanism versus external judgment.
-17. [Corrections and superseded decisions](little-ant-1.0/17-corrections-and-superseded-decisions.md) —
-    authoritative reversals, including the retracted leaf-only inference.
-18. [Confirmed invariants](little-ant-1.0/18-confirmed-invariants.md) —
-    compact list of settled cross-cutting rules.
-19. [Open questions](little-ant-1.0/19-open-questions.md) — unresolved design
-    decisions grouped by area.
-20. [Existing Little Ant Brick review](little-ant-1.0/20-existing-brick-review.md) —
-    review protocol, preliminary mapping, and captured inventory.
-21. [Documentation and implementation sequence](little-ant-1.0/21-documentation-and-implementation-sequence.md) —
-    discovery, specification, migration planning, and coding boundary.
-22. [Session log](little-ant-1.0/22-session-log.md) — chronological decision
-    history and corrections.
-23. [Review checklist](little-ant-1.0/23-review-checklist.md) — checks before
-    the record is accepted.
-24. [Deterministic REPL harness](little-ant-1.0/24-repl-harness.md) —
-    one-key guided operation, adaptive terminal UI, activity history, notices,
-    exact dialog recovery, powered-up mode, and skill parity.
-25. [Brick behaviors and template library](little-ant-1.0/25-brick-behaviors-and-template-library.md) —
-    generic versioned behavior, factory capabilities, discoverable template
-    catalogs, custom construction, and capture routing.
-26. [Structured entries, identity, and duplicate suspicion](little-ant-1.0/26-structured-entries-identity-and-duplicate-suspicion.md) —
-    ListEntry, opaque identity, canonical English, scoped duplicate detection,
-    and merge provenance.
-27. [Standing work, recurrence, obligations, and practices](little-ant-1.0/27-standing-work-recurrence-obligations-and-practices.md) —
-    standing execution, completion-triggered repetition, bill occurrences,
-    practice outcomes, streaks, blockers, and introspection.
-28. [Place conditions and location observations](little-ant-1.0/28-place-conditions-and-location-observations.md) —
-    named places, hard and soft conditions, attributed time-bounded
-    observations, adapter privacy boundary, and location-aware proposals.
-29. [Text mentions and typed annotations](little-ant-1.0/29-text-mentions-and-typed-annotations.md) —
-    `@...` interface tokens, explicit target resolution, stable opaque
-    references, annotation-capable fields, and non-behavioral semantics.
-30. [Domain authority, blobs, and rebuildable projections](little-ant-1.0/30-domain-authority-blobs-and-rebuildable-projections.md) —
-    event-log authority, canonical blob completeness, disposable database
-    projections, presentation checkpoints, and documentation placement.
-31. [Resumable interactions and honest progress](little-ant-1.0/31-resumable-interactions-and-honest-progress.md) —
-    confirmed domain answers, derived prompts, surface checkpoints, stale
-    response protection, pseudo-random replay, and non-fictional progress.
-32. [External imports, source views, and extension packs](little-ant-1.0/32-external-imports-source-views-and-extension-packs.md) —
-    capture versus adoption, source projections versus semantic shelves,
-    ImportProfiles, idempotent reconciliation, note triage, community packs,
-    and executable-extension trust.
-33. [Structured command responses and sparse projections](little-ant-1.0/33-structured-command-responses-and-sparse-projections.md) —
-    command-specific results, compact mutator postconditions, schema-defined
-    field presence, complete projections on demand, and bounded LLM context.
-34. [Lua Pack runtime, credentials, exporters, and UI adapters](little-ant-1.0/34-lua-pack-runtime-credentials-exporters-and-ui-adapters.md) —
-    typed PackComponents, isolated HsLua execution, host-brokered HTTP and
-    credentials, read-only exports, the reference TaskJuggler component, and
-    alternate interaction surfaces.
+Gate 1 of the [completion plan](little-ant-1.0/spec-completion-plan.md) is
+complete:
 
-## Maintenance protocol
+- Raw, Brick description, and same-Raw English normalization use the corrected
+  baseline;
+- the maintained capability matrix protects v0 behavior;
+- unique safety guarantees and unresolved boundaries have canonical homes;
+- the linked shadow specification has been removed while remaining fully
+  recoverable from Git.
 
-When discovery changes the design:
+The next product discussion starts at Gate 2: opportunity variants, the shared
+interaction envelope/chrome, canonical executable/reference grammar, and
+Domain scope.
 
-1. update the smallest relevant subject chapter;
-2. add a correction to chapter 17 when it reverses prior wording;
-3. resolve or add the corresponding item in chapter 19;
-4. append a concise entry to chapter 22;
-5. update this index only when chapter structure or reading paths change.
+## Scope rings
 
-All files in this record must remain in English. Code and
-`little-ant.allium` remain untouched until the documentation phase explicitly
-reaches them.
+Every capability belongs to one ring:
+
+- **core** — the daily experience: feed, organize, order by importance, draw
+  a focus opportunity, act, and learn from use;
+- **standard** — supported 1.0 capabilities that do not dominate the happy
+  path, including recurrence, delegation, imports, Packs, and planning;
+- **calibration** — replay-safe parameters or hypotheses whose exact values
+  should be refined through use rather than invented as universal constants.
+
+`calibration` is not a euphemism for unspecified behavior. The semantic rule
+and factory default must be explicit before implementation; only the tunable
+value may remain adjustable.
+
+## Canonical chapters
+
+1. [Product, language, and scope](little-ant-1.0/01-product-language-and-scope.md)
+2. [Concepts, identity, and hierarchy](little-ant-1.0/02-concepts-identity-and-hierarchy.md)
+3. [Feeding and organization](little-ant-1.0/03-feeding-and-organization.md)
+4. [Importance and judgment](little-ant-1.0/04-importance-and-judgment.md)
+5. [Focus forecast and selection](little-ant-1.0/05-focus-forecast-and-selection.md)
+6. [Work, time, and adaptation](little-ant-1.0/06-work-time-and-adaptation.md)
+7. [Interaction and surface contract](little-ant-1.0/07-interaction-and-surface-contract.md)
+8. [Data, integrations, and extension boundary](little-ant-1.0/08-data-integrations-and-extension-boundary.md)
+9. [Migration and release contract](little-ant-1.0/09-migration-and-release-contract.md)
+
+## Supporting records
+
+- [Configuration and calibration](little-ant-1.0/configuration-and-calibration.md)
+- [Standard Template catalog](little-ant-1.0/standard-template-catalog.md)
+- [Open release decisions](little-ant-1.0/open-release-decisions.md)
+- [V0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md)
+- [Specification completion plan](little-ant-1.0/spec-completion-plan.md)
+- [Decision and evidence traceability](little-ant-1.0/traceability.md)
+- [UX simulation protocol](little-ant-1.0/ux/00-simulation-protocol.md)
+- [Canonical screen catalog](little-ant-1.0/ux/screen-catalog.md)
+- [UX flow coverage](little-ant-1.0/ux/flow-coverage.md)
+- [Synthetic week](little-ant-1.0/ux/01-synthetic-week.md)
+- [Real shadow day](little-ant-1.0/ux/02-real-shadow-day.md)
+
+## Reading paths
+
+- Daily product behavior: chapters 1, 3, 4, 5, 6, and 7.
+- Domain model: chapters 1 and 2.
+- REPL, web/mobile, and skill parity: chapter 7 and the UX records.
+- Imports, Packs, exporters, and TaskJuggler: chapter 8.
+- Implementation or migration planning: chapters 2, 8, and 9.
+- Finishing product discovery: follow the specification completion plan in
+  gate order.
+- Why a rule exists: follow its ID through `traceability.md`.
+
+## Maintenance rules
+
+- Define each normative rule in exactly one canonical chapter.
+- Cross-reference rule IDs instead of copying normative paragraphs.
+- Keep product data, commands, responses, specifications, and default UI in
+  English.
+- Record a genuinely unresolved semantic boundary in
+  `open-release-decisions.md`; do not hide it in prose or invent an answer.
+- Keep chronology in small signed commits, not a second specification,
+  corrections chapter, or append-only session log.
+- Do not promote this record into Allium or tests until the UX simulations
+  have validated the observable contract.

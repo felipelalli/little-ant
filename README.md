@@ -8,9 +8,9 @@
 
 > *One brick at a time. Inch by inch, anything's a cinch.*
 
-Little Ant is a personal focus engine. It captures unfinished material, keeps
-work in a human-defined importance order, and helps answer one practical
-question:
+Little Ant is a personal focus engine. It feeds unfinished material into an
+inspectable system, keeps work in a human-defined importance order, and helps
+answer one practical question:
 
 > **Where should I focus now?**
 
@@ -18,10 +18,15 @@ It is designed around a deterministic, inspectable core. Humans and optional
 operators provide judgment; the core owns identity, history, ordering
 mechanics, validation, recurrence, eligibility, and replay.
 
-Little Ant 1.0 is defined by the composed
-[Allium specification](spec/little-ant.allium). The Markdown files under
-[spec/little-ant-1.0](spec/little-ant-1.0.md) retain design history and
-rationale; when they disagree with Allium, Allium wins.
+Little Ant 1.0 is currently defined by the reviewed
+[1.0 specification](spec/little-ant-1.0.md). The old implementation, Allium
+files, and generated tests are not current product authority; the 1.0
+implementation starts from this greenfield behavioral baseline.
+
+The maintained [v0→1.0 capability matrix](spec/little-ant-1.0/v0-v1-capability-matrix.md)
+prevents accidental regressions, while the finite
+[specification completion plan](spec/little-ant-1.0/spec-completion-plan.md)
+defines the remaining UX-first path to specification freeze.
 
 The core has one unambiguous command vocabulary and no compatibility aliases.
 A skill or operator may translate natural language into those canonical
@@ -31,25 +36,33 @@ commands.
 
 ### Raw
 
-`Raw` is source material, not work: a URL, note, pasted conversation,
-brainstorm, file, or imported object that has not yet been routed.
+`Raw` is the general durable content record, not work: a Brick description,
+URL, note, pasted conversation, brainstorm, file, source snapshot, attachment,
+or imported object. Linking or routing a Raw never consumes it.
 
 Raw material:
 
-- is never prioritized, focused, started, or completed;
-- preserves verbatim content and attributed provenance;
-- may have an attributed canonical English representation for search;
+- is never ordered by importance, focused, started, or completed;
+- preserves its original representation and attributed provenance;
+- may keep an attributed canonical English normalization on the same Raw;
 - may live on one or more flat shelves;
-- may be linked to a Brick or ListEntry as source, evidence, or attachment;
+- may be linked to a Brick, ListEntry, or Raw as description, source,
+  evidence, attachment, or another typed role;
 - is archived rather than permanently deleted.
 
-See [material.allium](spec/little-ant/material.allium).
+A Brick does not own a separate scalar description field. Its description is
+linked Raw content. Translating that content does not create a second Raw: the
+original and canonical-English normalization remain distinguishable on the
+same identity.
+
+See [concepts and identity](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md)
+and [feeding and organization](spec/little-ant-1.0/03-feeding-and-organization.md).
 
 ### Brick
 
-`Brick` is the single work abstraction. A Brick may be a small action, a
-project, a standing responsibility, a collection, a repeatable activity, or a
-recurring practice.
+`Brick` is the single work abstraction. A Brick may be an atomic task, a
+project, a living checklist, a collection, a repeatable activity, a recurring
+obligation, or a habit.
 
 Its lifecycle is deliberately small:
 
@@ -60,7 +73,7 @@ active ──▶ done
 ```
 
 `seed`, `committed`, and `ready` do not exist in 1.0. Commitment is inferred
-from position in the human priority tree: higher means more important.
+from position in the human importance tree: higher means more important.
 
 Optional phase is a separate axis:
 
@@ -68,42 +81,42 @@ Optional phase is a separate axis:
 idea · spec · exec · validation
 ```
 
-Phase does not determine priority, completion, or WIP. Behaviors may disable
+Phase does not determine importance, completion, or WIP. Natures may disable
 phase or effort when those concepts would only add noise.
 
 Brick IDs are opaque and survive renames. Canonical searchable titles are
 English; original titles remain available as provenance.
 
-See [domain.allium](spec/little-ant/domain.allium) and
-[execution.allium](spec/little-ant/execution.allium).
+See [concepts and identity](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md)
+and [work, time, and adaptation](spec/little-ant-1.0/06-work-time-and-adaptation.md).
 
 ### ListEntry
 
 A `ListEntry` is a lightweight item owned by a checklist Brick, such as
-“Milk” under “Buy groceries.” It has no independent priority, phase, effort,
+“Milk” under “Buy groceries.” It has no independent importance, phase, effort,
 WIP, or `next` eligibility. The owning Brick remains the focus unit and may
 render all open entries together.
 
-This avoids turning every grocery item, packing item, or similar occurrence
+This avoids turning every grocery item, trip-checklist item, or similar entry
 into a full task.
 
-### Behaviors and templates
+### Natures and templates
 
-Behaviors are small, closed combinations of capabilities understood by the
-core. Templates are inspectable recipes that select a behavior and optional
+Natures are small, closed combinations of capabilities understood by the
+core. Templates are inspectable recipes that select a Nature and optional
 defaults; they do not inject hidden domain logic.
 
-The 1.0 catalog includes generic behaviors for standard work, projects,
-collections, repeatable work, finite and standing checklists, recurring
-obligations, and practices. Standard templates include:
+The 1.0 catalog includes generic Natures for atomic tasks, projects,
+collections, repeatable work, finite and living checklists, recurring
+obligations, and habits. Standard templates include:
 
-- grocery and packing checklists;
+- grocery and trip checklists;
 - reading lists and repeatable article reading;
 - software feature backlogs and wishlists;
 - bills to pay;
-- exercise practices.
+- exercise habits.
 
-Users may publish versioned personal behaviors and templates from the same
+Users may publish versioned personal Natures and templates from the same
 closed capability vocabulary.
 
 ## Two views, two different questions
@@ -112,27 +125,27 @@ Little Ant intentionally has two list-like projections:
 
 | View | Question answered | Authority |
 |---|---|---|
-| **Human priority** | “What is more important?” | Strict sibling order settled by human judgment |
+| **Importance order** | “What is more important?” | Strict sibling order settled by human judgment |
 | **Forecast / next** | “What is useful and eligible now?” | Read-only deterministic forecast plus replay-safe draw |
 
-Human priority is a persistent tree. Within each sibling scope, every active
+Importance order is a persistent tree. Within each sibling scope, every active
 Brick has exactly one strict position. A global view is the lexicographic
 composition of those local paths.
 
-Forecast does not rewrite priority. It may consider current focus, inherited
+Forecast does not rewrite importance. It may consider current focus, inherited
 dates and context, phase when applicable, dependencies, waits, place
 conditions, cooldowns, recurrence opportunities, unresolved reviews, and
 pressure accumulated from skips.
 
-See [judgment.allium](spec/little-ant/judgment.allium) and
-[selection.allium](spec/little-ant/selection.allium).
+See [importance and judgment](spec/little-ant-1.0/04-importance-and-judgment.md)
+and [focus forecast and selection](spec/little-ant-1.0/05-focus-forecast-and-selection.md).
 
 ## Common flows
 
 The transcripts below use the canonical terminal interaction. Other surfaces
 preserve the same actions and revisions while adapting their presentation.
 
-### Capture a grocery item
+### Feed a grocery item
 
 ```text
 $ lant
@@ -146,7 +159,7 @@ Duplicate suspicion runs before creation. Nothing is merged silently. In dumb
 mode, the REPL asks for a route when it cannot infer one safely; a skill or
 powered-up adapter may make an attributed proposal.
 
-### Insert work into human priority
+### Insert work into importance order
 
 ```text
 Is "Replace the laptop battery" more important than
@@ -165,7 +178,7 @@ position and gains future validation pressure.
 ant> /next
 
 Focus: "Replace the laptop battery"
-Why: high human priority · available now · unlocks another Brick
+Why: high importance · available now · unlocks another Brick
 [y] focus · [d] done · [s] skip · [?]
 ```
 
@@ -188,7 +201,7 @@ Read it again in roughly six months?
 Completion-triggered repetition reuses the same Brick and history. It does not
 create a backlog of cloned tasks.
 
-### Track a practice
+### Track a habit
 
 ```text
 Swim twice per week
@@ -197,18 +210,18 @@ Swim twice per week
 Skipping now will end a streak of 2. Continue?
 ```
 
-Practice opportunities are recorded as `done`, `not_done`, or
-`not_applicable`. A paused or blocked practice does not fabricate failure.
+Habit opportunities are recorded as `done`, `not_done`, or
+`not_applicable`. A paused or blocked habit does not fabricate failure.
 Repeated friction may propose a review to discover an enabling Brick or revise
 the schedule.
 
-### Inspect priority and forecast separately
+### Inspect importance and forecast separately
 
 ```text
-ant> /priority
+Importance order
 # strict human importance tree
 
-ant> /forecast
+Focus forecast
 # weighted, explained, read-only candidates for next
 ```
 
@@ -216,7 +229,7 @@ ant> /forecast
 
 ```text
 ant> /history
-ant> /history --brick <id> --family priority --relevance important
+ant> /history --brick <id>
 ```
 
 History queries are typed, composable, bounded, and paginated. Ordinary
@@ -240,12 +253,12 @@ mode: powered up · by: /path/to/claude-fast.sh
 
 Without it, the same interaction protocol runs in deterministic dumb mode.
 
-See [interaction.allium](spec/little-ant/interaction.allium).
+See [interaction and surfaces](spec/little-ant-1.0/07-interaction-and-surface-contract.md).
 
 ## Imports, Packs, and external effects
 
 Little Ant Packs are the only 1.0 extension unit. Component kinds are closed:
-behaviors, templates, import-profile presets, source adapters, enrichers,
+Natures, templates, import-profile presets, source adapters, enrichers,
 read-only exporters, and UI adapters. There is no generic arbitrary plugin
 hook.
 
@@ -253,12 +266,17 @@ Executable Pack components use a fresh bounded Lua 5.4 runtime. Host-mediated
 HTTP, credentials, and approved effects are typed capabilities; Pack code
 never runs during event replay.
 
-The standard 1.0 Pack includes:
+The official 1.0 catalog includes:
 
 - Microsoft To Do source adapter;
 - Notesnook source adapter;
 - TaskJuggler read-only exporter;
 - local Metro-style web UI adapter.
+
+TaskJuggler is part of the standard Pack. The final offline-standard versus
+pinned official-companion placement of credentialed importers and UI adapters
+remains a release packaging decision; it does not weaken their 1.0 capability
+contracts.
 
 Normal synchronization treats upstream completion or removal as evidence, not
 as local completion or deletion. Destructive migration is a separate reviewed
@@ -273,7 +291,7 @@ lant import microsoft-todo --migrate --erase-after-import
 locally reconstructible and verified, and every external deletion is previewed,
 approved, and receipted. Container deletion requires a separate approval.
 
-See [integration.allium](spec/little-ant/integration.allium).
+See [data, integrations, and extensions](spec/little-ant-1.0/08-data-integrations-and-extension-boundary.md).
 
 ## Architecture
 
@@ -328,31 +346,12 @@ interactive-shell alias `la='ls -A'`.
 
 ## Development
 
-Validate the complete Allium target:
-
-```sh
-allium check spec/little-ant.allium spec/little-ant
-allium analyse spec/little-ant.allium spec/little-ant
-```
-
-Run the existing v0 tests:
-
-```sh
-cabal test little-ant-test
-```
-
-The generated 1.0 contract suite lives under `test-v1/`. It includes
-high-level lifecycle tests and deterministic mini-simulations for ordering,
-forecast, skip pressure, recurrence, and imports.
-
-```sh
-bash test-v1/generate-allium-artifacts.sh
-LANT_V1_TEST_DRIVER=/path/to/lant-v1-test-driver \
-  cabal test little-ant-v1-contract-test
-```
-
-See [the contract-test guide](test-v1/README.md) for the stdin protocol and
-the intentionally red pre-implementation phase.
+Little Ant 1.0 is a greenfield implementation target. The current authority is
+the [reviewed specification](spec/little-ant-1.0.md), including its
+[UX simulations](spec/little-ant-1.0/ux/01-synthetic-week.md). Fresh Allium
+obligations and tests must be generated only after the behavioral and UX
+baseline is accepted; removed v0 code, Allium, and generated tests are
+historical evidence, not implementation guidance.
 
 ## What changed from v0 to v1
 
@@ -360,13 +359,13 @@ the intentionally red pre-implementation phase.
 |---|---|
 | `seed → committed → ready → wip` mixed commitment, readiness, and execution | A Brick is simply `active`, `done`, `dropped`, or `superseded`; WIP and optional phase are independent axes |
 | Only frontier tasks were ordered | Every active Brick has one strict position among its siblings |
-| Ordering asked whether one task came before another | Human priority asks which Brick is **more important**; uncertainty is retained instead of treated as equality |
-| `next` and priority were easy to conflate | Human priority and the read-only forecast are explicit, separate views |
+| Ordering asked whether one task came before another | Importance ordering asks which Brick is **more important**; uncertainty is retained instead of treated as equality |
+| `next` and priority were easy to conflate | Importance order and the read-only focus forecast are explicit, separate views |
 | IDs were derived from original titles | IDs are opaque and survive renames |
-| Most captured items became full tasks | Raw remains material; lightweight ListEntries belong to checklist Bricks |
-| Domain-specific behavior tended to emerge in operator policy | Closed generic behaviors plus inspectable templates cover projects, collections, checklists, repetition, obligations, and practices |
+| Most fed items became full tasks | Raw remains material; lightweight ListEntries belong to checklist Bricks |
+| Domain-specific mechanics tended to emerge in operator policy | Closed generic Natures plus inspectable templates cover projects, collections, checklists, repetition, obligations, and habits |
 | Effort was a generic weight or direct hour estimate | Effort uses subjective comparable bands; hour ranges belong to a versioned planning profile |
-| Recurrence was mostly future work | Repeatable work, recurring obligations, practice opportunities, streaks, and schedule revision have explicit history |
+| Recurrence was mostly future work | Repeatable work, recurring obligations, habit opportunities, streaks, and schedule revision have explicit history |
 | JSON responses commonly exposed complete objects | Typed sparse projections, semantic history queries, and concise action summaries keep human and LLM context bounded |
 | The agent skill was the main interactive harness | The deterministic one-key REPL, powered-up REPL, skill, CLI, and UI adapters share one revision-safe interaction protocol |
 | Integrations were informal external policy | Typed Lua Packs, brokered credentials, reviewed imports, TaskJuggler export, and a local web UI have bounded contracts |
@@ -377,17 +376,17 @@ notes.
 
 ## Specification map
 
-| Area | Authoritative file |
+| Area | Current specification |
 |---|---|
-| Composition root and cross-module invariants | [little-ant.allium](spec/little-ant.allium) |
-| Brick, ListEntry, behavior, template, identity | [domain.allium](spec/little-ant/domain.allium) |
-| Raw, snapshots, shelves, links, provenance | [material.allium](spec/little-ant/material.allium) |
-| Human priority, confidence, impact, effort | [judgment.allium](spec/little-ant/judgment.allium) |
-| Lifecycle, WIP, dates, recurrence, practices | [execution.allium](spec/little-ant/execution.allium) |
-| Forecast, next, proposals, duplicate suspicion | [selection.allium](spec/little-ant/selection.allium) |
-| CLI/REPL protocol, sparse responses, history | [interaction.allium](spec/little-ant/interaction.allium) |
-| Packs, imports, TaskJuggler, local web UI | [integration.allium](spec/little-ant/integration.allium) |
-| Auditable v0 → v1 cutover | [migration-v0-v1.allium](spec/little-ant/migration-v0-v1.allium) |
+| Product language and scope | [Chapter 1](spec/little-ant-1.0/01-product-language-and-scope.md) |
+| Brick, ListEntry, Nature, template, identity | [Chapter 2](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md) |
+| Raw, feeding, duplicate suspicion, Domain classification | [Chapter 3](spec/little-ant-1.0/03-feeding-and-organization.md) |
+| Importance, confidence, impact, effort | [Chapter 4](spec/little-ant-1.0/04-importance-and-judgment.md) |
+| Forecast, next, blockers, Domain continuity | [Chapter 5](spec/little-ant-1.0/05-focus-forecast-and-selection.md) |
+| Lifecycle, WIP, dates, recurrence, habits | [Chapter 6](spec/little-ant-1.0/06-work-time-and-adaptation.md) |
+| CLI/REPL protocol, sparse responses, history | [Chapter 7](spec/little-ant-1.0/07-interaction-and-surface-contract.md) |
+| Packs, imports, TaskJuggler, local web UI | [Chapter 8](spec/little-ant-1.0/08-data-integrations-and-extension-boundary.md) |
+| Auditable v0 → v1 cutover | [Chapter 9](spec/little-ant-1.0/09-migration-and-release-contract.md) |
 
 ## License
 
