@@ -99,6 +99,14 @@
   attributed wholly to the workday in which it started, even when it ends
   after the workday boundary. The core does not split one session
   automatically at that boundary.
+- **WRK-046 [core] — Relative preparation timing.** A preparatory Brick may
+  derive `not_before`, `best_before`, or `deadline` from an explicit signed
+  offset to a named exact-instant anchor on its scheduled commitment. The
+  relative constraint and its effective absolute instant are inspectable and
+  replay-deterministic. `not_before` controls when the preparation can first
+  appear; `best_before` expresses preferred completion; `deadline` records the
+  actual external consequence boundary. A Template may propose offsets but
+  cannot silently treat one meaning as another.
 
 ## Standing work and recurrence
 

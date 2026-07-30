@@ -71,6 +71,7 @@ Pack or its pinned companion catalog:
 Microsoft To Do
 Apple Reminders
 Google Tasks
+Google Calendar
 GitHub Issues
 Notesnook
 Evernote
@@ -169,3 +170,33 @@ Exact shipping placement and API feasibility are tracked under
 - **DAT-037 [standard] — WIP warning.** Planning uses derived remaining effort
   only when conservative evidence supports it; otherwise it exports total
   effort with an explicit warning rather than inferring progress from time.
+
+## Calendar synchronization
+
+- **DAT-038 [standard] — Official Google Calendar path.** Little Ant 1.0 ships
+  or pins an officially maintained Google Calendar `SourceAdapter`. It must
+  observe and reconcile calendar events into canonical work without requiring
+  a community extension. Whether it resides in the offline standard Pack or an
+  official credentialed companion Pack is packaging, not a capability gap.
+- **DAT-039 [standard] — Occurrence identity and exact time.** The adapter uses
+  provider, account, calendar, event, series, and recurrence-instance identity
+  as applicable, so repeated synchronization updates one canonical adoption
+  rather than duplicating it. Exact event intervals retain their IANA time
+  zone. All-day events remain distinguishable from exact intervals and are not
+  silently classified as `scheduled_commitment`. A cancelled, deleted, or
+  inaccessible source event is a source observation, never implicit local
+  completion.
+- **DAT-040 [standard] — Assisted calendar classification.** Event title and
+  structured evidence such as recurrence, interval, organizer, attendees,
+  location, and source may support an attributed Skill or powered-up proposal
+  for Nature and Template. For example, `Flight AD123` may propose
+  `scheduled_commitment` with `flight`, and `Quarterly planning meeting` may
+  propose `scheduled_commitment` with `meeting`. A recurring `Swimming` event
+  may support `habit` with `physical_activity`, while an isolated session may
+  remain a `scheduled_commitment`; ambiguous evidence lowers confidence
+  instead of hiding the distinction.
+- **DAT-041 [core] — No lexical domain rules.** Calendar words and provider
+  metadata do not create hard-coded title branches in the deterministic core.
+  Assisted classification follows `FED-005` through `FED-009`: the proposed
+  route is attributed and previewed, `[y]es` accepts it, `[n]o` enters the
+  ordinary dumb classification flow, and uncertainty remains explicit.

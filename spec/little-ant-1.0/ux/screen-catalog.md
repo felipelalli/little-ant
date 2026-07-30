@@ -354,6 +354,39 @@ No category screen is introduced while this flat choice remains usable.
 Future categories or pagination must follow `UX-056` and preserve the same
 Template identities.
 
+## UX-B01 — Break an atomic task
+
+```text
+#a12345 "Prepare the quarterly report"
+
+This Brick is an atomic task.
+Independently tracked parts require a different Nature.
+
+Change Nature:
+    atomic task › project
+
+Proposed structure:
+
+#a12345 "Prepare the quarterly report"        project
+├─ #c12345 "Collect the quarterly data"       atomic task
+├─ #n12345 "Analyze the results"              atomic task
+└─ #w12345 "Write the final report"           atomic task
+
+Apply this change?
+
+[y]es    [n]o    [?] I don't know
+
+----------------------------------------
+🏷️ Orbit › Finance › Quarterly reporting
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+If the proposed parts should render and complete together, the preview offers
+`finite_checklist`; an open-ended independently focusable set offers
+`collection`. Content-only notes keep `atomic_task`. The operation preserves
+the parent identity and commits no child before confirmation.
+
 ## UX-A01 — External-effect confirmation
 
 ```text

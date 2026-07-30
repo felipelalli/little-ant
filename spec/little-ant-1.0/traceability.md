@@ -111,6 +111,8 @@ they were successive refinements of the same current rule family.
 | Nature and Template separation | `MOD-025..028`, `MOD-035..042`, `FED-005..009`, `FED-024..028`, `FOC-011`, `WRK-024..025`, `WRK-032`, `UX-050..053`, `UX-K01..K05`, `SCN-FED-005` |
 | 102 | `WRK-041..045`, `CAL-007..008`, `UX-055`, `UX-R01` |
 | 103 | `MOD-043..044`, `FED-024..025`, `FOC-011`, `UX-056`, `UX-K01`, `UX-K06`, `OPEN-SCH-001` |
+| 104 | `MOD-045..047`, `FOC-030..031`, `WRK-046`, `UX-057`, `UX-B01`, `OPEN-SCH-001..002` |
+| 105 | `DAT-038..041`, `FED-005..009`, `OPEN-EXT-002`, `OPEN-CAL-001` |
 
 ## Downstream coverage
 

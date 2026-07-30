@@ -1685,3 +1685,52 @@ and uncertainty together. Every visible option receives a distinct character
 that occurs in its label. Only when compatible options cannot fit with unique
 shortcuts does navigation introduce stable categories or pagination; those
 categories organize discovery without adding product semantics.
+
+## Entry 104 — Reclassify atomic breaks and prepare scheduled commitments
+
+The user confirmed that breaking an `atomic_task` cannot leave it atomic.
+Before creating parts, Little Ant previews the mechanical destination:
+independently focusable finite parts use `project`, one jointly rendered
+finite set uses `finite_checklist`, and an open-ended independent set uses
+`collection`. Notes stay content and a prerequisite may remain a Dependency
+without changing atomicity. Acceptance changes the existing parent's Nature
+and creates the parts atomically while retaining parent identity, history,
+position, relationships, and Template provenance.
+
+The user also confirmed that an active `scheduled_commitment` suspends the
+ordinary weighted draw. Until the commitment is accepted as current focus,
+completed, cancelled, or classified as missed, `next` returns it rather than
+random work. Current-focus conflicts, overlaps, exact outcomes, and delegation
+remain open instead of receiving inferred behavior.
+
+Scheduled-commitment Templates may provide a previewed preparation structure.
+Preparatory children use explicit relative `not_before`, `best_before`, or
+`deadline` constraints anchored to an exact commitment instant, so a flight
+can release document checks, insurance, packing, check-in, or airport travel
+at different lead times; a meeting can release preparation hours before; and
+an exam can release a study project days earlier. Exact offsets remain
+Template-specific. How pending, completed, overridden, or newly overdue
+preparation reacts when the commitment is rescheduled is the next open
+decision.
+
+## Entry 105 — Require official Google Calendar synchronization
+
+The user required Little Ant 1.0 to support Google Calendar either in the
+standard distribution or through an official Pack that ships with the
+release. In current extension vocabulary this is an officially maintained
+`SourceAdapter`, not a new generic plugin kind. Source-to-Little-Ant
+observation and reconciliation are required; exact packaging and outbound
+write-back remain separate decisions.
+
+Calendar synchronization preserves provider event and recurrence-instance
+identity, exact zoned intervals, and the distinction between all-day and timed
+events. A source disappearance or cancellation does not silently complete
+local work.
+
+The Skill or powered-up REPL may use a title together with structured calendar
+evidence to propose Nature and Template. A flight or meeting title can propose
+the corresponding `scheduled_commitment` Template. A recurring swimming event
+can instead support the `physical_activity` habit Template, while a one-off
+session can remain a scheduled commitment. The proposal is attributed and
+confirmed; rejection enters the ordinary dumb classification flow. The
+deterministic core gains no hidden keyword classifier.

@@ -48,6 +48,23 @@ All Templates in this family ship in the offline standard library.
 | `service_window` | confirmed | Be available for a technician, delivery, or other external visit during a bounded arrival window. |
 | `hotel_stay` | confirmed | Preserve zoned check-in and check-out boundaries plus property and booking context. |
 
+### Preparation structures
+
+Scheduled-commitment Templates may propose ordinary preparatory Bricks with
+relative temporal constraints. Examples include:
+
+- a `flight` may propose document/visa review, insurance review, packing,
+  check-in, and travel to the airport;
+- a `meeting` may propose one preparation Brick before the meeting;
+- an `exam` may propose a study project whose own descendants remain
+  independently focusable.
+
+The proposal distinguishes the first eligible instant (`not_before`), the
+preferred completion instant (`best_before`), and any true external limit
+(`deadline`). Exact factory offsets and optional parts require Template-by-
+Template review rather than pretending that values such as 60 days or two
+hours fit every case. Rescheduling behavior remains `OPEN-SCH-002`.
+
 ## `project`
 
 | Template | Status | Example or purpose |

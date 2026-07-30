@@ -221,3 +221,23 @@ The factory library contains:
   Templates across each Nature. Companion extensions are primarily for highly
   specialized domains, integrations, or recipes, not a reason to omit useful
   everyday choices from the built-in catalog.
+- **MOD-045 [core] — Atomic decomposition changes Nature.** An `atomic_task`
+  cannot gain independently tracked child parts while remaining atomic.
+  `break` first determines whether the proposed parts require `project`,
+  `finite_checklist`, or `collection` mechanics and previews that Nature
+  change. A mere prerequisite remains an orthogonal Dependency and does not
+  by itself make the task non-atomic; notes or instructions remain content
+  rather than child Bricks.
+- **MOD-046 [core] — Reclassification preserves identity.** Confirming an
+  atomic `break` changes the existing Brick's Nature and creates its proposed
+  parts in one atomic operation. The parent retains its ID, title, history,
+  sibling importance position, relationships, and Template provenance. Every
+  new child receives its own Nature and local sibling position. Rejecting or
+  escaping the preview changes nothing; semantic undo follows `UX-020`.
+- **MOD-047 [standard] — Previewed preparation expansion.** A
+  `scheduled_commitment` Template may propose a finite preparation structure
+  containing child Bricks of other Natures and explicitly identified hard
+  Dependencies. The complete structure and relative timing are previewed
+  before creation. After acceptance, ordinary canonical relationships and
+  temporal constraints own the behavior; the Template retains provenance but
+  no runtime authority.

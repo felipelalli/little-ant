@@ -252,6 +252,12 @@ The normative reference renderings live in
   cannot be satisfied does the interaction introduce stable navigational
   categories or pagination. Categories organize discovery; they never change
   Nature, Template semantics, ranking evidence, or runtime behavior.
+- **UX-057 [core] — Atomic break preview.** Breaking an `atomic_task` previews
+  the proposed destination Nature, the retained parent, every new part and its
+  Nature, and the initial local order before confirmation. The screen explains
+  why the Brick cannot remain atomic. `yes` commits the Nature change and
+  structure together; `no`, uncertainty, or Escape follow their ordinary
+  confirmation and navigation semantics without creating partial structure.
 
 ## Errors and dry-run
 

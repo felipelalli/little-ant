@@ -48,8 +48,7 @@ The exact final catalog is a release-blocking decision tracked as
   child or offer decomposition/review; `collection` descends to an independent
   child; checklist Natures present the parent with its entries; `atomic_task`,
   `repeatable`, `habit`, and `scheduled_commitment` normally present the Brick
-  itself. Exact active-interval precedence for a scheduled commitment remains
-  `OPEN-SCH-001`.
+  itself.
 - **FOC-012 [core] — No title heuristics.** Decomposition or descent follows
   resolved Nature capabilities, never the apparent grandeur of a title.
 - **FOC-013 [core] — Flat view is projection.** A flat forecast may display
@@ -118,6 +117,20 @@ The exact final catalog is a release-blocking decision tracked as
   This screen creates nothing by itself; Feed remains an explicit user action.
   A store with historical, blocked, temporal, dormant, delegated, or Raw work
   is not pristine.
+- **FOC-030 [core] — Active commitment precedence.** Once a
+  `scheduled_commitment` interval begins, an unresolved commitment suspends
+  the ordinary weighted draw. `next` returns that commitment until it is
+  accepted as current focus, completed, cancelled, or classified as missed.
+  This is an explicit temporal precedence rule, not a hidden probability
+  multiplier or duplicate ticket. Conflicts with an already-current focus or
+  another overlapping commitment remain `OPEN-SCH-001`.
+- **FOC-031 [core] — Preparation before commitment.** Before the interval
+  begins, a scheduled-commitment subject may descend to currently eligible
+  preparatory descendants or resolve a hard prerequisite through the ordinary
+  hierarchical and Dependency mechanisms. Relative `not_before` constraints
+  determine when preparation first becomes selectable; `best_before` and
+  `deadline` contribute their ordinary meanings. Preparation never gives the
+  commitment extra root tickets.
 
 ## Forecast inputs
 
