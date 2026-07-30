@@ -12,7 +12,7 @@ long paths, but renderers preserve the content order and action order.
 
 <canonical actions>
 
-<global actions>
+<secondary command escape>
 
 ----------------------------------------
 <optional Within path>
@@ -38,8 +38,8 @@ Next:
 
 Focus?
 
-[y]es    [d]one       [s]kip    [?] I don't know
-[f]eed   [/] more...
+[y]es    [s]kip    [?] I don't know
+[/] more...
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
@@ -48,10 +48,9 @@ Focus?
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
-The automatically served envelope, global-action row, context panel, and
-bottom status bar are all part of REPL UX. `[f]eed` opens UX-I02; it is not
-preselected. `[?] I don't know` belongs to the current Focus decision, while
-`[/] more...` opens the secondary-action and command palette. Adaptive or
+The automatically served envelope, secondary-command escape, context panel,
+and bottom status bar are all part of REPL UX. `[?] I don't know` belongs to
+the current Focus decision, while `[/] more...` opens UX-M01. Adaptive or
 narrow-terminal rendering may fold regions but cannot test only the inner
 envelope and call that a REPL simulation.
 
@@ -62,6 +61,37 @@ Powered-up mode reuses the frame and changes only:
 ```
 
 plus any explicitly attributed proposals that passed the startup handshake.
+
+## UX-M01 — Contextual command palette
+
+Pressing `/` from UX-R00 suspends, but does not cancel, its pending Focus
+interaction:
+
+```text
+More:
+
+› /
+
+/done       Mark #r12345 "Review Rock Splitter rules" as done
+/feed       Feed Little Ant
+/show       Inspect #r12345 "Review Rock Splitter rules"
+/history    Open interaction history
+
+Type to filter available commands.
+↑/↓ select · Enter run · Esc back
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+Only currently valid commands participate in search. The initial suggestions
+are contextual and replay-deterministic. Descriptions expose the current
+target rather than relying on a hidden argument. Escape restores UX-R00
+unchanged. `/show` returns to it; `/done` resolves it; a completed `/feed`
+route revalidates it before anything may act on the old proposal.
 
 ## UX-R01 — Civil clock and operational day
 
@@ -96,8 +126,8 @@ Next:
 
 Focus?
 
-[y]es    [d]one       [s]kip    [?] I don't know
-[f]eed   [/] more...
+[y]es    [s]kip    [?] I don't know
+[/] more...
 
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
@@ -107,8 +137,10 @@ Focus?
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
-`yes` focuses and starts WIP. `done` completes directly. `skip` opens UX-S01.
-`?` opens UX-H01 without consuming another draw.
+`yes` focuses and starts WIP. `skip` opens UX-S01. `?` opens UX-H01 without
+consuming another draw. Direct completion remains available as `/done` in
+UX-M01. Pressing unbound `n` gives the educational UX-062 result and restores
+this same opportunity without mutation.
 
 ## UX-F02 — Cross-Domain focus
 
@@ -119,8 +151,8 @@ Next:
 
 Focus?
 
-[y]es    [d]one       [s]kip    [?] I don't know
-[f]eed   [/] more...
+[y]es    [s]kip    [?] I don't know
+[/] more...
 
 ----------------------------------------
 🏷️ Personal › Housekeeping
@@ -130,7 +162,8 @@ Focus?
 ```
 
 There is no preliminary `Switch Domain?`. `yes` starts focus and changes the
-active Domain atomically; `done` and `skip` preserve it.
+active Domain atomically; `skip` and palette actions that do not focus
+preserve it.
 
 ## UX-F03 — Focus reached through blockers
 
@@ -141,8 +174,8 @@ Next:
 
 Focus?
 
-[y]es    [d]one       [s]kip    [?] I don't know
-[f]eed   [/] more...
+[y]es    [s]kip    [?] I don't know
+[/] more...
 
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
@@ -453,7 +486,7 @@ Tip: prefer English for consistent titles and search.
 ```
 
 Enter begins the deterministic Feed route. Escape restores the exact proposal
-and random cursor shown before `[f]eed`. The tip is advisory and, under
+and random cursor shown before Feed was opened. The tip is advisory and, under
 `UX-049`, appears beside every dumb-mode free-text input rather than only on
 Feed. Single-key choice screens omit it. Until Enter, the text remains only a
 local draft; this guarantee is behavioral and is not rendered as status text.

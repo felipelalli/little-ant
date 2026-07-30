@@ -54,7 +54,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | `feed` is the only ingress word; natural-language synonyms stay outside the core | `I+T`, `59e1d8f`, `Command.hs`; `O` | **retained** | `PRD-013`, `FED-001..009` | `SCN-FED-001..004` |
 | Core-owned grammar, stable answer letters, `*`, `?`, and contextual `[l]ater` | `I+T`, `Grammar.hs`; `O` | **strengthened** | `UX-012..018`, `UX-022..024` | interaction-vocabulary gate |
 | Finite choices execute with one key and no Enter | `O`; partly terminal-tested | **retained** | `UX-011..014` | exact dumb-REPL transcript |
-| A full command word can interrupt a pending one-key question | `O`; partial parser behavior | **unresolved** | `OPEN-UX-003` | palette/navigation simulation |
+| A full command word can interrupt a pending one-key question | `O`; partial parser behavior | **replaced** | explicit `[/] more...` palette suspends the pending interaction under `UX-022`, `UX-047`, and `UX-M01`; bare hidden aliases are rejected by `UX-062` | palette navigation, mutation, Escape, and stale-revalidation simulation |
 | JSON success/error envelope includes canonical human rendering | `I+T`, `Main.hs::emit` | **replaced** | `DAT-006..010` sparse typed response plus explicit depth | sparse-versus-complete scenario |
 | Typed educational errors distinguish precondition, not found, ambiguous reference, and collision | `I+T`, `CmdError` and exit-code tests | **retained** | `UX-040..042`; exact protocol in `OPEN-DAT-001` | failure-recovery scenario |
 | Global `--dry-run` validates without writing | `I+T`, ordinary and migration tests | **strengthened** | `UX-041`, `MIG-014` | mutator/effect/migration dry-runs |

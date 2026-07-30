@@ -85,9 +85,9 @@ Decisions:
   state transitions as each route is accepted;
 - minimum `InteractionEnvelope` identity, revision, provenance, commands,
   valid actions, and bounded context;
-- shared chrome: status bar, context panel, warnings, global actions, `*`,
-  `[?] I don't know`, nested help, `/`, Escape, semantic undo/redo, and stale
-  response;
+- shared chrome: status bar, context panel, warnings, secondary command
+  escape, `*`, `[?] I don't know`, nested help, `/`, Escape, semantic
+  undo/redo, and stale response;
 - canonical executable and reference grammar;
 - hard temporary Domain scope versus soft Domain continuity.
 

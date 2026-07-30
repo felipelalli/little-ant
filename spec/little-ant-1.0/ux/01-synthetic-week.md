@@ -85,15 +85,17 @@ Dependencies:
 ### SCN-FED-001 — Dumb REPL baseline
 
 Start the REPL with `mode: dumb`. It automatically serves the fixture's
-current `next` opportunity. Press `[f]eed`, enter `comprar leite` in the Feed
-input screen, and submit it.
+current `next` opportunity. Press `/`, select `/feed`, enter `comprar leite`
+in the Feed input screen, and submit it.
 
 Validate:
 
 - the status bar is visibly separate from the automatically served `next`
   proposal;
-- the first screen contains proposal actions and the global `[f]eed` action,
-  not a default Feed or shell prompt;
+- the first screen contains only the Focus decision and `[/] more...`, not a
+  direct Feed action, default Feed, or shell prompt;
+- the palette initially suggests valid contextual commands, makes implicit
+  targets visible, and opens Feed through `/feed`;
 - Escape from Feed input restores the exact served proposal without consuming
   another draw;
 - dumb Feed input recommends English without rejecting or rewriting the
@@ -121,13 +123,13 @@ mode: powered up · by: /bin/claude-fast.sh
 ```
 
 It must automatically serve the same opening `next` opportunity. Press
-`[f]eed`, enter `comprar leite`, and submit it. Validate that the model may
-propose canonical English, ListEntry route, `#h12345 "Buy groceries"`, and
-duplicate interpretation in fewer screens while using the same canonical
-envelope/action IDs. Any proposed Template must expose its resulting Nature
-and source, require `[y]es`, `[n]o`, or `[?] I don't know`, and enter the
-unchanged dumb flow after `no`. Record every skipped dumb screen and the
-provenance of every added default.
+`/`, select `/feed`, enter `comprar leite`, and submit it. Validate that the
+model may propose canonical English, ListEntry route,
+`#h12345 "Buy groceries"`, and duplicate interpretation in fewer screens
+while using the same canonical envelope/action IDs. Any proposed Template
+must expose its resulting Nature and source, require `[y]es`, `[n]o`, or
+`[?] I don't know`, and enter the unchanged dumb flow after `no`. Record
+every skipped dumb screen and the provenance of every added default.
 
 ### SCN-FED-003 — Article URL
 
@@ -180,7 +182,8 @@ explanation without a hard filter.
 ### SCN-FOC-002 — Positive-tail cross-Domain draw
 
 Use a recorded draw in which `#h12345 "Buy groceries"` wins. Validate UX-F02:
-no preliminary switch prompt; `yes` changes Domain; `done` and `skip` do not.
+no preliminary switch prompt; `yes` changes Domain; `skip` and non-focus
+palette actions do not.
 
 ### SCN-FOC-003 — N-step blocker path
 

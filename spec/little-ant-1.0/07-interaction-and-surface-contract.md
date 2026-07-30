@@ -35,8 +35,10 @@
   A review orchestrates these screens and identifies itself discreetly; it is
   not a sixth primary grammar.
 
-- **UX-007 [core] — Focus.** One served Brick asks `Focus?` and ordinarily
-  offers `[y]es · [d]one · [s]kip · [?]`.
+- **UX-007 [core] — Focus.** One served Brick asks `Focus?` and offers only
+  the primary decision actions `[y]es · [s]kip · [?] I don't know`.
+  Less-frequent actions such as direct completion and Feed remain reachable
+  through `[/] more...`; they do not compete visually with the focus decision.
 - **UX-008 [core] — Comparison.** Two peers and one directional relation ask
   whether the displayed statement is right, using
   `[y]es · [n]o · [s]kip · [?]`.
@@ -97,8 +99,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   intent only if current preconditions still hold. Conflict is explicit.
   External effects require a separately approved compensation.
 - **UX-022 [core] — More palette.** The canonical `[/] more...` action opens a
-  searchable palette of only the commands and secondary actions valid in the
-  current state and guides their arguments. In input mode `/` is literal text.
+  searchable input palette containing only commands and secondary actions
+  valid in the current state. Before any query, it shows a small,
+  deterministically ordered contextual set. Typing filters the complete valid
+  set; descriptions make any implicit current subject explicit. Arrow keys
+  select, Enter runs, and Escape restores the exact pending interaction
+  without an event or another draw. A read-only command returns to that
+  interaction. A mutating command resolves it or revalidates it against the
+  new revision. The palette guides required arguments. In ordinary input mode,
+  `/` remains literal text.
 - **UX-023 [core] — Grammar inspection.** `la grammar`,
   `la grammar --screen <grammar>`, and `la grammar --json` expose the same
   versioned registry used by all surfaces. The current envelope remains the
@@ -197,20 +206,24 @@ no-emoji rendering remain `OPEN-UX-001`.
   displays its useful proposal. `next` itself may return a valid current-focus
   continuation. The no-eligible case displays the canonical useful empty
   state.
-- **UX-047 [core] — Global proposal actions.** The proposal screen places
-  `[f]eed   [/] more...` immediately above the divider that begins contextual
-  rows and the bottom status bar. `[f]eed` opens the Feed input screen; there
-  is no default Feed prompt. Escape from uncommitted input restores the exact
+- **UX-047 [core] — Secondary command escape.** A proposal screen places only
+  `[/] more...` below its primary actions and immediately above the divider.
+  Direct completion and Feed are contextual palette commands rather than
+  persistent proposal actions. `/feed` opens the Feed input screen; there is
+  no default Feed prompt. Escape from uncommitted input restores the exact
   proposal without a draw or event. A confirmed Feed changes the domain
   revision, so the old proposal is revalidated and, when stale, recomputed
-  instead of being applied blindly.
+  instead of being applied blindly. A pristine first start remains the
+  deliberate exception: it displays `[f]eed` directly because feeding the
+  first Brick is its primary useful action.
 - **UX-048 [core] — Next action grid.** The reference `next` screen renders
-  contextual answers on the first row and persistent actions on the second,
-  using stable whitespace-aligned columns rather than middle-dot separators:
+  the primary Focus answers on the first row and the secondary command escape
+  on the second, using stable whitespace-aligned columns rather than
+  middle-dot separators:
 
   ```text
-  [y]es    [d]one       [s]kip    [?] I don't know
-  [f]eed   [/] more...
+  [y]es    [s]kip    [?] I don't know
+  [/] more...
   ```
 
   Narrow renderers may wrap whole actions while preserving row membership and
@@ -296,6 +309,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   which aspect is unclear. Assistance may decorate that choice under `UX-059`,
   but it cannot propose desired result, completion criteria, next action, and
   scope before the human identifies the uncertainty.
+- **UX-062 [core] — Unbound finite-choice key.** Only shortcuts visibly bound
+  by the pending finite-choice screen are valid. An unbound key is never a
+  hidden alias and is not ignored silently. The surface gives one concise,
+  educational recovery and restores the same interaction. On `Focus?`,
+  pressing `n` says `[n] is not available here. To decline this suggestion,
+  use [s]kip.` It records no event, changes no revision, consumes no draw,
+  and applies no cooldown.
 
 ## Errors and dry-run
 

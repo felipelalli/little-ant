@@ -18,15 +18,15 @@ run as an interactive transcript.
 
 | Gate | Flow | Current references | Status | Missing boundary |
 |---:|---|---|---|---|
-| 2 | Shared frame and status | `UX-R00..R01`, `UX-025`, `UX-045..049` | partial | global action visibility, narrow/accessibility form |
+| 2 | Shared frame and status | `UX-R00..R01`, `UX-025`, `UX-045..049`, `UX-062` | partial | narrow/accessibility form and unbound-key rendering |
 | 2 | Contextual uncertainty/help | `UX-H01`, `UX-016..017` | partial | assistance subpages and return transitions |
-| 2 | Palette/command escape | `UX-022..024` | missing | `OPEN-UX-003` |
+| 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048` | partial | remaining screen placement and unavailable/search recovery under `OPEN-UX-003` |
 | 2 | Revision/stale response | `UX-029..031` | missing | `OPEN-UX-002` |
 | 2 | Reference selection | `MOD-010`, `MOD-024` | missing | `OPEN-REF-001` |
 | 3 | Restore/startup to `next` | `UX-R00`, `UX-046` | partial | current-focus and pending-envelope result transitions |
 | 3 | Pristine first start | `UX-E00`, `FOC-029` | screened | Feed/back/end-to-end transition |
 | 3 | Useful non-pristine empty | `UX-E01`, `FOC-028` | screened | state-derived choice transitions |
-| 3 | Feed text input | `UX-I02`, `UX-047..049` | partial | submit route and proposal revalidation |
+| 3 | Feed text input | `UX-M01`, `UX-I02`, `UX-047..049` | partial | submit route and proposal revalidation |
 | 3 | Preserve/normalize Raw | `MOD-001`, `MOD-029`, `MOD-049` | missing | `OPEN-RAW-001..002` |
 | 3 | Nature discovery | `UX-K01..K03`, `FED-024..027` | partial | exact full traversal transcript |
 | 3 | Template selection/proposal | `UX-K04..K06`, `FED-028..029` | partial | resulting route and complete preview |
@@ -35,7 +35,7 @@ run as an interactive transcript.
 | 3 | Parent/owner/Domain choice | `FED-005`, `FED-022..023` | missing | target and optional-membership screens |
 | 3 | Initial importance insertion | `UX-C01`, `IMP-004..010` | partial | accepted answer through final placement |
 | 3 | Complete Feed confirmation/result | `FED-019..021` | missing | full preview, mutation, prior-proposal revalidation |
-| 3 | Focus and direct done | `UX-F01..F03`, `WRK-002`, `WRK-005` | partial | result screen and next envelope |
+| 3 | Focus and secondary done | `UX-F01..F03`, `UX-M01`, `WRK-002`, `WRK-005` | partial | result screen and next envelope |
 | 4 | Ordering skip and provisional placement | `IMP-008..010` | missing | `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015` | missing | provocative check and local replacement screens |
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |
