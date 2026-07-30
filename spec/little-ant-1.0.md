@@ -25,10 +25,13 @@ When sources disagree, use this order:
 1. the compact canonical chapters below;
 2. [open release decisions](little-ant-1.0/open-release-decisions.md), only to
    identify an intentionally unresolved boundary;
-3. [traceability](little-ant-1.0/traceability.md), to locate provenance rather
+3. the [v0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md),
+   to require an explicit regression disposition rather than define new
+   behavior;
+4. [traceability](little-ant-1.0/traceability.md), to locate provenance rather
    than define behavior;
-4. the [historical record](little-ant-1.0/history/README.md), as evidence only;
-5. the retained README and v0 skill, as non-authoritative historical evidence.
+5. Git evidence anchors and the retained v0 skill, as non-authoritative
+   historical evidence.
 
 Deleted code, Allium, and generated artifacts must not be consulted as current
 product evidence merely because Git can recover them.
@@ -68,6 +71,8 @@ value may remain adjustable.
 - [Configuration and calibration](little-ant-1.0/configuration-and-calibration.md)
 - [Standard Template catalog](little-ant-1.0/standard-template-catalog.md)
 - [Open release decisions](little-ant-1.0/open-release-decisions.md)
+- [V0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md)
+- [Specification completion plan](little-ant-1.0/spec-completion-plan.md)
 - [Historical traceability](little-ant-1.0/traceability.md)
 - [UX simulation protocol](little-ant-1.0/ux/00-simulation-protocol.md)
 - [Canonical screen catalog](little-ant-1.0/ux/screen-catalog.md)
@@ -81,6 +86,8 @@ value may remain adjustable.
 - REPL, web/mobile, and skill parity: chapter 7 and the UX records.
 - Imports, Packs, exporters, and TaskJuggler: chapter 8.
 - Implementation or migration planning: chapters 2, 8, and 9.
+- Finishing product discovery: follow the specification completion plan in
+  gate order.
 - Why a rule exists: follow its ID through `traceability.md`.
 
 ## Maintenance rules

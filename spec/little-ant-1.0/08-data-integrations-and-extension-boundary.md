@@ -63,7 +63,6 @@
 - **DAT-017 [standard] — Partial failure is recoverable.** Successfully
   imported canonical objects remain valid if provider deletion fails; cleanup
   becomes retryable and never rolls back or marks the Brick complete.
-
 The 1.0 adapter catalog must cover these common sources through the standard
 Pack or its pinned companion catalog:
 
@@ -203,3 +202,17 @@ Exact shipping placement and API feasibility are tracked under
   the proposed route is attributed and previewed, `[y]es` accepts it, `[n]o`
   enters the ordinary dumb classification flow, and uncertainty remains
   explicit.
+
+## Source safety refinements
+
+- **DAT-042 [standard] — Ambiguous absence proves nothing.** A filtered
+  response, expired credential, lost permission, provider outage, ambiguous
+  `404`, or incomplete page is not authoritative deletion evidence. An
+  unexpected mass disappearance pauses automatic reconciliation and returns a
+  typed review instead of applying a bulk local outcome.
+- **DAT-043 [standard] — Itemwise cleanup truth.** Migration cleanup has one
+  verified disposition and durable receipt per selected external object even
+  when a provider offers a batch API. Partial progress remains resumable. The
+  ImportProfile is retired only after every selected object has a terminal
+  cleanup disposition; deleting an external container always requires a
+  separate destructive approval.

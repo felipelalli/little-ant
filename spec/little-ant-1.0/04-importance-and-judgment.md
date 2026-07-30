@@ -17,7 +17,11 @@
 - **IMP-005 [core] — Adaptive bulk maintenance.** Initial and sanity-round
   ordering uses the v0 `org-sort-tasks` strategy: insertion sort for short
   runs, merge for longer runs, and an already-ordered short circuit.
-  Comparisons persist independently so a round may stop and resume.
+  Each core step reuses applicable direct and transitive evidence and returns
+  at most one genuinely unresolved pair. Comparisons persist independently so
+  a round may stop and resume after any answer. The current deterministic
+  position may guide traversal but is never treated as human comparison
+  evidence, especially inside a provisional segment.
 
 ## Comparison grammar
 

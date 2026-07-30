@@ -97,9 +97,13 @@ open release decision rather than an inferred v1 commitment.
 - **MOD-023 [standard] — Raw links.** Typed links connect Raw to a Brick,
   ListEntry, or other Raw with an explicit content role and provenance. The
   same Raw may participate in several links without being consumed or copied.
-- **MOD-024 [standard] — External annotations.** Human-readable mentions may
-  resolve to stable ExternalEntity or Brick references, but text tokens never
-  gain behavioral authority by themselves.
+- **MOD-024 [standard] — Explicit typed annotations.** `@` and `#` text becomes
+  an ExternalEntity or Brick annotation only after an explicit target
+  selection on an annotation-capable field. The annotation stores opaque
+  target identity and the applicable content revision. Unselected lookalike
+  text remains literal. An annotation supports navigation and retrieval but
+  never creates requester, delegation, waiting, dependency, Domain, or other
+  behavioral semantics by itself.
 
 ## Factory Natures
 

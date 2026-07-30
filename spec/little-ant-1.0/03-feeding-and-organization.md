@@ -164,12 +164,12 @@
   route. `no` discards only the local discovery path and returns to the
   factory Nature choice, where the user may select directly or use
   `[?] I don't know` to run discovery again. `[?] I don't know` at the result
-  restarts discovery from Q1. None of these paths creates a Brick before the
+  restarts discovery from Q0. None of these paths creates a Brick before the
   complete Feed route is confirmed.
 - **FED-027 [core] — Discovery checkpoints.** Every discovery question and its
   result is an uncommitted navigation checkpoint. Escape returns to the
   immediately preceding question and discards only the answer and descendants
-  after that checkpoint. Escape from Q1 returns to the factory Nature choice.
+  after that checkpoint. Escape from Q0 returns to the factory Nature choice.
   Original Feed input, the prior proposal, and the random cursor are
   preserved; no domain event, semantic undo, or new draw occurs.
 - **FED-028 [core] — Explicit optional Template.** After dumb Feed resolves a

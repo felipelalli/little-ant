@@ -174,7 +174,9 @@ Is that right?
 
 ----------------------------------------
 ↳ #p12345 "Release the new website"
-🐜 importance insertion · powered-up suggestion
+Suggestion: /bin/claude-fast.sh · importance insertion
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
 ```
 
 The `*` appears only when evidence supports that default. `no` records the
@@ -202,7 +204,9 @@ Already finished?
 ↳ #p12345 "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 ⚠️ #u11111 "Review fraud incident" · deadline tomorrow
-🐜 served after 9 days · active Domain unchanged
+served after 9 days · active Domain unchanged
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 Selecting a symptom opens its separate reaction screen without recording
@@ -276,7 +280,7 @@ Is this right?
 ```
 
 `yes` accepts the Nature and continues Feed. `no` returns to UX-K01 with the
-original input preserved. `?` restarts UX-K02 at its first question. Escape
+original input preserved. `?` restarts UX-K02 at Q0. Escape
 returns to the last decisive question. These are navigation and local
 classification changes, not domain events or semantic undo.
 
@@ -295,7 +299,7 @@ Use this setup?
 
 ----------------------------------------
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: powered up · focus: idle
+   Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
 ```
 
 The skill uses the same confirmation envelope. `no` restores the unchanged
@@ -405,7 +409,9 @@ Send this follow-up?
 
 ----------------------------------------
 👤 Bento Camargo
-🐜 delegation follow-up · due 2 days ago
+delegation follow-up · due 2 days ago
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 `later` opens a date screen and records nothing until the absolute date is
@@ -422,7 +428,9 @@ Why is this blocked?
 
 ----------------------------------------
 ↳ #r12345 "Review Rock Splitter rules"
-🐜 text is local draft until confirmed
+text is local draft until confirmed
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 ## UX-I02 — Feed input
@@ -463,7 +471,9 @@ What would help you decide?
 [?] Little Ant help
 
 ----------------------------------------
-🐜 no answer or skip has been recorded
+no answer or skip has been recorded
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 Closing assistance restores the same pending revision.
@@ -480,7 +490,9 @@ Continue?
 
 ----------------------------------------
 ↳ #s12345 "Swim twice per week"
-🐜 [x][x][-][x][x] · current window ends Sunday
+[x][x][-][x][x] · current window ends Sunday
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 An ordinary defer-only skip never opens this confirmation or claims the streak
@@ -503,7 +515,9 @@ Start this run?
 
 ----------------------------------------
 🏷️ Personal › Housekeeping
-🐜 3 open · last run 6 days ago
+3 open · last run 6 days ago
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 All open entries appear together. `done` is interpreted through the
