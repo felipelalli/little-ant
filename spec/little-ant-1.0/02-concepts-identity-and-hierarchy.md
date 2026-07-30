@@ -192,3 +192,8 @@ The factory library contains:
   validated Nature. Accepted expansion becomes ordinary canonical state;
   Template provenance remains inspectable, but the Template cannot create
   later descendants or retain runtime authority.
+- **MOD-040 [standard] — Relationship-habit Templates.** The standard library
+  includes `keep_in_touch`, which creates one `habit` Brick for one specific
+  ExternalEntity target so relationship-specific history remains honest, and
+  `social_time`, which creates a `habit` without requiring one fixed person or
+  group. They are distinct Templates, not aliases for one another.

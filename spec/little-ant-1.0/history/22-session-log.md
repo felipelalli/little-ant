@@ -1571,3 +1571,16 @@ can appear independently in `next`. This is already the defining behavior of
 `feature_backlog` has a `collection` root and independently focusable child
 Bricks. Finite and living checklists are the Natures that own non-Brick
 ListEntries and render them together.
+
+## Entry 97 — Distinguish specific relationship care from general social time
+
+The user confirmed two separate standard relationship-habit Templates.
+`keep_in_touch` creates one habit Brick for one specific ExternalEntity target,
+so visiting or contacting different people does not collapse their histories,
+cadences, skips, or streaks. `social_time` instead represents spending time
+with any friend, relative, or other suitable relationship and requires no
+fixed target.
+
+These are distinct creation recipes rather than aliases. Their exact cadence
+input UI remains under discussion; in particular, a dumb surface must not
+depend on natural-language interpretation of text such as `once a month`.
