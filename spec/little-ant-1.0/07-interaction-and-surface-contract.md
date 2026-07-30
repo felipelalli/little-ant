@@ -245,6 +245,13 @@ The normative reference renderings live in
   and its exact closing instant in subject-specific context. No surface may
   replace a civil date with an operational label or make a flight,
   appointment, or timed deadline appear to occur on another date.
+- **UX-056 [core] — Dense Template choice before categories.** A Template
+  choice lists all compatible options together while they fit the bounded
+  surface and each visible option can receive a unique in-word shortcut.
+  Shortcut characters never repeat within one screen. Only when that contract
+  cannot be satisfied does the interaction introduce stable navigational
+  categories or pagination. Categories organize discovery; they never change
+  Nature, Template semantics, ranking evidence, or runtime behavior.
 
 ## Errors and dry-run
 

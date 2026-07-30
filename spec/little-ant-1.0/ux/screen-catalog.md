@@ -223,6 +223,7 @@ How should this behave?
 [r]epeatable            e.g. "Reread this article in six months"
 recurring [o]bligation  e.g. "Pay the monthly rent"
 [h]abit                 e.g. "Walk three times a week"
+[s]cheduled commitment  e.g. "Take flight AD123 to Montevideo"
 [?] I don't know
 
 ----------------------------------------
@@ -319,6 +320,39 @@ Every option is explicit and none receives `*` in dumb mode. Skill or
 powered-up mode may highlight one attributed compatible suggestion. If the
 installed catalog has no compatible Template, Feed skips this screen and
 continues with the resolved Nature.
+
+## UX-K06 — Dense scheduled-commitment Template choice
+
+Eleven compatible built-in Templates fit one explicit dumb choice without
+repeating a shortcut character:
+
+```text
+Nature: scheduled commitment
+
+Choose an optional setup:
+
+[f]light                 e.g. "Flight AD123 to Montevideo"
+scheduled [t]ransport    e.g. "Train from London to Paris"
+[a]ppointment            e.g. "Dentist appointment"
+[m]eeting                e.g. "Quarterly planning meeting"
+[e]vent attendance       e.g. "Attend the security conference"
+[r]eservation            e.g. "Dinner reservation"
+[c]lass session          e.g. "Spanish lesson"
+e[x]am                   e.g. "Driver's license exam"
+[w]ork shift             e.g. "Saturday support shift"
+[s]ervice window         e.g. "Internet technician visit"
+[h]otel stay             e.g. "Stay at Hotel Carrasco"
+[n]o template            keep only the scheduled-commitment behavior
+[?] I don't know
+
+----------------------------------------
+🐜 Little Ant   0 eligible    0 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+No category screen is introduced while this flat choice remains usable.
+Future categories or pagination must follow `UX-056` and preserve the same
+Template identities.
 
 ## UX-A01 — External-effect confirmation
 

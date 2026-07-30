@@ -19,6 +19,7 @@ ordinary implementation choices belong in the later implementation plan.
 | `OPEN-WRK-001` | Final public commands for focus/unfocus, WIP-to-idle, standing-run finish, and retiring standing work. | Focus, interruption, checklist, and repeatable-work screens. |
 | `OPEN-WRK-002` | Canonical English name for an explicitly or deterministically unfulfilled habit opportunity. | Habit and streak simulation; do not reuse generic `abandon`. |
 | `OPEN-TIME-001` | Exact notice action grammar, acknowledgment/snooze behavior, and safe-boundary surfacing. | Deadline, best-before, and recurring-obligation simulation. |
+| `OPEN-SCH-001` | Final `scheduled_commitment` lifecycle, required interval data, active-interval precedence versus the weighted forecast, attended/missed/cancelled outcomes, preparation relationships, and delegation scope. | Flight, appointment, meeting, service-window, and time-zone-crossing simulations. |
 | `OPEN-UX-001` | Final shortcut collisions, choice/input layouts, contextual-assistance labels, and accessible no-emoji rendering. | Almost-literal REPL/web/SKILL screen review. |
 | `OPEN-UX-002` | Final InteractionEnvelope identity, revision, stale-response/rebase fields, progress fields, and checkpoint conflict grammar. | Crash, concurrent update, undo/redo, and cross-surface scenarios. |
 | `OPEN-DAT-001` | Final projection names, schema-version negotiation, complete-projection request, history filters, and meaningful-zero declarations. | Operator-context and sparse-response fixtures. |

@@ -169,6 +169,11 @@
   | `recurring_obligation` | `ask` |
   | `habit` | `disabled` |
 
+  `scheduled_commitment` is intentionally absent until `OPEN-SCH-001`
+  resolves whether delegation applies to attendance, preparation, the whole
+  interval, or only selected Templates. An implementation must not infer a
+  default from another Nature.
+
 - **WRK-033 [standard] — Preview and reconciliation.** Initial notice,
   cancellation, follow-up, nudge, refusal, and reported completion preserve
   explicit previews and approvals. Existing human focus, WIP, or incompatible

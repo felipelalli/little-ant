@@ -111,29 +111,32 @@
   behavioral question per screen and follows this factory tree:
 
   ```text
-  Q1. Will completing this once finish the whole intention?
-  ├─ yes
-  │  Q2. Does completion require tracking multiple parts?
-  │  ├─ no  → atomic_task
-  │  └─ yes
-  │     Q3. Do any parts need independent focus, importance, blockers,
-  │         dates, Domain membership, or history?
-  │     ├─ yes → project
-  │     └─ no  → finite_checklist
+  Q0. Must this happen during an externally fixed time or time window?
+  ├─ yes → scheduled_commitment
   └─ no
-     Q4. Does it maintain a changing set of members or entries?
+     Q1. Will completing this once finish the whole intention?
      ├─ yes
-     │  Q5. Should next ever serve one member independently?
-     │  ├─ yes → collection
-     │  └─ no  → living_checklist
+     │  Q2. Does completion require tracking multiple parts?
+     │  ├─ no  → atomic_task
+     │  └─ yes
+     │     Q3. Do any parts need independent focus, importance, blockers,
+     │         dates, Domain membership, or history?
+     │     ├─ yes → project
+     │     └─ no  → finite_checklist
      └─ no
-        Q6. Does each required occurrence remain open until completed or
-            explicitly closed?
-        ├─ yes → recurring_obligation
+        Q4. Does it maintain a changing set of members or entries?
+        ├─ yes
+        │  Q5. Should next ever serve one member independently?
+        │  ├─ yes → collection
+        │  └─ no  → living_checklist
         └─ no
-           Q7. Are missed time windows recorded and are streaks meaningful?
-           ├─ yes → habit
-           └─ no  → repeatable
+           Q6. Does each required occurrence remain open until completed or
+               explicitly closed?
+           ├─ yes → recurring_obligation
+           └─ no
+              Q7. Are missed time windows recorded and are streaks meaningful?
+              ├─ yes → habit
+              └─ no  → repeatable
   ```
 
 - **FED-025 [core] — Uncertainty probes.** `[?] I don't know` never chooses a
@@ -142,6 +145,7 @@
 
   | Split | Alternate probe | `yes` | `no` |
   |---|---|---|---|
+  | fixed-time commitment or flexible work | Would doing it earlier still satisfy the intention? | flexible work | scheduled commitment |
   | finite or continuing | Should this Brick remain active after a successful run? | continuing | finite |
   | atomic or multipart | Would one `done` action lose progress that should be tracked separately? | multipart | atomic |
   | project or finite checklist | Could any part need its own `next`, importance, blocker, date, Domain, or history? | project | finite checklist |

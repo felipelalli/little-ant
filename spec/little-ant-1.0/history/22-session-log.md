@@ -1661,3 +1661,27 @@ belongs entirely to the workday in which it began even if it crosses 06:00.
 Changing either boundary or the operational time zone is prospective and does
 not silently relabel historical evidence. When civil and workday dates differ,
 the UI shows the civil date and clock plus an explicit workday label.
+
+## Entry 103 — Add scheduled commitments and a broad offline Template family
+
+The user confirmed `scheduled_commitment` as a factory Nature rather than
+forcing externally anchored intervals into `atomic_task`. The Nature identifies
+one commitment that must happen during an externally fixed interval; its exact
+instants remain zoned and independent from habit-day and workday boundaries.
+Its final lifecycle, active-interval precedence, outcomes, preparation
+relationships, and delegation scope remain explicit release questions rather
+than inferred behavior.
+
+The user also chose a broad offline Template strategy. Common Templates should
+ship built in; extensions primarily serve highly specialized domains,
+integrations, or recipes. The offline scheduled-commitment family therefore
+includes `flight`, `scheduled_transport`, `appointment`, `meeting`,
+`event_attendance`, `reservation`, `class_session`, `exam`, `work_shift`,
+`service_window`, and `hotel_stay`. The former candidate
+`scheduled_appointment` is removed without an alias.
+
+The dumb Template screen initially shows all eleven choices plus `no template`
+and uncertainty together. Every visible option receives a distinct character
+that occurs in its label. Only when compatible options cannot fit with unique
+shortcuts does navigation introduce stable categories or pagination; those
+categories organize discovery without adding product semantics.

@@ -113,6 +113,7 @@ The factory library contains:
 | `finite_checklist` | finite parent and entries render together |
 | `recurring_obligation` | standing series releases independent occurrence Bricks |
 | `habit` | standing intention exposes expiring opportunities, streaks, and history |
+| `scheduled_commitment` | one externally anchored interval that cannot be performed at an arbitrary time |
 
 - **MOD-025 [core] — Required Nature.** Every Brick receives exactly one
   validated Nature at birth. There is no hidden fallback Nature. `[?] I don't
@@ -209,3 +210,14 @@ The factory library contains:
   completion criterion may state an intended duration or amount, but the
   Template requires only a structured schedule and the ordinary discrete
   habit outcome under `WRK-040`.
+- **MOD-043 [core] — Scheduled commitment.** A `scheduled_commitment`
+  represents one externally anchored interval rather than work that may be
+  performed at any convenient time. Its exact instants retain their named
+  time zones under `WRK-041..044`. It is a mechanical Nature shared by
+  flights, appointments, meetings, reservations, attendance, transport, and
+  other concrete Templates; it is not a domain-specific branch.
+- **MOD-044 [standard] — Broad offline Template library.** The standard
+  offline distribution intentionally offers many common, inspectable
+  Templates across each Nature. Companion extensions are primarily for highly
+  specialized domains, integrations, or recipes, not a reason to omit useful
+  everyday choices from the built-in catalog.

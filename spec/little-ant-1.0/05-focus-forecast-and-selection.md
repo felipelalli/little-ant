@@ -47,7 +47,9 @@ The exact final catalog is a release-blocking decision tracked as
 - **FOC-011 [core] — Nature-owned focus unit.** `project` may descend to a
   child or offer decomposition/review; `collection` descends to an independent
   child; checklist Natures present the parent with its entries; `atomic_task`,
-  `repeatable`, and `habit` normally present the Brick itself.
+  `repeatable`, `habit`, and `scheduled_commitment` normally present the Brick
+  itself. Exact active-interval precedence for a scheduled commitment remains
+  `OPEN-SCH-001`.
 - **FOC-012 [core] — No title heuristics.** Decomposition or descent follows
   resolved Nature capabilities, never the apparent grandeur of a title.
 - **FOC-013 [core] — Flat view is projection.** A flat forecast may display

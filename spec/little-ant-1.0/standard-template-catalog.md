@@ -13,8 +13,10 @@ Status meanings:
 - `candidate` — useful review baseline, not yet a release commitment.
 
 A Template remains built-in only when it provides a meaningful creation recipe
-beyond renaming its root Nature. A broader companion Pack may carry useful
-specialized recipes that do not justify the offline standard-library cost.
+beyond renaming its root Nature. The offline library intentionally covers many
+common situations. Companion Packs remain available for highly specialized
+domains, integrations, or recipes rather than carrying ordinary everyday
+choices by default.
 
 ## `atomic_task`
 
@@ -23,11 +25,28 @@ specialized recipes that do not justify the offline standard-library cost.
 | `bug_fix` | candidate | Fix one bounded defect and optionally record verification evidence. |
 | `one_off_errand` | candidate | Pick up, return, deliver, or obtain one thing under Place conditions. |
 | `one_off_purchase` | candidate | Buy one independently focusable item rather than maintain a list. |
-| `scheduled_appointment` | candidate | Attend one appointment inside a concrete time window. |
 | `document_review` | candidate | Review one document with an attached Raw or SourceLink. |
 | `contact_someone` | candidate | Make one call, visit, message, or other contact. |
 | `quick_repair` | candidate | Repair one bounded physical item. |
 | `application_submission` | candidate | Complete and submit one application or form. |
+
+## `scheduled_commitment`
+
+All Templates in this family ship in the offline standard library.
+
+| Template | Status | Example or purpose |
+|---|---|---|
+| `flight` | confirmed | Preserve zoned departure and arrival facts plus optional check-in, boarding, booking, and airport context. |
+| `scheduled_transport` | confirmed | Preserve a train, bus, ferry, or similar ticketed journey with origin, destination, departure, and arrival. |
+| `appointment` | confirmed | Attend one externally scheduled appointment with its ExternalEntity, place or link, interval, and optional preparation. |
+| `meeting` | confirmed | Attend one meeting with participants, agenda, place or link, interval, and follow-up context. |
+| `event_attendance` | confirmed | Attend a show, talk, conference session, ceremony, or similar event with venue and admission context. |
+| `reservation` | confirmed | Honor a timed reservation with place, participants, confirmation, and cancellation context. |
+| `class_session` | confirmed | Attend one class or lesson with instructor, place, materials, and interval. |
+| `exam` | confirmed | Attend one rigidly scheduled examination with place, duration, and entry requirements. |
+| `work_shift` | confirmed | Preserve one externally scheduled work interval and applicable place context. |
+| `service_window` | confirmed | Be available for a technician, delivery, or other external visit during a bounded arrival window. |
+| `hotel_stay` | confirmed | Preserve zoned check-in and check-out boundaries plus property and booking context. |
 
 ## `project`
 

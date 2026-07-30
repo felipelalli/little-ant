@@ -35,7 +35,7 @@ current product authority.
 | [22 session log](history/22-session-log.md) | session-entry map below | historical with adopted decisions |
 | [23 checklist](history/23-review-checklist.md) | acceptance gates in canonical index, traceability, simulations, and `MIG-018..022` | superseded checklist |
 | [24 REPL](history/24-repl-harness.md) | `UX-001..051`, UX records, `OPEN-UX-001..002` | adopted/open |
-| [25 Natures/templates](history/25-brick-natures-and-template-library.md) | `MOD-004..005`, `MOD-025..028`, `MOD-035..038`, `FED-005..009`, `FED-024..027`, `WRK-031..032` | adopted with current terminology corrections; `standing_checklist` superseded by `living_checklist` |
+| [25 Natures/templates](history/25-brick-natures-and-template-library.md) | `MOD-004..005`, `MOD-025..028`, `MOD-035..044`, `FED-005..009`, `FED-024..027`, `WRK-031..032`, `UX-056`, `OPEN-SCH-001` | adopted with current terminology corrections; `standing_checklist` superseded by `living_checklist` |
 | [26 entries/identity](history/26-structured-entries-identity-and-duplicate-suspicion.md) | `MOD-003`, `MOD-008..012`, `FED-015..018` | adopted |
 | [27 standing work](history/27-standing-work-recurrence-obligations-and-practices.md) | `WRK-019..028`, `WRK-038..040`, `UX-054`, `OPEN-WRK-001..002` | adopted/open; `practice` vocabulary superseded by `habit` |
 | [28 places](history/28-place-conditions-and-location-observations.md) | `WRK-035..037` | adopted |
@@ -110,6 +110,7 @@ they were successive refinements of the same current rule family.
 | Post-consolidation REPL corrections | `UX-011`, `UX-016`, `UX-019..021`, `UX-022`, `UX-025`, `UX-045..051`, `FOC-029`, `SCN-009`, `SCN-012..013`, `SCN-FED-001..002`, `UX-R00`, `UX-E00`, `UX-K01..K04` |
 | Nature and Template separation | `MOD-025..028`, `MOD-035..042`, `FED-005..009`, `FED-024..028`, `FOC-011`, `WRK-024..025`, `WRK-032`, `UX-050..053`, `UX-K01..K05`, `SCN-FED-005` |
 | 102 | `WRK-041..045`, `CAL-007..008`, `UX-055`, `UX-R01` |
+| 103 | `MOD-043..044`, `FED-024..025`, `FOC-011`, `UX-056`, `UX-K01`, `UX-K06`, `OPEN-SCH-001` |
 
 ## Downstream coverage
 
