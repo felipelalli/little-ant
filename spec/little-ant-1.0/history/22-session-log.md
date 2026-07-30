@@ -1766,3 +1766,24 @@ without pretending that a remedy occurred. A successful recovery may return
 to the same Brick without a skip cooldown. The exact reaction catalog,
 starting with what `clarify now` does for `vague`, remains the next focused UX
 decision rather than being inferred from the v0 operator skill.
+
+## Entry 108 — Keep assisted screens structurally identical to dumb screens
+
+The user rejected a more conversational powered-up or Skill alternative to the
+dumb clarification choice. All three modes must show the same canonical
+question, complete option set, order, shortcuts, and action IDs. Assistance
+may only mark one defensible option with `*` and add a concise attributed
+natural-language note directly below the options. The note may explain,
+suggest, distinguish, or provide a tip, but it cannot replace the decision or
+invent another route.
+
+This corrects the earlier `UX-043` permission for powered-up mode to remove
+mechanical questions. Such removal would make dumb REPL simulations an
+incomplete product reference and let the Skill drift into a second UX.
+
+During the `vague` discussion, `outcome` was also found ambiguous with
+lifecycle and execution outcomes. The intended distinction is between the
+desired result (what should become true) and completion criteria (how the user
+can verify it). `boundaries` meant scope: what is included and excluded. Exact
+labels and shortcuts remain part of the continuing clarification-screen
+review.

@@ -167,12 +167,15 @@ The normative reference renderings live in
   attributed provisional comparisons. It cannot create canonical events,
   human evidence, external approval, merge, or completion directly.
 - **UX-039 [standard] — Skill equivalence.** The operator skill may interpret
-  unrestricted natural language more deeply, but renders and advances through
-  the same envelope and canonical actions.
+  unrestricted natural language more deeply, but renders the same pending
+  question, options, order, shortcuts, and action IDs as the dumb REPL. It
+  advances only through those canonical actions.
 - **UX-043 [core] — Powered-up is a measured delta.** A powered-up simulation
   starts from the same state, clock, configuration, and random stream as the
-  accepted dumb flow. It may remove mechanical questions or add an attributed
-  default; it cannot become the source of screen grammar.
+  accepted dumb flow. It renders the same question and complete option set.
+  It may add one attributed default and bounded assistance under `UX-059`; it
+  cannot remove or bypass a mechanical question or become the source of screen
+  grammar.
 - **UX-044 [core] — Downstream mirror order.** Skill and web/mobile renderings
   are reviewed only after the corresponding dumb and, when applicable,
   powered-up REPL paths are accepted. A downstream convenience may motivate a
@@ -263,6 +266,13 @@ The normative reference renderings live in
   checkpoints. A symptom shortcut opens the matching reaction screen without
   recording evidence. Only a final reaction action commits the symptom and
   reaction under `WRK-047`; `skip anyway` is the explicit defer-only action.
+- **UX-059 [core] — Assistance decorates one canonical choice.** Skill and
+  powered-up mode may mark at most one existing action with `*` and place one
+  concise attributed natural-language note immediately below the unchanged
+  option set. The note may explain evidence, distinguish choices, suggest an
+  action, or offer a tip. It cannot add an action, hide one, alter its meaning,
+  answer automatically, or claim certainty unsupported by evidence. Without
+  a defensible suggestion, neither `*` nor a persuasive note appears.
 
 ## Errors and dry-run
 
