@@ -220,6 +220,12 @@ The normative reference renderings live in
   propose a Template that visibly resolves one Nature. The proposal requires
   `[y]es · [n]o · [?]`; `no` returns to the unchanged dumb flow without
   accepting proposal evidence.
+- **UX-052 [core] — Example-backed Nature choice.** The direct factory Nature
+  choice presents one Nature per line with one short, concrete example.
+  Text surfaces align the examples as a visually quieter second column; other
+  surfaces preserve the same one-to-one association. Examples explain
+  behavior only: they are not classification evidence, title suggestions,
+  Template selections, or domain-specific branches.
 
 ## Errors and dry-run
 

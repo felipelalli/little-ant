@@ -191,10 +191,14 @@ Escape before selection returns to the exact Focus screen without a skip.
 
 How should this behave?
 
-[a]tomic task          [p]roject
-[c]ollection           [f]inite checklist
-[l]iving checklist    [r]epeatable
-recurring [o]bligation [h]abit
+[a]tomic task           e.g. "Replace a broken light bulb"
+[p]roject               e.g. "Migrate the website to a new host"
+[c]ollection            e.g. "Books to read"
+[f]inite checklist      e.g. "Pack for the August trip"
+[l]iving checklist      e.g. "Grocery list"
+[r]epeatable            e.g. "Reread this article in six months"
+recurring [o]bligation  e.g. "Pay the monthly rent"
+[h]abit                 e.g. "Walk three times a week"
 [?] I don't know
 
 ----------------------------------------
@@ -203,7 +207,8 @@ recurring [o]bligation [h]abit
 ```
 
 `?` opens UX-K02. No selection is a hidden fallback and no Template appears
-on this screen.
+on this screen. Each example is illustrative UI copy, not input to
+classification or Template selection.
 
 ## UX-K02 — Guided Nature discovery
 

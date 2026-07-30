@@ -1526,3 +1526,19 @@ effective coverage so delegated work cannot leak back into the human
 forecast. Completion remains explicit and Nature-aware rather than cascading.
 Conflict reconciliation, explicit exceptions, and occurrence-versus-series
 choices for standing Natures remain open.
+
+## Entry 94 — Make direct Nature choice example-backed
+
+The user confirmed that the direct factory Nature screen should favor
+comprehension over compactness. It now presents one Nature per line and pairs
+every option with one concrete English example: an atomic task with replacing
+a broken light bulb, a project with migrating a website, a collection with
+books to read, a finite checklist with packing for a specific trip, a living
+checklist with a grocery list, repeatable work with rereading an article in
+six months, a recurring obligation with paying monthly rent, and a habit with
+walking three times a week.
+
+The examples are pedagogical UI copy only. They do not classify the Feed
+input, suggest a title, select a Template, or introduce domain-specific
+behavior into the core. Text surfaces align them as a quieter second column;
+other surfaces preserve the same explicit option-to-example relationship.
