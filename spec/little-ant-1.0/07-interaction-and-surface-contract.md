@@ -322,8 +322,11 @@ no-emoji rendering remain `OPEN-UX-001`.
   immediately starts or resumes the Brick and enters a stable current-focus
   screen. It asks no new question, invokes no draw, and exposes only
   `[/] more...` as its secondary command escape. The status bar identifies the
-  focused Brick. Restarting or restoring the REPL resumes this screen while
-  that focus remains valid.
+  focused Brick. The immediate `focus_started` result may carry UX-064
+  microcopy. Restarting or restoring the REPL later resumes a sober rendering
+  of this screen while that focus remains valid; it neither repeats the
+  transition message nor asks whether the focus is stale before the configured
+  stale-focus boundary.
 - **UX-064 [standard] — Contextual personality catalog.** Decorative
   personality microcopy appears only after a transition where warmth or light
   humor helps; it never appears on the opening `Focus?` screen, where it would
@@ -335,11 +338,12 @@ no-emoji rendering remain `OPEN-UX-001`.
 
   The factory English catalog contains exactly 16 phrases for each intent.
   Phrase selection is replay-deterministic, remains stable for the same
-  interaction, and is isolated from forecast randomness. Microcopy is never a
-  domain event or evidence. Errors, warnings, external-effect approvals,
-  evidence questions, and active decision screens remain canonical and sober.
-  No phrase may shame, manipulate, invent facts, imply a hidden action, or
-  discourage the user from reporting an obstacle.
+  transition-result interaction, appears only there, and is isolated from
+  forecast randomness. A later continuation does not replay or reselect it.
+  Microcopy is never a domain event or evidence. Errors, warnings,
+  external-effect approvals, evidence questions, and active decision screens
+  remain canonical and sober. No phrase may shame, manipulate, invent facts,
+  imply a hidden action, or discourage the user from reporting an obstacle.
 - **UX-065 [standard] — Assisted personality paraphrase.** Powered-up mode or
   the Skill may paraphrase the selected dumb phrase once per interaction in
   one or two English lines. It retains the selected intent and factory phrase

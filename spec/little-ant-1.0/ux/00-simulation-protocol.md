@@ -57,9 +57,10 @@ may expose missing or contradictory rules.
 - **SCN-014 — Personality follows meaning.** The opening Focus decision has no
   decorative message. An eligible completed transition selects one of exactly
   16 factory English phrases for its declared intent without advancing the
-  forecast stream. Re-rendering keeps it stable. A powered-up or Skill replay
-  may change only that phrase under UX-065; semantic and high-stakes screens
-  remain exact.
+  forecast stream. Re-rendering that transition result keeps it stable; a
+  later continuation omits it rather than replaying or reselecting it. A
+  powered-up or Skill replay may change only that phrase under UX-065;
+  semantic and high-stakes screens remain exact.
 
 ## Critique labels
 

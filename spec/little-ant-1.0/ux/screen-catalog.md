@@ -220,6 +220,30 @@ opening UX-R00 intentionally has no personality line: Focus remains its single
 visual decision. The palette exposes only commands valid for the current
 focus; their final public names remain under `OPEN-WRK-001`.
 
+## UX-F05 — Sober current-focus continuation
+
+Closing and reopening the REPL five minutes after UX-F04 resumes the focus
+without replaying its transition message:
+
+```text
+Current focus:
+
+#r12345 "Review Rock Splitter rules"
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   17 eligible   3 reviews
+   Mon, Aug 3   09:05         mode: dumb   focus: #r12345
+```
+
+This continuation creates no event, performs no draw, and selects no
+microcopy. Before the configured stale-focus boundary, it does not ask
+`Still on this?`. The eventual stale-focus review is a separate opportunity
+under `WRK-004`, not a decoration of this screen.
+
 ## UX-C01 — Importance comparison
 
 ```text

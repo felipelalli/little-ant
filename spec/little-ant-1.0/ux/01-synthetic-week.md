@@ -206,8 +206,10 @@ Accept focus and validate UX-F04 before any further action: focus starts
 immediately, the ordinary eligible count drops from 18 to 17, no second draw
 occurs, and the selected `focus_started` phrase remains stable when the screen
 is redrawn. Replay powered up and allow only the bounded UX-065 paraphrase.
-Then switch to another Brick, inspect several WIPs, and return one to idle.
-Validate one current focus and honest WIP history.
+Close and reopen five minutes later; validate sober UX-F05 with no event,
+draw, repeated phrase, or premature stale-focus question. Then switch to
+another Brick, inspect several WIPs, and return one to idle. Validate one
+current focus and honest WIP history.
 
 ### SCN-WRK-002 — Symptom then reaction
 
