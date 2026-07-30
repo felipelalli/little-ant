@@ -37,7 +37,7 @@ current product authority.
 | [24 REPL](history/24-repl-harness.md) | `UX-001..051`, UX records, `OPEN-UX-001..002` | adopted/open |
 | [25 Natures/templates](history/25-brick-natures-and-template-library.md) | `MOD-004..005`, `MOD-025..028`, `MOD-035..038`, `FED-005..009`, `FED-024..027`, `WRK-031..032` | adopted with current terminology corrections; `standing_checklist` superseded by `living_checklist` |
 | [26 entries/identity](history/26-structured-entries-identity-and-duplicate-suspicion.md) | `MOD-003`, `MOD-008..012`, `FED-015..018` | adopted |
-| [27 standing work](history/27-standing-work-recurrence-obligations-and-practices.md) | `WRK-019..028`, `OPEN-WRK-001..002` | adopted/open; `practice` vocabulary superseded by `habit` |
+| [27 standing work](history/27-standing-work-recurrence-obligations-and-practices.md) | `WRK-019..028`, `WRK-038..039`, `UX-054`, `OPEN-WRK-001..002` | adopted/open; `practice` vocabulary superseded by `habit` |
 | [28 places](history/28-place-conditions-and-location-observations.md) | `WRK-035..037` | adopted |
 | [29 annotations](history/29-text-mentions-and-typed-annotations.md) | `MOD-007`, `MOD-024`, `OPEN-MOD-001` | adopted/open |
 | [30 data authority](history/30-domain-authority-blobs-and-rebuildable-projections.md) | `DAT-001..005`, `MIG-001..017` | adopted |

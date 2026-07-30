@@ -106,7 +106,6 @@
 - **WRK-028 [standard] — Event-triggered opportunity.** A supported canonical
   source event may idempotently release one opportunity on an existing
   compatible standing Brick. This is closed core data, not generic automation.
-
 ## Delegation
 
 - **WRK-029 [standard] — ExternalEntity target.** Delegation targets an
@@ -162,3 +161,17 @@
 - **WRK-037 [standard] — Privacy boundary.** Adapters provide observations;
   the core does not continuously track location or silently perform external
   actions.
+
+## Schedule semantics
+
+- **WRK-038 [standard] — Habit schedule shapes.** A habit schedule resolves to
+  either fixed slots or a quota window. A fixed slot anchors an opportunity to
+  a recurring calendar position. A quota window requires a positive completion
+  count within a positive number of days, weeks, months, or years. Both are
+  canonical structured data; neither depends on interpreting stored prose.
+- **WRK-039 [core] — Monthly anchor clamping.** A monthly fixed slot stores its
+  intended day from 1 through 31. In a month without that day, the occurrence
+  uses the month's last valid day. Later occurrences are always calculated
+  from the intended day rather than the preceding adjusted date, so an anchor
+  of 31 produces January 31, February 28 or 29, March 31, April 30, and May 31
+  without drift.

@@ -1584,3 +1584,19 @@ fixed target.
 These are distinct creation recipes rather than aliases. Their exact cadence
 input UI remains under discussion; in particular, a dumb surface must not
 depend on natural-language interpretation of text such as `once a month`.
+
+## Entry 98 — Structure dumb cadence and preserve monthly anchors
+
+The user confirmed that dumb mode must not collect a natural-language cadence
+such as `once a month`. It instead builds the canonical schedule from bounded
+presets, positive integers, units, and calendar choices. Skill or powered-up
+mode may translate natural language into that same structure and present it as
+attributed assistance.
+
+Habit schedules support two different meanings: a fixed recurring calendar
+slot and a completion quota within a calendar window. For a monthly fixed
+slot, the user chose a stable day of month. The core stores that intended day
+from 1 through 31 and clamps only the concrete occurrence when a month is
+shorter. It never uses the clamped occurrence as the next anchor: day 31
+therefore yields January 31, February 28 or 29, March 31, April 30, and May 31
+rather than drifting permanently to day 28 or 30.

@@ -232,6 +232,12 @@ The normative reference renderings live in
   choice. Skill or powered-up mode may mark one compatible Template as an
   attributed suggestion, but cannot mark an unattributed or ambiguous
   default. Rejecting or bypassing a Template preserves the resolved Nature.
+- **UX-054 [core] — Structured dumb scheduling.** Dumb mode configures cadence
+  through bounded schedule-shape, preset, positive-integer, calendar-anchor,
+  and time-unit choices. It never asks the core to interpret natural-language
+  frequency text. Skill or powered-up mode may translate phrases such as
+  `twice a month` into the same canonical structure, but must show the
+  attributed structured result before acceptance.
 
 ## Errors and dry-run
 
