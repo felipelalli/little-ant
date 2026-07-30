@@ -20,6 +20,7 @@ longer, or recoverable.
 | `9a748bf` | Last commit containing the complete 38-file shadow tree and session log through entry 111 | Immutable recovery anchor for every deleted historical file |
 | `33e9dd3` | Restored Description-as-Raw and same-Raw English normalization | Current Raw baseline |
 | `e4dd122` | Maintained v0→1.0 matrix and finite UX-first closure plan | Current regression and completion gates |
+| `f178f04` | Removed the live shadow tree, reorganized open decisions, and added UX flow coverage | Gate 1 closure and current active-spec boundary |
 
 The pre-rewrite bundle at
 `~/tmp/little-ant-pre-rewrite-202607101708.bundle` is older than the final v0
