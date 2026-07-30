@@ -105,6 +105,58 @@
   node with or without descendants, count matching Bricks, and draw within
   that scope. Multi-membership never duplicates results.
 
+## Nature discovery decision tree
+
+- **FED-024 [core] — Mechanical discovery.** Dumb Nature discovery asks one
+  behavioral question per screen and follows this factory tree:
+
+  ```text
+  Q1. Will completing this once finish the whole intention?
+  ├─ yes
+  │  Q2. Does completion require tracking multiple parts?
+  │  ├─ no  → atomic_task
+  │  └─ yes
+  │     Q3. Do any parts need independent focus, importance, blockers,
+  │         dates, Domain membership, or history?
+  │     ├─ yes → project
+  │     └─ no  → finite_checklist
+  └─ no
+     Q4. Does it maintain a changing set of members or entries?
+     ├─ yes
+     │  Q5. Should next ever serve one member independently?
+     │  ├─ yes → collection
+     │  └─ no  → standing_checklist
+     └─ no
+        Q6. Does each required occurrence remain open until completed or
+            explicitly closed?
+        ├─ yes → recurring_obligation
+        └─ no
+           Q7. Are missed time windows recorded and are streaks meaningful?
+           ├─ yes → habit
+           └─ no  → repeatable
+  ```
+
+- **FED-025 [core] — Uncertainty probes.** `[?] I don't know` never chooses a
+  branch. It explains the current distinction with one example from each
+  branch and asks an alternate consequence-oriented probe:
+
+  | Split | Alternate probe | `yes` | `no` |
+  |---|---|---|---|
+  | finite or continuing | Should this Brick remain active after a successful run? | continuing | finite |
+  | atomic or multipart | Would one `done` action lose progress that should be tracked separately? | multipart | atomic |
+  | project or finite checklist | Could any part need its own `next`, importance, blocker, date, Domain, or history? | project | finite checklist |
+  | members or executions | Will items be added or removed while the parent remains? | members | executions |
+  | collection or standing checklist | At focus time, must the whole open set appear together? | standing checklist | collection |
+  | obligation or non-accumulating work | If missed, should the old occurrence remain open or overdue? | recurring obligation | non-accumulating work |
+  | habit or repeatable | Should a missed window record an unfulfilled outcome or affect a streak? | habit | repeatable |
+
+  A second uncertainty at the same split leaves Feed pending instead of
+  guessing.
+- **FED-026 [standard] — Explain the leaf.** Reaching a leaf shows the
+  resulting Nature and the decisive behavioral reason in the Feed preview.
+  It does not invent a second confirmation dialog; the ordinary Feed preview
+  remains the point at which the complete route is accepted or revised.
+
 ## Reference flows
 
 Feeding `comprar leite` may produce:

@@ -141,6 +141,14 @@ Only after SCN-FED-001 through SCN-FED-003 are accepted, render their existing
 envelopes in the operator skill and web/mobile reference. Validate
 almost-literal parity; do not let the skill supply a missing dumb-core path.
 
+### SCN-FED-005 — Nature discovery coverage
+
+Starting from identical pending Feed input, replay the dumb discovery tree once
+for each factory Nature leaf. At every split, replay `[?] I don't know`, verify
+the alternate probe and its branch equivalence, then use uncertainty again and
+verify that Feed remains pending without creating a Brick. A leaf must expose
+its Nature and decisive reason in the final Feed preview.
+
 ## Day 2 — Importance and uncertainty
 
 ### SCN-IMP-001 — Binary insertion

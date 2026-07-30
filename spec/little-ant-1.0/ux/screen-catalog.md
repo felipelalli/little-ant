@@ -210,7 +210,7 @@ on this screen.
 ```text
 "Fix a bug on website"
 
-Will completing this once finish the intention?
+Will completing this once finish the whole intention?
 
 [y]es    [n]o    [?] I don't know
 
@@ -219,9 +219,10 @@ Will completing this once finish the intention?
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
-Successive `yes`, `no`, and uncertainty answers traverse a bounded,
-inspectable capability tree. The final proposal names one validated Nature;
-repeated uncertainty leaves Feed pending rather than creating a Brick.
+Successive `yes`, `no`, and uncertainty answers traverse the bounded,
+inspectable tree in `FED-024..026`. The final Feed preview names one validated
+Nature and the decisive behavioral reason; repeated uncertainty at one split
+leaves Feed pending rather than creating a Brick.
 
 ## UX-K03 — Assisted Template proposal
 

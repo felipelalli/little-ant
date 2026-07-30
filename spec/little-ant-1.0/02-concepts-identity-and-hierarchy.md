@@ -163,3 +163,24 @@ The factory library contains:
   and inheritance of requester, `about`, or RawLinks remain
   `OPEN-MOD-003`. Implementations must not infer them from the old free-text
   `context` field.
+
+## Nature behavioral boundaries
+
+- **MOD-035 [standard] — Standing checklist.** A `standing_checklist` is one
+  durable Brick that owns changing ListEntries. When it has open entries,
+  `next` serves the parent as the focus unit and the surface renders every
+  open entry together. Resolved entries remain in history. An empty list is
+  dormant rather than done, and adding a new entry makes it eligible again.
+- **MOD-036 [core] — Checklist versus collection.** A `finite_checklist` and a
+  `standing_checklist` own ListEntries and focus the parent as one unit. A
+  `collection` owns independently focusable child Bricks, each of which may
+  have its own importance position, blockers, dates, Domain memberships, and
+  history.
+- **MOD-037 [core] — Finite versus standing.** A `finite_checklist` represents
+  one completable scope. A `standing_checklist` represents a continuing
+  responsibility whose current entries may all be resolved without completing
+  the parent.
+- **MOD-038 [standard] — Nature names describe mechanics.** Factory Nature
+  names describe lifecycle and focus mechanics rather than a domain. Templates
+  provide names and defaults for concrete uses such as groceries, trips,
+  reading, software backlogs, bills, or exercise.
