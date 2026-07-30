@@ -130,7 +130,8 @@ The factory library contains:
   `feature_backlog`, `wishlist`, `bills_to_pay`, and `exercise_habit`.
   Additional checklist templates should name a concrete situation rather than
   a vague generic checklist category. Templates expand generic Natures rather
-  than add domain branches.
+  than add domain branches. `feature_backlog` has a `collection` root whose
+  features are independently focusable child Bricks, not ListEntries.
 
 ## Content, movement, and effective metadata
 
@@ -184,3 +185,10 @@ The factory library contains:
   names describe lifecycle and focus mechanics rather than a domain. Templates
   provide names and defaults for concrete uses such as groceries, trips,
   reading, software backlogs, bills, or exercise.
+- **MOD-039 [standard] — Composite Template expansion.** A Template advertises
+  one root Nature for compatibility and may atomically instantiate a finite,
+  previewed initial structure containing child Bricks of other Natures and
+  Nature-owned ListEntries. Every created Brick still has exactly one
+  validated Nature. Accepted expansion becomes ordinary canonical state;
+  Template provenance remains inspectable, but the Template cannot create
+  later descendants or retain runtime authority.

@@ -1555,3 +1555,19 @@ Dumb mode places no `*` on a Template or on `no template`; the human makes the
 choice explicitly. Skill or powered-up mode may mark one compatible Template
 as a default only when the suggestion is attributed. Rejecting, bypassing, or
 having no Template does not invalidate or silently change the resolved Nature.
+
+## Entry 96 — Permit finite composite Templates and clarify feature backlogs
+
+The user delegated the composite-Template decision to the proposed judgment.
+A Template may therefore advertise one root Nature while atomically creating
+a finite, previewed initial structure whose child Bricks have other Natures
+and whose checklists may own ListEntries. Every created Brick still has
+exactly one validated Nature, and the Template retains provenance but no
+runtime authority or ability to create later descendants.
+
+The user also required backlog features to remain individual Bricks so they
+can appear independently in `next`. This is already the defining behavior of
+`collection`, not a reason to move `feature_backlog` away from it:
+`feature_backlog` has a `collection` root and independently focusable child
+Bricks. Finite and living checklists are the Natures that own non-Brick
+ListEntries and render them together.

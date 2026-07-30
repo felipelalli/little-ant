@@ -108,7 +108,7 @@ they were successive refinements of the same current rule family.
 | 91 | `UX-018`, `UX-022..023`, `WRK-017`, `MOD-012` |
 | 92–93 | `WRK-030..034` |
 | Post-consolidation REPL corrections | `UX-011`, `UX-016`, `UX-019..021`, `UX-022`, `UX-025`, `UX-045..051`, `FOC-029`, `SCN-009`, `SCN-012..013`, `SCN-FED-001..002`, `UX-R00`, `UX-E00`, `UX-K01..K04` |
-| Nature and Template separation | `MOD-025..028`, `MOD-035..038`, `FED-005..009`, `FED-024..028`, `FOC-011`, `WRK-024..025`, `WRK-032`, `UX-050..053`, `UX-K01..K05`, `SCN-FED-005` |
+| Nature and Template separation | `MOD-025..028`, `MOD-035..039`, `FED-005..009`, `FED-024..028`, `FOC-011`, `WRK-024..025`, `WRK-032`, `UX-050..053`, `UX-K01..K05`, `SCN-FED-005` |
 
 ## Downstream coverage
 
