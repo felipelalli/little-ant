@@ -43,7 +43,7 @@ Focus?
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
-🏷️ Orbit > R&D > Rock Splitter
+🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
@@ -77,7 +77,7 @@ Focus?
 
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
-🏷️ Personal > Little Ant
+🏷️ Personal › Little Ant
 ⚠️ #u11111 "Submit migration report" · deadline in 2h · +2 warnings
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
@@ -99,8 +99,8 @@ Focus?
 [f]eed   [/] more...
 
 ----------------------------------------
-🏷️ Personal > Housekeeping
-   from Orbit > R&D > Rock Splitter
+🏷️ Personal › Housekeeping
+   from Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
@@ -122,7 +122,7 @@ Focus?
 
 ----------------------------------------
 ↳ #a12345 "Recover Little Ant v1"
-🏷️ Personal > Little Ant
+🏷️ Personal › Little Ant
 🚧 reached through #r90000 "Release Little Ant v1"
    → blocked by #i20000 "Restore importance ordering"
    → blocked by this Brick
@@ -176,7 +176,7 @@ Already finished?
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
-🏷️ Orbit > R&D > Rock Splitter
+🏷️ Orbit › R&D › Rock Splitter
 ⚠️ #u11111 "Review fraud incident" · deadline tomorrow
 🐜 served after 9 days · active Domain unchanged
 ```
@@ -226,7 +226,7 @@ confirmed.
 ```text
 Why is this blocked?
 
-> Waiting for production access_
+› Waiting for production access_
 
 [Enter] confirm · [Esc] cancel
 
@@ -243,16 +243,21 @@ navigation checkpoint while text is edited:
 ```text
 Feed Little Ant
 
-> comprar leite_
+Tip: prefer English for consistent titles and search.
+
+› comprar leite_
 
 [Enter] continue · [Esc] back
 
 ----------------------------------------
-🐜 original text is preserved · nothing has been recorded
+original text is preserved · nothing has been recorded
+🐜 Little Ant   0 eligible    0 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 Enter begins the deterministic Feed route. Escape restores the exact proposal
-and random cursor shown before `[f]eed`.
+and random cursor shown before `[f]eed`. The tip is advisory and specific to
+dumb mode.
 
 ## UX-H01 — Contextual uncertainty
 
@@ -306,7 +311,7 @@ Start this run?
 [y]es · [d]one · [s]kip · [?] I don't know
 
 ----------------------------------------
-🏷️ Personal > Housekeeping
+🏷️ Personal › Housekeeping
 🐜 3 open · last run 6 days ago
 ```
 
@@ -349,7 +354,7 @@ What next?
 [?] I don't know
 
 ----------------------------------------
-🏷️ Orbit > R&D > Rock Splitter
+🏷️ Orbit › R&D › Rock Splitter
 4 active · 3 blocked · 1 not before tomorrow
 🐜 Little Ant   0 eligible    3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle

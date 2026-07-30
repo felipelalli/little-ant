@@ -46,7 +46,8 @@
 - **UX-010 [core] — Choice.** Mutually exclusive domain choices show stable
   in-word shortcuts, an optional suggested default, and uncertainty.
 - **UX-011 [core] — Input.** Explicit text-editing mode uses Enter to submit
-  and Escape to cancel. One-key command shortcuts never steal typed text.
+  and Escape to cancel. The REPL marks the editable line with `›`; one-key
+  command shortcuts never steal typed text.
 
 The normative reference renderings live in
 [the screen catalog](ux/screen-catalog.md).
@@ -178,7 +179,8 @@ The normative reference renderings live in
   may appear below the divider and above the status bar. Empty rows are
   omitted. Technical selection provenance is available through contextual
   `?`; it is not shown by default. Mode and aggregate counts belong to the
-  status bar, not this panel.
+  status bar, not this panel. Rendered Domain paths use `›` between hierarchical
+  segments.
 - **UX-046 [core] — Automatic opening opportunity.** Starting or restoring the
   REPL never lands on an idle command prompt. It first restores an exact
   pending interaction or otherwise invokes the canonical `next` pipeline and
@@ -203,6 +205,10 @@ The normative reference renderings live in
 
   Narrow renderers may wrap whole actions while preserving row membership and
   canonical action order.
+- **UX-049 [standard] — Dumb Feed language hint.** In dumb mode, the Feed
+  input displays `Tip: prefer English for consistent titles and search.`
+  This is advice, not validation: any language remains accepted and the
+  original input is preserved under `PRD-012`.
 
 ## Errors and dry-run
 

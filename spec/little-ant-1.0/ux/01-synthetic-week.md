@@ -10,7 +10,7 @@ timezone: America/Montevideo
 starts_at: 2026-08-03T09:00:00-03:00
 configuration: factory-v1-draft-001
 random_stream: ux-week-001
-initial_active_domain: Orbit > R&D > Rock Splitter
+initial_active_domain: Orbit › R&D › Rock Splitter
 initial_focus: none
 ```
 
@@ -44,23 +44,23 @@ Learning
 ### Bricks and material
 
 ```text
-#r90000 "Release Little Ant v1" · project · Personal > Little Ant
+#r90000 "Release Little Ant v1" · project · Personal › Little Ant
   #a12345 "Recover Little Ant v1" · project
     #c12345 "Write the migration specification" · standard · phase spec
     #i20000 "Restore importance ordering" · project
       #b30000 "Define the importance-maintenance contract" · standard · phase spec
 
-#p12345 "Rock Splitter" · project · Orbit > R&D > Rock Splitter
+#p12345 "Rock Splitter" · project · Orbit › R&D › Rock Splitter
   #r12345 "Review Rock Splitter rules" · standard
 
-#h12345 "Buy groceries" · standing_checklist · Personal > Housekeeping
+#h12345 "Buy groceries" · standing_checklist · Personal › Housekeeping
   entries: Coffee, Dish soap
 
-#s12345 "Swim twice per week" · practice · Personal > Health
+#s12345 "Swim twice per week" · practice · Personal › Health
   blocked by #g12345 "Find a swimming pool" · standard
 
 #e12345 "Pay electricity bill · August 2026"
-  recurring_obligation occurrence · Personal > Finance
+  recurring_obligation occurrence · Personal › Finance
 
 #l12345 "Read the focus-engine article" · repeatable · Learning
   source Raw #w12345 "https://example.com/focus-engine"
@@ -96,6 +96,8 @@ Validate:
   not a default Feed or shell prompt;
 - Escape from Feed input restores the exact served proposal without consuming
   another draw;
+- dumb Feed input recommends English without rejecting or rewriting the
+  Portuguese input;
 - no translation, task-shape, target, duplicate, or Nature judgment is
   attributed to a model;
 - original Portuguese is preserved;
