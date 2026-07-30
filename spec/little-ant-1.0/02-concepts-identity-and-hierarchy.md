@@ -204,3 +204,8 @@ The factory library contains:
   quota-window schedule under `WRK-038`. Place, preferred time, weather,
   season, and blockers remain optional enrichment. No compatibility alias is
   defined.
+- **MOD-042 [standard] — Reading-habit Template.** The standard library
+  includes `reading_habit` with root Nature `habit`. The fed title or
+  completion criterion may state an intended duration or amount, but the
+  Template requires only a structured schedule and the ordinary discrete
+  habit outcome under `WRK-040`.

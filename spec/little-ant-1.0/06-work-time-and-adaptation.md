@@ -175,3 +175,10 @@
   from the intended day rather than the preceding adjusted date, so an anchor
   of 31 produces January 31, February 28 or 29, March 31, April 30, and May 31
   without drift.
+- **WRK-040 [core] — Discrete habit outcome.** Every applicable habit
+  opportunity records one discrete outcome: `done` or the canonical
+  unfulfilled outcome chosen under `OPEN-WRK-002`. The 1.0 core does not add
+  generic target quantity, unit, observed value, or percentage-progress fields
+  for habits. A desired amount such as pages, minutes, distance, or repetitions
+  may remain in the title, description, completion criterion, or optional
+  execution note without changing the outcome model.

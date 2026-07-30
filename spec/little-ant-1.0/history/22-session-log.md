@@ -1625,3 +1625,17 @@ season, blockers, and other contextual metadata for optional later enrichment.
 
 `physical_activity` replaces the old candidate name `exercise_habit`
 completely. The core and standard catalog retain no alias.
+
+## Entry 101 — Keep habit outcomes discrete and confirm reading habit
+
+The user confirmed that Little Ant 1.0 does not become a quantitative
+self-tracking system. Every applicable habit opportunity records only `done`
+or the still-open canonical unfulfilled term. Quantities such as pages,
+minutes, distance, or repetitions may describe the intended action or an
+execution note, but the core stores no generic target, observed value, or
+percentage progress for them.
+
+`reading_habit` is therefore confirmed as an offline standard Template with
+root Nature `habit`. It requires a structured fixed-slot or quota-window
+schedule. Titles such as `Read for 30 minutes` and `Read 20 pages` remain
+ordinary completion criteria whose opportunity outcome is discrete.

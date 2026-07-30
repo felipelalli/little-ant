@@ -118,7 +118,7 @@ specialized recipes that do not justify the offline standard-library cost.
 | `physical_activity` | confirmed | Track the fed activity through fixed slots or quota windows. |
 | `keep_in_touch` | confirmed | Maintain one habit Brick for one specific ExternalEntity target. |
 | `social_time` | confirmed | Maintain social contact without requiring one fixed target. |
-| `reading_habit` | candidate | Complete reading opportunities on a fixed-slot or quota schedule. |
+| `reading_habit` | confirmed | Complete boolean reading opportunities on a fixed-slot or quota schedule. |
 | `study_habit` | candidate | Complete study opportunities for a chosen subject. |
 | `meditation_habit` | candidate | Complete meditation opportunities and preserve outcomes. |
 | `journaling_habit` | candidate | Complete journaling opportunities and preserve outcomes. |
@@ -136,6 +136,16 @@ specialized recipes that do not justify the offline standard-library cost.
 - Lazy optional enrichment: Place, preferred time, weather, season, blockers,
   and other ordinary metadata.
 - No compatibility alias is defined.
+
+### Confirmed recipe: `reading_habit`
+
+- Root Nature: `habit`.
+- Required creation input: one structured fixed-slot or quota-window schedule.
+- The fed title or completion criterion may say `Read for 30 minutes` or
+  `Read 20 pages`.
+- Each applicable opportunity records only the ordinary discrete habit
+  outcome. Pages, duration, or other quantities are not target-versus-observed
+  progress fields in the 1.0 core.
 
 ## Review checklist
 
