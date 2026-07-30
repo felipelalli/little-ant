@@ -75,6 +75,9 @@ The exact final catalog is a release-blocking decision tracked as
 - **FOC-019 [standard] — Explicit Domain command.** The user may deliberately
   change the active Domain without waiting for a draw.
 
+Equal-specificity Domain target selection and the exact ordering of container
+descent versus dependency resolution remain `OPEN-FOC-002`.
+
 ## Dependencies and waits
 
 - **FOC-020 [core] — Blocked Bricks remain drawable.** Dependency does not

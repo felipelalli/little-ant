@@ -9,8 +9,8 @@
   validates a candidate v1 state, reports ambiguity, and commits only after
   invariant and identity checks pass.
 - **MIG-003 [core] — Identity map.** Every migrated v0 Raw, Brick, ListEntry,
-  Party, source, and relevant historical event has an inspectable old-to-new
-  identity or preservation record.
+  legacy Party, source, and relevant historical event has an inspectable
+  old-to-new identity or preservation record.
 - **MIG-004 [core] — Historical evidence.** Rejected vocabulary may remain
   quoted inside immutable v0 payloads and migration reports. Current v1 state
   and APIs use only canonical vocabulary.
@@ -37,7 +37,7 @@
   factory or migrated custom BrickNature. Ambiguous legacy `kind`, `weight`,
   estimate, and context values remain migration evidence and produce bounded
   review rather than a lossy direct cast.
-- **MIG-009 [core] — Party.** v0 person and AI-agent records map to
+- **MIG-009 [core] — Legacy Party.** V0 person and AI-agent records map to
   ExternalEntity. `company` maps to `organization`. Legacy `area` requires an
   explicit decision between Domain, team, organization, or historical-only
   evidence; migration must not guess.
@@ -47,6 +47,9 @@
 - **MIG-011 [core] — Removed fields.** Legacy `weight` is not silently renamed
   to effort or forecast probability. Legacy hour estimates remain attributed
   planning evidence pending EffortProfile classification.
+
+Ambiguous legacy `area`, `kind`, legacy Party detail, and unsupported
+relationships remain explicit migration decisions under `OPEN-MIG-001`.
 
 ## Verification and cutover
 

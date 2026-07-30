@@ -82,6 +82,9 @@ The normative reference renderings live in
   deferrable proposals and opens an explicit date choice before recording
   anything.
 
+Final shortcut collisions, layout variants, assistance labels, and accessible
+no-emoji rendering remain `OPEN-UX-001`.
+
 ## Navigation, undo, and commands
 
 - **UX-019 [core] — Navigation is not mutation.** Escape closes or cancels the

@@ -53,6 +53,8 @@ Templates pause while the Nature capability matrix is incomplete.
 
 ### Gate 1 — One authoritative truth
 
+Status: **complete**
+
 Deliverables:
 
 - correct the Raw/description/English-normalization baseline;
@@ -73,10 +75,14 @@ Exit:
 
 ### Gate 2 — Close the interaction vocabulary
 
+Status: **next**
+
 Decisions:
 
 - exhaustive versioned `next` opportunity variants;
 - the five screen grammars and which opportunity uses each;
+- convert the [flow coverage inventory](ux/flow-coverage.md) into explicit
+  state transitions as each route is accepted;
 - minimum `InteractionEnvelope` identity, revision, provenance, commands,
   valid actions, and bounded context;
 - shared chrome: status bar, context panel, warnings, global actions, `*`,

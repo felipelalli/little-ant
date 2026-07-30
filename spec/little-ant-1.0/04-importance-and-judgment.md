@@ -135,4 +135,5 @@ Is #a12345 "X" more important than #b12345 "Y"?
   scope review.
 
 Importance, impact, effort, and phase remain independent. None is a hidden
-sort key for another.
+sort key for another. The remaining impact/effort assistance grammar and
+confidence presentation are `OPEN-JUD-001`.

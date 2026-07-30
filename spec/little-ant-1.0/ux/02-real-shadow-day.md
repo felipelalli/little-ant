@@ -29,8 +29,8 @@ Status: **protocol prepared; no personal data has been read**
    delegations, and recurring evidence.
 3. Map only the subset required for one representative day to the canonical v1
    concepts.
-4. Mark every ambiguous stage, kind, weight, Party/area, or title collision;
-   do not silently repair it.
+4. Mark every ambiguous stage, kind, weight, legacy Party/area, or title
+   collision; do not silently repair it.
 5. Replace sensitive labels with stable synthetic labels before any durable
    transcript is created.
 

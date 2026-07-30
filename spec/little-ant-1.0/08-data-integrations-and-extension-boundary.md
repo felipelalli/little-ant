@@ -127,6 +127,9 @@ Exact shipping placement and API feasibility are tracked under
   check remains due while the vault is locked and does not advance provider
   failure backoff.
 
+The concrete vault, recovery, rotation, and memory-agent security design is
+`OPEN-EXT-001`.
+
 ## Exporters and UI adapters
 
 - **DAT-028 [standard] — Read-only exporter.** An exporter receives a named
@@ -151,6 +154,9 @@ Exact shipping placement and API feasibility are tracked under
 - **DAT-033 [standard] — Standard and community catalogs.** A standard offline
   Pack ships with 1.0. A separate `little-ant-packs` repository may distribute
   a broader inspectable community catalog without becoming domain authority.
+
+Pack signing, trust roots, revocation, dependency/update policy, and
+reproducible archives remain `OPEN-PACK-001`.
 
 ## Planning reproducibility
 

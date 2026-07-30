@@ -266,12 +266,17 @@ Executable Pack components use a fresh bounded Lua 5.4 runtime. Host-mediated
 HTTP, credentials, and approved effects are typed capabilities; Pack code
 never runs during event replay.
 
-The standard 1.0 Pack includes:
+The official 1.0 catalog includes:
 
 - Microsoft To Do source adapter;
 - Notesnook source adapter;
 - TaskJuggler read-only exporter;
 - local Metro-style web UI adapter.
+
+TaskJuggler is part of the standard Pack. The final offline-standard versus
+pinned official-companion placement of credentialed importers and UI adapters
+remains a release packaging decision; it does not weaken their 1.0 capability
+contracts.
 
 Normal synchronization treats upstream completion or removal as evidence, not
 as local completion or deletion. Destructive migration is a separate reviewed

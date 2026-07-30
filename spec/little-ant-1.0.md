@@ -10,8 +10,9 @@ Last consolidated: **2026-07-30**
 
 This is the canonical index for Little Ant 1.0. The compact chapters linked
 below define what the product must do. A normative answer must be discoverable
-from this index and one subject chapter; the historical discovery record is
-never required to operate or implement the product.
+from this index and one subject chapter. Chronological discovery evidence is
+recoverable through the commits listed in `traceability.md`; it is never
+required to operate or implement the product.
 
 The previous implementation, Allium garden, and generated tests were removed
 from the working tree after their divergence was diagnosed. Git history and a
@@ -36,8 +37,29 @@ When sources disagree, use this order:
 Deleted code, Allium, and generated artifacts must not be consulted as current
 product evidence merely because Git can recover them.
 
+`skills/little-ant/SKILL.md` is explicitly a **v0 operator skill** during this
+specification phase. It may provide historical evidence, but it must not name,
+infer, or fill a 1.0 route. It is replaced only after the dumb and powered-up
+contracts reach the Skill-mirror gate.
+
 Normative rules have stable IDs. Later Allium obligations and tests must carry
 the same IDs so a rule cannot silently disappear between layers.
+
+## Current closure state
+
+Gate 1 of the [completion plan](little-ant-1.0/spec-completion-plan.md) is
+complete:
+
+- Raw, Brick description, and same-Raw English normalization use the corrected
+  baseline;
+- the maintained capability matrix protects v0 behavior;
+- unique safety guarantees and unresolved boundaries have canonical homes;
+- the linked shadow specification has been removed while remaining fully
+  recoverable from Git.
+
+The next product discussion starts at Gate 2: opportunity variants, the shared
+interaction envelope/chrome, canonical executable/reference grammar, and
+Domain scope.
 
 ## Scope rings
 
@@ -73,9 +95,10 @@ value may remain adjustable.
 - [Open release decisions](little-ant-1.0/open-release-decisions.md)
 - [V0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md)
 - [Specification completion plan](little-ant-1.0/spec-completion-plan.md)
-- [Historical traceability](little-ant-1.0/traceability.md)
+- [Decision and evidence traceability](little-ant-1.0/traceability.md)
 - [UX simulation protocol](little-ant-1.0/ux/00-simulation-protocol.md)
 - [Canonical screen catalog](little-ant-1.0/ux/screen-catalog.md)
+- [UX flow coverage](little-ant-1.0/ux/flow-coverage.md)
 - [Synthetic week](little-ant-1.0/ux/01-synthetic-week.md)
 - [Real shadow day](little-ant-1.0/ux/02-real-shadow-day.md)
 
@@ -98,7 +121,7 @@ value may remain adjustable.
   English.
 - Record a genuinely unresolved semantic boundary in
   `open-release-decisions.md`; do not hide it in prose or invent an answer.
-- Keep historical files unchanged. Corrections belong in the compact
-  specification and traceability dispositions.
+- Keep chronology in small signed commits, not a second specification,
+  corrections chapter, or append-only session log.
 - Do not promote this record into Allium or tests until the UX simulations
   have validated the observable contract.

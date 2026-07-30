@@ -79,7 +79,7 @@ open release decision rather than an inferred v1 commitment.
   or focus.
 - **MOD-018 [standard] — Descriptive phase.** Phase is not a required workflow
   and never sorts importance. `spec` uses `📐`; the remaining exact phase
-  markers must be approved through the UX catalog.
+  markers must be approved through the UX catalog under `OPEN-MOD-002`.
 
 ## Composition and relationships
 
@@ -93,7 +93,8 @@ open release decision rather than an inferred v1 commitment.
   become actionable first. It neither reparents nor reorders either Brick.
 - **MOD-022 [core] — Multi-Domain membership.** A Brick may belong to several
   Domains. Membership does not duplicate the Brick or give it multiple
-  top-level lottery tickets.
+  top-level lottery tickets. Domain lifecycle, multiple-taxonomy, exclusion,
+  and recursive-reference behavior remain `OPEN-DOM-002`.
 - **MOD-023 [standard] — Raw links.** Typed links connect Raw to a Brick,
   ListEntry, or other Raw with an explicit content role and provenance. The
   same Raw may participate in several links without being consumed or copied.

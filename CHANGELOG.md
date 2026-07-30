@@ -116,7 +116,9 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Fresh bounded Lua 5.4 execution through HsLua.
 - Host-mediated HTTP and credential brokering without exposing secrets to Lua.
 - Pinned Pack manifests, capability grants, and invocation provenance.
-- Microsoft To Do and Notesnook source adapters in the standard Pack.
+- Microsoft To Do and Notesnook as official 1.0 source-adapter targets; their
+  final offline-standard versus pinned-companion packaging remains under
+  review.
 - TaskJuggler exporter with immutable planning manifests and separate imported
   actuals.
 - Loopback-only Metro-style local web UI adapter.
