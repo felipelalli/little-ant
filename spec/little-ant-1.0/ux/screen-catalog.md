@@ -300,7 +300,10 @@ Use this setup?
 
 The skill uses the same confirmation envelope. `no` restores the unchanged
 Feed input and enters UX-K01; no Nature, Template, or ranking evidence is
-accepted from the rejected proposal.
+accepted from the rejected proposal. This is a declared `UX-060` gateway:
+it may replace UX-K01 through UX-K03 only when its accepted result contains
+the same canonical Nature and optional Template values that those dumb screens
+could resolve.
 
 ## UX-K05 — Dumb Template choice
 

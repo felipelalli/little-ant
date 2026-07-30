@@ -167,15 +167,16 @@ The normative reference renderings live in
   attributed provisional comparisons. It cannot create canonical events,
   human evidence, external approval, merge, or completion directly.
 - **UX-039 [standard] — Skill equivalence.** The operator skill may interpret
-  unrestricted natural language more deeply, but renders the same pending
-  question, options, order, shortcuts, and action IDs as the dumb REPL. It
-  advances only through those canonical actions.
+  unrestricted natural language more deeply. By default it renders the same
+  pending question, options, order, shortcuts, and action IDs as the dumb
+  REPL. Only a flow that explicitly declares an assisted proposal gateway
+  under `UX-060` may precede its dumb entry with one canonical proposal.
 - **UX-043 [core] — Powered-up is a measured delta.** A powered-up simulation
   starts from the same state, clock, configuration, and random stream as the
-  accepted dumb flow. It renders the same question and complete option set.
-  It may add one attributed default and bounded assistance under `UX-059`; it
-  cannot remove or bypass a mechanical question or become the source of screen
-  grammar.
+  accepted dumb flow. It normally renders the same question and complete
+  option set, with optional assistance under `UX-059`. A declared `UX-060`
+  gateway may instead offer one complete canonical result before that flow.
+  Powered-up mode never becomes the source of screen grammar.
 - **UX-044 [core] — Downstream mirror order.** Skill and web/mobile renderings
   are reviewed only after the corresponding dumb and, when applicable,
   powered-up REPL paths are accepted. A downstream convenience may motivate a
@@ -220,9 +221,9 @@ The normative reference renderings live in
   offering compatible Templates.
   Nature and Template never share one flat choice screen.
 - **UX-051 [core] — Assisted proposal consent.** Skill or powered-up mode may
-  propose a Template that visibly resolves one Nature. The proposal requires
-  `[y]es · [n]o · [?]`; `no` returns to the unchanged dumb flow without
-  accepting proposal evidence.
+  use the `UX-060` gateway to propose a Template that visibly resolves one
+  Nature. The proposal requires `[y]es · [n]o · [?]`; `no` returns to the
+  unchanged dumb flow without accepting proposal evidence.
 - **UX-052 [core] — Example-backed Nature choice.** The direct factory Nature
   choice presents one Nature per line with one short, concrete example.
   Text surfaces align the examples as a visually quieter second column; other
@@ -269,10 +270,21 @@ The normative reference renderings live in
 - **UX-059 [core] — Assistance decorates one canonical choice.** Skill and
   powered-up mode may mark at most one existing action with `*` and place one
   concise attributed natural-language note immediately below the unchanged
-  option set. The note may explain evidence, distinguish choices, suggest an
+  option set when the current flow is not being preceded by a `UX-060`
+  proposal. The note may explain evidence, distinguish choices, suggest an
   action, or offer a tip. It cannot add an action, hide one, alter its meaning,
-  answer automatically, or claim certainty unsupported by evidence. Without
-  a defensible suggestion, neither `*` nor a persuasive note appears.
+  answer automatically, or claim certainty unsupported by evidence. Without a
+  defensible suggestion, neither `*` nor a persuasive note appears.
+- **UX-060 [core] — Declared assisted proposal gateway.** A specific flow may
+  declare that Skill or powered-up mode can precede its dumb entry with one
+  attributed confirmation of a complete canonical result reachable through
+  that unchanged dumb flow. The preview exposes every consequential resolved
+  value and uses `[y]es · [n]o · [?]`. `yes` applies the same canonical
+  validation and domain transition as the dumb route. `no` accepts no proposal
+  evidence and enters the dumb flow at its original first question with input
+  and navigation checkpoint preserved. `?` explains the proposal and restores
+  the same confirmation. A gateway is unavailable by default and cannot add a
+  result, action, or semantic shortcut that the dumb path cannot express.
 
 ## Errors and dry-run
 

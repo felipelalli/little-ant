@@ -1787,3 +1787,20 @@ desired result (what should become true) and completion criteria (how the user
 can verify it). `boundaries` meant scope: what is included and excluded. Exact
 labels and shortcuts remain part of the continuing clarification-screen
 review.
+
+## Entry 109 — Permit declared assisted proposals before selected dumb flows
+
+The user corrected the absolute interpretation of Entry 108. Structural parity
+remains the default, but some flows may explicitly allow Skill or powered-up
+mode to present one complete proposal before the dumb questions. Nature and
+Template selection is the confirmed example: acceptance applies the canonical
+resolved setup, while rejection enters the original dumb classification flow.
+
+The resulting contract is a per-flow assisted proposal gateway, not a general
+permission to improvise UX. The proposal must be a complete canonical result
+reachable through the unchanged dumb path, preview every consequential value,
+remain attributed, and use the ordinary confirmation grammar. `no` records no
+negative evidence and restores the original input at the first dumb question;
+`?` explains and returns to the proposal. Flows without a declared gateway
+retain Entry 108's same-options rule, optional `*`, and bounded natural-language
+assistance note.
