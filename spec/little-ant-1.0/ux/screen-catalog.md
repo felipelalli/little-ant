@@ -250,14 +250,14 @@ Tip: prefer English for consistent titles and search.
 [Enter] continue · [Esc] back
 
 ----------------------------------------
-original text is preserved · nothing has been recorded
 🐜 Little Ant   0 eligible    0 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
 Enter begins the deterministic Feed route. Escape restores the exact proposal
 and random cursor shown before `[f]eed`. The tip is advisory and specific to
-dumb mode.
+dumb mode. Until Enter, the text remains only a local draft; this guarantee is
+behavioral and is not rendered as status text.
 
 ## UX-H01 — Contextual uncertainty
 
