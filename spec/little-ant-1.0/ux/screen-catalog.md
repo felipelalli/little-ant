@@ -274,6 +274,28 @@ The skill uses the same confirmation envelope. `no` restores the unchanged
 Feed input and enters UX-K01; no Nature, Template, or ranking evidence is
 accepted from the rejected proposal.
 
+## UX-K05 — Dumb Template choice
+
+```text
+Nature: living checklist
+
+Choose an optional setup:
+
+[g]rocery list    e.g. "A reusable list shown all at once"
+[n]o template     keep only the living-checklist behavior
+[?] I don't know
+
+----------------------------------------
+🐜 Little Ant   0 eligible    0 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+The catalog contains only Templates compatible with the resolved Nature.
+Every option is explicit and none receives `*` in dumb mode. Skill or
+powered-up mode may highlight one attributed compatible suggestion. If the
+installed catalog has no compatible Template, Feed skips this screen and
+continues with the resolved Nature.
+
 ## UX-A01 — External-effect confirmation
 
 ```text

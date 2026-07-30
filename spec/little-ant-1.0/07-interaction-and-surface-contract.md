@@ -226,6 +226,12 @@ The normative reference renderings live in
   surfaces preserve the same one-to-one association. Examples explain
   behavior only: they are not classification evidence, title suggestions,
   Template selections, or domain-specific branches.
+- **UX-053 [core] — Template-choice defaults.** UX-K05 lists compatible
+  Templates only after dumb Feed has resolved one Nature. Dumb mode marks no
+  Template and not even `no template` with `*`; the human must make an explicit
+  choice. Skill or powered-up mode may mark one compatible Template as an
+  attributed suggestion, but cannot mark an unattributed or ambiguous
+  default. Rejecting or bypassing a Template preserves the resolved Nature.
 
 ## Errors and dry-run
 

@@ -1542,3 +1542,16 @@ The examples are pedagogical UI copy only. They do not classify the Feed
 input, suggest a title, select a Template, or introduce domain-specific
 behavior into the core. Text surfaces align them as a quieter second column;
 other surfaces preserve the same explicit option-to-example relationship.
+
+## Entry 95 — Show Templates explicitly without a dumb default
+
+The user confirmed that dumb Feed should show the compatible Template choice
+after resolving a Nature rather than hiding Template discovery behind another
+command. The screen remains optional in outcome: selecting `no template`
+continues with the already valid Nature, and no compatible installed Template
+means there is no Template screen.
+
+Dumb mode places no `*` on a Template or on `no template`; the human makes the
+choice explicitly. Skill or powered-up mode may mark one compatible Template
+as a default only when the suggestion is attributed. Rejecting, bypassing, or
+having no Template does not invalidate or silently change the resolved Nature.

@@ -166,6 +166,11 @@
   after that checkpoint. Escape from Q1 returns to the factory Nature choice.
   Original Feed input, the prior proposal, and the random cursor are
   preserved; no domain event, semantic undo, or new draw occurs.
+- **FED-028 [core] — Explicit optional Template.** After dumb Feed resolves a
+  Nature, it presents the compatible Template choice whenever the installed
+  catalog contains at least one candidate. The user may select one Template or
+  explicitly continue with no Template. Absence of a Template never prevents
+  creation because the resolved Nature is already sufficient.
 
 ## Reference flows
 
