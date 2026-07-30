@@ -326,7 +326,7 @@ Feed Little Ant its first Brick to get started.
 [f]eed   [/] more...
 
 ----------------------------------------
-🐜 Little Ant   0 eligible   0 reviews
+🐜 Little Ant   0 eligible    0 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
@@ -351,7 +351,7 @@ What next?
 ----------------------------------------
 🏷️ Orbit > R&D > Rock Splitter
 4 active · 3 blocked · 1 not before tomorrow
-🐜 Little Ant   0 eligible   3 reviews
+🐜 Little Ant   0 eligible    3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 

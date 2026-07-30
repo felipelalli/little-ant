@@ -107,7 +107,9 @@ The normative reference renderings live in
   contextual rows. There is no blank line between the context and status or
   between the two status rows. Its first row identifies Little Ant and shows
   useful aggregate statistics. Its indented second row shows the local clock
-  and operating state. Column spacing replaces decorative separators:
+  and operating state. Values begin at stable display-cell columns; shorter
+  values are padded so changing `18 eligible` to `0 eligible` does not move
+  the reviews column. Column spacing replaces decorative separators:
 
   ```text
   🐜 Little Ant   18 eligible   3 reviews
