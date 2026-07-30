@@ -193,7 +193,7 @@ How should this behave?
 
 [a]tomic task          [p]roject
 [c]ollection           [f]inite checklist
-standing chec[k]list   [r]epeatable
+[l]iving checklist    [r]epeatable
 recurring [o]bligation [h]abit
 [?] I don't know
 
@@ -343,7 +343,7 @@ What would help you decide?
 
 Closing assistance restores the same pending revision.
 
-## UX-P01 — Practice consequence
+## UX-P01 — Habit consequence
 
 ```text
 This will record an unfulfilled swimming opportunity
@@ -361,7 +361,7 @@ Continue?
 An ordinary defer-only skip never opens this confirmation or claims the streak
 has ended.
 
-## UX-L01 — Standing checklist
+## UX-L01 — Living checklist
 
 ```text
 #h12345 "Buy groceries"
@@ -382,7 +382,7 @@ Start this run?
 ```
 
 All open entries appear together. `done` is interpreted through the
-standing-checklist Nature and cannot silently retire the standing Brick.
+living-checklist Nature and cannot silently retire the standing Brick.
 
 ## UX-E00 — Pristine first start
 

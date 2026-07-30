@@ -77,7 +77,7 @@
 
 - **FED-017 [core] — No global object catalog.** Repeated real-world labels
   such as `milk` do not create one universal object. A grocery entry belongs
-  to its standing checklist and may recur historically without title-derived
+  to its living checklist and may recur historically without title-derived
   identity.
 - **FED-018 [standard] — Recurrence-aware matching.** Series and period
   identity participate in matching, so a manually fed bill can enrich the
@@ -125,7 +125,7 @@
      ├─ yes
      │  Q5. Should next ever serve one member independently?
      │  ├─ yes → collection
-     │  └─ no  → standing_checklist
+     │  └─ no  → living_checklist
      └─ no
         Q6. Does each required occurrence remain open until completed or
             explicitly closed?
@@ -146,7 +146,7 @@
   | atomic or multipart | Would one `done` action lose progress that should be tracked separately? | multipart | atomic |
   | project or finite checklist | Could any part need its own `next`, importance, blocker, date, Domain, or history? | project | finite checklist |
   | members or executions | Will items be added or removed while the parent remains? | members | executions |
-  | collection or standing checklist | At focus time, must the whole open set appear together? | standing checklist | collection |
+  | collection or living checklist | At focus time, must the whole open set appear together? | living checklist | collection |
   | obligation or non-accumulating work | If missed, should the old occurrence remain open or overdue? | recurring obligation | non-accumulating work |
   | habit or repeatable | Should a missed window record an unfulfilled outcome or affect a streak? | habit | repeatable |
 

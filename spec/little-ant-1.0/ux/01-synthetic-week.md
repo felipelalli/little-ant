@@ -53,7 +53,7 @@ Learning
 #p12345 "Rock Splitter" · project · Orbit › R&D › Rock Splitter
   #r12345 "Review Rock Splitter rules" · atomic_task
 
-#h12345 "Buy groceries" · standing_checklist · Personal › Housekeeping
+#h12345 "Buy groceries" · living_checklist · Personal › Housekeeping
   entries: Coffee, Dish soap
 
 #s12345 "Swim twice per week" · habit · Personal › Health

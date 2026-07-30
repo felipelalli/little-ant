@@ -79,7 +79,7 @@
 - **WRK-019 [standard] — Standing execution.** Finishing one run of a standing
   Brick records an execution outcome, clears focus/WIP as applicable, and
   leaves the standing responsibility active.
-- **WRK-020 [standard] — Standing checklist.** All open entries render
+- **WRK-020 [standard] — Living checklist.** All open entries render
   together. Bought or resolved entries leave the open view but remain in
   history; unresolved entries remain. Empty state is dormant, not done.
 - **WRK-021 [standard] — Repeatable Brick.** Completing a repeatable execution
@@ -139,7 +139,7 @@
   | `project` | `ask` |
   | `collection` | `brick_only` |
   | `repeatable` | `ask` |
-  | `standing_checklist` | `ask` |
+  | `living_checklist` | `ask` |
   | `finite_checklist` | `whole_scope` |
   | `recurring_obligation` | `ask` |
   | `habit` | `disabled` |

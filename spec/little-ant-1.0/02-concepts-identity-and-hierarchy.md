@@ -109,7 +109,7 @@ The factory library contains:
 | `project` | one finite outcome whose descendant scope participates in review |
 | `collection` | open-ended independently focusable child Bricks |
 | `repeatable` | the same Brick returns after completed executions |
-| `standing_checklist` | parent is the focus unit; all open entries render together |
+| `living_checklist` | one durable parent owns changing entries and renders all open entries together |
 | `finite_checklist` | finite parent and entries render together |
 | `recurring_obligation` | standing series releases independent occurrence Bricks |
 | `habit` | standing intention exposes expiring opportunities, streaks, and history |
@@ -129,7 +129,7 @@ The factory library contains:
   `grocery_list`, `trip_checklist`, `reading_list`, `article_reading`,
   `feature_backlog`, `wishlist`, `bills_to_pay`, and `exercise_habit`.
   Additional checklist templates should name a concrete situation rather than
-  a vague generic packing category. Templates expand generic Natures rather
+  a vague generic checklist category. Templates expand generic Natures rather
   than add domain branches.
 
 ## Content, movement, and effective metadata
@@ -166,20 +166,18 @@ The factory library contains:
 
 ## Nature behavioral boundaries
 
-- **MOD-035 [standard] — Standing checklist.** A `standing_checklist` is one
+- **MOD-035 [standard] — Living checklist.** A `living_checklist` is one
   durable Brick that owns changing ListEntries. When it has open entries,
   `next` serves the parent as the focus unit and the surface renders every
   open entry together. Resolved entries remain in history. An empty list is
   dormant rather than done, and adding a new entry makes it eligible again.
-  Its final public name remains `OPEN-MOD-004`; no compatibility alias will be
-  retained after that decision.
 - **MOD-036 [core] — Checklist versus collection.** A `finite_checklist` and a
-  `standing_checklist` own ListEntries and focus the parent as one unit. A
+  `living_checklist` own ListEntries and focus the parent as one unit. A
   `collection` owns independently focusable child Bricks, each of which may
   have its own importance position, blockers, dates, Domain memberships, and
   history.
-- **MOD-037 [core] — Finite versus standing.** A `finite_checklist` represents
-  one completable scope. A `standing_checklist` represents a continuing
+- **MOD-037 [core] — Finite versus living.** A `finite_checklist` represents
+  one completable scope. A `living_checklist` represents a continuing
   responsibility whose current entries may all be resolved without completing
   the parent.
 - **MOD-038 [standard] — Nature names describe mechanics.** Factory Nature
