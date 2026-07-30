@@ -10,6 +10,7 @@ ordinary implementation choices belong in the later implementation plan.
 | `OPEN-MOD-001` | Final `ContactPoint` model and the boundary between synchronized ExternalEntity details and local credential/delivery bindings. | Delegation and waiting scenario, plus credential threat review. |
 | `OPEN-MOD-002` | Exact accessible markers for `idea`, `exec`, and `validation`; `spec = 📐` is settled. | Canonical screen-catalog review. |
 | `OPEN-MOD-003` | Final mode vocabulary/inheritance, direct versus inherited Domain membership, and inheritance of requester, `about`, or RawLinks. | Composition, multi-Domain, and physical-errand scenarios. |
+| `OPEN-MOD-004` | Final public name for the continuing parent-focused checklist currently called `standing_checklist`; compare clarity of `continuous_checklist` and `ongoing_checklist`, then keep exactly one term without aliases. | Nature-choice and grocery-list screen review by non-native English speakers. |
 | `OPEN-RAW-001` | Final RawLink roles, origin/check policy fields, snapshot repair, and whether permanent blob deletion ever exists. | Raw URL, imported note, relocation, and offline-source scenarios. |
 | `OPEN-TREE-001` | Exact batch close, move, drop, and supersede behavior when subtrees contain dependencies, waits, delegations, or cross-boundary relationships. | Project closure and migration simulations. |
 | `OPEN-IMP-001` | Final ordering-skip assistance screen and the visible route to `tie-break for me`. | Binary-insertion simulation with repeated uncertainty. |

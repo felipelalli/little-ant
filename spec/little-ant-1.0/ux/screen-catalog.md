@@ -220,11 +220,34 @@ Will completing this once finish the whole intention?
 ```
 
 Successive `yes`, `no`, and uncertainty answers traverse the bounded,
-inspectable tree in `FED-024..026`. The final Feed preview names one validated
-Nature and the decisive behavioral reason; repeated uncertainty at one split
-leaves Feed pending rather than creating a Brick.
+inspectable tree in `FED-024..027`. Escape returns to the immediately preceding
+question without recording an answer. Repeated uncertainty at one split leaves
+Feed pending rather than creating a Brick.
 
-## UX-K03 — Assisted Template proposal
+## UX-K03 — Discovered Nature confirmation
+
+```text
+"Fix a bug on website"
+
+Classification: atomic task
+Because: one completion finishes the whole intention
+and no separately tracked parts are required.
+
+Is this right?
+
+*[y]es    [n]o    [?] I don't know
+
+----------------------------------------
+🐜 Little Ant   0 eligible    0 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+`yes` accepts the Nature and continues Feed. `no` returns to UX-K01 with the
+original input preserved. `?` restarts UX-K02 at its first question. Escape
+returns to the last decisive question. These are navigation and local
+classification changes, not domain events or semantic undo.
+
+## UX-K04 — Assisted Template proposal
 
 ```text
 Suggested setup

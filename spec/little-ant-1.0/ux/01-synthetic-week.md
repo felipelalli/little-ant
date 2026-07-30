@@ -146,8 +146,10 @@ almost-literal parity; do not let the skill supply a missing dumb-core path.
 Starting from identical pending Feed input, replay the dumb discovery tree once
 for each factory Nature leaf. At every split, replay `[?] I don't know`, verify
 the alternate probe and its branch equivalence, then use uncertainty again and
-verify that Feed remains pending without creating a Brick. A leaf must expose
-its Nature and decisive reason in the final Feed preview.
+verify that Feed remains pending without creating a Brick. At a leaf, verify
+the Nature, decisive reason, final confirmation, `no` return to direct choice,
+`?` restart from Q1, and Escape return to the previous question. None may lose
+Feed input, create a Brick, record a domain event, or consume a draw.
 
 ## Day 2 — Importance and uncertainty
 

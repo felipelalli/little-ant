@@ -171,6 +171,8 @@ The factory library contains:
   `next` serves the parent as the focus unit and the surface renders every
   open entry together. Resolved entries remain in history. An empty list is
   dormant rather than done, and adding a new entry makes it eligible again.
+  Its final public name remains `OPEN-MOD-004`; no compatibility alias will be
+  retained after that decision.
 - **MOD-036 [core] — Checklist versus collection.** A `finite_checklist` and a
   `standing_checklist` own ListEntries and focus the parent as one unit. A
   `collection` owns independently focusable child Bricks, each of which may

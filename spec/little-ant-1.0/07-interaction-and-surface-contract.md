@@ -71,8 +71,11 @@ The normative reference renderings live in
 - **UX-015 [core] — Suggested default.** `*` marks at most one defensible
   suggested action. Pressing `*` selects it. No evidence means no default.
 - **UX-016 [core] — Contextual uncertainty.** `[?] I don't know` is visible in
-  every finite decision. It opens assistance for the pending decision and
-  then restores the same envelope without an answer or skip event.
+  every finite decision. It opens a nested assistance interaction without
+  itself recording an answer or skip. Escape restores the same pending
+  envelope. Assistance may produce an explicitly confirmed proposal or
+  restart a bounded decision aid when that screen's grammar declares it; it
+  never silently answers the decision.
 - **UX-017 [core] — Nested system help.** Within contextual assistance, another
   `?` opens Little Ant help. Generic help never silently answers the decision.
 - **UX-018 [core] — Contextual later.** `[l]ater` exists only for honestly
@@ -210,7 +213,8 @@ The normative reference renderings live in
   This is advice, not validation: any language remains accepted and the
   original input is preserved under `PRD-012`.
 - **UX-050 [core] — Nature before Template.** Dumb Feed resolves one Nature
-  through UX-K01 or UX-K02 before optionally offering compatible Templates.
+  through UX-K01, or through UX-K02 followed by UX-K03, before optionally
+  offering compatible Templates.
   Nature and Template never share one flat choice screen.
 - **UX-051 [core] — Assisted proposal consent.** Skill or powered-up mode may
   propose a Template that visibly resolves one Nature. The proposal requires
