@@ -4,7 +4,7 @@ Status: **canonical product-specification draft**
 
 Target release: **Little Ant 1.0**
 
-Implementation baseline: **v0, package version `0.1.0.0`**
+Implementation baseline: **none; 1.0 is a greenfield implementation**
 
 Last consolidated: **2026-07-29**
 
@@ -13,10 +13,10 @@ below define what the product must do. A normative answer must be discoverable
 from this index and one subject chapter; the historical discovery record is
 never required to operate or implement the product.
 
-The current Allium garden, generated tests, README, operator skill, and
-implementation predate this consolidation and are not authoritative for 1.0.
-They remain frozen until this product specification and its UX simulations are
-reviewed.
+The previous implementation, Allium garden, and generated tests were removed
+from the working tree after their divergence was diagnosed. Git history and a
+versioned v0 archive remain migration evidence only. The current README and v0
+operator skill are not authoritative for 1.0.
 
 ## Authority
 
@@ -28,8 +28,10 @@ When sources disagree, use this order:
 3. [traceability](little-ant-1.0/traceability.md), to locate provenance rather
    than define behavior;
 4. the [historical record](little-ant-1.0/history/README.md), as evidence only;
-5. current Allium, tests, README, skill, and code, as non-authoritative
-   implementation evidence.
+5. the retained README and v0 skill, as non-authoritative historical evidence.
+
+Deleted code, Allium, and generated artifacts must not be consulted as current
+product evidence merely because Git can recover them.
 
 Normative rules have stable IDs. Later Allium obligations and tests must carry
 the same IDs so a rule cannot silently disappear between layers.

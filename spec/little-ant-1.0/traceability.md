@@ -34,10 +34,10 @@ current product authority.
 | [21 sequence](history/21-documentation-and-implementation-sequence.md) | `PRD-019`, `MIG-018..022` | adopted |
 | [22 session log](history/22-session-log.md) | session-entry map below | historical with adopted decisions |
 | [23 checklist](history/23-review-checklist.md) | acceptance gates in canonical index, traceability, simulations, and `MIG-018..022` | superseded checklist |
-| [24 REPL](history/24-repl-harness.md) | `UX-001..049`, UX records, `OPEN-UX-001..002` | adopted/open |
-| [25 Natures/templates](history/25-brick-natures-and-template-library.md) | `MOD-004..005`, `MOD-025..028`, `FED-005..009`, `WRK-031..032` | adopted |
+| [24 REPL](history/24-repl-harness.md) | `UX-001..051`, UX records, `OPEN-UX-001..002` | adopted/open |
+| [25 Natures/templates](history/25-brick-natures-and-template-library.md) | `MOD-004..005`, `MOD-025..028`, `FED-005..009`, `WRK-031..032` | adopted with current terminology corrections |
 | [26 entries/identity](history/26-structured-entries-identity-and-duplicate-suspicion.md) | `MOD-003`, `MOD-008..012`, `FED-015..018` | adopted |
-| [27 standing work](history/27-standing-work-recurrence-obligations-and-practices.md) | `WRK-019..028`, `OPEN-WRK-001..002` | adopted/open |
+| [27 standing work](history/27-standing-work-recurrence-obligations-and-practices.md) | `WRK-019..028`, `OPEN-WRK-001..002` | adopted/open; `practice` vocabulary superseded by `habit` |
 | [28 places](history/28-place-conditions-and-location-observations.md) | `WRK-035..037` | adopted |
 | [29 annotations](history/29-text-mentions-and-typed-annotations.md) | `MOD-007`, `MOD-024`, `OPEN-MOD-001` | adopted/open |
 | [30 data authority](history/30-domain-authority-blobs-and-rebuildable-projections.md) | `DAT-001..005`, `MIG-001..017` | adopted |
@@ -90,7 +90,7 @@ they were successive refinements of the same current rule family.
 |---|---|
 | 1–9 | `MOD-013..018`, `IMP-001..016`, `PRD-013` |
 | 10–18 | `MOD-001`, `FED-010..014`, `PRD-010..013`, historical preservation |
-| 19–24 | `UX-001..049`, `IMP-022..029`, reproducible scenarios |
+| 19–24 | `UX-001..051`, `IMP-022..029`, reproducible scenarios |
 | 25–30 | `IMP-017..029`, `UX-001..018`, `WRK-007..013` |
 | 31–36 | `MOD-003..005`, `MOD-025..028`, `FED-005..009`, `WRK-019..028` |
 | 37–41 | historical Brick review, `MOD-001`, `DAT-002`, `WRK-021..022` |
@@ -107,14 +107,16 @@ they were successive refinements of the same current rule family.
 | 88–90 | `UX-006..010`, `OPEN-UX-001`, `MIG-020` |
 | 91 | `UX-018`, `UX-022..023`, `WRK-017`, `MOD-012` |
 | 92–93 | `WRK-030..034` |
-| Post-consolidation REPL corrections | `UX-011`, `UX-022`, `UX-025`, `UX-045..049`, `FOC-029`, `SCN-009`, `SCN-012..013`, `SCN-FED-001..002`, `UX-R00`, `UX-E00` |
+| Post-consolidation REPL corrections | `UX-011`, `UX-022`, `UX-025`, `UX-045..051`, `FOC-029`, `SCN-009`, `SCN-012..013`, `SCN-FED-001..002`, `UX-R00`, `UX-E00`, `UX-K01..K03` |
+| Nature and Template separation | `MOD-025..028`, `FED-005..009`, `FOC-011`, `WRK-024..025`, `WRK-032`, `UX-050..051`, `UX-K01..K03` |
 
 ## Downstream coverage
 
-Current `.allium` files and generated tests remain intentionally unmapped at
-the rule level because they contain rejected constructs such as `Capture*`,
-`Party`, `Priority*`, and generic abandoned interactions. After UX acceptance,
-promotion must add two columns to this register for every canonical ID:
+The divergent implementation, `.allium` files, and generated tests were
+removed from the working tree before the greenfield 1.0 implementation. They
+remain recoverable from Git only as historical evidence and must not influence
+current product behavior. After UX acceptance, fresh promotion must add two
+columns to this register for every canonical ID:
 
 ```text
 Allium obligation | acceptance test(s)

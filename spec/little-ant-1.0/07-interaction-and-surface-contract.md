@@ -209,6 +209,13 @@ The normative reference renderings live in
   input displays `Tip: prefer English for consistent titles and search.`
   This is advice, not validation: any language remains accepted and the
   original input is preserved under `PRD-012`.
+- **UX-050 [core] — Nature before Template.** Dumb Feed resolves one Nature
+  through UX-K01 or UX-K02 before optionally offering compatible Templates.
+  Nature and Template never share one flat choice screen.
+- **UX-051 [core] — Assisted proposal consent.** Skill or powered-up mode may
+  propose a Template that visibly resolves one Nature. The proposal requires
+  `[y]es · [n]o · [?]`; `no` returns to the unchanged dumb flow without
+  accepting proposal evidence.
 
 ## Errors and dry-run
 

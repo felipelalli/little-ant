@@ -81,7 +81,7 @@ evidence:
 - Domain fatigue cooldown and bounded negative signal;
 - provocative-comparison base chance and confidence multipliers;
 - taxonomy-watch evidence count, window, and decay;
-- practice-review and carried-entry evidence thresholds;
+- habit-review and carried-entry evidence thresholds;
 - date-notice lead times, deduplication windows, and rotation;
 - repeatable-work default jitter seeds and template-specific ranges;
 - stale-focus and stale-comparison thresholds;

@@ -105,18 +105,20 @@ The factory library contains:
 
 | Nature | Focus and lifetime |
 |---|---|
-| `standard` | the Brick itself is one ordinary finite focus unit |
+| `atomic_task` | one finite intention focused and completed as a single unit |
 | `project` | one finite outcome whose descendant scope participates in review |
 | `collection` | open-ended independently focusable child Bricks |
 | `repeatable` | the same Brick returns after completed executions |
 | `standing_checklist` | parent is the focus unit; all open entries render together |
 | `finite_checklist` | finite parent and entries render together |
 | `recurring_obligation` | standing series releases independent occurrence Bricks |
-| `practice` | standing intention exposes expiring opportunities and history |
+| `habit` | standing intention exposes expiring opportunities, streaks, and history |
 
 - **MOD-025 [core] — Required Nature.** Every Brick receives exactly one
-  validated Nature at birth. If classification is skipped and no route implies
-  another Nature, use `standard`.
+  validated Nature at birth. There is no hidden fallback Nature. `[?] I don't
+  know` starts bounded capability questions whose `yes`, `no`, and uncertainty
+  answers resolve an existing validated Nature. If uncertainty remains, the
+  Feed interaction remains pending and no Brick is created.
 - **MOD-026 [core] — Closed capabilities.** Nature definitions can compose only
   capabilities implemented by the core. No scripts, prompts, network calls,
   title-keyword branches, or arbitrary lifecycle hooks are allowed.
@@ -124,9 +126,11 @@ The factory library contains:
   replay-safe Nature version or resolved snapshot; editing a definition never
   silently changes them.
 - **MOD-028 [standard] — Template library.** Standard templates may include
-  `grocery_list`, `packing_checklist`, `reading_list`, `article_reading`,
-  `feature_backlog`, `wishlist`, `bills_to_pay`, and `exercise_practice`.
-  These expand generic Natures rather than add domain branches.
+  `grocery_list`, `trip_checklist`, `reading_list`, `article_reading`,
+  `feature_backlog`, `wishlist`, `bills_to_pay`, and `exercise_habit`.
+  Additional checklist templates should name a concrete situation rather than
+  a vague generic packing category. Templates expand generic Natures rather
+  than add domain branches.
 
 ## Content, movement, and effective metadata
 

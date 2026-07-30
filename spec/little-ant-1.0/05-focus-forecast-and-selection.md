@@ -46,8 +46,8 @@ The exact final catalog is a release-blocking decision tracked as
   until reaching a concrete subject or a Nature-defined boundary.
 - **FOC-011 [core] — Nature-owned focus unit.** `project` may descend to a
   child or offer decomposition/review; `collection` descends to an independent
-  child; checklist Natures present the parent with its entries; `standard`,
-  `repeatable`, and `practice` normally present the Brick itself.
+  child; checklist Natures present the parent with its entries; `atomic_task`,
+  `repeatable`, and `habit` normally present the Brick itself.
 - **FOC-012 [core] — No title heuristics.** Decomposition or descent follows
   resolved Nature capabilities, never the apparent grandeur of a title.
 - **FOC-013 [core] — Flat view is projection.** A flat forecast may display

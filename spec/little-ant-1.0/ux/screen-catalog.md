@@ -187,21 +187,63 @@ Escape before selection returns to the exact Focus screen without a skip.
 ## UX-K01 — Nature choice
 
 ```text
-How should #n12345 "Buy groceries" behave?
+"Fix a bug on website"
 
-*[s]tanding checklist
-[f]inite checklist
-[c]ollection
-[o]ther templates
-cus[t]om
+How should this behave?
+
+[a]tomic task          [p]roject
+[c]ollection           [f]inite checklist
+standing chec[k]list   [r]epeatable
+recurring [o]bligation [h]abit
 [?] I don't know
 
 ----------------------------------------
-🐜 suggested from the standard template catalog
+🐜 Little Ant   0 eligible    0 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
 
-The exact shortcuts remain subject to `OPEN-UX-001`; the word and ordering are
-the canonical content to validate.
+`?` opens UX-K02. No selection is a hidden fallback and no Template appears
+on this screen.
+
+## UX-K02 — Guided Nature discovery
+
+```text
+"Fix a bug on website"
+
+Will completing this once finish the intention?
+
+[y]es    [n]o    [?] I don't know
+
+----------------------------------------
+🐜 Little Ant   0 eligible    0 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+Successive `yes`, `no`, and uncertainty answers traverse a bounded,
+inspectable capability tree. The final proposal names one validated Nature;
+repeated uncertainty leaves Feed pending rather than creating a Brick.
+
+## UX-K03 — Assisted Template proposal
+
+```text
+Suggested setup
+
+Template: bug_fix
+Nature: atomic task
+Source: software-development pack
+
+Use this setup?
+
+[y]es    [n]o    [?] I don't know
+
+----------------------------------------
+🐜 Little Ant   0 eligible    0 reviews
+   Mon, Aug 3   09:00         mode: powered up · focus: idle
+```
+
+The skill uses the same confirmation envelope. `no` restores the unchanged
+Feed input and enters UX-K01; no Nature, Template, or ranking evidence is
+accepted from the rejected proposal.
 
 ## UX-A01 — External-effect confirmation
 

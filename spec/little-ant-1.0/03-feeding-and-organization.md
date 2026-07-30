@@ -20,21 +20,28 @@
 - **FED-005 [core] — One validated Nature.** The operator skill or powered-up
   REPL may rank Nature, template, parent, Domain, or entry-target candidates.
   The dumb REPL obtains the same bounded candidate set from the core. The
-  resulting concrete route is shown whenever it changes structure or
-  lifecycle semantics.
-- **FED-006 [core] — Safe fallback.** If the user skips Nature classification,
-  an ordinary Brick uses `standard`; ambiguous input is never silently routed
-  to a parent or ListEntry owner.
+  resulting concrete route is shown whenever it changes structure or lifecycle
+  semantics. Dumb interaction resolves Nature before offering compatible
+  Templates; it never mixes both concepts in one flat choice.
+- **FED-006 [core] — No hidden fallback.** Nature uncertainty opens a bounded
+  tree of capability questions answered with `yes`, `no`, or
+  `[?] I don't know`. The tree resolves a validated Nature before creation.
+  Repeated uncertainty keeps the Feed interaction pending; it never assigns a
+  generic Nature or silently routes to a parent or ListEntry owner.
 - **FED-007 [standard] — Contextual convenience.** A currently open collection
   or exactly one compatible target may provide a suggested default. It remains
-  visible and reversible.
+  visible and reversible. Template selection is optional after Nature
+  resolution unless a confirmed Template has already resolved that Nature.
 - **FED-008 [standard] — Powered-up assistance.** A model may translate,
   classify, rank duplicate candidates, and provisionally pre-order, but its
   structured proposal is attributed AI evidence and cannot fabricate human
-  comparison history.
+  comparison history. A proposed Template shows its resulting Nature and
+  source before `[y]es · [n]o · [?]`; `no` enters the unchanged dumb
+  classification flow.
 - **FED-009 [standard] — Dumb completeness.** Every powered-up proposal has a
-  deterministic dumb route using shortlist, catalog browsing, custom
-  capability questions, or the safe fallback.
+  deterministic dumb route using the factory Nature choice, capability
+  questions, and later compatible-Template browsing. A Pack may supply
+  validated definitions, but no executable Pack or model is required.
 
 ## Raw, shelves, and sources
 

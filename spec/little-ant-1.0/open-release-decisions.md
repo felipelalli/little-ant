@@ -17,7 +17,7 @@ ordinary implementation choices belong in the later implementation plan.
 | `OPEN-FOC-001` | Exhaustive versioned v1 focus-opportunity variant catalog and the actions valid for each variant. | Coverage matrix across the synthetic week and v0 regression audit. |
 | `OPEN-FOC-002` | Tie handling when accepted work has several equally specific descendant Domain memberships, and the exact ordering of container descent versus dependency resolution. | Multi-Domain and N-step blocker simulations. |
 | `OPEN-WRK-001` | Final public commands for focus/unfocus, WIP-to-idle, standing-run finish, and retiring standing work. | Focus, interruption, checklist, and repeatable-work screens. |
-| `OPEN-WRK-002` | Canonical English name for an explicitly or deterministically unfulfilled practice opportunity. | Practice and streak simulation; do not reuse generic `abandon`. |
+| `OPEN-WRK-002` | Canonical English name for an explicitly or deterministically unfulfilled habit opportunity. | Habit and streak simulation; do not reuse generic `abandon`. |
 | `OPEN-TIME-001` | Exact notice action grammar, acknowledgment/snooze behavior, and safe-boundary surfacing. | Deadline, best-before, and recurring-obligation simulation. |
 | `OPEN-UX-001` | Final shortcut collisions, choice/input layouts, contextual-assistance labels, and accessible no-emoji rendering. | Almost-literal REPL/web/SKILL screen review. |
 | `OPEN-UX-002` | Final InteractionEnvelope identity, revision, stale-response/rebase fields, progress fields, and checkpoint conflict grammar. | Crash, concurrent update, undo/redo, and cross-surface scenarios. |

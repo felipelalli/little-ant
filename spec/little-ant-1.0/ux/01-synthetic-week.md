@@ -46,18 +46,18 @@ Learning
 ```text
 #r90000 "Release Little Ant v1" · project · Personal › Little Ant
   #a12345 "Recover Little Ant v1" · project
-    #c12345 "Write the migration specification" · standard · phase spec
+    #c12345 "Write the migration specification" · atomic_task · phase spec
     #i20000 "Restore importance ordering" · project
-      #b30000 "Define the importance-maintenance contract" · standard · phase spec
+      #b30000 "Define the importance-maintenance contract" · atomic_task · phase spec
 
 #p12345 "Rock Splitter" · project · Orbit › R&D › Rock Splitter
-  #r12345 "Review Rock Splitter rules" · standard
+  #r12345 "Review Rock Splitter rules" · atomic_task
 
 #h12345 "Buy groceries" · standing_checklist · Personal › Housekeeping
   entries: Coffee, Dish soap
 
-#s12345 "Swim twice per week" · practice · Personal › Health
-  blocked by #g12345 "Find a swimming pool" · standard
+#s12345 "Swim twice per week" · habit · Personal › Health
+  blocked by #g12345 "Find a swimming pool" · atomic_task
 
 #e12345 "Pay electricity bill · August 2026"
   recurring_obligation occurrence · Personal › Finance
@@ -65,7 +65,7 @@ Learning
 #l12345 "Read the focus-engine article" · repeatable · Learning
   source Raw #w12345 "https://example.com/focus-engine"
 
-#d12345 "Obtain supplier review" · standard
+#d12345 "Obtain supplier review" · atomic_task
   delegated to #e00001 "Bento Camargo" · follow-up overdue
 
 Raw #n12345 "Unsorted meeting notes"
@@ -101,6 +101,8 @@ Validate:
 - no translation, task-shape, target, duplicate, or Nature judgment is
   attributed to a model;
 - original Portuguese is preserved;
+- no hidden Nature fallback exists: direct factory Nature choices and the
+  guided `[?] I don't know` path precede any compatible Template catalog;
 - every decision needed to obtain an English canonical title and route is
   reachable through deterministic one-key/input screens;
 - duplicate suspicion uses core mechanics without a global `milk` identity;
@@ -122,8 +124,10 @@ It must automatically serve the same opening `next` opportunity. Press
 `[f]eed`, enter `comprar leite`, and submit it. Validate that the model may
 propose canonical English, ListEntry route, `#h12345 "Buy groceries"`, and
 duplicate interpretation in fewer screens while using the same canonical
-envelope/action IDs. Record every skipped dumb screen and the provenance of
-every added default.
+envelope/action IDs. Any proposed Template must expose its resulting Nature
+and source, require `[y]es`, `[n]o`, or `[?] I don't know`, and enter the
+unchanged dumb flow after `no`. Record every skipped dumb screen and the
+provenance of every added default.
 
 ### SCN-FED-003 — Article URL
 
@@ -224,9 +228,9 @@ Complete `#l12345`, request another reading in six months plus or minus three,
 record one deterministic date, keep its importance position, and ensure a
 batch of articles receives distinct replay-safe dates.
 
-## Day 6 — Practice and delegation
+## Day 6 — Habits and delegation
 
-### SCN-PRC-001 — Blocked practice
+### SCN-PRC-001 — Blocked habit
 
 Advance a swimming window while `#s12345` remains blocked by `#g12345`.
 Validate no `not_done` outcome and no streak loss.

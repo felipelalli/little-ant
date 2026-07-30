@@ -17,7 +17,7 @@
   unknown observed duration, not `already done` or a synthetic zero-length run.
 - **WRK-006 [core] — Terminal distinctions.** `done`, `dropped`, and
   `superseded` preserve different outcomes and lineage. Stopping an execution,
-  missing a practice opportunity, and abandoning an external delegation are
+  missing a habit opportunity, and abandoning an external delegation are
   context-specific outcomes, not one generic `abandon` command.
 
 ## Skip as evidence
@@ -48,7 +48,7 @@
   may create a taxonomy-review opportunity. Human, skill, or powered-up
   judgment proposes a label; acceptance is explicit and versioned.
 - **WRK-013 [core] — Contextual skip.** Ordering, effort/impact
-  classification, repeatable work, and practice opportunities each have
+  classification, repeatable work, and habit opportunities each have
   distinct skip semantics and never reuse served-work evidence incorrectly.
 
 ## Time
@@ -91,10 +91,10 @@
 - **WRK-023 [standard] — Recurring obligation.** A standing series releases
   independently completable occurrence Bricks. Unpaid occurrences remain open
   and may coexist with later periods.
-- **WRK-024 [standard] — Practice.** A practice retains one standing identity
+- **WRK-024 [standard] — Habit.** A habit retains one standing identity
   while applicable windows record `done` or an unfulfilled outcome. Expired
   opportunities do not accumulate as overdue task backlog.
-- **WRK-025 [standard] — Blocked or paused practice.** Inapplicable, blocked,
+- **WRK-025 [standard] — Blocked or paused habit.** Inapplicable, blocked,
   or explicitly paused windows do not fabricate failure or break a streak.
 - **WRK-026 [standard] — Derived motivation.** Streaks and compact projections
   such as `[x][x][x][-][x][x]` derive from occurrence history. Before an
@@ -135,14 +135,14 @@
 
   | Nature | Scope |
   |---|---|
-  | `standard` | `brick_only` |
+  | `atomic_task` | `brick_only` |
   | `project` | `ask` |
   | `collection` | `brick_only` |
   | `repeatable` | `ask` |
   | `standing_checklist` | `ask` |
   | `finite_checklist` | `whole_scope` |
   | `recurring_obligation` | `ask` |
-  | `practice` | `disabled` |
+  | `habit` | `disabled` |
 
 - **WRK-033 [standard] — Preview and reconciliation.** Initial notice,
   cancellation, follow-up, nudge, refusal, and reported completion preserve
