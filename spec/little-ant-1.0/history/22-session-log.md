@@ -1600,3 +1600,17 @@ from 1 through 31 and clamps only the concrete occurrence when a month is
 shorter. It never uses the clamped occurrence as the next anchor: day 31
 therefore yields January 31, February 28 or 29, March 31, April 30, and May 31
 rather than drifting permanently to day 28 or 30.
+
+## Entry 99 — Establish the standard Template review catalog
+
+The user liked the expanded cross-Nature Template baseline and asked what
+comes next. Rather than treating broad approval as silent acceptance of every
+recipe, the specification now has a separate standard Template catalog.
+`confirmed` rows are current release commitments; `candidate` rows are an
+explicit review queue.
+
+The catalog covers all eight factory Natures, keeps concrete examples beside
+each recipe, and requires review of root Nature, meaningful defaults, required
+inputs, expanded structure, offline-versus-companion placement, and overlap.
+This preserves a broad design space without hard-coding domains or keeping
+aliases merely because two candidate names overlap.

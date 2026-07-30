@@ -6,7 +6,7 @@ Target release: **Little Ant 1.0**
 
 Implementation baseline: **none; 1.0 is a greenfield implementation**
 
-Last consolidated: **2026-07-29**
+Last consolidated: **2026-07-30**
 
 This is the canonical index for Little Ant 1.0. The compact chapters linked
 below define what the product must do. A normative answer must be discoverable
@@ -66,6 +66,7 @@ value may remain adjustable.
 ## Supporting records
 
 - [Configuration and calibration](little-ant-1.0/configuration-and-calibration.md)
+- [Standard Template catalog](little-ant-1.0/standard-template-catalog.md)
 - [Open release decisions](little-ant-1.0/open-release-decisions.md)
 - [Historical traceability](little-ant-1.0/traceability.md)
 - [UX simulation protocol](little-ant-1.0/ux/00-simulation-protocol.md)

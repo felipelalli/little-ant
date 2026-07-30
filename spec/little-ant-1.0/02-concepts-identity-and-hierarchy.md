@@ -125,13 +125,14 @@ The factory library contains:
 - **MOD-027 [standard] — Version stability.** Existing Bricks retain a
   replay-safe Nature version or resolved snapshot; editing a definition never
   silently changes them.
-- **MOD-028 [standard] — Template library.** Standard templates may include
-  `grocery_list`, `trip_checklist`, `reading_list`, `article_reading`,
-  `feature_backlog`, `wishlist`, `bills_to_pay`, and `exercise_habit`.
-  Additional checklist templates should name a concrete situation rather than
-  a vague generic checklist category. Templates expand generic Natures rather
-  than add domain branches. `feature_backlog` has a `collection` root whose
-  features are independently focusable child Bricks, not ListEntries.
+- **MOD-028 [standard] — Template library.** The product ships an offline,
+  inspectable declarative Template library. Confirmed release commitments and
+  candidates under review are listed in the
+  [standard Template catalog](standard-template-catalog.md). Additional
+  checklist Templates should name a concrete situation rather than a vague
+  generic checklist category. Templates expand generic Natures rather than add
+  domain branches. `feature_backlog` has a `collection` root whose features
+  are independently focusable child Bricks, not ListEntries.
 
 ## Content, movement, and effective metadata
 
