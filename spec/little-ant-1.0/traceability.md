@@ -21,7 +21,7 @@ current product authority.
 | [08 human ordering](history/08-human-priority-ordering-and-confidence.md) | `IMP-001..016` | adopted; `priority` vocabulary superseded |
 | [09 impact](history/09-impact-rating.md) | `IMP-017..021`, `OPEN-JUD-001` | adopted/open |
 | [10 effort](history/10-effort-rating-and-calibration.md) | `IMP-022..029`, EffortProfile, `OPEN-JUD-001` | adopted/open |
-| [11 dates](history/11-dates-and-urgency.md) | `WRK-014..018`, `OPEN-TIME-001` | adopted/open |
+| [11 dates](history/11-dates-and-urgency.md) | `WRK-014..018`, `WRK-041..045`, `UX-055`, `CAL-007..008`, `OPEN-TIME-001` | adopted/open; operational-day refinement added later |
 | [12 focus/delegation](history/12-wip-focus-and-delegation.md) | `WRK-001..006`, `WRK-029..034` | adopted; Party replaced |
 | [13 two lists](history/13-priority-forecast-and-next.md) | `PRD-003`, `FOC-001..028`, `UX-007..009`, `OPEN-FOC-001..002` | adopted/open; `priority` vocabulary superseded |
 | [14 skip](history/14-skip-semantics.md) | `IMP-006..010`, `WRK-007..013`, `UX-014..018` | adopted |
@@ -109,6 +109,7 @@ they were successive refinements of the same current rule family.
 | 92–93 | `WRK-030..034` |
 | Post-consolidation REPL corrections | `UX-011`, `UX-016`, `UX-019..021`, `UX-022`, `UX-025`, `UX-045..051`, `FOC-029`, `SCN-009`, `SCN-012..013`, `SCN-FED-001..002`, `UX-R00`, `UX-E00`, `UX-K01..K04` |
 | Nature and Template separation | `MOD-025..028`, `MOD-035..042`, `FED-005..009`, `FED-024..028`, `FOC-011`, `WRK-024..025`, `WRK-032`, `UX-050..053`, `UX-K01..K05`, `SCN-FED-005` |
+| 102 | `WRK-041..045`, `CAL-007..008`, `UX-055`, `UX-R01` |
 
 ## Downstream coverage
 

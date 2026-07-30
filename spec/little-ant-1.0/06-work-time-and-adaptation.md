@@ -73,6 +73,32 @@
 - **WRK-018 [standard] — Discreet notices.** Date notices are deduplicated,
   inspectable, acknowledgeable or snoozable as applicable, and rendered
   discreetly in secondary context rather than hijacking every screen.
+- **WRK-041 [core] — Separate temporal meanings.** The core distinguishes an
+  exact instant, a civil date, a habit day, and a workday. An exact instant is
+  one unambiguous point on the timeline; a civil date is an ordinary calendar
+  date in a named zone; habit day and workday are derived operational labels.
+  No operational label changes the underlying instant or civil date.
+- **WRK-042 [core] — Exact-instant safety.** Clock-specific facts such as
+  flights, appointments, and timed deadlines retain both an absolute instant
+  and their named IANA time zone. They render with the corresponding local
+  date, clock time, and offset. A day boundary never rounds, delays, advances,
+  or otherwise reinterprets them. Ambiguous clock input must be resolved
+  explicitly before it becomes canonical.
+- **WRK-043 [core] — Configurable operational days.** Habit day and workday
+  each use a configurable local `starts_at` boundary in the configured
+  operational IANA time zone. Activity before a boundary belongs to the
+  preceding nominal operational day while retaining its real timestamp and
+  civil date.
+- **WRK-044 [standard] — Boundary scope.** Habit-day attribution controls
+  habit opportunity windows, outcomes, and streak projections only. Workday
+  attribution controls day-scoped work recaps, statistics, quotas, and focus
+  continuity only. A habit schedule may explicitly override the profile's
+  habit-day boundary. Neither boundary changes `not_before`, `best_before`,
+  `deadline`, or any other exact instant.
+- **WRK-045 [core] — Whole-session attribution.** A continuous work session is
+  attributed wholly to the workday in which it started, even when it ends
+  after the workday boundary. The core does not split one session
+  automatically at that boundary.
 
 ## Standing work and recurrence
 

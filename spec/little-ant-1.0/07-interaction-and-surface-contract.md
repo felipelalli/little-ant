@@ -238,6 +238,13 @@ The normative reference renderings live in
   frequency text. Skill or powered-up mode may translate phrases such as
   `twice a month` into the same canonical structure, but must show the
   attributed structured result before acceptance.
+- **UX-055 [core] — Civil clock, explicit operational date.** Status always
+  renders the real civil date and local clock. When the current workday label
+  differs from the civil date, it also renders `workday: <date>` explicitly.
+  A served habit whose nominal habit day differs identifies that nominal slot
+  and its exact closing instant in subject-specific context. No surface may
+  replace a civil date with an operational label or make a flight,
+  appointment, or timed deadline appear to occur on another date.
 
 ## Errors and dry-run
 

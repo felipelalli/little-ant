@@ -21,6 +21,15 @@ grants authority.
   product/core version, not YAML.
 - **CAL-006 — Simulation calibration.** Scenario fixtures may sweep parameters
   and compare outcomes while holding state, clock, and random stream constant.
+- **CAL-007 — Named operational time zone.** Day-boundary configuration uses
+  one explicit IANA time-zone identifier. Exact instants retain their own
+  named zones independently and are never interpreted through an operational
+  boundary.
+- **CAL-008 — Prospective boundary changes.** Changing an operational time
+  zone or day boundary affects future attribution and future habit windows.
+  Historical sessions, habit outcomes, and derived nominal-day evidence retain
+  the effective profile recorded under `CAL-002`; they are not silently
+  relabeled.
 
 ## Settled factory defaults
 
@@ -34,6 +43,13 @@ grants authority.
 | `importance.sanity_interval_days` | `14` | V0-proven starting drift interval. |
 | `ui.max_visible_warnings` | `1` | Additional warnings appear as a count. |
 | `effort.assisted_comparison_limit` | `3` | Maximum exemplar questions in one assistance flow. |
+| `time.habit_day_starts_at` | `04:00` | Local boundary between nominal habit days. |
+| `time.workday_starts_at` | `06:00` | Local boundary between nominal workdays. |
+
+`time.operational_timezone` is required profile data rather than a universal
+factory value. It is an IANA identifier such as `America/Montevideo`. A
+habit-specific schedule may override `time.habit_day_starts_at`; there is no
+corresponding implicit override for exact instants.
 
 The two importance-sanity values are restored v0 defaults, not universal human
 truth. Synthetic and real shadow-day simulations may recommend changing them

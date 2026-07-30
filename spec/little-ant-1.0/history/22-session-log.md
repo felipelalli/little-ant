@@ -1639,3 +1639,25 @@ percentage progress for them.
 root Nature `habit`. It requires a structured fixed-slot or quota-window
 schedule. Titles such as `Read for 30 minutes` and `Read 20 pages` remain
 ordinary completion criteria whose opportunity outcome is discrete.
+
+## Entry 102 — Separate civil time from habit days and workdays
+
+The user rejected any global redefinition of a calendar day because it could
+silently corrupt a flight, appointment, or other time-zone-sensitive fact.
+The confirmed model therefore separates exact instants and civil dates from
+two operational labels. Clock-specific facts retain an absolute instant and
+their named IANA time zone; neither operational boundary may alter them.
+
+Habit day and workday each have an independent configurable local start in one
+configured operational time zone. The factory values are 04:00 for habit day
+and 06:00 for workday. Before its boundary, activity belongs to the preceding
+nominal operational day without changing its real timestamp or civil date.
+Habit day is limited to opportunity windows, outcomes, and streaks, with an
+explicit per-habit override available. Workday is limited to day-scoped work
+recaps, statistics, quotas, and focus continuity.
+
+The user also confirmed whole-session attribution: a continuous work session
+belongs entirely to the workday in which it began even if it crosses 06:00.
+Changing either boundary or the operational time zone is prospective and does
+not silently relabel historical evidence. When civil and workday dates differ,
+the UI shows the civil date and clock plus an explicit workday label.

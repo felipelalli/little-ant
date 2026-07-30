@@ -63,6 +63,30 @@ Powered-up mode reuses the frame and changes only:
 
 plus any explicitly attributed proposals that passed the startup handshake.
 
+## UX-R01 — Civil clock and operational day
+
+At 02:00 on Tuesday, the status bar keeps the real civil date. If the
+configured workday began at 06:00, it exposes the differing operational label
+instead of silently displaying Monday as though it were the calendar date:
+
+```text
+🐜 Little Ant   18 eligible   3 reviews
+   Tue, Aug 4   02:00         workday: Mon, Aug 3   mode: dumb   focus: idle
+```
+
+A habit opportunity still belonging to Monday may add:
+
+```text
+🐜 Monday slot · closes Tue, Aug 4 at 04:00 America/Montevideo (UTC-03)
+```
+
+An exact event remains exact and zoned regardless of either operational
+boundary:
+
+```text
+✈️ Tue, Aug 4 · 02:30 · America/Sao_Paulo (UTC-03)
+```
+
 ## UX-F01 — Focus
 
 ```text
