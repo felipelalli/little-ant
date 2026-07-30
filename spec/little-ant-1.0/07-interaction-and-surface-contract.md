@@ -285,6 +285,12 @@ The normative reference renderings live in
   and navigation checkpoint preserved. `?` explains the proposal and restores
   the same confirmation. A gateway is unavailable by default and cannot add a
   result, action, or semantic shortcut that the dumb path cannot express.
+- **UX-061 [core] — Clarification begins with human orientation.** The
+  `vague` reaction `clarify now` does not declare a `UX-060` gateway. Dumb,
+  powered-up, and Skill modes first show the same canonical question asking
+  which aspect is unclear. Assistance may decorate that choice under `UX-059`,
+  but it cannot propose desired result, completion criteria, next action, and
+  scope before the human identifies the uncertainty.
 
 ## Errors and dry-run
 

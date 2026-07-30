@@ -1804,3 +1804,16 @@ negative evidence and restores the original input at the first dumb question;
 `?` explains and returns to the proposal. Flows without a declared gateway
 retain Entry 108's same-options rule, optional `*`, and bounded natural-language
 assistance note.
+
+## Entry 110 — Do not preempt the first vague-clarification question
+
+The user rejected an assisted proposal gateway for `clarify now` as too
+pretentious. Before the user identifies what is vague, a model cannot safely
+claim to know the desired result, completion criteria, next action, and scope.
+
+The first clarification decision is therefore structurally identical in dumb,
+powered-up, and Skill modes. Assistance may mark one existing aspect with `*`
+and explain the evidence beneath the options, but it cannot replace that
+question with a complete clarification proposal. This is an explicit
+flow-level denial of `UX-060`, not a rollback of proposal gateways for Nature
+and Template classification or other separately reviewed flows.
