@@ -270,9 +270,66 @@ Done:
 
 The phrase is one `work_completed` entry from the 16-phrase factory catalog.
 The contextual palette makes `/undo` available against the typed completion
-event. The REPL does not draw automatically from this result. Pressing `n`
-invokes the ordinary canonical `next` pipeline; closing the REPL instead
-leaves focus idle, and the next startup follows UX-046.
+event, and `Left Arrow` opens UX-U01 because no provisional backward
+checkpoint remains. The REPL does not draw automatically from this result.
+Pressing `n` invokes the ordinary canonical `next` pipeline; closing the REPL
+instead leaves focus idle, and the next startup follows UX-046.
+
+## UX-U01 — Contextual undo preview
+
+Pressing `Left Arrow` after local backward navigation is exhausted does not
+silently cross the commit boundary:
+
+```text
+Undo the last recorded action?
+
+✅ Completed:
+#r12345 "Review Rock Splitter rules"
+
+[y]es   [n]o   [?] I don't know
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   17 eligible   3 reviews
+   Mon, Aug 3   09:32         mode: dumb   focus: idle
+```
+
+The preview identifies the typed action and its subject. `yes` invokes the
+same semantic compensation as `/undo`; it restores the prior Brick and focus
+state when preconditions still hold. `no`, Escape, or Backspace restores the
+screen from which the preview opened without mutation. `?` explains the
+projected changes and then restores this confirmation. If there is no eligible
+action, no confirmation is fabricated.
+
+## UX-U02 — Contextual redo preview
+
+After UX-U01 is confirmed and no local forward checkpoint remains, pressing
+`Right Arrow` offers:
+
+```text
+Redo the last undone action?
+
+✅ Complete:
+#r12345 "Review Rock Splitter rules"
+
+[y]es   [n]o   [?] I don't know
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   17 eligible   3 reviews
+   Mon, Aug 3   09:32         mode: dumb   focus: #r12345
+```
+
+`yes` invokes the same checked reapplication as `/redo`. The current screen
+and state remain unchanged until confirmation. An invalidated redo returns a
+typed conflict rather than approximating the old action. A new branch or
+committed action discards any incompatible redo chain.
 
 ## UX-F06 — Paused focus result
 
@@ -331,7 +388,7 @@ the reverse strict relation. Neither means equality.
 What's getting in the way?
 
 💭 [v]ague    🧗 [h]ard     🏔️ bi[g]
-⏳ [w]aiting  🚧 [b]locked
+🚧 [b]locked or waiting
 🥱 [t]ired    😐 bo[r]ed    😨 [f]ear
 ⬇️ [l]ess important
 🧩 [o]ther
@@ -363,18 +420,21 @@ its own icon; related choices share a row separated by spacing rather than
 slash punctuation. `less important` is the current served-work symptom, not a
 permanent importance classification or a separate priority axis.
 
-## UX-S02 — Blocked reaction
+## UX-S02 — Blocked-or-waiting classification
 
-Selecting `[b]locked` on UX-S01 opens this uncommitted reaction:
+Selecting `[b]locked or waiting` on UX-S01 opens this uncommitted
+classification:
 
 ```text
 #r12345 "Review Rock Splitter rules"
 
-What is blocking it?
+What needs to happen before you can continue?
 
-🔎 [f]ind an existing Brick
-🧱 [c]reate an enabling Brick
-⏳ actually [w]aiting
+🧱 another [t]ask must be completed
+👤 a [p]erson must respond
+🗓️ wait [u]ntil a date or time
+📍 be at a [l]ocation
+🔔 an [e]vent or condition must occur
 ❓ [?] I don't know
 
 Continue without identifying it?
@@ -392,19 +452,51 @@ served after 9 days · active Domain unchanged
    Mon, Aug 3   09:00         mode: dumb   focus: #r12345
 ```
 
+The choices describe the human situation, not storage primitives. `task`
+opens UX-S02A; `person` selects or creates an `ExternalEntity` and then asks
+whether the request was already made; `until` gathers a timezone-aware instant
+for `not_before`; `location` gathers a Place condition; and `event or
+condition` accepts dumb-mode free text preserved as linked Raw before creating
+a `Wait`. A request not yet made becomes an enabling Brick and Dependency,
+while an already-made request becomes a Wait with a future review
+opportunity. Each route previews its typed result before one atomic commit.
+`skip anyway` records explicitly unclassified `blocked_or_waiting` evidence
+and cooldown without inventing a blocker or Wait. `Escape`, empty-buffer
+`Backspace`, or local `Left Arrow` returns to UX-S01 under UX-019. No
+personality microcopy appears before a final reaction commits.
+
+## UX-S02A — Brick prerequisite route
+
+Selecting `[t]ask` on UX-S02 opens:
+
+```text
+#r12345 "Review Rock Splitter rules"
+
+Does the prerequisite already exist?
+
+🔎 [f]ind an existing Brick
+🧱 [c]reate an enabling Brick
+❓ [?] I don't know
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #r12345
+```
+
 `find` opens an existing-Brick selector; `create` opens UX-S03 and its pending
-Feed route for one enabling Brick; and `actually waiting` navigates to the
-waiting reaction without recording `blocked`. Completing `find` or `create`
-commits the blocker selection or newly created prerequisite, Dependency,
-`blocked` symptom, accepted reaction, and cooldown atomically. Cancelling
-either subflow restores UX-S02 without a partial Brick, Dependency, or skip.
-`skip anyway` is the only immediate final reaction on this screen. `Escape`,
-`Backspace`, or `Left Arrow` returns to UX-S01 under UX-019. No personality
-microcopy appears before one of those final reactions commits.
+Feed route for one enabling Brick. Completing either route commits the
+selected or newly created prerequisite, Dependency, `blocked` evidence,
+accepted reaction, and cooldown atomically. Cancelling either subflow restores
+UX-S02A without a partial Brick, Dependency, or skip. Reverse navigation
+returns to UX-S02.
 
 ## UX-S03 — Enabling-Brick input
 
-Selecting `[c]reate` on UX-S02 opens ordinary pending Feed input:
+Selecting `[c]reate` on UX-S02A opens ordinary pending Feed input:
 
 ```text
 Create an enabling Brick for:
@@ -426,7 +518,9 @@ Esc returns without recording anything.
 Enter preserves the draft and runs the ordinary duplicate, Nature, optional
 Template, and importance-insertion route without committing partial domain
 state. Because an editor is active, Backspace deletes and Left Arrow moves the
-cursor; Escape returns to UX-S02 under UX-019.
+cursor. The keypress that deletes the final character leaves the empty editor
+open; another Backspace while already empty, or Escape, returns to UX-S02A
+under UX-019.
 
 ## UX-S04 — Dumb enabling structure
 

@@ -5,7 +5,9 @@
 - **UX-001 [core] — Canonical envelope.** Every guided surface consumes one
   state-scoped `InteractionEnvelope` containing identity, domain revision,
   screen grammar, canonical English content, valid action IDs, commands,
-  shortcuts, help, provenance, and bounded context.
+  shortcuts, help, provenance, and bounded context. The envelope and its
+  transitions come from the canonical CLI/protocol command dispatcher, never
+  from a surface-local reconstruction of domain rules.
 - **UX-002 [core] — Almost-literal parity.** REPL, first-party web/mobile,
   UIAdapters, and operator skill preserve the same wording, punctuation,
   subject order, action order, shortcut letters, emojis, defaults, and screen
@@ -18,7 +20,10 @@
   transition are approved there before powered-up automation, skill, web, or
   mobile presentation may claim parity. Other surfaces render the same
   composition with appropriate click, touch, speech, or natural-language
-  controls.
+  controls. The REPL captures terminal input, maintains only local editing and
+  rendering state, invokes the canonical CLI/protocol, and renders the
+  returned envelope. It never writes the event log, recomputes eligibility,
+  invents actions, or becomes an integration endpoint for another surface.
 - **UX-005 [core] — Sparse context.** Persistent product status, the current
   decision, contextual evidence, and global navigation are separate visual
   regions. Main content contains only the current subject, concrete question,
@@ -110,13 +115,29 @@ no-emoji rendering remain `OPEN-UX-001`.
   checkpoint without a domain event. In text editing, `Backspace` deletes and
   `Left Arrow` moves the cursor; in a palette or another directional selector,
   arrow keys retain their declared selection behavior. `Escape` remains the
-  universal cancel or return gesture. Navigation never becomes semantic undo.
+  universal cancel or return gesture. `Right Arrow` restores the next
+  uncommitted checkpoint when one exists; choosing another branch discards
+  that forward chain. After local backward navigation is exhausted,
+  `Escape` and empty-buffer `Backspace` stop at the commit boundary. `Left
+  Arrow` may instead preview the latest reversible recorded action and ask
+  `Undo the last recorded action? [y]es · [n]o · [?] I don't know`; it does
+  not compensate the action until `yes`. Symmetrically, after local forward
+  navigation is exhausted, `Right Arrow` may preview the currently redoable
+  action and ask `Redo the last undone action?` with the same grammar. With no
+  eligible action, the arrow is a no-op with one concise educational hint.
+  Thus arrows provide contextual discovery without making provisional
+  navigation and semantic reversal the same core operation.
 - **UX-020 [core] — Semantic undo.** `C-_` and `/undo` append a typed
   compensating event for the latest reversible action in the current
-  interaction; they never delete history or consume a new draw.
+  interaction; they never delete history or consume a new draw. Confirming the
+  boundary preview opened by `Left Arrow` invokes this exact operation. `no`,
+  `Escape`, or `Backspace` closes the preview and restores the current screen
+  without mutation.
 - **UX-021 [core] — Semantic redo.** `C-M-_` and `/redo` reapply the compensated
   intent only if current preconditions still hold. Conflict is explicit.
-  External effects require a separately approved compensation.
+  Confirming the boundary preview opened by `Right Arrow` invokes this exact
+  operation. A newly committed action after undo invalidates any incompatible
+  redo chain. External effects require a separately approved compensation.
 - **UX-022 [core] — More palette.** The canonical `[/] more...` action opens a
   searchable input palette containing only commands and secondary actions
   valid in the current state. Before any query, it shows a small,
@@ -213,7 +234,11 @@ no-emoji rendering remain `OPEN-UX-001`.
 ## Dumb and powered-up harness
 
 - **UX-033 [core] — Dumb completeness.** The dumb REPL invokes the same
-  canonical pipeline and can complete every required flow without AI.
+  canonical CLI/protocol pipeline and can complete every required flow without
+  AI. One-key input, cursor movement, ANSI capability detection, layout, and
+  selection highlighting belong to the terminal harness; valid actions,
+  transitions, deterministic draws, validation, undo eligibility, and domain
+  events belong to the dispatcher and core.
 - **UX-034 [standard] — Explicit powered-up adapter.** A working invocation is
   `la repl --power-up <executable>`. The executable receives prompts only on
   stdin.
@@ -235,7 +260,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   pending question, options, order, shortcuts, and action IDs as the dumb
   REPL. Only a flow that explicitly declares an assisted proposal gateway
   under `UX-060` may precede its dumb entry with one canonical proposal.
-  Contextual personality microcopy may vary only under `UX-064..065`.
+  Contextual personality microcopy may vary only under `UX-064..065`. The
+  Skill calls the canonical CLI/protocol directly and never automates, scrapes,
+  or treats the REPL as domain authority.
 - **UX-043 [core] — Powered-up is a measured delta.** A powered-up simulation
   starts from the same state, clock, configuration, and random stream as the
   accepted dumb flow. It normally renders the same question and complete
@@ -419,20 +446,26 @@ no-emoji rendering remain `OPEN-UX-001`.
   leaves focus idle. It does not ask the user to resume immediately, invoke
   `next`, or emit personality microcopy.
 - **UX-068 [core] — Symptom shortcuts favor common meaning.** On the
-  served-work symptom screen, `blocked` owns its natural and more frequently
-  useful initial as `[b]locked`; `bored` therefore uses the visible in-word
-  shortcut `bo[r]ed`. The relative, present-tense importance symptom is
-  `[l]ess important`; it does not introduce a `priority` field or permanently
-  reclassify the Brick. `[d]one` remains reserved for completion. The same
-  bindings apply on every surface that renders this symptom namespace.
+  served-work symptom screen, the human-facing obstacle family owns its
+  natural and more frequently useful initial as `[b]locked or waiting`;
+  `bored` therefore uses the visible in-word shortcut `bo[r]ed`. The next
+  screen classifies that family without asking the human to distinguish
+  internal `Dependency`, `Wait`, time, or Place terminology. The relative,
+  present-tense importance symptom is `[l]ess important`; it does not
+  introduce a `priority` field or permanently reclassify the Brick. `[d]one`
+  remains reserved for completion. The same bindings apply on every surface
+  that renders this symptom namespace.
 - **UX-069 [core] — Current-focus done has no confirmation toll.** Pressing
   `[d]one` on the current-focus screen commits `WRK-049` immediately and
   renders one `work_completed` result. That transition may use the
   deterministic UX-064 personality catalog. The result waits with
   `[n]ext · [/] more...`; it does not consume another draw automatically.
   Pressing `n` invokes the same canonical pipeline as `/next`, and `/undo`
-  remains available through the contextual palette. The surface does not ask
-  the user to confirm work they have just declared complete.
+  remains available through the contextual palette. Because completion closes
+  the prior provisional flow, `Left Arrow` on this result cannot navigate back
+  into its Focus screen; instead it offers the UX-019 undo preview for that
+  typed completion. The surface does not ask the user to confirm work they
+  have just declared complete.
 
 ## Errors and dry-run
 

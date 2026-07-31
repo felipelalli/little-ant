@@ -22,7 +22,11 @@
 
 - **PRD-006 [core] — Deterministic core.** The core owns canonical state,
   invariants, event history, clocks, pseudo-random evidence, comparison
-  mechanics, scheduling, and validated actions.
+  mechanics, scheduling, and validated actions. Its canonical command
+  dispatcher is exposed through the structured CLI/protocol and is the only
+  state-changing gateway used by first-party surfaces. Whether a host invokes
+  that dispatcher as a process, library, or service is an implementation
+  choice and cannot change its observable semantics.
 - **PRD-007 [core] — Attributed judgment.** A human, operator skill,
   powered-up model, or adapter may interpret language and propose subjective
   judgments. The source and confidence remain explicit, and only canonical

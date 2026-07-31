@@ -230,28 +230,31 @@ question or `no` action.
 Open UX-S01, Escape without mutation, reopen it, select `tired`, then choose a
 separately proposed Domain-scoped remedy. Validate active Domain, cooldown,
 and that `change subject` was never presented as a symptom. Reopen the screen
-and verify `[b]locked`, `bo[r]ed`, `[l]ess important`, and the unchanged
-`[d]one` binding. Confirm that `n` is not accepted as the symptom shortcut,
-that every symptom retains its icon, and that no personality message appears
-before a final reaction commits the skip. From a reaction screen, verify that
-`Escape`, `Backspace`, and `Left Arrow` each restore the exact symptom
-checkpoint without mutation; from the symptom screen, verify that they restore
-the prior Focus checkpoint. Repeat while editing text and while selecting in a
-palette to prove that Backspace and arrow keys retain their local editing or
-selection meanings.
+and verify `[b]locked or waiting`, `bo[r]ed`, `[l]ess important`, and the
+unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
+shortcut, that every symptom family retains its icon, and that no personality
+message appears before a final reaction commits the skip. From a reaction
+screen, verify that `Escape`, `Backspace`, and `Left Arrow` each restore the
+exact symptom checkpoint without mutation; from the symptom screen, verify
+that they restore the prior Focus checkpoint. Repeat while editing text and
+while selecting in a palette to prove that Backspace and arrow keys retain
+their local editing or selection meanings.
 
 ### SCN-WRK-003 — Waiting versus blocked
 
-Exercise both paths. Waiting records an ExternalEntity/event/condition.
-Blocked first renders UX-S02: select and cancel an existing-Brick search,
-create and cancel an enabling-Brick Feed route, and prove that neither leaves
-partial state. Then complete each route and verify one atomic prerequisite,
-Dependency, `blocked` symptom, reaction, and cooldown. Navigate through
-`actually waiting` without recording `blocked`; separately choose `skip
-anyway` and verify that it records the symptom and cooldown without inventing
-a blocker. In the create route, validate UX-S03 and UX-S04: the dumb proposal
-uses the blocked Brick's immediate parent and effective Domain, keeps the new
-Brick a sibling, and expresses prerequisite order only through Dependency.
+Enter the common `[b]locked or waiting` route and classify each branch in
+UX-S02. Verify that another task opens UX-S02A; select and cancel an
+existing-Brick search, create and cancel an enabling-Brick Feed route, and
+prove that neither leaves partial state. Then complete each route and verify
+one atomic prerequisite, Dependency, `blocked` evidence, reaction, and
+cooldown. Verify that person and event/condition create typed Waits, while
+date/time and location create `not_before` and Place conditions without
+masquerading as Waits. Separately choose `skip anyway` before classification
+and verify explicit `blocked_or_waiting` evidence and cooldown without an
+invented blocker, Wait, time, or Place. In the create route, validate UX-S03
+and UX-S04: the dumb proposal uses the blocked Brick's immediate parent and
+effective Domain, keeps the new Brick a sibling, and expresses prerequisite
+order only through Dependency.
 Reject it and choose another valid structure without losing the draft. Accept
 it, verify that insertion starts from the ordinary unresolved midpoint rather
 than the blocked Brick, and settle sibling importance independently. Cancel
@@ -322,9 +325,16 @@ and ensure a stale keypress cannot answer the replacement prompt.
 
 ### SCN-UNDO-001 — Navigation, undo, and redo
 
-Distinguish uncommitted `Escape`/`Backspace`/`Left Arrow` navigation from
-committed `C-_` undo; redo a valid compensation; then create a conflict and
-require an explicit diagnostic.
+Distinguish uncommitted `Escape`/`Backspace`/arrow navigation from typed
+semantic reversal. Walk backward and forward through provisional checkpoints,
+choose another branch, and verify that its discarded forward chain cannot be
+restored. Complete a focused Brick, exhaust local backward navigation, and
+press `Left Arrow`: preview `Undo the last recorded action?` without mutation;
+confirm it and verify the same compensation as `/undo`. Press `Right Arrow`
+with no local forward checkpoint, preview redo, and confirm a valid
+reapplication. Verify that `Escape` and empty-buffer `Backspace` never cross a
+commit boundary. Finally create a redo conflict and require an explicit
+diagnostic.
 
 ### SCN-EXT-001 — Import and source deletion
 

@@ -123,7 +123,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | `vague` regresses lifecycle and may create a clarification meta-Brick | `I+T` | **retired** | phase/content/enabling work without stage regression; exact reactions `OPEN-SKIP-001` | vague reaction route |
 | `not_priority`, `meh`, `kill`, and `alternatives` are symptoms | `I+T` | **replaced** | `less_important`, `fear`, and separate terminal/method actions under `WRK-008` | symptom screen review |
 | Several WIPs can exist while one item has attention | partly `I+T`; v0 dangling-WIP notices | **strengthened** | `WRK-001..004` | WIP review and focus switch |
-| Waiting on an external condition differs from a Brick dependency | `I+T` | **strengthened** | `WRK-009`, `FOC-024` | waiting-versus-blocked route |
+| Waiting on an external condition differs from a Brick dependency | `I+T` | **strengthened** | `WRK-009`, `FOC-024` | common human-facing obstacle route followed by typed classification |
 
 ## Delegation, effects, time, and recurrence
 

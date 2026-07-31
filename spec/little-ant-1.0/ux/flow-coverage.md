@@ -44,7 +44,7 @@ run as an interactive transcript.
 | 4 | Atomic break/reclassification | `UX-B01`, `MOD-045..047` | screened | accepted/rejected result transitions |
 | 4 | Focus/WIP interruption | `FOC-033`, `UX-F06`, `UX-066..067`, `WRK-001..006`, `WRK-048` | partial | resume, WIP-to-idle grammar, result screens, and `OPEN-WRK-001` |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032` | missing | `OPEN-MERGE-001`, `OPEN-TREE-001` |
-| 4 | Escape/undo/redo/recovery | `UX-019..021`, `SCN-UNDO-001` | missing | exact screens and conflict result |
+| 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
 | 5 | Cross-Domain focus | `UX-F02`, `FOC-014..019` | partial | hard scope and equal-specificity target |
 | 5 | N-step/branching blockers | `UX-F03`, `FOC-020..024` | partial | non-Brick endpoint and branch inspection |
 | 5 | Project/collection descent | `FOC-010..013` | missing | container draw/decomposition screens |

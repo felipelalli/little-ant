@@ -40,19 +40,32 @@
 - **WRK-007 [core] — Symptom before reaction.** Served-work skip first asks
   what prevented focus, then opens a separate reaction decision. Choosing a
   symptom is provisional navigation, not yet a recorded skip or remediation.
+  The visible `blocked or waiting` family first opens a human-oriented
+  classification question; it never forces the user to know the core's
+  `Dependency`, `Wait`, time, or Place distinctions.
 - **WRK-008 [core] — Canonical symptom family.**
 
   ```text
-  vague | hard | big | waiting | blocked | tired | bored | fear
+  vague | hard | big | blocked_or_waiting | tired | bored | fear
   | less_important | other
   ```
 
+  `blocked_or_waiting` is the visible and explicitly unclassified obstacle
+  evidence. A completed classification records the more precise `blocked` or
+  `waiting` evidence instead. The core never guesses one from the other.
   `meh`, `kill`, `alternatives`, and `change subject` are not symptoms.
 
 - **WRK-009 [core] — Waiting versus blocked.** `waiting` means an unresolved
   external person, event, or condition with no known action. `blocked` means a
   missing actionable prerequisite such as a Brick, information, access, or
-  material.
+  material. The classification asks what must happen before work can continue:
+  another task produces `blocked` evidence plus a `Dependency`; a person
+  produces `waiting` evidence plus a `Wait` linked to an `ExternalEntity`; an
+  external event or condition produces `waiting` evidence plus a `Wait`; a
+  date or time produces `waiting` evidence plus `not_before`, not a `Wait`;
+  and a location produces `waiting` evidence plus a Place condition, not a
+  `Wait`. Deferring before classification records `blocked_or_waiting`
+  explicitly rather than fabricating precision.
 - **WRK-010 [core] — Cooldown plus memory.** Explicitly deferring the served
   Brick after a symptom creates a short, replay-deterministic cooldown while
   preserving longer-term evidence and pressure. A recovery that returns to

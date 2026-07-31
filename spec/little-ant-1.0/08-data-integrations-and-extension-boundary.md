@@ -150,7 +150,9 @@ The concrete vault, recovery, rotation, and memory-agent security design is
 - **DAT-032 [standard] — UIAdapter.** A UIAdapter renders the canonical
   envelope and maps a channel response to exactly one action ID and displayed
   revision. It cannot invent semantics, weaken approval, claim authority, or
-  retain credentials.
+  retain credentials. Like the REPL, Skill, and first-party web/mobile hosts,
+  it invokes the canonical CLI/protocol dispatcher rather than another
+  presentation surface.
 - **DAT-033 [standard] — Standard and community catalogs.** A standard offline
   Pack ships with 1.0. A separate `little-ant-packs` repository may distribute
   a broader inspectable community catalog without becoming domain authority.
