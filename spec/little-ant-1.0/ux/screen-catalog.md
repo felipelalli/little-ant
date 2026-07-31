@@ -244,6 +244,31 @@ microcopy. Before the configured stale-focus boundary, it does not ask
 `Still on this?`. The eventual stale-focus review is a separate opportunity
 under `WRK-004`, not a decoration of this screen.
 
+## UX-F07 — Immediate focused completion
+
+Pressing `d` on UX-F04 or UX-F05 does not open a confirmation:
+
+```text
+Done:
+
+#r12345 "Review Rock Splitter rules"
+
+🎉 Nice work. That Brick is in place.
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   17 eligible   3 reviews
+   Mon, Aug 3   09:32         mode: dumb   focus: idle
+```
+
+The phrase is one `work_completed` entry from the 16-phrase factory catalog.
+The contextual palette makes `/undo` available against the typed completion
+event. This result does not yet settle whether the REPL subsequently draws
+another opportunity automatically.
+
 ## UX-F06 — Paused focus result
 
 Selecting `/pause` from a current-focus palette commits immediately:

@@ -371,6 +371,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   useful initial as `[b]locked`; `bored` therefore uses the visible in-word
   shortcut `bo[r]ed`. `[d]one` remains reserved for completion. The same
   bindings apply on every surface that renders this symptom namespace.
+- **UX-069 [core] — Current-focus done has no confirmation toll.** Pressing
+  `[d]one` on the current-focus screen commits `WRK-049` immediately and
+  renders one `work_completed` result. That transition may use the
+  deterministic UX-064 personality catalog. `/undo` remains available through
+  the result's contextual palette; the surface does not ask the user to
+  confirm work they have just declared complete. What follows the completion
+  result is a separate navigation decision, not part of completion semantics.
 
 ## Errors and dry-run
 

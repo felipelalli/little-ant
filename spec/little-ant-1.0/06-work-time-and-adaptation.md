@@ -28,6 +28,12 @@
   Brick WIP. It preserves the active Domain and importance evidence, records
   no skip symptom, applies no cooldown, and performs no new draw. `paused` is
   an action and historical fact, not another Brick lifecycle state.
+- **WRK-049 [core] — Focused completion is immediate and reversible.**
+  Pressing `[d]one` on the current-focus screen atomically closes the current
+  focus interval, completes the focused Brick, and clears the focus pointer.
+  It does not interpose a confirmation screen. The typed completion event is
+  eligible for semantic undo under `UX-020`; undo restores the prior Brick and
+  focus state when its recorded preconditions still hold.
 
 ## Skip as evidence
 

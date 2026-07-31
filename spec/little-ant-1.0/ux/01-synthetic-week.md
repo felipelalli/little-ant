@@ -216,8 +216,10 @@ switch is atomic while the old Brick remains WIP. Inspect several WIPs and
 return one to idle through `/pause`. Validate UX-F06, one current focus,
 honest WIP and focus-interval history, unchanged Domain and importance, and no
 implicit draw, skip, cooldown, or `paused` Brick state. In a separate replay,
-select direct `done` from current focus and validate the ordinary completion
-transition and `work_completed` result.
+select direct `done` from current focus and validate UX-F07: no intermediate
+confirmation, one atomic completion that closes the focus interval and clears
+focus, one stable `work_completed` result, and a contextual `/undo` that can
+restore the prior state when its preconditions still hold.
 
 ### SCN-WRK-002 — Symptom then reaction
 
