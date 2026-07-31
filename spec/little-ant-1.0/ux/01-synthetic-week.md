@@ -230,8 +230,10 @@ question or `no` action.
 Open UX-S01, Escape without mutation, reopen it, select `tired`, then choose a
 separately proposed Domain-scoped remedy. Validate active Domain, cooldown,
 and that `change subject` was never presented as a symptom. Reopen the screen
-and verify `[b]locked`, `bo[r]ed`, `not [i]mportant now`, and the unchanged
-`[d]one` binding. Confirm that `n` is not accepted as the symptom shortcut.
+and verify `[b]locked`, `bo[r]ed`, `[l]ess important`, and the unchanged
+`[d]one` binding. Confirm that `n` is not accepted as the symptom shortcut,
+that every symptom retains its icon, and that no personality message appears
+before a final reaction commits the skip.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

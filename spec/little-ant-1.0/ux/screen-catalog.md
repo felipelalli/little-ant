@@ -330,10 +330,10 @@ the reverse strict relation. Neither means equality.
 
 What's getting in the way?
 
-💭 [v]ague / 🧗 [h]ard / 🏔️ bi[g]
-⏳ [w]aiting / 🚧 [b]locked
-🥱 [t]ired / 😐 bo[r]ed / 😨 [f]ear
-📥 not [i]mportant now
+💭 [v]ague    🧗 [h]ard     🏔️ bi[g]
+⏳ [w]aiting  🚧 [b]locked
+🥱 [t]ired    😐 bo[r]ed    😨 [f]ear
+⬇️ [l]ess important
 🧩 [o]ther
 ❓ [?] I don't know
 
@@ -341,20 +341,27 @@ Already finished?
 
 ✅ [d]one
 
+[/] more...
+
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 ⚠️ #u11111 "Review fraud incident" · deadline tomorrow
 served after 9 days · active Domain unchanged
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   Mon, Aug 3   09:00         mode: dumb   focus: #r12345
 ```
 
 Selecting a symptom opens its separate reaction screen without recording
 evidence. Escape from the reaction screen restores this exact symptom screen;
 Escape here restores the exact Focus screen. Only the final reaction commits
 the symptom and reaction together. An explicit `skip anyway` reaction commits
-the symptom, cooldown, and no additional remediation.
+the symptom, cooldown, and no additional remediation. This active diagnostic
+screen is sober: personality microcopy is reserved for the committed
+`skip_acknowledged` result. Each symptom retains its own icon; related choices
+share a row separated by spacing rather than slash punctuation. `less
+important` is the current served-work symptom, not a permanent importance
+classification or a separate priority axis.
 
 ## UX-K01 — Nature choice
 

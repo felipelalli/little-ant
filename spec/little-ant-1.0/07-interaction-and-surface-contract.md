@@ -411,7 +411,9 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-068 [core] — Symptom shortcuts favor common meaning.** On the
   served-work symptom screen, `blocked` owns its natural and more frequently
   useful initial as `[b]locked`; `bored` therefore uses the visible in-word
-  shortcut `bo[r]ed`. `[d]one` remains reserved for completion. The same
+  shortcut `bo[r]ed`. The relative, present-tense importance symptom is
+  `[l]ess important`; it does not introduce a `priority` field or permanently
+  reclassify the Brick. `[d]one` remains reserved for completion. The same
   bindings apply on every surface that renders this symptom namespace.
 - **UX-069 [core] — Current-focus done has no confirmation toll.** Pressing
   `[d]one` on the current-focus screen commits `WRK-049` immediately and
