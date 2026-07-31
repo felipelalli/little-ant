@@ -36,7 +36,7 @@ run as an interactive transcript.
 | 3 | Parent/owner/Domain choice | `FED-005`, `FED-022..023` | missing | target and optional-membership screens |
 | 3 | Initial importance insertion | `UX-C01`, `IMP-004..010` | partial | accepted answer through final placement |
 | 3 | Complete Feed confirmation/result | `FED-019..021` | missing | full preview, mutation, prior-proposal revalidation |
-| 3 | Focus proposal and active completion | `UX-F01..F05`, `UX-F07`, `UX-M01`, `WRK-002`, `WRK-005`, `WRK-049`, `UX-069` | partial | post-completion next envelope |
+| 3 | Focus proposal and active completion | `UX-F01..F05`, `UX-F07`, `UX-M01`, `WRK-002`, `WRK-005`, `WRK-049`, `UX-069` | partial | exact replay through ordinary and zero-eligible post-completion `next` results |
 | 4 | Ordering skip and provisional placement | `IMP-008..010` | missing | `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015` | missing | provocative check and local replacement screens |
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |

@@ -152,7 +152,9 @@ $ lant
 ant> /feed Buy milk
 
 Possible destination: "Buy groceries" (Grocery list)
-[y] add as a list entry · [n] choose another route · [?]
+[y]es — add as a list entry
+[n]o  — choose another route
+[?] I don't know
 ```
 
 Duplicate suspicion runs before creation. Nothing is merged silently. In dumb
@@ -195,7 +197,9 @@ Route: preserve as Raw, then create "Read the storage design paper"
 ...after reading...
 
 Read it again in roughly six months?
-[y] schedule the same Brick with a jittered not-before date · [n] retire
+[y]es — schedule the same Brick with a jittered not-before date
+[n]o  — retire it
+[?] I don't know
 ```
 
 Completion-triggered repetition reuses the same Brick and history. It does not

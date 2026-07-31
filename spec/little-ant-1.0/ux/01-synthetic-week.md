@@ -219,14 +219,18 @@ implicit draw, skip, cooldown, or `paused` Brick state. In a separate replay,
 select direct `done` from current focus and validate UX-F07: no intermediate
 confirmation, one atomic completion that closes the focus interval and clears
 focus, one stable `work_completed` result, and a contextual `/undo` that can
-restore the prior state when its preconditions still hold.
+restore the prior state when its preconditions still hold. Verify that the
+result performs no automatic draw, renders `ne[x]t`, rejects `n` as unavailable
+rather than interpreting it as next, and enters the ordinary `next` pipeline
+only after `x`.
 
 ### SCN-WRK-002 — Symptom then reaction
 
 Open UX-S01, Escape without mutation, reopen it, select `tired`, then choose a
 separately proposed Domain-scoped remedy. Validate active Domain, cooldown,
 and that `change subject` was never presented as a symptom. Reopen the screen
-and verify `[b]locked`, `bo[r]ed`, and the unchanged `[d]one` binding.
+and verify `[b]locked`, `bo[r]ed`, `not [i]mportant now`, and the unchanged
+`[d]one` binding. Confirm that `n` is not accepted as the symptom shortcut.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

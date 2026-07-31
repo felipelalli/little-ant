@@ -68,7 +68,11 @@ The normative reference renderings live in
   ```
 
   Inapplicable actions are omitted rather than reusing a letter with another
-  meaning.
+  meaning. `n` is reserved absolutely for `no`, including on screens where
+  `no` is absent: another word cannot borrow it merely because the negative
+  answer is inapplicable. A direct next action therefore renders as
+  `ne[x]t`, while the canonical textual command remains `/next`. Remaining
+  cross-screen shortcut preferences and collisions stay under `OPEN-UX-001`.
 
 - **UX-015 [core] — Suggested default.** `*` marks at most one defensible
   suggested action. Pressing `*` selects it. No evidence means no default.
@@ -401,10 +405,11 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-069 [core] — Current-focus done has no confirmation toll.** Pressing
   `[d]one` on the current-focus screen commits `WRK-049` immediately and
   renders one `work_completed` result. That transition may use the
-  deterministic UX-064 personality catalog. `/undo` remains available through
-  the result's contextual palette; the surface does not ask the user to
-  confirm work they have just declared complete. What follows the completion
-  result is a separate navigation decision, not part of completion semantics.
+  deterministic UX-064 personality catalog. The result waits with
+  `ne[x]t · [/] more...`; it does not consume another draw automatically.
+  Pressing `x` invokes the same canonical pipeline as `/next`, and `/undo`
+  remains available through the contextual palette. The surface does not ask
+  the user to confirm work they have just declared complete.
 
 ## Errors and dry-run
 

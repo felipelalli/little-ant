@@ -259,7 +259,7 @@ Done:
 
 🎉 Nice work. That Brick is in place.
 
-[/] more...
+ne[x]t   [/] more...
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
@@ -270,8 +270,9 @@ Done:
 
 The phrase is one `work_completed` entry from the 16-phrase factory catalog.
 The contextual palette makes `/undo` available against the typed completion
-event. This result does not yet settle whether the REPL subsequently draws
-another opportunity automatically.
+event. The REPL does not draw automatically from this result. Pressing `x`
+invokes the ordinary canonical `next` pipeline; closing the REPL instead
+leaves focus idle, and the next startup follows UX-046.
 
 ## UX-F06 — Paused focus result
 
@@ -331,7 +332,7 @@ What's getting in the way?
 💭 [v]ague / 🧗 [h]ard / 🏔️ bi[g]
 ⏳ [w]aiting / 🚧 [b]locked
 🥱 [t]ired / 😐 bo[r]ed / 😨 [f]ear
-📥 [n]ot important now
+📥 not [i]mportant now
 🧩 [o]ther
 ❓ [?] I don't know
 
