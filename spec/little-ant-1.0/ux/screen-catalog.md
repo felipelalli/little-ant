@@ -259,7 +259,7 @@ Done:
 
 🎉 Nice work. That Brick is in place.
 
-ne[x]t   [/] more...
+[n]ext   [/] more...
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
@@ -270,7 +270,7 @@ ne[x]t   [/] more...
 
 The phrase is one `work_completed` entry from the 16-phrase factory catalog.
 The contextual palette makes `/undo` available against the typed completion
-event. The REPL does not draw automatically from this result. Pressing `x`
+event. The REPL does not draw automatically from this result. Pressing `n`
 invokes the ordinary canonical `next` pipeline; closing the REPL instead
 leaves focus idle, and the next startup follows UX-046.
 
@@ -301,16 +301,16 @@ draw. The contextual palette remains anchored to the displayed WIP Brick.
 ## UX-C01 — Importance comparison
 
 ```text
+Is
+
 #a12345 "Launch the landing page"
 
-    is more important than
+      more important than
 
 #b45678 "Interview prospective customers"
+?
 
-Is that right?
-
-*[y]es · [n]o · [s]kip
-[?] I don't know
+*[m]ore important   [l]ess important   [s]kip   [?] I don't know
 
 ----------------------------------------
 ↳ #p12345 "Release the new website"
@@ -319,8 +319,9 @@ Suggestion: /bin/claude-fast.sh · importance insertion
    Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
 ```
 
-The `*` appears only when evidence supports that default. `no` records the
-reverse strict relation; it never means equality.
+The `*` appears only when evidence supports that default. `more important`
+records the displayed first Brick above the second; `less important` records
+the reverse strict relation. Neither means equality.
 
 ## UX-S01 — Served-work symptom
 

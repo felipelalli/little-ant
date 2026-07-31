@@ -159,7 +159,8 @@ Feed input, create a Brick, record a domain event, or consume a draw.
 ### SCN-IMP-001 — Binary insertion
 
 Place `#c12345 "Write the migration specification"` among siblings using
-UX-C01. Validate `yes`, `no`, `*`, and full Brick labels.
+UX-C01. Validate `more important`, `less important`, `*`, and full Brick
+labels.
 
 ### SCN-IMP-002 — Two skips
 
@@ -220,9 +221,9 @@ select direct `done` from current focus and validate UX-F07: no intermediate
 confirmation, one atomic completion that closes the focus interval and clears
 focus, one stable `work_completed` result, and a contextual `/undo` that can
 restore the prior state when its preconditions still hold. Verify that the
-result performs no automatic draw, renders `ne[x]t`, rejects `n` as unavailable
-rather than interpreting it as next, and enters the ordinary `next` pipeline
-only after `x`.
+result performs no automatic draw, renders `[n]ext`, and enters the ordinary
+`next` pipeline only after `n`. Verify that this result contains no binary
+question or `no` action.
 
 ### SCN-WRK-002 — Symptom then reaction
 

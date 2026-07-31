@@ -28,12 +28,26 @@
 The canonical semantic question is:
 
 ```text
-Is #a12345 "X" more important than #b12345 "Y"?
+Is
+
+#a12345 "X"
+
+    more important than
+
+#b12345 "Y"
+?
+
+[m]ore important   [l]ess important   [s]kip   [?] I don't know
 ```
 
-- **IMP-006 [core] — Directional answers.** `yes` records X above Y; `no`
-  records Y above X; `skip` records no edge; `?` asks for information or help
-  and restores the same pending comparison.
+- **IMP-006 [core] — Directional answers.** `more important` records X above
+  Y; `less important` records Y above X; `skip` records no edge; `?` asks for
+  information or help and restores the same pending comparison. Importance
+  comparisons do not use `yes` or `no`, because naming both directions is more
+  precise than interpreting a negative proposition. The mnemonic `m/l` pair
+  also supports fast repeated ordering rounds and is conveniently close on
+  common Latin keyboard layouts; semantics remain authoritative on layouts
+  where that physical convenience does not hold.
 - **IMP-007 [core] — No equality answer.** The strict order has no
   `equally important` response. Not knowing, not caring now, and believing two
   things are close are different evidence and must not become false equality.

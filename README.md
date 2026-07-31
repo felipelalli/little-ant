@@ -164,9 +164,16 @@ powered-up adapter may make an attributed proposal.
 ### Insert work into importance order
 
 ```text
-Is "Replace the laptop battery" more important than
-"Read the storage design paper"?
-[y] yes · [n] no · [s] skip · [?]
+Is
+
+"Replace the laptop battery"
+
+    more important than
+
+"Read the storage design paper"
+?
+
+[m]ore important   [l]ess important   [s]kip   [?] I don't know
 ```
 
 Insertion uses binary comparison. `skip` never means “equally important.”

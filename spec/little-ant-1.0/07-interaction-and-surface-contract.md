@@ -40,11 +40,17 @@
   Less-frequent actions such as direct completion and Feed remain reachable
   through `[/] more...`; they do not compete visually with the focus decision.
 - **UX-008 [core] — Comparison.** Two peers and one directional relation ask
-  whether the displayed statement is right, using
-  `[y]es · [n]o · [s]kip · [?]`.
+  the displayed proposition but name both possible directions explicitly.
+  Importance uses
+  `[m]ore important · [l]ess important · [s]kip · [?] I don't know`.
+  Other comparative namespaces use their own equally explicit relation words
+  rather than inheriting `yes/no` mechanically.
 - **UX-009 [core] — Confirmation.** One complete proposed action or external
-  effect is previewed before `[y]es`, `[n]o`, optional contextual `[l]ater`,
-  `[s]kip` when semantically valid, and `[?]`.
+  effect is previewed before consequence-named actions whenever those are
+  clearer. A genuinely binary proposition may still use natural
+  `[y]es · [n]o`; it never contorts `no` into an in-word shortcut such as
+  `n[o]`. Optional contextual `[l]ater`, `[s]kip` when semantically valid, and
+  `[?]` remain available.
 - **UX-010 [core] — Choice.** Mutually exclusive domain choices show stable
   in-word shortcuts, an optional suggested default, and uncertainty.
 - **UX-011 [core] — Input.** Explicit text-editing mode uses Enter to submit
@@ -59,20 +65,25 @@ The normative reference renderings live in
 - **UX-012 [core] — One key for finite choice.** Every finite REPL choice
   executes on one keypress without Enter.
 - **UX-013 [core] — Letter belongs to word.** The shortcut is the bracketed
-  character at its real position, such as `[s]kip`, `[c]hange`, or
-  `e[x]change`. A renderer never invents an unrelated prefix letter.
+  character at its real position, such as `[s]kip`, `[c]hange`, or `bo[r]ed`
+  when `[b]locked` already owns the initial in that namespace. A renderer
+  never invents an unrelated prefix letter or moves an obvious initial merely
+  to pursue artificial cross-screen uniqueness.
 - **UX-014 [core] — Stable meanings.** When applicable:
 
   ```text
-  [y]es | [n]o | [d]one | [l]ater | [s]kip | [?] I don't know
+  [n]ext | [y]es | [n]o | [d]one | [l]ater | [s]kip | [?] I don't know
   ```
 
-  Inapplicable actions are omitted rather than reusing a letter with another
-  meaning. `n` is reserved absolutely for `no`, including on screens where
-  `no` is absent: another word cannot borrow it merely because the negative
-  answer is inapplicable. A direct next action therefore renders as
-  `ne[x]t`, while the canonical textual command remains `/next`. Remaining
-  cross-screen shortcut preferences and collisions stay under `OPEN-UX-001`.
+  Direct advance canonically renders `[n]ext`, and `/next` remains its textual
+  command. Literal `[n]o` is allowed only when an honestly binary question
+  cannot be expressed more clearly with consequence-named verbs. `next` and
+  `no` never compete on the same screen; if both seem applicable, `next` moves
+  to the palette or the negative action receives an honest verb. Reuse is
+  avoided when a natural alternative exists, but the grammar prefers an
+  obvious initial over contrived forms such as `n[o]`. Inapplicable actions
+  are omitted. Remaining cross-screen shortcut preferences and collisions
+  stay under `OPEN-UX-001`.
 
 - **UX-015 [core] — Suggested default.** `*` marks at most one defensible
   suggested action. Pressing `*` selects it. No evidence means no default.
@@ -406,8 +417,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   `[d]one` on the current-focus screen commits `WRK-049` immediately and
   renders one `work_completed` result. That transition may use the
   deterministic UX-064 personality catalog. The result waits with
-  `ne[x]t · [/] more...`; it does not consume another draw automatically.
-  Pressing `x` invokes the same canonical pipeline as `/next`, and `/undo`
+  `[n]ext · [/] more...`; it does not consume another draw automatically.
+  Pressing `n` invokes the same canonical pipeline as `/next`, and `/undo`
   remains available through the contextual palette. The surface does not ask
   the user to confirm work they have just declared complete.
 
