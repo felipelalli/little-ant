@@ -431,7 +431,7 @@ classification:
 What needs to happen before you can continue?
 
 🧱 another [t]ask must be completed
-👤 a [p]erson must respond
+👤 someone must [r]espond
 🗓️ wait [u]ntil a date or time
 📍 be at a [l]ocation
 🔔 an [e]vent or condition must occur
@@ -453,17 +453,17 @@ served after 9 days · active Domain unchanged
 ```
 
 The choices describe the human situation, not storage primitives. `task`
-opens UX-S02A; `person` selects or creates an `ExternalEntity` and then asks
-whether the request was already made; `until` gathers a timezone-aware instant
-for `not_before`; `location` gathers a Place condition; and `event or
-condition` accepts dumb-mode free text preserved as linked Raw before creating
-a `Wait`. A request not yet made becomes an enabling Brick and Dependency,
-while an already-made request becomes a Wait with a future review
-opportunity. Each route previews its typed result before one atomic commit.
-`skip anyway` records explicitly unclassified `blocked_or_waiting` evidence
-and cooldown without inventing a blocker or Wait. `Escape`, empty-buffer
-`Backspace`, or local `Left Arrow` returns to UX-S01 under UX-019. No
-personality microcopy appears before a final reaction commits.
+opens UX-S02A; `respond` opens UX-S02B for any eligible ExternalEntity rather
+than only a person; `until` gathers a timezone-aware instant for `not_before`;
+`location` gathers a Place condition; and `event or condition` accepts
+dumb-mode free text preserved as linked Raw before creating a `Wait`. A
+request not yet made becomes an enabling Brick and Dependency, while an
+already-made request becomes a Wait with a future review opportunity. Each
+route previews its typed result before one atomic commit. `skip anyway`
+records explicitly unclassified `blocked_or_waiting` evidence and cooldown
+without inventing a blocker or Wait. `Escape`, empty-buffer `Backspace`, or
+local `Left Arrow` returns to UX-S01 under UX-019. No personality microcopy
+appears before a final reaction commits.
 
 ## UX-S02A — Brick prerequisite route
 
@@ -493,6 +493,49 @@ selected or newly created prerequisite, Dependency, `blocked` evidence,
 accepted reaction, and cooldown atomically. Cancelling either subflow restores
 UX-S02A without a partial Brick, Dependency, or skip. Reverse navigation
 returns to UX-S02.
+
+## UX-S02B — Response target autocomplete
+
+Selecting `someone must [r]espond` on UX-S02 opens one autocomplete input:
+
+```text
+#r12345 "Review Rock Splitter rules"
+
+Whose response are you waiting for?
+
+›
+
+Type a name. Existing entities will appear as you type.
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #r12345
+```
+
+After typing `Alice`, the same screen may contain:
+
+```text
+Whose response are you waiting for?
+
+› Alice
+
+  #e12345 "Alice Moreira"     person
+  #e45678 "Alice Support"     team
+  Add "Alice" to Little Ant...
+```
+
+The active result uses reverse video on a capable terminal. Up/Down changes
+the active result, Enter selects it, and further typing refines the bounded
+results. Existing and creation candidates are separate revisioned action IDs,
+not duplicate-suspicion guesses. Selecting `Add` opens canonical
+ExternalEntity kind selection and returns the created identity here; this
+screen does not infer `person` from the text `Alice`. Names retain their
+declared spelling and no English-writing tip is shown. Escape, Left Arrow, or
+Backspace while the buffer is already empty returns to UX-S02 without
+recording an ExternalEntity, Wait, skip, or cooldown. Selecting a target
+continues to the request-status question; it still commits nothing.
 
 ## UX-S03 — Enabling-Brick input
 

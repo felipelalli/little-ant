@@ -59,13 +59,14 @@
   external person, event, or condition with no known action. `blocked` means a
   missing actionable prerequisite such as a Brick, information, access, or
   material. The classification asks what must happen before work can continue:
-  another task produces `blocked` evidence plus a `Dependency`; a person
-  produces `waiting` evidence plus a `Wait` linked to an `ExternalEntity`; an
-  external event or condition produces `waiting` evidence plus a `Wait`; a
-  date or time produces `waiting` evidence plus `not_before`, not a `Wait`;
-  and a location produces `waiting` evidence plus a Place condition, not a
-  `Wait`. Deferring before classification records `blocked_or_waiting`
-  explicitly rather than fabricating precision.
+  another task produces `blocked` evidence plus a `Dependency`; someone who
+  must respond produces `waiting` evidence plus a `Wait` linked to an
+  `ExternalEntity` of any eligible kind; an external event or condition
+  produces `waiting` evidence plus a `Wait`; a date or time produces `waiting`
+  evidence plus `not_before`, not a `Wait`; and a location produces `waiting`
+  evidence plus a Place condition, not a `Wait`. Deferring before
+  classification records `blocked_or_waiting` explicitly rather than
+  fabricating precision.
 - **WRK-010 [core] — Cooldown plus memory.** Explicitly deferring the served
   Brick after a symptom creates a short, replay-deterministic cooldown while
   preserving longer-term evidence and pressure. A recovery that returns to

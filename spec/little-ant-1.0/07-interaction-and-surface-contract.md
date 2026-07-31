@@ -161,6 +161,18 @@ no-emoji rendering remain `OPEN-UX-001`.
   name. The core therefore exposes `/focus-blocker`, not `/focus blocker` or
   `/focus_blocker`, and provides no spelling aliases. Assisted surfaces may
   interpret natural language but render and invoke the canonical token.
+- **UX-075 [core] — Unified ExternalEntity lookup.** A guided flow that needs
+  an ExternalEntity target opens one autocomplete input containing eligible
+  existing entities and, when the text is not already represented, one
+  explicit creation candidate. It does not ask a preliminary `find or create`
+  question. Typing filters without mutation; Up/Down moves the selection,
+  reverse video identifies it on capable terminals, and Enter chooses the
+  displayed revisioned action. Selecting creation enters canonical typed
+  ExternalEntity creation and then returns its result to the suspended flow;
+  the dumb host never guesses a kind from a name. Escape, Left Arrow, and
+  empty-buffer Backspace follow UX-019. Proper names keep their declared
+  spelling, so this input omits the ordinary suggestion to write prose in
+  English.
 
 ## Status, history, and recovery
 

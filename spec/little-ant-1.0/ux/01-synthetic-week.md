@@ -247,12 +247,18 @@ UX-S02. Verify that another task opens UX-S02A; select and cancel an
 existing-Brick search, create and cancel an enabling-Brick Feed route, and
 prove that neither leaves partial state. Then complete each route and verify
 one atomic prerequisite, Dependency, `blocked` evidence, reaction, and
-cooldown. Verify that person and event/condition create typed Waits, while
-date/time and location create `not_before` and Place conditions without
-masquerading as Waits. Separately choose `skip anyway` before classification
-and verify explicit `blocked_or_waiting` evidence and cooldown without an
-invented blocker, Wait, time, or Place. In the create route, validate UX-S03
-and UX-S04: the dumb proposal uses the blocked Brick's immediate parent and
+cooldown. Open the response route and validate UX-S02B with both an existing
+person and an existing team: typing filters one combined autocomplete,
+Up/Down plus Enter selects a revisioned result, and the same list offers
+creation without a preliminary `find or create` question. Cancel creation and
+prove that it leaves no ExternalEntity; complete it through explicit kind
+selection and preserve the proper name without an English-writing hint.
+Verify that response and event/condition create typed Waits, while date/time
+and location create `not_before` and Place conditions without masquerading as
+Waits. Separately choose `skip anyway` before classification and verify
+explicit `blocked_or_waiting` evidence and cooldown without an invented
+blocker, Wait, time, or Place. In the create route, validate UX-S03 and
+UX-S04: the dumb proposal uses the blocked Brick's immediate parent and
 effective Domain, keeps the new Brick a sibling, and expresses prerequisite
 order only through Dependency.
 Reject it and choose another valid structure without losing the draft. Accept

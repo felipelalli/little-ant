@@ -25,7 +25,9 @@
   a folder owner, a Brick parent, or an organizational person.
 - **MOD-007 [standard] — ExternalEntity.** An ExternalEntity is a durable
   reference to a person, team, organization, AI agent, or service involved in
-  requests, delegation, waiting, provenance, or delivery.
+  requests, delegation, waiting, provenance, or delivery. Proper names retain
+  their declared spelling and are not translated merely to satisfy the
+  English canonical-data policy.
 
 ## Identity
 
