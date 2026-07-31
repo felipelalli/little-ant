@@ -61,6 +61,13 @@ may expose missing or contradictory rules.
   later continuation omits it rather than replaying or reselecting it. A
   powered-up or Skill replay may change only that phrase under UX-065;
   semantic and high-stakes screens remain exact.
+- **SCN-015 — Styled and plain terminal parity.** Replay each accepted terminal
+  screen with color `auto`, `always`, and `never`, plus redirected output,
+  `TERM=dumb`, and `NO_COLOR`. Strip ANSI sequences and verify identical text,
+  action order, and display-cell alignment. Exercise arrow navigation with
+  reverse video and a monochrome cursor indication, narrow widths, emoji,
+  accented text, and wide characters. Styling may not alter an envelope,
+  event, draw, or random cursor.
 
 ## Critique labels
 

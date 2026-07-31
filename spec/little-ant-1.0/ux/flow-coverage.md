@@ -18,10 +18,10 @@ run as an interactive transcript.
 
 | Gate | Flow | Current references | Status | Missing boundary |
 |---:|---|---|---|---|
-| 2 | Shared frame and status | `UX-R00..R01`, `UX-025`, `UX-045..049`, `UX-062..065` | partial | narrow/accessibility form, unbound-key rendering, and exact personality catalogs |
+| 2 | Shared frame and status | `UX-R00..R01`, `UX-025`, `UX-045..049`, `UX-062..065`, `UX-070..073`, `SCN-015` | partial | exact monochrome selection marker, narrow/accessibility form, unbound-key rendering, and personality catalogs |
 | 2 | Contextual personality | `UX-F04..F05`, `UX-064..065`, `SCN-014` | partial | review all four 16-phrase English catalogs |
 | 2 | Contextual uncertainty/help | `UX-H01`, `UX-016..017` | partial | assistance subpages and return transitions |
-| 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048` | partial | remaining screen placement and unavailable/search recovery under `OPEN-UX-003` |
+| 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048`, `UX-072..073` | partial | remaining screen placement, monochrome cursor marker, and unavailable/search recovery |
 | 2 | Revision/stale response | `UX-029..031` | missing | `OPEN-UX-002` |
 | 2 | Reference selection | `MOD-010`, `MOD-024` | missing | `OPEN-REF-001` |
 | 3 | Restore/startup to `next` | `UX-R00`, `UX-F04..F05`, `UX-046`, `UX-063` | partial | pending-envelope result transition |
@@ -36,7 +36,7 @@ run as an interactive transcript.
 | 3 | Parent/owner/Domain choice | `FED-005`, `FED-022..023` | missing | target and optional-membership screens |
 | 3 | Initial importance insertion | `UX-C01`, `IMP-004..010` | partial | accepted answer through final placement |
 | 3 | Complete Feed confirmation/result | `FED-019..021` | missing | full preview, mutation, prior-proposal revalidation |
-| 3 | Focus and secondary done | `UX-F01..F05`, `UX-M01`, `WRK-002`, `WRK-005` | partial | `/done` result and next envelope |
+| 3 | Focus proposal and active completion | `UX-F01..F05`, `UX-F07`, `UX-M01`, `WRK-002`, `WRK-005`, `WRK-049`, `UX-069` | partial | post-completion next envelope |
 | 4 | Ordering skip and provisional placement | `IMP-008..010` | missing | `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015` | missing | provocative check and local replacement screens |
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |

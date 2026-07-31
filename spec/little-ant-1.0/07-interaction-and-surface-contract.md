@@ -157,6 +157,33 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-032 [core] — Terminal safety.** Alternate-screen terminals restore
   normal state after exit, interruption, or error and provide an equivalent
   inline fallback.
+- **UX-070 [core] — Capability-aware terminal styling.** The terminal
+  renderer supports `auto | always | never`, with `auto` as the factory
+  default. In `auto`, it emits no ANSI styling when output is not an
+  interactive terminal, `TERM=dumb`, `NO_COLOR` is present, or required
+  capabilities are unavailable. An explicit `always` or `never` is a
+  presentation override only; it never changes an InteractionEnvelope or
+  domain result.
+- **UX-071 [standard] — Theme-owned ANSI palette.** The factory renderer uses
+  terminal-defined ANSI palette entries and intensity attributes rather than
+  fixed RGB values or a guessed light/dark theme. Shortcut brackets and
+  dividers are dim; the shortcut character is bold green; ordinary labels
+  retain the terminal's default foreground; success, warning, and error roles
+  use bold green, yellow, and red respectively. Style resets are scoped so one
+  component cannot leak into another. Little Ant 1.0 does not query terminal
+  background color or infer a theme.
+- **UX-072 [core] — Selection and color-independent meaning.** Arrow-key
+  selection in the command palette uses reverse video. Selection also has a
+  non-style cursor indication in monochrome rendering, whose exact accessible
+  marker remains under `OPEN-UX-001`. Color and intensity may reinforce but
+  never exclusively communicate selection, action, warning, state, or
+  validity.
+- **UX-073 [core] — Display-cell alignment.** ANSI control sequences have zero
+  display width. Padding, columns, clipping, and wrapping use rendered Unicode
+  display cells rather than bytes, code points, or styled-string length.
+  Emoji and wide-character measurement uses the terminal renderer's declared
+  width policy, with a safe inline fallback when exact alignment cannot be
+  guaranteed.
 
 ## Dumb and powered-up harness
 

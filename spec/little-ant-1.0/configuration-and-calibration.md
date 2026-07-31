@@ -43,6 +43,7 @@ grants authority.
 | `importance.sanity_interval_days` | `14` | V0-proven starting drift interval. |
 | `ui.max_visible_warnings` | `1` | Additional warnings appear as a count. |
 | `ui.microcopy_variants_per_intent` | `16` | Factory English phrases for every declared personality intent. |
+| `ui.color_mode` | `auto` | Emit ANSI styles only when terminal capability and user environment allow it; explicit `always` and `never` remain presentation overrides. |
 | `effort.assisted_comparison_limit` | `3` | Maximum exemplar questions in one assistance flow. |
 | `time.habit_day_starts_at` | `04:00` | Local boundary between nominal habit days. |
 | `time.workday_starts_at` | `06:00` | Local boundary between nominal workdays. |
