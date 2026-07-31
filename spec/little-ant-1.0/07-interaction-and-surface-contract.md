@@ -320,13 +320,16 @@ no-emoji rendering remain `OPEN-UX-001`.
   and applies no cooldown.
 - **UX-063 [core] — Current-focus resting screen.** Accepting `Focus?`
   immediately starts or resumes the Brick and enters a stable current-focus
-  screen. It asks no new question, invokes no draw, and exposes only
-  `[/] more...` as its secondary command escape. The status bar identifies the
-  focused Brick. The immediate `focus_started` result may carry UX-064
-  microcopy. Restarting or restoring the REPL later resumes a sober rendering
-  of this screen while that focus remains valid; it neither repeats the
-  transition message nor asks whether the focus is stale before the configured
-  stale-focus boundary.
+  screen. It asks no new question, invokes no draw, and exposes the ordered
+  action strip `[d]one · [s]kip · [/] more...`. `done` comes first because
+  completion is the positive ordinary outcome of active focus. `skip` opens
+  the served-work symptom screen for the focused Brick; pressing it alone
+  records no skip evidence, cooldown, or lifecycle change. The status bar
+  identifies the focused Brick. The immediate `focus_started` result may carry
+  UX-064 microcopy. Restarting or restoring the REPL later resumes a sober
+  rendering of this screen while that focus remains valid; it neither repeats
+  the transition message nor asks whether the focus is stale before the
+  configured stale-focus boundary.
 - **UX-064 [standard] — Contextual personality catalog.** Decorative
   personality microcopy appears only after a transition where warmth or light
   humor helps; it never appears on the opening `Focus?` screen, where it would
@@ -363,6 +366,11 @@ no-emoji rendering remain `OPEN-UX-001`.
   immediately, returns a sober result identifying the still-WIP Brick, and
   leaves focus idle. It does not ask the user to resume immediately, invoke
   `next`, or emit personality microcopy.
+- **UX-068 [core] — Symptom shortcuts favor common meaning.** On the
+  served-work symptom screen, `blocked` owns its natural and more frequently
+  useful initial as `[b]locked`; `bored` therefore uses the visible in-word
+  shortcut `bo[r]ed`. `[d]one` remains reserved for completion. The same
+  bindings apply on every surface that renders this symptom namespace.
 
 ## Errors and dry-run
 

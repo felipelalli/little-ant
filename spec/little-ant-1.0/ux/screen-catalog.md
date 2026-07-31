@@ -204,7 +204,7 @@ Current focus:
 💪 Nice! Roll up your sleeves and give it a go.
 Come back when you're done—or when something gets in the way. 😌
 
-[/] more...
+[d]one   [s]kip   [/] more...
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
@@ -230,7 +230,7 @@ Current focus:
 
 #r12345 "Review Rock Splitter rules"
 
-[/] more...
+[d]one   [s]kip   [/] more...
 
 ----------------------------------------
 ↳ #p12345 "Rock Splitter"
@@ -300,8 +300,8 @@ reverse strict relation; it never means equality.
 What's getting in the way?
 
 💭 [v]ague / 🧗 [h]ard / 🏔️ bi[g]
-⏳ [w]aiting / 🚧 bloc[k]ed
-🥱 [t]ired / 😐 [b]ored / 😨 [f]ear
+⏳ [w]aiting / 🚧 [b]locked
+🥱 [t]ired / 😐 bo[r]ed / 😨 [f]ear
 📥 [n]ot important now
 🧩 [o]ther
 ❓ [?] I don't know

@@ -205,21 +205,26 @@ because its title sounds large.
 Accept focus and validate UX-F04 before any further action: focus starts
 immediately, the ordinary eligible count drops from 18 to 17, no second draw
 occurs, and the selected `focus_started` phrase remains stable when the screen
-is redrawn. Replay powered up and allow only the bounded UX-065 paraphrase.
-Close and reopen five minutes later; validate sober UX-F05 with no event,
-draw, repeated phrase, or premature stale-focus question. Then switch to
-another Brick through `/next`: cancel the first proposal and confirm that the
-old focus survives, then accept a second proposal and confirm that the switch
-is atomic while the old Brick remains WIP. Inspect several WIPs and return one
-to idle through `/pause`. Validate UX-F06, one current focus, honest WIP and
-focus-interval history, unchanged Domain and importance, and no implicit draw,
-skip, cooldown, or `paused` Brick state.
+is redrawn. Verify the ordered `[d]one · [s]kip · [/] more...` action strip.
+Open `skip`, cancel the symptom screen, and confirm that no skip evidence or
+state change occurred. Replay powered up and allow only the bounded UX-065
+paraphrase. Close and reopen five minutes later; validate sober UX-F05 with no
+event, draw, repeated phrase, or premature stale-focus question. Then switch
+to another Brick through `/next`: cancel the first proposal and confirm that
+the old focus survives, then accept a second proposal and confirm that the
+switch is atomic while the old Brick remains WIP. Inspect several WIPs and
+return one to idle through `/pause`. Validate UX-F06, one current focus,
+honest WIP and focus-interval history, unchanged Domain and importance, and no
+implicit draw, skip, cooldown, or `paused` Brick state. In a separate replay,
+select direct `done` from current focus and validate the ordinary completion
+transition and `work_completed` result.
 
 ### SCN-WRK-002 — Symptom then reaction
 
 Open UX-S01, Escape without mutation, reopen it, select `tired`, then choose a
 separately proposed Domain-scoped remedy. Validate active Domain, cooldown,
-and that `change subject` was never presented as a symptom.
+and that `change subject` was never presented as a symptom. Reopen the screen
+and verify `[b]locked`, `bo[r]ed`, and the unchanged `[d]one` binding.
 
 ### SCN-WRK-003 — Waiting versus blocked
 
