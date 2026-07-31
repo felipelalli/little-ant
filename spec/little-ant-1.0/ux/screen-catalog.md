@@ -25,7 +25,7 @@ long paths, but renderers preserve the content order and action order.
 Empty secondary rows are omitted. Context and status rows are contiguous.
 Emoji have accessible textual equivalents. Markdown code blocks show the
 monochrome structure: a capable terminal applies UX-070..073, including dim
-brackets and dividers, bold green shortcut characters, and reverse video for
+brackets and dividers, bold cyan shortcut characters, and reverse video for
 the command-palette selection. Styled and plain renderings occupy the same
 display-cell columns.
 

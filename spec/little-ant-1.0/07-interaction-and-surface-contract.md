@@ -167,7 +167,7 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-071 [standard] — Theme-owned ANSI palette.** The factory renderer uses
   terminal-defined ANSI palette entries and intensity attributes rather than
   fixed RGB values or a guessed light/dark theme. Shortcut brackets and
-  dividers are dim; the shortcut character is bold green; ordinary labels
+  dividers are dim; the shortcut character is bold cyan; ordinary labels
   retain the terminal's default foreground; success, warning, and error roles
   use bold green, yellow, and red respectively. Style resets are scoped so one
   component cannot leak into another. Little Ant 1.0 does not query terminal
