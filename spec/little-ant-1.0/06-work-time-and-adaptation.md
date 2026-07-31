@@ -23,6 +23,11 @@
   `superseded` preserve different outcomes and lineage. Stopping an execution,
   missing a habit opportunity, and abandoning an external delegation are
   context-specific outcomes, not one generic `abandon` command.
+- **WRK-048 [core] — Pause clears attention, not work.** Pausing closes the
+  current focus interval and clears the global focus pointer while leaving the
+  Brick WIP. It preserves the active Domain and importance evidence, records
+  no skip symptom, applies no cooldown, and performs no new draw. `paused` is
+  an action and historical fact, not another Brick lifecycle state.
 
 ## Skip as evidence
 

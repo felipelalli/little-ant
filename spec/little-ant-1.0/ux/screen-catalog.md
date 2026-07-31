@@ -244,6 +244,30 @@ microcopy. Before the configured stale-focus boundary, it does not ask
 `Still on this?`. The eventual stale-focus review is a separate opportunity
 under `WRK-004`, not a decoration of this screen.
 
+## UX-F06 — Paused focus result
+
+Selecting `/pause` from a current-focus palette commits immediately:
+
+```text
+Paused:
+
+#r12345 "Review Rock Splitter rules"
+
+This Brick remains in progress.
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:05         mode: dumb   focus: idle
+```
+
+The completed focus interval is history, but there is no `paused` Brick state,
+skip evidence, cooldown, Domain change, personality phrase, or automatic
+draw. The contextual palette remains anchored to the displayed WIP Brick.
+
 ## UX-C01 — Importance comparison
 
 ```text

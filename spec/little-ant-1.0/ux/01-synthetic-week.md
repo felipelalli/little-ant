@@ -211,7 +211,9 @@ draw, repeated phrase, or premature stale-focus question. Then switch to
 another Brick through `/next`: cancel the first proposal and confirm that the
 old focus survives, then accept a second proposal and confirm that the switch
 is atomic while the old Brick remains WIP. Inspect several WIPs and return one
-to idle. Validate one current focus and honest WIP history.
+to idle through `/pause`. Validate UX-F06, one current focus, honest WIP and
+focus-interval history, unchanged Domain and importance, and no implicit draw,
+skip, cooldown, or `paused` Brick state.
 
 ### SCN-WRK-002 — Symptom then reaction
 

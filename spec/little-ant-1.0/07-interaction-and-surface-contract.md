@@ -358,6 +358,11 @@ no-emoji rendering remain `OPEN-UX-001`.
   state. Only accepting the new proposal switches focus under `FOC-033`.
   Escape and any proposal outcome that does not accept another Brick return to
   the prior current-focus screen.
+- **UX-067 [core] — Pause is explicit and non-propositional.** `/pause` is a
+  contextual current-focus palette command implementing `WRK-048`. It commits
+  immediately, returns a sober result identifying the still-WIP Brick, and
+  leaves focus idle. It does not ask the user to resume immediately, invoke
+  `next`, or emit personality microcopy.
 
 ## Errors and dry-run
 
