@@ -121,7 +121,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | Every served skip records a typed reason and optional verbatim text | `I+T` | **strengthened** | symptom then reaction under `WRK-007..013`, `WRK-047`, `UX-S01` | one route per symptom family |
 | `other` requires explanation and repeated evidence triggers taxonomy review | `I+T`, taxonomy tests | **strengthened** | `WRK-012`; never automatic vocabulary mutation | `SCN-WRK-004` |
 | `vague` regresses lifecycle and may create a clarification meta-Brick | `I+T` | **retired** | phase/content/enabling work without stage regression; exact reactions `OPEN-SKIP-001` | vague reaction route |
-| `not_priority`, `meh`, `kill`, and `alternatives` are symptoms | `I+T` | **replaced** | `not_important_now`, `fear`, and separate terminal/method actions under `WRK-008` | symptom screen review |
+| `not_priority`, `meh`, `kill`, and `alternatives` are symptoms | `I+T` | **replaced** | `less_important`, `fear`, and separate terminal/method actions under `WRK-008` | symptom screen review |
 | Several WIPs can exist while one item has attention | partly `I+T`; v0 dangling-WIP notices | **strengthened** | `WRK-001..004` | WIP review and focus switch |
 | Waiting on an external condition differs from a Brick dependency | `I+T` | **strengthened** | `WRK-009`, `FOC-024` | waiting-versus-blocked route |
 

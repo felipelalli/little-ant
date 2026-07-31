@@ -104,9 +104,13 @@ no-emoji rendering remain `OPEN-UX-001`.
 
 ## Navigation, undo, and commands
 
-- **UX-019 [core] — Navigation is not mutation.** Escape closes or cancels the
-  current uncommitted screen and restores the preceding checkpoint without a
-  domain event. Backspace remains text deletion.
+- **UX-019 [core] — Navigation is not mutation.** On an uncommitted choice
+  screen with no active editable buffer or selection cursor, `Escape`,
+  `Backspace`, and `Left Arrow` are equivalent: each restores the preceding
+  checkpoint without a domain event. In text editing, `Backspace` deletes and
+  `Left Arrow` moves the cursor; in a palette or another directional selector,
+  arrow keys retain their declared selection behavior. `Escape` remains the
+  universal cancel or return gesture. Navigation never becomes semantic undo.
 - **UX-020 [core] — Semantic undo.** `C-_` and `/undo` append a typed
   compensating event for the latest reversible action in the current
   interaction; they never delete history or consume a new draw.

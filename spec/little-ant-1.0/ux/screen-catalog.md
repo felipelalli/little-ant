@@ -353,15 +353,54 @@ served after 9 days · active Domain unchanged
 ```
 
 Selecting a symptom opens its separate reaction screen without recording
-evidence. Escape from the reaction screen restores this exact symptom screen;
-Escape here restores the exact Focus screen. Only the final reaction commits
-the symptom and reaction together. An explicit `skip anyway` reaction commits
-the symptom, cooldown, and no additional remediation. This active diagnostic
-screen is sober: personality microcopy is reserved for the committed
-`skip_acknowledged` result. Each symptom retains its own icon; related choices
-share a row separated by spacing rather than slash punctuation. `less
-important` is the current served-work symptom, not a permanent importance
-classification or a separate priority axis.
+evidence. Reverse navigation under UX-019 from a reaction restores this exact
+symptom screen; the same gestures here restore the exact Focus screen. Only
+the final reaction commits the symptom and reaction together. An explicit
+`skip anyway` reaction commits the symptom, cooldown, and no additional
+remediation. This active diagnostic screen is sober: personality microcopy is
+reserved for the committed `skip_acknowledged` result. Each symptom retains
+its own icon; related choices share a row separated by spacing rather than
+slash punctuation. `less important` is the current served-work symptom, not a
+permanent importance classification or a separate priority axis.
+
+## UX-S02 — Blocked reaction
+
+Selecting `[b]locked` on UX-S01 opens this uncommitted reaction:
+
+```text
+#r12345 "Review Rock Splitter rules"
+
+What is blocking it?
+
+🔎 [f]ind an existing Brick
+🧱 [c]reate an enabling Brick
+⏳ actually [w]aiting
+❓ [?] I don't know
+
+Continue without identifying it?
+
+⏭️ [s]kip anyway
+
+[/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+⚠️ #u11111 "Review fraud incident" · deadline tomorrow
+served after 9 days · active Domain unchanged
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #r12345
+```
+
+`find` opens an existing-Brick selector; `create` opens a pending Feed route
+for one enabling Brick; and `actually waiting` navigates to the waiting
+reaction without recording `blocked`. Completing `find` or `create` commits
+the selected or newly created prerequisite, Dependency, `blocked` symptom,
+accepted reaction, and cooldown atomically. Cancelling either subflow restores
+UX-S02 without a partial Brick, Dependency, or skip. `skip anyway` is the only
+immediate final reaction on this screen. `Escape`, `Backspace`, or `Left
+Arrow` returns to UX-S01 under UX-019. No personality microcopy appears before
+one of those final reactions commits.
 
 ## UX-K01 — Nature choice
 

@@ -233,13 +233,23 @@ and that `change subject` was never presented as a symptom. Reopen the screen
 and verify `[b]locked`, `bo[r]ed`, `[l]ess important`, and the unchanged
 `[d]one` binding. Confirm that `n` is not accepted as the symptom shortcut,
 that every symptom retains its icon, and that no personality message appears
-before a final reaction commits the skip.
+before a final reaction commits the skip. From a reaction screen, verify that
+`Escape`, `Backspace`, and `Left Arrow` each restore the exact symptom
+checkpoint without mutation; from the symptom screen, verify that they restore
+the prior Focus checkpoint. Repeat while editing text and while selecting in a
+palette to prove that Backspace and arrow keys retain their local editing or
+selection meanings.
 
 ### SCN-WRK-003 — Waiting versus blocked
 
-Exercise both paths. Waiting records an ExternalEntity/event/condition;
-blocked proposes a Dependency or enabling Brick only on the later reaction
-screen.
+Exercise both paths. Waiting records an ExternalEntity/event/condition.
+Blocked first renders UX-S02: select and cancel an existing-Brick search,
+create and cancel an enabling-Brick Feed route, and prove that neither leaves
+partial state. Then complete each route and verify one atomic prerequisite,
+Dependency, `blocked` symptom, reaction, and cooldown. Navigate through
+`actually waiting` without recording `blocked`; separately choose `skip
+anyway` and verify that it records the symptom and cooldown without inventing
+a blocker.
 
 ### SCN-WRK-004 — Other and taxonomy watch
 
@@ -298,8 +308,9 @@ and ensure a stale keypress cannot answer the replacement prompt.
 
 ### SCN-UNDO-001 — Navigation, undo, and redo
 
-Distinguish Escape from `C-_`; redo a valid compensation; then create a
-conflict and require an explicit diagnostic.
+Distinguish uncommitted `Escape`/`Backspace`/`Left Arrow` navigation from
+committed `C-_` undo; redo a valid compensation; then create a conflict and
+require an explicit diagnostic.
 
 ### SCN-EXT-001 — Import and source deletion
 

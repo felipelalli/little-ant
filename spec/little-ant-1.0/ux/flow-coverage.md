@@ -40,7 +40,7 @@ run as an interactive transcript.
 | 4 | Ordering skip and provisional placement | `IMP-008..010` | missing | `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015` | missing | provocative check and local replacement screens |
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |
-| 4 | Served-work symptom | `UX-S01`, `WRK-007..013`, `WRK-047` | partial | every reaction screen under `OPEN-SKIP-001` |
+| 4 | Served-work symptom | `UX-S01..S02`, `WRK-007..013`, `WRK-047` | partial | remaining reaction screens under `OPEN-SKIP-001` |
 | 4 | Atomic break/reclassification | `UX-B01`, `MOD-045..047` | screened | accepted/rejected result transitions |
 | 4 | Focus/WIP interruption | `FOC-033`, `UX-F06`, `UX-066..067`, `WRK-001..006`, `WRK-048` | partial | resume, WIP-to-idle grammar, result screens, and `OPEN-WRK-001` |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032` | missing | `OPEN-MERGE-001`, `OPEN-TREE-001` |

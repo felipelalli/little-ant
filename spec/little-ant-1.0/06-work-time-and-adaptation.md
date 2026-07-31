@@ -44,7 +44,7 @@
 
   ```text
   vague | hard | big | waiting | blocked | tired | bored | fear
-  | not_important_now | other
+  | less_important | other
   ```
 
   `meh`, `kill`, `alternatives`, and `change subject` are not symptoms.
@@ -70,9 +70,10 @@
 - **WRK-047 [core] — Atomic symptom resolution.** A final reaction records the
   selected symptom and accepted reaction atomically. `skip anyway` records the
   symptom without another remediation and applies the ordinary cooldown.
-  Escape from a reaction returns to the symptom screen; Escape from the
-  symptom screen returns to the original Focus screen. Neither Escape path
-  records evidence, applies cooldown, changes Domain, or consumes a new draw.
+  Reverse navigation from a reaction returns to the symptom screen; reverse
+  navigation from the symptom screen returns to the original Focus screen.
+  Neither path records evidence, applies cooldown, changes Domain, or consumes
+  a new draw.
 
 ## Time
 
