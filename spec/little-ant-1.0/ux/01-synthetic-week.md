@@ -253,10 +253,17 @@ a blocker. In the create route, validate UX-S03 and UX-S04: the dumb proposal
 uses the blocked Brick's immediate parent and effective Domain, keeps the new
 Brick a sibling, and expresses prerequisite order only through Dependency.
 Reject it and choose another valid structure without losing the draft. Accept
-it, settle sibling importance independently, and verify the final atomic
-result. In paired powered-up and Skill replays, accept one well-supported
-alternative parent or Domain proposal, reject another into the unchanged dumb
-baseline, and require the baseline itself whenever assisted evidence is weak.
+it, verify that insertion starts from the ordinary unresolved midpoint rather
+than the blocked Brick, and settle sibling importance independently. Cancel
+once after answering a comparison and prove that no draft comparison became
+evidence; replay to completion and verify the final atomic result. Validate
+UX-S05: no automatic draw or focus, ordinary weighted `[n]ext`, and one
+contextual `/focus-blocker` command that opens `Focus?` without silently
+starting work. Reject `/focus blocker` and `/focus_blocker` as unknown command
+identifiers with canonical recovery. In paired powered-up and Skill replays,
+accept one well-supported alternative parent or Domain proposal, reject
+another into the unchanged dumb baseline, and require the baseline itself
+whenever assisted evidence is weak.
 
 ### SCN-WRK-004 — Other and taxonomy watch
 

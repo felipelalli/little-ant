@@ -13,15 +13,21 @@
   never rewrites the order.
 - **IMP-004 [core] — Binary insertion.** A new or locally displaced Brick is
   placed through resumable binary insertion, requiring approximately
-  logarithmic human comparisons.
+  logarithmic human comparisons. After reusable evidence narrows the interval,
+  the first unresolved comparator is its ordinary midpoint. A Dependency
+  target is not privileged as an insertion anchor, because prerequisite order
+  is not importance evidence.
 - **IMP-005 [core] — Adaptive bulk maintenance.** Initial and sanity-round
   ordering uses the v0 `org-sort-tasks` strategy: insertion sort for short
   runs, merge for longer runs, and an already-ordered short circuit.
   Each core step reuses applicable direct and transitive evidence and returns
-  at most one genuinely unresolved pair. Comparisons persist independently so
-  a round may stop and resume after any answer. The current deterministic
-  position may guide traversal but is never treated as human comparison
-  evidence, especially inside a provisional segment.
+  at most one genuinely unresolved pair. Comparisons between existing Bricks
+  persist independently so a round may stop and resume after any answer. When
+  one side is a not-yet-created Feed draft, answers remain in the recoverable
+  Interaction checkpoint and become evidence only in the atomic creation;
+  cancelling the draft discards them. The current deterministic position may
+  guide traversal but is never treated as human comparison evidence,
+  especially inside a provisional segment.
 
 ## Comparison grammar
 

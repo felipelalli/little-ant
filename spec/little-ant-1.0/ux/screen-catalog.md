@@ -453,8 +453,9 @@ Use this structure?
 ```
 
 `yes` accepts the structural suggestion and continues the still-pending
-sibling importance insertion; the Dependency never supplies an importance
-answer. `no` opens the canonical parent and Domain choices with the same draft
+sibling importance insertion at the ordinary unresolved midpoint under
+IMP-004; the Dependency never supplies an importance answer or comparator
+anchor. `no` opens the canonical parent and Domain choices with the same draft
 and blocked target preserved. `?` explains composition, Domain, Dependency,
 and importance separately before restoring this confirmation. Reverse
 navigation restores the preceding pending Feed checkpoint. No Brick,
@@ -467,6 +468,40 @@ FED-031 proposal containing the same three visible structural fields. Its
 `no` enters UX-S04 with the dumb baseline unchanged. If assistance has no
 stronger evidence, it renders UX-S04 rather than paraphrasing the baseline as
 an AI judgment.
+
+## UX-S05 — Blocked result
+
+Completing the enabling-Brick route commits once and waits without drawing:
+
+```text
+Blocked for now:
+
+#r12345 "Review Rock Splitter rules"
+
+Blocked by:
+
+#a45678 "Request access to production logs"
+
+🐜 Even ants reroute sometimes.
+
+[n]ext    [/] more...
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:07         mode: dumb   focus: idle
+```
+
+The phrase is one replay-stable `skip_acknowledged` entry under UX-064. The
+result neither starts the blocker nor performs a forecast draw. `[n]ext`
+invokes the ordinary weighted pipeline; dependency pressure applies without
+guaranteeing the blocker a win. The contextual palette exposes
+`/focus-blocker`, whose visible target is `#a45678`. That command bypasses the
+forecast draw but still opens the ordinary `Focus?` proposal; it never starts
+work silently. If the named blocker is itself blocked, the canonical N-step
+dependency resolver supplies the actionable endpoint and complete `Why` path.
+The public command is the single kebab-case token required by UX-074.
 
 ## UX-K01 — Nature choice
 

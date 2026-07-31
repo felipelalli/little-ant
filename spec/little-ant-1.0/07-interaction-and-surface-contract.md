@@ -134,6 +134,12 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-024 [core] — Command transparency.** A confirmed guided action can show
   the exact canonical CLI command and canonical human result, teaching one
   scriptable language without exposing transport flags.
+- **UX-074 [core] — Compound slash-command grammar.** A public slash-command
+  identifier is one lowercase kebab-case token. Whitespace ends the identifier
+  and begins an argument or palette query; it never joins words in a command
+  name. The core therefore exposes `/focus-blocker`, not `/focus blocker` or
+  `/focus_blocker`, and provides no spelling aliases. Assisted surfaces may
+  interpret natural language but render and invoke the canonical token.
 
 ## Status, history, and recovery
 
