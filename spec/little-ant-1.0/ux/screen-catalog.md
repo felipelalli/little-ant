@@ -392,15 +392,81 @@ served after 9 days · active Domain unchanged
    Mon, Aug 3   09:00         mode: dumb   focus: #r12345
 ```
 
-`find` opens an existing-Brick selector; `create` opens a pending Feed route
-for one enabling Brick; and `actually waiting` navigates to the waiting
-reaction without recording `blocked`. Completing `find` or `create` commits
-the selected or newly created prerequisite, Dependency, `blocked` symptom,
-accepted reaction, and cooldown atomically. Cancelling either subflow restores
-UX-S02 without a partial Brick, Dependency, or skip. `skip anyway` is the only
-immediate final reaction on this screen. `Escape`, `Backspace`, or `Left
-Arrow` returns to UX-S01 under UX-019. No personality microcopy appears before
-one of those final reactions commits.
+`find` opens an existing-Brick selector; `create` opens UX-S03 and its pending
+Feed route for one enabling Brick; and `actually waiting` navigates to the
+waiting reaction without recording `blocked`. Completing `find` or `create`
+commits the blocker selection or newly created prerequisite, Dependency,
+`blocked` symptom, accepted reaction, and cooldown atomically. Cancelling
+either subflow restores UX-S02 without a partial Brick, Dependency, or skip.
+`skip anyway` is the only immediate final reaction on this screen. `Escape`,
+`Backspace`, or `Left Arrow` returns to UX-S01 under UX-019. No personality
+microcopy appears before one of those final reactions commits.
+
+## UX-S03 — Enabling-Brick input
+
+Selecting `[c]reate` on UX-S02 opens ordinary pending Feed input:
+
+```text
+Create an enabling Brick for:
+
+#r12345 "Review Rock Splitter rules"
+
+›
+
+Tip: write in English when possible.
+Esc returns without recording anything.
+
+----------------------------------------
+↳ #p12345 "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #r12345
+```
+
+Enter preserves the draft and runs the ordinary duplicate, Nature, optional
+Template, and importance-insertion route without committing partial domain
+state. Because an editor is active, Backspace deletes and Left Arrow moves the
+cursor; Escape returns to UX-S02 under UX-019.
+
+## UX-S04 — Dumb enabling structure
+
+After the pending Feed resolves `#a45678`, dumb mode applies FED-030:
+
+```text
+Enabling Brick:
+
+#a45678 "Request access to production logs"
+
+Suggested structure:
+
+Within: #p12345 "Rock Splitter"
+Domain: Orbit › R&D › Rock Splitter
+Blocks: #r12345 "Review Rock Splitter rules"
+
+Use this structure?
+
+*[y]es    [n]o    [?] I don't know
+
+----------------------------------------
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:03         mode: dumb   focus: #r12345
+```
+
+`yes` accepts the structural suggestion and continues the still-pending
+sibling importance insertion; the Dependency never supplies an importance
+answer. `no` opens the canonical parent and Domain choices with the same draft
+and blocked target preserved. `?` explains composition, Domain, Dependency,
+and importance separately before restoring this confirmation. Reverse
+navigation restores the preceding pending Feed checkpoint. No Brick,
+Dependency, symptom, cooldown, or comparison is durable until the complete
+reaction succeeds atomically.
+
+Skill or powered-up mode may instead precede UX-S04 with one attributed
+FED-031 proposal containing the same three visible structural fields. Its
+`yes` enters the same canonical validation and insertion continuation; its
+`no` enters UX-S04 with the dumb baseline unchanged. If assistance has no
+stronger evidence, it renders UX-S04 rather than paraphrasing the baseline as
+an AI judgment.
 
 ## UX-K01 — Nature choice
 

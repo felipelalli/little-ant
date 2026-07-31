@@ -249,7 +249,14 @@ partial state. Then complete each route and verify one atomic prerequisite,
 Dependency, `blocked` symptom, reaction, and cooldown. Navigate through
 `actually waiting` without recording `blocked`; separately choose `skip
 anyway` and verify that it records the symptom and cooldown without inventing
-a blocker.
+a blocker. In the create route, validate UX-S03 and UX-S04: the dumb proposal
+uses the blocked Brick's immediate parent and effective Domain, keeps the new
+Brick a sibling, and expresses prerequisite order only through Dependency.
+Reject it and choose another valid structure without losing the draft. Accept
+it, settle sibling importance independently, and verify the final atomic
+result. In paired powered-up and Skill replays, accept one well-supported
+alternative parent or Domain proposal, reject another into the unchanged dumb
+baseline, and require the baseline itself whenever assisted evidence is weak.
 
 ### SCN-WRK-004 — Other and taxonomy watch
 
