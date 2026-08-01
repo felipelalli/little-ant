@@ -71,7 +71,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | Raw can yield zero or more work items | `I+T`, extraction tests | **strengthened** | durable, reusable Raw under `MOD-001`, `MOD-023`, `MOD-029`, `MOD-049`, `FED-010..014` | Raw review and description routes |
 | Description is a scalar Brick field | `I`, `set --desc` | **replaced** | description is linked Raw under `MOD-029` | create/edit/reuse description Raw |
 | Title-derived IDs and exact-title collision | `I+T`, `Ids.hs` | **replaced** | opaque IDs, repeated titles, duplicate suspicion under `MOD-008..012`, `FED-015..018` | duplicate-title scenarios |
-| Unique-prefix reference resolution | `I+T`, `Ids.resolvePrefix` | **unresolved** | `OPEN-REF-001` | short-ID, ambiguous-prefix, action-token scenario |
+| Unique-prefix reference resolution | `I+T`, `Ids.resolvePrefix` | **strengthened but incomplete** | minimum seven-character lowercase hex, collision expansion, and `#`/`@` typed sigils under `MOD-008..010`; remaining grammar in `OPEN-REF-001` | short-ID, ambiguous-prefix, technical-reference, and action-token scenario |
 | Source fingerprints reveal drift and require reconciliation | `I+T`, source tests | **strengthened** | Raw origin, snapshots, observations, and reconciliation under `FED-014`, `DAT-011..017`, `OPEN-RAW-003` | URL relocation/access-loss scenario |
 | Source/content use is non-consuming | `O`; limited v0 structure | **strengthened** | many-link Raw under `MOD-023` | shared description/source scenario |
 | Exact source grouping and semantic organization are the same thing | not a delivered guarantee | **retired** | source views and RawShelves remain distinct under `FED-012..013` | import-to-shelf route |

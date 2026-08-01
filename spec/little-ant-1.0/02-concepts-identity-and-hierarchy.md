@@ -31,13 +31,25 @@
 
 ## Identity
 
-- **MOD-008 [core] — Opaque identity.** Canonical IDs are opaque and are never
-  hashes of mutable titles. Renaming preserves identity.
+- **MOD-008 [core] — Opaque identity and Git-like short references.** Canonical
+  full IDs are opaque and are never hashes of mutable titles. Renaming
+  preserves identity. A user-facing short reference is the lowercase
+  hexadecimal prefix of that full ID, normally seven characters. The core
+  renders the shortest prefix that is unique in the applicable dataset, never
+  fewer than seven characters, and lengthens colliding references rather than
+  changing either full identity. A pasted shorter or newly ambiguous prefix
+  fails with a typed ambiguity result listing the minimum distinguishing
+  references; it is never resolved by title or recency.
 - **MOD-009 [core] — Repeated titles.** Equal canonical titles do not imply
   identity. Scope, Nature, parent, source, and history participate in
   duplicate suspicion.
-- **MOD-010 [core] — Complete rendering.** Whenever UI text cites a Brick, it
-  renders `#shortid "canonical title"`; a bare ID is insufficient.
+- **MOD-010 [core] — Typed complete rendering.** Whenever UI text cites a
+  Brick, it renders `#shortid "canonical title"`. Whenever it cites an
+  ExternalEntity, it renders `@shortid "declared name"`; optional kind emoji
+  or text may supplement but never replace that sigil. A bare ID is
+  insufficient. The character content of the short ID carries no type
+  meaning: `#a1b2c3d` is a Brick and `@4e5f6a7` is an ExternalEntity solely
+  because of their sigils.
 - **MOD-011 [core] — Suspicion is not equivalence.** Duplicate detection
   creates a reviewable suspicion. Only an explicit canonical outcome may
   reuse, enrich, merge, or keep entities separate.

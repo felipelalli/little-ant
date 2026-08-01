@@ -62,7 +62,7 @@ run as an interactive transcript.
 | 8 | Delegation lifecycle | `WRK-029..034`, `UX-A01` | partial | `OPEN-DEL-001` |
 | 8 | Import/migrate/erase source | `DAT-011..017`, `DAT-042..043` | missing | effect/failure screens |
 | 8 | Calendar observe/write | `DAT-038..041` | missing | `OPEN-CAL-001` |
-| 8 | Typed error/dry-run | `UX-040..042` | missing | complete reference screens |
+| 8 | Typed reference/error/dry-run | `MOD-008..010`, `UX-040..042`, `SCN-REF-001` | partial | exact ambiguity, technical-reference, not-found, precondition, and dry-run screens |
 | 8 | Corrupt history/repair | `MIG-001..017` | missing | `OPEN-DAT-002` |
 | 9 | Powered-up paired replay | `UX-033..039`, `UX-043`, `UX-059..060` | partial | replay accepted dumb flows |
 | 10 | Skill and web/mobile mirror | screen-catalog surface mapping | missing | accepted envelopes required first |
