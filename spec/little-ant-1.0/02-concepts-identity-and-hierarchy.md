@@ -31,31 +31,56 @@
 
 ## Identity
 
-- **MOD-008 [core] — Opaque identity and Git-like short references.** Canonical
-  full IDs are opaque and are never hashes of mutable titles. Renaming
-  preserves identity. A user-facing short reference is the lowercase
-  hexadecimal prefix of that full ID, normally seven characters. The core
-  renders the shortest prefix that is unique in the applicable dataset, never
-  fewer than seven characters, and lengthens colliding references rather than
-  changing either full identity. A pasted shorter or newly ambiguous prefix
-  fails with a typed ambiguity result listing the minimum distinguishing
-  references; it is never resolved by title or recency.
+- **MOD-008 [core] — UUIDv7 internal identity.** Every durable record and event
+  receives one globally unique, immutable 128-bit UUIDv7 identity from one
+  type-neutral namespace. No type bits or type-specific prefixes are embedded
+  in it. The UUID is never derived from title, display handle, type, Domain,
+  parent, or other mutable content. Its RFC 9562 layout is 48 Unix-millisecond
+  timestamp bits, four version bits set to `7`, 12 random bits, two RFC
+  variant bits, and 62 random bits. Technical projections encode the canonical
+  UUID string (for example `0198f8a3-4c21-7b6e-9d05-82fa731c4e60`) or its
+  equivalent 16-byte value. The embedded timestamp is only a
+  generation-locality and indexing aid: explicit event time and authoritative
+  log position determine semantic history. Replay and import reuse the stored
+  UUID and never generate a replacement. See [RFC 9562, UUID Version
+  7](https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-7).
 - **MOD-009 [core] — Repeated titles.** Equal canonical titles do not imply
   identity. Scope, Nature, parent, source, and history participate in
   duplicate suspicion.
-- **MOD-010 [core] — Typed complete rendering.** Whenever UI text cites a
-  Brick, it renders `#shortid "canonical title"`. Whenever it cites an
-  ExternalEntity, it renders `@shortid "declared name"`; optional kind emoji
-  or text may supplement but never replace that sigil. A bare ID is
-  insufficient. The character content of the short ID carries no type
-  meaning: `#a1b2c3d` is a Brick and `@4e5f6a7` is an ExternalEntity solely
-  because of their sigils.
+- **MOD-010 [core] — Typed mnemonic handles and complete rendering.** Each
+  Brick has one dataset-local canonical human handle rendered as
+  `#handle "canonical title"`; each ExternalEntity has one rendered as
+  `@handle "declared name"`. Optional kind emoji or text may supplement but
+  never replace the sigil. A bare handle is insufficient. The handle is a
+  discoverable human reference, not identity: relationships, events, and
+  annotations store the target UUID and render its current handle. Normal
+  surfaces do not expose UUIDs unless a technical or diagnostic projection
+  explicitly requests them. The default mnemonic base for a multi-word title
+  or name is its normalized lowercase ASCII initials without stop-word
+  removal. The first available base is unsuffixed; a collision receives the
+  smallest never-used integer suffix beginning at `2`, as in `#rs` and
+  `#rs2`. The
+  allocator is deterministic within one dataset and maintains separate `#`
+  and `@` namespaces. Retired handles are not reused. Renaming a title or name
+  keeps its handle by default. An explicit previewed handle rename creates no
+  compatibility alias. Exact normalization of single-word, non-Latin, empty,
+  or punctuation-only names remains `OPEN-REF-001`.
 - **MOD-011 [core] — Suspicion is not equivalence.** Duplicate detection
   creates a reviewable suspicion. Only an explicit canonical outcome may
   reuse, enrich, merge, or keep entities separate.
-- **MOD-012 [core] — Explicit merge.** `merge` chooses a surviving identity,
+- **MOD-012 [core] — Explicit object merge.** `merge` chooses a surviving UUID,
   previews affected relationships and conflicts, preserves lineage and source
-  provenance, and supports dry-run. It is not a title-based deduplication.
+  provenance, and supports dry-run. It is not a title- or handle-based
+  deduplication. A dataset merge compares UUIDs before handles. The same UUID
+  with compatible lineage denotes the same object and is reconciled;
+  incompatible content or lineage under the same UUID is an explicit identity
+  conflict and is never silently remapped. Different UUIDs remain different
+  objects even when their handles or titles match. In an import into an
+  existing target dataset, a conflicting target handle remains stable and the
+  incoming object receives the next never-used suffix after a dry-run preview;
+  UUIDs remain unchanged. The report names every public-handle change, and
+  externally stored literal references require an inspectable mapping report
+  rather than a hidden alias.
 
 The initial ExternalEntity kinds are:
 
@@ -114,11 +139,12 @@ open release decision rather than an inferred v1 commitment.
   same Raw may participate in several links without being consumed or copied.
 - **MOD-024 [standard] — Explicit typed annotations.** `@` and `#` text becomes
   an ExternalEntity or Brick annotation only after an explicit target
-  selection on an annotation-capable field. The annotation stores opaque
-  target identity and the applicable content revision. Unselected lookalike
-  text remains literal. An annotation supports navigation and retrieval but
-  never creates requester, delegation, waiting, dependency, Domain, or other
-  behavioral semantics by itself.
+  selection from the corresponding handle autocomplete on an
+  annotation-capable field. The annotation stores target UUID and the
+  applicable content revision, then renders the current canonical handle.
+  Unselected lookalike text remains literal. An annotation supports navigation
+  and retrieval but never creates requester, delegation, waiting, dependency,
+  Domain, or other behavioral semantics by itself.
 
 ## Factory Natures
 

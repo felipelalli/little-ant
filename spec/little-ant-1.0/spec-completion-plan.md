@@ -61,7 +61,8 @@ Deliverables:
 - replace the historical regression chapter with the maintained
   [v0→1.0 matrix](v0-v1-capability-matrix.md);
 - harvest unique safety guarantees and open questions;
-- rewrite traceability around Git evidence and canonical IDs;
+- rewrite traceability around Git evidence, UUID identity, and canonical
+  human handles;
 - remove the entire live `history/` shadow tree;
 - validate links, rejected vocabulary, and contradictory claims.
 

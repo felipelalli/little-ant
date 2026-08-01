@@ -70,8 +70,8 @@ unresolved            no trustworthy 1.0 disposition yet
 | Feed asks for no metadata form before entry | `O`, README/skill/Allium | **explicitly simplified** | one Nature is required; all other axes remain lazy under `PRD-014`, `FED-004..009` | three golden Feed routes |
 | Raw can yield zero or more work items | `I+T`, extraction tests | **strengthened** | durable, reusable Raw under `MOD-001`, `MOD-023`, `MOD-029`, `MOD-049`, `FED-010..014` | Raw review and description routes |
 | Description is a scalar Brick field | `I`, `set --desc` | **replaced** | description is linked Raw under `MOD-029` | create/edit/reuse description Raw |
-| Title-derived IDs and exact-title collision | `I+T`, `Ids.hs` | **replaced** | opaque IDs, repeated titles, duplicate suspicion under `MOD-008..012`, `FED-015..018` | duplicate-title scenarios |
-| Unique-prefix reference resolution | `I+T`, `Ids.resolvePrefix` | **strengthened but incomplete** | minimum seven-character lowercase hex, collision expansion, and `#`/`@` typed sigils under `MOD-008..010`; remaining grammar in `OPEN-REF-001` | short-ID, ambiguous-prefix, technical-reference, and action-token scenario |
+| Title-derived IDs and exact-title collision | `I+T`, `Ids.hs` | **replaced** | UUIDv7 identities, repeated titles, and duplicate suspicion under `MOD-008..012`, `FED-015..018` | duplicate-title scenarios |
+| Unique-prefix reference resolution | `I+T`, `Ids.resolvePrefix` | **deliberately replaced and strengthened** | immutable UUIDv7 identities plus dataset-local mnemonic `#`/`@` handles, typed autocomplete, collision suffixes, rename stability, and previewed merge remapping under `MOD-008..012` and `UX-075..076`; remaining edge grammar in `OPEN-REF-001` | handle allocation, autocomplete, rename, retired-handle, merge-conflict, technical-reference, and action-token scenarios |
 | Source fingerprints reveal drift and require reconciliation | `I+T`, source tests | **strengthened** | Raw origin, snapshots, observations, and reconciliation under `FED-014`, `DAT-011..017`, `OPEN-RAW-003` | URL relocation/access-loss scenario |
 | Source/content use is non-consuming | `O`; limited v0 structure | **strengthened** | many-link Raw under `MOD-023` | shared description/source scenario |
 | Exact source grouping and semantic organization are the same thing | not a delivered guarantee | **retired** | source views and RawShelves remain distinct under `FED-012..013` | import-to-shelf route |
@@ -154,7 +154,7 @@ replaced-with-open-details define concrete specification work:
 
 1. pending-question command escape and global palette behavior;
 2. canonical executable name;
-3. typed reference and ambiguous-prefix grammar;
+3. typed-handle edge normalization and technical-reference grammar;
 4. complete merge and supersede transfer matrices;
 5. hard temporary Domain scope and no-result recovery;
 6. whether positive probability needs any bounded service guarantee;

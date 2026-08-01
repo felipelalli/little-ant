@@ -36,11 +36,11 @@ The canonical semantic question is:
 ```text
 Is
 
-#a12345a "X"
+#x "X"
 
     more important than
 
-#b12345b "Y"
+#y "Y"
 ?
 
 [m]ore important   [l]ess important   [s]kip   [?] I don't know

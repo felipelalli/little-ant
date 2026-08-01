@@ -10,7 +10,9 @@
   invariant and identity checks pass.
 - **MIG-003 [core] — Identity map.** Every migrated v0 Raw, Brick, ListEntry,
   legacy Party, source, and relevant historical event has an inspectable
-  old-to-new identity or preservation record.
+  old-to-new identity or preservation record. Each newly materialized v1
+  object receives one stored UUIDv7; replay of the migration reuses the
+  recorded mapping rather than minting another identity.
 - **MIG-004 [core] — Historical evidence.** Rejected vocabulary may remain
   quoted inside immutable v0 payloads and migration reports. Current v1 state
   and APIs use only canonical vocabulary.
@@ -55,7 +57,9 @@ relationships remain explicit migration decisions under `OPEN-MIG-001`.
 
 - **MIG-012 [core] — Preflight.** Before any cutover, report source counts,
   parse/upcast warnings, unmapped identities, ambiguous references,
-  incompatible cycles, title-only collisions, and unresolved Nature mappings.
+  incompatible cycles, title-only collisions, proposed mnemonic handles,
+  handle remappings, and unresolved Nature mappings. A dataset merge never
+  changes UUIDs merely to resolve a public-handle collision.
 - **MIG-013 [core] — Projection invariants.** Candidate state must satisfy
   opaque identity, exactly one Nature per Brick, one sibling position per
   active Brick, acyclic composition/dependencies, valid terminal structure,
@@ -89,3 +93,9 @@ relationships remain explicit migration decisions under `OPEN-MIG-001`.
 - **MIG-022 [core] — Separate coding authorization.** Documentation, scenario,
   Allium, test generation, implementation, and data cutover remain explicit
   phases. Finishing one never silently authorizes the next.
+- **MIG-023 [core] — Dataset-merge identity safety.** Importing or merging an
+  existing v1 dataset first reconciles equal UUIDs by lineage, rejects
+  incompatible equal-UUID histories as explicit identity conflicts, and then
+  previews deterministic handle remapping for different objects that share a
+  handle. Approval records the mapping report; it never creates compatibility
+  aliases.

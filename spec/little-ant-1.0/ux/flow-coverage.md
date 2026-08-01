@@ -23,7 +23,7 @@ run as an interactive transcript.
 | 2 | Contextual uncertainty/help | `UX-H01`, `UX-016..017` | partial | assistance subpages and return transitions |
 | 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048`, `UX-072..073` | partial | remaining screen placement, monochrome cursor marker, and unavailable/search recovery |
 | 2 | Revision/stale response | `UX-029..031` | missing | `OPEN-UX-002` |
-| 2 | Reference selection | `MOD-010`, `MOD-024` | missing | `OPEN-REF-001` |
+| 2 | Reference selection | `MOD-010`, `MOD-024`, `UX-075..076`, `UX-RF01` | screened | exact single-word/non-Latin handle normalization and recovery under `OPEN-REF-001` |
 | 3 | Restore/startup to `next` | `UX-R00`, `UX-F04..F05`, `UX-046`, `UX-063` | partial | pending-envelope result transition |
 | 3 | Pristine first start | `UX-E00`, `FOC-029` | screened | Feed/back/end-to-end transition |
 | 3 | Useful non-pristine empty | `UX-E01`, `FOC-028` | screened | state-derived choice transitions |
@@ -43,7 +43,7 @@ run as an interactive transcript.
 | 4 | Served-work symptom | `UX-S01..S05`, `WRK-007..013`, `WRK-047`, `FED-030..031` | partial | remaining reaction screens under `OPEN-SKIP-001` |
 | 4 | Atomic break/reclassification | `UX-B01`, `MOD-045..047` | screened | accepted/rejected result transitions |
 | 4 | Focus/WIP interruption | `FOC-033`, `UX-F06`, `UX-066..067`, `WRK-001..006`, `WRK-048` | partial | resume, WIP-to-idle grammar, result screens, and `OPEN-WRK-001` |
-| 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032` | missing | `OPEN-MERGE-001`, `OPEN-TREE-001` |
+| 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
 | 5 | Cross-Domain focus | `UX-F02`, `FOC-014..019` | partial | hard scope and equal-specificity target |
 | 5 | N-step/branching blockers | `UX-F03`, `FOC-020..024` | partial | non-Brick endpoint and branch inspection |
@@ -63,7 +63,7 @@ run as an interactive transcript.
 | 8 | Delegation lifecycle | `WRK-029..034`, `UX-A01` | partial | `OPEN-DEL-001` |
 | 8 | Import/migrate/erase source | `DAT-011..017`, `DAT-042..043` | missing | effect/failure screens |
 | 8 | Calendar observe/write | `DAT-038..041` | missing | `OPEN-CAL-001` |
-| 8 | Typed reference/error/dry-run | `MOD-008..010`, `UX-040..042`, `SCN-REF-001` | partial | exact ambiguity, technical-reference, not-found, precondition, and dry-run screens |
+| 8 | Typed reference/error/dry-run | `MOD-008..010`, `UX-040..042`, `UX-075..076`, `UX-RF01..RF02`, `SCN-REF-001` | partial | technical-reference, not-found, precondition, edge-normalization, and generic dry-run screens |
 | 8 | Corrupt history/repair | `MIG-001..017` | missing | `OPEN-DAT-002` |
 | 9 | Powered-up paired replay | `UX-033..039`, `UX-043`, `UX-059..060` | partial | replay accepted dumb flows |
 | 10 | Skill and web/mobile mirror | screen-catalog surface mapping | missing | accepted envelopes required first |

@@ -13,7 +13,12 @@
   rejected proposal cannot lose user material.
 - **FED-004 [core] — Fast path.** Creating a Brick requires a title and one
   Nature. Phase, effort, impact, Domain, descriptive Raw, dates, and other
-  optional axes are enriched later when useful.
+  optional axes are enriched later when useful. A creation preview may show
+  the proposed mnemonic handle, but no durable identity is recorded for
+  abandoned input. The atomic creation commit stores one generated UUIDv7 and
+  allocates the deterministic dataset-local handle from MOD-010. Duplicate
+  suspicion is resolved before this commit, so choosing `reuse` or `enrich`
+  targets the existing UUID rather than creating and then hiding a new object.
 
 ## Classification and confirmation
 

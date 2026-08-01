@@ -84,7 +84,12 @@ idea · spec · exec · validation
 Phase does not determine importance, completion, or WIP. Natures may disable
 phase or effort when those concepts would only add noise.
 
-Brick IDs are opaque and survive renames. Canonical searchable titles are
+Every durable record has an immutable internal UUIDv7 identity. Bricks use a
+separate mnemonic human handle such as `#rs "Rock Splitter"`; people and
+companies use `@`, such as `@am "Alice Moreira"`. Handles are searchable,
+survive ordinary renames, and never replace UUIDs inside relationships or
+events. Typing `#` or `@` opens the corresponding autocomplete, so users do
+not need to memorize technical identifiers. Canonical searchable titles are
 English; original titles remain available as provenance.
 
 See [concepts and identity](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md)
@@ -166,11 +171,11 @@ powered-up adapter may make an attributed proposal.
 ```text
 Is
 
-"Replace the laptop battery"
+#rtlb "Replace the laptop battery"
 
     more important than
 
-"Read the storage design paper"
+#rtsdp "Read the storage design paper"
 ?
 
 [m]ore important   [l]ess important   [s]kip   [?] I don't know
@@ -186,7 +191,7 @@ position and gains future validation pressure.
 ```text
 ant> /next
 
-Focus: "Replace the laptop battery"
+Focus: #rtlb "Replace the laptop battery"
 Why: high importance · available now · unlocks another Brick
 [y] focus · [d] done · [s] skip · [?]
 ```
@@ -240,7 +245,7 @@ Focus forecast
 
 ```text
 ant> /history
-ant> /history --brick <id>
+ant> /history --brick #rtlb
 ```
 
 History queries are typed, composable, bounded, and paginated. Ordinary

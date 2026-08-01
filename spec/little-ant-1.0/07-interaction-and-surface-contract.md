@@ -161,18 +161,29 @@ no-emoji rendering remain `OPEN-UX-001`.
   name. The core therefore exposes `/focus-blocker`, not `/focus blocker` or
   `/focus_blocker`, and provides no spelling aliases. Assisted surfaces may
   interpret natural language but render and invoke the canonical token.
-- **UX-075 [core] — Unified ExternalEntity lookup.** A guided flow that needs
-  an ExternalEntity target opens one autocomplete input containing eligible
-  existing entities and, when the text is not already represented, one
-  explicit creation candidate. It does not ask a preliminary `find or create`
-  question. Typing filters without mutation; Up/Down moves the selection,
-  reverse video identifies it on capable terminals, and Enter chooses the
-  displayed revisioned action. Selecting creation enters canonical typed
-  ExternalEntity creation and then returns its result to the suspended flow;
-  the dumb host never guesses a kind from a name. Escape, Left Arrow, and
-  empty-buffer Backspace follow UX-019. Proper names keep their declared
-  spelling, so this input omits the ordinary suggestion to write prose in
-  English.
+- **UX-075 [core] — Unified person-or-company lookup.** A guided flow that
+  needs an ExternalEntity target opens one `@` autocomplete containing
+  eligible existing records and, when creation is valid in that context, the
+  explicit human-facing candidate `New person or company...`. Ordinary screen
+  copy uses contextual nouns such as person, company, team, or service rather
+  than exposing the technical term `ExternalEntity`. The flow does not ask a
+  preliminary `find or create` question. Typing filters both handle and
+  declared name without mutation; Up/Down moves the selection, reverse video
+  identifies it on capable terminals, and Enter chooses the displayed
+  revisioned action. Selecting creation enters canonical typed creation and
+  then returns its result to the suspended flow; the dumb host never guesses a
+  kind from a name. Escape, Left Arrow, and empty-buffer Backspace follow
+  UX-019. Proper names keep their declared spelling, so this input omits the
+  ordinary suggestion to write prose in English.
+- **UX-076 [core] — Typed handle autocomplete.** Typing `#` in a
+  reference-capable input opens Brick autocomplete; typing `@` opens
+  person-or-company autocomplete. Search matches the canonical handle and
+  title or name. Results always use the complete typed rendering from MOD-010.
+  `New Brick...` or `New person or company...` appears only when creation is a
+  valid action in the suspended interaction. Selecting a result returns its
+  UUID-backed reference; the user never has to memorize or type an internal
+  UUID. Handle search and creation do not make lookalike literal text into a
+  semantic annotation without confirmation.
 
 ## Status, history, and recovery
 

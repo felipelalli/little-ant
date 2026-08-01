@@ -38,7 +38,7 @@ the top of the screen:
 ```text
 Next:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 Focus?
 
@@ -46,7 +46,7 @@ Focus?
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
@@ -76,16 +76,16 @@ More:
 
 › /
 
-/done       Mark #012345a "Review Rock Splitter rules" as done
+/done       Mark #rrsr "Review Rock Splitter rules" as done
 /feed       Feed Little Ant
-/show       Inspect #012345a "Review Rock Splitter rules"
+/show       Inspect #rrsr "Review Rock Splitter rules"
 /history    Open interaction history
 
 Type to filter available commands.
 ↑/↓ select · Enter run · Esc back
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
@@ -96,6 +96,56 @@ are contextual and replay-deterministic. Descriptions expose the current
 target rather than relying on a hidden argument. Escape restores UX-R00
 unchanged. `/show` returns to it; `/done` resolves it; a completed `/feed`
 route revalidates it before anything may act on the old proposal.
+
+## UX-RF01 — Typed Brick autocomplete
+
+Typing `#` in a reference-capable input opens a typed search rather than
+requiring a memorized identifier:
+
+```text
+Choose a Brick:
+
+› #rs
+
+  #rs "Rock Splitter"
+  #rs2 "Reason Season"
+  New Brick...
+
+↑/↓ select · Enter choose · Esc back
+```
+
+The query matches handles and canonical titles. `New Brick...` is absent when
+the pending interaction permits only an existing target. Typing `@` opens the
+equivalent person-or-company search from UX-075; its creation row is always
+`New person or company...`. UUIDv7 values are available in technical
+projections but never appear in this ordinary selector.
+
+## UX-RF02 — Dataset handle-conflict preview
+
+A v1 dataset merge preserves internal identity and previews any public
+reference change before mutation:
+
+```text
+Reference handle conflict:
+
+#rs "Rock Splitter"
+#rs "Reason Season"
+
+Proposed remapping:
+#rs "Rock Splitter"  → unchanged
+#rs "Reason Season"  → #rs2
+
+Internal identities will not change.
+
+Continue?
+
+[y]es   [n]o   [?] I don't know
+```
+
+The preview is deterministic for the same two inputs. Confirmation records an
+inspectable mapping report and creates no alias. If the datasets contain the
+same UUID with incompatible lineage, this confirmation is replaced by a typed
+identity-conflict result with a concrete recovery path.
 
 ## UX-R01 — Civil clock and operational day
 
@@ -126,7 +176,7 @@ boundary:
 ```text
 Next:
 
-#c12345c "Write the migration specification"
+#wtms "Write the migration specification"
 
 Focus?
 
@@ -134,9 +184,9 @@ Focus?
 [/] more...
 
 ----------------------------------------
-↳ #a12345a "Recover Little Ant v1"
+↳ #rlav2 "Recover Little Ant v1"
 🏷️ Personal › Little Ant
-⚠️ #211111c "Submit migration report" · deadline in 2h · +2 warnings
+⚠️ #smr "Submit migration report" · deadline in 2h · +2 warnings
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
 ```
@@ -151,7 +201,7 @@ this same opportunity without mutation.
 ```text
 Next:
 
-#312345d "Buy groceries"
+#bg "Buy groceries"
 
 Focus?
 
@@ -174,7 +224,7 @@ preserve it.
 ```text
 Next:
 
-#b30000b "Define the importance-maintenance contract"
+#dtimc "Define the importance-maintenance contract"
 
 Focus?
 
@@ -182,10 +232,10 @@ Focus?
 [/] more...
 
 ----------------------------------------
-↳ #a12345a "Recover Little Ant v1"
+↳ #rlav2 "Recover Little Ant v1"
 🏷️ Personal › Little Ant
-🚧 reached through #090000a "Release Little Ant v1"
-   → blocked by #520000f "Restore importance ordering"
+🚧 reached through #rlav "Release Little Ant v1"
+   → blocked by #rio "Restore importance ordering"
    → blocked by this Brick
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
@@ -203,7 +253,7 @@ opportunity:
 ```text
 Current focus:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 💪 Nice! Roll up your sleeves and give it a go.
 Come back when you're done—or when something gets in the way. 😌
@@ -211,10 +261,10 @@ Come back when you're done—or when something gets in the way. 😌
 [d]one   [s]kip   [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 The phrase is one `focus_started` entry from the 16-phrase factory catalog.
@@ -232,15 +282,15 @@ without replaying its transition message:
 ```text
 Current focus:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 [d]one   [s]kip   [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:05         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:05         mode: dumb   focus: #rrsr
 ```
 
 This continuation creates no event, performs no draw, and selects no
@@ -255,14 +305,14 @@ Pressing `d` on UX-F04 or UX-F05 does not open a confirmation:
 ```text
 Done:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 🎉 Nice work. That Brick is in place.
 
 [n]ext   [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   17 eligible   3 reviews
    Mon, Aug 3   09:32         mode: dumb   focus: idle
@@ -284,14 +334,14 @@ silently cross the commit boundary:
 Undo the last recorded action?
 
 ✅ Completed:
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 [y]es   [n]o   [?] I don't know
 
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   17 eligible   3 reviews
    Mon, Aug 3   09:32         mode: dumb   focus: idle
@@ -313,17 +363,17 @@ After UX-U01 is confirmed and no local forward checkpoint remains, pressing
 Redo the last undone action?
 
 ✅ Complete:
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 [y]es   [n]o   [?] I don't know
 
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:32         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:32         mode: dumb   focus: #rrsr
 ```
 
 `yes` invokes the same checked reapplication as `/redo`. The current screen
@@ -338,14 +388,14 @@ Selecting `/pause` from a current-focus palette commits immediately:
 ```text
 Paused:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 This Brick remains in progress.
 
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:05         mode: dumb   focus: idle
@@ -360,17 +410,17 @@ draw. The contextual palette remains anchored to the displayed WIP Brick.
 ```text
 Is
 
-#a12345a "Launch the landing page"
+#ltlp "Launch the landing page"
 
       more important than
 
-#b45678b "Interview prospective customers"
+#ipc "Interview prospective customers"
 ?
 
 *[m]ore important   [l]ess important   [s]kip   [?] I don't know
 
 ----------------------------------------
-↳ #112345b "Release the new website"
+↳ #rtnw "Release the new website"
 Suggestion: /bin/claude-fast.sh · importance insertion
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
@@ -383,7 +433,7 @@ the reverse strict relation. Neither means equality.
 ## UX-S01 — Served-work symptom
 
 ```text
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 What's getting in the way?
 
@@ -401,12 +451,12 @@ Already finished?
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
-⚠️ #211111c "Review fraud incident" · deadline tomorrow
+⚠️ #rfi "Review fraud incident" · deadline tomorrow
 served after 9 days · active Domain unchanged
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 Selecting a symptom opens its separate reaction screen without recording
@@ -426,7 +476,7 @@ Selecting `[b]locked or waiting` on UX-S01 opens this uncommitted
 classification:
 
 ```text
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 What needs to happen before you can continue?
 
@@ -444,12 +494,12 @@ Continue without identifying it?
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
-⚠️ #211111c "Review fraud incident" · deadline tomorrow
+⚠️ #rfi "Review fraud incident" · deadline tomorrow
 served after 9 days · active Domain unchanged
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 The choices describe the human situation, not storage primitives. `task`
@@ -470,7 +520,7 @@ appears before a final reaction commits.
 Selecting `[t]ask` on UX-S02 opens:
 
 ```text
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 Does the prerequisite already exist?
 
@@ -481,10 +531,10 @@ Does the prerequisite already exist?
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 `find` opens an existing-Brick selector; `create` opens UX-S03 and its pending
@@ -499,7 +549,7 @@ returns to UX-S02.
 Selecting `someone must [r]espond` on UX-S02 opens one autocomplete input:
 
 ```text
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 Whose response are you waiting for?
 
@@ -508,10 +558,10 @@ Whose response are you waiting for?
 Type a name. Existing entities will appear as you type.
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 After typing `Alice`, the same screen may contain:
@@ -521,32 +571,33 @@ Whose response are you waiting for?
 
 › Alice
 
-  @e12345e "Alice Moreira"    person
-  @e45678e "Alice Support"    team
-  Add "Alice" to Little Ant...
+  @am "Alice Moreira"    person
+  @as "Alice Support"    team
+  New person or company...
 ```
 
 The active result uses reverse video on a capable terminal. Up/Down changes
 the active result, Enter selects it, and further typing refines the bounded
 results. Existing and creation candidates are separate revisioned action IDs,
-not duplicate-suspicion guesses. Selecting `Add` opens canonical
-ExternalEntity kind selection and returns the created identity here; this
-screen does not infer `person` from the text `Alice`. Names retain their
-declared spelling and no English-writing tip is shown. Escape, Left Arrow, or
-Backspace while the buffer is already empty returns to UX-S02 without
-recording an ExternalEntity, Wait, skip, or cooldown. Selecting a target
-continues to the request-status question; it still commits nothing.
+not duplicate-suspicion guesses. Selecting `New person or company...` opens
+canonical typed creation and returns the created identity here; ordinary copy
+does not expose the technical term ExternalEntity, and this screen does not
+infer `person` from the text `Alice`. Names retain their declared spelling and
+no English-writing tip is shown. Escape, Left Arrow, or Backspace while the
+buffer is already empty returns to UX-S02 without recording a person or
+company, Wait, skip, or cooldown. Selecting a target continues to the
+request-status question; it still commits nothing.
 
 ## UX-S02C — Request status
 
-Selecting `@e12345e "Alice Moreira"` in UX-S02B opens:
+Selecting `@am "Alice Moreira"` in UX-S02B opens:
 
 ```text
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 Needs a response from:
 
-@e12345e "Alice Moreira"
+@am "Alice Moreira"
 
 Has the request already been made?
 
@@ -555,10 +606,10 @@ Has the request already been made?
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 This binary question records nothing. `yes` enters UX-W00 before activating a
@@ -573,10 +624,10 @@ selection and input draft.
 The first activation and every `wait longer` route use the same finite choice:
 
 ```text
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 Waiting for:
-@e12345e "Alice Moreira"
+@am "Alice Moreira"
 
 When may we start checking again?
 
@@ -590,10 +641,10 @@ one [w]eek      (Mon, Aug 10)
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 The factory dumb suggestion for a human response is three days. Each relative
@@ -613,10 +664,10 @@ ordinary subject-first draw, it renders a review rather than `Focus?`:
 ```text
 Review:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 Waiting for:
-@e12345e "Alice Moreira"
+@am "Alice Moreira"
 
 Waiting since Mon, Aug 3 · reviewed 4 days ago
 
@@ -631,7 +682,7 @@ What happened?
 [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   17 eligible   3 reviews
    Fri, Aug 7   09:00         mode: dumb   focus: idle
@@ -652,7 +703,7 @@ Selecting `[c]reate` on UX-S02A opens ordinary pending Feed input:
 ```text
 Create an enabling Brick for:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 ›
 
@@ -660,10 +711,10 @@ Tip: write in English when possible.
 Esc returns without recording anything.
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
 ```
 
 Enter preserves the draft and runs the ordinary duplicate, Nature, optional
@@ -675,18 +726,18 @@ under UX-019.
 
 ## UX-S04 — Dumb enabling structure
 
-After the pending Feed resolves `#a45678a`, dumb mode applies FED-030:
+After the pending Feed resolves `#ratpl`, dumb mode applies FED-030:
 
 ```text
 Enabling Brick:
 
-#a45678a "Request access to production logs"
+#ratpl "Request access to production logs"
 
 Suggested structure:
 
-Within: #112345b "Rock Splitter"
+Within: #rs "Rock Splitter"
 Domain: Orbit › R&D › Rock Splitter
-Blocks: #012345a "Review Rock Splitter rules"
+Blocks: #rrsr "Review Rock Splitter rules"
 
 Use this structure?
 
@@ -694,7 +745,7 @@ Use this structure?
 
 ----------------------------------------
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:03         mode: dumb   focus: #012345a
+   Mon, Aug 3   09:03         mode: dumb   focus: #rrsr
 ```
 
 `yes` accepts the structural suggestion and continues the still-pending
@@ -721,18 +772,18 @@ Completing the enabling-Brick route commits once and waits without drawing:
 ```text
 Blocked for now:
 
-#012345a "Review Rock Splitter rules"
+#rrsr "Review Rock Splitter rules"
 
 Blocked by:
 
-#a45678a "Request access to production logs"
+#ratpl "Request access to production logs"
 
 🐜 Even ants reroute sometimes.
 
 [n]ext    [/] more...
 
 ----------------------------------------
-↳ #112345b "Rock Splitter"
+↳ #rs "Rock Splitter"
 🏷️ Orbit › R&D › Rock Splitter
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:07         mode: dumb   focus: idle
@@ -742,7 +793,7 @@ The phrase is one replay-stable `skip_acknowledged` entry under UX-064. The
 result neither starts the blocker nor performs a forecast draw. `[n]ext`
 invokes the ordinary weighted pipeline; dependency pressure applies without
 guaranteeing the blocker a win. The contextual palette exposes
-`/focus-blocker`, whose visible target is `#a45678a`. That command bypasses the
+`/focus-blocker`, whose visible target is `#ratpl`. That command bypasses the
 forecast draw but still opens the ordinary `Focus?` proposal; it never starts
 work silently. If the named blocker is itself blocked, the canonical N-step
 dependency resolver supplies the actionable endpoint and complete `Why` path.
@@ -900,7 +951,7 @@ Template identities.
 ## UX-B01 — Break an atomic task
 
 ```text
-#a12345a "Prepare the quarterly report"
+#ptqr "Prepare the quarterly report"
 
 This Brick is an atomic task.
 Independently tracked parts require a different Nature.
@@ -910,10 +961,10 @@ Change Nature:
 
 Proposed structure:
 
-#a12345a "Prepare the quarterly report"        project
-├─ #c12345c "Collect the quarterly data"       atomic task
-├─ #9123453 "Analyze the results"              atomic task
-└─ #8123452 "Write the final report"           atomic task
+#ptqr "Prepare the quarterly report"     project
+├─ #ctqd "Collect the quarterly data"    atomic task
+├─ #atr "Analyze the results"            atomic task
+└─ #wtfr "Write the final report"        atomic task
 
 Apply this change?
 
@@ -960,7 +1011,7 @@ Why is this blocked?
 [Enter] confirm · [Esc] cancel
 
 ----------------------------------------
-↳ #012345a "Review Rock Splitter rules"
+↳ #rrsr "Review Rock Splitter rules"
 text is local draft until confirmed
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
@@ -1022,7 +1073,7 @@ Continue?
 [y]es · *[n]o · [?] I don't know
 
 ----------------------------------------
-↳ #412345e "Swim twice per week"
+↳ #stpw "Swim twice per week"
 [x][x][-][x][x] · current window ends Sunday
 🐜 Little Ant   18 eligible   3 reviews
    Mon, Aug 3   09:00         mode: dumb   focus: idle
@@ -1034,7 +1085,7 @@ has ended.
 ## UX-L01 — Living checklist
 
 ```text
-#312345d "Buy groceries"
+#bg "Buy groceries"
 
 Open items
 

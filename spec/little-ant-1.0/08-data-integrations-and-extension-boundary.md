@@ -25,7 +25,10 @@
 - **DAT-007 [core] — Observable postcondition.** A mutator returns enough
   compact identity, revision, changed aspects, spawned work, notices, pending
   effects, and next interaction to establish its outcome without a mandatory
-  follow-up query.
+  follow-up query. In a technical JSON projection, `id` is the canonical
+  UUIDv7 string and a human `handle`, when the record kind has one, is a
+  separate field. UUID-bearing relation fields never substitute or persist a
+  display handle.
 - **DAT-008 [core] — Schema-owned omission.** Optional inapplicable values and
   unrelated empty collections may be omitted. Meaningful `false`, zero,
   requested empty collections, tri-state values, and explicit clearing remain

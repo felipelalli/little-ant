@@ -36,48 +36,48 @@ Learning
 ### ExternalEntities
 
 ```text
-@e00001e "Bento Camargo" · person
-@e00002e "GitHub" · service
-@e00003e "Fast model" · ai_agent
+@bc "Bento Camargo" · person
+@github "GitHub" · service
+@fm "Fast model" · ai_agent
 ```
 
 ### Bricks and material
 
 ```text
-#090000a "Release Little Ant v1" · project · Personal › Little Ant
-  #a12345a "Recover Little Ant v1" · project
-    #c12345c "Write the migration specification" · atomic_task · phase spec
-    #520000f "Restore importance ordering" · project
-      #b30000b "Define the importance-maintenance contract" · atomic_task · phase spec
+#rlav "Release Little Ant v1" · project · Personal › Little Ant
+  #rlav2 "Recover Little Ant v1" · project
+    #wtms "Write the migration specification" · atomic_task · phase spec
+    #rio "Restore importance ordering" · project
+      #dtimc "Define the importance-maintenance contract" · atomic_task · phase spec
 
-#112345b "Rock Splitter" · project · Orbit › R&D › Rock Splitter
-  #012345a "Review Rock Splitter rules" · atomic_task
+#rs "Rock Splitter" · project · Orbit › R&D › Rock Splitter
+  #rrsr "Review Rock Splitter rules" · atomic_task
 
-#312345d "Buy groceries" · living_checklist · Personal › Housekeeping
+#bg "Buy groceries" · living_checklist · Personal › Housekeeping
   entries: Coffee, Dish soap
 
-#412345e "Swim twice per week" · habit · Personal › Health
-  blocked by #6123450 "Find a swimming pool" · atomic_task
+#stpw "Swim twice per week" · habit · Personal › Health
+  blocked by #fsp "Find a swimming pool" · atomic_task
 
-#e12345e "Pay electricity bill · August 2026"
+#peb "Pay electricity bill · August 2026"
   recurring_obligation occurrence · Personal › Finance
 
-#7123451 "Read the focus-engine article" · repeatable · Learning
-  source Raw #8123452 "https://example.com/focus-engine"
+#rtfea "Read the focus-engine article" · repeatable · Learning
+  source Raw "https://example.com/focus-engine"
 
-#d12345d "Obtain supplier review" · atomic_task
-  delegated to @e00001e "Bento Camargo" · follow-up overdue
+#osr "Obtain supplier review" · atomic_task
+  delegated to @bc "Bento Camargo" · follow-up overdue
 
-Raw #9123453 "Unsorted meeting notes"
-Raw #8123452 "https://example.com/focus-engine"
+Raw "Unsorted meeting notes"
+Raw "https://example.com/focus-engine"
 ```
 
 Dependencies:
 
 ```text
-#090000a blocked by #520000f
-#520000f blocked by #b30000b
-#412345e blocked by #6123450
+#rlav blocked by #rio
+#rio blocked by #dtimc
+#stpw blocked by #fsp
 ```
 
 ## Day 1 — Feeding and identity
@@ -126,7 +126,7 @@ mode: powered up · by: /bin/claude-fast.sh
 It must automatically serve the same opening `next` opportunity. Press
 `/`, select `/feed`, enter `comprar leite`, and submit it. Validate that the
 model may propose canonical English, ListEntry route,
-`#312345d "Buy groceries"`, and duplicate interpretation in fewer screens
+`#bg "Buy groceries"`, and duplicate interpretation in fewer screens
 while using the same canonical envelope/action IDs. Any proposed Template
 must expose its resulting Nature and source, require `[y]es`, `[n]o`, or
 `[?] I don't know`, and enter the unchanged dumb flow after `no`. Record
@@ -158,7 +158,7 @@ Feed input, create a Brick, record a domain event, or consume a draw.
 
 ### SCN-IMP-001 — Binary insertion
 
-Place `#c12345c "Write the migration specification"` among siblings using
+Place `#wtms "Write the migration specification"` among siblings using
 UX-C01. Validate `more important`, `less important`, `*`, and full Brick
 labels.
 
@@ -183,14 +183,14 @@ explanation without a hard filter.
 
 ### SCN-FOC-002 — Positive-tail cross-Domain draw
 
-Use a recorded draw in which `#312345d "Buy groceries"` wins. Validate UX-F02:
+Use a recorded draw in which `#bg "Buy groceries"` wins. Validate UX-F02:
 no preliminary switch prompt; `yes` changes Domain; `skip` and non-focus
 palette actions do not.
 
 ### SCN-FOC-003 — N-step blocker path
 
-Draw `#090000a "Release Little Ant v1"` and resolve through `#520000f` to
-`#b30000b`. Validate UX-F03, local weighted branch evidence, complete `?`
+Draw `#rlav "Release Little Ant v1"` and resolve through `#rio` to
+`#dtimc`. Validate UX-F03, local weighted branch evidence, complete `?`
 context, and no importance rewrite.
 
 ### SCN-FOC-004 — Project descent
@@ -317,7 +317,7 @@ change.
 
 ### SCN-REP-001 — Read again
 
-Complete `#7123451`, request another reading in six months plus or minus three,
+Complete `#rtfea`, request another reading in six months plus or minus three,
 record one deterministic date, keep its importance position, and ensure a
 batch of articles receives distinct replay-safe dates.
 
@@ -325,7 +325,7 @@ batch of articles receives distinct replay-safe dates.
 
 ### SCN-PRC-001 — Blocked habit
 
-Advance a swimming window while `#412345e` remains blocked by `#6123450`.
+Advance a swimming window while `#stpw` remains blocked by `#fsp`.
 Validate no `not_done` outcome and no streak loss.
 
 ### SCN-PRC-002 — Explicit unfulfilled intention
@@ -351,17 +351,24 @@ return to the exact envelope, and bounded operator context.
 Restore an input draft after a simulated crash, advance domain state elsewhere,
 and ensure a stale keypress cannot answer the replacement prompt.
 
-### SCN-REF-001 — Typed short references
+### SCN-REF-001 — UUID identity and typed mnemonic handles
 
-Create a Brick and ExternalEntity whose full opaque IDs share the same first
-seven hexadecimal characters. Verify that `#a1b2c3d` selects only the Brick
-and `@a1b2c3d` selects only the ExternalEntity. Then create two Bricks sharing
-that prefix: both render the shortest distinguishing expansion, while pasted
-`#a1b2c3d` returns a typed ambiguity result listing those expanded references
-and never chooses by title, recency, focus, or insertion order. Rename both
-objects and verify their full IDs and resolvable prefixes remain stable. Also
-verify that no ordinary rendering emits fewer than seven hexadecimal
-characters or a type-bearing character inside the ID.
+Using the existing `#rs "Rock Splitter"`, create `#rs2 "Reason Season"` and
+`@rs "Rita Santos"`, plus records whose internal UUIDv7 values share arbitrary
+prefixes. Verify that `#` autocomplete searches only Bricks by handle and
+title, `@` autocomplete searches only people or companies by handle and name,
+and ordinary rendering never exposes or asks the user to memorize those
+UUIDs. Rename both Bricks and verify that their UUIDs and handles remain
+stable. Explicitly rename one handle, verify the old spelling does not resolve
+as an alias, retire it, and verify the allocator does not reuse it.
+
+Then dry-run a merge between independent datasets containing different UUIDs
+that both use `#rs`. The preview must retain one handle and deterministically
+propose `#rs2` for the other, name every changed public reference, and leave
+both UUIDs unchanged. Equal UUIDs with compatible lineage reconcile as the
+same object; equal UUIDs with incompatible history stop as an explicit
+identity conflict. Validate the same behavior in REPL, CLI JSON, powered-up,
+and Skill projections.
 
 ### SCN-UNDO-001 — Navigation, undo, and redo
 
