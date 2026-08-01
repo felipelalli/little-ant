@@ -279,6 +279,21 @@ whenever assisted evidence is weak.
 Record repeated attributed `other` explanations and validate a later weighted
 taxonomy-review opportunity without automatic vocabulary mutation.
 
+### SCN-WAIT-001 — Request handoff and Wait review
+
+From UX-S02C, first answer that a request was already made and activate a Wait
+only after choosing its review policy. Replay from the same initial state,
+answer `no`, create an enabling Brick, and verify a previewed successor Wait.
+Complete the enabling Brick and prove that Dependency resolution plus Wait
+activation is atomic: the affected Brick never appears as ordinary focusable
+work between them. Before review is due, verify that the Wait creates neither
+a top-level ticket nor a work-focus opportunity. When due, draw UX-W01 through
+the affected Brick's subject ticket. Exercise response received, wait longer,
+follow-up, change-blocker, uncertainty, and reverse navigation. Confirm that a
+follow-up is an ordinary Brick and not a claim that any message was sent; that
+resolving the Wait releases but does not complete the affected Brick; and that
+all transitions remain visible in history.
+
 ## Day 5 — Lists, dates, and repetition
 
 ### SCN-LST-001 — Grocery run

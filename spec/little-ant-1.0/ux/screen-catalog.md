@@ -537,6 +537,77 @@ Backspace while the buffer is already empty returns to UX-S02 without
 recording an ExternalEntity, Wait, skip, or cooldown. Selecting a target
 continues to the request-status question; it still commits nothing.
 
+## UX-S02C — Request status
+
+Selecting `@e12345e "Alice Moreira"` in UX-S02B opens:
+
+```text
+#012345a "Review Rock Splitter rules"
+
+Needs a response from:
+
+@e12345e "Alice Moreira"
+
+Has the request already been made?
+
+[y]es   [n]o   [?] I don't know
+
+[/] more...
+
+----------------------------------------
+↳ #112345b "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+```
+
+This binary question records nothing. `yes` enters the first-review-policy
+screen before activating a Wait. `no` enters pending enabling-Brick input and
+previews the complete Dependency-to-Wait handoff under WRK-050 before one
+atomic commit. `?` explains the difference between an outstanding human
+action and an external response without choosing. Reverse navigation restores
+UX-S02B with its target selection and input draft.
+
+## UX-W01 — Due Wait review
+
+When a Wait review opportunity wins the ordinary subject-first draw, it
+renders a review rather than `Focus?`:
+
+```text
+Review:
+
+#012345a "Review Rock Splitter rules"
+
+Waiting for:
+@e12345e "Alice Moreira"
+
+Waiting since Mon, Aug 3 · reviewed 4 days ago
+
+What happened?
+
+[r]esponse received
+[w]ait longer
+[f]ollow up
+[c]hange what is blocking it
+[?] I don't know
+
+[/] more...
+
+----------------------------------------
+↳ #112345b "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   17 eligible   3 reviews
+   Fri, Aug 7   09:00         mode: dumb   focus: idle
+```
+
+`response received` resolves only the Wait and returns the affected Brick to
+the forecast when no other gate applies. `wait longer` enters review-policy
+selection. `follow up` enters an enabling-Brick flow and preserves the
+declared successor Wait. `change what is blocking it` returns to UX-S02 and
+replaces the old gate only after an explicit atomic preview. `?` explains and
+may expose linked evidence without recording an outcome. The Wait itself is
+never cited as work, focused, importance-ordered, or completed.
+
 ## UX-S03 — Enabling-Brick input
 
 Selecting `[c]reate` on UX-S02A opens ordinary pending Feed input:

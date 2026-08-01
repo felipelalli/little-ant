@@ -47,6 +47,7 @@ run as an interactive transcript.
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
 | 5 | Cross-Domain focus | `UX-F02`, `FOC-014..019` | partial | hard scope and equal-specificity target |
 | 5 | N-step/branching blockers | `UX-F03`, `FOC-020..024` | partial | non-Brick endpoint and branch inspection |
+| 5 | Wait activation and review | `MOD-050`, `FOC-034`, `WRK-050..054`, `UX-S02C`, `UX-W01`, `SCN-WAIT-001` | partial | first-review and repeated-review policy under `OPEN-WAIT-001` |
 | 5 | Project/collection descent | `FOC-010..013` | missing | container draw/decomposition screens |
 | 5 | Importance/forecast projections | `IMP-003`, `FOC-002`, `FOC-013` | missing | list choice, inspect, recursive queries |
 | 6 | Living-checklist run | `UX-L01`, `MOD-035..037`, `WRK-019..020` | partial | `OPEN-LST-001` |

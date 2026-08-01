@@ -276,3 +276,11 @@ The factory library contains:
   never creates a second Raw. The normalization records its source and remains
   distinguishable from the original; exact revision and stale-normalization
   behavior is settled under `OPEN-RAW-002`.
+- **MOD-050 [core] — Wait is a gate, not work.** A Wait is a durable typed gate
+  attached to an affected Brick because progress depends on an external
+  response, event, or condition for which no current human action is known. It
+  may reference an ExternalEntity, source, and linked Raw evidence, and it
+  preserves activation, review, and resolution history. It has no Nature,
+  parent, sibling importance position, focus, WIP, or `done` operation. A
+  temporal `not_before`, Place condition, or actionable Brick Dependency is
+  not represented as a Wait merely because ordinary language says "waiting."

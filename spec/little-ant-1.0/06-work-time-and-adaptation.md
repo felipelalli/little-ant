@@ -67,6 +67,35 @@
   evidence plus a Place condition, not a `Wait`. Deferring before
   classification records `blocked_or_waiting` explicitly rather than
   fabricating precision.
+- **WRK-050 [core] — Declared request handoff.** When the required request has
+  already been made, confirming the route activates its Wait after the pending
+  review policy is resolved. When it has not been made, the accepted preview
+  creates an enabling Brick and declares a successor Wait for the same
+  affected Brick and response target. Completing that enabling Brick
+  atomically resolves its Dependency and activates the Wait; the affected
+  Brick is never transiently released into the forecast between those states.
+- **WRK-051 [core] — Wait review policy.** Every active Wait has one explicit
+  review policy. A due policy creates a review opportunity, not a focusable
+  task, and remains due until a review outcome is recorded. Exact first-review
+  choices, defaults, later cadence, and pressure are settled under
+  `OPEN-WAIT-001`.
+- **WRK-052 [core] — Wait review outcomes.** A due review offers the canonical
+  outcome families `response received`, `wait longer`, `follow up`, `change
+  what is blocking it`, and uncertainty. Receiving the response resolves the
+  Wait and releases the affected Brick subject to every other gate. Waiting
+  longer records the review and chooses the next review policy. Follow-up
+  enters an enabling-Brick route; changing the blocker re-enters typed obstacle
+  classification. No outcome completes the affected Brick.
+- **WRK-053 [core] — Follow-up remains honest work.** If a Wait review reveals
+  a human action, that action becomes an ordinary enabling Brick. Its accepted
+  handoff preserves or reactivates the Wait after completion without a gap in
+  gating. Drafting, sending, or observing an external message remains subject
+  to explicit effect approval; creating a follow-up Brick never claims that a
+  message was sent.
+- **WRK-054 [core] — Wait history is evidence.** Activation, each review,
+  policy change, follow-up handoff, reclassification, and resolution are typed
+  history. They do not fabricate focus, progress, completion, or ExternalEntity
+  behavior.
 - **WRK-010 [core] — Cooldown plus memory.** Explicitly deferring the served
   Brick after a symptom creates a short, replay-deterministic cooldown while
   preserving longer-term evidence and pressure. A recovery that returns to

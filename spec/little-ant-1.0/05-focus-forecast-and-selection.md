@@ -95,8 +95,16 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   full chain and unchosen blocker alternatives without another draw.
 - **FOC-024 [standard] — Non-Brick endpoint.** If resolution reaches an
   external wait, temporal gate, missing permission, or corrupt dependency,
-  `next` returns a typed canonical recovery opportunity rather than pretending
-  it found actionable work.
+  `next` returns a typed canonical recovery opportunity only when that
+  endpoint is currently reviewable or actionable; it never pretends it found
+  ordinary focusable work.
+- **FOC-034 [core] — Wait review uses its Brick's subject ticket.** An active
+  Wait suppresses the affected Brick's ordinary work-focus opportunity until
+  the gate resolves. Before its review policy becomes due, the Wait creates no
+  selectable opportunity. When due, it contributes one review opportunity to
+  the affected Brick's existing attention subject under `FOC-006..008`; the
+  Wait never receives its own top-level ticket. Drawing that opportunity
+  renders the canonical Wait review rather than `Focus?`.
 
 ## Continuation and precedence
 
