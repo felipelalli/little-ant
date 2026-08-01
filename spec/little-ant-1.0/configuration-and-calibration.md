@@ -47,6 +47,7 @@ grants authority.
 | `effort.assisted_comparison_limit` | `3` | Maximum exemplar questions in one assistance flow. |
 | `time.habit_day_starts_at` | `04:00` | Local boundary between nominal habit days. |
 | `time.workday_starts_at` | `06:00` | Local boundary between nominal workdays. |
+| `wait.human_response_first_review_days` | `3` | Factory suggestion before a human-response Wait first enters weighted review eligibility. |
 
 `time.operational_timezone` is required profile data rather than a universal
 factory value. It is an IANA identifier such as `America/Montevideo`. A
@@ -103,6 +104,8 @@ evidence:
 - date-notice lead times, deduplication windows, and rotation;
 - repeatable-work default jitter seeds and template-specific ranges;
 - stale-focus and stale-comparison thresholds;
+- Wait review age curve, unresolved-review bonus, historical-response evidence
+  threshold, and caps;
 - powered-up handshake timeout, response bytes, nesting, and extraction bounds;
 - Pack runner time, instruction, memory, result, and nesting limits;
 - vault idle timeout and provider retry/backoff defaults.

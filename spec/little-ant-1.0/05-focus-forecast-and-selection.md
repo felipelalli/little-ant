@@ -100,11 +100,15 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   ordinary focusable work.
 - **FOC-034 [core] — Wait review uses its Brick's subject ticket.** An active
   Wait suppresses the affected Brick's ordinary work-focus opportunity until
-  the gate resolves. Before its review policy becomes due, the Wait creates no
-  selectable opportunity. When due, it contributes one review opportunity to
-  the affected Brick's existing attention subject under `FOC-006..008`; the
-  Wait never receives its own top-level ticket. Drawing that opportunity
-  renders the canonical Wait review rather than `Focus?`.
+  the gate resolves. Before `review_not_before`, the Wait creates no selectable
+  opportunity. At or after that threshold, it contributes one review
+  opportunity to the affected Brick's existing attention subject under
+  `FOC-006..008`; the Wait never receives its own top-level ticket. Its chance
+  begins positive and grows through a bounded calibrated age signal, previous
+  unresolved reviews, and the affected Brick's ordinary importance and time
+  evidence. Crossing the threshold is neither a deadline nor an overdue
+  state. Drawing that opportunity renders the canonical Wait review rather
+  than `Focus?`.
 
 ## Continuation and precedence
 

@@ -74,17 +74,23 @@
   affected Brick and response target. Completing that enabling Brick
   atomically resolves its Dependency and activates the Wait; the affected
   Brick is never transiently released into the forecast between those states.
-- **WRK-051 [core] — Wait review policy.** Every active Wait has one explicit
-  review policy. A due policy creates a review opportunity, not a focusable
-  task, and remains due until a review outcome is recorded. Exact first-review
-  choices, defaults, later cadence, and pressure are settled under
-  `OPEN-WAIT-001`.
-- **WRK-052 [core] — Wait review outcomes.** A due review offers the canonical
-  outcome families `response received`, `wait longer`, `follow up`, `change
-  what is blocking it`, and uncertainty. Receiving the response resolves the
-  Wait and releases the affected Brick subject to every other gate. Waiting
-  longer records the review and chooses the next review policy. Follow-up
-  enters an enabling-Brick route; changing the blocker re-enters typed obstacle
+- **WRK-051 [core] — Wait review policy.** Every active Wait stores one
+  `review_not_before` instant. It means "do not offer another review before
+  this time," not a fixed appointment, deadline, or overdue boundary. For a
+  human-response Wait with no stronger evidence, the factory dumb screen
+  suggests three days and also offers tomorrow, one week, and a guided custom
+  instant; every relative choice displays its absolute date. `wait longer`
+  reuses the same screen. Under a fixed versioned policy, sufficient attributed
+  response history for the same ExternalEntity may move the suggestion to one
+  existing option; powered-up or Skill assistance may do the same with visible
+  provenance. Neither invents a hidden duration or silently changes policy.
+- **WRK-052 [core] — Wait review outcomes.** Once `review_not_before` opens and
+  the review is selected, it offers the canonical outcome families `response
+  received`, `wait longer`, `follow up`, `change what is blocking it`, and
+  uncertainty. Receiving the response resolves the Wait and releases the
+  affected Brick subject to every other gate. Waiting longer records the
+  review and chooses the next `review_not_before`. Follow-up enters an
+  enabling-Brick route; changing the blocker re-enters typed obstacle
   classification. No outcome completes the affected Brick.
 - **WRK-053 [core] — Follow-up remains honest work.** If a Wait review reveals
   a human action, that action becomes an ordinary enabling Brick. Its accepted
@@ -96,6 +102,11 @@
   policy change, follow-up handoff, reclassification, and resolution are typed
   history. They do not fabricate focus, progress, completion, or ExternalEntity
   behavior.
+- **WRK-055 [standard] — Early source observation is a proposal.** A trusted
+  source may observe evidence that the awaited response or condition changed
+  before `review_not_before` and create an attributed candidate-resolution
+  opportunity. It never silently resolves the Wait, marks the affected Brick
+  done, or rewrites the review threshold.
 - **WRK-010 [core] — Cooldown plus memory.** Explicitly deferring the served
   Brick after a symptom creates a short, replay-deterministic cooldown while
   preserving longer-term evidence and pressure. A recovery that returns to

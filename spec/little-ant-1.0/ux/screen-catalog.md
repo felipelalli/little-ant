@@ -561,17 +561,54 @@ Has the request already been made?
    Mon, Aug 3   09:00         mode: dumb   focus: #012345a
 ```
 
-This binary question records nothing. `yes` enters the first-review-policy
-screen before activating a Wait. `no` enters pending enabling-Brick input and
-previews the complete Dependency-to-Wait handoff under WRK-050 before one
-atomic commit. `?` explains the difference between an outstanding human
-action and an external response without choosing. Reverse navigation restores
-UX-S02B with its target selection and input draft.
+This binary question records nothing. `yes` enters UX-W00 before activating a
+Wait. `no` enters pending enabling-Brick input and previews the complete
+Dependency-to-Wait handoff under WRK-050 before one atomic commit. `?` explains
+the difference between an outstanding human action and an external response
+without choosing. Reverse navigation restores UX-S02B with its target
+selection and input draft.
 
-## UX-W01 — Due Wait review
+## UX-W00 — Wait review opening
 
-When a Wait review opportunity wins the ordinary subject-first draw, it
-renders a review rather than `Focus?`:
+The first activation and every `wait longer` route use the same finite choice:
+
+```text
+#012345a "Review Rock Splitter rules"
+
+Waiting for:
+@e12345e "Alice Moreira"
+
+When may we start checking again?
+
+[t]omorrow      (Tue, Aug 4)
+*three [d]ays   (Thu, Aug 6)
+one [w]eek      (Mon, Aug 10)
+[c]hoose...
+
+[?] I don't know
+
+[/] more...
+
+----------------------------------------
+↳ #112345b "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #012345a
+```
+
+The factory dumb suggestion for a human response is three days. Each relative
+option exposes its absolute local date; the committed value is a timezone-aware
+`review_not_before` instant. `choose` opens a guided date/time selector without
+free text. Historical evidence, powered-up mode, or the Skill may move `*` to
+one of these same actions under UX-059 and explain why, but cannot replace the
+finite dumb baseline with an invented duration. Crossing the chosen threshold
+only admits a weighted review opportunity; it does not force an immediate
+screen, create a deadline, or become overdue.
+
+## UX-W01 — Open Wait review
+
+At or after `review_not_before`, when a Wait review opportunity wins the
+ordinary subject-first draw, it renders a review rather than `Focus?`:
 
 ```text
 Review:
@@ -602,11 +639,11 @@ What happened?
 
 `response received` resolves only the Wait and returns the affected Brick to
 the forecast when no other gate applies. `wait longer` enters review-policy
-selection. `follow up` enters an enabling-Brick flow and preserves the
-declared successor Wait. `change what is blocking it` returns to UX-S02 and
-replaces the old gate only after an explicit atomic preview. `?` explains and
-may expose linked evidence without recording an outcome. The Wait itself is
-never cited as work, focused, importance-ordered, or completed.
+selection through UX-W00. `follow up` enters an enabling-Brick flow and
+preserves the declared successor Wait. `change what is blocking it` returns to
+UX-S02 and replaces the old gate only after an explicit atomic preview. `?`
+explains and may expose linked evidence without recording an outcome. The Wait
+itself is never cited as work, focused, importance-ordered, or completed.
 
 ## UX-S03 — Enabling-Brick input
 
