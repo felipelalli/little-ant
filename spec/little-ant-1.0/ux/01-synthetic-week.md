@@ -201,6 +201,15 @@ because its title sounds large.
 
 ### SCN-FOC-005 — Semantic opportunity granularity
 
+Generate `finite_work`, `repeatable_run`, `habit_window`,
+`living_checklist_run`, and `finite_checklist_run` opportunities. Verify that
+they may reuse shared `Work:` composition while retaining independently typed
+payloads and accept, skip, run-completion, and terminal transitions. Reject a
+sixth ordinary execution variant for an active `scheduled_commitment`; it must
+follow hard precedence. Reject project-scope review as execution and verify
+that recurring-obligation occurrences, preparation Bricks, and actionable
+Dependency endpoints use `finite_work`.
+
 Generate importance-comparison offers for insertion, revalidation, and a
 provocative consistency check. If their valid actions and transition family
 remain identical, verify that they use one canonical variant with distinct
