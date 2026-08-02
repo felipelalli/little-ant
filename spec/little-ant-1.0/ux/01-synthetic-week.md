@@ -388,6 +388,11 @@ new outbound proposal. Under `explicitly none`, create no automatic outbound
 proposal while allowing an explicit human-initiated message or policy change.
 Verify that internal review and outbound approval are distinct local
 opportunities on one subject and retain separate histories and cooldowns.
+Under `every`, record two delivered follow-ups without a meaningful outcome
+and render UX-D01 instead of another automatic proposal. Exercise its soft
+cap: `continue` permits exactly one more preview without resetting evidence;
+`take it back` and `reassign` require reconciliation; `escalate` enters a
+separate uncommitted Brick flow; and `skip` changes no Delegation state.
 
 When an effect approval wins the lottery, skip it and verify that the pending
 effect remains unchanged while only typed approval cooldown and pressure are

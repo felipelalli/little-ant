@@ -325,6 +325,16 @@
 
   All three retain internal status review when warranted. Review and outbound
   effect keep distinct histories, cooldowns, pressure, and outcomes.
+- **WRK-061 [standard] — Repeated follow-up has a soft cap.** Under `every`,
+  automatic outbound proposals pause after
+  `delegation.unanswered_follow_up_soft_cap` recorded follow-up handoffs with
+  no meaningful outcome; the factory value is `2`. Attempts without handoff do
+  not increment the count. The next warranted internal review offers typed
+  strategy changes: allow exactly one more follow-up, take execution back,
+  reassign, or enter an explicit escalation-Brick route. Continuing extends
+  the allowance by one and never resets evidence or grants automatic sending.
+  Taking back or reassigning follows Delegation reconciliation; escalation
+  creates nothing before the ordinary guided Brick preview and confirmation.
 
 ## Place context
 

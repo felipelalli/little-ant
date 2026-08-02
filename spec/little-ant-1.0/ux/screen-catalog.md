@@ -1046,6 +1046,39 @@ Factory or model identifiers are absent from the primary screen. The
 attributed origin and edit revisions remain inspectable through contextual
 assistance, history, and structured projections.
 
+## UX-D01 — Delegation strategy review
+
+When an ordinary-lottery internal review reaches the configured soft cap:
+
+```text
+Review:
+
+#rfr "Review the financial report"
+Delegated to @bc "Bento Camargo"
+
+2 follow-ups delivered · no outcome recorded
+
+What should change?
+
+[c]ontinue     — allow one more follow-up
+[t]ake it back — return execution to you
+[r]eassign     — hand it off to someone else
+[e]scalate     — create explicit escalation work
+[s]kip         [?] I don't know
+
+----------------------------------------
+🏷️ Orbit › Finance
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+`continue` increases the allowance by exactly one and enters the ordinary
+follow-up route; it neither resets the count nor approves a message. `take it
+back` and `reassign` enter Delegation reconciliation before responsibility or
+eligibility changes. `escalate` enters a guided Feed preview for a separate
+Brick and creates nothing silently. `skip` preserves the cap and all Delegation
+state while applying only the typed review deferral, cooldown, and pressure.
+
 ## UX-I01 — Text input
 
 ```text

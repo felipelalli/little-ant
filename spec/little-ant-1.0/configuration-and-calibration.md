@@ -48,6 +48,7 @@ grants authority.
 | `time.habit_day_starts_at` | `04:00` | Local boundary between nominal habit days. |
 | `time.workday_starts_at` | `06:00` | Local boundary between nominal workdays. |
 | `wait.human_response_first_review_days` | `3` | Factory suggestion before a human-response Wait first enters weighted review eligibility. |
+| `delegation.unanswered_follow_up_soft_cap` | `2` | Recorded follow-up handoffs without a meaningful outcome before automatic proposals pause for an explicit strategy review. |
 
 `time.operational_timezone` is required profile data rather than a universal
 factory value. It is an IANA identifier such as `America/Montevideo`. A
