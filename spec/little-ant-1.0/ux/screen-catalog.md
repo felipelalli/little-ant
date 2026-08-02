@@ -992,9 +992,12 @@ When an external-effect approval is selected by the ordinary lottery:
 ```text
 Send this follow-up?
 
-"Hi Bento, could you confirm whether the review is complete?"
+Suggested message:
 
-*[y]es    [n]o    [l]ater    [s]kip
+“Hi Bento, could you share an update on
+#rrsr "Review Rock Splitter rules"?”
+
+[y]es    [e]dit    [n]o    [l]ater    [s]kip
 [?] I don't know
 
 ----------------------------------------
@@ -1013,7 +1016,35 @@ its existing review instant and records only typed approval deferral, cooldown,
 and future pressure. A confirmation reached directly rather than by the
 lottery omits `skip` unless its own domain grammar independently permits
 deferral. Contextual assistance explains these consequences and may route to
-an explicit edit or alternative; it never changes the effect by itself.
+an alternative; it never changes the effect by itself. `edit` opens UX-A02;
+editing returns to this complete preview and never sends the message.
+
+## UX-A02 — Edit a suggested external message
+
+```text
+Edit the message:
+
+› Hi Bento, could you share an update on
+  #rrsr "Review Rock Splitter rules"?_
+
+[Enter] preview    [Esc] back
+
+----------------------------------------
+👤 Bento Camargo
+delegation follow-up · due 2 days ago
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+On entry, every prefilled display cell is selected with the accessible
+surface treatment; the code block cannot represent that styling literally.
+Printable input or paste replaces all selected text, Backspace or Delete
+clears it, and an arrow key removes the selection and positions the cursor
+without editing. Enter returns to UX-A01 with the full edited payload under
+`Message:`; it does not send. Escape returns with the prior suggestion intact.
+Factory or model identifiers are absent from the primary screen. The
+attributed origin and edit revisions remain inspectable through contextual
+assistance, history, and structured projections.
 
 ## UX-I01 — Text input
 

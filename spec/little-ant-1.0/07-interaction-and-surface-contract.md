@@ -196,6 +196,19 @@ no-emoji rendering remain `OPEN-UX-001`.
   UUID-backed reference; the user never has to memorize or type an internal
   UUID. Handle search and creation do not make lookalike literal text into a
   semantic annotation without confirmation.
+- **UX-077 [standard] — Editable suggested text.** A guided text editor opened
+  from an explicit `edit` action may be prefilled with an attributed factory,
+  powered-up, or Skill suggestion. The whole suggestion starts selected using
+  the surface's accessible selection treatment. Printable input or paste
+  replaces the selection; Backspace or Delete removes it; and an arrow key
+  collapses the selection and moves the cursor with conventional editor
+  semantics without changing the text. Enter previews the current text rather
+  than sending or otherwise applying it, and Escape restores the preceding
+  preview without mutation. Once the human changes the text, the visible
+  label changes from `Suggested message:` to `Message:`. Technical origin and
+  revision attribution remain available through contextual assistance,
+  history, and structured projections; identifiers such as template keys do
+  not appear in the primary screen.
 
 ## Status, history, and recovery
 

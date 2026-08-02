@@ -360,6 +360,15 @@ recorded. Exercise the other outcomes against separate effect instances:
 `later` changes only the review instant, while `no` permanently rejects that
 exact effect without cancelling the Delegation, resolving its need, or
 silently drafting a replacement.
+In dumb mode, open a deterministic suggested follow-up, verify that no
+technical template identifier appears in the primary screen, and choose
+`edit`. Confirm that the entire prefilled message starts selected: printable
+input and paste replace it, Backspace/Delete clear it, and each arrow collapses
+the selection without changing the text. Enter must return to the complete
+preview under `Message:` without sending; Escape must retain the prior
+suggestion. History, assistance, and the structured projection must retain the
+factory origin and human edit attribution. Repeat with a powered-up proposal
+and require the same interaction grammar and explicit attribution.
 
 ## Day 7 — Context, recovery, and boundaries
 
