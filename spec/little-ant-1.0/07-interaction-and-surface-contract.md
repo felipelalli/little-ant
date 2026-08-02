@@ -95,8 +95,12 @@ The normative reference renderings live in
   to the palette or the negative action receives an honest verb. Reuse is
   avoided when a natural alternative exists, but the grammar prefers an
   obvious initial over contrived forms such as `n[o]`. Inapplicable actions
-  are omitted. Remaining cross-screen shortcut preferences and collisions
-  stay under `OPEN-UX-001`.
+  are omitted. `[s]kip` is always applicable and visible on an opportunity
+  selected by the ordinary lottery; its variant defines the typed deferral,
+  cooldown, and pressure without inventing a substantive outcome. Hard
+  precedence and non-lottery screens expose only their truthful contextual
+  routes. Remaining cross-screen shortcut preferences and collisions stay
+  under `OPEN-UX-001`.
 
 - **UX-015 [core] — Suggested default.** `*` marks at most one defensible
   suggested action. Pressing `*` selects it. No evidence means no default.

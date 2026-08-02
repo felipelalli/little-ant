@@ -126,7 +126,13 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   privileged lottery entries.
 - **FOC-026 [core] — One lottery otherwise.** Every newly selectable
   opportunity kind participates in the same subject-first lottery. No review,
-  approval, or question family receives an invisible pre-lottery lane.
+  approval, or question family receives an invisible pre-lottery lane. Every
+  opportunity selected by this lottery exposes a visible typed `skip` action:
+  it records that this particular opportunity was deferred, applies its
+  replay-deterministic cooldown and future pressure, and preserves the
+  underlying domain state. Continuations, useful-empty recovery, and hard
+  precedence are not lottery selections and do not acquire a misleading
+  universal skip from this rule.
 - **FOC-027 [core] — Explicit failure.** Invalid state that prevents a valid
   forecast yields a typed diagnostic and concrete recovery suggestion, not a
   fake focus opportunity.
@@ -145,7 +151,9 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   the ordinary weighted draw. `next` returns that commitment until it is
   accepted as current focus, completed, cancelled, or classified as missed.
   This is an explicit temporal precedence rule, not a hidden probability
-  multiplier or duplicate ticket. Conflicts with an already-current focus or
+  multiplier or duplicate ticket. Because this is hard precedence rather than
+  a lottery result, it requires truthful commitment-specific outcomes instead
+  of the universal lottery skip. Conflicts with an already-current focus or
   another overlapping commitment remain `OPEN-SCH-001`.
 - **FOC-031 [core] — Preparation before commitment.** Before the interval
   begins, a scheduled-commitment subject may descend to currently eligible

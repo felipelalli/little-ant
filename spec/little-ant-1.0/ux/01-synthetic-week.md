@@ -306,8 +306,11 @@ work between them. Before `review_not_before`, verify that the Wait creates
 neither a top-level ticket nor a work-focus opportunity. After the threshold,
 prove that it is not called due or overdue, then draw UX-W01 through the
 affected Brick's subject ticket. Exercise response received, wait longer,
-follow-up, change-blocker, uncertainty, and reverse navigation. Confirm that a
-follow-up is an ordinary Brick and not a claim that any message was sent; that
+follow-up, change-blocker, uncertainty, skip, and reverse navigation. Verify
+that skip leaves `review_not_before` and the Wait outcome unchanged, applies
+only typed review cooldown and pressure, and cannot be mistaken for `wait
+longer` or served-work symptom evidence. Confirm that a follow-up is an
+ordinary Brick and not a claim that any message was sent; that
 resolving the Wait releases but does not complete the affected Brick; and that
 all transitions remain visible in history. Repeat `wait longer` and verify a
 bounded future pressure increase after the new threshold. Finally introduce an
@@ -351,6 +354,9 @@ ordinary skip, explicit outcome, and deterministic expiry.
 Delegate a project-like Brick. Validate Nature-driven scope choice,
 `once | every | explicitly none`, complete English message preview, approval,
 follow-up, refusal/completion reporting, and no cascading parent completion.
+When an effect approval wins the lottery, skip it and verify that the pending
+effect remains unchanged while only typed approval cooldown and pressure are
+recorded; a later explicit date remains a distinct action.
 
 ## Day 7 — Context, recovery, and boundaries
 

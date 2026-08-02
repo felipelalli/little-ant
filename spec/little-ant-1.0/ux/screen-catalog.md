@@ -676,11 +676,9 @@ Waiting since Mon, Aug 3 · reviewed 4 days ago
 
 What happened?
 
-[r]esponse received
-[w]ait longer
-[f]ollow up
-[c]hange what is blocking it
-[?] I don't know
+[r]esponse received    [w]ait longer
+[f]ollow up             [c]hange what is blocking it
+[s]kip                  [?] I don't know
 
 [/] more...
 
@@ -696,7 +694,10 @@ the forecast when no other gate applies. `wait longer` enters review-policy
 selection through UX-W00. `follow up` enters an enabling-Brick flow and
 preserves the declared successor Wait. `change what is blocking it` returns to
 UX-S02 and replaces the old gate only after an explicit atomic preview. `?`
-explains and may expose linked evidence without recording an outcome. The Wait
+explains and may expose linked evidence without recording an outcome. `skip`
+leaves the Wait and `review_not_before` unchanged, records only the typed
+review deferral, and applies the review's cooldown and future pressure. It is
+not `wait longer` and does not open served-work symptom diagnosis. The Wait
 itself is never cited as work, focused, importance-ordered, or completed.
 
 ## UX-S03 — Enabling-Brick input
@@ -986,12 +987,14 @@ the parent identity and commits no child before confirmation.
 
 ## UX-A01 — External-effect confirmation
 
+When an external-effect approval is selected by the ordinary lottery:
+
 ```text
 Send this follow-up?
 
 "Hi Bento, could you confirm whether the review is complete?"
 
-*[y]es · [n]o · [l]ater
+*[y]es    [n]o    [l]ater    [s]kip
 [?] I don't know
 
 ----------------------------------------
@@ -1002,7 +1005,11 @@ delegation follow-up · due 2 days ago
 ```
 
 `later` opens a date screen and records nothing until the absolute date is
-confirmed.
+confirmed. When this confirmation was selected by the ordinary lottery,
+`skip` preserves the pending effect and records only typed approval deferral,
+cooldown, and future pressure. A confirmation reached directly rather than by
+the lottery omits `skip` unless its own domain grammar independently permits
+deferral.
 
 ## UX-I01 — Text input
 

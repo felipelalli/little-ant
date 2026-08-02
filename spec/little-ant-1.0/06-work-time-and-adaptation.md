@@ -87,11 +87,14 @@
 - **WRK-052 [core] — Wait review outcomes.** Once `review_not_before` opens and
   the review is selected, it offers the canonical outcome families `response
   received`, `wait longer`, `follow up`, `change what is blocking it`, and
-  uncertainty. Receiving the response resolves the Wait and releases the
-  affected Brick subject to every other gate. Waiting longer records the
-  review and chooses the next `review_not_before`. Follow-up enters an
-  enabling-Brick route; changing the blocker re-enters typed obstacle
-  classification. No outcome completes the affected Brick.
+  uncertainty, plus the lottery escape `skip`. Receiving the response resolves
+  the Wait and releases the affected Brick subject to every other gate.
+  Waiting longer records the review and chooses the next
+  `review_not_before`. Follow-up enters an enabling-Brick route; changing the
+  blocker re-enters typed obstacle classification. `skip` records only typed
+  review deferral, cooldown, and future review pressure: it leaves the Wait,
+  its `review_not_before`, and every claimed outcome unchanged. No outcome
+  completes the affected Brick.
 - **WRK-053 [core] — Follow-up remains honest work.** If a Wait review reveals
   a human action, that action becomes an ordinary enabling Brick. Its accepted
   handoff preserves or reactivates the Wait after completion without a gap in
@@ -119,8 +122,10 @@
   may create a taxonomy-review opportunity. Human, skill, or powered-up
   judgment proposes a label; acceptance is explicit and versioned.
 - **WRK-013 [core] — Contextual skip.** Ordering, effort/impact
-  classification, repeatable work, and habit opportunities each have
-  distinct skip semantics and never reuse served-work evidence incorrectly.
+  classification, Wait and WIP reviews, approvals, repeatable work, and habit
+  opportunities each have distinct skip semantics and never reuse served-work
+  evidence incorrectly. The common lottery escape guarantees navigation, not
+  one generic domain event.
 - **WRK-047 [core] — Atomic symptom resolution.** A final reaction records the
   selected symptom and accepted reaction atomically. `skip anyway` records the
   symptom without another remediation and applies the ordinary cooldown.
