@@ -363,6 +363,15 @@ outside the delegated scope eligible, and represent concurrent human
 collaboration with a separate non-covered Brick rather than double-owning the
 same work.
 
+Exercise both activation routes. For adapter delivery, prove that draft,
+preview, approval, and an attempted send do not suppress human work; a recorded
+delivery success activates once, while a delivery failure remains inactive and
+retryable. Separately choose `I already handed it off` for an out-of-band
+conversation and require explicit human confirmation before activation. In
+both routes, handoff must not claim reading, acceptance, refusal, or completion.
+Record a later refusal and require typed reconciliation before returning the
+scope to human Work eligibility.
+
 When an effect approval wins the lottery, skip it and verify that the pending
 effect remains unchanged while only typed approval cooldown and pressure are
 recorded. Exercise the other outcomes against separate effect instances:

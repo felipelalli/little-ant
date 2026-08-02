@@ -289,6 +289,16 @@
   refusing, or reporting completion routes through typed reconciliation before
   eligibility or completion changes; no Delegation outcome silently completes
   a project tree.
+- **WRK-058 [standard] — Observed handoff activates Delegation.** Creating or
+  editing a Delegation draft, previewing its notice, or approving an attempted
+  send does not activate it. Exactly one observed handoff does: either a
+  delivery adapter records successful delivery of the approved initial notice,
+  or the human explicitly records `I already handed it off` for communication
+  performed outside Little Ant. Delivery failure leaves the Delegation
+  inactive and its scope human-executable. Successful delivery proves only the
+  handoff, not that the recipient read, accepted, refused, or completed the
+  work; those remain separate attributed outcomes. A later refusal enters the
+  typed reconciliation route before human eligibility returns.
 
 ## Place context
 

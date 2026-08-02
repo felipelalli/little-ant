@@ -128,9 +128,9 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   admitted for a typed Delegation review, follow-up, external-effect approval,
   reported-outcome reconciliation, or other non-execution opportunity. A
   dependency outside the delegated coverage remains independently selectable
-  when otherwise eligible. Drafting or proposing a Delegation does not invoke
-  this rule; the exact lifecycle transition that first makes it active remains
-  part of `OPEN-DEL-001`.
+  when otherwise eligible. Drafting, proposing, or merely approving a
+  Delegation notice does not invoke this rule; activation follows the observed
+  handoff boundary in `WRK-058`.
 
 ## Continuation and precedence
 
