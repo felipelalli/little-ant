@@ -130,7 +130,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
 | Delegation draft, preview boundary, cancel-before-send, due nudge, approve/decline, and completed/refused/abandoned outcomes | `I+T`, delegation tests | **strengthened but incomplete** | follow-up policy and Nature scope under `WRK-029..034`; final lifecycle in `OPEN-DEL-001` | `SCN-DEL-001` plus full effect route |
-| Delegated work does not consume human focus/WIP | `I+T` | **retained** | `WRK-029` | delegation/focus interleave |
+| Delegated work does not consume human focus/WIP or remain human-executable | `I+T` | **strengthened** | `WRK-029`, `WRK-057`, `FOC-035` | delegation/focus/importance interleave with exact scope |
 | Completion effects `write_back`, `notify`, and arbitrary `spawn` stop for approval | `I+T` | **replaced** | external preview retained by `PRD-009`; general effect families in `OPEN-EFF-001`; arbitrary spawn retired in favor of closed release rules | external-effect route |
 | Every later answer resolves to an explicit absolute date | `O`; implemented nudge dates | **strengthened** | `UX-018`, `WRK-016` | later/date route |
 | Recurrence and habits | not delivered v0 behavior | **new 1.0 capability, not a regression row** | `WRK-019..028`, `WRK-038..040` | `SCN-REP-001`, `SCN-PRC-001..002` |

@@ -280,6 +280,15 @@
   the effect and its existing review instant while recording only typed
   deferral, cooldown, and future pressure. Rejecting an effect never silently
   drafts or authorizes a replacement.
+- **WRK-057 [standard] — Delegation transfers execution responsibility.** An
+  active Delegation means the selected ExternalEntity, not the human user, is
+  responsible for executing its resolved scope. Human collaboration is not
+  represented by leaving the same covered work eligible for both parties.
+  Concurrent human work uses explicit non-covered enabling Bricks,
+  Dependencies, or sibling work with its own responsibility. Cancelling,
+  refusing, or reporting completion routes through typed reconciliation before
+  eligibility or completion changes; no Delegation outcome silently completes
+  a project tree.
 
 ## Place context
 

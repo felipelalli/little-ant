@@ -354,6 +354,15 @@ ordinary skip, explicit outcome, and deterministic expiry.
 Delegate a project-like Brick. Validate Nature-driven scope choice,
 `once | every | explicitly none`, complete English message preview, approval,
 follow-up, refusal/completion reporting, and no cascading parent completion.
+Before activation, prove that the proposed Delegation has not suppressed
+human work. Once active, verify that its exact resolved scope remains visible
+in Importance views but contributes no ordinary human Work opportunity. Its
+subject may still enter the lottery through a Delegation review, follow-up,
+effect approval, or outcome reconciliation. Keep an independent blocker
+outside the delegated scope eligible, and represent concurrent human
+collaboration with a separate non-covered Brick rather than double-owning the
+same work.
+
 When an effect approval wins the lottery, skip it and verify that the pending
 effect remains unchanged while only typed approval cooldown and pressure are
 recorded. Exercise the other outcomes against separate effect instances:

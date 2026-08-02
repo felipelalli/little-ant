@@ -118,6 +118,20 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   state. Drawing that opportunity renders the canonical Wait review rather
   than `Focus?`.
 
+## Delegated execution
+
+- **FOC-035 [core] — Active delegation suppresses human execution.** An
+  active Delegation removes the ordinary human work-focus opportunity for
+  exactly its resolved `brick_only` or `whole_scope` coverage. It does not
+  remove any covered Brick from the Importance order, erase its signals, or
+  create a second delegation list. The same attention subject may still be
+  admitted for a typed Delegation review, follow-up, external-effect approval,
+  reported-outcome reconciliation, or other non-execution opportunity. A
+  dependency outside the delegated coverage remains independently selectable
+  when otherwise eligible. Drafting or proposing a Delegation does not invoke
+  this rule; the exact lifecycle transition that first makes it active remains
+  part of `OPEN-DEL-001`.
+
 ## Continuation and precedence
 
 - **FOC-025 [core] — Resume before redraw.** A valid pending envelope resumes
