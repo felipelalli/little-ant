@@ -43,10 +43,13 @@
   A review orchestrates these screens and identifies itself discreetly; it is
   not a sixth primary grammar.
 
-- **UX-007 [core] — Focus.** One served Brick asks `Focus?` and offers only
-  the primary decision actions `[y]es · [s]kip · [?] I don't know`.
-  Less-frequent actions such as direct completion and Feed remain reachable
-  through `[/] more...`; they do not compete visually with the focus decision.
+- **UX-007 [core] — Focus.** One served Brick renders the semantic type heading
+  `Work:`, asks `Focus?`, and offers only the primary decision actions
+  `[y]es · [s]kip · [?] I don't know`. `Work:` covers every focusable Nature;
+  narrower `Task:` and technical `Execution suggestion:` are not canonical
+  headings. Less-frequent actions such as direct completion and Feed remain
+  reachable through `[/] more...`; they do not compete visually with the
+  focus decision.
 - **UX-008 [core] — Comparison.** Two peers and one directional relation ask
   the displayed proposition but name both possible directions explicitly.
   Importance uses
@@ -312,7 +315,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   pending interaction or otherwise invokes the canonical `next` pipeline and
   displays its useful proposal. `next` itself may return a valid current-focus
   continuation. The no-eligible case displays the canonical useful empty
-  state.
+  state. The visible heading names the semantic opportunity or state, not the
+  command that selected it: an ordinary focus proposal therefore says `Work:`,
+  never `Next:`.
 - **UX-047 [core] — Secondary command escape.** A proposal screen places only
   `[/] more...` below its primary actions and immediately above the divider.
   Direct completion and Feed are contextual palette commands rather than

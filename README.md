@@ -191,9 +191,14 @@ position and gains future validation pressure.
 ```text
 ant> /next
 
-Focus: #rtlb "Replace the laptop battery"
-Why: high importance · available now · unlocks another Brick
-[y] focus · [d] done · [s] skip · [?]
+Work:
+
+#rtlb "Replace the laptop battery"
+
+Focus?
+
+[y]es    [s]kip    [?] I don't know
+[/] more...
 ```
 
 Direct `done` is honest: it does not invent a start time or zero-duration

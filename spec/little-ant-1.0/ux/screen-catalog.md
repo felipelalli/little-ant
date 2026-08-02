@@ -36,7 +36,7 @@ The status bar follows the divider and contextual rows rather than occupying
 the top of the screen:
 
 ```text
-Next:
+Work:
 
 #rrsr "Review Rock Splitter rules"
 
@@ -174,7 +174,7 @@ boundary:
 ## UX-F01 — Focus
 
 ```text
-Next:
+Work:
 
 #wtms "Write the migration specification"
 
@@ -199,7 +199,7 @@ this same opportunity without mutation.
 ## UX-F02 — Cross-Domain focus
 
 ```text
-Next:
+Work:
 
 #bg "Buy groceries"
 
@@ -222,7 +222,7 @@ preserve it.
 ## UX-F03 — Focus reached through blockers
 
 ```text
-Next:
+Work:
 
 #dtimc "Define the importance-maintenance contract"
 
