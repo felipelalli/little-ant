@@ -344,7 +344,10 @@ change.
 
 Complete `#rtfea`, request another reading in six months plus or minus three,
 record one deterministic date, keep its importance position, and ensure a
-batch of articles receives distinct replay-safe dates.
+batch of articles receives distinct replay-safe dates. When its next
+`repeatable_run` is served, expose the prior execution as
+`Last completed: <absolute date>` in secondary context without turning that
+history into another ticket, deadline, or primary prompt.
 
 ## Day 6 — Habits and delegation
 

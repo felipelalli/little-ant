@@ -57,9 +57,11 @@ complete:
 - the linked shadow specification has been removed while remaining fully
   recoverable from Git.
 
-The next product discussion starts at Gate 2: opportunity variants, the shared
-interaction envelope/chrome, canonical executable/reference grammar, and
-Domain scope.
+Gate 2 is in progress. `FOC-037` has closed the five ordinary execution
+variants. UX-first review is now paused inside `repeatable_run`: `UX-078`
+settles visible `Last completed` context, while the remaining Work rendering
+and completion/return flow are still open. Resume there before returning to
+the remaining served-work skip reactions or broader catalog questions.
 
 ## Scope rings
 

@@ -209,6 +209,12 @@ no-emoji rendering remain `OPEN-UX-001`.
   revision attribution remain available through contextual assistance,
   history, and structured projections; identifiers such as template keys do
   not appear in the primary screen.
+- **UX-078 [standard] — Repeatable completion context.** When a
+  `repeatable_run` has a prior completed execution, its Work presentation
+  exposes `Last completed: <absolute date>` in the secondary context region.
+  This is historical orientation, not a deadline, recency judgment, forecast
+  explanation, or new opportunity. It does not alter the shared `Work:` and
+  `Focus?` primary grammar.
 
 ## Status, history, and recovery
 
