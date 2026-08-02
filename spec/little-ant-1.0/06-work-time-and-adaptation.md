@@ -234,8 +234,9 @@
   once | every | explicitly none
   ```
 
-  Repeating policy creates approval-bearing follow-up opportunities and never
-  authorizes automatic messages.
+  The policy governs outbound follow-up under WRK-060, not internal Delegation
+  review. Repeating policy creates approval-bearing follow-up opportunities
+  and never authorizes automatic messages.
 
 - **WRK-031 [standard] — Nature-aware scope.**
 
@@ -307,6 +308,23 @@
   classify that Wait against the affected Brick while retaining the
   Delegation. Its review history, pressure, and resolution remain separate
   from the Delegation's follow-up history and outcomes.
+- **WRK-060 [standard] — Follow-up policy governs outbound handoffs.** The
+  mandatory policy never disables internal Delegation review:
+
+  - `once` permits at most one recorded follow-up handoff after the initial
+    notice. A rejected draft, declined effect, failed delivery, or other
+    attempt without handoff does not consume it. Once consumed, unresolved
+    reviews may propose reconsidering, escalating, taking responsibility back,
+    changing policy, or another typed remedy, but not another automatic
+    follow-up proposal.
+  - `every` may schedule another approval-bearing follow-up proposal after
+    each unresolved review and recorded prior handoff. It never sends without
+    the ordinary complete preview and approval.
+  - `explicitly none` creates no automatic outbound follow-up proposal. The
+    human may still initiate one explicitly or change policy.
+
+  All three retain internal status review when warranted. Review and outbound
+  effect keep distinct histories, cooldowns, pressure, and outcomes.
 
 ## Place context
 

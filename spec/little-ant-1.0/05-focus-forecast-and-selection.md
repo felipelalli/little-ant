@@ -131,6 +131,12 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   when otherwise eligible. Drafting, proposing, or merely approving a
   Delegation notice does not invoke this rule; activation follows the observed
   handoff boundary in `WRK-058`.
+- **FOC-036 [core] — Delegation review is not a message.** Internal Delegation
+  review and approval of a proposed outbound follow-up are distinct canonical
+  opportunity variants because their actions and transitions differ. They use
+  the same attention subject under FOC-006..008 and therefore never become
+  duplicate top-level tickets. Follow-up policy may prevent the outbound
+  variant, but it never suppresses otherwise warranted internal review.
 
 ## Continuation and precedence
 

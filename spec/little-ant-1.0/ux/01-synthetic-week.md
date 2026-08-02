@@ -379,6 +379,16 @@ on the affected Brick. Preserve both histories and outcomes independently
 while FOC-006..008 expose only one top-level subject ticket and locally choose
 the applicable review opportunity.
 
+Run separate Delegations with `once`, `every`, and `explicitly none`. Keep
+internal reviews possible in all three. Under `once`, reject a draft and fail
+one delivery without consuming the policy, then record one successful
+follow-up handoff and prove that later unresolved reviews cannot automatically
+propose another. Under `every`, require a fresh preview and approval for every
+new outbound proposal. Under `explicitly none`, create no automatic outbound
+proposal while allowing an explicit human-initiated message or policy change.
+Verify that internal review and outbound approval are distinct local
+opportunities on one subject and retain separate histories and cooldowns.
+
 When an effect approval wins the lottery, skip it and verify that the pending
 effect remains unchanged while only typed approval cooldown and pressure are
 recorded. Exercise the other outcomes against separate effect instances:
