@@ -310,3 +310,11 @@ The factory library contains:
   parent, sibling importance position, focus, WIP, or `done` operation. A
   temporal `not_before`, Place condition, or actionable Brick Dependency is
   not represented as a Wait merely because ordinary language says "waiting."
+- **MOD-051 [core] — Delegation and Wait are orthogonal.** A Delegation records
+  transferred execution responsibility and owns any review or follow-up
+  schedule implied by its policy. Activating one never creates an implicit
+  Wait for its target. A Wait is added only when a separate external response,
+  event, or condition is explicitly observed and classified under MOD-050;
+  neither record substitutes for or silently resolves the other. When both
+  affect the same attention subject, FOC-006..008 still provide one subject
+  ticket and a local opportunity draw rather than duplicate top-level chances.

@@ -299,6 +299,14 @@
   handoff, not that the recipient read, accepted, refused, or completed the
   work; those remain separate attributed outcomes. A later refusal enters the
   typed reconciliation route before human eligibility returns.
+- **WRK-059 [standard] — Delegation owns its follow-up.** The mandatory
+  `once | every | explicitly none` policy controls Delegation review and
+  follow-up directly. Activation does not synthesize a Wait such as "waiting
+  for the delegate." If the delegate or another source later reveals a
+  distinct gate—for example, Legal approval—the user may explicitly add or
+  classify that Wait against the affected Brick while retaining the
+  Delegation. Its review history, pressure, and resolution remain separate
+  from the Delegation's follow-up history and outcomes.
 
 ## Place context
 
