@@ -1005,11 +1005,15 @@ delegation follow-up · due 2 days ago
 ```
 
 `later` opens a date screen and records nothing until the absolute date is
-confirmed. When this confirmation was selected by the ordinary lottery,
-`skip` preserves the pending effect and records only typed approval deferral,
-cooldown, and future pressure. A confirmation reached directly rather than by
-the lottery omits `skip` unless its own domain grammar independently permits
-deferral.
+confirmed. `yes` approves the exact displayed effect. `no` permanently rejects
+that effect instance, but does not cancel the Delegation, claim that its need
+was resolved, or silently create a replacement. When this confirmation was
+selected by the ordinary lottery, `skip` preserves both the pending effect and
+its existing review instant and records only typed approval deferral, cooldown,
+and future pressure. A confirmation reached directly rather than by the
+lottery omits `skip` unless its own domain grammar independently permits
+deferral. Contextual assistance explains these consequences and may route to
+an explicit edit or alternative; it never changes the effect by itself.
 
 ## UX-I01 — Text input
 

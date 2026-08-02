@@ -272,6 +272,14 @@
 - **WRK-034 [standard] — No cascading truth.** A reported delegated outcome
   returns for Nature-aware validation and never cascades completion through a
   project tree.
+- **WRK-056 [standard] — External-effect confirmation outcomes.** For one
+  concrete pending external effect, `yes` approves that exact preview; `no`
+  permanently rejects that effect instance without cancelling its Delegation
+  or claiming that the underlying need was resolved; `later` chooses and
+  records a new review instant; and an ordinary-lottery `skip` preserves both
+  the effect and its existing review instant while recording only typed
+  deferral, cooldown, and future pressure. Rejecting an effect never silently
+  drafts or authorizes a replacement.
 
 ## Place context
 

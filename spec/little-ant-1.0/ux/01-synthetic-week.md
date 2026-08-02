@@ -356,7 +356,10 @@ Delegate a project-like Brick. Validate Nature-driven scope choice,
 follow-up, refusal/completion reporting, and no cascading parent completion.
 When an effect approval wins the lottery, skip it and verify that the pending
 effect remains unchanged while only typed approval cooldown and pressure are
-recorded; a later explicit date remains a distinct action.
+recorded. Exercise the other outcomes against separate effect instances:
+`later` changes only the review instant, while `no` permanently rejects that
+exact effect without cancelling the Delegation, resolving its need, or
+silently drafting a replacement.
 
 ## Day 7 — Context, recovery, and boundaries
 
