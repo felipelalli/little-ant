@@ -51,8 +51,10 @@
   reachable through `[/] more...`; they do not compete visually with the
   focus decision.
 - **UX-008 [core] — Comparison.** Two peers and one directional relation ask
-  the displayed proposition but name both possible directions explicitly.
-  Importance uses
+  the displayed proposition but name both possible directions explicitly. A
+  comparison is proposition-led: it begins directly with the natural question
+  (`Is` for the canonical importance composition) and has no preceding
+  `Next:`, `Importance:`, or generic `Comparison:` heading. Importance uses
   `[m]ore important · [l]ess important · [s]kip · [?] I don't know`.
   Other comparative namespaces use their own equally explicit relation words
   rather than inheriting `yes/no` mechanically.

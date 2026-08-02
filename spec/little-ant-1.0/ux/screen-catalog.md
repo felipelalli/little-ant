@@ -407,6 +407,9 @@ draw. The contextual palette remains anchored to the displayed WIP Brick.
 
 ## UX-C01 — Importance comparison
 
+The proposition identifies the interaction by itself, so no semantic or
+mechanism-oriented heading precedes it:
+
 ```text
 Is
 
