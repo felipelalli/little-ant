@@ -34,7 +34,15 @@
   judgment probes, reviews, approvals, delegation follow-ups, Raw/source
   decisions, and other v1 opportunities use a versioned closed catalog of
   canonical variants. There is no generic `interaction` command or
-  Pack-defined opportunity kind.
+  Pack-defined opportunity kind. Each variant is a discriminated semantic
+  schema with its own required payload, valid actions, and transition family;
+  there is no generic `review` variant assembled from mutually exclusive
+  optional fields. Two offers share one variant plus a typed `purpose` only
+  when their action set and transition family are the same and only their
+  trigger or provenance differs. Different actions or consequences require
+  different variants even when both render through the same primary screen
+  grammar. Forecast signals, warnings, and secondary context modify selection
+  or presentation and never become opportunities merely because they exist.
 
 The exact final catalog is a release-blocking decision tracked as
 `OPEN-FOC-001`; extending it later requires an explicit core version.

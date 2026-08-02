@@ -7,7 +7,10 @@
   screen grammar, canonical English content, valid action IDs, commands,
   shortcuts, help, provenance, and bounded context. The envelope and its
   transitions come from the canonical CLI/protocol command dispatcher, never
-  from a surface-local reconstruction of domain rules.
+  from a surface-local reconstruction of domain rules. When the envelope
+  presents a selectable opportunity, one semantic variant discriminant owns
+  its required payload and valid actions. The screen grammar is presentation
+  reuse, not the opportunity's semantic type.
 - **UX-002 [core] — Almost-literal parity.** REPL, first-party web/mobile,
   UIAdapters, and operator skill preserve the same wording, punctuation,
   subject order, action order, shortcut letters, emojis, defaults, and screen

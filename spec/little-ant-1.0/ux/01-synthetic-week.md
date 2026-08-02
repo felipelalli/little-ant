@@ -199,6 +199,19 @@ Draw a project-like subject and validate Nature-driven child descent versus
 review/decomposition. An atomic Brick must not receive the same prompt merely
 because its title sounds large.
 
+### SCN-FOC-005 — Semantic opportunity granularity
+
+Generate importance-comparison offers for insertion, revalidation, and a
+provocative consistency check. If their valid actions and transition family
+remain identical, verify that they use one canonical variant with distinct
+typed purposes and provenance. Generate two reviews whose valid actions or
+domain consequences differ and verify that the final catalog represents them
+with distinct discriminated variants even if both reuse the same visual
+grammar. Reject a hybrid payload containing mutually exclusive branches or an
+action outside its variant. Finally add deadline pressure, one discreet
+warning, and explanatory context to a subject and verify that none creates an
+additional opportunity or top-level ticket by itself.
+
 ## Day 4 — Focus and skip adaptation
 
 ### SCN-WRK-001 — Focus lifecycle
