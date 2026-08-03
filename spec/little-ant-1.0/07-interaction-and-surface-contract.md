@@ -226,6 +226,19 @@ no-emoji rendering remain `OPEN-UX-001`.
   cell. Recurring obligations show open and resolved occurrences rather than
   streaks. Text or symbols preserve the distinction without relying on color;
   the exact compact rendering remains under `OPEN-UX-001`.
+- **UX-080 [core] — Stale focus remains a continuation.** At the first safe
+  interaction boundary on or after the configured stale-focus threshold, the
+  current-focus continuation asks `Still working on this?` and exposes
+  `[y]es · [s]kip · [?] I don't know · [d]one`, followed by `[/] more...`.
+  It is not selected by `next`, does not consume randomness, and does not add
+  a `focus_review` opportunity. `yes` records one explicit focus check-in,
+  resets only the stale-focus clock, and returns to the sober current-focus
+  screen without creating another WIP or focus interval. `skip` opens the
+  ordinary served-work symptom screen without recording anything by itself;
+  `done` performs the immediate reversible completion under `WRK-049`; and
+  uncertainty changes nothing. `Last activity` is the latest explicit focus
+  start, resume, or check-in timestamp. It is not measured work, effort, or
+  proof of continuous activity.
 
 ## Status, history, and recovery
 

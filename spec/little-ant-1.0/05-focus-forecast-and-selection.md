@@ -171,8 +171,10 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
 
 - **FOC-025 [core] — Resume before redraw.** A valid pending envelope resumes
   with the same identity and revision. A current focus resumes when the user
-  requests focus while it remains active. These are continuations, not
-  privileged lottery entries.
+  requests focus while it remains active. Before its stale threshold it uses
+  the resting screen; at or after that threshold it uses the stale-focus
+  check-in under `UX-080`. Both are continuations, not privileged lottery
+  entries.
 - **FOC-026 [core] — One lottery otherwise.** Every newly selectable
   opportunity kind participates in the same subject-first lottery. No review,
   approval, or question family receives an invisible pre-lottery lane. Every
@@ -216,7 +218,10 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   opportunity does not invoke `next` again. The current Brick becomes an
   explicit continuation and is excluded from the ordinary eligible-draw count
   until focus ends. Other selectable opportunities remain eligible but are
-  not surfaced over the resting focus screen.
+  not surfaced over the resting or stale-focus continuation. Staleness changes
+  the continuation grammar under `UX-080`; it never admits a second
+  `focus_review` ticket. An in-progress Brick that is no longer current may
+  independently contribute a typed WIP-review opportunity.
 - **FOC-033 [core] — Transactional browsing from focus.** `/next` from a
   current-focus screen draws and presents another proposal without first
   clearing or pausing the current focus. Escape, uncertainty, or rejecting the

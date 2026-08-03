@@ -295,8 +295,40 @@ Current focus:
 
 This continuation creates no event, performs no draw, and selects no
 microcopy. Before the configured stale-focus boundary, it does not ask
-`Still on this?`. The eventual stale-focus review is a separate opportunity
-under `WRK-004`, not a decoration of this screen.
+`Still working on this?`. At or after that boundary, the same current-focus
+continuation renders UX-F09; it never becomes a lottery opportunity.
+
+## UX-F09 — Stale current-focus check-in
+
+At the first safe interaction boundary after the configured stale-focus
+threshold, the current continuation renders:
+
+```text
+Current focus:
+
+#rrsr "Review Rock Splitter rules"
+
+Still working on this?
+
+[y]es    [s]kip    [?] I don't know    [d]one
+[/] more...
+
+----------------------------------------
+↳ #rs "Rock Splitter"
+🏷️ Orbit › R&D › Rock Splitter
+🕒 Last activity: Sun, Aug 2 · 22:14
+🐜 Little Ant   17 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+```
+
+`Last activity` is the latest explicit focus start, resume, or check-in; it
+does not claim continuous work or observed effort. `yes` records one
+replayable focus check-in and returns to UX-F05 without opening another focus
+interval or drawing. `skip` opens UX-S01 and records nothing until a reaction
+is accepted; `done` follows UX-F07; and `?` preserves this continuation. No
+personality line competes with the check-in. Closing the REPL preserves the
+same pending continuation. A non-current WIP review is a different,
+still-unrendered ordinary-lottery route.
 
 ## UX-F07 — Immediate focused completion
 

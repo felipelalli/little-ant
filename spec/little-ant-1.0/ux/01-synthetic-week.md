@@ -232,20 +232,26 @@ is redrawn. Verify the ordered `[d]one · [s]kip · [/] more...` action strip.
 Open `skip`, cancel the symptom screen, and confirm that no skip evidence or
 state change occurred. Replay powered up and allow only the bounded UX-065
 paraphrase. Close and reopen five minutes later; validate sober UX-F05 with no
-event, draw, repeated phrase, or premature stale-focus question. Then switch
-to another Brick through `/next`: cancel the first proposal and confirm that
-the old focus survives, then accept a second proposal and confirm that the
-switch is atomic while the old Brick remains WIP. Inspect several WIPs and
-return one to idle through `/pause`. Validate UX-F06, one current focus,
-honest WIP and focus-interval history, unchanged Domain and importance, and no
-implicit draw, skip, cooldown, or `paused` Brick state. In a separate replay,
-select direct `done` from current focus and validate UX-F07: no intermediate
-confirmation, one atomic completion that closes the focus interval and clears
-focus, one stable `work_completed` result, and a contextual `/undo` that can
-restore the prior state when its preconditions still hold. Verify that the
-result performs no automatic draw, renders `[n]ext`, and enters the ordinary
-`next` pipeline only after `n`. Verify that this result contains no binary
-question or `no` action.
+event, draw, repeated phrase, or premature stale-focus question. Advance to
+the configured boundary and validate UX-F09 as the same continuation rather
+than a lottery opportunity: exact action order, `🕒 Last activity` with one
+space, one truthful timestamp, no personality line, and no implied work
+duration. Accept `yes`, verify one check-in and return to UX-F05 without a new
+WIP, focus interval, or draw; separately test `skip`, uncertainty, completion,
+close/reopen, and no mutation before a reaction. Then switch to another Brick
+through `/next`: cancel the first proposal and confirm that the old focus
+survives, then accept a second proposal and confirm that the switch is atomic
+while the old Brick remains WIP. Inspect several WIPs and return one to idle
+through `/pause`. Validate UX-F06, one current focus, honest WIP and
+focus-interval history, unchanged Domain and importance, and no implicit draw,
+skip, cooldown, or `paused` Brick state. In a separate replay, select direct
+`done` from current focus and validate UX-F07: no intermediate confirmation,
+one atomic completion that closes the focus interval and clears focus, one
+stable `work_completed` result, and a contextual `/undo` that can restore the
+prior state when its preconditions still hold. Verify that the result performs
+no automatic draw, renders `[n]ext`, and enters the ordinary `next` pipeline
+only after `n`. Verify that this result contains no binary question or `no`
+action.
 
 ### SCN-WRK-002 — Symptom then reaction
 

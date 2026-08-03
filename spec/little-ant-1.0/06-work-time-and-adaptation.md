@@ -11,9 +11,12 @@
   immediate completion question.
 - **WRK-003 [calibration] — Soft WIP limit.** The factory soft limit is three.
   Additional WIPs are allowed and increase review pressure.
-- **WRK-004 [core] — No silent clearing.** Stale focus and WIP create
-  opportunities to continue, unfocus, return to idle, complete, drop, or
-  supersede. Nothing is silently completed or cleared.
+- **WRK-004 [core] — No silent clearing.** A stale current focus remains the
+  current continuation and asks for an explicit check-in under `UX-080`; it
+  does not enter the lottery. A WIP Brick that is no longer current may create
+  a separate review opportunity to resume, return to idle, complete, drop, or
+  supersede. Nothing is silently completed or cleared, and neither path
+  fabricates observed work duration.
 - **WRK-005 [core] — Done is direct.** A served Brick can be completed without
   first starting it through the contextual `/done` command. Completion
   without a prior start is ordinary `done` with unknown observed duration,
