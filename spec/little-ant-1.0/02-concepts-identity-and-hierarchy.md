@@ -106,10 +106,16 @@ open release decision rather than an inferred v1 commitment.
 - **MOD-014 [core] — Direct completion.** `done` is a direct transition from
   any structurally completable active Brick. It requires no invented
   intermediate stage or start event.
-- **MOD-015 [core] — Structural completion.** Active descendants, standing
-  execution, repeatable work, and pending external effects follow their
-  Nature-aware closure paths; completing a child never cascades completion to
-  an ancestor.
+- **MOD-015 [core] — Structural completion.** A finite Brick with no tracked
+  child parts remains directly executable regardless of whether its Nature is
+  `atomic_task` or `project`. Once it has been decomposed into child Bricks,
+  the parent stops being an ordinary Work candidate while any child remains
+  incomplete. Completing the final child never cascades completion to the
+  parent; it releases a parent-scope review that may confirm completion or
+  introduce more work. Standing execution, repeatable work, and pending
+  external effects retain their Nature-aware closure paths. Whether dropped
+  or superseded children satisfy the all-children-finished boundary remains
+  part of `OPEN-TREE-001`.
 - **MOD-016 [core] — Removed stages.** `seed`, `committed`, and `ready` do not
   exist in v1. Backlog-like or commitment-like meaning derives from importance
   position, not lifecycle mutation.
@@ -153,7 +159,7 @@ The factory library contains:
 | Nature | Focus and lifetime |
 |---|---|
 | `atomic_task` | one finite intention focused and completed as a single unit |
-| `project` | one finite outcome whose descendant scope participates in review |
+| `project` | one finite outcome; executable before decomposition, then represented by child work and a final scope review |
 | `collection` | open-ended independently focusable child Bricks |
 | `repeatable` | the same Brick returns after completed executions |
 | `living_checklist` | one durable parent owns changing entries and renders all open entries together |
@@ -281,7 +287,9 @@ The factory library contains:
   parts in one atomic operation. The parent retains its ID, title, history,
   sibling importance position, relationships, and Template provenance. Every
   new child receives its own Nature and local sibling position. Rejecting or
-  escaping the preview changes nothing; semantic undo follows `UX-020`.
+  escaping the preview changes nothing; semantic undo follows `UX-020`. Once
+  accepted, the decomposed parent is no longer served as ordinary Work; its
+  descendants carry execution until the scope-review boundary in `MOD-015`.
 - **MOD-047 [standard] — Previewed preparation expansion.** A
   `scheduled_commitment` Template may propose a finite preparation structure
   containing child Bricks of other Natures and explicitly identified hard

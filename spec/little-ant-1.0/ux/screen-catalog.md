@@ -200,7 +200,8 @@ Focus?
 `yes` focuses and starts WIP. `skip` opens UX-S01. `?` opens UX-H01 without
 consuming another draw. Direct completion remains available as `/done` in
 UX-M01. Pressing unbound `n` gives the educational UX-062 result and restores
-this same opportunity without mutation.
+this same opportunity without mutation. This exact composition also serves an
+undecomposed `project`; its Nature alone never inserts a structural preflight.
 
 ## UX-F02 — Cross-Domain focus
 
@@ -1114,7 +1115,10 @@ Apply this change?
 If the proposed parts should render and complete together, the preview offers
 `finite_checklist`; an open-ended independently focusable set offers
 `collection`. Content-only notes keep `atomic_task`. The operation preserves
-the parent identity and commits no child before confirmation.
+the parent identity and commits no child before confirmation. After
+confirmation, the parent stops appearing as ordinary Work while incomplete
+children exist. Completing the final child releases a parent-scope review; it
+does not silently complete or immediately refocus the parent.
 
 ## UX-A01 — External-effect confirmation
 

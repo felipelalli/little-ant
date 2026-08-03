@@ -58,34 +58,38 @@ The exact final catalog is a release-blocking decision tracked as
   finite_checklist_run
   ```
 
-  `finite_work` serves one finite focus unit, including an `atomic_task`, an
-  independently focusable child reached through project or collection
-  descent, a released recurring-obligation occurrence, an eligible
-  preparation Brick, or an actionable Brick reached through Dependency
-  resolution. `repeatable_run` serves one execution of a standing identity
-  that may later return. `habit_window` serves one applicable opportunity of
-  a standing habit without creating overdue task backlog. The two checklist
-  variants present their owning checklist and entries, but finishing a
-  `living_checklist_run` never retires its standing owner, while completion of
-  a `finite_checklist_run` may finish its finite owner.
+  `finite_work` serves one finite focus unit, including an undecomposed
+  `atomic_task` or `project`, an independently focusable child reached through
+  project or collection descent, a released recurring-obligation occurrence,
+  an eligible preparation Brick, or an actionable Brick reached through
+  Dependency resolution. `repeatable_run` serves one execution of a standing
+  identity that may later return. `habit_window` serves one applicable
+  opportunity of a standing habit without creating overdue task backlog. The
+  two checklist variants present their owning checklist and entries, but
+  finishing a `living_checklist_run` never retires its standing owner, while
+  completion of a `finite_checklist_run` may finish its finite owner.
 
   These variants may reuse `Work:` composition or other shared visual
   fragments, but they never collapse into one union-shaped payload. Their
   accept, skip, run-completion, and terminal transitions remain independently
-  typed. Project scope review is a review opportunity rather than execution;
-  an active `scheduled_commitment` remains the hard-precedence result defined
-  by FOC-030 rather than a sixth ordinary-lottery execution variant.
+  typed. Review of a decomposed project after its children finish is a review
+  opportunity rather than execution; an active `scheduled_commitment` remains
+  the hard-precedence result defined by FOC-030 rather than a sixth
+  ordinary-lottery execution variant.
 
 ## Hierarchical selection
 
 - **FOC-010 [core] — Local hierarchy.** Selection begins among root attention
   subjects, then descends through composition using locally normalized draws
   until reaching a concrete subject or a Nature-defined boundary.
-- **FOC-011 [core] — Nature-owned focus unit.** `project` may descend to a
-  child or offer decomposition/review; `collection` descends to an independent
-  child; checklist Natures present the parent with its entries; `atomic_task`,
-  `repeatable`, `habit`, and `scheduled_commitment` normally present the Brick
-  itself.
+- **FOC-011 [core] — Structure-owned focus boundary.** A finite Brick without
+  child parts may be served itself, including a Brick already classified as
+  `project`. After decomposition, a project parent is not an execution
+  candidate: selection descends to an eligible child. When every child is
+  done, the parent may contribute a typed scope-closure review instead of
+  returning as Work. A `collection` descends to an independent child;
+  checklist Natures present the parent with its entries; `repeatable`,
+  `habit`, and `scheduled_commitment` normally present the Brick itself.
 - **FOC-012 [core] — No title heuristics.** Decomposition or descent follows
   resolved Nature capabilities, never the apparent grandeur of a title.
 - **FOC-013 [core] — Flat view is projection.** A flat forecast may display

@@ -248,6 +248,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   `WRK-065`; `skip` is the typed lottery-review deferral and never opens the
   served-work symptom screen. Uncertainty and Escape preserve the pending
   review. The screen has no decorative personality line.
+- **UX-082 [core] — Nature does not multiply screen grammar.** A Nature changes
+  presentation only when its valid actions or transition family genuinely
+  differ. An undecomposed `project` and an `atomic_task` therefore share the
+  ordinary `Work:` composition in UX-F01; no project-only preflight or
+  empty-project screen intervenes. Decomposition may later change selection
+  boundaries under `FOC-011`, and a completed child scope may create a typed
+  review, but neither fact creates one screen per Nature. Capability-specific
+  fragments compose into the smallest existing grammar under `FOC-009`.
 
 ## Status, history, and recovery
 

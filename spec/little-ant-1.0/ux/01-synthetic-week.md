@@ -195,9 +195,13 @@ context, and no importance rewrite.
 
 ### SCN-FOC-004 — Project descent
 
-Draw a project-like subject and validate Nature-driven child descent versus
-review/decomposition. An atomic Brick must not receive the same prompt merely
-because its title sounds large.
+Serve an undecomposed `project` and an `atomic_task` through the same UX-F01
+`Work:` grammar. Skip the atomic Brick with symptom `big`, accept the UX-B01
+break preview, and verify that its identity survives reclassification. The
+decomposed parent must then disappear from execution while selection descends
+to its incomplete children. Complete the final child and verify that the
+parent returns only as a scope-closure review, never as Work and never already
+completed. Title grandeur alone must not trigger a different screen.
 
 ### SCN-FOC-005 — Semantic opportunity granularity
 

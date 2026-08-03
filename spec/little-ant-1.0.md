@@ -65,8 +65,11 @@ runs, fixed-slot and quota-window habits, recurring obligations, and active
 scheduled commitments. `FOC-025`, `FOC-032`, `UX-080`, and `UX-F09` settle
 stale current focus as a check-in continuation outside the lottery.
 `FOC-038`, `WRK-065`, `UX-081`, and `UX-F10` settle non-current WIP review as
-a distinct ordinary-lottery opportunity. Resume with the remaining
-non-execution opportunity catalog, beginning with structural project review.
+a distinct ordinary-lottery opportunity. `MOD-015`, `FOC-011`, and `UX-082`
+restore the universal-Brick execution rule: an undecomposed project uses
+ordinary Work, a decomposed parent yields execution to its children, and the
+parent returns only for scope review after every child is done. Resume by
+designing that scope-closure review.
 
 ## Scope rings
 
