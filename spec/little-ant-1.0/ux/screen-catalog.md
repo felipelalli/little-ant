@@ -325,6 +325,37 @@ checkpoint remains. The REPL does not draw automatically from this result.
 Pressing `n` invokes the ordinary canonical `next` pipeline; closing the REPL
 instead leaves focus idle, and the next startup follows UX-046.
 
+## UX-F08 — Repeatable Work offer
+
+When a `repeatable_run` of `#rtfea` returns after an earlier completed
+execution, it keeps the ordinary Focus composition:
+
+```text
+Work:
+
+#rtfea "Read the focus-engine article"
+
+Focus?
+
+[y]es    [s]kip    [?] I don't know
+[/] more...
+
+----------------------------------------
+🏷️ Learning
+↻ Last completed: Tue, Feb 3, 2026
+🐜 Little Ant   18 eligible   3 reviews
+   Mon, Aug 3   09:00         mode: dumb   focus: idle
+```
+
+`yes` starts another execution of the same Brick identity; it creates no
+occurrence Brick, replacement, or importance insertion. `skip` opens UX-S01
+without yet fabricating an unfulfilled habit window, an overdue obligation,
+or a terminal outcome. `?` may reveal execution history, source material, and
+the recorded return rule without changing the draw. The secondary history row
+does not rename the primary question or imply urgency. The exact
+Nature-sensitive pressure after a completed skip and the
+completion/return/retire screens remain the next UX decisions.
+
 ## UX-U01 — Contextual undo preview
 
 Pressing `Left Arrow` after local backward navigation is exhausted does not

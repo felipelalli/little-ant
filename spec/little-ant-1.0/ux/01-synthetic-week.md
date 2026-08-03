@@ -347,7 +347,13 @@ record one deterministic date, keep its importance position, and ensure a
 batch of articles receives distinct replay-safe dates. When its next
 `repeatable_run` is served, expose the prior execution as
 `Last completed: <absolute date>` in secondary context without turning that
-history into another ticket, deadline, or primary prompt.
+history into another ticket, deadline, or primary prompt. Validate UX-F08:
+the screen retains ordinary `Work:` and `Focus?`, accepting starts another
+execution of the same Brick identity, and no occurrence, replacement,
+importance insertion, or Nature-specific `Read again?` prompt appears. Enter
+the skip diagnosis and verify that merely opening it records no habit failure,
+overdue obligation, or repeatable outcome; continue only after the
+Nature-sensitive skip policy is settled.
 
 ## Day 6 — Habits and delegation
 

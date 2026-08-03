@@ -214,7 +214,10 @@ no-emoji rendering remain `OPEN-UX-001`.
   exposes `Last completed: <absolute date>` in the secondary context region.
   This is historical orientation, not a deadline, recency judgment, forecast
   explanation, or new opportunity. It does not alter the shared `Work:` and
-  `Focus?` primary grammar.
+  `Focus?` primary grammar, and the primary question does not become `Read
+  again?`, `Repeat?`, or another Nature-specific prompt. Accepting starts
+  another execution of the same Brick identity; it does not create an
+  occurrence Brick, reinsert importance, or replace the Brick.
 
 ## Status, history, and recovery
 

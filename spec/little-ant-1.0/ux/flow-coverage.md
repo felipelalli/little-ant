@@ -54,7 +54,7 @@ run as an interactive transcript.
 | 6 | Finite-checklist run | `MOD-036..037` | missing | `OPEN-LST-001` |
 | 6 | Nature capability matrix | factory Nature table | missing | Gate 6 matrix |
 | 7 | Date notice/later | `WRK-014..018`, `UX-A01` | partial | `OPEN-TIME-001` |
-| 7 | Repeatable return/jitter | `WRK-021..022`, `UX-078`, `SCN-REP-001` | partial | focus rendering beyond the settled `Last completed` context, plus completion/reschedule/retire screens |
+| 7 | Repeatable return/jitter | `WRK-021..022`, `UX-078`, `UX-F08`, `SCN-REP-001` | partial | Nature-sensitive skip pressure and completion/reschedule/retire screens |
 | 7 | Recurring obligation | `WRK-023` | missing | occurrence release, overdue, close |
 | 7 | Habit schedule/outcome | `WRK-024..027`, `UX-P01` | partial | `OPEN-WRK-002` and schedule screens |
 | 7 | Scheduled commitment | `FOC-030..031`, `WRK-041..046` | missing | `OPEN-SCH-001..002` |

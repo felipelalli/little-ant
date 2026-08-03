@@ -58,10 +58,11 @@ complete:
   recoverable from Git.
 
 Gate 2 is in progress. `FOC-037` has closed the five ordinary execution
-variants. UX-first review is now paused inside `repeatable_run`: `UX-078`
-settles visible `Last completed` context, while the remaining Work rendering
-and completion/return flow are still open. Resume there before returning to
-the remaining served-work skip reactions or broader catalog questions.
+variants. UX-first review is now paused inside `repeatable_run`: `UX-078` and
+`UX-F08` settle its ordinary `Work:` rendering and visible `Last completed`
+context. Resume by distinguishing the skip consequences of repeatable runs,
+habit windows, and recurring obligations, then close the repeatable
+completion/return/retire flow before returning to broader catalog questions.
 
 ## Scope rings
 
