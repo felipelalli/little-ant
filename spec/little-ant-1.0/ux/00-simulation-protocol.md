@@ -33,7 +33,7 @@ may expose missing or contradictory rules.
   flow, update the screen catalog, scenario, canonical rule if needed, and
   traceability in one small documentation commit.
 - **SCN-009 — Dumb REPL first.** Every new flow begins with the complete dumb
-  REPL. Startup shows the persistent status bar and automatically restores or
+  REPL. Startup shows the persistent stacked footer and automatically restores or
   obtains the current `next` proposal; it does not wait at a command prompt.
   The simulation includes the main envelope, contextual panel, secondary
   command escape, key/input transition, and resulting state. It cannot rely

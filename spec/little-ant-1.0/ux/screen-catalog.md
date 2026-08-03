@@ -15,14 +15,15 @@ long paths, but renderers preserve the content order and action order.
 <secondary command escape>
 
 ----------------------------------------
-<optional Within path>
-<optional Domain/current-Domain context>
+<optional compass context: Within path and/or Domain path>
 <at most one warning and overflow count>
 <optional subject-specific facts>
-<persistent bottom status bar>
+<optional temporal facts plus current clock>
+<persistent Little Ant state>
 ```
 
-Empty secondary rows are omitted. Context and status rows are contiguous.
+Empty secondary rows are omitted. The compass, clock, and Little Ant blocks
+are contiguous and appear in that order.
 Emoji have accessible textual equivalents. Markdown code blocks show the
 monochrome structure: a capable terminal applies UX-070..073, including dim
 brackets and dividers, bold cyan shortcut characters, and reverse video for
@@ -32,8 +33,8 @@ display-cell columns.
 ## UX-R00 — Dumb REPL frame
 
 The REPL opens by restoring or obtaining `next`, not by waiting for a command.
-The status bar follows the divider and contextual rows rather than occupying
-the top of the screen:
+The stacked footer follows the divider rather than occupying the top of the
+screen:
 
 ```text
 Work:
@@ -46,14 +47,15 @@ Focus?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 The automatically served envelope, secondary-command escape, context panel,
-and bottom status bar are all part of REPL UX. `[?] I don't know` belongs to
+and stacked footer are all part of REPL UX. `[?] I don't know` belongs to
 the current Focus decision, while `[/] more...` opens UX-M01. Adaptive or
 narrow-terminal rendering may fold regions but cannot test only the inner
 envelope and call that a REPL simulation.
@@ -61,7 +63,7 @@ envelope and call that a REPL simulation.
 Powered-up mode reuses the frame and changes only:
 
 ```text
-   Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
+   mode: powered up · by: /bin/claude-fast.sh   focus: idle
 ```
 
 plus any explicitly attributed proposals that passed the startup handshake.
@@ -85,10 +87,11 @@ Type to filter available commands.
 ↑/↓ select · Enter run · Esc back
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 Only currently valid commands participate in search. The initial suggestions
@@ -149,19 +152,21 @@ identity-conflict result with a concrete recovery path.
 
 ## UX-R01 — Civil clock and operational day
 
-At 02:00 on Tuesday, the status bar keeps the real civil date. If the
+At 02:00 on Tuesday, the stacked footer keeps the real civil date. If the
 configured workday began at 06:00, it exposes the differing operational label
 instead of silently displaying Monday as though it were the calendar date:
 
 ```text
+🕒 Tue, Aug 4   02:00
+   workday: Mon, Aug 3
 🐜 Little Ant   18 eligible   3 reviews
-   Tue, Aug 4   02:00         workday: Mon, Aug 3   mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 A habit opportunity still belonging to Monday may add:
 
 ```text
-🐜 Monday slot · closes Tue, Aug 4 at 04:00 America/Montevideo (UTC-03)
+🕒 Monday slot · closes Tue, Aug 4 at 04:00 America/Montevideo (UTC-03)
 ```
 
 An exact event remains exact and zoned regardless of either operational
@@ -184,11 +189,12 @@ Focus?
 [/] more...
 
 ----------------------------------------
-↳ #rlav2 "Recover Little Ant v1"
-🏷️ Personal › Little Ant
+🧭 #rlav2 "Recover Little Ant v1"
+   Personal › Little Ant
 ⚠️ #smr "Submit migration report" · deadline in 2h · +2 warnings
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 `yes` focuses and starts WIP. `skip` opens UX-S01. `?` opens UX-H01 without
@@ -209,10 +215,11 @@ Focus?
 [/] more...
 
 ----------------------------------------
-🏷️ Personal › Housekeeping
+🧭 Personal › Housekeeping
    from Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 There is no preliminary `Switch Domain?`. `yes` starts focus and changes the
@@ -232,13 +239,14 @@ Focus?
 [/] more...
 
 ----------------------------------------
-↳ #rlav2 "Recover Little Ant v1"
-🏷️ Personal › Little Ant
+🧭 #rlav2 "Recover Little Ant v1"
+   Personal › Little Ant
 🚧 reached through #rlav "Release Little Ant v1"
    → blocked by #rio "Restore importance ordering"
    → blocked by this Brick
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 Long paths may fold visually, but every cited Brick retains its complete
@@ -261,10 +269,11 @@ Come back when you're done—or when something gets in the way. 😌
 [d]one   [s]kip   [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 The phrase is one `focus_started` entry from the 16-phrase factory catalog.
@@ -287,10 +296,11 @@ Current focus:
 [d]one   [s]kip   [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:05
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:05         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 This continuation creates no event, performs no draw, and selects no
@@ -314,11 +324,12 @@ Still working on this?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
 🕒 Last activity: Sun, Aug 2 · 22:14
+   Mon, Aug 3   09:00
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 `Last activity` is the latest explicit focus start, resume, or check-in; it
@@ -344,10 +355,11 @@ Done:
 [n]ext   [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:32
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:32         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 The phrase is one `work_completed` entry from the 16-phrase factory catalog.
@@ -373,10 +385,11 @@ Focus?
 [/] more...
 
 ----------------------------------------
-🏷️ Learning
+🧭 Learning
 ↻ Last completed: Tue, Feb 3, 2026
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 `yes` starts another execution of the same Brick identity; it creates no
@@ -405,10 +418,11 @@ Undo the last recorded action?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:32
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:32         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 The preview identifies the typed action and its subject. `yes` invokes the
@@ -434,10 +448,11 @@ Redo the last undone action?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:32
 🐜 Little Ant   17 eligible   3 reviews
-   Mon, Aug 3   09:32         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 `yes` invokes the same checked reapplication as `/redo`. The current screen
@@ -459,10 +474,11 @@ This Brick remains in progress.
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:05
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:05         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 The completed focus interval is history, but there is no `paused` Brick state,
@@ -487,10 +503,11 @@ Is
 *[m]ore important   [l]ess important   [s]kip   [?] I don't know
 
 ----------------------------------------
-↳ #rtnw "Release the new website"
+🧭 #rtnw "Release the new website"
 Suggestion: /bin/claude-fast.sh · importance insertion
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
+   mode: powered up · by: /bin/claude-fast.sh   focus: idle
 ```
 
 The `*` appears only when evidence supports that default. `more important`
@@ -518,12 +535,13 @@ Already finished?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
 ⚠️ #rfi "Review fraud incident" · deadline tomorrow
 served after 9 days · active Domain unchanged
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 Selecting a symptom opens its separate reaction screen without recording
@@ -561,12 +579,13 @@ Continue without identifying it?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
 ⚠️ #rfi "Review fraud incident" · deadline tomorrow
 served after 9 days · active Domain unchanged
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 The choices describe the human situation, not storage primitives. `task`
@@ -598,10 +617,11 @@ Does the prerequisite already exist?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 `find` opens an existing-Brick selector; `create` opens UX-S03 and its pending
@@ -625,10 +645,11 @@ Whose response are you waiting for?
 Type a name. Existing entities will appear as you type.
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 After typing `Alice`, the same screen may contain:
@@ -673,10 +694,11 @@ Has the request already been made?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 This binary question records nothing. `yes` enters UX-W00 before activating a
@@ -708,10 +730,11 @@ one [w]eek      (Mon, Aug 10)
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 The factory dumb suggestion for a human response is three days. Each relative
@@ -747,10 +770,11 @@ What happened?
 [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Fri, Aug 7   09:00
 🐜 Little Ant   17 eligible   3 reviews
-   Fri, Aug 7   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 `response received` resolves only the Wait and returns the affected Brick to
@@ -779,10 +803,11 @@ Tip: write in English when possible.
 Esc returns without recording anything.
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 Enter preserves the draft and runs the ordinary duplicate, Nature, optional
@@ -812,8 +837,9 @@ Use this structure?
 *[y]es    [n]o    [?] I don't know
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:03
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:03         mode: dumb   focus: #rrsr
+   mode: dumb   focus: #rrsr
 ```
 
 `yes` accepts the structural suggestion and continues the still-pending
@@ -851,10 +877,11 @@ Blocked by:
 [n]ext    [/] more...
 
 ----------------------------------------
-↳ #rs "Rock Splitter"
-🏷️ Orbit › R&D › Rock Splitter
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Mon, Aug 3   09:07
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:07         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 The phrase is one replay-stable `skip_acknowledged` entry under UX-064. The
@@ -886,8 +913,9 @@ recurring [o]bligation  e.g. "Pay the monthly rent"
 [?] I don't know
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 `?` opens UX-K02. No selection is a hidden fallback and no Template appears
@@ -904,8 +932,9 @@ Will completing this once finish the whole intention?
 [y]es    [n]o    [?] I don't know
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 Successive `yes`, `no`, and uncertainty answers traverse the bounded,
@@ -927,8 +956,9 @@ Is this right?
 *[y]es    [n]o    [?] I don't know
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 `yes` accepts the Nature and continues Feed. `no` returns to UX-K01 with the
@@ -950,8 +980,9 @@ Use this setup?
 [y]es    [n]o    [?] I don't know
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: powered up · by: /bin/claude-fast.sh   focus: idle
+   mode: powered up · by: /bin/claude-fast.sh   focus: idle
 ```
 
 The skill uses the same confirmation envelope. `no` restores the unchanged
@@ -973,8 +1004,9 @@ Choose an optional setup:
 [?] I don't know
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 The catalog contains only Templates compatible with the resolved Nature.
@@ -1008,8 +1040,9 @@ e[x]am                   e.g. "Driver's license exam"
 [?] I don't know
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 No category screen is introduced while this flat choice remains usable.
@@ -1039,9 +1072,10 @@ Apply this change?
 [y]es    [n]o    [?] I don't know
 
 ----------------------------------------
-🏷️ Orbit › Finance › Quarterly reporting
+🧭 Orbit › Finance › Quarterly reporting
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 If the proposed parts should render and complete together, the preview offers
@@ -1067,8 +1101,9 @@ Suggested message:
 ----------------------------------------
 👤 Bento Camargo
 delegation follow-up · due 2 days ago
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 `later` opens a date screen and records nothing until the absolute date is
@@ -1096,8 +1131,9 @@ Edit the message:
 ----------------------------------------
 👤 Bento Camargo
 delegation follow-up · due 2 days ago
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 On entry, every prefilled display cell is selected with the accessible
@@ -1131,9 +1167,10 @@ What should change?
 [s]kip         [?] I don't know
 
 ----------------------------------------
-🏷️ Orbit › Finance
+🧭 Orbit › Finance
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 `continue` increases the allowance by exactly one and enters the ordinary
@@ -1153,15 +1190,16 @@ Why is this blocked?
 [Enter] confirm · [Esc] cancel
 
 ----------------------------------------
-↳ #rrsr "Review Rock Splitter rules"
+🧭 #rrsr "Review Rock Splitter rules"
 text is local draft until confirmed
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 ## UX-I02 — Feed input
 
-The persistent status bar remains visible. The prior `next` proposal becomes a
+The persistent stacked footer remains visible. The prior `next` proposal becomes a
 navigation checkpoint while text is edited:
 
 ```text
@@ -1174,8 +1212,9 @@ Tip: prefer English for consistent titles and search.
 [Enter] continue · [Esc] back
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 Enter begins the deterministic Feed route. Escape restores the exact proposal
@@ -1198,8 +1237,9 @@ What would help you decide?
 
 ----------------------------------------
 no answer or skip has been recorded
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 Closing assistance restores the same pending revision.
@@ -1215,10 +1255,11 @@ Continue?
 [y]es · *[n]o · [?] I don't know
 
 ----------------------------------------
-↳ #stpw "Swim twice per week"
+🧭 #stpw "Swim twice per week"
 [x][x][-][x][x] · current window ends Sunday
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 An ordinary defer-only skip never opens this confirmation or claims the streak
@@ -1240,10 +1281,11 @@ Start this run?
 [y]es · [d]one · [s]kip · [?] I don't know
 
 ----------------------------------------
-🏷️ Personal › Housekeeping
+🧭 Personal › Housekeeping
 3 open · last run 6 days ago
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   18 eligible   3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 All open entries appear together. `done` is interpreted through the
@@ -1262,8 +1304,9 @@ Feed Little Ant its first Brick to get started.
 [f]eed   [/] more...
 
 ----------------------------------------
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    0 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 Feed opens UX-I02. More may expose import, help, configuration, and exit when
@@ -1285,10 +1328,11 @@ What next?
 [?] I don't know
 
 ----------------------------------------
-🏷️ Orbit › R&D › Rock Splitter
+🧭 Orbit › R&D › Rock Splitter
 4 active · 3 blocked · 1 not before tomorrow
+🕒 Mon, Aug 3   09:00
 🐜 Little Ant   0 eligible    3 reviews
-   Mon, Aug 3   09:00         mode: dumb   focus: idle
+   mode: dumb   focus: idle
 ```
 
 The available choices derive from actual state; the screen never fabricates
@@ -1300,7 +1344,7 @@ work merely to avoid emptiness.
 |---|---|---|---|
 | primary block | terminal text | text/card with same order | same text block |
 | action | one key, no Enter | button/touch target retaining label and shortcut | natural language or canonical letter mapped to the same action ID |
-| secondary region | context plus bottom status below a divider | separated context/status panel | separated block after the prompt |
+| secondary region | stacked footer below a divider | separated stacked footer | separated block after the prompt |
 | input | line editor | text field | free text |
 | revision | carried by harness | hidden transport value | included in tool action |
 

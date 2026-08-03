@@ -90,7 +90,7 @@ in the Feed input screen, and submit it.
 
 Validate:
 
-- the status bar is visibly separate from the automatically served `next`
+- the stacked footer is visibly separate from the automatically served `next`
   proposal;
 - the first screen contains only the Focus decision and `[/] more...`, not a
   direct Feed action, default Feed, or shell prompt;

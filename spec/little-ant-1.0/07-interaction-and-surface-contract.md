@@ -242,22 +242,32 @@ no-emoji rendering remain `OPEN-UX-001`.
 
 ## Status, history, and recovery
 
-- **UX-025 [core] — Persistent bottom status bar.** Every first-party guided
-  surface presents a compact status bar below the horizontal divider and
-  contextual rows. There is no blank line between the context and status or
-  between the two status rows. Its first row identifies Little Ant and shows
-  useful aggregate statistics. Its indented second row shows the local clock
-  and operating state. Values begin at stable display-cell columns; shorter
-  values are padded so changing `18 eligible` to `0 eligible` does not move
-  the reviews column. Column spacing replaces decorative separators:
+- **UX-025 [core] — Persistent stacked footer.** Every first-party guided
+  surface presents one compact footer below the horizontal divider. It stacks
+  up to three visually stable blocks in this order: subject context under
+  `🧭`, temporal context under `🕒`, and Little Ant state under `🐜`. A block's
+  first row owns its icon; continuation rows are indented to the same content
+  column. There is no blank row inside or between blocks. A parent Brick and
+  its Domain path share the compass block because both locate the subject;
+  the current civil clock belongs to the clock block rather than to product
+  state. Values begin at stable display-cell columns, and shorter values are
+  padded so changing `18 eligible` to `0 eligible` does not move the reviews
+  column. Column spacing replaces decorative separators:
 
   ```text
+  🧭 #rs "Rock Splitter"
+     Orbit › R&D › Rock Splitter
+  🕒 Last focused: Sun, Aug 2 · 22:14
+     Mon, Aug 3   09:00
   🐜 Little Ant   18 eligible   3 reviews
-     Mon, Aug 3   09:00         mode: dumb   focus: idle
+     mode: dumb   focus: idle
   ```
 
-  A value unavailable to a surface is omitted honestly. The status bar is
-  persistent product chrome, not the main content or top header of an
+  Optional subject-specific temporal facts, such as `Last focused`, precede
+  the current clock in the temporal block. When no such fact exists, the
+  current clock owns the `🕒` row. A missing parent, Domain, warning, temporal
+  fact, or statistic is omitted honestly rather than leaving an empty row.
+  The footer is persistent product chrome, not the main content or top header of an
   `InteractionEnvelope`.
 - **UX-026 [core] — Discreet warning rotation.** If several warnings apply,
   one is selected replay-deterministically at a screen boundary. Rendering the
@@ -352,13 +362,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   are reviewed only after the corresponding dumb and, when applicable,
   powered-up REPL paths are accepted. A downstream convenience may motivate a
   later REPL-contract revision, but cannot silently fork the product language.
-- **UX-045 [core] — Context panel.** Parentage, Domain path, at most one
-  selected warning plus its overflow count, and concise subject-specific facts
-  may appear below the divider and above the status bar. Empty rows are
-  omitted. Technical selection provenance is available through contextual
-  `?`; it is not shown by default. Mode and aggregate counts belong to the
-  status bar, not this panel. Rendered Domain paths use `›` between hierarchical
-  segments.
+- **UX-045 [core] — Footer context block.** Parentage and Domain path share
+  the compass block below the divider. At most one selected warning plus its
+  overflow count and concise subject-specific facts may follow before the
+  clock block. Empty rows are omitted. Technical selection provenance is
+  available through contextual `?`; it is not shown by default. Mode and
+  aggregate counts belong to the Little Ant block, not subject context.
+  Rendered Domain paths use `›` between hierarchical segments.
 - **UX-046 [core] — Automatic opening opportunity.** Starting or restoring the
   REPL never lands on an idle command prompt. It first restores an exact
   pending interaction or otherwise invokes the canonical `next` pipeline and
@@ -483,8 +493,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   action strip `[d]one · [s]kip · [/] more...`. `done` comes first because
   completion is the positive ordinary outcome of active focus. `skip` opens
   the served-work symptom screen for the focused Brick; pressing it alone
-  records no skip evidence, cooldown, or lifecycle change. The status bar
-  identifies the focused Brick. The immediate `focus_started` result may carry
+  records no skip evidence, cooldown, or lifecycle change. The Little Ant
+  state block identifies the focused Brick. The immediate `focus_started`
+  result may carry
   UX-064 microcopy. Restarting or restoring the REPL later resumes a sober
   rendering of this screen while that focus remains valid; it neither repeats
   the transition message nor asks whether the focus is stale before the

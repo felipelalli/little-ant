@@ -86,7 +86,7 @@ Decisions:
   state transitions as each route is accepted;
 - minimum `InteractionEnvelope` identity, revision, provenance, commands,
   valid actions, and bounded context;
-- shared chrome: status bar, context panel, warnings, secondary command
+- shared chrome: stacked footer, warnings, and secondary command
   escape, `*`, `[?] I don't know`, nested help, `/`, Escape, semantic
   undo/redo, stale response, and bounded contextual personality;
 - canonical executable and reference grammar;
