@@ -97,7 +97,10 @@ evidence:
 - importance-to-chance curve and positive-tail floor;
 - strongest-signal bonus curve, independence test, and cap;
 - Domain-affinity strength and decay after accepted focus;
-- served-skip cooldown, aging, and repeated-avoidance pressure;
+- served-skip cooldown plus separately calibrated repeatable aging,
+  quota-window schedule pressure, and recurring-obligation avoidance
+  pressure; these parameters never collapse the semantic distinctions in
+  `WRK-062..064`;
 - Domain fatigue cooldown and bounded negative signal;
 - provocative-comparison base chance and confidence multipliers;
 - taxonomy-watch evidence count, window, and decay;

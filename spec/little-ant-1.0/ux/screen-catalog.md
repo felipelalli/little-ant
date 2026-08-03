@@ -348,13 +348,14 @@ Focus?
 ```
 
 `yes` starts another execution of the same Brick identity; it creates no
-occurrence Brick, replacement, or importance insertion. `skip` opens UX-S01
-without yet fabricating an unfulfilled habit window, an overdue obligation,
-or a terminal outcome. `?` may reveal execution history, source material, and
-the recorded return rule without changing the draw. The secondary history row
-does not rename the primary question or imply urgency. The exact
-Nature-sensitive pressure after a completed skip and the
-completion/return/retire screens remain the next UX decisions.
+occurrence Brick, replacement, or importance insertion. `skip` opens UX-S01;
+final deferral follows `WRK-062` and creates no missed window, overdue
+obligation, or terminal outcome. `?` may reveal execution history, source
+material, and the recorded return rule without changing the draw. The
+secondary history row does not rename the primary question or imply urgency.
+A completion count may later share that row under UX-079, but a repeatable
+Brick never renders invented missed cells. The completion/return/retire
+screens remain the next UX decisions.
 
 ## UX-U01 — Contextual undo preview
 

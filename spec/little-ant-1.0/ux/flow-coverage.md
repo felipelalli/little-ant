@@ -54,9 +54,9 @@ run as an interactive transcript.
 | 6 | Finite-checklist run | `MOD-036..037` | missing | `OPEN-LST-001` |
 | 6 | Nature capability matrix | factory Nature table | missing | Gate 6 matrix |
 | 7 | Date notice/later | `WRK-014..018`, `UX-A01` | partial | `OPEN-TIME-001` |
-| 7 | Repeatable return/jitter | `WRK-021..022`, `UX-078`, `UX-F08`, `SCN-REP-001` | partial | Nature-sensitive skip pressure and completion/reschedule/retire screens |
-| 7 | Recurring obligation | `WRK-023` | missing | occurrence release, overdue, close |
-| 7 | Habit schedule/outcome | `WRK-024..027`, `UX-P01` | partial | `OPEN-WRK-002` and schedule screens |
+| 7 | Repeatable return/jitter | `WRK-021..022`, `WRK-062`, `WRK-064`, `UX-078..079`, `UX-F08`, `SCN-REP-001` | partial | completion/reschedule/retire screens |
+| 7 | Recurring obligation | `WRK-023`, `WRK-062`, `WRK-064`, `SCN-TIME-001` | missing | occurrence release, overdue, close, and exact skip result screen |
+| 7 | Habit schedule/outcome | `WRK-024..027`, `WRK-062..064`, `UX-079`, `UX-P01`, `SCN-PRC-001` | partial | `OPEN-WRK-002`, exact fixed-slot/quota skip results, and schedule screens |
 | 7 | Scheduled commitment | `FOC-030..031`, `WRK-041..046` | missing | `OPEN-SCH-001..002` |
 | 8 | Raw review/source reconcile | `FED-010..014`, `DAT-011..017` | missing | `OPEN-RAW-003` |
 | 8 | `/translate` | `MOD-049` | missing | `OPEN-RAW-002` |

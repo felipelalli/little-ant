@@ -60,9 +60,10 @@ complete:
 Gate 2 is in progress. `FOC-037` has closed the five ordinary execution
 variants. UX-first review is now paused inside `repeatable_run`: `UX-078` and
 `UX-F08` settle its ordinary `Work:` rendering and visible `Last completed`
-context. Resume by distinguishing the skip consequences of repeatable runs,
-habit windows, and recurring obligations, then close the repeatable
-completion/return/retire flow before returning to broader catalog questions.
+context; `WRK-062..064` settle the different post-skip behavior of repeatable
+runs, fixed-slot and quota-window habits, recurring obligations, and active
+scheduled commitments. Resume with the repeatable completion/return/retire
+screen before returning to broader catalog questions.
 
 ## Scope rings
 

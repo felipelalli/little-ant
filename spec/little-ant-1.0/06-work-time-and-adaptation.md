@@ -220,6 +220,45 @@
   intentions can create a review using configurable evidence thresholds.
   Possible remedies remain explicit: revise schedule, add a dependency or
   enabling Brick, pause, retire, or gather more evidence.
+- **WRK-062 [core] — Nature-owned skip consequences.** Finalizing a typed
+  skip on an ordinary-lottery execution always grants an immediate
+  replay-deterministic cooldown, so the same opportunity cannot nag through
+  an immediate redraw. What happens after that cooldown follows the semantic
+  variant rather than one universal pressure rule:
+
+  - a `repeatable_run` records deferral but no missed window, debt, overdue
+    occurrence, or gap in history; after cooldown it returns through its
+    ordinary availability and aging policy;
+  - a `habit_window` never becomes overdue task backlog and follows its
+    schedule shape under `WRK-063`;
+  - skipping a released `recurring_obligation` occurrence leaves that finite
+    occurrence open. After cooldown, recorded avoidance and its ordinary
+    `best_before` or `deadline` signals may increase its selection pressure;
+    a later period never erases it;
+  - an active `scheduled_commitment` is hard precedence under `FOC-030`, not
+    an ordinary-lottery execution, and therefore exposes truthful
+    commitment outcomes instead of this skip route.
+
+  A skip never changes importance order. Cooldown and pressure curves are
+  replay-safe calibration parameters; the distinctions above are not.
+- **WRK-063 [standard] — Habit skip follows schedule shape.** For an
+  applicable fixed-slot habit opportunity, finalizing skip closes that slot
+  with the canonical unfulfilled outcome unless the accepted reaction makes
+  the slot blocked, paused, or inapplicable under `WRK-025`. It does not return
+  as debt. For a quota-window habit, skip applies cooldown but does not close
+  the window or itself record the window-wide failure: the opportunity
+  remains eligible while the quota is unmet and still achievable. Its chance
+  may respond to remaining time and schedule deficit, not to a fabricated
+  overdue occurrence. The schedule boundary derives any unfulfilled outcomes
+  from the unmet quota.
+- **WRK-064 [standard] — Honest standing-history projections.** A compact
+  sequence may show only real discrete opportunities. Habit checks and gaps
+  derive from applicable habit-window outcomes. A `repeatable` Brick has no
+  expected windows, so it may expose completion count and `Last completed`
+  but never inserts a gap merely because no execution occurred. A recurring
+  obligation exposes open and resolved occurrence state rather than a streak;
+  an unresolved occurrence is debt, not a missed historical cell. Exact
+  glyphs and compact layout remain surface work under `OPEN-UX-001`.
 - **WRK-028 [standard] — Event-triggered opportunity.** A supported canonical
   source event may idempotently release one opportunity on an existing
   compatible standing Brick. This is closed core data, not generic automation.

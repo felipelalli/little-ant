@@ -218,6 +218,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   again?`, `Repeat?`, or another Nature-specific prompt. Accepting starts
   another execution of the same Brick identity; it does not create an
   occurrence Brick, reinsert importance, or replace the Brick.
+- **UX-079 [standard] — Honest compact history.** Secondary context may expose
+  a compact standing-work history only when every visible cell has a canonical
+  period or occurrence under `WRK-064`. Habit history may pair a labeled
+  streak with completed and unfulfilled windows. Repeatable Work may show a
+  completion count beside `Last completed`, but never an invented missed
+  cell. Recurring obligations show open and resolved occurrences rather than
+  streaks. Text or symbols preserve the distinction without relying on color;
+  the exact compact rendering remains under `OPEN-UX-001`.
 
 ## Status, history, and recovery
 

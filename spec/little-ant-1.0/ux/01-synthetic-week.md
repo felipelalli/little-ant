@@ -338,7 +338,9 @@ the standing Brick.
 
 Exercise `not_before`, `best_before`, and `deadline` separately. Validate one
 discreet warning, overflow count, acknowledgment/snooze, and no importance
-change.
+change. Skip the released bill occurrence, verify one immediate cooldown, and
+then verify that it remains open while avoidance and temporal evidence may
+increase its later selection pressure. A later period must not erase it.
 
 ### SCN-REP-001 — Read again
 
@@ -351,9 +353,10 @@ history into another ticket, deadline, or primary prompt. Validate UX-F08:
 the screen retains ordinary `Work:` and `Focus?`, accepting starts another
 execution of the same Brick identity, and no occurrence, replacement,
 importance insertion, or Nature-specific `Read again?` prompt appears. Enter
-the skip diagnosis and verify that merely opening it records no habit failure,
-overdue obligation, or repeatable outcome; continue only after the
-Nature-sensitive skip policy is settled.
+the skip diagnosis and verify that merely opening it records no outcome. After
+a finalized skip, verify one immediate cooldown followed by ordinary
+repeatable availability and aging, with no missed window, debt, overdue
+occurrence, or gap in a compact history.
 
 ## Day 6 — Habits and delegation
 
@@ -361,6 +364,13 @@ Nature-sensitive skip policy is settled.
 
 Advance a swimming window while `#stpw` remains blocked by `#fsp`.
 Validate no `not_done` outcome and no streak loss.
+
+In an unblocked replay, skip one applicable fixed swimming slot and verify
+that the slot closes with the canonical unfulfilled outcome rather than
+returning as overdue work. Then model walking three times in one week as a
+quota window: skip one offer, observe its cooldown, and verify that the same
+window remains eligible while the quota is unmet and achievable. Only the
+window boundary derives missing outcomes from an unmet quota.
 
 ### SCN-PRC-002 — Explicit unfulfilled intention
 

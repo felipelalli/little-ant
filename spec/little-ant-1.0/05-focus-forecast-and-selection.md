@@ -178,10 +178,11 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   approval, or question family receives an invisible pre-lottery lane. Every
   opportunity selected by this lottery exposes a visible typed `skip` action:
   it records that this particular opportunity was deferred, applies its
-  replay-deterministic cooldown and future pressure, and preserves the
-  underlying domain state. Continuations, useful-empty recovery, and hard
-  precedence are not lottery selections and do not acquire a misleading
-  universal skip from this rule.
+  replay-deterministic cooldown, then invokes the opportunity variant's
+  declared outcome and future-pressure policy under `WRK-062`. It never
+  fabricates generic completion or a terminal Brick outcome. Continuations,
+  useful-empty recovery, and hard precedence are not lottery selections and
+  do not acquire a misleading universal skip from this rule.
 - **FOC-027 [core] — Explicit failure.** Invalid state that prevents a valid
   forecast yields a typed diagnostic and concrete recovery suggestion, not a
   fake focus opportunity.
