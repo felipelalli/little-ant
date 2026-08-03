@@ -68,8 +68,10 @@ stale current focus as a check-in continuation outside the lottery.
 a distinct ordinary-lottery opportunity. `MOD-015`, `FOC-011`, and `UX-082`
 restore the universal-Brick execution rule: an undecomposed project uses
 ordinary Work, a decomposed parent yields execution to its children, and the
-parent returns only for scope review after every child is done. Resume by
-designing that scope-closure review.
+parent returns only for scope review after every child is done. `UX-025`,
+`UX-045`, and `UX-071` settle the global six-line, dot-led, emoji-free footer,
+its active-Brick/Raw-review/review counts, and its theme-neutral intensity
+hierarchy. Resume by designing that scope-closure review.
 
 ## Scope rings
 

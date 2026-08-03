@@ -260,31 +260,34 @@ no-emoji rendering remain `OPEN-UX-001`.
 ## Status, history, and recovery
 
 - **UX-025 [core] — Persistent stacked footer.** Every first-party guided
-  surface presents one compact footer below the horizontal divider. It stacks
-  up to three visually stable blocks in this order: subject context under
-  `🧭`, temporal context under `🕒`, and Little Ant state under `🐜`. A block's
-  first row owns its icon; continuation rows are indented to the same content
-  column. There is no blank row inside or between blocks. A parent Brick and
-  its Domain path share the compass block because both locate the subject;
-  the current civil clock belongs to the clock block rather than to product
-  state. Values begin at stable display-cell columns, and shorter values are
-  padded so changing `18 eligible` to `0 eligible` does not move the reviews
-  column. Column spacing replaces decorative separators:
+  surface presents one compact, deliberately subordinate footer below a dim
+  horizontal divider. It always contains three two-line blocks in this order:
+  subject location, temporal context, and dataset/session state. The first
+  line of each block begins with `. `; its second line begins with two spaces.
+  There are no emoji, product name, blank rows, or headings inside the footer.
+
+  The location block shows the parent Brick or literal `<root>`, followed by
+  the effective Domain path or literal `<no Domain>`. The time block shows the
+  most useful truthful subject-specific temporal fact; when none exists it
+  shows the operational workday. Its second line always shows the complete
+  current civil date and local time as `Now`. The state block shows active
+  Bricks, Raws awaiting review under `FED-011`, and unresolved typed review
+  opportunities. These counts are not forecast eligibility: focusing,
+  blocking, cooling down, or time-gating an active Brick does not remove it
+  from the `bricks` count. Its second line shows mode and current focus:
 
   ```text
-  🧭 #rs "Rock Splitter"
-     Orbit › R&D › Rock Splitter
-  🕒 Last focused: Sun, Aug 2 · 22:14
-     Mon, Aug 3   09:00
-  🐜 Little Ant   18 eligible   3 reviews
-     mode: dumb   focus: idle
+  . #rs "Rock Splitter"
+    Orbit › R&D › Rock Splitter
+  . Last review: Sun, Aug 2, 22:14
+            Now: Mon, Aug 3, 09:00
+  . 18 bricks, 7 raws, 3 reviews
+    mode: dumb, focus: idle
   ```
 
-  Optional subject-specific temporal facts, such as `Last focused`, precede
-  the current clock in the temporal block. When no such fact exists, the
-  current clock owns the `🕒` row. A missing parent, Domain, warning, temporal
-  fact, or statistic is omitted honestly rather than leaving an empty row.
-  The footer is persistent product chrome, not the main content or top header of an
+  A selected warning and concise subject-specific non-temporal facts render
+  above this six-line footer rather than breaking its structure. The footer is
+  persistent product chrome, not the main content or top header of an
   `InteractionEnvelope`.
 - **UX-026 [core] — Discreet warning rotation.** If several warnings apply,
   one is selected replay-deterministically at a screen boundary. Rendering the
@@ -320,7 +323,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   fixed RGB values or a guessed light/dark theme. Shortcut brackets and
   dividers are dim; the shortcut character is bold cyan; ordinary labels
   retain the terminal's default foreground; success, warning, and error roles
-  use bold green, yellow, and red respectively. Style resets are scoped so one
+  use bold green, yellow, and red respectively. The entire persistent footer,
+  including its dots and divider, uses the terminal's default foreground at
+  dim intensity and never an accent color. Only semantic values use normal
+  intensity: the parent title text but not its handle or quotation marks,
+  each Domain segment but not `›`, the primary temporal value but not its
+  label or the complete `Now` line, each count numeral, and the `mode` and
+  `focus` values but not their labels or punctuation. These values are neither
+  bold nor assigned a fixed ANSI color. Style resets are scoped so one
   component cannot leak into another. Little Ant 1.0 does not query terminal
   background color or infer a theme.
 - **UX-072 [core] — Selection and color-independent meaning.** Arrow-key
@@ -354,7 +364,7 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-036 [standard] — Bounded extraction.** Cheap-model framing text may be
   removed only through a deterministic bounded object extractor. Multiple,
   ambiguous, malformed, or unsupported objects fail rather than being guessed.
-- **UX-037 [standard] — Visible mode.** Status always displays `mode: dumb` or
+- **UX-037 [standard] — Visible mode.** The footer always displays `mode: dumb` or
   `mode: powered up · by: <executable>`.
 - **UX-038 [standard] — Limited assistance.** Powered-up mode may translate,
   classify, rank bounded candidates, suggest patterns, and contribute
@@ -379,13 +389,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   are reviewed only after the corresponding dumb and, when applicable,
   powered-up REPL paths are accepted. A downstream convenience may motivate a
   later REPL-contract revision, but cannot silently fork the product language.
-- **UX-045 [core] — Footer context block.** Parentage and Domain path share
-  the compass block below the divider. At most one selected warning plus its
-  overflow count and concise subject-specific facts may follow before the
-  clock block. Empty rows are omitted. Technical selection provenance is
-  available through contextual `?`; it is not shown by default. Mode and
-  aggregate counts belong to the Little Ant block, not subject context.
-  Rendered Domain paths use `›` between hierarchical segments.
+- **UX-045 [core] — Footer context block.** Parentage and Domain path occupy
+  the first two footer lines. Missing values render explicitly as `<root>` and
+  `<no Domain>` so the footer never shifts shape. At most one selected warning
+  plus its overflow count and concise subject-specific facts may appear above
+  the footer. Technical selection provenance is available through contextual
+  `?`; it is not shown by default. Rendered Domain paths use `›` between
+  hierarchical segments.
 - **UX-046 [core] — Automatic opening opportunity.** Starting or restoring the
   REPL never lands on an idle command prompt. It first restores an exact
   pending interaction or otherwise invokes the canonical `next` pipeline and
@@ -448,7 +458,7 @@ no-emoji rendering remain `OPEN-UX-001`.
   frequency text. Skill or powered-up mode may translate phrases such as
   `twice a month` into the same canonical structure, but must show the
   attributed structured result before acceptance.
-- **UX-055 [core] — Civil clock, explicit operational date.** Status always
+- **UX-055 [core] — Civil clock, explicit operational date.** The footer always
   renders the real civil date and local clock. When the current workday label
   differs from the civil date, it also renders `workday: <date>` explicitly.
   A served habit whose nominal habit day differs identifies that nominal slot

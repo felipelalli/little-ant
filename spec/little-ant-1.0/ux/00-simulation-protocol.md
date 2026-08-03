@@ -67,7 +67,9 @@ may expose missing or contradictory rules.
   action order, and display-cell alignment. Exercise arrow navigation with
   reverse video and a monochrome cursor indication, narrow widths, emoji,
   accented text, and wide characters. Styling may not alter an envelope,
-  event, draw, or random cursor.
+  event, draw, or random cursor. Verify the complete footer is dim and
+  accent-color-free while only the exact semantic values named by `UX-071`
+  return to normal intensity; stripping ANSI must preserve its six-line shape.
 
 ## Critique labels
 

@@ -14,21 +14,23 @@ long paths, but renderers preserve the content order and action order.
 
 <secondary command escape>
 
-----------------------------------------
-<optional compass context: Within path and/or Domain path>
+────────────────────────────────────────
 <at most one warning and overflow count>
 <optional subject-specific facts>
-<optional temporal facts plus current clock>
-<persistent Little Ant state>
+. <parent Brick or <root>>
+  <Domain path or <no Domain>>
+. <most useful temporal fact or operational workday>
+          Now: <civil date and local time>
+. <active bricks>, <Raws awaiting review>, <unresolved reviews>
+  mode: <mode>, focus: <Brick handle or idle>
 ```
 
-Empty secondary rows are omitted. The compass, clock, and Little Ant blocks
-are contiguous and appear in that order.
-Emoji have accessible textual equivalents. Markdown code blocks show the
-monochrome structure: a capable terminal applies UX-070..073, including dim
-brackets and dividers, bold cyan shortcut characters, and reverse video for
-the command-palette selection. Styled and plain renderings occupy the same
-display-cell columns.
+Warnings and subject-specific facts are omitted when absent. The footer itself
+always retains its three two-line blocks. Markdown code blocks show the
+monochrome structure: a capable terminal applies UX-070..073, including the
+dim footer and divider, normal-intensity semantic footer values, dim shortcut
+brackets, bold cyan shortcut characters, and reverse video for command-palette
+selection. Styled and plain renderings occupy the same display-cell columns.
 
 ## UX-R00 — Dumb REPL frame
 
@@ -46,15 +48,16 @@ Focus?
 [y]es    [s]kip    [?] I don't know
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
-The automatically served envelope, secondary-command escape, context panel,
+The automatically served envelope, secondary-command escape, contextual facts,
 and stacked footer are all part of REPL UX. `[?] I don't know` belongs to
 the current Focus decision, while `[/] more...` opens UX-M01. Adaptive or
 narrow-terminal rendering may fold regions but cannot test only the inner
@@ -63,7 +66,7 @@ envelope and call that a REPL simulation.
 Powered-up mode reuses the frame and changes only:
 
 ```text
-   mode: powered up · by: /bin/claude-fast.sh   focus: idle
+  mode: powered up, by: /bin/claude-fast.sh, focus: idle
 ```
 
 plus any explicitly attributed proposals that passed the startup handshake.
@@ -86,12 +89,13 @@ More:
 Type to filter available commands.
 ↑/↓ select · Enter run · Esc back
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 Only currently valid commands participate in search. The initial suggestions
@@ -157,16 +161,19 @@ configured workday began at 06:00, it exposes the differing operational label
 instead of silently displaying Monday as though it were the calendar date:
 
 ```text
-🕒 Tue, Aug 4   02:00
-   workday: Mon, Aug 3
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Tue, Aug 4, 02:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 A habit opportunity still belonging to Monday may add:
 
 ```text
-🕒 Monday slot · closes Tue, Aug 4 at 04:00 America/Montevideo (UTC-03)
+. Habit day: Monday · closes Tue, Aug 4 at 04:00 America/Montevideo (UTC-03)
+          Now: Tue, Aug 4, 02:00
 ```
 
 An exact event remains exact and zoned regardless of either operational
@@ -188,13 +195,14 @@ Focus?
 [y]es    [s]kip    [?] I don't know
 [/] more...
 
-----------------------------------------
-🧭 #rlav2 "Recover Little Ant v1"
-   Personal › Little Ant
+────────────────────────────────────────
 ⚠️ #smr "Submit migration report" · deadline in 2h · +2 warnings
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. #rlav2 "Recover Little Ant v1"
+  Personal › Little Ant
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 `yes` focuses and starts WIP. `skip` opens UX-S01. `?` opens UX-H01 without
@@ -215,12 +223,13 @@ Focus?
 [y]es    [s]kip    [?] I don't know
 [/] more...
 
-----------------------------------------
-🧭 Personal › Housekeeping
-   from Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping (from Orbit › R&D › Rock Splitter)
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 There is no preliminary `Switch Domain?`. `yes` starts focus and changes the
@@ -239,15 +248,16 @@ Focus?
 [y]es    [s]kip    [?] I don't know
 [/] more...
 
-----------------------------------------
-🧭 #rlav2 "Recover Little Ant v1"
-   Personal › Little Ant
+────────────────────────────────────────
 🚧 reached through #rlav "Release Little Ant v1"
    → blocked by #rio "Restore importance ordering"
    → blocked by this Brick
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. #rlav2 "Recover Little Ant v1"
+  Personal › Little Ant
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 Long paths may fold visually, but every cited Brick retains its complete
@@ -269,12 +279,13 @@ Come back when you're done—or when something gets in the way. 😌
 
 [d]one   [s]kip   [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   17 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 The phrase is one `focus_started` entry from the 16-phrase factory catalog.
@@ -296,12 +307,13 @@ Current focus:
 
 [d]one   [s]kip   [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:05
-🐜 Little Ant   17 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:05
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 This continuation creates no event, performs no draw, and selects no
@@ -324,13 +336,13 @@ Still working on this?
 [y]es    [s]kip    [?] I don't know    [d]one
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Last activity: Sun, Aug 2 · 22:14
-   Mon, Aug 3   09:00
-🐜 Little Ant   17 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last activity: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 `Last activity` is the latest explicit focus start, resume, or check-in; it
@@ -359,13 +371,13 @@ What should happen?
 [d]one      return to [i]dle
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Last focused: Sun, Aug 2 · 22:14
-   Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 `resume` starts a new focus interval and makes this Brick current. `skip`
@@ -388,12 +400,13 @@ Done:
 
 [n]ext   [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:32
-🐜 Little Ant   17 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:32
+. 17 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 The phrase is one `work_completed` entry from the 16-phrase factory catalog.
@@ -418,12 +431,13 @@ Focus?
 [y]es    [s]kip    [?] I don't know
 [/] more...
 
-----------------------------------------
-🧭 Learning
-↻ Last completed: Tue, Feb 3, 2026
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  Learning
+. Last completed: Tue, Feb 3, 2026
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 `yes` starts another execution of the same Brick identity; it creates no
@@ -451,12 +465,13 @@ Undo the last recorded action?
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:32
-🐜 Little Ant   17 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:32
+. 17 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 The preview identifies the typed action and its subject. `yes` invokes the
@@ -481,12 +496,13 @@ Redo the last undone action?
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:32
-🐜 Little Ant   17 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:32
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 `yes` invokes the same checked reapplication as `/redo`. The current screen
@@ -507,12 +523,13 @@ This Brick remains in progress.
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:05
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:05
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 The completed focus interval is history, but there is no `paused` Brick state,
@@ -536,12 +553,14 @@ Is
 
 *[m]ore important   [l]ess important   [s]kip   [?] I don't know
 
-----------------------------------------
-🧭 #rtnw "Release the new website"
+────────────────────────────────────────
 Suggestion: /bin/claude-fast.sh · importance insertion
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: powered up · by: /bin/claude-fast.sh   focus: idle
+. #rtnw "Release the new website"
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: powered up, by: /bin/claude-fast.sh, focus: idle
 ```
 
 The `*` appears only when evidence supports that default. `more important`
@@ -568,14 +587,15 @@ Already finished?
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
+────────────────────────────────────────
 ⚠️ #rfi "Review fraud incident" · deadline tomorrow
 served after 9 days · active Domain unchanged
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 Selecting a symptom opens its separate reaction screen without recording
@@ -612,14 +632,15 @@ Continue without identifying it?
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
+────────────────────────────────────────
 ⚠️ #rfi "Review fraud incident" · deadline tomorrow
 served after 9 days · active Domain unchanged
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 The choices describe the human situation, not storage primitives. `task`
@@ -650,12 +671,13 @@ Does the prerequisite already exist?
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 `find` opens an existing-Brick selector; `create` opens UX-S03 and its pending
@@ -678,12 +700,13 @@ Whose response are you waiting for?
 
 Type a name. Existing entities will appear as you type.
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 After typing `Alice`, the same screen may contain:
@@ -727,12 +750,13 @@ Has the request already been made?
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 This binary question records nothing. `yes` enters UX-W00 before activating a
@@ -763,12 +787,13 @@ one [w]eek      (Mon, Aug 10)
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 The factory dumb suggestion for a human response is three days. Each relative
@@ -793,7 +818,7 @@ Review:
 Waiting for:
 @am "Alice Moreira"
 
-Waiting since Mon, Aug 3 · reviewed 4 days ago
+Waiting since Mon, Aug 3
 
 What happened?
 
@@ -803,12 +828,13 @@ What happened?
 
 [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Fri, Aug 7   09:00
-🐜 Little Ant   17 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last review: Mon, Aug 3, 09:00
+          Now: Fri, Aug 7, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 `response received` resolves only the Wait and returns the affected Brick to
@@ -836,12 +862,13 @@ Create an enabling Brick for:
 Tip: write in English when possible.
 Esc returns without recording anything.
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 Enter preserves the draft and runs the ordinary duplicate, Nature, optional
@@ -870,10 +897,13 @@ Use this structure?
 
 *[y]es    [n]o    [?] I don't know
 
-----------------------------------------
-🕒 Mon, Aug 3   09:03
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: #rrsr
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:03
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
 ```
 
 `yes` accepts the structural suggestion and continues the still-pending
@@ -910,12 +940,13 @@ Blocked by:
 
 [n]ext    [/] more...
 
-----------------------------------------
-🧭 #rs "Rock Splitter"
-   Orbit › R&D › Rock Splitter
-🕒 Mon, Aug 3   09:07
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:07
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 The phrase is one replay-stable `skip_acknowledged` entry under UX-064. The
@@ -946,10 +977,13 @@ recurring [o]bligation  e.g. "Pay the monthly rent"
 [s]cheduled commitment  e.g. "Take flight AD123 to Montevideo"
 [?] I don't know
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
 ```
 
 `?` opens UX-K02. No selection is a hidden fallback and no Template appears
@@ -965,10 +999,13 @@ Will completing this once finish the whole intention?
 
 [y]es    [n]o    [?] I don't know
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
 ```
 
 Successive `yes`, `no`, and uncertainty answers traverse the bounded,
@@ -989,10 +1026,13 @@ Is this right?
 
 *[y]es    [n]o    [?] I don't know
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
 ```
 
 `yes` accepts the Nature and continues Feed. `no` returns to UX-K01 with the
@@ -1013,10 +1053,13 @@ Use this setup?
 
 [y]es    [n]o    [?] I don't know
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: powered up · by: /bin/claude-fast.sh   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: powered up, by: /bin/claude-fast.sh, focus: idle
 ```
 
 The skill uses the same confirmation envelope. `no` restores the unchanged
@@ -1037,10 +1080,13 @@ Choose an optional setup:
 [n]o template     keep only the living-checklist behavior
 [?] I don't know
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
 ```
 
 The catalog contains only Templates compatible with the resolved Nature.
@@ -1073,10 +1119,13 @@ e[x]am                   e.g. "Driver's license exam"
 [n]o template            keep only the scheduled-commitment behavior
 [?] I don't know
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
 ```
 
 No category screen is introduced while this flat choice remains usable.
@@ -1105,11 +1154,13 @@ Apply this change?
 
 [y]es    [n]o    [?] I don't know
 
-----------------------------------------
-🧭 Orbit › Finance › Quarterly reporting
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  Orbit › Finance › Quarterly reporting
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 If the proposed parts should render and complete together, the preview offers
@@ -1135,12 +1186,15 @@ Suggested message:
 [y]es    [e]dit    [n]o    [l]ater    [s]kip
 [?] I don't know
 
-----------------------------------------
+────────────────────────────────────────
 👤 Bento Camargo
 delegation follow-up · due 2 days ago
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 `later` opens a date screen and records nothing until the absolute date is
@@ -1165,12 +1219,15 @@ Edit the message:
 
 [Enter] preview    [Esc] back
 
-----------------------------------------
+────────────────────────────────────────
 👤 Bento Camargo
 delegation follow-up · due 2 days ago
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 On entry, every prefilled display cell is selected with the accessible
@@ -1203,11 +1260,13 @@ What should change?
 [e]scalate     — create explicit escalation work
 [s]kip         [?] I don't know
 
-----------------------------------------
-🧭 Orbit › Finance
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  Orbit › Finance
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 `continue` increases the allowance by exactly one and enters the ordinary
@@ -1226,12 +1285,14 @@ Why is this blocked?
 
 [Enter] confirm · [Esc] cancel
 
-----------------------------------------
-🧭 #rrsr "Review Rock Splitter rules"
+────────────────────────────────────────
 text is local draft until confirmed
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. #rrsr "Review Rock Splitter rules"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 ## UX-I02 — Feed input
@@ -1248,17 +1309,20 @@ Tip: prefer English for consistent titles and search.
 
 [Enter] continue · [Esc] back
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
 ```
 
 Enter begins the deterministic Feed route. Escape restores the exact proposal
 and random cursor shown before Feed was opened. The tip is advisory and, under
 `UX-049`, appears beside every dumb-mode free-text input rather than only on
 Feed. Single-key choice screens omit it. Until Enter, the text remains only a
-local draft; this guarantee is behavioral and is not rendered as status text.
+local draft; this guarantee is behavioral and is not rendered in the footer.
 
 ## UX-H01 — Contextual uncertainty
 
@@ -1272,11 +1336,14 @@ What would help you decide?
 [s]uggest an answer
 [?] Little Ant help
 
-----------------------------------------
+────────────────────────────────────────
 no answer or skip has been recorded
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 Closing assistance restores the same pending revision.
@@ -1291,12 +1358,14 @@ Continue?
 
 [y]es · *[n]o · [?] I don't know
 
-----------------------------------------
-🧭 #stpw "Swim twice per week"
+────────────────────────────────────────
 [x][x][-][x][x] · current window ends Sunday
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+. #stpw "Swim twice per week"
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 An ordinary defer-only skip never opens this confirmation or claims the streak
@@ -1317,12 +1386,14 @@ Start this run?
 
 [y]es · [d]one · [s]kip · [?] I don't know
 
-----------------------------------------
-🧭 Personal › Housekeeping
-3 open · last run 6 days ago
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   18 eligible   3 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+3 open
+. <root>
+  Personal › Housekeeping
+. Last run: Tue, Jul 28, 09:00
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 All open entries appear together. `done` is interpreted through the
@@ -1340,15 +1411,18 @@ Feed Little Ant its first Brick to get started.
 
 [f]eed   [/] more...
 
-----------------------------------------
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    0 reviews
-   mode: dumb   focus: idle
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
 ```
 
 Feed opens UX-I02. More may expose import, help, configuration, and exit when
 those actions are valid. The screen does not manufacture a Brick and is not
-used merely because the eligible count is zero.
+used merely because the forecast has no eligible work.
 
 ## UX-E01 — Useful empty state
 
@@ -1364,12 +1438,14 @@ What next?
 [e]nd for now
 [?] I don't know
 
-----------------------------------------
-🧭 Orbit › R&D › Rock Splitter
+────────────────────────────────────────
 4 active · 3 blocked · 1 not before tomorrow
-🕒 Mon, Aug 3   09:00
-🐜 Little Ant   0 eligible    3 reviews
-   mode: dumb   focus: idle
+. <root>
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 4 bricks, 2 raws, 3 reviews
+  mode: dumb, focus: idle
 ```
 
 The available choices derive from actual state; the screen never fabricates

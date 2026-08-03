@@ -230,15 +230,16 @@ additional opportunity or top-level ticket by itself.
 ### SCN-WRK-001 — Focus lifecycle
 
 Accept focus and validate UX-F04 before any further action: focus starts
-immediately, the ordinary eligible count drops from 18 to 17, no second draw
-occurs, and the selected `focus_started` phrase remains stable when the screen
-is redrawn. Verify the ordered `[d]one · [s]kip · [/] more...` action strip.
+immediately, the footer remains at `18 bricks`, an inspected forecast shows
+ordinary eligibility drop from 18 to 17, no second draw occurs, and the
+selected `focus_started` phrase remains stable when the screen is redrawn.
+Verify the ordered `[d]one · [s]kip · [/] more...` action strip.
 Open `skip`, cancel the symptom screen, and confirm that no skip evidence or
 state change occurred. Replay powered up and allow only the bounded UX-065
 paraphrase. Close and reopen five minutes later; validate sober UX-F05 with no
 event, draw, repeated phrase, or premature stale-focus question. Advance to
 the configured boundary and validate UX-F09 as the same continuation rather
-than a lottery opportunity: exact action order, `🕒 Last activity` with one
+than a lottery opportunity: exact action order, `. Last activity` with one
 space, one truthful timestamp, no personality line, and no implied work
 duration. Accept `yes`, verify one check-in and return to UX-F05 without a new
 WIP, focus interval, or draw; separately test `skip`, uncertainty, completion,
