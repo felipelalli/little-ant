@@ -229,6 +229,14 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   atomically leaves the previous Brick WIP, starts the accepted Brick when
   needed, and moves current focus to it. Merely browsing never destroys the
   user's working context.
+- **FOC-038 [core] — Non-current WIP review.** A WIP Brick that is not the
+  current focus may contribute one typed `wip_review` opportunity to the
+  ordinary subject-first lottery. It is a non-execution opportunity on the
+  same attention subject, not another Brick, another root ticket, or a stale
+  current-focus continuation. Its pressure may increase with WIP age and work
+  above the soft limit, but it retains positive-probability competition and
+  the ordinary typed-review skip under `FOC-026`. Selecting it never resumes
+  work by itself.
 
 ## Forecast inputs
 

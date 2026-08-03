@@ -76,7 +76,7 @@ Exit:
 
 ### Gate 2 — Close the interaction vocabulary
 
-Status: **next**
+Status: **in progress**
 
 Decisions:
 

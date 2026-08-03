@@ -339,7 +339,40 @@ interval or drawing. `skip` opens UX-S01 and records nothing until a reaction
 is accepted; `done` follows UX-F07; and `?` preserves this continuation. No
 personality line competes with the check-in. Closing the REPL preserves the
 same pending continuation. A non-current WIP review is a different,
-still-unrendered ordinary-lottery route.
+ordinary-lottery route rendered by UX-F10.
+
+## UX-F10 — Non-current WIP review
+
+When the ordinary lottery selects review of a WIP that is not current:
+
+```text
+Review:
+
+#rrsr "Review Rock Splitter rules"
+
+This Brick is still in progress.
+
+What should happen?
+
+[r]esume    [s]kip    [?] I don't know
+[d]one      return to [i]dle
+[/] more...
+
+----------------------------------------
+🧭 #rs "Rock Splitter"
+   Orbit › R&D › Rock Splitter
+🕒 Last focused: Sun, Aug 2 · 22:14
+   Mon, Aug 3   09:00
+🐜 Little Ant   18 eligible   3 reviews
+   mode: dumb   focus: idle
+```
+
+`resume` starts a new focus interval and makes this Brick current. `skip`
+defers only the selected review and leaves the Brick WIP; it does not open the
+served-work symptom screen. `done` completes directly. `return to idle`
+removes WIP without implying completion, failure, or deferment. The palette
+may expose `drop`, `supersede`, history, and inspection without crowding the
+ordinary choice. No action is selected merely by rendering the screen.
 
 ## UX-F07 — Immediate focused completion
 

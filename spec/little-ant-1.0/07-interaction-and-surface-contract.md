@@ -239,6 +239,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   uncertainty changes nothing. `Last activity` is the latest explicit focus
   start, resume, or check-in timestamp. It is not measured work, effort, or
   proof of continuous activity.
+- **UX-081 [core] — Non-current WIP review grammar.** A selected `wip_review`
+  uses the `Review:` heading, identifies the WIP Brick, states `This Brick is
+  still in progress.`, and asks `What should happen?`. Its visible actions are
+  `[r]esume · [s]kip · [?] I don't know` followed by `[d]one · return to
+  [i]dle`, then `[/] more...`. `Last focused` appears in the temporal footer
+  block above the current clock. `resume`, `done`, and `idle` follow
+  `WRK-065`; `skip` is the typed lottery-review deferral and never opens the
+  served-work symptom screen. Uncertainty and Escape preserve the pending
+  review. The screen has no decorative personality line.
 
 ## Status, history, and recovery
 

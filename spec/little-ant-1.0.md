@@ -63,9 +63,10 @@ variants. UX-first review is now paused inside `repeatable_run`: `UX-078` and
 context; `WRK-062..064` settle the different post-skip behavior of repeatable
 runs, fixed-slot and quota-window habits, recurring obligations, and active
 scheduled commitments. `FOC-025`, `FOC-032`, `UX-080`, and `UX-F09` settle
-stale current focus as a check-in continuation outside the lottery; only a
-non-current WIP may still require a selectable review. Resume with that WIP
-review before returning to the remaining non-execution opportunity catalog.
+stale current focus as a check-in continuation outside the lottery.
+`FOC-038`, `WRK-065`, `UX-081`, and `UX-F10` settle non-current WIP review as
+a distinct ordinary-lottery opportunity. Resume with the remaining
+non-execution opportunity catalog, beginning with structural project review.
 
 ## Scope rings
 

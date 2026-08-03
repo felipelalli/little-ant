@@ -42,7 +42,7 @@ run as an interactive transcript.
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |
 | 4 | Served-work symptom | `UX-S01..S05`, `WRK-007..013`, `WRK-047`, `FED-030..031` | partial | remaining reaction screens under `OPEN-SKIP-001` |
 | 4 | Atomic break/reclassification | `UX-B01`, `MOD-045..047` | screened | accepted/rejected result transitions |
-| 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `UX-F06`, `UX-F09`, `UX-066..067`, `UX-080`, `WRK-001..006`, `WRK-048` | partial | non-current WIP review, WIP-to-idle grammar, result screens, and `OPEN-WRK-001` |
+| 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
 | 5 | Cross-Domain focus | `UX-F02`, `FOC-014..019` | partial | hard scope and equal-specificity target |

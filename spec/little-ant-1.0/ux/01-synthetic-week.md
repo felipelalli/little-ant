@@ -242,9 +242,12 @@ close/reopen, and no mutation before a reaction. Then switch to another Brick
 through `/next`: cancel the first proposal and confirm that the old focus
 survives, then accept a second proposal and confirm that the switch is atomic
 while the old Brick remains WIP. Inspect several WIPs and return one to idle
-through `/pause`. Validate UX-F06, one current focus, honest WIP and
-focus-interval history, unchanged Domain and importance, and no implicit draw,
-skip, cooldown, or `paused` Brick state. In a separate replay, select direct
+through UX-F10. Verify its `Review:` grammar, `Last focused` temporal fact,
+and exact action order. Exercise `resume`, review-only `skip`, `done`, and
+`return to idle`; confirm that review skip does not open symptom diagnosis and
+that idle records no completion, work skip, cooldown, or `paused` Brick
+state. Validate UX-F06, one current focus, honest WIP and focus-interval
+history, and unchanged Domain and importance. In a separate replay, select direct
 `done` from current focus and validate UX-F07: no intermediate confirmation,
 one atomic completion that closes the focus interval and clears focus, one
 stable `work_completed` result, and a contextual `/undo` that can restore the

@@ -262,6 +262,17 @@
   obligation exposes open and resolved occurrence state rather than a streak;
   an unresolved occurrence is debt, not a missed historical cell. Exact
   glyphs and compact layout remain surface work under `OPEN-UX-001`.
+- **WRK-065 [core] — Explicit non-current WIP outcomes.** An accepted
+  `wip_review` offers resume, defer this review, complete, or return the Brick
+  to idle. Resume atomically opens a new focus interval and makes the reviewed
+  Brick current; any previous current Brick remains WIP under `WRK-001`.
+  Review skip records only deferral of this review and its cooldown: it does
+  not open served-work symptom diagnosis or mutate WIP. Completion uses the
+  ordinary direct completion outcome. Returning to idle clears WIP while
+  preserving the Brick, importance, Domain membership, and history; it is not
+  completion, pause, or skip evidence. Drop and supersede remain explicit
+  contextual-palette outcomes. Every mutation is semantically undoable when
+  its recorded preconditions still hold.
 - **WRK-028 [standard] — Event-triggered opportunity.** A supported canonical
   source event may idempotently release one opportunity on an existing
   compatible standing Brick. This is closed core data, not generic automation.
