@@ -329,3 +329,13 @@ The factory library contains:
   neither record substitutes for or silently resolves the other. When both
   affect the same attention subject, FOC-006..008 still provide one subject
   ticket and a local opportunity draw rather than duplicate top-level chances.
+- **MOD-052 [core] — Break defaults remain reviewable.** A confirmed break
+  draft that does not explicitly resolve a child's Nature stores
+  `atomic_task`, attributed to the deterministic `break_default`, so every new
+  Brick is immediately valid. Each such assignment carries a claim-scoped
+  lazy human-review marker; it is not an invisible fallback or a permanent
+  assertion. An accepted assisted Nature or Dependency retains its AI
+  provenance and its own lazy human-review marker even though it becomes
+  effective in the atomic transaction. The preview identifies every
+  non-human claim and review marker before commit. Reviewing one claim never
+  silently settles another child, axis, or relationship.

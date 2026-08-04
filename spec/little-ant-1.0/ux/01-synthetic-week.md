@@ -302,6 +302,15 @@ Tab copies one suggestion without submitting, ordinary input dismisses it,
 and weak or conflicting evidence renders exact dumb UX-B00. Verify the
 title-specific English hint in dumb mode and no durable handles, titles,
 comparisons, Natures, symptoms, or children before UX-B01 acceptance.
+After acceptance, verify that all children exist atomically as `atomic_task`,
+retain claim-scoped `break_default` Nature reviews, and occupy one
+low-confidence provisional sibling run in entered order. No importance
+question may delay the transaction, and the sequence must not become human
+comparison, Dependency, or execution-order evidence. Later maintenance starts
+from that run and may surface lazy Nature and importance reviews. In the
+assisted replay, verify separate visible AI provenance and lazy review for
+each proposed Nature, importance run, and Dependency even after accepting the
+full preview.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

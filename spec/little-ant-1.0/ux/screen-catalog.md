@@ -1312,9 +1312,11 @@ Change Nature:
 Proposed structure:
 
 #ptqr "Prepare the quarterly report"     project
-├─ #ctqd "Collect the quarterly data"    atomic task
-├─ #atr "Analyze the results"            atomic task
-└─ #wtfr "Write the final report"        atomic task
+├─ #ctqd "Collect the quarterly data"    atomic task · review later
+├─ #atr "Analyze the results"            atomic task · review later
+└─ #wtfr "Write the final report"        atomic task · review later
+
+Initial importance order: as entered · review later
 
 Apply this change?
 
@@ -1335,7 +1337,12 @@ If the proposed parts should render and complete together, the preview offers
 the parent identity and commits no child before confirmation. After
 confirmation, the parent stops appearing as ordinary Work while incomplete
 children exist. Completing the final child releases a parent-scope review; it
-does not silently complete or immediately refocus the parent.
+does not silently complete or immediately refocus the parent. Confirmation
+creates the children atomically in the displayed provisional order; it does
+not interpose importance questions. `review later` identifies claim-scoped
+lazy Nature or importance review, not an invalid Brick or one Brick-wide
+uncertainty flag. An assisted preview additionally labels each AI-proposed
+Nature, order, or Dependency and retains that provenance after acceptance.
 
 ## UX-A01 — External-effect confirmation
 

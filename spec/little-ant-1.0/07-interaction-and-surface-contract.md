@@ -293,9 +293,11 @@ no-emoji rendering remain `OPEN-UX-001`.
   and opens empty UX-085; uncertainty explains the evidence and returns.
   Weak or conflicting evidence bypasses the proposal and renders the exact
   dumb flow. Assistance never allocates durable identities, accepts
-  importance evidence, infers hidden relationships, or mutates the log; the
-  canonical CLI validates every proposed value and remains the only mutation
-  authority under UX-001.
+  human-comparison evidence, hides a proposed relationship, or mutates the
+  log. Assisted Nature, initial order, and Dependency claims remain visibly
+  attributed and lazily reviewable under MOD-052 and IMP-030. The canonical
+  CLI validates every proposed value and remains the only mutation authority
+  under UX-001.
 - **UX-087 [standard] — Assisted inline part suggestion.** While UX-085 has an
   empty active line, an assisted surface may show at most one attributed
   suggested part. Tab accepts it into the editor without submitting it; any
@@ -523,12 +525,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   Nature, Template semantics, ranking evidence, or runtime behavior.
 - **UX-057 [core] — Atomic break preview.** Breaking an `atomic_task` previews
   the proposed destination Nature, the retained parent, every new part and its
-  Nature, and the initial local order before confirmation. The screen explains
+  Nature, the initial local order, provenance, and lazy-review markers before
+  confirmation. The screen explains
   why the Brick cannot remain atomic. `yes` commits the Nature change and
   structure together; `no`, uncertainty, or Escape follow their ordinary
   confirmation and navigation semantics without creating partial structure.
   Entry may be explicit `/break` or a provisional symptom reaction; the final
-  preview remains the single mutation boundary in either case.
+  preview remains the single mutation boundary in either case. `yes` creates
+  the complete provisional order under IMP-030 without first interrupting the
+  transaction for human comparisons.
 - **UX-058 [core] — Provisional skip navigation.** The served-work symptom
   screen and its symptom-specific reaction screen are uncommitted navigation
   checkpoints. A symptom shortcut opens the matching reaction screen without

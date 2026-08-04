@@ -16,7 +16,9 @@
   logarithmic human comparisons. After reusable evidence narrows the interval,
   the first unresolved comparator is its ordinary midpoint. A Dependency
   target is not privileged as an insertion anchor, because prerequisite order
-  is not importance evidence.
+  is not importance evidence. IMP-030 is the explicit batch-creation case:
+  it creates a complete provisional sibling order first and defers human
+  refinement rather than blocking the transaction on comparisons.
 - **IMP-005 [core] — Adaptive bulk maintenance.** Initial and sanity-round
   ordering uses the v0 `org-sort-tasks` strategy: insertion sort for short
   runs, merge for longer runs, and an already-ordered short circuit.
@@ -28,6 +30,19 @@
   cancelling the draft discards them. The current deterministic position may
   guide traversal but is never treated as human comparison evidence,
   especially inside a provisional segment.
+- **IMP-030 [core] — Entered batch order seeds a provisional run.** An accepted
+  break creates its new siblings contiguously in the order entered by the
+  user, or in an explicitly accepted assisted order. This gives every child a
+  deterministic position at birth without claiming that entry sequence is an
+  importance comparison, dependency, or execution sequence. The run starts
+  with low importance confidence and claim-scoped lazy review pressure. An
+  assisted run also retains AI provenance and never becomes human comparison
+  evidence merely because the whole preview was accepted. Later adaptive
+  maintenance starts from this existing run, reuses applicable evidence, and
+  asks only unresolved comparisons; it does not first shuffle or rebuild the
+  list. This run-sensitive requirement preserves the useful intuition behind
+  adaptive sorting without mandating Timsort instead of the resumable
+  `org-sort-tasks` strategy in IMP-005.
 
 ## Comparison grammar
 

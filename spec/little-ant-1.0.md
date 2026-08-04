@@ -80,8 +80,12 @@ title, and unaccepted assistance never trigger decomposition. `UX-085..087`
 and UX-B00 settle the editor between `break` and UX-B01, its
 title-specific English hint, the attributed full-draft gateway, and one-part
 inline assistance without moving validation or mutation outside the CLI.
-Resume by reviewing the complete UX-B01 preview and its accepted, rejected,
-edited, and uncertain result transitions.
+`MOD-052` and `IMP-030` settle the accepted baseline: child Natures default
+visibly to lazily reviewable `atomic_task`, input sequence seeds a complete
+low-confidence sibling run, assisted claims retain AI provenance, and no
+human comparison delays the atomic creation. Resume by reviewing the complete
+UX-B01 preview and its accepted, rejected, edited, and uncertain result
+transitions.
 
 ## Scope rings
 

@@ -41,7 +41,7 @@ run as an interactive transcript.
 | 4 | Contradiction/recalibration | `IMP-013..015` | missing | provocative check and local replacement screens |
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |
 | 4 | Served-work symptom | `UX-S01..S06`, `WRK-007..013`, `WRK-047`, `WRK-067`, `UX-084`, `FED-030..031` | partial | reaction screens other than settled `blocked or waiting` and `big` under `OPEN-SKIP-001` |
-| 4 | Atomic break/reclassification | `UX-S06`, `UX-B00..B01`, `MOD-045..047`, `UX-057`, `UX-085..087` | partial | accepted/rejected final result transitions |
+| 4 | Atomic break/reclassification | `UX-S06`, `UX-B00..B01`, `MOD-045..047`, `MOD-052`, `IMP-030`, `UX-057`, `UX-085..087` | partial | accepted/rejected final result transitions and exact lazy-review surfacing |
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
