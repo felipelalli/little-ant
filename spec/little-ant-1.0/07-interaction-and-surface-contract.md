@@ -322,6 +322,17 @@ no-emoji rendering remain `OPEN-UX-001`.
   later`. Accepting the whole preview does not erase that provenance. When
   entry came from `big`, `yes` also records that symptom and recovery; direct
   `/break` never fabricates them.
+- **UX-089 [core] — Committed-break result.** After UX-B01 `yes`, UX-B02 states
+  `Broken into <count> parts:`, renders the retained parent and newly durable
+  children with their allocated handles, explains that children may now
+  appear as Work and that the parent returns only for scope review, and offers
+  `[n]ext` followed by `[/] more...`. It performs no automatic forecast draw,
+  exposes no direct `focus first part`, and has no personality line. `next`
+  invokes the ordinary weighted pipeline; the displayed sibling order never
+  implies execution sequence. The footer uses `Changed` as its temporal fact
+  and immediately counts every new active child plus unresolved lazy reviews
+  under FOC-040. The palette exposes contextual `/undo` under UX-020 and
+  structure inspection without competing with the primary advance.
 
 ## Status, history, and recovery
 
@@ -340,7 +351,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   Bricks, Raws awaiting review under `FED-011`, and unresolved typed review
   opportunities. These counts are not forecast eligibility: focusing,
   blocking, cooling down, or time-gating an active Brick does not remove it
-  from the `bricks` count. Its second line shows mode and current focus:
+  from the `bricks` count. A lazy review counts as soon as its claim is
+  unresolved, including while its own cooldown temporarily excludes it from
+  a draw. Its second line shows mode and current focus:
 
   ```text
   . #rs "Rock Splitter"

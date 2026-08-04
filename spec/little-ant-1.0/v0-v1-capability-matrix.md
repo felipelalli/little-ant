@@ -82,7 +82,7 @@ unresolved            no trustworthy 1.0 disposition yet
 |---|---|---|---|---|
 | `seed → committed → ready → wip` models commitment and readiness | `I+T` | **explicitly simplified** | active status, optional phase, WIP/focus, and importance position under `MOD-013..018` | migration plus focus route |
 | Explicit start, stop, and direct done preserve work history | `I+T` | **strengthened** | `WRK-001..006`; public grammar in `OPEN-WRK-001` | focus/WIP interruption route |
-| Break creates independently tracked children | `I+T` | **strengthened** | explicit or evidence-backed recovery, pending dumb/assisted part collection, reviewable Nature defaults, provisional run seeding, and human-facing atomic preview under `MOD-019..021`, `MOD-045..047`, `MOD-052`, `IMP-030`, `WRK-067`, `UX-085..088`, `UX-S06`, `UX-B00..B01` | atomic-break route |
+| Break creates independently tracked children | `I+T` | **strengthened** | explicit or evidence-backed recovery, pending dumb/assisted part collection, reviewable Nature defaults, provisional run seeding, human-facing atomic preview, and stable result under `MOD-019..021`, `MOD-045..047`, `MOD-052`, `IMP-030`, `FOC-040`, `WRK-067`, `UX-085..089`, `UX-S06`, `UX-B00..B02` | atomic-break route |
 | Closing a parent silently re-roots active children | `I+T` | **retired** | explicit subtree outcome under `MOD-015`, `OPEN-TREE-001` | project closure route |
 | Dependencies are acyclic relationships | `I+T` | **retained** | `MOD-021`, `FOC-020..024` | N-step blocker route |
 | `unify` retargets comparisons and marks one Brick superseded | `I+T` | **replaced** | explicit previewable `merge` under `MOD-011..012`; transfer matrix in `OPEN-MERGE-001` | merge-conflict route |

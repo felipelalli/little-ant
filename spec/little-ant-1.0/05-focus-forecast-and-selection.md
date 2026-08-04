@@ -251,6 +251,20 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   completes the parent by inference. A newly active child invalidates the
   pending review. Dropped and superseded child boundaries remain governed by
   `OPEN-TREE-001`.
+- **FOC-040 [core] — Lazy review means weighted review.** A lazy human-review
+  marker immediately contributes one typed non-execution opportunity to the
+  ordinary subject-first lottery with positive, initially low weight. It is
+  neither hard precedence nor exclusion from the draw. Age, low confidence,
+  relevance, consequence, and later evidence may increase its pressure under
+  replay-stable configuration. A break batch contributes one `nature_review`
+  per provisionally classified child and one `importance_run_review` for its
+  provisional sibling run; accepting three default children therefore adds
+  four unresolved reviews. Review-specific skip leaves the underlying marker
+  unresolved, applies its own cooldown, and never opens served-work diagnosis.
+  Cooldown or a temporal gate may make a review temporarily ineligible without
+  removing it from the unresolved footer count in UX-025. Settling or
+  invalidating the exact claim removes that opportunity; one review never
+  settles another claim by implication.
 
 ## Forecast inputs
 

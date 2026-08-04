@@ -319,6 +319,16 @@ claims. Accept once from each origin and verify that only the `big` route
 records the symptom and recovery. In the assisted replay, render only explicit
 Nature, Dependency, or starting-order exceptions with `AI-suggested · review
 later`; the unchanged baseline must not be repeated as assisted judgment.
+Accept UX-B01 and validate UX-B02: one mutation, three newly durable handles,
+21 active Bricks, seven Raws, and seven unresolved reviews. Confirm that the
+three `nature_review` opportunities and one `importance_run_review` all enter
+the replay-stable lottery immediately with low positive weight. Use one fixed
+stream where Work wins and another where a new review wins first. Skip that
+review and verify review-specific cooldown without served-work diagnosis or a
+lower unresolved count; settle one Nature claim and verify the count falls to
+six. UX-B02 itself must not draw, focus the first child, or imply execution
+sequence; only `[n]ext` enters the ordinary pipeline, while the palette exposes
+contextual undo and inspection.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

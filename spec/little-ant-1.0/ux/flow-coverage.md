@@ -41,7 +41,7 @@ run as an interactive transcript.
 | 4 | Contradiction/recalibration | `IMP-013..015` | missing | provocative check and local replacement screens |
 | 4 | Adaptive bulk ordering | `IMP-005` | missing | one-pair step, interruption, settled result |
 | 4 | Served-work symptom | `UX-S01..S06`, `WRK-007..013`, `WRK-047`, `WRK-067`, `UX-084`, `FED-030..031` | partial | reaction screens other than settled `blocked or waiting` and `big` under `OPEN-SKIP-001` |
-| 4 | Atomic break/reclassification | `UX-S06`, `UX-B00..B01`, `MOD-045..047`, `MOD-052`, `IMP-030`, `UX-057`, `UX-085..088` | partial | exact post-commit result and next envelope |
+| 4 | Atomic break/reclassification | `UX-S06`, `UX-B00..B02`, `MOD-045..047`, `MOD-052`, `IMP-030`, `FOC-040`, `UX-057`, `UX-085..089` | partial | deterministic interactive replay and exact undo compensation |
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
@@ -49,6 +49,7 @@ run as an interactive transcript.
 | 5 | N-step/branching blockers | `UX-F03`, `FOC-020..024` | partial | non-Brick endpoint and branch inspection |
 | 5 | Wait activation and review | `MOD-050`, `FOC-034`, `WRK-050..054`, `UX-S02C`, `UX-W01`, `SCN-WAIT-001` | partial | first-review and repeated-review policy under `OPEN-WAIT-001` |
 | 5 | Project/collection descent | `MOD-015`, `MOD-045..046`, `FOC-010..013`, `FOC-039`, `WRK-066`, `UX-083`, `UX-F01`, `UX-F11`, `UX-B01`, `SCN-FOC-004` | partial | final-child transition result plus dropped/superseded child and subtree outcomes under `OPEN-TREE-001` |
+| 5 | Lazy claim review lottery | `MOD-052`, `IMP-030`, `FOC-040`, `UX-B02`, `SCN-FOC-004` | partial | exact `nature_review` and `importance_run_review` screens |
 | 5 | Importance/forecast projections | `IMP-003`, `FOC-002`, `FOC-013` | missing | list choice, inspect, recursive queries |
 | 6 | Living-checklist run | `UX-L01`, `MOD-035..037`, `WRK-019..020` | partial | `OPEN-LST-001` |
 | 6 | Finite-checklist run | `MOD-036..037` | missing | `OPEN-LST-001` |

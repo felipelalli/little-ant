@@ -1361,6 +1361,47 @@ Starting order: AI-suggested · review later
 Every assisted claim remains attributed after acceptance. If no exception
 exists, the preview remains identical to dumb UX-B01.
 
+## UX-B02 — Committed break result
+
+Accepting UX-B01 mutates once and returns a stable result without drawing:
+
+```text
+Broken into 3 parts:
+
+#ctpe "Carry this enormous rock"
+├─ #asth "Ask someone to help"
+├─ #gaw "Get a wheelbarrow"
+└─ #mtr "Move the rock"
+
+The parts can now appear as Work.
+The parent will return for review after all three are done.
+
+[n]ext    [/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Changed: Mon, Aug 3, 09:08
+      Now: Mon, Aug 3, 09:08
+. 21 bricks, 7 raws, 7 reviews
+  mode: dumb, focus: idle
+```
+
+The three child handles become durable only in the accepted transaction. The
+`bricks` count rises from 18 to 21 because the active parent remains in the
+dataset and three active children were added. The `reviews` count rises from
+3 to 7: three child `nature_review` opportunities and one sibling
+`importance_run_review`. All four enter the weighted lottery immediately with
+low positive weight. They may therefore be drawn next, although ordinary Work
+or another review may win the replay-stable draw instead. A later review skip
+can cool one opportunity without lowering this unresolved count.
+
+`next` invokes the ordinary forecast only after the keypress. It does not
+prefer the first displayed child merely because it appears first. The palette
+offers contextual `/undo` and inspection; exact compensation still obeys
+event-history, identity, and precondition rules rather than deleting the
+accepted transaction.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:
