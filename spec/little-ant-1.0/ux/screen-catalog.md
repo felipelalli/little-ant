@@ -1258,7 +1258,7 @@ Suggested parts:
 
 Suggested from the Brick's title and description.
 
-Apply this structure?
+Use this draft?
 
 [y]es    [e]dit    [n]o    [?] I don't know
 [/] more...
@@ -1272,7 +1272,9 @@ Apply this structure?
   mode: powered up, by: /bin/claude-fast.sh, focus: idle
 ```
 
-`yes` enters UX-B01 rather than committing. `edit` opens UX-B00 with these
+`Use this draft?` distinguishes accepting assisted input from the later
+`Apply this change?` mutation boundary. `yes` enters UX-B01 rather than
+committing. `edit` opens UX-B00 with these
 four drafts; `no` opens it empty; and uncertainty reveals the specific source
 evidence before restoring this screen. No action is the default. The Skill
 uses the same envelope and action semantics. Insufficient evidence goes

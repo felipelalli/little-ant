@@ -286,8 +286,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   Description Raw, linked material, or related-Brick evidence supports a
   concrete decomposition, powered-up mode or the Skill may precede UX-085
   with one English-language draft containing every suggested part and a
-  concise attribution to the evidence used. The screen asks `Apply this
-  structure?` and exposes `[y]es`, `[e]dit`, `[n]o`, `[?] I don't know`, and
+  concise attribution to the evidence used. The screen asks `Use this draft?`
+  and exposes `[y]es`, `[e]dit`, `[n]o`, `[?] I don't know`, and
   `[/] more...`, without `*`. `yes` advances to the ordinary complete UX-B01
   preview; `edit` opens UX-085 seeded with the suggestion; `no` discards it
   and opens empty UX-085; uncertainty explains the evidence and returns.
