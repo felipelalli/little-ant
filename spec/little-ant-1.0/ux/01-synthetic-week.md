@@ -196,8 +196,11 @@ context, and no importance rewrite.
 ### SCN-FOC-004 — Project descent
 
 Serve an undecomposed `project` and an `atomic_task` through the same UX-F01
-`Work:` grammar. Skip the atomic Brick with symptom `big`, accept the UX-B01
-break preview, and verify that its identity survives reclassification. The
+`Work:` grammar. Skip the atomic Brick with symptom `big`, enter UX-S06, and
+accept the UX-B01 break preview after pending part collection. Verify that its
+identity survives reclassification and that neither its Nature nor a
+large-sounding title opened decomposition by itself. Repeat through explicit
+`/break` and verify that confirmation records no fabricated `big` evidence. The
 decomposed parent must then disappear from execution while selection descends
 to its incomplete children. Complete the final child and verify that the
 parent returns only as UX-F11, never as Work and never already completed.
@@ -278,6 +281,17 @@ exact symptom checkpoint without mutation; from the symptom screen, verify
 that they restore the prior Focus checkpoint. Repeat while editing text and
 while selecting in a palette to prove that Backspace and arrow keys retain
 their local editing or selection meanings.
+
+Select `big` and validate UX-S06. Cancel `break` after drafting parts and prove
+that no Nature, child, symptom, or comparison survives; replay through UX-B01
+and accept the complete structure as one atomic mutation. Separately cancel
+and then accept `collect more context` and `learn about the subject`. Each
+accepted route must create exactly one contextually fed enabling Brick, settle
+its ordinary Nature and local importance, add one Dependency into the served
+Brick, and record `big` plus its recovery without a redundant cooldown. Choose
+`skip anyway` and verify only `big` plus cooldown. Exercise reverse navigation
+from UX-S06 and confirm that `project` Nature, title wording, and an unaccepted
+assisted suggestion never invoke break.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

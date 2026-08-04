@@ -281,7 +281,10 @@ The factory library contains:
   `finite_checklist`, or `collection` mechanics and previews that Nature
   change. A mere prerequisite remains an orthogonal Dependency and does not
   by itself make the task non-atomic; notes or instructions remain content
-  rather than child Bricks.
+  rather than child Bricks. The operation is reachable explicitly through
+  contextual `/break` and through accepted recovery routes; a `project`
+  Nature, large-sounding title, or model suggestion never invokes it by
+  itself.
 - **MOD-046 [core] — Reclassification preserves identity.** Confirming an
   atomic `break` changes the existing Brick's Nature and creates its proposed
   parts in one atomic operation. The parent retains its ID, title, history,

@@ -82,7 +82,7 @@ unresolved            no trustworthy 1.0 disposition yet
 |---|---|---|---|---|
 | `seed → committed → ready → wip` models commitment and readiness | `I+T` | **explicitly simplified** | active status, optional phase, WIP/focus, and importance position under `MOD-013..018` | migration plus focus route |
 | Explicit start, stop, and direct done preserve work history | `I+T` | **strengthened** | `WRK-001..006`; public grammar in `OPEN-WRK-001` | focus/WIP interruption route |
-| Break creates independently tracked children | `I+T` | **strengthened** | Nature-aware reclassification and atomic preview under `MOD-019..021`, `MOD-045..047`, `UX-B01` | atomic-break route |
+| Break creates independently tracked children | `I+T` | **strengthened** | explicit or evidence-backed recovery, Nature-aware reclassification, and atomic preview under `MOD-019..021`, `MOD-045..047`, `WRK-067`, `UX-S06`, `UX-B01` | atomic-break route |
 | Closing a parent silently re-roots active children | `I+T` | **retired** | explicit subtree outcome under `MOD-015`, `OPEN-TREE-001` | project closure route |
 | Dependencies are acyclic relationships | `I+T` | **retained** | `MOD-021`, `FOC-020..024` | N-step blocker route |
 | `unify` retargets comparisons and marks one Brick superseded | `I+T` | **replaced** | explicit previewable `merge` under `MOD-011..012`; transfer matrix in `OPEN-MERGE-001` | merge-conflict route |
@@ -118,7 +118,7 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Every served skip records a typed reason and optional verbatim text | `I+T` | **strengthened** | symptom then reaction under `WRK-007..013`, `WRK-047`, `UX-S01` | one route per symptom family |
+| Every served skip records a typed reason and optional verbatim text | `I+T` | **strengthened** | symptom then reaction under `WRK-007..013`, `WRK-047`, `WRK-067`, `UX-S01`, `UX-S06` | one route per symptom family |
 | `other` requires explanation and repeated evidence triggers taxonomy review | `I+T`, taxonomy tests | **strengthened** | `WRK-012`; never automatic vocabulary mutation | `SCN-WRK-004` |
 | `vague` regresses lifecycle and may create a clarification meta-Brick | `I+T` | **retired** | phase/content/enabling work without stage regression; exact reactions `OPEN-SKIP-001` | vague reaction route |
 | `not_priority`, `meh`, `kill`, and `alternatives` are symptoms | `I+T` | **replaced** | `less_important`, `fear`, and separate terminal/method actions under `WRK-008` | symptom screen review |

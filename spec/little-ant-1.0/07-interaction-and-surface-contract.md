@@ -264,6 +264,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   primary temporal footer fact. Actions follow `WRK-066`; uncertainty and
   Escape preserve the pending review. The screen has no Nature label,
   project-only wording, completion inference, or decorative personality line.
+- **UX-084 [core] — Big-recovery grammar.** Selecting `bi[g]` on the served-work
+  symptom screen opens a provisional reaction on the same Brick. It asks
+  `What would help?` and exposes `[b]reak it into parts`, `[c]ollect more
+  context`, `[l]earn about the subject`, `[s]kip anyway`, `[?] I don't know`,
+  and `[/] more...`, in that order and without a default. Actions follow
+  `WRK-067`. Escape, empty-buffer Backspace, or Left Arrow restores the exact
+  symptom screen without evidence or mutation. The screen has no technical
+  Nature explanation or decorative personality line.
 
 ## Status, history, and recovery
 
@@ -486,6 +494,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   why the Brick cannot remain atomic. `yes` commits the Nature change and
   structure together; `no`, uncertainty, or Escape follow their ordinary
   confirmation and navigation semantics without creating partial structure.
+  Entry may be explicit `/break` or a provisional symptom reaction; the final
+  preview remains the single mutation boundary in either case.
 - **UX-058 [core] — Provisional skip navigation.** The served-work symptom
   screen and its symptom-specific reaction screen are uncommitted navigation
   checkpoints. A symptom shortcut opens the matching reaction screen without

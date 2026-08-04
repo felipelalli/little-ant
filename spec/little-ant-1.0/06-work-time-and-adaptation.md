@@ -136,6 +136,19 @@
   navigation from the symptom screen returns to the original Focus screen.
   Neither path records evidence, applies cooldown, changes Domain, or consumes
   a new draw.
+- **WRK-067 [core] — Big has several recoveries.** The `big` reaction offers
+  `break_into_parts`, `collect_more_context`, `learn_about_subject`, explicit
+  `skip_anyway`, and uncertainty. Break enters the previewed decomposition
+  route without mutation; only accepted structure records `big` and the break
+  atomically. Collect and learn each enter contextual Feed for one enabling
+  Brick, with no mutation until the preview confirms its ordinary Nature,
+  local importance insertion, and Dependency into the served Brick. That
+  atomic confirmation records `big` and the recovery; the Dependency, rather
+  than a redundant skip cooldown, keeps the original Brick from ordinary
+  execution. `skip_anyway` records `big` plus cooldown and creates no recovery.
+  Explicit `/break` reaches decomposition without requiring a prior symptom;
+  `hard` or `vague` assistance may offer the same action when evidence
+  supports it. Nature and title alone never do.
 
 ## Time
 

@@ -73,7 +73,12 @@ parent returns only for scope review after every child is done. `UX-025`,
 its active-Brick/Raw-review/review counts, and its theme-neutral intensity
 hierarchy. `FOC-039`, `WRK-066`, `UX-083`, and `UX-F11` settle scope closure
 as a typed review with explicit completion, more-work, and deferral outcomes.
-Resume with the remaining non-execution opportunity catalog.
+`WRK-067`, `UX-084`, and UX-S06 settle `big` as a provisional choice among
+decomposition, one enabling context-gathering or learning Brick, and ordinary
+deferral. Explicit `/break` remains independently reachable, while Nature,
+title, and unaccepted assistance never trigger decomposition. Resume by
+designing dumb-mode part collection between `break` and the existing atomic
+UX-B01 preview.
 
 ## Scope rings
 

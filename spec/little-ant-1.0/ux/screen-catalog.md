@@ -994,6 +994,44 @@ work silently. If the named blocker is itself blocked, the canonical N-step
 dependency resolver supplies the actionable endpoint and complete `Why` path.
 The public command is the single kebab-case token required by UX-074.
 
+## UX-S06 — Big recovery
+
+Selecting `bi[g]` on UX-S01 opens this uncommitted reaction:
+
+```text
+#ctpe "Carry this enormous rock"
+
+What would help?
+
+[b]reak it into parts
+[c]ollect more context
+[l]earn about the subject
+[s]kip anyway
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:04
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`break` enters pending part collection and the UX-B01 preview; no structure or
+symptom exists before that final confirmation. `collect more context` and
+`learn about the subject` each enter contextual Feed for one enabling Brick.
+Their complete previews include ordinary Nature confirmation, local
+importance insertion, and a Dependency into `#ctpe`; accepting one records
+the `big` evidence and recovery atomically, while the Dependency prevents the
+original work from being served. `skip anyway` records only `big` and its
+cooldown. Uncertainty explains the distinction without choosing. Reverse
+navigation restores UX-S01 exactly and commits nothing. Explicit `/break`
+enters decomposition independently and therefore never fabricates `big`
+evidence.
+
 ## UX-K01 — Nature choice
 
 ```text
