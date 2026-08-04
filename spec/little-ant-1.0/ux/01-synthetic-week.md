@@ -311,6 +311,14 @@ from that run and may surface lazy Nature and importance reviews. In the
 assisted replay, verify separate visible AI provenance and lazy review for
 each proposed Nature, importance run, and Dependency even after accepting the
 full preview.
+Validate the exact UX-B01 composition without draft handles or a technical
+ontology preamble. `edit` and reverse navigation must preserve every draft;
+`no` must discard them and restore the `big` or direct-command origin without
+evidence; uncertainty must restore the same preview after explaining its
+claims. Accept once from each origin and verify that only the `big` route
+records the symptom and recovery. In the assisted replay, render only explicit
+Nature, Dependency, or starting-order exceptions with `AI-suggested · review
+later`; the unchanged baseline must not be repeated as assisted judgment.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

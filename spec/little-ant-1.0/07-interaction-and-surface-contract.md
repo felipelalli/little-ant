@@ -305,6 +305,23 @@ no-emoji rendering remain `OPEN-UX-001`.
   title. The suggestion changes no prior draft, skips no confirmation, and is
   absent when evidence is insufficient. Other surfaces expose the same
   `accept suggestion` action through their native control under UX-003.
+- **UX-088 [core] — Human-facing break preview.** UX-B01 is the sole final
+  confirmation for decomposition. It identifies the retained Brick, states
+  naturally its resolved destination Nature (`project` in the reference
+  composition) and that its parts replace it as suggested Work, lists pending
+  parts without not-yet-durable handles, and
+  groups the deterministic `atomic_task` and entered-order lazy-review
+  defaults. It asks `Apply this change?` and exposes `[y]es`, `[e]dit`, `[n]o`,
+  `[?] I don't know`, and `[/] more...`, without a default. `yes` performs the
+  one atomic mutation; `edit` restores UX-B00 with every draft; `no` discards
+  the drafts, cancels decomposition, and restores its origin without evidence;
+  uncertainty explains Nature, order, and provenance before returning.
+  Reverse navigation follows UX-019 and preserves the drafts. An assisted
+  preview adds only explicit exceptions to the dumb baseline and marks every
+  proposed Nature, initial-order, or Dependency claim `AI-suggested · review
+  later`. Accepting the whole preview does not erase that provenance. When
+  entry came from `big`, `yes` also records that symptom and recovery; direct
+  `/break` never fabricates them.
 
 ## Status, history, and recovery
 
@@ -526,8 +543,8 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-057 [core] — Atomic break preview.** Breaking an `atomic_task` previews
   the proposed destination Nature, the retained parent, every new part and its
   Nature, the initial local order, provenance, and lazy-review markers before
-  confirmation. The screen explains
-  why the Brick cannot remain atomic. `yes` commits the Nature change and
+  confirmation. UX-088 states the structural consequence in human terms
+  rather than leading with internal ontology. `yes` commits the Nature change and
   structure together; `no`, uncertainty, or Escape follow their ordinary
   confirmation and navigation semantics without creating partial structure.
   Entry may be explicit `/break` or a provisional symptom reaction; the final

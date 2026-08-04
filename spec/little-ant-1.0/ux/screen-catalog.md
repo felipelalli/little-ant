@@ -1301,48 +1301,65 @@ requiring a literal Tab key.
 ## UX-B01 — Break an atomic task
 
 ```text
-#ptqr "Prepare the quarterly report"
+Break into parts:
 
-This Brick is an atomic task.
-Independently tracked parts require a different Nature.
+#ctpe "Carry this enormous rock"
 
-Change Nature:
-    atomic task › project
+This Brick will become a project.
+Little Ant will suggest its parts instead of the whole.
 
-Proposed structure:
+Parts:
 
-#ptqr "Prepare the quarterly report"     project
-├─ #ctqd "Collect the quarterly data"    atomic task · review later
-├─ #atr "Analyze the results"            atomic task · review later
-└─ #wtfr "Write the final report"        atomic task · review later
+1. "Ask someone to help"
+2. "Get a wheelbarrow"
+3. "Move the rock"
 
-Initial importance order: as entered · review later
+These parts start as atomic tasks and in the order above.
+Little Ant may review their Nature and importance later.
 
 Apply this change?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    [?] I don't know
+[/] more...
 
 ────────────────────────────────────────
 . <root>
-  Orbit › Finance › Quarterly reporting
+  Personal › Housekeeping
 . Workday: Mon, Aug 3
-          Now: Mon, Aug 3, 09:00
+          Now: Mon, Aug 3, 09:08
 . 18 bricks, 7 raws, 3 reviews
   mode: dumb, focus: idle
 ```
 
-If the proposed parts should render and complete together, the preview offers
-`finite_checklist`; an open-ended independently focusable set offers
-`collection`. Content-only notes keep `atomic_task`. The operation preserves
-the parent identity and commits no child before confirmation. After
-confirmation, the parent stops appearing as ordinary Work while incomplete
+The numbered rows are pending parts, not Bricks, so no child handle is shown
+or reserved before `yes`. Confirmation preserves the parent identity, changes
+its Nature, creates every child and its handle atomically, and installs the
+displayed low-confidence sibling order without interposing importance
+questions. The parent then stops appearing as ordinary Work while incomplete
 children exist. Completing the final child releases a parent-scope review; it
-does not silently complete or immediately refocus the parent. Confirmation
-creates the children atomically in the displayed provisional order; it does
-not interpose importance questions. `review later` identifies claim-scoped
-lazy Nature or importance review, not an invalid Brick or one Brick-wide
-uncertainty flag. An assisted preview additionally labels each AI-proposed
-Nature, order, or Dependency and retains that provenance after acceptance.
+does not silently complete or immediately refocus the parent.
+
+`edit` restores UX-B00 with all drafts. `no` discards them and restores UX-S06
+or the direct-command origin without recording `big`, break, or any other
+evidence. Escape, Backspace, and Left Arrow restore UX-B00 with the drafts
+under UX-019. `?` explains the project transition, reviewable default Natures,
+provisional importance run, and any assisted provenance. The palette provides
+detail and dry-run inspection without competing with confirmation.
+
+An assisted preview preserves the same composition and adds only applicable
+exceptions, for example:
+
+```text
+2. "Arrange professional transport"
+   Nature: project · AI-suggested · review later
+3. "Move the rock"
+   Depends on part 2 · AI-suggested · review later
+
+Starting order: AI-suggested · review later
+```
+
+Every assisted claim remains attributed after acceptance. If no exception
+exists, the preview remains identical to dumb UX-B01.
 
 ## UX-A01 — External-effect confirmation
 

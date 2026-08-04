@@ -83,9 +83,11 @@ inline assistance without moving validation or mutation outside the CLI.
 `MOD-052` and `IMP-030` settle the accepted baseline: child Natures default
 visibly to lazily reviewable `atomic_task`, input sequence seeds a complete
 low-confidence sibling run, assisted claims retain AI provenance, and no
-human comparison delays the atomic creation. Resume by reviewing the complete
-UX-B01 preview and its accepted, rejected, edited, and uncertain result
-transitions.
+human comparison delays the atomic creation. `UX-088` settles the complete
+human-facing UX-B01 confirmation and its accepted, rejected, edited, uncertain,
+and reverse-navigation transitions, including draft-handle suppression and
+assisted-exception labeling. Resume with the exact post-commit result and its
+next envelope.
 
 ## Scope rings
 
