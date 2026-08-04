@@ -197,8 +197,9 @@ context, and no importance rewrite.
 
 Serve an undecomposed `project` and an `atomic_task` through the same UX-F01
 `Work:` grammar. Skip the atomic Brick with symptom `big`, enter UX-S06, and
-accept the UX-B01 break preview after pending part collection. Verify that its
-identity survives reclassification and that neither its Nature nor a
+exercise UX-B00 from its empty first line through two parts and empty Enter.
+Accept the resulting UX-B01 break preview. Verify that its identity survives
+reclassification and that neither its Nature nor a
 large-sounding title opened decomposition by itself. Repeat through explicit
 `/break` and verify that confirmation records no fabricated `big` evidence. The
 decomposed parent must then disappear from execution while selection descends
@@ -292,6 +293,15 @@ Brick, and record `big` plus its recovery without a redundant cooldown. Choose
 `skip anyway` and verify only `big` plus cooldown. Exercise reverse navigation
 from UX-S06 and confirm that `project` Nature, title wording, and an unaccepted
 assisted suggestion never invoke break.
+
+Replay decomposition in powered-up and Skill modes with evidence from the
+title, Description Raw, linked material, and related Bricks. Validate UX-B00A
+with `yes`, `edit`, `no`, uncertainty, and no `*`; every route must reach the
+same UX-B00 or UX-B01 envelope and canonical CLI validation. Exercise UX-B00B:
+Tab copies one suggestion without submitting, ordinary input dismisses it,
+and weak or conflicting evidence renders exact dumb UX-B00. Verify the
+title-specific English hint in dumb mode and no durable handles, titles,
+comparisons, Natures, symptoms, or children before UX-B01 acceptance.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

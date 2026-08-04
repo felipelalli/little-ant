@@ -55,7 +55,7 @@ from `70cb5b0`; the failed implementation remains on
 | Impact, effort, planning calibration | `IMP-017..029`, `DAT-030..037`, calibration profile | estimation/TaskJuggler sessions |
 | Forecast, hierarchy, Domain continuity, blockers, and opportunity variants | `FOC-001..039` | recovery ledger decisions and fixed-stream UX scenarios |
 | Focus, WIP, skip, time, standing work, delegation | `WRK-001..067` | v0 behavior audit plus skip, recurrence, habit, and delegation sessions |
-| Canonical interaction and dumb REPL | `UX-001..084`, screen catalog | REPL recovery and screen-by-screen review |
+| Canonical interaction and dumb REPL | `UX-001..087`, screen catalog | REPL recovery and screen-by-screen review |
 | Event authority, sparse output, imports, Packs, Calendar | `DAT-001..043` | context-pollution, source safety, Pack, and Calendar sessions |
 | Migration and promotion gates | `MIG-001..023` | v0 archive review and failed-rewrite analysis |
 

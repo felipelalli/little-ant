@@ -1205,6 +1205,97 @@ No category screen is introduced while this flat choice remains usable.
 Future categories or pagination must follow `UX-056` and preserve the same
 Template identities.
 
+## UX-B00 — Dumb part collection
+
+After `[b]reak it into parts`, dumb mode collects pending titles continuously:
+
+```text
+Break into parts:
+
+#ctpe "Carry this enormous rock"
+
+Parts:
+
+1. "Ask someone to help"
+2. "Get a wheelbarrow"
+3. › _
+
+Tip: write Brick titles in English.
+
+[Enter] add · empty [Enter] review
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:06
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The first rendering has no numbered titles and an active `1. ›` input.
+Non-empty Enter appends the draft and advances the number. Empty Enter exposes
+`review` only after two parts exist and then opens UX-B01. The title hint is
+visually dim. Reverse navigation from an already empty input restores the
+preceding pending-part checkpoint without semantic undo or durable state.
+
+## UX-B00A — Assisted decomposition draft
+
+With sufficient evidence, powered-up mode or the Skill may precede UX-B00:
+
+```text
+Break into parts:
+
+#ctpe "Carry this enormous rock"
+
+Suggested parts:
+
+1. "Find someone to help"
+2. "Get suitable moving equipment"
+3. "Move the rock"
+4. "Return the equipment"
+
+Suggested from the Brick's title and description.
+
+Apply this structure?
+
+[y]es    [e]dit    [n]o    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:06
+. 18 bricks, 7 raws, 3 reviews
+  mode: powered up, by: /bin/claude-fast.sh, focus: idle
+```
+
+`yes` enters UX-B01 rather than committing. `edit` opens UX-B00 with these
+four drafts; `no` opens it empty; and uncertainty reveals the specific source
+evidence before restoring this screen. No action is the default. The Skill
+uses the same envelope and action semantics. Insufficient evidence goes
+directly to UX-B00 without a weak or decorative proposal.
+
+## UX-B00B — Assisted inline suggestion
+
+An assisted UX-B00 may add one visually subordinate completion below its
+empty active line:
+
+```text
+3. › _
+
+Suggestion: "Move the rock to its destination"
+
+[Tab] accept suggestion
+```
+
+Tab copies the suggestion into the editor but does not submit it. Typing any
+ordinary character dismisses the suggestion and writes the user's own title.
+The Skill and graphical surfaces expose the same semantic action without
+requiring a literal Tab key.
+
 ## UX-B01 — Break an atomic task
 
 ```text

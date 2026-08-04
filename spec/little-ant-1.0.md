@@ -76,9 +76,12 @@ as a typed review with explicit completion, more-work, and deferral outcomes.
 `WRK-067`, `UX-084`, and UX-S06 settle `big` as a provisional choice among
 decomposition, one enabling context-gathering or learning Brick, and ordinary
 deferral. Explicit `/break` remains independently reachable, while Nature,
-title, and unaccepted assistance never trigger decomposition. Resume by
-designing dumb-mode part collection between `break` and the existing atomic
-UX-B01 preview.
+title, and unaccepted assistance never trigger decomposition. `UX-085..087`
+and UX-B00 settle the editor between `break` and UX-B01, its
+title-specific English hint, the attributed full-draft gateway, and one-part
+inline assistance without moving validation or mutation outside the CLI.
+Resume by reviewing the complete UX-B01 preview and its accepted, rejected,
+edited, and uncertain result transitions.
 
 ## Scope rings
 

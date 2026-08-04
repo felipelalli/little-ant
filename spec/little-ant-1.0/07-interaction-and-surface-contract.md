@@ -272,6 +272,37 @@ no-emoji rendering remain `OPEN-UX-001`.
   `WRK-067`. Escape, empty-buffer Backspace, or Left Arrow restores the exact
   symptom screen without evidence or mutation. The screen has no technical
   Nature explanation or decorative personality line.
+- **UX-085 [core] — Dumb part collection.** Choosing `break` opens one pending
+  editor headed `Break into parts:`. It identifies the retained Brick, lists
+  every drafted part in entry order, and keeps the next numbered `›` input
+  active. Enter on non-empty text adds that draft and immediately opens the
+  next line. Once at least two parts exist, Enter on an empty input advances
+  to UX-B01; before then it cannot produce a decomposed preview. The input
+  displays the discreet title-specific hint `Tip: write Brick titles in
+  English.` under UX-049. Escape, Left Arrow, or Backspace on an already empty
+  input restores the preceding pending-part checkpoint. No title, handle,
+  Nature, comparison, child, symptom, or history is durable during collection.
+- **UX-086 [standard] — Assisted decomposition draft.** When title,
+  Description Raw, linked material, or related-Brick evidence supports a
+  concrete decomposition, powered-up mode or the Skill may precede UX-085
+  with one English-language draft containing every suggested part and a
+  concise attribution to the evidence used. The screen asks `Apply this
+  structure?` and exposes `[y]es`, `[e]dit`, `[n]o`, `[?] I don't know`, and
+  `[/] more...`, without `*`. `yes` advances to the ordinary complete UX-B01
+  preview; `edit` opens UX-085 seeded with the suggestion; `no` discards it
+  and opens empty UX-085; uncertainty explains the evidence and returns.
+  Weak or conflicting evidence bypasses the proposal and renders the exact
+  dumb flow. Assistance never allocates durable identities, accepts
+  importance evidence, infers hidden relationships, or mutates the log; the
+  canonical CLI validates every proposed value and remains the only mutation
+  authority under UX-001.
+- **UX-087 [standard] — Assisted inline part suggestion.** While UX-085 has an
+  empty active line, an assisted surface may show at most one attributed
+  suggested part. Tab accepts it into the editor without submitting it; any
+  ordinary text input dismisses the suggestion and begins the user's own
+  title. The suggestion changes no prior draft, skips no confirmation, and is
+  absent when evidence is insufficient. Other surfaces expose the same
+  `accept suggestion` action through their native control under UX-003.
 
 ## Status, history, and recovery
 
@@ -447,7 +478,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   and search.` discreetly beside or immediately above that input. The hint is
   not repeated on single-key choice screens, where the user cannot write
   content. This is advice, not validation: any language remains accepted and
-  the original input is preserved under `PRD-012`.
+  the original input is preserved under `PRD-012`. An input known to accept
+  only Brick titles uses the more precise `Tip: write Brick titles in
+  English.` instead.
 - **UX-050 [core] — Nature before Template.** Dumb Feed resolves one Nature
   through UX-K01, or through UX-K02 followed by UX-K03, before optionally
   offering compatible Templates.
