@@ -1450,6 +1450,54 @@ Suggested by powered-up assistance from the title and parent context.
 
 The primary screen never exposes a model key, prompt, or source enum.
 
+## UX-O01 — Lazy importance-run review
+
+When an `importance_run_review` wins the ordinary lottery, the comparison
+begins directly with its proposition:
+
+```text
+Is
+
+#asth "Ask someone to help"
+
+    more important than
+
+#gaw "Get a wheelbarrow"
+?
+
+[m]ore important    [l]ess important
+[s]kip              [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #ctpe "Carry this enormous rock"
+  Personal › Housekeeping
+. Ordered: Mon, Aug 3, 09:08
+       Now: Mon, Aug 3, 09:11
+. 21 bricks, 7 raws, 7 reviews
+  mode: dumb, focus: idle
+```
+
+No `Review:` heading or `*` precedes the ordinary comparison grammar. An
+accepted direction records one direct human relation and ends this selected
+lottery interaction. If the provisional run remains unresolved, its one
+`importance_run_review` marker and footer count remain; if the answer settles
+the run, that marker resolves and the count falls by one. The stable result
+does not draw automatically. A later explicit `[n]ext` uses FOC-041, so another
+importance-maintenance opportunity is more likely but never guaranteed.
+
+The first `skip` may replace the comparator with one bounded nearby alternative
+under IMP-008. A second skip ends the interaction, retains provisional order,
+and applies review cooldown. `?` may expose the complete sibling run, its
+entered or assisted source, applicable evidence, and why this pair is
+unresolved; it never answers. Reverse navigation preserves the pending review.
+
+When entered through explicit `/order`, UX-O01 is visually identical. The
+cadence changes only after an accepted direction: the core immediately renders
+the next pair selected by the same resumable `org-sort-tasks` state. No stable
+per-pair result or global draw intervenes until the scope becomes coherent or
+the user exits.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:

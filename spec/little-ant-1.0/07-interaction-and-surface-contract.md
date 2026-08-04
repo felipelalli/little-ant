@@ -344,6 +344,18 @@ no-emoji rendering remain `OPEN-UX-001`.
   explains Nature consequences and source evidence before restoring the same
   opportunity. Reverse navigation preserves the pending review. Factory and
   assisted sources use human prose rather than internal source identifiers.
+- **UX-091 [core] — Importance-review cadence.** A selected
+  `importance_run_review` renders the ordinary proposition-led importance
+  comparison without a `Review:` heading or `*`. `[m]ore important` and
+  `[l]ess important` each record one answer, complete the current lottery
+  interaction, and return a stable result without drawing. If the run remains
+  unresolved, the same marker stays counted and FOC-041 boosts subsequent
+  `importance_maintenance` draws; explicit `[n]ext` still owns the next global
+  draw. `skip` follows the bounded alternative-comparator behavior in IMP-031,
+  while uncertainty and reverse navigation record nothing. Explicit `/order`
+  uses the same screen and `org-sort-tasks` state but, after an accepted answer,
+  immediately renders the next unresolved pair without an intermediate result
+  or global draw. It stops when the chosen scope is coherent or the user exits.
 
 ## Status, history, and recovery
 

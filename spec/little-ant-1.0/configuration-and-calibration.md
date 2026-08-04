@@ -97,6 +97,8 @@ evidence:
 - importance-to-chance curve and positive-tail floor;
 - strongest-signal bonus curve, independence test, and cap;
 - Domain-affinity strength and decay after accepted focus;
+- interaction-family affinity strength, per-family contribution, skip
+  reduction, and decay after an accepted interaction;
 - served-skip cooldown plus separately calibrated repeatable aging,
   quota-window schedule pressure, and recurring-obligation avoidance
   pressure; these parameters never collapse the semantic distinctions in

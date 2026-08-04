@@ -43,6 +43,18 @@
   list. This run-sensitive requirement preserves the useful intuition behind
   adaptive sorting without mandating Timsort instead of the resumable
   `org-sort-tasks` strategy in IMP-005.
+- **IMP-031 [core] — One algorithm, two cadences.** A lottery-selected
+  `importance_run_review` serves one genuinely unresolved pair chosen by the
+  resumable `org-sort-tasks` state. An accepted `more` or `less` answer records
+  that comparison and ends only the current lottery interaction; if the run
+  remains unresolved, its review marker stays pending. The first ordering
+  skip may try the bounded nearby alternative required by IMP-008, while the
+  second ends the interaction with provisional confidence and review-specific
+  cooldown. Explicit `/order` instead enters continuous maintenance: after
+  each accepted answer it asks the next pair from the same algorithm
+  immediately, until the selected scope is coherent or the user exits. Both
+  cadences read and write the same comparison history, checkpoints, current
+  order, and contradiction state; `/order` is not a second sorter.
 
 ## Comparison grammar
 

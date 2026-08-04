@@ -12,8 +12,9 @@
   strictly positive chance. Importance strongly informs probability but never
   creates a deterministic frontier that starves unusual work.
 - **FOC-004 [calibration] — Configurable curve.** The importance curve, long
-  tail, aging, cooldowns, Domain affinity strength, signal bonuses, and caps
-  use versioned factory defaults and replay-safe configuration.
+  tail, aging, cooldowns, Domain and interaction-family affinity strength and
+  decay, signal bonuses, and caps use versioned factory defaults and
+  replay-safe configuration.
 - **FOC-005 [core] — Replay-deterministic draw.** `next` records the clock,
   configuration version, random seed or cursor, admitted set, probabilities,
   every branch choice, and the final opportunity so replay reproduces it.
@@ -265,6 +266,19 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   removing it from the unresolved footer count in UX-025. Settling or
   invalidating the exact claim removes that opportunity; one review never
   settles another claim by implication.
+- **FOC-041 [core] — Interaction-family continuity.** Completing an
+  ordinary-lottery interaction may establish a transient, replay-recorded
+  affinity for its semantic activity family. A successful importance
+  comparison therefore increases the chance that a later global draw selects
+  another `importance_maintenance` opportunity, with additional ordinary
+  locality from subject, parent, and Domain. This is a decaying weighted bonus,
+  never a hard filter or duplicate ticket; every unrelated admitted candidate
+  retains the positive tail in FOC-003. Repeated family-specific skips reduce
+  the affinity and apply their normal cooldowns. The signal is session context,
+  not a Brick field, human importance evidence, active Domain, or public score.
+  Explicit continuous commands such as `/order` suspend the global draw while
+  their bounded flow is active, then leave subsequent draws governed by the
+  same recorded affinity and decay.
 
 ## Forecast inputs
 

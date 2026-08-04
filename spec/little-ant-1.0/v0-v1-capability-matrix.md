@@ -95,8 +95,8 @@ unresolved            no trustworthy 1.0 disposition yet
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
 | Pairwise binary insertion | `I+T`, `49abaa5`, placement tests | **retained** | sibling-only importance under `IMP-001..004` | `SCN-IMP-001` |
-| Adaptive `org-sort-tasks` maintenance: short-run insertion, adaptive merge, ordered-halves shortcut, and known transitive answers | `I+T`, `b35df00`, `Order.mergeSortStep` | **retained** | `IMP-005` | resumable bulk-order transcript |
-| One unresolved pair per core maintenance step; persisted answers make interruption safe | `I+T`, ordering tests | **retained** | `IMP-005` | stop/resume bulk-order transcript |
+| Adaptive `org-sort-tasks` maintenance: short-run insertion, adaptive merge, ordered-halves shortcut, and known transitive answers | `I+T`, `b35df00`, `Order.mergeSortStep` | **retained** | `IMP-005`, `IMP-031` | resumable bulk-order transcript through both lottery and `/order` cadences |
+| One unresolved pair per core maintenance step; persisted answers make interruption safe | `I+T`, ordering tests | **retained and clarified** | `IMP-005`, `IMP-031`, `FOC-041`, `UX-091`, `UX-O01` | one-pair lottery result, stop/resume transcript, and continuous `/order`; exact scope-entry screen remains Gate 4 |
 | Human evidence outranks AI pre-ordering | `I+T` | **strengthened** | `IMP-011..015` | assisted insertion and reversal |
 | Adjacent question rounds, stale comparisons, and burst/time sanity triggers | `I+T`, `Order.hs`, `Tick.hs` | **replaced** | derived review opportunities, not meta-Bricks, under `IMP-014..016`, `FOC-009` | ordering-maintenance route |
 | Dependencies supply hard edges to the same human order | `I+T` | **retired** | dependency and importance are orthogonal under `IMP-001`, `MOD-021` | blocked-but-important scenario |

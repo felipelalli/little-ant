@@ -339,6 +339,18 @@ same marker. Skip once and verify review cooldown, seven unresolved reviews,
 and no UX-S01. Uncertainty and reverse navigation must restore the exact
 pending opportunity. No variant may show `*` or an internal source identifier.
 
+Force `importance_run_review` to win and validate UX-O01 without `Review:` or
+`*`. In lottery cadence, accept exactly one relation, verify a stable no-draw
+result, retain the marker when the run remains unresolved, and record an
+`importance_maintenance` continuity bonus. Use fixed streams to show both a
+subsequent same-family win and an unrelated positive-tail win after `[n]ext`.
+Exercise first-skip nearby replacement, second-skip cooldown, uncertainty, and
+reverse navigation. Then enter `/order` from the same evidence state and prove
+that each accepted relation immediately renders the next pair until coherence
+or exit. Both cadences must produce the pair sequence and final order required
+by the same resumable `org-sort-tasks` state; neither may introduce another
+sorting algorithm or treat entered position as human evidence.
+
 ### SCN-WRK-003 — Waiting versus blocked
 
 Enter the common `[b]locked or waiting` route and classify each branch in
