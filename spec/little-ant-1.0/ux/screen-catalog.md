@@ -1531,6 +1531,9 @@ comparison:
 ```text
 Order what?
 
+*[a]ll groups
+    12 groups · 21 unresolved
+
 [c]urrent group
     #ctpe "Carry this enormous rock"
     3 siblings · 1 unresolved
@@ -1538,9 +1541,6 @@ Order what?
 [d]omain
     Personal › Housekeeping
     4 groups · 7 unresolved
-
-[a]ll groups
-    12 groups · 21 unresolved
 
 [p]ick a Brick or Domain...
 [?] I don't know
@@ -1550,8 +1550,9 @@ Order what?
 The current-group row is present only when the suspended context identifies a
 parent with unresolved child ordering. The Domain row is present only when a
 current Domain contains unresolved sibling groups. Counts describe the runs
-that would be maintained, not cross-parent comparison candidates. No row is
-marked `*` in dumb mode.
+that would be maintained, not cross-parent comparison candidates. `All groups`
+remains first and carries the factory dumb default. Pressing `a`, literal `*`,
+or Enter therefore starts the same dataset-wide sequence under UX-015.
 
 Choosing `pick`, or typing an argument after `/order`, opens one revisioned
 autocomplete. It searches Brick titles as well as handles, so a title fragment

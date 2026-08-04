@@ -103,7 +103,13 @@ The normative reference renderings live in
   under `OPEN-UX-001`.
 
 - **UX-015 [core] — Suggested default.** `*` marks at most one defensible
-  suggested action. Pressing `*` selects it. No evidence means no default.
+  suggested action. On a finite choice with a visible default, pressing either
+  literal `*` or Enter immediately selects that same action. The two keys are
+  aliases for the displayed default, not separate semantic actions. Without a
+  visible `*`, Enter does not guess and literal `*` is unbound. Input screens
+  keep their editor grammar: `*` inserts text and Enter submits or advances as
+  declared by UX-011. No evidence means no default unless the screen contract
+  defines an explicit factory default, as UX-O02 does.
 - **UX-016 [core] — Contextual uncertainty.** `[?] I don't know` is visible in
   every finite decision. It opens a nested assistance interaction without
   itself recording an answer or skip. Escape restores the same pending
@@ -355,12 +361,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   while uncertainty and reverse navigation record nothing. Explicit `/order`
   uses the same screen and `org-sort-tasks` state but, after an accepted answer,
   immediately renders the next unresolved pair without an intermediate result
-  or global draw. It stops when the chosen scope is coherent or the user exits.
+  or global draw. It never renders a per-answer success receipt in this direct
+  cadence; only a real boundary in UX-093 produces a result. It stops when the
+  chosen scope is coherent or the user exits.
 - **UX-092 [core] — Explicit ordering scope.** Entering `/order` without an
   argument opens UX-O02 with only applicable scopes: current sibling group,
-  current Domain, all unresolved groups, and explicit target selection. It has
-  no dumb-mode default. `/order #ctpe` directly selects the direct children of
-  that uniquely resolved parent; a selected Domain is rendered canonically as,
+  current Domain, all unresolved groups, and explicit target selection. `All
+  groups` is first and is the explicit factory default. `/order #ctpe`
+  directly selects the direct children of that uniquely resolved parent; a
+  selected Domain is rendered canonically as,
   for example, `/order "Personal › Housekeeping"`. Arguments are completed
   through the same revisioned palette contract as other guided references.
   Typing `#` filters parent-Brick handles and titles; unprefixed text searches

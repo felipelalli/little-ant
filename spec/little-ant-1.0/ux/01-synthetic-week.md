@@ -355,8 +355,11 @@ result, retain the marker when the run remains unresolved, and record an
 subsequent same-family win and an unrelated positive-tail win after `[n]ext`.
 Exercise first-skip nearby replacement, second-skip cooldown, uncertainty, and
 reverse navigation. Then enter `/order` without an argument and validate UX-O02
-with contextual group and Domain rows, all groups, no dumb default, and exact
-counts. Select each scope in fixed replays. Use `pick`, direct `#` input, a
+with `all groups` first and marked as the factory default, contextual group and
+Domain rows, and exact counts. Prove that `a`, literal `*`, and Enter each start
+the identical all-groups scope, while Enter and `*` remain unbound on a finite
+choice without a visible default and retain editor semantics in input. Select
+each scope in fixed replays. Use `pick`, direct `#` input, a
 partial Brick-title query such as `Bring someth`, and a partial Domain query to
 prove autocomplete searches handles, titles, and paths; renders complete Brick
 references; inserts canonical arguments; rejects ambiguity; and never offers
