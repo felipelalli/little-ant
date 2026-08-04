@@ -55,6 +55,16 @@
   immediately, until the selected scope is coherent or the user exits. Both
   cadences read and write the same comparison history, checkpoints, current
   order, and contradiction state; `/order` is not a second sorter.
+- **IMP-032 [core] — Explicit ordering scopes preserve sibling locality.**
+  `/order` can maintain the current sibling group, every unresolved sibling
+  group intersecting the current Domain, every unresolved sibling group in
+  the dataset, or a specifically selected parent or Domain. Domain-wide and
+  dataset-wide sessions orchestrate several independent sibling runs; they
+  never compare Bricks that have different parents. Groups without unresolved
+  maintenance are omitted. A Brick argument names the parent whose direct
+  children form the group, while a Domain argument selects all qualifying
+  groups intersecting that Domain. The guided surface resolves either target
+  through UX-092 rather than depending on memorized handles or Domain paths.
 
 ## Comparison grammar
 

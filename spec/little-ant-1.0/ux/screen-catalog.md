@@ -1498,6 +1498,62 @@ the next pair selected by the same resumable `org-sort-tasks` state. No stable
 per-pair result or global draw intervenes until the scope becomes coherent or
 the user exits.
 
+## UX-O02 — Explicit ordering scope
+
+Entering `/order` without an argument chooses the bounded work set before any
+comparison:
+
+```text
+Order what?
+
+[c]urrent group
+    #ctpe "Carry this enormous rock"
+    3 siblings · 1 unresolved
+
+[d]omain
+    Personal › Housekeeping
+    4 groups · 7 unresolved
+
+[a]ll groups
+    12 groups · 21 unresolved
+
+[p]ick a Brick or Domain...
+[?] I don't know
+[/] more...
+```
+
+The current-group row is present only when the suspended context identifies a
+parent with unresolved child ordering. The Domain row is present only when a
+current Domain contains unresolved sibling groups. Counts describe the runs
+that would be maintained, not cross-parent comparison candidates. No row is
+marked `*` in dumb mode.
+
+Choosing `pick`, or typing an argument after `/order`, opens one revisioned
+autocomplete. It searches Brick titles as well as handles, so a title fragment
+does not require the user to know `#bs`:
+
+```text
+Order:
+
+› /order "Bring someth
+
+Sibling groups
+  /order #bs "Bring something..."
+
+↑/↓ select · Enter start · Esc back
+```
+
+Unprefixed text may return visibly separated `Sibling groups` and `Domains`
+sections when both kinds match. Typing `#` narrows directly to parent Bricks.
+Every Brick option shows the complete typed rendering from MOD-010, while
+selecting it carries the UUID-backed reference rather than relying on its
+mutable title. Selecting a Domain inserts its complete quoted path, so the
+visible command becomes, for example, `/order "Personal › Housekeeping"`.
+The selector never requires title, handle, or path memorization, never silently
+chooses between ambiguous matches, and does not offer creation. After
+selection, UX-O01 starts immediately and remains in direct cadence until the
+selected scope is coherent or the user exits.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:

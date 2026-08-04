@@ -98,7 +98,9 @@ screen for the provisional sibling sequence. `IMP-031`, `FOC-041`, `UX-091`,
 and UX-O01 settle its comparison grammar and cadence: lottery selection asks
 one pair then boosts later importance-maintenance draws, while explicit
 `/order` advances directly through the same resumable `org-sort-tasks` state.
-Resume with the stable one-pair result and the `/order` scope-entry screen.
+`IMP-032`, `UX-092`, and UX-O02 settle sibling-safe scope selection and its
+Brick/Domain autocomplete. Resume with the stable one-pair result and the
+continuous-flow exit.
 
 ## Scope rings
 

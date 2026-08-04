@@ -345,11 +345,19 @@ result, retain the marker when the run remains unresolved, and record an
 `importance_maintenance` continuity bonus. Use fixed streams to show both a
 subsequent same-family win and an unrelated positive-tail win after `[n]ext`.
 Exercise first-skip nearby replacement, second-skip cooldown, uncertainty, and
-reverse navigation. Then enter `/order` from the same evidence state and prove
-that each accepted relation immediately renders the next pair until coherence
-or exit. Both cadences must produce the pair sequence and final order required
-by the same resumable `org-sort-tasks` state; neither may introduce another
-sorting algorithm or treat entered position as human evidence.
+reverse navigation. Then enter `/order` without an argument and validate UX-O02
+with contextual group and Domain rows, all groups, no dumb default, and exact
+counts. Select each scope in fixed replays. Use `pick`, direct `#` input, a
+partial Brick-title query such as `Bring someth`, and a partial Domain query to
+prove autocomplete searches handles, titles, and paths; renders complete Brick
+references; inserts canonical arguments; rejects ambiguity; and never offers
+creation. A Domain or all-groups session must traverse independent sibling
+runs without emitting a cross-parent pair.
+Enter `/order` from the same evidence state and prove that each accepted
+relation immediately renders the next pair until coherence or exit. Both
+cadences must produce the pair sequence and final order required by the same
+resumable `org-sort-tasks` state; neither may introduce another sorting
+algorithm or treat entered position as human evidence.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

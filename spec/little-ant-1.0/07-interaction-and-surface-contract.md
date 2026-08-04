@@ -356,6 +356,22 @@ no-emoji rendering remain `OPEN-UX-001`.
   uses the same screen and `org-sort-tasks` state but, after an accepted answer,
   immediately renders the next unresolved pair without an intermediate result
   or global draw. It stops when the chosen scope is coherent or the user exits.
+- **UX-092 [core] — Explicit ordering scope.** Entering `/order` without an
+  argument opens UX-O02 with only applicable scopes: current sibling group,
+  current Domain, all unresolved groups, and explicit target selection. It has
+  no dumb-mode default. `/order #ctpe` directly selects the direct children of
+  that uniquely resolved parent; a selected Domain is rendered canonically as,
+  for example, `/order "Personal › Housekeeping"`. Arguments are completed
+  through the same revisioned palette contract as other guided references.
+  Typing `#` filters parent-Brick handles and titles; unprefixed text searches
+  both Brick titles and canonical Domain paths. A Brick match is displayed as
+  the complete command and typed reference, such as `/order #bs "Bring
+  something..."`; a Domain match displays its complete quoted path. Selecting
+  either returns its UUID-backed or canonical Domain reference and Enter starts
+  the direct IMP-031 cadence. The REPL never requires a memorized title,
+  handle, or Domain path, never resolves an ambiguous partial query silently,
+  and never offers target creation from this selector. Domain and all-groups
+  scopes follow IMP-032 and cannot create cross-parent comparisons.
 
 ## Status, history, and recovery
 
