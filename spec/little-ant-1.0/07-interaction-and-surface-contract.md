@@ -372,6 +372,31 @@ no-emoji rendering remain `OPEN-UX-001`.
   handle, or Domain path, never resolves an ambiguous partial query silently,
   and never offers target creation from this selector. Domain and all-groups
   scopes follow IMP-032 and cannot create cross-parent comparisons.
+- **UX-093 [core] — Continuous-order exit.** While UX-O01 is running in
+  explicit `/order` cadence, Escape or empty-input Backspace leaves the current
+  unanswered pair untouched and renders UX-O03. Every previously accepted
+  comparison remains durable. Left Arrow instead invokes the semantic-undo
+  boundary in UX-020 for the latest accepted comparison; leaving and undoing
+  are distinct intentions. An incomplete scope reports comparisons recorded
+  and sibling groups still needing review, then offers `[r]esume`, `[n]ext`,
+  and `[/] more...`. A coherent scope reports completion and offers `[n]ext`
+  and the palette. `resume` continues the same checkpoint; `next` leaves
+  explicit maintenance and invokes the ordinary global forecast. `Ordering
+  paused` is result copy, not a Brick lifecycle state or persistent session
+  mode.
+- **UX-094 [standard] — Honest startup splash.** An interactive REPL cold
+  start renders UX-R02 while authoritative JSONL events are being decoded
+  and folded. It shows the factory ant mark, product wordmark, and one
+  monotonically increasing, at-least-six-digit `Loading` counter for events
+  actually processed. It never sleeps to make the animation visible, invents
+  progress, consumes forecast randomness, emits a domain event, or delays an
+  already-ready screen. Cursor updates rewrite the counter in place rather
+  than scrolling. With a small dataset it may be imperceptible because it has
+  no minimum duration; with no replay work it is omitted. Non-interactive,
+  redirected, `TERM=dumb`, and
+  motion-disabled output never receives cursor animation or splash bytes.
+  Cancellation leaves canonical data unchanged; malformed input stops on the
+  ordinary typed startup error instead of displaying false completion.
 
 ## Status, history, and recovery
 

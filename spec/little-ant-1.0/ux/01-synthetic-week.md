@@ -17,6 +17,15 @@ initial_focus: none
 Read-only forecast views reuse the same state and never advance
 `random_stream`.
 
+Before the ordinary week, cold-load a generated JSONL stream with 1,234 valid
+events and validate UX-R02: the interactive counter begins at zero, advances
+monotonically from the actual fold, reaches `001234`, and clears into the exact
+first envelope without a delay floor or random-stream movement. Repeat with a
+small stream, redirected output, `TERM=dumb`, cancellation, and one malformed
+line. Small input must not be artificially slowed; non-interactive variants
+must contain no splash bytes; cancellation must preserve data; and corruption
+must end in the typed startup error rather than a false completed count.
+
 ## Fixture
 
 ### Domains
@@ -357,7 +366,12 @@ Enter `/order` from the same evidence state and prove that each accepted
 relation immediately renders the next pair until coherence or exit. Both
 cadences must produce the pair sequence and final order required by the same
 resumable `org-sort-tasks` state; neither may introduce another sorting
-algorithm or treat entered position as human evidence.
+algorithm or treat entered position as human evidence. Leave an unanswered
+pair with Escape and empty-input Backspace and validate UX-O03 with all earlier
+answers retained; use `resume` to restore the same checkpoint and `next` to
+return to the global draw. Separately use Left Arrow and prove it offers undo
+instead of pausing. Complete the scope and validate the coherent result with
+no automatic draw or persistent `paused` state.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

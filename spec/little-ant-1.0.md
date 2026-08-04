@@ -99,8 +99,10 @@ and UX-O01 settle its comparison grammar and cadence: lottery selection asks
 one pair then boosts later importance-maintenance draws, while explicit
 `/order` advances directly through the same resumable `org-sort-tasks` state.
 `IMP-032`, `UX-092`, and UX-O02 settle sibling-safe scope selection and its
-Brick/Domain autocomplete. Resume with the stable one-pair result and the
-continuous-flow exit.
+Brick/Domain autocomplete. `UX-093` and UX-O03 settle continuous-flow exit,
+resume, completion, and its distinction from undo. `DAT-044`, `UX-094`, and
+UX-R02 record the honest JSONL cold-load splash; its final ASCII-art polish
+remains a Gate 2 visual review. Resume with the stable lottery one-pair result.
 
 ## Scope rings
 

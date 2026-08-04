@@ -19,6 +19,7 @@ run as an interactive transcript.
 | Gate | Flow | Current references | Status | Missing boundary |
 |---:|---|---|---|---|
 | 2 | Shared frame and footer | `UX-R00..R01`, `UX-025`, `UX-045..049`, `UX-062..065`, `UX-070..073`, `SCN-015` | partial | exact monochrome selection marker, narrow/accessibility form, unbound-key rendering, and personality catalogs |
+| 2 | JSONL loading splash | `DAT-044`, `UX-094`, `UX-R02` | screened | exact factory ASCII-art polish and interactive cold-load replay |
 | 2 | Contextual personality | `UX-F04..F05`, `UX-064..065`, `SCN-014` | partial | review all four 16-phrase English catalogs |
 | 2 | Contextual uncertainty/help | `UX-H01`, `UX-016..017` | partial | assistance subpages and return transitions |
 | 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048`, `UX-072..073` | partial | remaining screen placement, monochrome cursor marker, and unavailable/search recovery |
@@ -39,7 +40,7 @@ run as an interactive transcript.
 | 3 | Focus proposal and active completion | `UX-F01..F05`, `UX-F07`, `UX-M01`, `WRK-002`, `WRK-005`, `WRK-049`, `UX-069` | partial | exact replay through ordinary and zero-eligible post-completion `next` results |
 | 4 | Ordering skip and provisional placement | `IMP-008..010` | missing | `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015` | missing | provocative check and local replacement screens |
-| 4 | Adaptive bulk ordering | `IMP-005`, `IMP-031..032`, `FOC-041`, `UX-091..092`, `UX-O01..O02` | partial | exact one-pair and completed-run results plus continuous-flow exit |
+| 4 | Adaptive bulk ordering | `IMP-005`, `IMP-031..032`, `FOC-041`, `UX-091..093`, `UX-O01..O03` | partial | exact lottery one-pair and completed-run results |
 | 4 | Served-work symptom | `UX-S01..S06`, `WRK-007..013`, `WRK-047`, `WRK-067`, `UX-084`, `FED-030..031` | partial | reaction screens other than settled `blocked or waiting` and `big` under `OPEN-SKIP-001` |
 | 4 | Atomic break/reclassification | `UX-S06`, `UX-B00..B02`, `MOD-045..047`, `MOD-052`, `IMP-030`, `FOC-040`, `UX-057`, `UX-085..089` | partial | deterministic interactive replay and exact undo compensation |
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |

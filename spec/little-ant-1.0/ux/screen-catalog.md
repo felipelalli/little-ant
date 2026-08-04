@@ -183,6 +183,31 @@ boundary:
 ✈️ Tue, Aug 4 · 02:30 · America/Sao_Paulo (UTC-03)
 ```
 
+## UX-R02 — JSONL loading splash
+
+During an observable interactive cold replay, the REPL briefly occupies the
+terminal with this transient factory composition:
+
+```text
+       /\/\
+     __\_\  _..._
+    ("  )  (_..._)
+     ^^      // \\
+
+        L I T T L E    A N T
+
+Loading 000000...
+```
+
+The counter advances in place for each event successfully decoded and folded.
+It is padded to at least six digits and grows rather than wrapping after
+`999999`. If a total is already known without an extra scan, a renderer may add
+it after the processed count; an unknown total is never guessed. The splash
+clears before UX-R00, a restored-current-focus screen, or a typed startup error
+is rendered. It has no minimum duration, so small datasets do not incur a
+ceremonial delay and may never display a perceptible frame. Redirected or
+non-interactive commands emit neither the art nor cursor-control sequences.
+
 ## UX-F01 — Focus
 
 ```text
@@ -1553,6 +1578,45 @@ The selector never requires title, handle, or path memorization, never silently
 chooses between ambiguous matches, and does not offer creation. After
 selection, UX-O01 starts immediately and remains in direct cadence until the
 selected scope is coherent or the user exits.
+
+## UX-O03 — Continuous ordering result
+
+Escape or empty-input Backspace on an unanswered pair leaves an incomplete
+explicit session with a stable, no-draw result:
+
+```text
+Ordering paused:
+
+Personal › Housekeeping
+
+4 comparisons recorded.
+2 sibling groups still need review.
+
+[r]esume    [n]ext    [/] more...
+```
+
+`resume` restores the same resumable scope and asks its next unresolved pair.
+`next` leaves direct maintenance and performs a fresh global forecast draw.
+The word `paused` describes only this resumable command result; it does not add
+a Brick state. Left Arrow on a comparison does not open this result: it offers
+semantic undo of the latest accepted comparison under UX-U01.
+
+When the selected scope becomes coherent, the direct sequence terminates
+without requiring Escape:
+
+```text
+Order reviewed:
+
+Personal › Housekeeping
+
+6 comparisons recorded.
+4 sibling groups are coherent.
+
+[n]ext    [/] more...
+```
+
+Both variants retain the ordinary persistent footer below the shown content.
+Neither performs an automatic forecast draw.
 
 ## UX-A01 — External-effect confirmation
 

@@ -16,6 +16,14 @@
   field, completion, or other domain answer.
 - **DAT-005 [core] — Pack-free replay.** Replaying accepted events never runs a
   Pack, model, provider, exporter, or external effect.
+- **DAT-044 [core] — Observable replay progress is factual.** The canonical
+  loader may report the number of JSONL event records successfully decoded and
+  folded during the current load. Progress is monotonic, derived from the same
+  read that builds state, and cannot require a preliminary counting pass or
+  mutate the dataset. If an efficiently known total is unavailable, the
+  interface reports only the processed count. Blank or malformed physical
+  lines are not reported as accepted events; corruption follows the typed
+  recovery policy rather than being skipped to inflate progress.
 
 ## Structured responses and context control
 
