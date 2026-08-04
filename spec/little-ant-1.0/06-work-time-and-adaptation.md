@@ -273,6 +273,17 @@
   completion, pause, or skip evidence. Drop and supersede remain explicit
   contextual-palette outcomes. Every mutation is semantically undoable when
   its recorded preconditions still hold.
+- **WRK-066 [core] — Explicit scope-closure outcomes.** A selected
+  `scope_closure_review` offers complete the parent, add more work, or defer
+  only this review. Completion applies direct `done` to the parent and remains
+  semantically undoable. `add more work` opens a contextual Feed route without
+  mutation; confirming a new locally ordered child keeps the parent active,
+  invalidates the review, and returns execution to descendant selection.
+  Review skip records only typed scope-review deferral and cooldown; it never
+  opens served-work symptom diagnosis or makes the parent executable. The
+  contextual palette may inspect or reactivate one completed child and expose
+  valid `drop` or `supersede` routes; unresolved subtree consequences remain
+  under `OPEN-TREE-001`.
 - **WRK-028 [standard] — Event-triggered opportunity.** A supported canonical
   source event may idempotently release one opportunity on an existing
   compatible standing Brick. This is closed core data, not generic automation.

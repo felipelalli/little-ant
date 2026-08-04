@@ -241,6 +241,16 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   above the soft limit, but it retains positive-probability competition and
   the ordinary typed-review skip under `FOC-026`. Selecting it never resumes
   work by itself.
+- **FOC-039 [core] — Scope closure is a review.** An active finite parent whose
+  tracked child Bricks are all `done` contributes one typed
+  `scope_closure_review` opportunity to the ordinary subject-first lottery.
+  It is attached to the existing parent attention subject and never creates a
+  second Brick or root ticket. The parent remains excluded from execution and
+  cannot return as `finite_work`. Selection only asks whether the whole
+  outcome is complete or whether more tracked work is needed; it never
+  completes the parent by inference. A newly active child invalidates the
+  pending review. Dropped and superseded child boundaries remain governed by
+  `OPEN-TREE-001`.
 
 ## Forecast inputs
 

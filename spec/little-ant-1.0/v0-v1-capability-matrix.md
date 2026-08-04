@@ -111,7 +111,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | Active flow context supports `ignore | prefer | require` | `I+T` | **unresolved** | soft continuity is `FOC-014..019`; hard temporary scope remains `OPEN-DOM-001` | explicit-scope/empty-scope route |
 | Blocked and waiting work disappear from the executable frontier | `I+T` | **replaced** | N-step blocker resolution and typed non-Brick endpoint under `FOC-020..024` | `SCN-FOC-003` |
 | Anti-starvation is a bounded periodic cadence | `I+T` for background cadence; not for waiting work | **replaced** | positive probability plus aging under `FOC-003..005`; bounded-service guarantee remains `OPEN-FOC-003` | long-run parameter sweep |
-| Project/container selection descends to concrete work | partial `I`; leaf frontier | **strengthened** | Nature-owned hierarchical descent under `FOC-010..013` | `SCN-FOC-004` |
+| Project/container selection descends to concrete work | partial `I`; leaf frontier | **strengthened** | structure-owned hierarchical descent and explicit parent closure review under `FOC-010..013`, `FOC-039` | `SCN-FOC-004` |
 | Inspecting a forecast does not consume the next draw | not explicit v0 guarantee | **strengthened** | `FOC-002`, `FOC-005` | inspect-then-draw replay |
 
 ## Skip, adaptation, and work

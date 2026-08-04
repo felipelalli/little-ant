@@ -200,8 +200,11 @@ Serve an undecomposed `project` and an `atomic_task` through the same UX-F01
 break preview, and verify that its identity survives reclassification. The
 decomposed parent must then disappear from execution while selection descends
 to its incomplete children. Complete the final child and verify that the
-parent returns only as a scope-closure review, never as Work and never already
-completed. Title grandeur alone must not trigger a different screen.
+parent returns only as UX-F11, never as Work and never already completed.
+Exercise direct parent completion, contextual Feed of another child,
+review-only skip, uncertainty, and palette child reactivation. Confirm that a
+new child invalidates the review and restores descendant execution. Title
+grandeur alone must not trigger a different screen.
 
 ### SCN-FOC-005 — Semantic opportunity granularity
 

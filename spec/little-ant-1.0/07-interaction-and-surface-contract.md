@@ -256,6 +256,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   boundaries under `FOC-011`, and a completed child scope may create a typed
   review, but neither fact creates one screen per Nature. Capability-specific
   fragments compose into the smallest existing grammar under `FOC-009`.
+- **UX-083 [core] — Scope-closure review grammar.** A selected
+  `scope_closure_review` uses the `Review:` heading, identifies the finite
+  parent, states `All <count> tracked parts are done.`, and asks `What should
+  happen?`. Its visible actions are `[d]one · [a]dd more work` followed by
+  `[s]kip · [?] I don't know`, then `[/] more...`. `Last child done` is the
+  primary temporal footer fact. Actions follow `WRK-066`; uncertainty and
+  Escape preserve the pending review. The screen has no Nature label,
+  project-only wording, completion inference, or decorative personality line.
 
 ## Status, history, and recovery
 

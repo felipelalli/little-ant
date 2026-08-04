@@ -387,6 +387,41 @@ removes WIP without implying completion, failure, or deferment. The palette
 may expose `drop`, `supersede`, history, and inspection without crowding the
 ordinary choice. No action is selected merely by rendering the screen.
 
+## UX-F11 — Scope-closure review
+
+When every tracked child of an active finite parent is done and the ordinary
+lottery selects its closure review:
+
+```text
+Review:
+
+#ctpe "Carry this enormous rock"
+
+All 3 tracked parts are done.
+
+What should happen?
+
+[d]one    [a]dd more work
+[s]kip    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Last child done: Mon, Aug 3, 08:52
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`done` completes the parent directly. `add more work` opens Feed with this
+parent already resolved as the proposed owner; nothing changes until a new
+child is confirmed and locally inserted. `skip` defers only this review and
+never returns the parent as Work. `?` may inspect child history and completion
+context. Reopening a child, `drop`, and `supersede` remain contextual-palette
+routes. This composition is shared by every decomposed finite Brick and never
+branches merely because its Nature is `project`.
+
 ## UX-F07 — Immediate focused completion
 
 Pressing `d` on UX-F04 or UX-F05 does not open a confirmation:
