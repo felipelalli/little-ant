@@ -333,6 +333,17 @@ no-emoji rendering remain `OPEN-UX-001`.
   and immediately counts every new active child plus unresolved lazy reviews
   under FOC-040. The palette exposes contextual `/undo` under UX-020 and
   structure inspection without competing with the primary advance.
+- **UX-090 [core] — Nature-review grammar.** A selected `nature_review` uses
+  `Review:`, identifies the Brick, shows `Current Nature:`, names the current
+  Nature, and explains its source in natural language before asking `Is this
+  the right Nature?`. It exposes `[y]es`, `[c]hange`, `[s]kip`, `[?] I don't
+  know`, and `[/] more...`, in that order and without `*`. `yes` follows
+  MOD-053 and reduces the unresolved-review count by one; `change` opens the
+  canonical Nature choice for the existing Brick; `skip` is the typed review
+  cooldown under FOC-040 and never opens served-work diagnosis. Uncertainty
+  explains Nature consequences and source evidence before restoring the same
+  opportunity. Reverse navigation preserves the pending review. Factory and
+  assisted sources use human prose rather than internal source identifiers.
 
 ## Status, history, and recovery
 

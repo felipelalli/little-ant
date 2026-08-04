@@ -329,6 +329,15 @@ lower unresolved count; settle one Nature claim and verify the count falls to
 six. UX-B02 itself must not draw, focus the first child, or imply execution
 sequence; only `[n]ext` enters the ordinary pipeline, while the palette exposes
 contextual undo and inspection.
+Force one child `nature_review` to win and validate UX-N01 in factory and
+assisted-source variants. Confirm the current Nature and verify direct human
+judgment, retained source history, exactly one resolved marker, and a footer
+change from seven to six reviews without an automatic draw. Replay `change`
+through the canonical existing-Brick Nature choice and consequential preview;
+cancel once without mutation, then accept another Nature and resolve only the
+same marker. Skip once and verify review cooldown, seven unresolved reviews,
+and no UX-S01. Uncertainty and reverse navigation must restore the exact
+pending opportunity. No variant may show `*` or an internal source identifier.
 
 ### SCN-WRK-003 — Waiting versus blocked
 

@@ -87,10 +87,14 @@ human comparison delays the atomic creation. `UX-088` settles the complete
 human-facing UX-B01 confirmation and its accepted, rejected, edited, uncertain,
 and reverse-navigation transitions, including draft-handle suppression and
 assisted-exception labeling. `FOC-040`, `UX-089`, and UX-B02 settle the exact
-post-commit result and its next envelope: all
-four lazy claim reviews immediately join the weighted lottery with low positive
+post-commit result and its next envelope: all four lazy claim reviews
+immediately join the weighted lottery with low positive
 weight, remain counted while unresolved, and no draw occurs before explicit
-`next`. Resume with the dumb `nature_review` screen produced by that lottery.
+`next`. `MOD-053`, `UX-090`, and UX-N01 settle the dumb `nature_review` screen,
+including human
+confirmation, reclassification entry, typed skip, source attribution, and
+isolated claim resolution. Resume with the dumb `importance_run_review`
+screen for the provisional sibling sequence.
 
 ## Scope rings
 

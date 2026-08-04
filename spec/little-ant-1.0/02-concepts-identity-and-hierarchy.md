@@ -339,3 +339,11 @@ The factory library contains:
   effective in the atomic transaction. The preview identifies every
   non-human claim and review marker before commit. Reviewing one claim never
   silently settles another child, axis, or relationship.
+- **MOD-053 [core] — Nature review settles one claim.** Confirming a
+  `nature_review` appends direct human judgment for the Brick's current Nature,
+  retains the factory or AI source in history, and resolves only that claim's
+  lazy-review marker. Choosing another Nature enters the canonical Nature
+  choice and previews any consequential reclassification before the same
+  isolated settlement. Review skip changes neither Nature nor provenance and
+  leaves the marker unresolved under FOC-040. Confirmation or reclassification
+  cannot settle sibling Natures, importance, or Dependencies by implication.

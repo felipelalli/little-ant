@@ -49,7 +49,7 @@ run as an interactive transcript.
 | 5 | N-step/branching blockers | `UX-F03`, `FOC-020..024` | partial | non-Brick endpoint and branch inspection |
 | 5 | Wait activation and review | `MOD-050`, `FOC-034`, `WRK-050..054`, `UX-S02C`, `UX-W01`, `SCN-WAIT-001` | partial | first-review and repeated-review policy under `OPEN-WAIT-001` |
 | 5 | Project/collection descent | `MOD-015`, `MOD-045..046`, `FOC-010..013`, `FOC-039`, `WRK-066`, `UX-083`, `UX-F01`, `UX-F11`, `UX-B01`, `SCN-FOC-004` | partial | final-child transition result plus dropped/superseded child and subtree outcomes under `OPEN-TREE-001` |
-| 5 | Lazy claim review lottery | `MOD-052`, `IMP-030`, `FOC-040`, `UX-B02`, `SCN-FOC-004` | partial | exact `nature_review` and `importance_run_review` screens |
+| 5 | Lazy claim review lottery | `MOD-052..053`, `IMP-030`, `FOC-040`, `UX-090`, `UX-B02`, `UX-N01`, `SCN-FOC-004` | partial | exact `importance_run_review` screen and Nature-review result envelopes |
 | 5 | Importance/forecast projections | `IMP-003`, `FOC-002`, `FOC-013` | missing | list choice, inspect, recursive queries |
 | 6 | Living-checklist run | `UX-L01`, `MOD-035..037`, `WRK-019..020` | partial | `OPEN-LST-001` |
 | 6 | Finite-checklist run | `MOD-036..037` | missing | `OPEN-LST-001` |

@@ -1402,6 +1402,54 @@ offers contextual `/undo` and inspection; exact compensation still obeys
 event-history, identity, and precondition rules rather than deleting the
 accepted transaction.
 
+## UX-N01 — Nature review
+
+When a lazy `nature_review` wins the ordinary lottery:
+
+```text
+Review:
+
+#asth "Ask someone to help"
+
+Current Nature:
+
+atomic task
+
+Assigned automatically when
+#ctpe "Carry this enormous rock" was broken into parts.
+
+Is this the right Nature?
+
+[y]es    [c]hange    [s]kip    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #ctpe "Carry this enormous rock"
+  Personal › Housekeeping
+. Assigned: Mon, Aug 3, 09:08
+         Now: Mon, Aug 3, 09:09
+. 21 bricks, 7 raws, 7 reviews
+  mode: dumb, focus: idle
+```
+
+No action receives `*`: the screen exists to obtain independent human
+judgment. `yes` keeps `atomic_task`, records direct human authority while
+retaining `break_default` history, resolves only this marker, and makes the
+next rendered footer show six unresolved reviews. `change` opens the canonical
+Nature choice adapted to this existing Brick and previews any consequential
+reclassification before mutation. `skip` leaves the count at seven, applies
+review-specific cooldown, and never opens UX-S01. Contextual uncertainty and
+reverse navigation preserve the selected opportunity.
+
+When assistance originated the current claim, the source sentence changes
+without changing the grammar, for example:
+
+```text
+Suggested by powered-up assistance from the title and parent context.
+```
+
+The primary screen never exposes a model key, prompt, or source enum.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:
