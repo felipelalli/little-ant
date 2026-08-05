@@ -474,6 +474,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   resumes or reaches its ordinary result boundary. Contextual help may show the
   complete cycle and current triad, while the primary screen remains bounded.
   Uncertainty at any triad follows UX-100 and ends the aid.
+- **UX-102 [core] — Provocative-validation skip.** On the first `skip` of an
+  FOC-042 `importance_validation`, the core immediately renders one other
+  eligible validation pair from the same sibling group when available, using
+  the unchanged UX-O01 grammar and no interstitial. A second skip, or the first
+  when no alternative exists, records only IMP-037 cooldown and renders UX-O10
+  without drawing. The result states that the current order remains in place.
+  It never says `positioned`, lowers confidence, creates a provisional
+  placement, or increments unresolved reviews. Contextual help continues to
+  distinguish validation from unresolved sorting.
 
 ## Status, history, and recovery
 

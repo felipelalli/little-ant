@@ -290,7 +290,9 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   the same proposition grammar as UX-O01 but is never emitted inside explicit
   `/order`. Its contextual help exposes the inferred path and reason for
   validation; the primary question does not label itself provocative or reveal
-  the inferred answer.
+  the inferred answer. Its skip route follows IMP-037 and UX-102: one local
+  alternative at most, then pair-specific cooldown without a durable review
+  marker or unresolved-footer count.
 - **FOC-043 [core] — Unresolved importance recalibration.** IMP-035 contributes
   one typed `importance_recalibration` opportunity for the smallest affected
   sibling segment. It preserves a complete current order, enters the ordinary

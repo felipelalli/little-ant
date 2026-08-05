@@ -212,6 +212,14 @@ but has zero current influence. Sweep decay horizon, fresh threshold,
 transitive path penalty, provocative target rate, no-candidate fallback, and
 fixed random streams. Explicit `/order` must never emit the provocative pair.
 
+Skip the provocative pair once with another eligible transitive-only pair in
+the same sibling group and verify immediate UX-O01 replacement without a draw,
+sorter call, receipt, or confidence change. Skip again and validate UX-O10,
+pair-specific cooldown, unchanged inferred order, and no provisional placement
+or unresolved-review increment. Replay with no alternative and prove the first
+skip reaches the same result. Cross cooldown and show that the independent
+sampler may consider the pair again without treating it as a durable ticket.
+
 Create the fresh cycle `A > B > C > D > A`, enter uncertainty, and verify the
 first UX-O07 triad is deterministically `D`, `A`, and `B`. Choose `D`; if the
 remaining cycle is `D > B > C > D`, verify the next triad is `D`, `B`, and `C`.

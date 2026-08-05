@@ -118,7 +118,10 @@ the prior coherent order, lower local confidence, and revisit the segment
 later. `IMP-036` and `UX-101` resolve longer fresh cycles through repeated
 bounded UX-O07 triads using the importance-only counterfactual `If only one of
 these could ever be done...`; urgency never enters the question. Resume with
-the provocative-validation skip in `OPEN-IMP-002`, or advance to the next Gate
+`IMP-037`, `UX-102`, and UX-O10 settle provocative-validation skip without
+provisional placement or confidence mutation. Importance ordering,
+contradiction, and validation now have complete reviewed semantics; only the
+ordinary ordering edge cases in `OPEN-IMP-001` remain. Advance to the next Gate
 4 flow.
 
 ## Scope rings

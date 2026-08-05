@@ -184,6 +184,15 @@ Is
   while a cycle remains. Each step is deterministic from the same evidence and
   creates no judgment about the two non-winners. A second uncertainty response
   at any step follows IMP-035 immediately rather than forcing the remainder.
+- **IMP-037 [core] — Provocative skip preserves the inferred order.** The first
+  skip on an IMP-015 validation may try one other eligible transitive-only pair
+  from the same sibling group without invoking `org-sort-tasks` or a forecast
+  draw. A second skip, or a first skip when no alternative exists, ends the
+  validation with a pair-specific cooldown. No skip creates an edge,
+  provisional placement, equality, confidence penalty, or persistent review
+  marker; the previously inferred relation keeps only the confidence it
+  already had and continues ordinary temporal decay. The independent validator
+  may consider the pair again after cooldown.
 
 ## Expected impact
 

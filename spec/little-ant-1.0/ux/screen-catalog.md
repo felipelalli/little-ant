@@ -1797,6 +1797,25 @@ not expose confidence floats. It contains no personality phrase and performs
 no draw. In explicit `/order`, an unaffected segment follows immediately; this
 result is deferred until the command reaches its next actual boundary.
 
+## UX-O10 — Provocative-validation skip result
+
+The second validation skip, or the first when no alternative validation pair
+exists, ends the one-shot cycle without changing order or confidence:
+
+```text
+No change for now.
+
+The current order stays in place.
+
+[n]ext    [/] more...
+```
+
+The result has the ordinary footer, no personality phrase, and no automatic
+draw. Its pair-specific cooldown is interaction history, not a persistent
+review marker, so the unresolved-review footer count does not increase. The
+independent validator may consider the same never-directly-asked pair again
+after cooldown if its ordinary configured sampling branch selects it.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:
