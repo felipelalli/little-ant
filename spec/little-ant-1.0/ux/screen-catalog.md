@@ -1057,6 +1057,38 @@ navigation restores UX-S01 exactly and commits nothing. Explicit `/break`
 enters decomposition independently and therefore never fabricates `big`
 evidence.
 
+## UX-S07 — Tired recovery
+
+Selecting `[t]ired` on UX-S01 opens this uncommitted reaction:
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+You're tired. What would help?
+
+🪶 [e]asier work
+🔀 [c]hange subject
+🌙 [p]ause for now
+⏭️ [s]kip anyway
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The choices are recovery proposals rather than new symptoms. Selecting
+`tired` alone records nothing; reverse navigation restores UX-S01 exactly.
+The precise consequence of each final reaction, including whether `easier
+work` contributes relative effort evidence, remains in `OPEN-SKIP-001` until
+the next screen is reviewed.
+
 ## UX-K01 — Nature choice
 
 ```text

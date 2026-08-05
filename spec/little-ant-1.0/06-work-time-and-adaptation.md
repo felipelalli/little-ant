@@ -149,6 +149,12 @@
   Explicit `/break` reaches decomposition without requiring a prior symptom;
   `hard` or `vague` assistance may offer the same action when evidence
   supports it. Nature and title alone never do.
+- **WRK-068 [core] — Tired offers recovery, not diagnosis.** The `tired`
+  reaction offers `easier work`, `change subject`, `pause for now`, explicit
+  `skip anyway`, and uncertainty. These are provisional human choices on
+  UX-S07; selecting `tired` alone records no evidence. Their exact forecast,
+  effort-evidence, Domain-scope, and pause consequences remain part of the
+  bounded `OPEN-SKIP-001` route rather than being guessed from the symptom.
 
 ## Time
 

@@ -323,9 +323,12 @@ action.
 
 ### SCN-WRK-002 — Symptom then reaction
 
-Open UX-S01, Escape without mutation, reopen it, select `tired`, then choose a
-separately proposed Domain-scoped remedy. Validate active Domain, cooldown,
-and that `change subject` was never presented as a symptom. Reopen the screen
+Open UX-S01, Escape without mutation, reopen it, select `tired`, and enter
+UX-S07. Verify its exact `easier work`, `change subject`, `pause for now`,
+`skip anyway`, and uncertainty grammar; prove that merely entering the screen
+records nothing and that `change subject` was never presented as a symptom.
+The reaction consequences remain to be completed before validating active
+Domain and cooldown. Reopen the screen
 and verify `[b]locked or waiting`, `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality

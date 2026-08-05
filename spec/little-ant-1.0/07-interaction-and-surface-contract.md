@@ -483,6 +483,11 @@ no-emoji rendering remain `OPEN-UX-001`.
   It never says `positioned`, lowers confidence, creates a provisional
   placement, or increments unresolved reviews. Contextual help continues to
   distinguish validation from unresolved sorting.
+- **UX-103 [core] — Tired reaction grammar.** Selecting `tired` from the
+  served-work symptom screen opens UX-S07 with `easier work`, `change
+  subject`, `pause for now`, `skip anyway`, and uncertainty. The screen is a
+  reaction choice, so it has no personality line and records nothing until a
+  final reaction is accepted. Reverse navigation restores UX-S01 exactly.
 
 ## Status, history, and recovery
 

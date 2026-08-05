@@ -121,8 +121,10 @@ these could ever be done...`; urgency never enters the question. Resume with
 `IMP-037`, `UX-102`, and UX-O10 settle provocative-validation skip without
 provisional placement or confidence mutation. Importance ordering,
 contradiction, and validation now have complete reviewed semantics; only the
-ordinary ordering edge cases in `OPEN-IMP-001` remain. Advance to the next Gate
-4 flow.
+ordinary ordering edge cases in `OPEN-IMP-001` remain. `WRK-068`, `UX-103`,
+and UX-S07 begin the next Gate 4 flow by settling the visible `tired` recovery
+choices. Resume with the exact `easier work` consequence, including whether
+its bounded choice supplies relative effort evidence.
 
 ## Scope rings
 
