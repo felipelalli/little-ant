@@ -346,15 +346,33 @@ one target-scoped draw, decaying source fatigue and target affinity, positive
 later probability everywhere, no automatic focus, and no active-Domain change
 before focus acceptance. Exercise same-parent, different-parent, and
 different-root targets. Keep no-target, no-Domain, and multi-membership cases
-open rather than guessing. Reopen UX-S07 and choose `pause for now` from a
-current Brick, an unstarted proposal, and a proposal while another Brick is
-current. Validate one atomic `tired` reaction and cooldown in every case; only
+open rather than guessing. With an eligible meta-opportunity, verify the
+separate `organize and review` action, one draw outside the source branch from
+the versioned organization family, subsequent FOC-041 affinity, and no Domain,
+Brick, importance rewrite, or persistent-mode claim. Verify that the option is
+omitted when the family has no eligible member and that `[s]kip anyway` records
+only the carried symptom plus cooldown. Reopen UX-S07 and choose `pause for
+now` from a current Brick, an unstarted proposal, and a proposal while another
+Brick is current. Validate one atomic `tired` reaction and cooldown in every case; only
 the served current focus may be closed and left WIP. Verify UX-S10's truthful
 state sentence, optional replay-stable `safe_end` phrase, sole `[/] more...`
 action, no draw, no automatic process exit, no active-Domain change, and no
 persistent `paused` state. Contrast direct `/pause`, which retains neither
-symptom nor cooldown. Reopen the symptom screen and verify `[b]locked or
-waiting`, `bo[r]ed`, `[l]ess important`, and the
+symptom nor cooldown.
+
+Reopen the symptom screen and select `bo[r]ed`. Validate UX-S11 and both its
+subject-change reuse and UX-S12 transformation branch. Confirm short sprint is
+visible but cannot invent a timer before its checkpoint closes. Accept visible
+decomposition and verify `bored` plus recovery with no redundant cooldown.
+Enter UX-S13, exercise all four mechanical classifications and uncertainty,
+then inspect UX-S14: deterministic editable prefix, no preallocated handle,
+complete sibling/Domain/Dependency structure, lazy `atomic task` claim, and no
+default. Reject and reverse without mutation; edit the title with the dumb
+English reminder; finally accept one prerequisite atomically and verify one
+new enabling Brick, local importance evidence, `bored` recovery, Dependency,
+and no cooldown. Replay one attributed assisted proposal and prove rejection
+returns to the unchanged dumb classifier. Then verify `[b]locked or waiting`,
+`bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality
 message appears before a final reaction commits the skip. From a reaction

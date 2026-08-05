@@ -1136,12 +1136,17 @@ silently traversing the mutation.
 
 ## UX-S09 — Positive change-subject target
 
-Selecting `[c]hange subject` on UX-S07 opens one uncommitted target choice:
+Selecting `[c]hange subject` on UX-S07 or UX-S11 opens one uncommitted target
+choice carrying its originating symptom:
 
 ```text
 #rrsr "Review Rock Splitter rules"
 
 What would you rather work on?
+
+[o]rganize and review
+
+Or choose a subject:
 
 [1] Orbit › R&D › Field Operations
 [2] Orbit › Platform
@@ -1149,6 +1154,7 @@ What would you rather work on?
 [4] Personal › Housekeeping
 
 [m]ore options...
+[s]kip anyway
 [?] I don't know
 
 [/] menu...
@@ -1163,9 +1169,11 @@ What would you rather work on?
 ```
 
 The positive question avoids asking the user to reason about what must be
-excluded. Every alternative spells its complete Domain path because a
-subcontext may make sense only within its ancestors and identical leaf names
-may exist in different branches. The dumb screen has no default.
+excluded. `Organize and review` appears only when FOC-046 has an eligible
+typed meta-opportunity and is visually separate from Domain choices. Every
+Domain alternative spells its complete path because a subcontext may make
+sense only within its ancestors and identical leaf names may exist in
+different branches. The dumb screen has no default.
 
 `More options` advances through deterministic pages of at most four target
 Domains and records no rejection or preference. A target does not repeat
@@ -1180,10 +1188,14 @@ draw inside the chosen target. The resulting Brick receives ordinary
 fatigue branch is inferred from where the complete current and target paths
 diverge; the target receives positive affinity. Both signals later decay with
 positive probability elsewhere, while active Domain changes only after
-accepted focus. `?` explains this inference and returns. Escape, empty-state
-Backspace, or Left Arrow restores UX-S07 or the previous page without symptom,
-cooldown, signal, focus change, active-Domain change, or draw. Multi-Domain,
-no-Domain, and no-target recovery remain explicit release boundaries.
+accepted focus. `Organize and review` instead follows WRK-075: one restricted
+meta-opportunity draw, then decaying interaction-family continuity, without a
+persistent mode. `Skip anyway` records only the carried `tired` or `bored`
+symptom and Brick cooldown. `?` explains these distinctions and returns.
+Escape, empty-state Backspace, or Left Arrow restores the originating UX-S07,
+UX-S11, or previous page without symptom, cooldown, signal, focus change,
+active-Domain change, or draw. Multi-Domain, no-Domain, and no-target recovery
+remain explicit release boundaries.
 
 ## UX-S10 — Tired-pause result
 
@@ -1224,6 +1236,136 @@ current state. The REPL stays on this screen until the user acts or exits; the
 core never closes a process, starts work, draws, or invents a paused Brick
 state. Left Arrow after the committed result offers semantic undo rather than
 returning across the mutation.
+
+## UX-S11 — Bored recovery
+
+Selecting `bo[r]ed` on UX-S01 opens this uncommitted reaction:
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+You're bored. What would help?
+
+[c]hange subject
+[m]ake it more interesting
+[s]kip anyway
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+`Change subject` opens UX-S09 carrying provisional `bored` evidence. `Make it
+more interesting` opens UX-S12. `Skip anyway` commits only `bored` and the
+served Brick's ordinary cooldown. `?` helps distinguish changing subject from
+changing method without choosing. Reverse navigation restores UX-S01 exactly;
+the screen has no default, mutation, or personality line.
+
+## UX-S12 — Make the work more interesting
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+How could we make this more interesting?
+
+⏱️ [t]ry a short sprint
+🧩 [b]reak it into visible steps
+🔧 [f]ind a better way
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Short sprint remains an explicit open checkpoint and cannot start a timer yet.
+Break reuses UX-B00..B02; accepted structure records `bored` plus recovery and
+uses its Dependency instead of cooldown. Find opens UX-S13. Reverse navigation
+restores UX-S11 without mutation. The screen adds no engagement score or
+motivational advice.
+
+## UX-S13 — Dumb better-way classification
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+How might the approach improve?
+
+[a]utomate repetitive parts
+[s]implify the process
+[l]earn another method
+[g]et help from someone
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Each direct choice deterministically constructs the matching FED-032 editable
+draft without requiring free text or a model. `?` may ask the same bounded
+mechanical distinctions and return; it cannot invent or accept a method.
+Reverse navigation restores UX-S12 with no draft or evidence.
+
+## UX-S14 — Better-way enabling preview
+
+Choosing `simplify the process` for the example produces this complete preview:
+
+```text
+Do this first:
+
+"Simplify: Review Rock Splitter rules"
+
+Then return to:
+
+#rrsr "Review Rock Splitter rules"
+
+Behaves as: atomic task · review later
+
+Create this enabling Brick?
+
+[y]es   [e]dit   [n]o   [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The draft has no handle because no Brick exists yet. The complete pending
+structure also includes FED-030's visible sibling placement, effective Domain,
+Dependency, and local provisional importance evidence; narrow surfaces may
+place these in secondary context but may not hide them. `Yes` commits WRK-074
+atomically and then uses the ordinary blocked-recovery result. `Edit` changes
+title, Nature, placement, and prerequisite-versus-independent relation before
+returning here; dumb title input repeats the quiet English reminder. `No`
+discards the complete draft and restores UX-S12. Uncertainty explains the
+proposal and returns. Assisted concrete proposals identify their source and
+still use this preview.
 
 ## UX-K01 — Nature choice
 

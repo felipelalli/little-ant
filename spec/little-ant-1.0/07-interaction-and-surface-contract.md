@@ -505,18 +505,21 @@ no-emoji rendering remain `OPEN-UX-001`.
   The zero-candidate recovery is still `OPEN-SKIP-001`; it may not render an
   empty selector, fabricate a candidate, or commit `tired`.
 - **UX-105 [core] — Positive full-path subject choice.** Choosing `change
-  subject` opens UX-S09 and asks what the user would rather work on. Dumb mode
-  shows up to four replay-deterministically sampled target Domains with
-  currently executable Work. Every row spells its complete path with `›`;
-  isolated leaf labels are forbidden. There is no dumb default. `[m]ore
-  options...` pages through the remaining deterministic pool without repeats,
-  rejection evidence, mutation, or a draw; reverse navigation restores the
-  previous page. The action disappears on the final page. Because this screen
-  has a local `more` action, the unchanged UX-022 palette is labeled `[/]
-  menu...` here only. Powered-up or Skill may mark one attributed suggestion
-  with `*`; rejecting it returns to this exact dumb baseline. Selecting a
-  Domain follows WRK-070. Multi-membership, no-Domain, and no-target cases
-  remain explicit open boundaries rather than surface guesses.
+  subject` from UX-S07 or UX-S11 opens UX-S09 and asks what the user would
+  rather work on. It first exposes `[o]rganize and review` only when an
+  FOC-046 opportunity is eligible, then shows up to four
+  replay-deterministically sampled target Domains with currently executable
+  Work. Every Domain row spells its complete path with `›`; isolated leaf
+  labels are forbidden. There is no dumb default. `[m]ore options...` pages
+  through the remaining Domain pool without repeats, rejection evidence,
+  mutation, or a draw; reverse navigation restores the previous page. The
+  action disappears on the final page. `[s]kip anyway` records only the
+  originating symptom under WRK-070. Because this screen has a local `more`
+  action, the unchanged UX-022 palette is labeled `[/] menu...` here only.
+  Powered-up or Skill may mark one attributed suggestion with `*`; rejecting
+  it returns to this exact dumb baseline. Selecting a Domain follows WRK-070;
+  selecting organization follows WRK-075. Multi-membership, no-Domain, and
+  no-target cases remain explicit open boundaries rather than surface guesses.
 - **UX-106 [core] — Tired-pause result rests.** Accepting `pause for now`
   follows WRK-071 and renders UX-S10 with `Taking a break:`, the complete
   served Brick citation, one truthful state sentence, optional replay-stable
@@ -526,6 +529,39 @@ no-emoji rendering remain `OPEN-UX-001`.
   currently valid commands; this does not elevate them into the primary
   result. A first-party web/mobile surface preserves the same resting envelope
   without pretending that an application process ended.
+- **UX-107 [core] — Bored reaction grammar.** Selecting `bored` on UX-S01
+  opens UX-S11 with `change subject`, `make it more interesting`, explicit
+  `skip anyway`, and uncertainty, without a default or personality line.
+  Subject change reuses UX-S09 with pending `bored` evidence; transformation
+  opens UX-S12. No mutation occurs until a final reaction is accepted.
+- **UX-108 [core] — Make-interesting grammar.** UX-S12 asks how the work could
+  become more interesting and offers `try a short sprint`, `break it into
+  visible steps`, `find a better way`, and uncertainty, without a default.
+  Break reuses the complete existing UX-B00..B02 route. Find opens UX-S13.
+  Short sprint is visible but remains the next explicit UX checkpoint; a
+  surface may not invent a timer or duration until it is settled.
+- **UX-109 [core] — Dumb better-way classification.** UX-S13 asks how the
+  approach might improve and offers `automate repetitive parts`, `simplify the
+  process`, `learn another method`, `get help from someone`, and uncertainty.
+  No free text or model is required to reach a choice. Each action creates the
+  corresponding editable FED-032 draft and opens UX-S14. `?` may ask the same
+  distinctions as bounded mechanical questions but cannot select one.
+- **UX-110 [core] — Better-way enabling preview.** UX-S14 shows the unallocated
+  proposed title without a handle, the complete served Brick citation, the
+  human relation `Do this first`/`Then return to`, and its visible lazy
+  `atomic task` Nature claim. Actions are `[y]es`, `[e]dit`, `[n]o`,
+  uncertainty, and the ordinary slash palette, without a default. `yes`
+  follows WRK-074; `edit` may change title, Nature, placement, and whether the
+  work is prerequisite or independent, then returns to the complete preview;
+  `no` restores UX-S12 without mutation. Dumb free-text editing shows UX-049's
+  English reminder. Assisted proposals remain visibly attributed.
+- **UX-111 [core] — Organization is distinct from Domain pagination.** On
+  UX-S09, `[o]rganize and review` appears in a separate block above `Or choose
+  a subject:` and never participates in numbered Domain pages. Selecting it
+  follows WRK-075 and FOC-046. If no organization-maintenance opportunity is
+  eligible, the option is omitted rather than shown disabled. Contextual help
+  names the included typed meta-work families; it never calls organization a
+  Domain, Brick, importance value, or persistent mode.
 
 ## Status, history, and recovery
 

@@ -166,17 +166,19 @@
   opens the chosen candidate as an ordinary focus proposal without starting
   it. Reverse navigation before candidate selection records nothing. After
   selection, semantic undo—not screen navigation—compensates the transaction.
-- **WRK-070 [core] — A positive subject target completes the tired reaction.**
-  Selecting one Domain path on UX-S09 atomically records `tired`, the served
-  Brick's ordinary cooldown, the source and target paths, and both FOC-045
-  signals. If the served Brick is current, the transaction closes its focus
-  interval and clears the focus pointer while leaving it WIP; an unrelated
-  current focus is preserved. The core then performs the single target-scoped
-  draw and presents its result through ordinary `Work:`/`Focus?` consent.
-  Reverse navigation and `[m]ore options...` before target selection record
-  nothing. After selection, semantic undo—not screen navigation—compensates
-  the transaction. Drawing or proposing the target never changes active
-  Domain; accepting its focus does so under FOC-017.
+- **WRK-070 [core] — A positive subject target completes its served reaction.**
+  Selecting one Domain path on UX-S09 atomically records the originating
+  `tired` or `bored` symptom, the served Brick's ordinary cooldown, the source
+  and target paths, and both FOC-045 signals. If the served Brick is current,
+  the transaction closes its focus interval and clears the focus pointer while
+  leaving it WIP; an unrelated current focus is preserved. The core then
+  performs the single target-scoped draw and presents its result through
+  ordinary `Work:`/`Focus?` consent. Reverse navigation and `[m]ore options...`
+  before target selection record nothing. After selection, semantic undo—not
+  screen navigation—compensates the transaction. Drawing or proposing the
+  target never changes active Domain; accepting its focus does so under
+  FOC-017. `Skip anyway` records only the originating symptom and ordinary
+  Brick cooldown; it infers no Domain signal.
 - **WRK-071 [core] — Tired pause is evidence-bearing rest.** Choosing `pause
   for now` from UX-S07 atomically records `tired`, the served Brick's ordinary
   cooldown, and the accepted pause reaction. If that Brick is current, the
@@ -187,6 +189,39 @@
   under WRK-048, this path intentionally retains symptom and cooldown evidence
   because the user supplied both. It returns UX-S10 and never exits a surface
   process automatically.
+- **WRK-072 [core] — Bored distinguishes escape from transformation.** UX-S11
+  offers `change subject`, `make it more interesting`, explicit `skip anyway`,
+  and uncertainty. Selecting `bored` alone records nothing. Subject change
+  opens UX-S09 with `bored` as its pending symptom; transformation opens
+  UX-S12. `Skip anyway` records `bored` plus ordinary Brick cooldown and no
+  Domain, structure, or method claim. Reverse navigation preserves the prior
+  served-work checkpoint without mutation.
+- **WRK-073 [core] — Interesting-work remedies reuse explicit mechanisms.**
+  UX-S12 offers `try a short sprint`, `break it into visible steps`, `find a
+  better way`, and uncertainty. Short-sprint semantics remain explicitly open
+  under `OPEN-SKIP-001`. Break enters the existing pending `/break` flow; only
+  accepted structure records `bored` and the recovery, with no redundant
+  cooldown. Find enters UX-S13. No option creates an engagement score, changes
+  importance, or lets the core invent motivational advice.
+- **WRK-074 [core] — Better-way acceptance is one enabling recovery.** UX-S13
+  classification followed by UX-S14 acceptance creates exactly one FED-032
+  Brick, its accepted parent and Domain placement, lazy Nature claim, local
+  importance evidence, and a Dependency into the served Brick in one
+  transaction. The same transaction records `bored` plus `find a better way`;
+  the Dependency replaces ordinary skip cooldown. Rejecting or reversing any
+  uncommitted step creates no Brick, evidence, or relationship. Powered-up and
+  Skill follow FED-033. If edit explicitly removes the prerequisite relation,
+  the preview must say that this is independent improvement work; acceptance
+  then applies the served Brick's ordinary cooldown because no Dependency
+  gates it.
+- **WRK-075 [core] — Organization is a symptom-aware recovery target.**
+  Choosing UX-S09 `organize and review` atomically records the originating
+  `tired` or `bored` symptom, the served Brick's ordinary cooldown, inferred
+  source-branch fatigue, and FOC-046 family affinity. It closes only the served
+  current focus, leaving it WIP, and preserves unrelated focus. The core then
+  performs one organization-family draw without changing active Domain or
+  starting work. Subsequent meta-opportunities return only through ordinary
+  weighted continuity; this action never establishes a persistent mode.
 
 ## Time
 

@@ -134,8 +134,12 @@ decaying target affinity, and a screen-local `[/] menu...` label that avoids
 collision with `[m]ore options...`. `WRK-071`, `UX-106`, and UX-S10 settle
 `pause for now` as evidence-bearing rest with a truthful state variant,
 optional `safe_end` warmth, no automatic draw or process exit, and no
-persistent paused state. The main `tired` flow is complete; keep its empty and
-multi-Domain edges in the release ledger and resume with `bored`.
+persistent paused state. `FED-032..033`, `FOC-046`, `WRK-072..075`,
+`UX-107..111`, and UX-S11..S14 settle the main `bored` routes: positive subject
+change, one organization-family draw, visible decomposition, and deterministic
+or attributed better-method enablers. The main `tired` and `bored` flows are
+complete except their declared empty and multi-Domain edges. Resume with the
+still-visible `short sprint` checkpoint; no timer semantics exist yet.
 
 ## Scope rings
 

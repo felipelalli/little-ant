@@ -323,8 +323,24 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   bonus. With different top-level roots, the whole source root is the
   current-side branch. Both signals decay with time and intervening accepted
   work, and all Domains retain positive probability after the one scoped draw.
-  Neither signal changes importance or active Domain. Exact no-target and
-  multi-membership recovery remains under `OPEN-SKIP-001` and `OPEN-DOM-001`.
+  Their calibrated magnitude and decay may differ for originating `tired` and
+  `bored` evidence without changing this semantic mechanism. Neither signal
+  changes importance or active Domain. Exact no-target and multi-membership
+  recovery remains under `OPEN-SKIP-001` and `OPEN-DOM-001`.
+- **FOC-046 [core] — Organize and review targets an interaction family.**
+  UX-S09 `organize and review` is not a Domain, Brick, persistent mode, or new
+  forecast axis. It scopes one draw to an eligible organization-maintenance
+  opportunity outside the served Brick's most-specific effective source path,
+  records fatigue on that source path and affinity to the interaction family,
+  and then lets FOC-041 continuity favor subsequent related opportunities with
+  ordinary decay and positive tails. This one-path rule does not guess among
+  equal multi-memberships. The versioned 1.0 family includes Raw triage,
+  Nature review, importance maintenance and recalibration, Domain/taxonomy
+  review, duplicate reconciliation, WIP review, and scope-closure review.
+  Membership is by typed opportunity variant, never title or Nature. Hard
+  precedence is unchanged. Exact payloads and actions for still-unsettled
+  family members remain under `OPEN-FOC-001`; no-eligible recovery remains
+  under `OPEN-SKIP-001`.
 
 ## Forecast inputs
 

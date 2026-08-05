@@ -206,6 +206,23 @@
   are shown before confirmation. With weak or conflicting evidence, it must
   reuse the dumb baseline. Rejecting an assisted proposal records no evidence
   and enters the unchanged dumb structure route with the input preserved.
+- **FED-032 [core] — Dumb better-way scaffolds an enabling Brick.** The dumb
+  `find a better way` route classifies the intended improvement as
+  `automate repetitive parts`, `simplify the process`, `learn another method`,
+  or `get help from someone`. It derives one editable title using the matching
+  safe prefix `Automate parts of:`, `Simplify:`, `Learn a better method for:`,
+  or `Get help with:` followed verbatim by the served Brick title. The complete
+  preview uses FED-030's sibling, effective-Domain, and Dependency baseline;
+  proposes `atomic_task` with a lazy human Nature review; and shows local
+  importance insertion as post-commit reviewable evidence rather than asking
+  comparisons before creation. No handle or durable identity exists before
+  acceptance.
+- **FED-033 [standard] — Assisted better-way proposal stays attributable.**
+  Powered-up or Skill may propose one concrete title, Description Raw, Nature,
+  or structure from the served Brick's actual context. The complete proposal
+  names its source and still passes through the same human preview. Rejecting
+  it opens the unchanged FED-032 classification; editing never lets assistance
+  allocate an identity, accept its own evidence, or bypass the canonical CLI.
 
 ## Reference flows
 
