@@ -350,6 +350,22 @@
   current focus and leaves it WIP. The core then follows FOC-047 for one scoped
   draw. It records no importance change or Domain fatigue, and the active
   Domain changes only if the replacement Focus is accepted.
+- **WRK-093 [core] — Other preserves an unexplained obstacle verbatim.**
+  Selecting `other` opens UX-S31 and records nothing. Nonblank text is kept as
+  pending symptom evidence and shown in UX-S32 before acceptance; it is event
+  evidence, not a Raw, Description, custom symptom, Domain, or hidden
+  classification. Accepting atomically records `other`, the exact entered
+  text, and ordinary cooldown. If the served Brick was current, it closes only
+  that focus and leaves the Brick WIP; unrelated focus remains untouched.
+  Edit, rejection, and reverse navigation before acceptance create no event.
+- **WRK-094 [standard] — Other evidence feeds a separate taxonomy watch.**
+  Repeated relevant `other` evidence may make WRK-012's typed taxonomy-review
+  opportunity eligible under versioned, replay-deterministic thresholds. That
+  later review may propose mapping a recurring pattern to an existing symptom
+  or adding a versioned symptom, but acceptance is explicit and never rewrites
+  historical verbatim evidence. One `other` answer never infers blocked,
+  waiting, tired, Domain fatigue, importance, or a new category. Exact text
+  grouping, thresholds, window, and decay remain calibration concerns.
 
 ## Time
 

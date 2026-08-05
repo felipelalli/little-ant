@@ -159,8 +159,12 @@ silently rewriting the symptom as `big`, and it never classifies Effort.
 `less important` by separating a comparison-backed human-order change, an
 explicit `not_before` date, a one-draw Domain change, and defer-only skip. No
 route treats momentary timing or subject preference as importance evidence.
-Continue Gate 4 with the next unresolved symptom in `OPEN-SKIP-001`, deriving
-core semantics through its dumb UX before mirroring assisted surfaces.
+`WRK-093..094`, `UX-127..129`, and UX-S31..S32 then settle `other` as a
+confirmed verbatim skip reason whose repeated evidence may create a separate
+taxonomy-review opportunity but never mutates vocabulary automatically.
+Continue Gate 4 with the remaining contextual-uncertainty and recovery edges
+in `OPEN-SKIP-001`, deriving core semantics through dumb UX before mirroring
+assisted surfaces.
 
 ## Scope rings
 

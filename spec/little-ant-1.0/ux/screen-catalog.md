@@ -1842,6 +1842,62 @@ the positive full-path Domain selector and one FOC-047 scoped draw without
 source fatigue. Skip changes neither order, time, nor Domain. No option is a
 default; uncertainty explains these three axes and returns.
 
+## UX-S31 — Other explanation
+
+```text
+#cdd "Configure database replication"
+
+What else is getting in the way?
+
+›
+
+Tip: write in English when possible.
+
+[/] more...
+
+────────────────────────────────────────
+. #mdb "Migrate the database"
+  Orbit › Platform › Database
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #cdd
+```
+
+The buffer is pending verbatim event evidence, not Raw or a custom symptom.
+Backspace edits nonempty text; Backspace on an empty buffer, Escape, or Left
+Arrow restores UX-S01. Nonblank submission opens UX-S32 without mutation.
+
+## UX-S32 — Other skip confirmation
+
+After entering `The office is too noisy`:
+
+```text
+#cdd "Configure database replication"
+
+Skip this Brick for now because:
+
+"The office is too noisy"
+
+[y]es   [e]dit   [n]o   [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #mdb "Migrate the database"
+  Orbit › Platform › Database
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #cdd
+```
+
+Yes follows WRK-093 and renders the ordinary skip acknowledgment. Edit returns
+to UX-S31 with the complete text selected; no restores UX-S01; uncertainty
+explains the verbatim evidence and returns. The dumb core infers no existing or
+new symptom. Assisted categorization follows UX-129 and remains attributed,
+rejectable, and uncommitted.
+
 ## UX-K01 — Nature choice
 
 ```text

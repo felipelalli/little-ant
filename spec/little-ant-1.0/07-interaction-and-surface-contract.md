@@ -685,6 +685,26 @@ no-emoji rendering remain `OPEN-UX-001`.
   `[/] menu...` label. That variant omits `organize and review`, because this
   reaction asks for a subject rather than a work family, and follows FOC-047
   instead of inferring tiredness or boredom.
+- **UX-127 [core] — Other begins with one verbatim explanation.** Selecting
+  `other` opens UX-S31, which asks `What else is getting in the way?` through
+  the ordinary line editor, shows the quiet English reminder, and retains the
+  slash palette. Nonblank submission opens UX-S32. Empty Backspace, Escape, or
+  Left Arrow restores UX-S01. The entered text is not normalized into another
+  symptom or promoted to Raw.
+- **UX-128 [core] — Other requires explicit skip confirmation.** UX-S32 says
+  `Skip this Brick for now because:`, quotes the complete entered text, and
+  offers `[y]es`, `[e]dit`, `[n]o`, uncertainty, and the slash palette without
+  a default. Yes follows WRK-093; edit returns to UX-S31 with the text selected;
+  no restores UX-S01; uncertainty explains that the reason will remain
+  unclassified verbatim evidence. After acceptance, the ordinary replay-stable
+  skip result is rendered.
+- **UX-129 [standard] — Assisted categorization stays provisional.** Before
+  UX-S32 acceptance, powered-up or Skill may suggest one existing symptom with
+  concise attribution. Accepting that suggestion discards no text, records
+  nothing, and opens the existing symptom's reaction with the explanation
+  preserved in the interaction checkpoint; rejecting it renders unchanged
+  UX-S32. Assistance cannot create a symptom, commit a skip, or bypass the
+  later taxonomy-review opportunity under WRK-094.
 
 ## Status, history, and recovery
 

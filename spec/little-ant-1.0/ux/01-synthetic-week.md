@@ -446,6 +446,17 @@ that they restore the prior Focus checkpoint. Repeat while editing text and
 while selecting in a palette to prove that Backspace and arrow keys retain
 their local editing or selection meanings.
 
+Select `other`, enter verbatim text in UX-S31, and exercise edit, no,
+uncertainty, and reverse navigation in UX-S32 before accepting one replay.
+Verify that only yes records `other`, the exact text, cooldown, and the served
+focus close while retaining WIP; no Raw, custom symptom, blocker, Wait, Domain,
+or importance claim may appear. Accumulate repeated relevant examples under a
+fixed calibration profile and verify one separate taxonomy-review opportunity,
+never automatic vocabulary mutation or historical rewriting. In an assisted
+replay, reject one attributed existing-symptom suggestion and confirm unchanged
+UX-S32; accept another and prove that it opens the existing reaction without
+committing either classification or skip.
+
 Select `big` and validate UX-S06. Cancel `break` after drafting parts and prove
 that no Nature, child, symptom, or comparison survives; replay through UX-B01
 and accept the complete structure as one atomic mutation. Separately cancel
