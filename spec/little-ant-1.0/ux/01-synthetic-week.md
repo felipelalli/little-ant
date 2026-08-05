@@ -183,9 +183,26 @@ validate the UX-O03 count of placements still needing review.
 
 ### SCN-IMP-003 — Contradiction
 
-Answer a provocative direct comparison against a transitive implication.
-Validate preserved history, lower confidence, and local recalibration rather
-than opaque rewriting.
+Create recent direct `A > B` and `B > C` judgments, let FOC-042 select the
+never-directly-asked `A` versus `C` pair, and validate that UX-O01 exposes no
+inferred answer or validation heading while contextual help shows UX-O08.
+Confirm `A > C` once and verify one direct edge, stronger path confidence, the
+compact receipt, and no sorter mutation beyond the added evidence.
+
+In a fixed replay, answer `C > A` while every path edge remains above the fresh
+threshold. Validate UX-O06, no default or skip, absolute evidence times, and a
+pending answer that has not yet changed the effective order. Exercise
+`changed`: activate `C > A`, retire both earlier path edges only from current
+calculation, and preserve all events and the reason. Replay `mistake`: retract
+`C > A`, record direct `A > C`, and retain the coherent path. Replay
+uncertainty through UX-O07 for each winner, verifying two winner edges,
+minimal incompatible retirement, and preservation of the coherent loser edge.
+
+Repeat after both supporting edges decay below relevance. The same `C > A`
+answer must become current without UX-O06; stale evidence remains inspectable
+but has zero current influence. Sweep decay horizon, fresh threshold,
+transitive path penalty, provocative target rate, no-candidate fallback, and
+fixed random streams. Explicit `/order` must never emit the provocative pair.
 
 ## Day 3 — Forecast, Domain, and blockers
 

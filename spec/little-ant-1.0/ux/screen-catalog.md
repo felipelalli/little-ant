@@ -1685,6 +1685,89 @@ forecast after the review-specific cooldown has been recorded. Contextual
 inspection exposes the skipped comparators, provisional position, and future
 review pressure.
 
+## UX-O06 — Fresh importance contradiction
+
+When a pending answer closes a recent strong cycle, the core stops before
+changing the effective order:
+
+```text
+Contradiction detected:
+
+Jul 10, 2026 · 00:23
+#a "A" was more important than #b "B"
+
+Jul 10, 2026 · 00:29
+#b "B" was more important than #c "C"
+
+Just now
+#c "C" was more important than #a "A"
+
+What happened?
+
+[c]hanged
+    C is now more important than A.
+    Stop using the two earlier judgments.
+
+[m]istake
+    I meant A is more important than C.
+
+[?] I don't know
+    Help me compare all three.
+
+[/] more...
+```
+
+No action is the default, and this required resolution is not an ordinary
+lottery opportunity, so it has no `skip`. `changed` removes the two older path
+edges only from current calculation; all three statements and the explicit
+resolution remain in history. `mistake` records direct `A > C` and retains the
+two coherent earlier judgments. Escape leaves the resolution pending and the
+last coherent effective order unchanged.
+
+## UX-O07 — Three-way contradiction aid
+
+Choosing uncertainty on UX-O06 opens one direct temporal tradeoff:
+
+```text
+Let's untangle this:
+
+If you could do only one right now, which would it be?
+
+[a] #a "A"
+[b] #b "B"
+[c] #c "C"
+
+[?] I still don't know
+[/] more...
+```
+
+Choosing `A` records `A > B` and `A > C`; choosing `B` records `B > A` and
+`B > C`; choosing `C` records `C > A` and `C > B`. In each case the direct
+edges incompatible with that answer retire from current calculation, while a
+still-coherent relation between the other two may remain. This resolves the
+three-way cycle without pretending to have re-evaluated the losers against
+each other.
+
+## UX-O08 — Provocative transitive validation
+
+The primary screen for a provocative validation is deliberately identical to
+UX-O01. It does not announce that the current order implies an answer. If the
+user opens contextual uncertainty, secondary evidence may explain:
+
+```text
+This comparison has not been asked directly.
+
+The current order infers it through:
+
+#a "A" > #b "B" > #c "C"
+
+No answer has been recorded.
+```
+
+Returning restores the untouched proposition. The inferred direction never
+creates `*`; only the user's direct `more` or `less` response can validate or
+contradict it.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:

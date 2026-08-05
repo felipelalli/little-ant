@@ -97,10 +97,10 @@ unresolved            no trustworthy 1.0 disposition yet
 | Pairwise binary insertion | `I+T`, `49abaa5`, placement tests | **retained** | sibling-only importance under `IMP-001..004` | `SCN-IMP-001` |
 | Adaptive `org-sort-tasks` maintenance: short-run insertion, adaptive merge, ordered-halves shortcut, and known transitive answers | `I+T`, `b35df00`, `Order.mergeSortStep` | **retained** | `IMP-005`, `IMP-031..032` | resumable bulk-order transcript through lottery and scoped `/order` cadences |
 | One unresolved pair per core maintenance step; persisted answers make interruption safe | `I+T`, ordering tests | **retained and clarified** | `IMP-005`, `IMP-031..032`, `FOC-041`, `UX-091..092`, `UX-O01..O02` | one-pair lottery result, stop/resume transcript, scoped continuous `/order`, and no cross-parent pairs |
-| Human evidence outranks AI pre-ordering | `I+T` | **strengthened** | `IMP-011..015` | assisted insertion and reversal |
-| Adjacent question rounds, stale comparisons, and burst/time sanity triggers | `I+T`, `Order.hs`, `Tick.hs` | **replaced** | derived review opportunities, not meta-Bricks, under `IMP-014..016`, `FOC-009` | ordering-maintenance route |
+| Human evidence outranks AI pre-ordering | `I+T` | **strengthened** | temporal and provenance-aware evidence under `IMP-011..015`, `IMP-033..034` | assisted insertion, stale reversal, and fresh-cycle resolution |
+| Adjacent question rounds, stale comparisons, and burst/time sanity triggers | `I+T`, `Order.hs`, `Tick.hs` | **replaced** | derived review opportunities, not meta-Bricks, under `IMP-014..016`, `IMP-033..034`, `FOC-009`, `FOC-042` | ordering maintenance and provocative validation routes |
 | Dependencies supply hard edges to the same human order | `I+T` | **retired** | dependency and importance are orthogonal under `IMP-001`, `MOD-021` | blocked-but-important scenario |
-| Cycles are silently broken by creation order | `I+T` | **retired** | contradiction lowers confidence and provokes local recalibration under `IMP-013..015` | `SCN-IMP-003` |
+| Cycles are silently broken by creation order | `I+T` | **retired** | confidence-sensitive contradiction, explicit fresh-cycle resolution, and preserved history under `IMP-013..015`, `IMP-033..034`, `UX-097..099` | `SCN-IMP-003` |
 | Human order exists only on actionable frontier leaves | `I+T` | **replaced** | strict local sibling order for every active Brick under `IMP-002..003` | hierarchy projection scenario |
 
 ## Forecast, scope, and continuity

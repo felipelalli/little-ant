@@ -116,24 +116,56 @@ Is
 ## Evidence and contradiction
 
 - **IMP-011 [core] — Evidence history.** Comparisons retain direction,
-  author, timestamp, context, reason, and supersession history. Newer
-  applicable judgment receives more weight than older judgment.
+  author, timestamp, context, reason, and supersession history. Current
+  calculation uses effective confidence rather than deleting inconvenient
+  evidence.
 - **IMP-012 [core] — Authority.** Direct human judgment overrides attributed
   AI evidence. AI may pre-order and suggest a default but cannot overwrite a
   human relation in either direction.
-- **IMP-013 [core] — Contradiction is evidence.** Cycles, direct reversals,
-  and conflicts with transitive implications lower confidence; they do not
-  corrupt or delete history.
+- **IMP-013 [core] — Contradiction is confidence-sensitive evidence.** Cycles,
+  direct reversals, and conflicts with transitive implications never corrupt
+  or delete history. A new direct judgment may silently outrank an old path
+  whose effective confidence has decayed below the configured relevance
+  threshold. A cycle among recent, independently strong judgments is not
+  resolved by recency alone; it enters the explicit UX-O06 resolution gate.
 - **IMP-014 [core] — Local recalibration.** Contradiction schedules a bounded
   recalibration of the smallest affected sibling segment. Replacement evidence
   becomes current only when the segment is coherent.
-- **IMP-015 [calibration] — Provocative validation.** The forecast may
-  occasionally ask a direct comparison already implied transitively, with
-  probability increased by low confidence, age, contradiction, or consequence.
+- **IMP-015 [core] — Provocative validation is not sorting.** A separate
+  validator may choose two siblings whose strict relation is currently implied
+  only by a transitive path and has never been asked directly. Its
+  replay-deterministic configured probability is evaluated outside the
+  `org-sort-tasks` pair selector, so the minimal sorter never invents a
+  redundant comparison and explicit `/order` never interleaves validation
+  questions. Confirmation records a direct edge and strengthens the path. A
+  contrary answer follows IMP-013: weak old support yields to the new judgment,
+  while a recent strong cycle opens UX-O06. Candidate scoring may favor age,
+  low confidence, consequence, or a weak path, but never changes the implied
+  direction into a suggested default or leading question.
 - **IMP-016 [standard] — Investigation work.** Repeated uncertainty that could
   materially change focus may propose an ordinary Brick such as an interview,
   questionnaire, experiment, POC, or MVP. The core never invents the method or
   creates the Brick automatically.
+- **IMP-033 [core] — Temporal confidence decay.** Every direct judgment has a
+  provenance-derived initial confidence and a monotonic age-decay curve. The
+  versioned factory configuration defines its shape, relevance threshold, and
+  finite horizon after which effective confidence is zero for current
+  calculation. Expired evidence remains inspectable history and may explain a
+  later recalibration, but it cannot keep a stale relation artificially
+  authoritative. Refresh requires a new judgment; merely replaying or viewing
+  history never resets age.
+- **IMP-034 [core] — Transitive confidence and fresh-cycle resolution.** The
+  effective confidence of an inferred relation is no greater than the weakest
+  applicable edge on its path and is reduced by a versioned path-length
+  penalty. When a contrary direct answer conflicts only with a path below the
+  relevance threshold, the answer becomes current and the old path becomes
+  inactive or reviewable without interruption. When every edge needed to form
+  the minimal cycle remains above the fresh-conflict threshold, the new answer
+  stays pending and UX-O06 must resolve it atomically. Choosing `changed`
+  activates the new relation and retires every older edge on that conflicting
+  path from current calculation; choosing `mistake` retracts the pending
+  direction and records its direct reverse. Retired and retracted evidence
+  remains in the append-only history with its resolution reason.
 
 ## Expected impact
 

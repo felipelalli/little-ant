@@ -427,6 +427,35 @@ no-emoji rendering remain `OPEN-UX-001`.
   still need review. In lottery cadence, the second skip ends the cycle with
   UX-O05, applies review-specific cooldown, and performs no draw. Neither skip
   means equality, `less important`, nor permanent unimportance.
+- **UX-097 [core] — Fresh contradiction gate.** When a newly answered
+  direction would close a minimal cycle whose supporting edges all satisfy
+  IMP-034 freshness and confidence, the answer remains pending and UX-O06
+  interrupts the current cadence before another pair or result. The screen
+  lists each conflicting direct judgment with absolute local time and complete
+  Brick citations, then offers `[c]hanged`, `[m]istake`, and `[?] I don't know`
+  without a default or lottery `skip`. `changed` atomically activates the new
+  direction and retires every older edge in the displayed conflicting path
+  from current calculation. `mistake` retracts the pending answer and records
+  its direct reverse. Both preserve immutable evidence and resolution reason.
+  Uncertainty opens UX-O07. Escape preserves the pending resolution and the
+  prior coherent effective order; it never silently chooses by recency.
+- **UX-098 [core] — Three-way contradiction aid.** UX-O07 asks which one of
+  the three affected siblings the user would choose if only one could be done
+  now. It has no default, model answer, or hidden impact calculation. Selecting
+  one records two direct current judgments placing that winner above each
+  other Brick, retires only incompatible current edges, preserves an applicable
+  coherent relation between the two non-winners, and resumes the interrupted
+  cadence. The visible shortcuts are stable unique characters from the three
+  displayed choices under UX-013. A second uncertainty response and minimal
+  cycles longer than three remain under `OPEN-IMP-002` rather than being
+  guessed by the dumb host.
+- **UX-099 [core] — Provocative validation surface.** An FOC-042
+  `importance_validation` renders the exact ordinary UX-O01 proposition and
+  actions, with no `Review:`, `Validation:`, inferred direction, `*`, or other
+  leading clue. Contextual `?` may reveal the applicable transitive path,
+  effective confidence, and fact that the pair has no prior direct judgment;
+  it never answers. A confirming direction uses the compact UX-O04 receipt. A
+  contrary direction follows IMP-013 and UX-097 when the path is still fresh.
 
 ## Status, history, and recovery
 

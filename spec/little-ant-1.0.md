@@ -109,8 +109,11 @@ not per answer: a lottery review has one pair and one minimal receipt, while
 multi-step insertion, classification, and `/order` remain uninterrupted until
 a real boundary. `UX-096` and UX-O05 settle the ordinary two-skip path: nearby
 redraw first, then provisional placement; direct `/order` continues while a
-lottery review returns a compact result. Resume with contradiction and local
-recalibration UX.
+lottery review returns a compact result. `IMP-033..034`, `UX-097..099`, and
+UX-O06..O08 settle temporal confidence and explicit fresh-cycle resolution.
+`IMP-015` and `FOC-042` keep replay-deterministic provocative validation outside
+`org-sort-tasks` and explicit `/order`. Resume with the remaining importance
+uncertainty edges in `OPEN-IMP-001..002` or advance to the next Gate 4 flow.
 
 ## Scope rings
 

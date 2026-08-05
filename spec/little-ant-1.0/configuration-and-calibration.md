@@ -104,7 +104,11 @@ evidence:
   pressure; these parameters never collapse the semantic distinctions in
   `WRK-062..064`;
 - Domain fatigue cooldown and bounded negative signal;
-- provocative-comparison base chance and confidence multipliers;
+- direct-judgment confidence by provenance, temporal decay shape, relevance
+  horizon, and fresh-conflict threshold;
+- transitive path-length penalty and weakest-edge policy;
+- provocative-validation target share within served importance maintenance,
+  candidate scoring, cooldown, and confidence/consequence multipliers;
 - taxonomy-watch evidence count, window, and decay;
 - habit-review and carried-entry evidence thresholds;
 - date-notice lead times, deduplication windows, and rotation;

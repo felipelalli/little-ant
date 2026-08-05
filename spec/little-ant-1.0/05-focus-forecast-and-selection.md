@@ -279,6 +279,18 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   Explicit continuous commands such as `/order` suspend the global draw while
   their bounded flow is active, then leave subsequent draws governed by the
   same recorded affinity and decay.
+- **FOC-042 [core] — Provocative importance-validation opportunity.** After
+  the ordinary lottery selects the importance-maintenance family, a separate
+  replay-recorded branch uses the configured target rate to choose either the
+  unresolved `org-sort-tasks` pair or one eligible IMP-015 transitive-only
+  validation pair. If no validation candidate exists, the branch falls back
+  to ordinary maintenance without fabricating a question. The resulting
+  `importance_validation` is a typed, one-comparison, non-execution opportunity
+  with ordinary positive-tail, skip, cooldown, and no hard precedence. It uses
+  the same proposition grammar as UX-O01 but is never emitted inside explicit
+  `/order`. Its contextual help exposes the inferred path and reason for
+  validation; the primary question does not label itself provocative or reveal
+  the inferred answer.
 
 ## Forecast inputs
 
