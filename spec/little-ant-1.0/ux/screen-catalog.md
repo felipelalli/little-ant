@@ -1768,6 +1768,28 @@ Returning restores the untouched proposition. The inferred direction never
 creates `*`; only the user's direct `more` or `less` response can validate or
 contradict it.
 
+## UX-O09 — Still-uncertain contradiction result
+
+Selecting `[?] I still don't know` on UX-O07 ends that bounded aid without
+forcing a winner:
+
+```text
+Still uncertain:
+
+Keeping the previous order for now.
+
+3 placements need review.
+
+[n]ext    [/] more...
+```
+
+The previous coherent order remains usable, all three conflicting judgments
+remain in history, and the affected segment receives one FOC-043 opportunity
+after its cooldown. The count is structural and human-facing; the screen does
+not expose confidence floats. It contains no personality phrase and performs
+no draw. In explicit `/order`, an unaffected segment follows immediately; this
+result is deferred until the command reaches its next actual boundary.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:

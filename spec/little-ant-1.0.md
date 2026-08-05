@@ -112,8 +112,11 @@ redraw first, then provisional placement; direct `/order` continues while a
 lottery review returns a compact result. `IMP-033..034`, `UX-097..099`, and
 UX-O06..O08 settle temporal confidence and explicit fresh-cycle resolution.
 `IMP-015` and `FOC-042` keep replay-deterministic provocative validation outside
-`org-sort-tasks` and explicit `/order`. Resume with the remaining importance
-uncertainty edges in `OPEN-IMP-001..002` or advance to the next Gate 4 flow.
+`org-sort-tasks` and explicit `/order`. `IMP-035`, `FOC-043`, `UX-100`, and
+UX-O09 settle a second uncertainty response without forced judgment: retain
+the prior coherent order, lower local confidence, and revisit the segment
+later. Resume with longer fresh cycles or the provocative-validation skip in
+`OPEN-IMP-002`, or advance to the next Gate 4 flow.
 
 ## Scope rings
 

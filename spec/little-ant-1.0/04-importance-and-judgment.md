@@ -166,6 +166,15 @@ Is
   path from current calculation; choosing `mistake` retracts the pending
   direction and records its direct reverse. Retired and retracted evidence
   remains in the append-only history with its resolution reason.
+- **IMP-035 [core] — Unresolved contradiction remains explicit.** If the user
+  still cannot choose after the bounded contradiction aid, every displayed
+  judgment remains preserved as unresolved evidence while the last coherent
+  effective order stays operational. The smallest affected sibling segment
+  receives low confidence and bounded future recalibration pressure; no edge
+  becomes equality, no latest answer wins silently, and no history is retired.
+  Explicit `/order` may continue with an unaffected segment rather than trap
+  the user. Repeated material uncertainty may invoke the proposal-only
+  investigation policy in IMP-016, but never creates a Brick automatically.
 
 ## Expected impact
 

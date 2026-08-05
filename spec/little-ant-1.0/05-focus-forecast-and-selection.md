@@ -291,6 +291,14 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   `/order`. Its contextual help exposes the inferred path and reason for
   validation; the primary question does not label itself provocative or reveal
   the inferred answer.
+- **FOC-043 [core] — Unresolved importance recalibration.** IMP-035 contributes
+  one typed `importance_recalibration` opportunity for the smallest affected
+  sibling segment. It preserves a complete current order, enters the ordinary
+  lottery after a bounded uncertainty cooldown, and gains pressure from low
+  confidence, age, repeated contradiction, and forecast consequence. It is a
+  non-execution opportunity with ordinary skip and no hard precedence. One
+  segment contributes one opportunity regardless of the number of conflicting
+  edges, preventing duplicate lottery tickets for the same unresolved cycle.
 
 ## Forecast inputs
 

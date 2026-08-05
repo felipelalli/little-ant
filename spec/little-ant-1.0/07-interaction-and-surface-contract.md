@@ -456,6 +456,16 @@ no-emoji rendering remain `OPEN-UX-001`.
   effective confidence, and fact that the pair has no prior direct judgment;
   it never answers. A confirming direction uses the compact UX-O04 receipt. A
   contrary direction follows IMP-013 and UX-097 when the path is still fresh.
+- **UX-100 [core] — Still-uncertain contradiction result.** A second
+  uncertainty response on UX-O07 records the unresolved resolution described
+  by IMP-035 and renders UX-O09 without drawing. The result says that the
+  previous order remains in use and counts placements needing review; it does
+  not repeat the cycle, choose a winner, claim equality, or expose a numeric
+  score. `[n]ext` returns to the global forecast. When reached inside explicit
+  `/order`, the same semantic outcome advances directly to an unaffected
+  segment when one exists; UX-O09 appears only when that direct cycle reaches
+  its next real result boundary. Repeated consequential uncertainty may later
+  propose IMP-016 investigation work through an explicit confirmation.
 
 ## Status, history, and recovery
 

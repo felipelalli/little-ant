@@ -197,6 +197,14 @@ calculation, and preserve all events and the reason. Replay `mistake`: retract
 `C > A`, record direct `A > C`, and retain the coherent path. Replay
 uncertainty through UX-O07 for each winner, verifying two winner edges,
 minimal incompatible retirement, and preservation of the coherent loser edge.
+Choose uncertainty again and validate UX-O09: retain every conflicting event,
+keep the previous coherent order, lower only the minimal segment confidence,
+create exactly one cooldown-bound FOC-043 opportunity, and perform no draw.
+Repeat inside `/order` with another unaffected group and prove the next pair
+appears immediately; surface the result only at the later command boundary.
+Cross the cooldown and verify ordinary weighted admission without duplicate
+tickets. Trigger repeated material uncertainty and verify that IMP-016 may
+propose, but never create, an investigation Brick.
 
 Repeat after both supporting edges decay below relevance. The same `C > A`
 answer must become current without UX-O06; stale evidence remains inspectable
