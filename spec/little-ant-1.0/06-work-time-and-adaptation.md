@@ -321,6 +321,35 @@
   and uses its Dependency or child structure instead of ordinary cooldown.
   Skip anyway records only `hard` plus cooldown. Rejection and reverse
   navigation remain evidence-free.
+- **WRK-089 [core] — Less important distinguishes order, time, and subject.**
+  Selecting `less important` opens UX-S30 with `order it lower`, `later`,
+  `change subject`, `skip anyway`, and uncertainty. The symptom alone does not
+  change importance, forecast probability, dates, Domain, focus, or cooldown.
+  Order follows WRK-090, later follows WRK-091, subject change follows WRK-092,
+  and skip anyway records only `less_important` plus ordinary cooldown.
+- **WRK-090 [core] — Reordering begins with the first real judgment.** Choosing
+  `order it lower` opens IMP-039's targeted continuous ordering without a
+  mutation. The first accepted canonical comparison atomically records
+  `less_important`, `order it lower`, that comparison, and ordinary served
+  cooldown; if the served Brick was current, it also closes focus and leaves
+  the Brick WIP. Subsequent comparisons are ordinary `/order` evidence. Exiting
+  before the first answer records nothing. With no comparable lower sibling,
+  the route returns an educational no-target result and records nothing rather
+  than inventing a move.
+- **WRK-091 [core] — Later changes eligibility, not importance.** Choosing
+  `later` first opens an explicit date choice under UX-018. Accepting an
+  absolute instant atomically records `less_important` plus `later` and applies
+  that instant as `not_before`, leaving importance untouched. The time gate
+  replaces ordinary cooldown. A served current focus is closed and left WIP;
+  unrelated focus is preserved. Cancelling or reversing before the instant is
+  accepted changes nothing.
+- **WRK-092 [core] — Subject change preserves the human list.** Choosing
+  `change subject` opens UX-S09 with `less_important` carried provisionally.
+  Selecting one target Domain atomically records the symptom, reaction, source
+  and target paths, and ordinary served cooldown; it closes only a served
+  current focus and leaves it WIP. The core then follows FOC-047 for one scoped
+  draw. It records no importance change or Domain fatigue, and the active
+  Domain changes only if the replacement Focus is accepted.
 
 ## Time
 

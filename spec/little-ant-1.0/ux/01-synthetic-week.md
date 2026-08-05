@@ -423,7 +423,19 @@ existing better-way and typed-support routes with `hard` carried. Confirm that
 only an accepted final preview records the symptom and that real Dependency or
 child structure replaces cooldown; direct skip records only `hard` plus
 cooldown. Reject one assisted proposal and recover the exact dumb checkpoint.
-Then verify `[b]locked or waiting`,
+
+Select `less important` and validate UX-S30 without mutating importance, time,
+or Domain. Enter lower ordering, Escape before the first comparison, then
+answer canonical `more/less` pairs through IMP-039 and verify that only the
+first real judgment commits the symptom, reaction, cooldown, and focus close;
+the final position must follow evidence even when it remains unchanged. Test
+the no-lower-sibling educational result. Independently accept `later` with a
+visible absolute instant and verify only `not_before`, with no importance
+rewrite or redundant cooldown. Choose a full-path target Domain, verify one
+FOC-047 scoped draw with no source fatigue or target affinity, and change
+active Domain only after accepting replacement Focus. Direct skip preserves
+order, dates, and Domain. Keep exact custom date and no-target/multi-membership
+edges in their owning open decisions. Then verify `[b]locked or waiting`,
 `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality

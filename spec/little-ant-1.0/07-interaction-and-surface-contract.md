@@ -664,6 +664,27 @@ no-emoji rendering remain `OPEN-UX-001`.
   its complete Nature and enabling-structure preview under FED-040. Empty
   Backspace, Escape, or Left Arrow restores UX-S28. Assistance follows
   FED-041 and cannot bypass the same preview.
+- **UX-124 [core] — Less-important recovery makes the affected axis explicit.**
+  Selecting `less important` opens UX-S30 and asks `What should change?`. It
+  offers `[o]rder it lower`, `[l]ater`, `[c]hange subject`, `[s]kip anyway`,
+  and uncertainty, without a default or personality line. Uncertainty explains
+  durable sibling importance, temporary eligibility, and one scoped Domain
+  choice without selecting one. Reverse navigation restores UX-S01 exactly.
+- **UX-125 [core] — Lower order enters canonical comparison grammar.** Order
+  opens the ordinary UX-O01 `Is ... more important than ... ?` screen for
+  IMP-039's first lower-sibling comparator. There is no `move down`, position,
+  rank, yes/no, or confirmation shortcut. Escape before the first comparison
+  restores UX-S30 without mutation; after an answer, semantic undo rather than
+  screen navigation reverses committed evidence. A no-comparator result states
+  that no lower sibling can be compared and returns without claiming a move.
+- **UX-126 [core] — Time and subject reuse their existing selectors.** Later
+  opens the ordinary guided absolute-date chooser and shows the resulting
+  instant before acceptance; its exact date-entry grammar remains owned by
+  `OPEN-TIME-001`. Change subject reuses UX-S09's positive full-path Domain
+  pages with provisional `less_important`, including its screen-local
+  `[/] menu...` label. That variant omits `organize and review`, because this
+  reaction asks for a subject rather than a work family, and follows FOC-047
+  instead of inferring tiredness or boredom.
 
 ## Status, history, and recovery
 

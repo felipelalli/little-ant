@@ -1811,6 +1811,37 @@ Domain, Dependency, and local importance insertion. The dumb core does not
 assume that practice is a habit or that learning is atomic. Empty Backspace,
 Escape, or Left Arrow restores UX-S28 without mutation.
 
+## UX-S30 — Less-important recovery
+
+```text
+#cdd "Configure database replication"
+
+What should change?
+
+⚖️ [o]rder it lower
+🕒 [l]ater
+🧭 [c]hange subject
+⏭️ [s]kip anyway
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #mdb "Migrate the database"
+  Orbit › Platform › Database
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #cdd
+```
+
+Order begins IMP-039's canonical lower-directed insertion but moves nothing
+until a `more important` or `less important` answer is accepted. Later opens an
+explicit absolute date and changes only `not_before`. Change subject reuses
+the positive full-path Domain selector and one FOC-047 scoped draw without
+source fatigue. Skip changes neither order, time, nor Domain. No option is a
+default; uncertainty explains these three axes and returns.
+
 ## UX-K01 — Nature choice
 
 ```text

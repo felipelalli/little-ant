@@ -66,6 +66,16 @@
   children form the group, while a Domain argument selects all qualifying
   groups intersecting that Domain. The guided surface resolves either target
   through UX-092 rather than depending on memorized handles or Domain paths.
+- **IMP-039 [core] — Lower-order recovery still requires comparisons.** A
+  served-work `order it lower` reaction carries one Brick into the existing
+  continuous `/order` cadence for its sibling group. The current position
+  narrows the first search interval toward lower siblings, but the reaction
+  itself creates no edge and moves nothing. Every actual relation still comes
+  only from the canonical `more important` or `less important` answer, with
+  normal evidence reuse, contradiction handling, nearby skip, and resumable
+  `org-sort-tasks` behavior. The resulting position may move less than the user
+  expected or remain unchanged when answers and existing evidence require it;
+  the system never fabricates a downward comparison from the symptom.
 
 ## Comparison grammar
 

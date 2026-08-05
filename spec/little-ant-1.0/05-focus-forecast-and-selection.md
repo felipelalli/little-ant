@@ -341,6 +341,16 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   precedence is unchanged. Exact payloads and actions for still-unsettled
   family members remain under `OPEN-FOC-001`; no-eligible recovery remains
   under `OPEN-SKIP-001`.
+- **FOC-047 [core] — Less-important subject change is scoped, not fatigued.**
+  Choosing a target Domain from a `less important` reaction performs exactly
+  one replacement draw among currently executable Work in that target and
+  presents it through ordinary Focus consent. It records no source-Domain
+  fatigue or target-affinity signal merely from the symptom: accepting the
+  proposed Focus changes active Domain under FOC-017, after which ordinary
+  continuity applies. Rejecting or leaving the proposal changes no active
+  Domain. All other Domains retain positive probability after the scoped draw;
+  no-target and ambiguous multi-membership recovery remain explicit open
+  boundaries.
 
 ## Forecast inputs
 

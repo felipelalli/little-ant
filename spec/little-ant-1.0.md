@@ -155,6 +155,10 @@ revision encoding remains explicitly in `OPEN-RAW-001`. `FED-040..041`,
 learning/practice, decomposition, easier-method, and support recoveries. A
 shared decomposition preserves `hard` plus its chosen reaction instead of
 silently rewriting the symptom as `big`, and it never classifies Effort.
+`IMP-039`, `FOC-047`, `WRK-089..092`, `UX-124..126`, and UX-S30 then settle
+`less important` by separating a comparison-backed human-order change, an
+explicit `not_before` date, a one-draw Domain change, and defer-only skip. No
+route treats momentary timing or subject preference as importance evidence.
 Continue Gate 4 with the next unresolved symptom in `OPEN-SKIP-001`, deriving
 core semantics through its dumb UX before mirroring assisted surfaces.
 
