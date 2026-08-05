@@ -1133,6 +1133,57 @@ cooldown, evidence, focus change, or draw. Once a number has committed the
 reaction, reverse navigation offers semantic undo under UX-019 rather than
 silently traversing the mutation.
 
+## UX-S09 — Positive change-subject target
+
+Selecting `[c]hange subject` on UX-S07 opens one uncommitted target choice:
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+What would you rather work on?
+
+[1] Orbit › R&D › Field Operations
+[2] Orbit › Platform
+[3] Personal › Little Ant
+[4] Personal › Housekeeping
+
+[m]ore options...
+[?] I don't know
+
+[/] menu...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The positive question avoids asking the user to reason about what must be
+excluded. Every alternative spells its complete Domain path because a
+subcontext may make sense only within its ancestors and identical leaf names
+may exist in different branches. The dumb screen has no default.
+
+`More options` advances through deterministic pages of at most four target
+Domains and records no rejection or preference. A target does not repeat
+within the same pending interaction; reverse navigation restores the previous
+page, and the action disappears when the pool is exhausted. `[/] menu...`
+opens the ordinary UX-022 command palette. Only its label changes on this
+screen so that `more` cannot mean both pagination and commands.
+
+Selecting a number commits WRK-070 and immediately performs the one FOC-045
+draw inside the chosen target. The resulting Brick receives ordinary
+`Work:`/`Focus?` consent and is not started automatically. The source-side
+fatigue branch is inferred from where the complete current and target paths
+diverge; the target receives positive affinity. Both signals later decay with
+positive probability elsewhere, while active Domain changes only after
+accepted focus. `?` explains this inference and returns. Escape, empty-state
+Backspace, or Left Arrow restores UX-S07 or the previous page without symptom,
+cooldown, signal, focus change, active-Domain change, or draw. Multi-Domain,
+no-Domain, and no-target recovery remain explicit release boundaries.
+
 ## UX-K01 — Nature choice
 
 ```text

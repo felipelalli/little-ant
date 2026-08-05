@@ -127,8 +127,12 @@ choices. `IMP-038`, `FOC-044`, `WRK-069`, `UX-104`, and UX-S08 settle `easier
 work` as a deterministic three-candidate shortlist: same-Domain and known-low
 effort are preferences, unknown effort retains a positive chance, selection
 records contextual plus weak relative evidence, and the chosen Brick still
-passes through ordinary focus consent. Resume with `change subject` from the
-same tired-recovery screen.
+passes through ordinary focus consent. `FOC-045`, `WRK-070`, `UX-105`, and
+UX-S09 settle `change subject` as a positive full-path target choice with
+nonrepeating pages, one target-scoped draw, inferred source-branch fatigue,
+decaying target affinity, and a screen-local `[/] menu...` label that avoids
+collision with `[m]ore options...`. Resume with `pause for now` from the same
+tired-recovery screen.
 
 ## Scope rings
 

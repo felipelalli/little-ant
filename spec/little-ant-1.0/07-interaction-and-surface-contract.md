@@ -165,7 +165,11 @@ no-emoji rendering remain `OPEN-UX-001`.
   without an event or another draw. A read-only command returns to that
   interaction. A mutating command resolves it or revalidates it against the
   new revision. The palette guides required arguments. In ordinary input mode,
-  `/` remains literal text.
+  `/` remains literal text. UX-S09 alone labels this unchanged palette `[/]
+  menu...` because that screen also exposes local `[m]ore options...`; the
+  shortcut, action identity, contents, and behavior do not change. This is not
+  a global rename or permission for another screen to change the label without
+  explicit review.
 - **UX-023 [core] — Grammar inspection.** `la grammar`,
   `la grammar --screen <grammar>`, and `la grammar --json` expose the same
   versioned registry used by all surfaces. The current envelope remains the
@@ -500,6 +504,19 @@ no-emoji rendering remain `OPEN-UX-001`.
   affected candidate so that a quiet screen never hides a context switch.
   The zero-candidate recovery is still `OPEN-SKIP-001`; it may not render an
   empty selector, fabricate a candidate, or commit `tired`.
+- **UX-105 [core] — Positive full-path subject choice.** Choosing `change
+  subject` opens UX-S09 and asks what the user would rather work on. Dumb mode
+  shows up to four replay-deterministically sampled target Domains with
+  currently executable Work. Every row spells its complete path with `›`;
+  isolated leaf labels are forbidden. There is no dumb default. `[m]ore
+  options...` pages through the remaining deterministic pool without repeats,
+  rejection evidence, mutation, or a draw; reverse navigation restores the
+  previous page. The action disappears on the final page. Because this screen
+  has a local `more` action, the unchanged UX-022 palette is labeled `[/]
+  menu...` here only. Powered-up or Skill may mark one attributed suggestion
+  with `*`; rejecting it returns to this exact dumb baseline. Selecting a
+  Domain follows WRK-070. Multi-membership, no-Domain, and no-target cases
+  remain explicit open boundaries rather than surface guesses.
 
 ## Status, history, and recovery
 

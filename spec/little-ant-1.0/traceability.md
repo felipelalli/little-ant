@@ -53,9 +53,9 @@ from `70cb5b0`; the failed implementation remains on
 | Composition, sibling locality, Domains, dependencies | `MOD-019..024`, `MOD-031..034`, `OPEN-TREE-001`, `OPEN-DOM-*` | hierarchy and Domain recovery sessions |
 | Importance and `org-sort-tasks` | `IMP-001..016`, `IMP-030..037` | v0 `Order.hs`/tests, canonical importance correction, regression audit |
 | Impact, effort, planning calibration | `IMP-017..029`, `IMP-038`, `DAT-030..037`, calibration profile | estimation/TaskJuggler and tired-recovery sessions |
-| Forecast, hierarchy, Domain and interaction-family continuity, blockers, and opportunity variants | `FOC-001..044` | recovery ledger decisions and fixed-stream UX scenarios |
-| Focus, WIP, skip, time, standing work, delegation | `WRK-001..069` | v0 behavior audit plus skip, recurrence, habit, and delegation sessions |
-| Canonical interaction and dumb REPL | `UX-001..104`, screen catalog | REPL recovery and screen-by-screen review |
+| Forecast, hierarchy, Domain and interaction-family continuity, blockers, and opportunity variants | `FOC-001..045` | recovery ledger decisions and fixed-stream UX scenarios |
+| Focus, WIP, skip, time, standing work, delegation | `WRK-001..070` | v0 behavior audit plus skip, recurrence, habit, and delegation sessions |
+| Canonical interaction and dumb REPL | `UX-001..105`, screen catalog | REPL recovery and screen-by-screen review |
 | Event authority, sparse output, imports, Packs, Calendar | `DAT-001..044` | context-pollution, source safety, Pack, Calendar, and cold-load sessions |
 | Migration and promotion gates | `MIG-001..023` | v0 archive review and failed-rewrite analysis |
 

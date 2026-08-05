@@ -337,8 +337,17 @@ evidence, strong contextual forecast evidence, and ordinary UX-F01 proposal
 for the exact selected Brick without a second draw or automatic focus. Repeat
 from current focus and prove only the served focus is closed and left WIP;
 repeat while another Brick is current and prove that unrelated focus remains.
-Reopen the screen
-and verify `[b]locked or waiting`, `bo[r]ed`, `[l]ess important`, and the
+Reopen UX-S07, select `change subject`, and validate UX-S09: positive wording,
+four complete Domain paths, no dumb default, deterministic nonrepeating
+`[m]ore options...` pages, reverse-page navigation without evidence, and the
+local `[/] menu...` label opening the unchanged command palette. Select one
+target and verify the current-side branch inferred from the paths' divergence,
+one target-scoped draw, decaying source fatigue and target affinity, positive
+later probability everywhere, no automatic focus, and no active-Domain change
+before focus acceptance. Exercise same-parent, different-parent, and
+different-root targets. Keep no-target, no-Domain, and multi-membership cases
+open rather than guessing. Reopen the symptom screen and verify `[b]locked or
+waiting`, `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality
 message appears before a final reaction commits the skip. From a reaction

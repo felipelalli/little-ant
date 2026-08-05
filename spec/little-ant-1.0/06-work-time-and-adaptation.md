@@ -165,6 +165,17 @@
   opens the chosen candidate as an ordinary focus proposal without starting
   it. Reverse navigation before candidate selection records nothing. After
   selection, semantic undo—not screen navigation—compensates the transaction.
+- **WRK-070 [core] — A positive subject target completes the tired reaction.**
+  Selecting one Domain path on UX-S09 atomically records `tired`, the served
+  Brick's ordinary cooldown, the source and target paths, and both FOC-045
+  signals. If the served Brick is current, the transaction closes its focus
+  interval and clears the focus pointer while leaving it WIP; an unrelated
+  current focus is preserved. The core then performs the single target-scoped
+  draw and presents its result through ordinary `Work:`/`Focus?` consent.
+  Reverse navigation and `[m]ore options...` before target selection record
+  nothing. After selection, semantic undo—not screen navigation—compensates
+  the transaction. Drawing or proposing the target never changes active
+  Domain; accepting its focus does so under FOC-017.
 
 ## Time
 

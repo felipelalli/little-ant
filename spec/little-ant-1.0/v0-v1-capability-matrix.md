@@ -118,7 +118,7 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Every served skip records a typed reason and optional verbatim text | `I+T` | **strengthened** | symptom then reaction under `WRK-007..013`, `WRK-047`, `WRK-067..069`, `UX-S01`, `UX-S06..S08`; `tired` may choose easier work while preserving typed evidence and ordinary focus consent | one route per symptom family |
+| Every served skip records a typed reason and optional verbatim text | `I+T` | **strengthened** | symptom then reaction under `WRK-007..013`, `WRK-047`, `WRK-067..070`, `UX-S01`, `UX-S06..S09`; `tired` may choose easier work or a positive full-path subject target while preserving typed evidence and ordinary focus consent | one route per symptom family |
 | `other` requires explanation and repeated evidence triggers taxonomy review | `I+T`, taxonomy tests | **strengthened** | `WRK-012`; never automatic vocabulary mutation | `SCN-WRK-004` |
 | `vague` regresses lifecycle and may create a clarification meta-Brick | `I+T` | **retired** | phase/content/enabling work without stage regression; exact reactions `OPEN-SKIP-001` | vague reaction route |
 | `not_priority`, `meh`, `kill`, and `alternatives` are symptoms | `I+T` | **replaced** | `less_important`, `fear`, and separate terminal/method actions under `WRK-008` | symptom screen review |

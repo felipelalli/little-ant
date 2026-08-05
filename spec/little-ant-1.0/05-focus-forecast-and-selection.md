@@ -313,6 +313,18 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   low-energy recovery, not a new Brick axis or a rewrite of importance.
   If no other executable Work opportunity exists, UX-S08 is not rendered; the
   exact useful recovery remains an explicit `OPEN-SKIP-001` edge case.
+- **FOC-045 [core] — Positive subject change infers the branch left behind.**
+  UX-S09 offers target Domain paths that contain currently executable Work and
+  do not contain the served Brick's current effective Domain path. Selecting
+  one scopes exactly one replacement draw to that target, then presents the
+  selected Work through ordinary focus consent. The current-side child below
+  the source/target paths' deepest shared ancestor receives one bounded
+  replay-deterministic fatigue penalty; the target receives a bounded affinity
+  bonus. With different top-level roots, the whole source root is the
+  current-side branch. Both signals decay with time and intervening accepted
+  work, and all Domains retain positive probability after the one scoped draw.
+  Neither signal changes importance or active Domain. Exact no-target and
+  multi-membership recovery remains under `OPEN-SKIP-001` and `OPEN-DOM-001`.
 
 ## Forecast inputs
 
