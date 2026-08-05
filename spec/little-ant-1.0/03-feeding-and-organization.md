@@ -271,6 +271,20 @@
   Description or enabling-work preview. Rejection returns to the unchanged
   dumb route, and assistance cannot allocate identity or apply descriptive
   content on its own.
+- **FED-040 [core] — Dumb hard recovery reuses ordinary enabling Feed.** The
+  `learn or practice first` route asks `What should be learned or practiced
+  first?` through contextual Feed. The entered title then passes through
+  ordinary Nature confirmation, FED-030 sibling/Domain/Dependency preview,
+  and local importance insertion; the core does not infer that practice is a
+  habit or that learning is atomic. `Break into smaller parts`, `find an easier
+  approach`, and `get help` reuse the existing decomposition, FED-032
+  better-way, and FED-035 support builders respectively.
+- **FED-041 [standard] — Assisted hard recovery changes only the proposal.**
+  Powered-up or Skill may propose one attributed learning/practice Brick,
+  decomposition, easier method, or support target from canonical context. It
+  still enters the corresponding complete dumb preview. Rejection returns to
+  the unchanged dumb route, and assistance cannot classify effort, accept a
+  structure, or create enabling work on its own.
 
 ## Reference flows
 

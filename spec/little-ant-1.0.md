@@ -150,9 +150,13 @@ delegation; all accepted paths reuse explicit prerequisite and handoff
 mechanisms. `FED-037..039`, `WRK-084..086`, `UX-119..121`, and UX-S24..S27
 then settle `vague` by separating a direct Description Raw clarification from
 real context-gathering, decomposition, learning, or support work; the Raw
-revision encoding remains explicitly in `OPEN-RAW-001`. Continue Gate 4 with
-the next unresolved symptom in `OPEN-SKIP-001`, deriving core semantics through
-its dumb UX before mirroring assisted surfaces.
+revision encoding remains explicitly in `OPEN-RAW-001`. `FED-040..041`,
+`WRK-087..088`, `UX-122..123`, and UX-S28..S29 settle `hard` with explicit
+learning/practice, decomposition, easier-method, and support recoveries. A
+shared decomposition preserves `hard` plus its chosen reaction instead of
+silently rewriting the symptom as `big`, and it never classifies Effort.
+Continue Gate 4 with the next unresolved symptom in `OPEN-SKIP-001`, deriving
+core semantics through its dumb UX before mirroring assisted surfaces.
 
 ## Scope rings
 

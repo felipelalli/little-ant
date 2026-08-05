@@ -649,6 +649,21 @@ no-emoji rendering remain `OPEN-UX-001`.
   Feed, and help reuses UX-S22..S23 while carrying provisional `vague` evidence.
   Reverse navigation restores UX-S24. No route records a symptom until its
   final existing preview or explicit skip is accepted under WRK-086.
+- **UX-122 [core] — Hard exposes overlapping recoveries deliberately.**
+  Selecting `hard` opens UX-S28 and offers `[l]earn or practice first`,
+  `[b]reak into smaller parts`, `[f]ind an easier approach`, `[g]et help`,
+  `[s]kip anyway`, and uncertainty, in that order and without a default or
+  personality line. Break goes directly to UX-B00..B02 with `hard` carried;
+  easier approach opens UX-S13; support opens UX-S22; and skip follows
+  WRK-087. Uncertainty explains that difficulty, size, ambiguity, and fear may
+  share a remedy without becoming the same symptom.
+- **UX-123 [core] — Dumb learning recovery asks for a title.** Choosing `learn
+  or practice first` opens UX-S29, whose line editor asks `What should be
+  learned or practiced first?`, shows the quiet English reminder, and retains
+  the ordinary slash palette. Nonblank submission enters contextual Feed and
+  its complete Nature and enabling-structure preview under FED-040. Empty
+  Backspace, Escape, or Left Arrow restores UX-S28. Assistance follows
+  FED-041 and cannot bypass the same preview.
 
 ## Status, history, and recovery
 

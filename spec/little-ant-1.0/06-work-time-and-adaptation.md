@@ -305,6 +305,22 @@
   ordinary cooldown; rejected and provisional routes remain evidence-free.
   Asking for help reuses UX-S22..S23 with `vague` carried rather than `fear`.
   A direct skip from UX-S27 records only `vague` plus cooldown.
+- **WRK-087 [core] — Hard is difficulty, not a forced diagnosis.** Selecting
+  `hard` opens UX-S28 with `learn or practice first`, `break into smaller
+  parts`, `find an easier approach`, `get help`, `skip anyway`, and
+  uncertainty. Hard remains distinct from `big`, `vague`, and `fear`, but may
+  share their recoveries. Choosing decomposition preserves the explicit
+  `hard` symptom and records `break into smaller parts`; it never silently
+  converts the symptom to `big` or records both. A hard reaction is not an
+  EffortProfile classification, hours estimate, or direct effort comparison.
+- **WRK-088 [core] — Hard recoveries commit through their existing previews.**
+  Learning or practice enters FED-040 contextual Feed; decomposition reuses
+  UX-B00..B02; easier approach reuses UX-S13..S14; and support reuses
+  UX-S22..S23. The symptom remains provisional through every builder. The
+  accepted existing preview atomically records `hard` plus the chosen recovery
+  and uses its Dependency or child structure instead of ordinary cooldown.
+  Skip anyway records only `hard` plus cooldown. Rejection and reverse
+  navigation remain evidence-free.
 
 ## Time
 

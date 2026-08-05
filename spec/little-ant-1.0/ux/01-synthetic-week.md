@@ -413,6 +413,16 @@ and direct skip. Confirm only an accepted existing preview records `vague` and
 recovery, while real enabling structure replaces cooldown. Keep Description
 Raw replacement/revision encoding under `OPEN-RAW-001`. Reject one attributed
 assisted proposal and prove the original dumb checkpoint and text survive.
+
+Select `hard` and validate all UX-S28 recoveries without a default or an
+EffortProfile inference. Accept decomposition and verify `hard` plus `break
+into smaller parts`, never a silent rewrite or duplicate `big` symptom. Enter
+UX-S29, cancel once, then submit learning or practice work through ordinary
+Nature confirmation and the full enabling preview. Independently exercise the
+existing better-way and typed-support routes with `hard` carried. Confirm that
+only an accepted final preview records the symptom and that real Dependency or
+child structure replaces cooldown; direct skip records only `hard` plus
+cooldown. Reject one assisted proposal and recover the exact dumb checkpoint.
 Then verify `[b]locked or waiting`,
 `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom

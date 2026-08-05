@@ -1753,6 +1753,64 @@ for one enabling learning Brick. Help reuses UX-S22..S23 with `vague` carried
 provisionally. Skip records only `vague` plus cooldown. Uncertainty explains
 the three mechanisms and returns; reverse navigation restores UX-S24.
 
+## UX-S28 — Hard recovery
+
+```text
+#cdd "Configure database replication"
+
+This feels hard. What would help?
+
+📚 [l]earn or practice first
+🧩 [b]reak into smaller parts
+🔧 [f]ind an easier approach
+🤝 [g]et help
+⏭️ [s]kip anyway
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #mdb "Migrate the database"
+  Orbit › Platform › Database
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #cdd
+```
+
+The deliberately overlapping break action lets a user recover even when
+`hard` was chosen where `big` might also have fit. Accepting that route records
+`hard` plus `break into smaller parts`, not `big`. No choice is a default or an
+effort class. Reverse navigation restores UX-S01 without mutation.
+
+## UX-S29 — Dumb learning-or-practice input
+
+```text
+#cdd "Configure database replication"
+
+What should be learned or practiced first?
+
+›
+
+Tip: write in English when possible.
+
+[/] more...
+
+────────────────────────────────────────
+. #mdb "Migrate the database"
+  Orbit › Platform › Database
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #cdd
+```
+
+Submitting a nonblank title enters ordinary contextual Feed: Nature remains an
+explicit choice, and the complete preview shows sibling placement, effective
+Domain, Dependency, and local importance insertion. The dumb core does not
+assume that practice is a habit or that learning is atomic. Empty Backspace,
+Escape, or Left Arrow restores UX-S28 without mutation.
+
 ## UX-K01 — Nature choice
 
 ```text
