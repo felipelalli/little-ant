@@ -301,6 +301,18 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   non-execution opportunity with ordinary skip and no hard precedence. One
   segment contributes one opportunity regardless of the number of conflicting
   edges, preventing duplicate lottery tickets for the same unresolved cycle.
+- **FOC-044 [core] — Easier-work recovery uses a bounded shortlist.** Choosing
+  `easier work` after `tired` does not invoke the global lottery. The core
+  replay-deterministically samples up to three other currently executable Work
+  opportunities, preferring the served Brick's effective Domain and existing
+  lower-effort evidence while preserving positive probability for missing
+  effort. Hard-gated endpoints are excluded and no candidate is a default.
+  Selecting one records WRK-069 atomically and presents that exact candidate
+  through the ordinary `Work:`/`Focus?` envelope without a second draw.
+  The selection is strong, decaying contextual evidence for similar
+  low-energy recovery, not a new Brick axis or a rewrite of importance.
+  If no other executable Work opportunity exists, UX-S08 is not rendered; the
+  exact useful recovery remains an explicit `OPEN-SKIP-001` edge case.
 
 ## Forecast inputs
 

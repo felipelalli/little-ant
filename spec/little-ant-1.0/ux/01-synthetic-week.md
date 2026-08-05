@@ -328,7 +328,16 @@ UX-S07. Verify its exact `easier work`, `change subject`, `pause for now`,
 `skip anyway`, and uncertainty grammar; prove that merely entering the screen
 records nothing and that `change subject` was never presented as a symptom.
 The reaction consequences remain to be completed before validating active
-Domain and cooldown. Reopen the screen
+Domain and pause behavior. Choose `easier work` and validate UX-S08 with three
+replay-stable currently executable candidates, same-Domain preference, no
+default, and positive admission for missing effort. Cancel once and prove no
+mutation. Then select one number and verify a single atomic `tired` reaction,
+served-Brick cooldown, complete shortlist provenance, weak relative-effort
+evidence, strong contextual forecast evidence, and ordinary UX-F01 proposal
+for the exact selected Brick without a second draw or automatic focus. Repeat
+from current focus and prove only the served focus is closed and left WIP;
+repeat while another Brick is current and prove that unrelated focus remains.
+Reopen the screen
 and verify `[b]locked or waiting`, `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality

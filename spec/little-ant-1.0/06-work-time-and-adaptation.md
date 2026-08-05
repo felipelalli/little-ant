@@ -152,9 +152,19 @@
 - **WRK-068 [core] — Tired offers recovery, not diagnosis.** The `tired`
   reaction offers `easier work`, `change subject`, `pause for now`, explicit
   `skip anyway`, and uncertainty. These are provisional human choices on
-  UX-S07; selecting `tired` alone records no evidence. Their exact forecast,
-  effort-evidence, Domain-scope, and pause consequences remain part of the
+  UX-S07; selecting `tired` alone records no evidence. `Easier work` follows
+  WRK-069. The exact Domain-scope and pause consequences remain part of the
   bounded `OPEN-SKIP-001` route rather than being guessed from the symptom.
+- **WRK-069 [core] — Choosing easier work completes the reaction.** UX-S08
+  selection is the final `tired` reaction. In one event-bound transaction it
+  records `tired`, the served Brick's ordinary cooldown, the complete shown
+  candidate set, the chosen candidate, IMP-038 weak relative-effort evidence,
+  and FOC-044 contextual forecast evidence. If the served Brick is current,
+  the same transaction closes its focus interval and clears the focus pointer
+  while leaving it WIP; an unrelated current focus is never cleared. It then
+  opens the chosen candidate as an ordinary focus proposal without starting
+  it. Reverse navigation before candidate selection records nothing. After
+  selection, semantic undo—not screen navigation—compensates the transaction.
 
 ## Time
 

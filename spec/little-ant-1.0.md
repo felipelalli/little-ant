@@ -123,8 +123,12 @@ provisional placement or confidence mutation. Importance ordering,
 contradiction, and validation now have complete reviewed semantics; only the
 ordinary ordering edge cases in `OPEN-IMP-001` remain. `WRK-068`, `UX-103`,
 and UX-S07 begin the next Gate 4 flow by settling the visible `tired` recovery
-choices. Resume with the exact `easier work` consequence, including whether
-its bounded choice supplies relative effort evidence.
+choices. `IMP-038`, `FOC-044`, `WRK-069`, `UX-104`, and UX-S08 settle `easier
+work` as a deterministic three-candidate shortlist: same-Domain and known-low
+effort are preferences, unknown effort retains a positive chance, selection
+records contextual plus weak relative evidence, and the chosen Brick still
+passes through ordinary focus consent. Resume with `change subject` from the
+same tired-recovery screen.
 
 ## Scope rings
 

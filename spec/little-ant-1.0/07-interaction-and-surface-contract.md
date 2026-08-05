@@ -488,6 +488,18 @@ no-emoji rendering remain `OPEN-UX-001`.
   subject`, `pause for now`, `skip anyway`, and uncertainty. The screen is a
   reaction choice, so it has no personality line and records nothing until a
   final reaction is accepted. Reverse navigation restores UX-S01 exactly.
+- **UX-104 [core] — Easier-work shortlist.** Choosing `easier work` opens
+  UX-S08 with up to three fully cited executable candidates and asks which
+  feels easiest to tackle now. Visible `[1]`, `[2]`, and `[3]` bindings select
+  by stable screen position; finite choice does not need to manufacture a
+  mnemonic from arbitrary titles. There is no `*`, hidden ranking, or effort
+  value. `[?] I don't know` explains the bounded comparison without choosing;
+  reverse navigation restores UX-S07 without mutation. Selecting a candidate
+  follows WRK-069 and then renders the normal `Work:`/`Focus?` proposal for
+  that candidate. Differing effective Domains are shown beneath only the
+  affected candidate so that a quiet screen never hides a context switch.
+  The zero-candidate recovery is still `OPEN-SKIP-001`; it may not render an
+  empty selector, fabricate a candidate, or commit `tired`.
 
 ## Status, history, and recovery
 

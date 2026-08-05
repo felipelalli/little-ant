@@ -1085,9 +1085,53 @@ You're tired. What would help?
 
 The choices are recovery proposals rather than new symptoms. Selecting
 `tired` alone records nothing; reverse navigation restores UX-S01 exactly.
-The precise consequence of each final reaction, including whether `easier
-work` contributes relative effort evidence, remains in `OPEN-SKIP-001` until
-the next screen is reviewed.
+`Easier work` follows UX-S08. The precise consequences of `change subject` and
+`pause for now` remain in `OPEN-SKIP-001`.
+
+## UX-S08 — Easier-work shortlist
+
+Selecting `[e]asier work` on UX-S07 opens one bounded, uncommitted choice:
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+Which one feels easiest to tackle right now?
+
+[1] #up "Update the project notes"
+[2] #rei "Reply to Elena's invitation"
+[3] #dwd "Draft the weekly digest"
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The core supplies exactly three candidates when at least three exist and shows
+the one or two available candidates otherwise. They follow FOC-044: current
+executability is required, the served Brick is excluded, same-Domain and
+lower-effort evidence are favored, and missing effort retains positive
+probability. A candidate from another Domain shows its Domain path as a quiet
+indented line beneath its citation; identical paths are omitted. With no
+candidate, UX-S08 is not rendered; the exact useful recovery remains
+`OPEN-SKIP-001` and may not commit or fabricate anything.
+
+Pressing a visible number accepts WRK-069 atomically and then opens the exact
+candidate in the ordinary UX-F01 focus proposal. The candidate is not focused
+until `yes`. The selection supplies strong contextual forecast evidence and
+weak relative-effort evidence under IMP-038; it assigns neither hours nor an
+EffortProfile class. `?` explains that distinction and returns. Escape,
+empty-state Backspace, or Left Arrow restores UX-S07 with no symptom,
+cooldown, evidence, focus change, or draw. Once a number has committed the
+reaction, reverse navigation offers semantic undo under UX-019 rather than
+silently traversing the mutation.
 
 ## UX-K01 — Nature choice
 

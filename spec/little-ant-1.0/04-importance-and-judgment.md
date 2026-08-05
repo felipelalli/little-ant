@@ -257,6 +257,17 @@ Is
 - **IMP-029 [standard] — Actuals remain evidence.** Observed hours never
   rewrite the historical estimate. A large mismatch may provoke a profile or
   scope review.
+- **IMP-038 [standard] — Recovery choices are weak relative evidence.** When
+  UX-S08 asks which of three currently executable opportunities feels easiest
+  to tackle while tired, selecting one records weak, attributed evidence that
+  its offered work unit requires less effort than each unchosen work unit.
+  This bounded contextual comparison never assigns a numeric estimate or an
+  EffortProfile class. It is weaker than a dedicated effort judgment because
+  current energy may affect the answer. For finite work with comparable
+  current scopes it may inform later Brick effort classification; for a run,
+  occurrence, or checklist session it describes only the offered work unit
+  and never the standing Brick's unbounded lifetime. The same choice is strong
+  short-lived forecast evidence under FOC-044.
 
 Importance, impact, effort, and phase remain independent. None is a hidden
 sort key for another. The remaining impact/effort assistance grammar and
