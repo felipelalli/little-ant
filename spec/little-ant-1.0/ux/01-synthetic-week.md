@@ -349,10 +349,14 @@ and no UX-S01. Uncertainty and reverse navigation must restore the exact
 pending opportunity. No variant may show `*` or an internal source identifier.
 
 Force `importance_run_review` to win and validate UX-O01 without `Review:` or
-`*`. In lottery cadence, accept exactly one relation, verify a stable no-draw
-result, retain the marker when the run remains unresolved, and record an
-`importance_maintenance` continuity bonus. Use fixed streams to show both a
-subsequent same-family win and an unrelated positive-tail win after `[n]ext`.
+`*`. In lottery cadence, accept exactly one relation and validate the compact
+UX-O04 `Importance recorded` result without repeated subjects or proposition.
+Verify a stable no-draw result, retain the marker when the run remains
+unresolved, and record an `importance_maintenance` continuity bonus. Use fixed
+streams to show both a subsequent same-family win and an unrelated
+positive-tail win after `[n]ext`.
+In a second replay, let the same answer settle the run and verify the equally
+compact `Order reviewed` variant and one fewer unresolved review.
 Exercise first-skip nearby replacement, second-skip cooldown, uncertainty, and
 reverse navigation. Then enter `/order` without an argument and validate UX-O02
 with `all groups` first and marked as the factory default, contextual group and

@@ -354,9 +354,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   `importance_run_review` renders the ordinary proposition-led importance
   comparison without a `Review:` heading or `*`. `[m]ore important` and
   `[l]ess important` each record one answer, complete the current lottery
-  interaction, and return a stable result without drawing. If the run remains
-  unresolved, the same marker stays counted and FOC-041 boosts subsequent
-  `importance_maintenance` draws; explicit `[n]ext` still owns the next global
+  interaction, and return the minimal UX-O04 result without drawing. If the
+  run remains unresolved, the same marker stays counted and FOC-041 boosts
+  subsequent `importance_maintenance` draws; explicit `[n]ext` still owns the next global
   draw. `skip` follows the bounded alternative-comparator behavior in IMP-031,
   while uncertainty and reverse navigation record nothing. Explicit `/order`
   uses the same screen and `org-sort-tasks` state but, after an accepted answer,
@@ -406,6 +406,17 @@ no-emoji rendering remain `OPEN-UX-001`.
   motion-disabled output never receives cursor animation or splash bytes.
   Cancellation leaves canonical data unchanged; malformed input stops on the
   ordinary typed startup error instead of displaying false completion.
+- **UX-095 [core] — Results belong to interaction boundaries.** A guided
+  classification or comparison sequence does not render a success receipt
+  after each accepted answer. The accepted answer either advances directly to
+  the next step in the same cycle or, when it closes the cycle, produces one
+  stable result. Binary insertion therefore acknowledges only final placement,
+  Nature or Template discovery acknowledges only resolved classification, and
+  explicit `/order` follows UX-093. A lottery-selected
+  `importance_run_review` is intentionally a one-comparison cycle under
+  IMP-031, so its single accepted relation renders the minimal UX-O04 result.
+  That result acknowledges the interaction boundary, not a new forecast draw
+  or a general rule that every `more` or `less` answer needs a receipt.
 
 ## Status, history, and recovery
 

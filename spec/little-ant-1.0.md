@@ -104,7 +104,10 @@ Brick/Domain autocomplete; `all groups` is the first factory default and both
 and UX-O03 settle boundary-only continuous-flow results, exit, resume,
 completion, and their distinction from undo. `DAT-044`, `UX-094`, and
 UX-R02 record the honest JSONL cold-load splash; its final ASCII-art polish
-remains a Gate 2 visual review. Resume with the stable lottery one-pair result.
+remains a Gate 2 visual review. `UX-095` and UX-O04 settle results per cycle,
+not per answer: a lottery review has one pair and one minimal receipt, while
+multi-step insertion, classification, and `/order` remain uninterrupted until
+a real boundary. Resume with the importance-comparison skip flow.
 
 ## Scope rings
 

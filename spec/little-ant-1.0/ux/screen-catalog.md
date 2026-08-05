@@ -1619,6 +1619,33 @@ Personal › Housekeeping
 Both variants retain the ordinary persistent footer below the shown content.
 Neither performs an automatic forecast draw.
 
+## UX-O04 — Lottery importance receipt
+
+The one accepted relation in a lottery-selected `importance_run_review` ends
+that deliberately one-comparison cycle with only a compact receipt:
+
+```text
+✓ Importance recorded.
+
+[n]ext    [/] more...
+```
+
+If that relation also resolves the sibling run, the receipt becomes:
+
+```text
+✓ Order reviewed.
+
+[n]ext    [/] more...
+```
+
+The ordinary footer remains below either variant. The result repeats neither
+Brick, proposition, nor explanation; those remain available through
+contextual `?`, `/history`, and structured inspection. It contains no
+personality phrase and performs no draw. `[n]ext` invokes the global forecast,
+where FOC-041 may favor another importance-maintenance opportunity without
+guaranteeing one. Left Arrow or contextual `/undo` can preview compensation of
+the recorded comparison.
+
 ## UX-A01 — External-effect confirmation
 
 When an external-effect approval is selected by the ordinary lottery:
