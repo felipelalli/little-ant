@@ -440,15 +440,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   Uncertainty opens UX-O07. Escape preserves the pending resolution and the
   prior coherent effective order; it never silently chooses by recency.
 - **UX-098 [core] — Three-way contradiction aid.** UX-O07 asks which one of
-  the three affected siblings the user would choose if only one could be done
-  now. It has no default, model answer, or hidden impact calculation. Selecting
+  the three affected siblings should be chosen if only one could ever be done.
+  This counterfactual measures importance, not urgency or present availability.
+  It has no default, model answer, or hidden impact calculation. Selecting
   one records two direct current judgments placing that winner above each
   other Brick, retires only incompatible current edges, preserves an applicable
   coherent relation between the two non-winners, and resumes the interrupted
   cadence. The visible shortcuts are stable unique characters from the three
   displayed choices under UX-013. A second uncertainty response and minimal
-  cycles longer than three remain under `OPEN-IMP-002` rather than being
-  guessed by the dumb host.
+  cycles longer than three follow UX-101 rather than expanding this screen.
 - **UX-099 [core] — Provocative validation surface.** An FOC-042
   `importance_validation` renders the exact ordinary UX-O01 proposition and
   actions, with no `Review:`, `Validation:`, inferred direction, `*`, or other
@@ -466,6 +466,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   segment when one exists; UX-O09 appears only when that direct cycle reaches
   its next real result boundary. Repeated consequential uncertainty may later
   propose IMP-016 investigation work through an explicit confirmation.
+- **UX-101 [core] — Iterative longer-cycle aid.** A minimal cycle longer than
+  three renders UX-O07 repeatedly over the deterministic triads in IMP-036;
+  it never lists the whole cycle as one giant finite choice and introduces no
+  new grammar. After each winner the core recomputes the cycle before deciding
+  whether another triad is necessary. If none remains, the interrupted cadence
+  resumes or reaches its ordinary result boundary. Contextual help may show the
+  complete cycle and current triad, while the primary screen remains bounded.
+  Uncertainty at any triad follows UX-100 and ends the aid.
 
 ## Status, history, and recovery
 

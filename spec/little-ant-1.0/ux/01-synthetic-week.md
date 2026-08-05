@@ -212,6 +212,13 @@ but has zero current influence. Sweep decay horizon, fresh threshold,
 transitive path penalty, provocative target rate, no-candidate fallback, and
 fixed random streams. Explicit `/order` must never emit the provocative pair.
 
+Create the fresh cycle `A > B > C > D > A`, enter uncertainty, and verify the
+first UX-O07 triad is deterministically `D`, `A`, and `B`. Choose `D`; if the
+remaining cycle is `D > B > C > D`, verify the next triad is `D`, `B`, and `C`.
+No screen may say `right now`, present all four as one giant choice, or ask a
+triad after coherence. Replay a second uncertainty on the first and later
+triads and prove both end through the same UX-O09 semantics.
+
 ## Day 3 — Forecast, Domain, and blockers
 
 ### SCN-FOC-001 — Same-subject continuity

@@ -51,11 +51,11 @@ from `70cb5b0`; the failed implementation remains on
 | UUIDv7 identity, mnemonic handles, repeated titles, duplicate suspicion, merge | `MOD-008..012`, `FED-004`, `FED-015..018`, `UX-075..076`, `OPEN-MERGE-001`, `OPEN-REF-001` | v0 audit plus the 1.0 identity and human-reference redesign |
 | Brick axes, Natures, Templates, ListEntries | `MOD-002..005`, `MOD-013..018`, `MOD-025..053`, `OPEN-LST-001` | conceptual sessions and Nature/Template screen reviews |
 | Composition, sibling locality, Domains, dependencies | `MOD-019..024`, `MOD-031..034`, `OPEN-TREE-001`, `OPEN-DOM-*` | hierarchy and Domain recovery sessions |
-| Importance and `org-sort-tasks` | `IMP-001..016`, `IMP-030..035` | v0 `Order.hs`/tests, canonical importance correction, regression audit |
+| Importance and `org-sort-tasks` | `IMP-001..016`, `IMP-030..036` | v0 `Order.hs`/tests, canonical importance correction, regression audit |
 | Impact, effort, planning calibration | `IMP-017..029`, `DAT-030..037`, calibration profile | estimation/TaskJuggler sessions |
 | Forecast, hierarchy, Domain and interaction-family continuity, blockers, and opportunity variants | `FOC-001..043` | recovery ledger decisions and fixed-stream UX scenarios |
 | Focus, WIP, skip, time, standing work, delegation | `WRK-001..067` | v0 behavior audit plus skip, recurrence, habit, and delegation sessions |
-| Canonical interaction and dumb REPL | `UX-001..100`, screen catalog | REPL recovery and screen-by-screen review |
+| Canonical interaction and dumb REPL | `UX-001..101`, screen catalog | REPL recovery and screen-by-screen review |
 | Event authority, sparse output, imports, Packs, Calendar | `DAT-001..044` | context-pollution, source safety, Pack, Calendar, and cold-load sessions |
 | Migration and promotion gates | `MIG-001..023` | v0 archive review and failed-rewrite analysis |
 

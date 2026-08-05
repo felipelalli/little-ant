@@ -175,6 +175,15 @@ Is
   Explicit `/order` may continue with an unaffected segment rather than trap
   the user. Repeated material uncertainty may invoke the proposal-only
   investigation policy in IMP-016, but never creates a Brick automatically.
+- **IMP-036 [core] — Longer cycles reduce to bounded three-way judgments.** A
+  fresh minimal cycle longer than three never creates an unbounded choice
+  screen. The resolver chooses the pending contrary edge's two endpoints plus
+  the next sibling on the conflicting path, asks the same UX-O07 three-way
+  counterfactual, records its winner above the other two, retires incompatible
+  current edges, and recomputes the smallest remaining cycle. It repeats only
+  while a cycle remains. Each step is deterministic from the same evidence and
+  creates no judgment about the two non-winners. A second uncertainty response
+  at any step follows IMP-035 immediately rather than forcing the remainder.
 
 ## Expected impact
 

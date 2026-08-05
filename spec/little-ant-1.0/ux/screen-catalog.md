@@ -1731,7 +1731,7 @@ Choosing uncertainty on UX-O06 opens one direct temporal tradeoff:
 ```text
 Let's untangle this:
 
-If you could do only one right now, which would it be?
+If only one of these could ever be done, which one should it be?
 
 [a] #a "A"
 [b] #b "B"
@@ -1747,6 +1747,13 @@ edges incompatible with that answer retire from current calculation, while a
 still-coherent relation between the other two may remain. This resolves the
 three-way cycle without pretending to have re-evaluated the losers against
 each other.
+
+A longer cycle reuses this exact composition over deterministic overlapping
+triads. For `A > B > C > D > A`, the first aid compares `D`, `A`, and `B`.
+If `D` wins and `D > B > C > D` remains, the next aid compares `D`, `B`, and
+`C`. Every answer recomputes the smallest cycle; no unnecessary later triad is
+shown. The counterfactual deliberately says `ever`, not `right now`, because it
+measures importance rather than urgency.
 
 ## UX-O08 — Provocative transitive validation
 

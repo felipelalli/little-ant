@@ -115,8 +115,11 @@ UX-O06..O08 settle temporal confidence and explicit fresh-cycle resolution.
 `org-sort-tasks` and explicit `/order`. `IMP-035`, `FOC-043`, `UX-100`, and
 UX-O09 settle a second uncertainty response without forced judgment: retain
 the prior coherent order, lower local confidence, and revisit the segment
-later. Resume with longer fresh cycles or the provocative-validation skip in
-`OPEN-IMP-002`, or advance to the next Gate 4 flow.
+later. `IMP-036` and `UX-101` resolve longer fresh cycles through repeated
+bounded UX-O07 triads using the importance-only counterfactual `If only one of
+these could ever be done...`; urgency never enters the question. Resume with
+the provocative-validation skip in `OPEN-IMP-002`, or advance to the next Gate
+4 flow.
 
 ## Scope rings
 
