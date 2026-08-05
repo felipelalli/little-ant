@@ -49,8 +49,9 @@
   that comparison and ends only the current lottery interaction; if the run
   remains unresolved, its review marker stays pending. The first ordering
   skip may try the bounded nearby alternative required by IMP-008, while the
-  second ends the interaction with provisional confidence and review-specific
-  cooldown. Explicit `/order` instead enters continuous maintenance: after
+  second ends that lottery interaction with provisional confidence and
+  review-specific cooldown. Explicit `/order` instead enters continuous
+  maintenance: after
   each accepted answer it asks the next pair from the same algorithm
   immediately, until the selected scope is coherent or the user exits. Both
   cadences read and write the same comparison history, checkpoints, current
@@ -96,11 +97,18 @@ Is
   things are close are different evidence and must not become false equality.
 - **IMP-008 [core] — Nearby alternative.** The first ordering skip selects,
   replay-deterministically, another eligible sibling one to three positions
-  above or below the current comparison neighborhood.
+  above or below the current comparison neighborhood. The same comparison
+  grammar redraws immediately with the replacement; no acknowledgment or
+  explanatory interstitial interrupts either ordering cadence.
 - **IMP-009 [core] — Provisional uncertain placement.** If the alternative is
   also skipped, the Brick is placed near the last comparator with low
-  importance confidence. A `tie-break for me` skip subreason may delegate a
-  strict provisional direction but still triggers a nearby validation attempt.
+  importance confidence. In lottery cadence this closes the selected cycle;
+  in explicit `/order` cadence the next unresolved pair appears immediately.
+  A pass can therefore finish with a complete deterministic order and pending
+  low-confidence placements; those placements schedule later review rather
+  than keeping the direct command in a loop. A `tie-break for me` skip
+  subreason may delegate a strict provisional direction but still triggers a
+  nearby validation attempt.
 - **IMP-010 [core] — Uncertainty pressure.** Provisional placement remains a
   complete deterministic order while creating bounded future pressure for
   another comparison. It never blocks feeding or ordinary focus.

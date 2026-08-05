@@ -107,7 +107,10 @@ UX-R02 record the honest JSONL cold-load splash; its final ASCII-art polish
 remains a Gate 2 visual review. `UX-095` and UX-O04 settle results per cycle,
 not per answer: a lottery review has one pair and one minimal receipt, while
 multi-step insertion, classification, and `/order` remain uninterrupted until
-a real boundary. Resume with the importance-comparison skip flow.
+a real boundary. `UX-096` and UX-O05 settle the ordinary two-skip path: nearby
+redraw first, then provisional placement; direct `/order` continues while a
+lottery review returns a compact result. Resume with contradiction and local
+recalibration UX.
 
 ## Scope rings
 

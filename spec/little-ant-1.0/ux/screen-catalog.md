@@ -1619,6 +1619,23 @@ Personal › Housekeeping
 Both variants retain the ordinary persistent footer below the shown content.
 Neither performs an automatic forecast draw.
 
+If the pass finishes with provisional placements, the same completed variant
+replaces the coherence sentence with the unresolved confidence count:
+
+```text
+Order reviewed:
+
+Personal › Housekeeping
+
+6 comparisons recorded.
+2 placements still need review.
+
+[n]ext    [/] more...
+```
+
+Those placements are already deterministic and usable; `need review` means
+future low-confidence maintenance, not that `/order` is blocked or incomplete.
+
 ## UX-O04 — Lottery importance receipt
 
 The one accepted relation in a lottery-selected `importance_run_review` ends
@@ -1645,6 +1662,28 @@ personality phrase and performs no draw. `[n]ext` invokes the global forecast,
 where FOC-041 may favor another importance-maintenance opportunity without
 guaranteeing one. Left Arrow or contextual `/undo` can preview compensation of
 the recorded comparison.
+
+## UX-O05 — Lottery provisional-placement result
+
+The second skip in a lottery-selected importance cycle places the subject
+provisionally and returns one honest no-draw result:
+
+```text
+Positioned for now:
+
+#asth "Ask someone to help"
+
+Little Ant will revisit its importance later.
+
+[n]ext    [/] more...
+```
+
+The persistent footer retains the parent and Domain context. The result creates
+no equality or comparison edge, does not claim that the Brick is unimportant,
+and does not expose a numeric confidence score. `[n]ext` returns to the global
+forecast after the review-specific cooldown has been recorded. Contextual
+inspection exposes the skipped comparators, provisional position, and future
+review pressure.
 
 ## UX-A01 — External-effect confirmation
 

@@ -175,7 +175,11 @@ labels.
 
 Skip one comparison, receive a replay-deterministic sibling one to three
 positions away, then skip again. Validate provisional nearby placement,
-visible low confidence, and no false equality.
+visible low confidence, and no false equality. In lottery cadence, prove the
+first skip redraws UX-O01 immediately without an interstitial and the second
+renders UX-O05 without a draw. In `/order`, prove both prompts use the same
+comparators but the second skip advances immediately; complete the pass and
+validate the UX-O03 count of placements still needing review.
 
 ### SCN-IMP-003 — Contradiction
 

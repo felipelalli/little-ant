@@ -417,6 +417,16 @@ no-emoji rendering remain `OPEN-UX-001`.
   IMP-031, so its single accepted relation renders the minimal UX-O04 result.
   That result acknowledges the interaction boundary, not a new forecast draw
   or a general rule that every `more` or `less` answer needs a receipt.
+- **UX-096 [core] — Ordering-skip cadence.** The first `skip` on UX-O01 records
+  no importance edge and immediately redraws the same proposition with the
+  replay-deterministic nearby sibling from IMP-008. It has no receipt,
+  personality copy, or explanatory heading; contextual `?` can explain the
+  changed comparator. Skipping that replacement commits the low-confidence
+  placement from IMP-009. In explicit `/order`, the next unresolved pair
+  appears immediately and the final UX-O03 summary reports how many placements
+  still need review. In lottery cadence, the second skip ends the cycle with
+  UX-O05, applies review-specific cooldown, and performs no draw. Neither skip
+  means equality, `less important`, nor permanent unimportance.
 
 ## Status, history, and recovery
 
