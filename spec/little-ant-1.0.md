@@ -120,9 +120,13 @@ bounded UX-O07 triads using the importance-only counterfactual `If only one of
 these could ever be done...`; urgency never enters the question. Resume with
 `IMP-037`, `UX-102`, and UX-O10 settle provocative-validation skip without
 provisional placement or confidence mutation. Importance ordering,
-contradiction, and validation now have complete reviewed semantics; only the
-ordinary ordering edge cases in `OPEN-IMP-001` remain. `WRK-068`, `UX-103`,
-and UX-S07 begin the next Gate 4 flow by settling the visible `tired` recovery
+contradiction, and validation now have complete reviewed semantics.
+`IMP-040..044`, `UX-134..138`, and UX-O11..O15 settle the ordinary
+comparison's honest-answer tree, including node-local question-mark behavior,
+pair-local `either_order`, relationship-only investigation work, a bounded
+nearby aid, and explicit provisional placement. Only the remaining ordinary
+ordering edges in `OPEN-IMP-001` remain. `WRK-068`, `UX-103`, and UX-S07 begin
+the next Gate 4 flow by settling the visible `tired` recovery
 choices. `IMP-038`, `FOC-044`, `WRK-069`, `UX-104`, and UX-S08 settle `easier
 work` as a deterministic three-candidate shortlist: same-Domain and known-low
 effort are preferences, unknown effort retains a positive chance, selection

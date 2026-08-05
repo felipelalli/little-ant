@@ -434,9 +434,9 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-096 [core] — Ordering-skip cadence.** The first `skip` on UX-O01 records
   no importance edge and immediately redraws the same proposition with the
   replay-deterministic nearby sibling from IMP-008. It has no receipt,
-  personality copy, or explanatory heading; contextual `?` can explain the
-  changed comparator. Skipping that replacement commits the low-confidence
-  placement from IMP-009. In explicit `/order`, the next unresolved pair
+  personality copy, or explanatory heading; UX-O11's read-only context can
+  explain the changed comparator. Skipping that replacement commits the
+  low-confidence placement from IMP-009. In explicit `/order`, the next unresolved pair
   appears immediately and the final UX-O03 summary reports how many placements
   still need review. In lottery cadence, the second skip ends the cycle with
   UX-O05, applies review-specific cooldown, and performs no draw. Neither skip
@@ -747,6 +747,38 @@ no-emoji rendering remain `OPEN-UX-001`.
   accepted question, confirmation, and canonical reaction boundary. It cannot
   collapse the tree into an unreviewed classification, add a branch, answer on
   behalf of the human, or turn model uncertainty into core evidence.
+- **UX-134 [core] — Importance uncertainty begins with understanding.**
+  Question mark on UX-O01 opens UX-O11 at IMP-040 Q0. Every Q0..Q8 screen
+  retains the two complete Brick citations and ordinary footer but shows only
+  one binary question. It has no inferred direction, equality, urgency,
+  impact, or model-selected answer. Reverse navigation restores the preceding
+  question and, from Q0, the exact pending UX-O01 comparison.
+- **UX-135 [core] — Convergent navigation preserves meaning.** When IMP-041
+  permits question mark and `no` to reach the same next screen, the envelope
+  preserves which local answer occurred even though neither becomes a domain
+  event. A later branch may rely only on an explicit `yes`; it cannot reinterpret
+  an earlier uncertainty as rejection. The UI keeps the ordinary
+  `[y]es · [n]o · [?] I don't know` grammar and does not disclose technical
+  transition-policy names.
+- **UX-136 [core] — Importance leaves preview their exact effect.** A direct
+  A/B result opens UX-O12; `either_order` opens UX-O13; investigation opens
+  UX-O14; and provisional placement opens UX-O15. Each preview names what will
+  be recorded and what will remain unresolved, exposes a visible default only
+  when mechanically derived from the accepted tree, and returns to its
+  decisive question on reverse navigation. No tree question, context view, or
+  unaccepted leaf changes order, evidence, review pressure, or random state.
+- **UX-137 [core] — Inspection and investigation remain ordinary tools.** A
+  context-inspection leaf opens the existing read-only `/show` projection for
+  exactly A or B, then returns to Q0 or Q2 without losing the comparison.
+  Investigation uses UX-O14's dumb English input and the ordinary Feed preview
+  before creating anything. Its final preview visibly links the new Brick to
+  the A/B importance review without claiming a Dependency on either Brick.
+- **UX-138 [standard] — Assisted importance remains advisory.** Skill or
+  powered-up mode may summarize existing context, mark one current binary
+  answer, or propose one investigation method and title with attribution. It
+  may suggest `either_order` when evidence supports indifference, but must
+  traverse the same confirmation and cannot record a direction, symmetric
+  evidence, provisional position, or investigation Brick automatically.
 
 ## Status, history, and recovery
 

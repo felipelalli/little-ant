@@ -2418,9 +2418,10 @@ importance-maintenance opportunity is more likely but never guaranteed.
 
 The first `skip` may replace the comparator with one bounded nearby alternative
 under IMP-008. A second skip ends the interaction, retains provisional order,
-and applies review cooldown. `?` may expose the complete sibling run, its
-entered or assisted source, applicable evidence, and why this pair is
-unresolved; it never answers. Reverse navigation preserves the pending review.
+and applies review cooldown. `?` enters UX-O11; its read-only inspection may
+expose the complete sibling run, entered or assisted source, applicable
+evidence, and why this pair is unresolved without answering. Reverse
+navigation preserves the pending review.
 
 When entered through explicit `/order`, UX-O01 is visually identical. The
 cadence changes only after an accepted direction: the core immediately renders
@@ -2720,6 +2721,133 @@ draw. Its pair-specific cooldown is interaction history, not a persistent
 review marker, so the unresolved-review footer count does not increase. The
 independent validator may consider the same never-directly-asked pair again
 after cooldown if its ordinary configured sampling branch selects it.
+
+## UX-O11 — Guided importance discovery
+
+Question mark on UX-O01 starts IMP-040 with the first displayed Brick:
+
+```text
+#a "Launch the landing page"
+#b "Interview prospective customers"
+
+Do you understand what result #a is meant to produce
+and what would be lost if it were never done?
+
+[y]es    [n]o    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #p "Launch the product"
+  Work › Product launch
+. Ordered: Mon, Aug 3, 09:08
+       Now: Mon, Aug 3, 09:11
+. 21 bricks, 7 raws, 7 reviews
+  mode: dumb, focus: idle
+```
+
+Successive screens ask exactly one Q0..Q8 question while retaining both Brick
+citations. Node-local question-mark behavior follows IMP-041: it may converge
+on the same recovery screen as `no` without becoming a negative answer.
+Inspection opens `/show` and returns to the applicable checkpoint. Reverse
+navigation restores the preceding question; from Q0 it restores UX-O01 with
+the same pair and sorter state.
+
+## UX-O12 — Discovered importance confirmation
+
+When Q4 explicitly chooses the first Brick:
+
+```text
+Importance judgment:
+
+#a "Launch the landing page"
+
+    is more important than
+
+#b "Interview prospective customers"
+
+Because, if only one could ever be completed, you chose #a.
+
+Record this judgment?
+
+*[y]es    [n]o    [?] I don't know
+[/] more...
+```
+
+The reverse direction uses the same composition with the citations swapped.
+`yes`, `*`, or Enter records exactly one direct human edge and resumes the
+owning ordering cadence. `no` returns to the decisive counterfactual;
+uncertainty returns there with its alternate probe. Reverse navigation records
+nothing.
+
+## UX-O13 — Either-order confirmation
+
+When Q6 explicitly accepts either relative order:
+
+```text
+Ordering judgment:
+
+Either order is fine between
+
+#a "Buy toilet paper"
+#b "Buy milk"
+
+Place them next to each other in either deterministic order?
+
+*[y]es    [n]o    [?] I don't know
+[/] more...
+```
+
+Acceptance records pair-local `either_order` evidence under IMP-042, not
+equality or a strict direction. During insertion the subject is placed beside
+the comparator using the versioned stable tie-break; an existing maintenance
+run may preserve its stable local order. The screen does not promise permanent
+adjacency. `no`, uncertainty, and reverse navigation return to Q6 without
+mutation.
+
+## UX-O14 — Importance investigation input
+
+An accepted Q1, Q3, or Q7 investigation leaf opens contextual Feed:
+
+```text
+More evidence is needed to compare:
+
+#a "Launch the landing page"
+#b "Interview prospective customers"
+
+What would help determine which Brick is more important?
+
+›
+
+Tip: write in English when possible.
+
+[/] more...
+```
+
+The dumb core supplies no method or title. Enter proceeds through ordinary
+Nature, placement, and Feed confirmation; the preview identifies the A/B
+importance review that will wait for this investigation without making either
+Brick blocked. Escape or empty-buffer Backspace restores the decisive tree
+question with the draft rules of UX-019. Assisted proposals follow UX-138.
+
+## UX-O15 — Provisional-placement confirmation
+
+When Q8 explicitly declines the bounded nearby comparison:
+
+```text
+No honest direction was found.
+
+Keep a deterministic provisional position near the current comparator
+and review it later?
+
+*[y]es    [n]o    [?] I don't know
+[/] more...
+```
+
+Acceptance follows IMP-044: it creates no comparison, equality,
+`either_order`, or skip evidence. It records only the deterministic placement,
+low confidence, `uncertain_after_help` reason, and bounded future review
+pressure. `no`, uncertainty, and reverse navigation return to Q8 without
+mutation.
 
 ## UX-A01 — External-effect confirmation
 

@@ -95,16 +95,20 @@ Is
 ```
 
 - **IMP-006 [core] — Directional answers.** `more important` records X above
-  Y; `less important` records Y above X; `skip` records no edge; `?` asks for
-  information or help and restores the same pending comparison. Importance
-  comparisons do not use `yes` or `no`, because naming both directions is more
-  precise than interpreting a negative proposition. The mnemonic `m/l` pair
+  Y; `less important` records Y above X; `skip` records no edge; `?` enters
+  the IMP-040 honest-answer tree while preserving the pending comparison.
+  Importance comparisons do not use `yes` or `no`, because naming both
+  directions is more precise than interpreting a negative proposition. The
+  mnemonic `m/l` pair
   also supports fast repeated ordering rounds and is conveniently close on
   common Latin keyboard layouts; semantics remain authoritative on layouts
   where that physical convenience does not hold.
 - **IMP-007 [core] — No equality answer.** The strict order has no
   `equally important` response. Not knowing, not caring now, and believing two
   things are close are different evidence and must not become false equality.
+  An explicit `either_order` judgment under IMP-042 means only that this pair
+  needs no human precedence; it neither asserts equal importance nor creates
+  an equivalence class.
 - **IMP-008 [core] — Nearby alternative.** The first ordering skip selects,
   replay-deterministically, another eligible sibling one to three positions
   above or below the current comparison neighborhood. The same comparison
@@ -152,10 +156,96 @@ Is
   while a recent strong cycle opens UX-O06. Candidate scoring may favor age,
   low confidence, consequence, or a weak path, but never changes the implied
   direction into a suggested default or leading question.
-- **IMP-016 [standard] — Investigation work.** Repeated uncertainty that could
-  materially change focus may propose an ordinary Brick such as an interview,
+- **IMP-016 [standard] — Investigation work.** Honest-answer assistance that
+  identifies missing material evidence, or repeated uncertainty that could
+  materially change focus, may propose an ordinary Brick such as an interview,
   questionnaire, experiment, POC, or MVP. The core never invents the method or
   creates the Brick automatically.
+- **IMP-040 [core] — Honest importance discovery.** Question mark on an
+  ordinary two-Brick importance comparison asks one question per screen and
+  follows this bounded factory tree, where A is the first displayed Brick and
+  B is the second:
+
+  ```text
+  Q0. Do you understand the result A is meant to produce and what would be
+      lost if it were never done?
+  ├─ yes → Q2
+  └─ no or unknown
+     Q1. Would reviewing A's existing context and linked material be enough?
+     ├─ yes → inspect A, then return to Q0
+     └─ no  → propose investigation work about A
+
+  Q2. Do you understand the result B is meant to produce and what would be
+      lost if it were never done?
+  ├─ yes → Q4
+  └─ no or unknown
+     Q3. Would reviewing B's existing context and linked material be enough?
+     ├─ yes → inspect B, then return to Q2
+     └─ no  → propose investigation work about B
+
+  Q4. If only one could ever be completed, would you choose A?
+  ├─ yes → A is more important than B
+  └─ no or unknown → Q5
+
+  Q5. Would you choose B instead?
+  ├─ yes → B is more important than A
+  └─ no or unknown → Q6
+
+  Q6. Would either order be acceptable because neither Brick needs
+      precedence over the other?
+  ├─ yes → either_order
+  └─ no  → Q7
+
+  Q7. Could new evidence change which one you would choose?
+  ├─ yes → propose investigation work about the relationship
+  └─ no  → Q8
+
+  Q8. Would comparing one of them with another nearby sibling help?
+  ├─ yes → one bounded nearby comparison
+  └─ no  → provisional uncertain placement
+  ```
+
+  Q1, Q3, and Q6..Q8 use UX-017 alternate probes for uncertainty; repeated
+  uncertainty leaves the comparison pending. Every consequential leaf is
+  explicitly confirmed under UX-136 before mutation.
+- **IMP-041 [core] — Unknown transitions are node-local.** An uncertainty
+  answer may reach the same next screen as `no` only when both truthfully
+  require the same recovery. At Q0 and Q2, absence of a confident `yes` means
+  that more understanding is required. At Q4 and Q5, uncertainty may continue
+  to the next discriminator but remains distinct from an explicit rejection;
+  it creates no negative judgment. At Q1, Q3, and Q6..Q8, uncertainty asks an
+  alternate probe and never follows `no` silently. These policies are part of
+  the versioned tree rather than a global alias from question mark to `no`.
+- **IMP-042 [core] — Either order is pair-local evidence.** Explicitly
+  confirmed `either_order` is symmetric direct human evidence that the exact
+  relative order of A and B is immaterial for the current judgment. It creates
+  neither A > B nor B > A, does not mean that either Brick is globally
+  unimportant, and is not transitive. The sorter still materializes one total
+  deterministic order: during insertion it places the subject immediately
+  before or after the comparator through a versioned stable tie-break; during
+  maintenance it preserves the stable local order unless other effective
+  evidence requires movement. Adjacency is a placement result, not a permanent
+  invariant. The evidence decays normally, suppresses redundant review while
+  relevant, remains inspectable, and yields to a later direct human direction
+  without deleting history.
+- **IMP-043 [core] — Investigation gates only the relationship review.** An
+  accepted investigation recovery enters contextual Feed for one ordinary
+  user-defined Brick linked to the pending A/B comparison. Dumb mode never
+  invents its method or title; Skill or powered-up mode may make one attributed
+  proposal. The investigation neither becomes a child or blocker of A or B
+  nor makes either ineligible for focus. It suppresses only that comparison's
+  maintenance opportunity until the investigation is completed or explicitly
+  closed; that outcome then creates high but bounded pressure to compare the
+  pair again and never determines the direction automatically.
+- **IMP-044 [core] — Importance recovery is bounded.** Inspecting existing
+  context reuses the read-only `/show` projection and returns to the exact Q0
+  or Q2 checkpoint without an event. A nearby-comparator recovery uses at most
+  one eligible sibling one to three positions away, records no skip, and marks
+  that local aid as spent only inside the interaction. If it still cannot
+  resolve the insertion, the tree may offer explicit provisional placement.
+  Confirming that leaf applies IMP-009's deterministic low-confidence
+  placement and future review pressure with reason `uncertain_after_help`, but
+  records no comparison edge, equality, `either_order`, or skip.
 - **IMP-033 [core] — Temporal confidence decay.** Every direct judgment has a
   provenance-derived initial confidence and a monotonic age-decay curve. The
   versioned factory configuration defines its shape, relevance threshold, and

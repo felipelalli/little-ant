@@ -51,11 +51,11 @@ from `70cb5b0`; the failed implementation remains on
 | UUIDv7 identity, mnemonic handles, repeated titles, duplicate suspicion, merge | `MOD-008..012`, `FED-004`, `FED-015..018`, `UX-075..076`, `OPEN-MERGE-001`, `OPEN-REF-001` | v0 audit plus the 1.0 identity and human-reference redesign |
 | Brick axes, Natures, Templates, ListEntries | `MOD-002..005`, `MOD-013..018`, `MOD-025..053`, `OPEN-LST-001` | conceptual sessions and Nature/Template screen reviews |
 | Composition, sibling locality, Domains, dependencies | `MOD-019..024`, `MOD-031..034`, `FED-030..041`, `OPEN-TREE-001`, `OPEN-DOM-*` | hierarchy, Domain, and enabling-recovery sessions including fear, vague, and hard recovery |
-| Importance and `org-sort-tasks` | `IMP-001..016`, `IMP-030..037`, `IMP-039` | v0 `Order.hs`/tests, canonical importance correction, regression audit, and lower-order recovery |
+| Importance and `org-sort-tasks` | `IMP-001..016`, `IMP-030..044` | v0 `Order.hs`/tests, canonical importance correction, regression audit, lower-order recovery, and honest-answer comparison sessions |
 | Impact, effort, planning calibration | `IMP-017..029`, `IMP-038`, `DAT-030..037`, calibration profile | estimation/TaskJuggler and tired-recovery sessions |
 | Forecast, hierarchy, Domain and interaction-family continuity, blockers, and opportunity variants | `FOC-001..047` | recovery ledger decisions and fixed-stream UX scenarios |
 | Focus, WIP, skip, time, standing work, delegation | `WRK-001..097` | v0 behavior audit plus skip, recurrence, habit, delegation, honest-sprint, fear, vague, hard, less-important, other-recovery, and honest-answer sessions |
-| Canonical interaction and dumb REPL | `UX-001..133`, screen catalog | REPL recovery and screen-by-screen review |
+| Canonical interaction and dumb REPL | `UX-001..138`, screen catalog | REPL recovery and screen-by-screen review |
 | Event authority, sparse output, imports, Packs, Calendar | `DAT-001..045` | context-pollution, source safety, Pack, Calendar, cold-load, and sparse-timer sessions |
 | Migration and promotion gates | `MIG-001..023` | v0 archive review and failed-rewrite analysis |
 

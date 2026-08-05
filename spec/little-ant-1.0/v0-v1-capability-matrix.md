@@ -94,7 +94,7 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Pairwise binary insertion | `I+T`, `49abaa5`, placement tests | **retained** | sibling-only importance under `IMP-001..004` | `SCN-IMP-001` |
+| Pairwise binary insertion | `I+T`, `49abaa5`, placement tests | **strengthened** | sibling-only importance plus honest uncertainty, pair-local `either_order`, and deterministic provisional placement under `IMP-001..010`, `IMP-040..044` | `SCN-IMP-001`, `SCN-IMP-002`, and `SCN-IMP-004` |
 | Adaptive `org-sort-tasks` maintenance: short-run insertion, adaptive merge, ordered-halves shortcut, and known transitive answers | `I+T`, `b35df00`, `Order.mergeSortStep` | **retained** | `IMP-005`, `IMP-031..032` | resumable bulk-order transcript through lottery and scoped `/order` cadences |
 | One unresolved pair per core maintenance step; persisted answers make interruption safe | `I+T`, ordering tests | **retained and clarified** | `IMP-005`, `IMP-031..032`, `FOC-041`, `UX-091..092`, `UX-O01..O02` | one-pair lottery result, stop/resume transcript, scoped continuous `/order`, and no cross-parent pairs |
 | Human evidence outranks AI pre-ordering | `I+T` | **strengthened** | temporal and provenance-aware evidence under `IMP-011..015`, `IMP-033..037` | assisted insertion, stale reversal, bounded fresh-cycle resolution, and unresolved confidence |

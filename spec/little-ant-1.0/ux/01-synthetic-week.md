@@ -227,6 +227,35 @@ No screen may say `right now`, present all four as one giant choice, or ask a
 triad after coherence. Replay a second uncertainty on the first and later
 triads and prove both end through the same UX-O09 semantics.
 
+### SCN-IMP-004 — Honest two-Brick importance aid
+
+From UX-O01 press question mark and traverse every IMP-040 leaf through
+UX-O11. Verify that uncertainty at Q0 and Q2 may reach the same recovery as
+`no` without becoming negative evidence, while uncertainty at Q1, Q3, and
+Q6..Q8 uses an alternate probe and may remain pending. At Q4 and Q5, preserve
+unknown versus explicit rejection until a later `yes` or recovery decides the
+path. Inspect A and B independently through read-only `/show`, return to the
+exact checkpoint, and prove no event or sorter movement. Confirm both direct
+directions through UX-O12 and verify one human edge only after the preview.
+
+Reach UX-O13 with grocery Bricks, accept `either_order`, and verify symmetric,
+non-transitive, pair-local evidence with no equality or strict edge. During
+insertion, prove replay-stable placement immediately beside the comparator;
+during maintenance, prove stable local preservation and no permanent adjacency
+promise. Later record a direct human direction and verify it supersedes only
+the current influence while history remains. In a separate replay, reject the
+leaf without mutation.
+
+Enter UX-O14 for missing A context, missing B context, and missing comparative
+evidence. Cancel one draft, then create one ordinary investigation Brick
+through complete Feed. Verify that only the A/B review is suppressed, A and B
+remain focusable, and completing or explicitly closing the investigation adds
+high bounded comparison pressure without choosing a direction. Exercise one
+eligible nearby comparator without skip evidence, then UX-O15; accept its
+provisional position and verify low confidence, future review, and no edge,
+equality, `either_order`, or skip. Replay assisted markings and one proposed
+investigation title without allowing assistance to bypass any confirmation.
+
 ## Day 3 — Forecast, Domain, and blockers
 
 ### SCN-FOC-001 — Same-subject continuity
