@@ -517,6 +517,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   with `*`; rejecting it returns to this exact dumb baseline. Selecting a
   Domain follows WRK-070. Multi-membership, no-Domain, and no-target cases
   remain explicit open boundaries rather than surface guesses.
+- **UX-106 [core] — Tired-pause result rests.** Accepting `pause for now`
+  follows WRK-071 and renders UX-S10 with `Taking a break:`, the complete
+  served Brick citation, one truthful state sentence, optional replay-stable
+  UX-064 `safe_end` microcopy, and only `[/] more...`. It exposes no primary
+  `next`, `resume`, or focus action, performs no draw, and does not close the
+  REPL automatically. The contextual palette remains available with only
+  currently valid commands; this does not elevate them into the primary
+  result. A first-party web/mobile surface preserves the same resting envelope
+  without pretending that an application process ended.
 
 ## Status, history, and recovery
 

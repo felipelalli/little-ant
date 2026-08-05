@@ -131,8 +131,11 @@ passes through ordinary focus consent. `FOC-045`, `WRK-070`, `UX-105`, and
 UX-S09 settle `change subject` as a positive full-path target choice with
 nonrepeating pages, one target-scoped draw, inferred source-branch fatigue,
 decaying target affinity, and a screen-local `[/] menu...` label that avoids
-collision with `[m]ore options...`. Resume with `pause for now` from the same
-tired-recovery screen.
+collision with `[m]ore options...`. `WRK-071`, `UX-106`, and UX-S10 settle
+`pause for now` as evidence-bearing rest with a truthful state variant,
+optional `safe_end` warmth, no automatic draw or process exit, and no
+persistent paused state. The main `tired` flow is complete; keep its empty and
+multi-Domain edges in the release ledger and resume with `bored`.
 
 ## Scope rings
 

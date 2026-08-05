@@ -346,7 +346,14 @@ one target-scoped draw, decaying source fatigue and target affinity, positive
 later probability everywhere, no automatic focus, and no active-Domain change
 before focus acceptance. Exercise same-parent, different-parent, and
 different-root targets. Keep no-target, no-Domain, and multi-membership cases
-open rather than guessing. Reopen the symptom screen and verify `[b]locked or
+open rather than guessing. Reopen UX-S07 and choose `pause for now` from a
+current Brick, an unstarted proposal, and a proposal while another Brick is
+current. Validate one atomic `tired` reaction and cooldown in every case; only
+the served current focus may be closed and left WIP. Verify UX-S10's truthful
+state sentence, optional replay-stable `safe_end` phrase, sole `[/] more...`
+action, no draw, no automatic process exit, no active-Domain change, and no
+persistent `paused` state. Contrast direct `/pause`, which retains neither
+symptom nor cooldown. Reopen the symptom screen and verify `[b]locked or
 waiting`, `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality

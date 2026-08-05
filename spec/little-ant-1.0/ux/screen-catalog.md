@@ -1085,8 +1085,9 @@ You're tired. What would help?
 
 The choices are recovery proposals rather than new symptoms. Selecting
 `tired` alone records nothing; reverse navigation restores UX-S01 exactly.
-`Easier work` follows UX-S08. The precise consequences of `change subject` and
-`pause for now` remain in `OPEN-SKIP-001`.
+`Easier work` follows UX-S08, `change subject` follows UX-S09, and `pause for
+now` follows UX-S10. Only their declared empty and multi-Domain boundaries
+remain in `OPEN-SKIP-001`.
 
 ## UX-S08 — Easier-work shortlist
 
@@ -1183,6 +1184,46 @@ accepted focus. `?` explains this inference and returns. Escape, empty-state
 Backspace, or Left Arrow restores UX-S07 or the previous page without symptom,
 cooldown, signal, focus change, active-Domain change, or draw. Multi-Domain,
 no-Domain, and no-target recovery remain explicit release boundaries.
+
+## UX-S10 — Tired-pause result
+
+Choosing `[p]ause for now` on UX-S07 while its Brick is current commits
+WRK-071 and renders:
+
+```text
+Taking a break:
+
+#rrsr "Review Rock Splitter rules"
+
+This Brick remains in progress.
+
+🌿 Rest a little. The rock will still be here.
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The shown sentence is truthful only for a served current or already-WIP Brick.
+For an unstarted proposal it becomes `This Brick was left for later.` If an
+unrelated Brick remains current, the sentence becomes `Your current focus is
+unchanged.` and the footer identifies that focus. These variants never claim
+that unstarted work is WIP or that unrelated attention was cleared.
+
+The illustrative line is one replay-stable `safe_end` personality phrase, not
+domain evidence or a command. No `[n]ext` or `[r]esume` competes with the rest
+result. `[/] more...` opens the ordinary contextual palette, which may contain
+valid `/next`, `/resume`, `/feed`, `/history`, or `/exit` actions according to
+current state. The REPL stays on this screen until the user acts or exits; the
+core never closes a process, starts work, draws, or invents a paused Brick
+state. Left Arrow after the committed result offers semantic undo rather than
+returning across the mutation.
 
 ## UX-K01 — Nature choice
 

@@ -153,8 +153,9 @@
   reaction offers `easier work`, `change subject`, `pause for now`, explicit
   `skip anyway`, and uncertainty. These are provisional human choices on
   UX-S07; selecting `tired` alone records no evidence. `Easier work` follows
-  WRK-069. The exact Domain-scope and pause consequences remain part of the
-  bounded `OPEN-SKIP-001` route rather than being guessed from the symptom.
+  WRK-069, `change subject` follows WRK-070, and `pause for now` follows
+  WRK-071. Empty-candidate, no-Domain, and multi-membership recovery remains
+  bounded by `OPEN-SKIP-001` rather than being guessed from the symptom.
 - **WRK-069 [core] — Choosing easier work completes the reaction.** UX-S08
   selection is the final `tired` reaction. In one event-bound transaction it
   records `tired`, the served Brick's ordinary cooldown, the complete shown
@@ -176,6 +177,16 @@
   nothing. After selection, semantic undo—not screen navigation—compensates
   the transaction. Drawing or proposing the target never changes active
   Domain; accepting its focus does so under FOC-017.
+- **WRK-071 [core] — Tired pause is evidence-bearing rest.** Choosing `pause
+  for now` from UX-S07 atomically records `tired`, the served Brick's ordinary
+  cooldown, and the accepted pause reaction. If that Brick is current, the
+  same transaction closes its focus interval, clears focus, and leaves it WIP.
+  If it was only proposed, it is not made WIP; an unrelated current focus is
+  never cleared. The transition performs no forecast draw, changes no Domain,
+  and creates no persistent `paused` lifecycle state. Unlike direct `/pause`
+  under WRK-048, this path intentionally retains symptom and cooldown evidence
+  because the user supplied both. It returns UX-S10 and never exits a surface
+  process automatically.
 
 ## Time
 
