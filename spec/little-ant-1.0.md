@@ -162,9 +162,13 @@ route treats momentary timing or subject preference as importance evidence.
 `WRK-093..094`, `UX-127..129`, and UX-S31..S32 then settle `other` as a
 confirmed verbatim skip reason whose repeated evidence may create a separate
 taxonomy-review opportunity but never mutates vocabulary automatically.
-Continue Gate 4 with the remaining contextual-uncertainty and recovery edges
-in `OPEN-SKIP-001`, deriving core semantics through dumb UX before mirroring
-assisted surfaces.
+`WRK-095..097`, `UX-130..133`, and UX-S33..S34 settle the first complete
+application of the global honest-answer protocol: symptom uncertainty follows
+a deterministic binary tree to one confirmed existing symptom or `other`, and
+records nothing before a final reaction. Continue Gate 4 by declaring the same
+honest-answer contract for every remaining visible question mark and closing
+the recovery edges in `OPEN-SKIP-001`, deriving core semantics through dumb UX
+before mirroring assisted surfaces.
 
 ## Scope rings
 

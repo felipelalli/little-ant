@@ -21,7 +21,7 @@ run as an interactive transcript.
 | 2 | Shared frame and footer | `UX-R00..R01`, `UX-025`, `UX-045..049`, `UX-062..065`, `UX-070..073`, `SCN-015` | partial | exact monochrome selection marker, narrow/accessibility form, unbound-key rendering, and personality catalogs |
 | 2 | JSONL loading splash | `DAT-044`, `UX-094`, `UX-R02` | screened | exact factory ASCII-art polish and interactive cold-load replay |
 | 2 | Contextual personality | `UX-F04..F05`, `UX-064..065`, `SCN-014` | partial | review all four 16-phrase English catalogs |
-| 2 | Contextual uncertainty/help | `UX-H01`, `UX-016..017` | partial | assistance subpages and return transitions |
+| 2 | Honest-answer assistance | `UX-016..017`, `UX-130`, `SCN-016`, `OPEN-UX-004` | partial | declared bounded tree, leaf confirmation, reverse path, and `/help` recovery for every remaining finite screen |
 | 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048`, `UX-072..073` | partial | remaining screen placement, monochrome cursor marker, and unavailable/search recovery |
 | 2 | Revision/stale response | `UX-029..031` | missing | `OPEN-UX-002` |
 | 2 | Reference selection | `MOD-010`, `MOD-024`, `UX-075..076`, `UX-RF01` | screened | exact single-word/non-Latin handle normalization and recovery under `OPEN-REF-001` |
@@ -41,7 +41,7 @@ run as an interactive transcript.
 | 4 | Ordering skip and provisional placement | `IMP-008..010`, `UX-096`, `UX-O05`, `SCN-IMP-002` | partial | exact unavailable-alternative recovery and contextual `tie-break for me` route under `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015`, `IMP-033..037`, `FOC-042..043`, `UX-097..102`, `UX-O06..O10`, `SCN-IMP-003` | partial | deterministic end-to-end replay still pending |
 | 4 | Adaptive bulk ordering | `IMP-005`, `IMP-031..037`, `FOC-041..043`, `UX-091..102`, `UX-O01..O10` | partial | deterministic end-to-end replay |
-| 4 | Served-work symptom | `UX-S01..S32`, `WRK-007..013`, `WRK-047`, `WRK-067..094`, `UX-084`, `UX-103..129`, `FED-030..041`, `IMP-039`, `FOC-047`, `DAT-045` | partial | exact bounded custom-sprint/general-date selection, empty/multi-Domain recovery, and remaining contextual-uncertainty subpages under `OPEN-SKIP-001`; vague Description encoding and downstream Feed or handoff results remain with their owning flows |
+| 4 | Served-work symptom | `UX-S01..S34`, `WRK-007..013`, `WRK-047`, `WRK-067..097`, `UX-084`, `UX-103..133`, `FED-030..041`, `IMP-039`, `FOC-047`, `DAT-045` | partial | exact bounded custom-sprint/general-date selection and empty/multi-Domain recovery under `OPEN-SKIP-001`; vague Description encoding and downstream Feed or handoff results remain with their owning flows |
 | 4 | Atomic break/reclassification | `UX-S06`, `UX-B00..B02`, `MOD-045..047`, `MOD-052`, `IMP-030`, `FOC-040`, `UX-057`, `UX-085..089` | partial | deterministic interactive replay and exact undo compensation |
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |

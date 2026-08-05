@@ -366,6 +366,68 @@
   historical verbatim evidence. One `other` answer never infers blocked,
   waiting, tired, Domain fatigue, importance, or a new category. Exact text
   grouping, thresholds, window, and decay remain calibration concerns.
+- **WRK-095 [core] — Mechanical symptom discovery.** Choosing uncertainty on
+  UX-S01 asks one behavioral question per screen and follows this factory tree:
+
+  ```text
+  Q0. Must something outside this Brick happen before you can continue?
+  ├─ yes → blocked_or_waiting
+  └─ no
+     Q1. Is the main problem that the result, required information, or first
+         step is unclear?
+     ├─ yes → vague
+     └─ no
+        Q2. Would independently tracked parts make this manageable?
+        ├─ yes → big
+        └─ no
+           Q3. Is the work clear and small enough, but beyond your current
+               knowledge, skill, or available approach?
+           ├─ yes → hard
+           └─ no
+              Q4. If this Brick and more-important work were mutually
+                  exclusive forever, would you leave this Brick undone?
+              ├─ yes → less_important
+              └─ no
+                 Q5. Is insufficient energy the main obstacle?
+                 ├─ yes → tired
+                 └─ no
+                    Q6. Is lack of interest or stimulation the main obstacle?
+                    ├─ yes → bored
+                    └─ no
+                       Q7. Is worry about risk or consequences the main
+                           obstacle?
+                       ├─ yes → fear
+                       └─ no  → other
+  ```
+
+  The order is versioned and deterministic. `main` makes the result the one
+  symptom being addressed in this interaction; it does not claim that every
+  other symptom is false or erase earlier evidence.
+- **WRK-096 [core] — Uncertainty probes preserve each split.** Question mark
+  at Q0..Q7 does not choose a branch. It explains the current distinction with
+  one example from each side and asks the corresponding alternate probe:
+
+  | Split | Alternate probe | `yes` | `no` |
+  |---|---|---|---|
+  | outside prerequisite | If that outside fact changed now, could you proceed without changing the Brick? | `blocked_or_waiting` | Q1 |
+  | unclear work | Would a clearer result, more information, or a defined first step be enough to get moving? | `vague` | Q2 |
+  | one piece or parts | Would one `done` hide progress worth tracking separately? | `big` | Q3 |
+  | clear but difficult | Do you know what needs doing but not how to do it effectively? | `hard` | Q4 |
+  | relative importance | If only this Brick or more-important work could ever be completed, would you give this one up? | `less_important` | Q5 |
+  | energy | Would rest or easier work help without changing the Brick? | `tired` | Q6 |
+  | interest | Would a more engaging method help without changing the intended result? | `bored` | Q7 |
+  | perceived risk | Would validating or reducing a perceived risk help? | `fear` | `other` |
+
+  A second uncertainty at the same split leaves the interaction pending rather
+  than guessing. System help remains `/help` through the slash palette.
+- **WRK-097 [core] — Discovery is provisional through reaction.** Every tree
+  question and symptom result is an uncommitted navigation checkpoint. The
+  result is unequivocal only after explicit leaf confirmation. Confirming a
+  typed leaf opens its existing reaction; confirming `other` opens its
+  verbatim explanation. Neither confirmation records a symptom: WRK-047 still
+  commits only the final accepted reaction. Rejection returns to the direct
+  symptom screen, and reverse navigation restores the exact preceding answer
+  without an event, cooldown, Domain signal, focus change, or random draw.
 
 ## Time
 

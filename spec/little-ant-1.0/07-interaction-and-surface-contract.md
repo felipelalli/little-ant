@@ -110,14 +110,24 @@ The normative reference renderings live in
   keep their editor grammar: `*` inserts text and Enter submits or advances as
   declared by UX-011. No evidence means no default unless the screen contract
   defines an explicit factory default, as UX-O02 does.
-- **UX-016 [core] — Contextual uncertainty.** `[?] I don't know` is visible in
-  every finite decision. It opens a nested assistance interaction without
-  itself recording an answer or skip. Escape restores the same pending
-  envelope. Assistance may produce an explicitly confirmed proposal or
-  restart a bounded decision aid when that screen's grammar declares it; it
-  never silently answers the decision.
-- **UX-017 [core] — Nested system help.** Within contextual assistance, another
-  `?` opens Little Ant help. Generic help never silently answers the decision.
+- **UX-016 [core] — Honest-answer assistance.** `[?] I don't know` is visible
+  in every finite decision and always means `help me reach an honest answer`.
+  It opens a bounded, deterministic assistance tree without recording an
+  answer, skip, diagnostic response, cooldown, or random consumption. The tree
+  asks one consequence-oriented question per screen, normally with
+  `[y]es · [n]o · [?] I don't know`, and terminates in exactly one explicitly
+  confirmed leaf. A classification leaf is an existing canonical choice; when
+  the underlying answer requires missing information, judgment, authority, or
+  consent, the leaf is instead one concrete recovery action or an honestly
+  unresolved pending decision. Assistance never fabricates the original
+  answer.
+- **UX-017 [core] — Help remains a command.** Question mark keeps the UX-016
+  meaning at every depth; it never changes into generic system help. Little
+  Ant help is the contextual `/help` command reached through `[/] more...`.
+  At a tree split, uncertainty shows one alternate consequence-oriented probe
+  for the same distinction. Repeated uncertainty that still cannot choose a
+  branch leaves the interaction pending. Escape and ordinary reverse
+  navigation restore the preceding question exactly.
 - **UX-018 [core] — Contextual later.** `[l]ater` exists only for honestly
   deferrable proposals and opens an explicit date choice before recording
   anything.
@@ -705,6 +715,38 @@ no-emoji rendering remain `OPEN-UX-001`.
   preserved in the interaction checkpoint; rejecting it renders unchanged
   UX-S32. Assistance cannot create a symptom, commit a skip, or bypass the
   later taxonomy-review opportunity under WRK-094.
+- **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
+  that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
+  versioned interaction grammar as its ordinary choices. Each leaf identifies
+  either one existing canonical answer or one concrete recovery; a free-form
+  model answer, generic explanation page, silent default, and unbounded chat
+  are not valid dumb-mode leaves. A 1.0 flow is incomplete until its ordinary
+  choice, every uncertainty leaf, confirmation boundary, and reverse path have
+  a dumb replay. Trees may share existing selectors and builders rather than
+  duplicate domain behavior. Older screen-specific rules that describe a
+  direct uncertainty consequence settle only an allowable leaf; they do not
+  bypass this tree and confirmation contract, and remain incomplete under
+  `OPEN-UX-004` until their route is rendered.
+- **UX-131 [core] — Served-work uncertainty uses mechanical discrimination.**
+  Question mark on UX-S01 opens UX-S33 and traverses the exact WRK-095 tree one
+  binary question at a time. The questions seek the principal obstacle for
+  this interaction; they do not assert that another symptom could never also
+  apply. `yes` reaches the current node's leaf, `no` advances to the next
+  distinction, and the final `no` reaches `other`. No category menu or hidden
+  probabilistic classifier replaces this tree in dumb mode.
+- **UX-132 [core] — A symptom leaf is confirmed before reaction.** Reaching a
+  symptom leaf opens UX-S34 with the symptom, its decisive behavioral reason,
+  and `[y]es · [n]o · [?] I don't know`. The mechanically derived `yes` is the
+  visible default. `yes` opens that symptom's existing reaction without yet
+  recording evidence; for `other`, it opens UX-S31. `no` restores UX-S01 so
+  the human can select directly. Uncertainty restarts UX-S33 at its first
+  question. Reverse navigation returns to the decisive tree question.
+- **UX-133 [standard] — Assisted trees preserve the dumb protocol.** Skill or
+  powered-up mode may mark at most one existing `yes` or `no` answer with `*`
+  and add one concise attributed reason under UX-059. It still presents every
+  accepted question, confirmation, and canonical reaction boundary. It cannot
+  collapse the tree into an unreviewed classification, add a branch, answer on
+  behalf of the human, or turn model uncertainty into core evidence.
 
 ## Status, history, and recovery
 

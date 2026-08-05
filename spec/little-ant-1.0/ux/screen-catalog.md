@@ -230,8 +230,9 @@ Focus?
   mode: dumb, focus: idle
 ```
 
-`yes` focuses and starts WIP. `skip` opens UX-S01. `?` opens UX-H01 without
-consuming another draw. Direct completion remains available as `/done` in
+`yes` focuses and starts WIP. `skip` opens UX-S01. `?` enters the UX-016
+honest-answer route without consuming another draw; its exact Focus tree is
+tracked by `OPEN-UX-004`. Direct completion remains available as `/done` in
 UX-M01. Pressing unbound `n` gives the educational UX-062 result and restores
 this same opportunity without mutation. This exact composition also serves an
 undecomposed `project`; its Nature alone never inserts a structural preflight.
@@ -1898,6 +1899,69 @@ explains the verbatim evidence and returns. The dumb core infers no existing or
 new symptom. Assisted categorization follows UX-129 and remains attributed,
 rejectable, and uncommitted.
 
+## UX-S33 — Guided symptom discovery
+
+Question mark on UX-S01 begins with one mechanical split:
+
+```text
+#cdd "Configure database replication"
+
+Must something outside this Brick happen before you can continue?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #mdb "Migrate the database"
+  Orbit › Platform › Database
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #cdd
+```
+
+Successive answers traverse the exact Q0..Q7 tree in WRK-095. Each screen asks
+only its current question with the same grammar. Question mark substitutes the
+alternate probe in WRK-096 for that split without choosing a branch; repeated
+uncertainty leaves the interaction pending. Escape, empty-buffer Backspace, or
+Left Arrow restores the immediately preceding question, and doing so from Q0
+restores UX-S01. No answer is durable evidence.
+
+## UX-S34 — Discovered symptom confirmation
+
+For a path that reaches `big`:
+
+```text
+#cdd "Configure database replication"
+
+It sounds like the main obstacle is:
+
+🏔️ big
+
+Because independently tracked parts would make this Brick manageable.
+
+Is this what is getting in the way?
+
+*[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #mdb "Migrate the database"
+  Orbit › Platform › Database
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #cdd
+```
+
+The label and reason change with the reached leaf. `yes`, `*`, or Enter opens
+the existing reaction screen and records nothing; `other` opens UX-S31. `no`
+restores UX-S01, uncertainty restarts UX-S33 at Q0, and reverse navigation
+restores the decisive question. Assisted markings follow UX-133 and never
+replace this confirmation.
+
 ## UX-K01 — Nature choice
 
 ```text
@@ -2809,30 +2873,6 @@ and random cursor shown before Feed was opened. The tip is advisory and, under
 `UX-049`, appears beside every dumb-mode free-text input rather than only on
 Feed. Single-key choice screens omit it. Until Enter, the text remains only a
 local draft; this guarantee is behavioral and is not rendered in the footer.
-
-## UX-H01 — Contextual uncertainty
-
-```text
-What would help you decide?
-
-[c]ontext
-[w]hy this appeared
-[r]elated Bricks
-[a]sk me questions
-[s]uggest an answer
-[?] Little Ant help
-
-────────────────────────────────────────
-no answer or skip has been recorded
-. <root>
-  <no Domain>
-. Workday: Mon, Aug 3
-          Now: Mon, Aug 3, 09:00
-. 18 bricks, 7 raws, 3 reviews
-  mode: dumb, focus: idle
-```
-
-Closing assistance restores the same pending revision.
 
 ## UX-P01 — Habit consequence
 

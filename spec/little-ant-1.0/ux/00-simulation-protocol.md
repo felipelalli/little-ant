@@ -70,6 +70,13 @@ may expose missing or contradictory rules.
   event, draw, or random cursor. Verify the complete footer is dim and
   accent-color-free while only the exact semantic values named by `UX-071`
   return to normal intensity; stripping ANSI must preserve its six-line shape.
+- **SCN-016 — Every uncertainty route earns its question mark.** For every
+  finite screen, invoke `[?] I don't know` and replay its complete dumb
+  honest-answer tree. Verify one question per screen, every leaf and reverse
+  edge, the explicit confirmation boundary, no intermediate evidence, and an
+  honest unresolved state when judgment or information cannot be derived.
+  Generic help must remain `/help`; powered-up and Skill replays may annotate
+  but may not bypass the accepted tree.
 
 ## Critique labels
 

@@ -584,6 +584,22 @@ whenever assisted evidence is weak.
 Record repeated attributed `other` explanations and validate a later weighted
 taxonomy-review opportunity without automatic vocabulary mutation.
 
+### SCN-WRK-005 — Honest symptom discovery
+
+From UX-S01 choose uncertainty and traverse UX-S33 to every WRK-095 leaf on
+independent replays. At each Q0..Q7 split exercise `yes`, `no`, its WRK-096
+alternate probe, repeated uncertainty, and reverse navigation. Verify that one
+question is visible at a time; the reached symptom is the principal obstacle
+for this interaction rather than a claim that all other symptoms are false.
+At UX-S34, reject one result into the unchanged direct symptom screen, restart
+one tree through uncertainty, reverse to its decisive question, and confirm
+each leaf. Confirming `other` must open UX-S31; every other result must open
+its existing canonical reaction. Prove that no tree answer or leaf
+confirmation records a symptom, skip, cooldown, focus change, Domain signal,
+or random draw; only an accepted final reaction may do so. In paired assisted
+replays, accept and reject attributed `yes` or `no` markings while preserving
+the exact dumb tree and confirmation.
+
 ### SCN-WAIT-001 — Request handoff and Wait review
 
 From UX-S02C, first answer that a request was already made, validate UX-W00's
