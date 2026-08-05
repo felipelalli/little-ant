@@ -538,8 +538,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   become more interesting and offers `try a short sprint`, `break it into
   visible steps`, `find a better way`, and uncertainty, without a default.
   Break reuses the complete existing UX-B00..B02 route. Find opens UX-S13.
-  Short sprint is visible but remains the next explicit UX checkpoint; a
-  surface may not invent a timer or duration until it is settled.
+  Short sprint opens UX-S15 and follows WRK-076..080; no surface may bypass
+  its explicit duration or reinterpret elapsed time as observed work.
 - **UX-109 [core] — Dumb better-way classification.** UX-S13 asks how the
   approach might improve and offers `automate repetitive parts`, `simplify the
   process`, `learn another method`, `get help from someone`, and uncertainty.
@@ -562,6 +562,42 @@ no-emoji rendering remain `OPEN-UX-001`.
   eligible, the option is omitted rather than shown disabled. Contextual help
   names the included typed meta-work families; it never calls organization a
   Domain, Brick, importance value, or persistent mode.
+- **UX-112 [core] — Sprint duration is a visible decision.** UX-S15 repeats
+  the complete served Brick citation and asks `How long would you like to give
+  it?`. It shows the factory 5-, 15-, and 25-minute choices, describes them as
+  `just get started`, `a short attempt`, and `a Pomodoro`, and marks 25 minutes
+  with `*` in dumb mode. A row number chooses that row; `*` or Enter chooses
+  the visible default. `[c]ustom...`, uncertainty, reverse navigation, and the
+  ordinary slash palette remain available. The exact custom-duration chooser
+  remains an explicit release boundary; a surface may not replace it with an
+  unbounded guessed duration. Accepting a duration follows WRK-078 directly,
+  without another Focus question or celebratory claim that work happened.
+- **UX-113 [core] — An active sprint is visible but subordinate.** UX-S16 uses
+  the sober `Current focus:` composition with ordinary `[d]one`, `[s]kip`, and
+  `[/] more...`. Its temporal footer shows `Sprint: MM:SS remaining` plus the
+  absolute local end instant, followed by the ordinary `Now` line. On a
+  capable interactive terminal, the renderer may refresh only those temporal
+  footer cells as the canonical clock advances; the remaining time is always
+  recomputed from the target instant and never decremented as state. On a
+  terminal that cannot safely redraw, after process restart, and in static
+  web, text, redirected, or structured output, the same state shows the
+  absolute `Sprint ends` fact without ANSI animation. Color and refresh never
+  carry meaning.
+
+  Expiration cannot overwrite typed input, an open palette, or another
+  uncommitted interaction. At the next safe boundary the surface revalidates
+  the same focused Brick and timebox. If an already committed action closed
+  it, no stale expiry appears; otherwise canonical tick records elapsed and
+  renders UX-S17 with the draft or palette checkpoint still recoverable.
+- **UX-114 [core] — Sprint expiration asks what follows.** UX-S17 says `Sprint
+  time is up:`, cites the complete focused Brick, and asks `What would you like
+  to do?`. Its actions are `[c]ontinue`, `[a]nother sprint`, `[d]one`,
+  `[p]ause`, uncertainty, and the ordinary slash palette, with no default and
+  no personality line. Continue returns to sober current focus without a
+  timer; another sprint opens UX-S15 with the prior duration selected; done
+  and pause follow WRK-049 and WRK-048. Uncertainty explains these outcomes
+  without changing state. The screen never calls elapsed time completion,
+  effort, progress, or failure.
 
 ## Status, history, and recovery
 

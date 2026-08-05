@@ -36,6 +36,8 @@ grants authority.
 | Parameter | Factory value | Meaning |
 |---|---:|---|
 | `work.wip_soft_limit` | `3` | More WIPs are allowed but add review pressure. |
+| `work.short_sprint_durations_minutes` | `[5, 15, 25]` | Visible dumb duration choices for the bounded-attempt recovery. |
+| `work.short_sprint_default_minutes` | `25` | Visible default, labeled `a Pomodoro`; it must be one of the configured choices. |
 | `importance.nearby_skip_min_distance` | `1` | Minimum alternative-comparator distance. |
 | `importance.nearby_skip_max_distance` | `3` | Maximum alternative-comparator distance. |
 | `importance.skips_before_uncertain_placement` | `2` | Consecutive unresolved comparisons before provisional placement. |

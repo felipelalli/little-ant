@@ -198,11 +198,11 @@
   served-work checkpoint without mutation.
 - **WRK-073 [core] — Interesting-work remedies reuse explicit mechanisms.**
   UX-S12 offers `try a short sprint`, `break it into visible steps`, `find a
-  better way`, and uncertainty. Short-sprint semantics remain explicitly open
-  under `OPEN-SKIP-001`. Break enters the existing pending `/break` flow; only
-  accepted structure records `bored` and the recovery, with no redundant
-  cooldown. Find enters UX-S13. No option creates an engagement score, changes
-  importance, or lets the core invent motivational advice.
+  better way`, and uncertainty. Sprint enters UX-S15 under WRK-076..080. Break
+  enters the existing pending `/break` flow; only accepted structure records
+  `bored` and the recovery, with no redundant cooldown. Find enters UX-S13.
+  No option creates an engagement score, changes importance, or lets the core
+  invent motivational advice.
 - **WRK-074 [core] — Better-way acceptance is one enabling recovery.** UX-S13
   classification followed by UX-S14 acceptance creates exactly one FED-032
   Brick, its accepted parent and Domain placement, lazy Nature claim, local
@@ -222,6 +222,44 @@
   performs one organization-family draw without changing active Domain or
   starting work. Subsequent meta-opportunities return only through ordinary
   weighted continuity; this action never establishes a persistent mode.
+- **WRK-076 [core] — A short sprint is an honest focus timebox.** Choosing
+  `try a short sprint` opens a duration decision; it does not yet record
+  `bored`, start focus, or start a clock. An accepted sprint asks the user only
+  to give the Brick a bounded attempt. It is not a Brick, estimate, deadline,
+  schedule, completion criterion, progress observation, or claim that work
+  occurred for the entire interval. Expiration is therefore called `Sprint
+  time is up`, never `Sprint complete`.
+- **WRK-077 [core] — Sprint duration is explicit and configurable.** The dumb
+  factory choices are 5, 15, and 25 minutes, with 25 minutes selected by
+  default and described as `a Pomodoro`. `*` or Enter accepts that visible
+  default; a number accepts its row. A custom route remains available, and
+  changing the factory menu or default is versioned configuration rather than
+  inferred behavior. Starting another sprint returns to the same picker with
+  the just-finished duration as its visible default when that duration remains
+  valid.
+- **WRK-078 [core] — Duration acceptance is focus consent.** Accepting a
+  duration atomically records `bored` plus `short sprint`, starts the timebox,
+  and starts or resumes focus on the served Brick; it does not ask `Focus?`
+  again or add an ordinary skip cooldown. If another Brick was current, the
+  ordinary focus-switch rule leaves that Brick WIP. The start fact identifies
+  the focused Brick, chosen duration, canonical target instant, origin, and
+  effective configuration. It does not create observed effort.
+- **WRK-079 [core] — An active timebox does not trap interaction.** While the
+  sprint runs, the current-focus screen retains ordinary `done`, `skip`, and
+  slash-palette actions. Opening a palette, typing a draft, asking for help,
+  or entering skip diagnosis does not itself stop the timebox. Accepted
+  completion, pause, skip, or focus switch closes it early with the truthful
+  terminal reason. Reverse navigation from an uncommitted branch returns to
+  the still-running focus. Browsing `/next` alone does not clear focus or the
+  timebox; accepting another focus applies the focus-switch outcome.
+- **WRK-080 [core] — Expiration preserves work and offers a bounded choice.**
+  On elapsed time, the Brick remains WIP and focused while UX-S17 offers
+  `continue`, `another sprint`, `done`, `pause`, and uncertainty. `Continue`
+  removes only the elapsed timebox and keeps focus without a new timing claim.
+  `Another sprint` returns to UX-S15 and starts a new timebox only after a
+  duration is accepted. `Done` follows WRK-049. `Pause` follows WRK-048 and
+  does not manufacture another `bored` or skip observation. Expiration never
+  changes importance, effort, progress, Domain, or lifecycle by itself.
 
 ## Time
 

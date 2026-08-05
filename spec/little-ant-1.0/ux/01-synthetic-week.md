@@ -361,9 +361,23 @@ persistent `paused` state. Contrast direct `/pause`, which retains neither
 symptom nor cooldown.
 
 Reopen the symptom screen and select `bo[r]ed`. Validate UX-S11 and both its
-subject-change reuse and UX-S12 transformation branch. Confirm short sprint is
-visible but cannot invent a timer before its checkpoint closes. Accept visible
-decomposition and verify `bored` plus recovery with no redundant cooldown.
+subject-change reuse and UX-S12 transformation branch. Choose short sprint and
+validate UX-S15's 5/15/25-minute rows, visible 25-minute `a Pomodoro` default,
+`*`/Enter equivalence, reverse navigation without mutation, and absence of a
+second Focus question. Accept 25 minutes and verify one atomic `bored` recovery,
+focus transition, and DAT-045 start fact with no cooldown, effort, or progress
+claim. In UX-S16, advance the canonical clock while checking that the display
+derives its countdown from the fixed target and emits no per-second events.
+Exercise a non-redrawing terminal's absolute-end fallback. Let the target pass
+while a text draft is open: preserve the draft, revalidate at the next safe
+boundary, then render UX-S17 without calling the sprint complete. Exercise
+continue, another sprint, done, and pause on independent replays and verify one
+truthful terminal outcome per timebox. Confirm elapsed and continue leave the
+Brick focused and WIP, another sprint reopens UX-S15 with the prior duration,
+done follows immediate reversible completion, and pause leaves WIP without
+adding another symptom. Keep the exact custom-duration chooser open rather
+than accepting an unbounded guess. Accept visible decomposition and verify
+`bored` plus recovery with no redundant cooldown.
 Enter UX-S13, exercise all four mechanical classifications and uncertainty,
 then inspect UX-S14: deterministic editable prefix, no preallocated handle,
 complete sibling/Domain/Dependency structure, lazy `atomic task` claim, and no

@@ -24,6 +24,14 @@
   interface reports only the processed count. Blank or malformed physical
   lines are not reported as accepted events; corruption follows the typed
   recovery policy rather than being skipped to inflate progress.
+- **DAT-045 [core] — Sprint clocks have sparse canonical evidence.** An
+  accepted sprint records one canonical start fact with its Brick, duration,
+  target instant, origin, and effective configuration. It records exactly one
+  terminal outcome such as elapsed, completed early, paused, skipped, or
+  displaced by a focus switch. Rendering a changing countdown creates no
+  per-second events and does not mutate canonical state. Replay derives the
+  same target and outcome from the recorded clock facts; a duration or elapsed
+  target alone is never evidence of observed work or progress.
 
 ## Structured responses and context control
 

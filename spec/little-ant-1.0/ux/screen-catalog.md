@@ -1291,11 +1291,10 @@ How could we make this more interesting?
   mode: dumb, focus: #rrsr
 ```
 
-Short sprint remains an explicit open checkpoint and cannot start a timer yet.
-Break reuses UX-B00..B02; accepted structure records `bored` plus recovery and
-uses its Dependency instead of cooldown. Find opens UX-S13. Reverse navigation
-restores UX-S11 without mutation. The screen adds no engagement score or
-motivational advice.
+Short sprint opens UX-S15 and follows WRK-076..080. Break reuses UX-B00..B02;
+accepted structure records `bored` plus recovery and uses its Dependency
+instead of cooldown. Find opens UX-S13. Reverse navigation restores UX-S11
+without mutation. The screen adds no engagement score or motivational advice.
 
 ## UX-S13 — Dumb better-way classification
 
@@ -1366,6 +1365,98 @@ returning here; dumb title input repeats the quiet English reminder. `No`
 discards the complete draft and restores UX-S12. Uncertainty explains the
 proposal and returns. Assisted concrete proposals identify their source and
 still use this preview.
+
+## UX-S15 — Short-sprint duration
+
+Choosing `try a short sprint` from UX-S12 opens the duration decision without
+recording `bored` or starting focus:
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+How long would you like to give it?
+
+ [1] 5 minutes   — just get started
+ [2] 15 minutes  — a short attempt
+*[3] 25 minutes  — a Pomodoro
+ [c]ustom...
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+`1`, `2`, and `3` choose their visible duration. `*` and Enter choose the
+visible default; 25 minutes is the dumb factory default, not a hidden model
+choice. A custom route is visible, but its exact bounded chooser remains an
+explicit release boundary. Accepting a duration is focus consent and follows
+WRK-078 without a second `Focus?` screen. Escape, Backspace, or Left Arrow
+returns to UX-S12 without evidence or a timer.
+
+## UX-S16 — Active short sprint
+
+Immediately after accepting 25 minutes, the ordinary current-focus screen is:
+
+```text
+Current focus:
+
+#rrsr "Review Rock Splitter rules"
+
+[d]one   [s]kip   [/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Sprint: 24:37 remaining · ends Mon, Aug 3, 09:25
+     Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The countdown is a presentation of the canonical target instant, not a stream
+of mutations. A capable interactive terminal updates only the temporal footer
+cells. Static or noninteractive output instead shows `Sprint ends: Mon, Aug 3,
+09:25`; it never emits ANSI animation. Ordinary focus commands remain valid.
+An unfinished input or palette is not overwritten when the clock reaches
+zero; UX-S17 appears at the next safe, revalidated interaction boundary.
+
+## UX-S17 — Short-sprint time is up
+
+```text
+Sprint time is up:
+
+#rrsr "Review Rock Splitter rules"
+
+What would you like to do?
+
+[c]ontinue       [a]nother sprint
+[d]one           [p]ause
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Sprint ended: Mon, Aug 3, 09:25
+           Now: Mon, Aug 3, 09:25
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Elapsed time leaves the Brick WIP and focused. Continue removes only the
+timebox. Another sprint returns to UX-S15 with 25 minutes visibly selected in
+this example. Done completes immediately; pause clears attention and retains
+WIP. Uncertainty explains those consequences and returns. No branch interprets
+the elapsed timer as completion, progress, observed effort, or failure.
 
 ## UX-K01 — Nature choice
 
