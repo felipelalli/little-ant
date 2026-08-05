@@ -248,6 +248,29 @@
   to the corresponding unchanged dumb input or entity-first route; assistance
   cannot create a risk score, accept its own proposal, or bypass CLI
   authority.
+- **FED-037 [core] — Goal clarification changes descriptive content, not
+  ontology.** The dumb `vague` goal route asks `What result should this Brick
+  produce?`, preserves the entered text as Raw content, and previews its
+  application to the Brick's Description Raw. It creates no `Definition`,
+  `Outcome`, acceptance-criterion field, or clarification Brick. The preview
+  exposes the complete resulting descriptive change before acceptance. Exact
+  Description Raw replacement, revision, and cardinality mechanics remain
+  owned by `OPEN-RAW-001`; this route may not guess them.
+- **FED-038 [core] — Missing information and first steps reuse enabling work.**
+  A `vague` information route reuses WRK-067's contextual `collect more
+  context` Feed with the current symptom carried provisionally. A first-step
+  route offers existing decomposition, `learn about the subject`, and typed
+  human support rather than inventing a planning object. Any new work uses the
+  ordinary FED-030 enabling baseline, full preview, lazy claims, and local
+  importance evidence. The route never turns descriptive text itself into a
+  Brick.
+- **FED-039 [standard] — Assisted vague clarification remains attributable.**
+  Powered-up or Skill may propose one goal clarification, contextual enabling
+  Brick, decomposition draft, learning Brick, or support target from canonical
+  evidence. The proposal identifies its source and enters the same dumb
+  Description or enabling-work preview. Rejection returns to the unchanged
+  dumb route, and assistance cannot allocate identity or apply descriptive
+  content on its own.
 
 ## Reference flows
 

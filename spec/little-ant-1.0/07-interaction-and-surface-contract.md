@@ -626,6 +626,29 @@ no-emoji rendering remain `OPEN-UX-001`.
   without a default. The routes follow WRK-083. Reverse navigation restores
   the prior checkpoint without mutation. Assisted suggestions remain visibly
   attributed and rejection returns to the identical dumb route.
+- **UX-119 [core] — Vague asks what kind of clarity is missing.** Selecting
+  `vague` opens UX-S24 and offers `[g]oal`, `[i]nformation`, `[f]irst step`,
+  `[s]kip anyway`, and uncertainty. Each of the first three rows includes one
+  short explanation, and there is no default, personality line, free-form
+  diagnosis, or new semantic axis. Goal opens UX-S25; information enters the
+  contextual collect-more-context route; first step opens UX-S27; skip follows
+  WRK-084. Uncertainty explains the content-versus-work distinction and
+  returns without choosing.
+- **UX-120 [core] — Goal clarification previews a Description change.** UX-S25
+  asks `What result should this Brick produce?` through the ordinary line
+  editor and English reminder. Nonblank submission opens UX-S26, which cites
+  the Brick, shows the complete proposed Description clarification, and asks
+  whether to apply it. Actions are `[y]es`, `[e]dit`, `[n]o`, uncertainty, and
+  the slash palette with no default. Yes follows WRK-085; edit returns to the
+  selected text editor; no restores UX-S24. The primary screen never exposes
+  unresolved Raw storage mechanics or calls the content a Definition.
+- **UX-121 [core] — First-step recovery composes existing routes.** UX-S27 asks
+  `How should we find a first step?` and offers `[b]reak it into parts`,
+  `[l]earn about the subject`, `[g]et help`, `[s]kip anyway`, and uncertainty,
+  without a default. Break reuses UX-B00..B02, learn enters contextual enabling
+  Feed, and help reuses UX-S22..S23 while carrying provisional `vague` evidence.
+  Reverse navigation restores UX-S24. No route records a symptom until its
+  final existing preview or explicit skip is accepted under WRK-086.
 
 ## Status, history, and recovery
 

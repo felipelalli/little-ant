@@ -147,9 +147,12 @@ declared empty and multi-Domain edges and the bounded custom-duration picker.
 `fear` without adding a risk axis: dumb mode asks for validation or a safer
 first move, or selects a typed ExternalEntity for advice, collaboration, or
 delegation; all accepted paths reuse explicit prerequisite and handoff
-mechanisms. Resume Gate 4 with the next unresolved served-work symptom in
-`OPEN-SKIP-001`; keep deriving core semantics through its dumb UX before
-mirroring assisted surfaces.
+mechanisms. `FED-037..039`, `WRK-084..086`, `UX-119..121`, and UX-S24..S27
+then settle `vague` by separating a direct Description Raw clarification from
+real context-gathering, decomposition, learning, or support work; the Raw
+revision encoding remains explicitly in `OPEN-RAW-001`. Continue Gate 4 with
+the next unresolved symptom in `OPEN-SKIP-001`, deriving core semantics through
+its dumb UX before mirroring assisted surfaces.
 
 ## Scope rings
 

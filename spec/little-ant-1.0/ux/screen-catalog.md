@@ -1635,6 +1635,124 @@ Delegate enters the existing Delegation preview. No choice is a default, and
 no `fear` evidence is recorded before the resulting canonical preview is
 accepted.
 
+## UX-S24 — Vague recovery
+
+```text
+#rmr "Review the migration requirements"
+
+This Brick is vague. What is missing?
+
+🎯 [g]oal         — the intended result is unclear
+📚 [i]nformation  — more context is needed
+🧭 [f]irst step   — it is unclear how to begin
+⏭️ [s]kip anyway
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rmr
+```
+
+Goal changes descriptive content; information and first step may discover real
+enabling work. The screen creates no Definition, clarification Brick, phase,
+or uncertainty score. There is no default. Reverse navigation restores UX-S01
+without mutation.
+
+## UX-S25 — Dumb goal clarification
+
+```text
+#rmr "Review the migration requirements"
+
+What result should this Brick produce?
+
+›
+
+Tip: write in English when possible.
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rmr
+```
+
+The answer remains uncommitted Raw text. Backspace edits a nonempty buffer;
+Backspace on an empty buffer, Escape, or Left Arrow restores UX-S24. Submitting
+nonblank text opens UX-S26.
+
+## UX-S26 — Description clarification preview
+
+After entering `Produce an approved list of migration requirements`:
+
+```text
+Clarify:
+
+#rmr "Review the migration requirements"
+
+Proposed Description clarification:
+
+"Produce an approved list of migration requirements"
+
+Apply this clarification?
+
+[y]es   [e]dit   [n]o   [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rmr
+```
+
+The preview describes the semantic Description change without exposing whether
+the canonical Raw implementation revises, replaces, or relinks content; that
+storage decision remains `OPEN-RAW-001`. Yes follows WRK-085. Edit returns to
+UX-S25 with the text selected, no restores UX-S24, and uncertainty explains
+that this is content rather than another Brick.
+
+## UX-S27 — Find a first step
+
+```text
+#rmr "Review the migration requirements"
+
+How should we find a first step?
+
+[b]reak it into parts
+[l]earn about the subject
+[g]et help
+[s]kip anyway
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rmr
+```
+
+Break reuses the complete decomposition route. Learn enters contextual Feed
+for one enabling learning Brick. Help reuses UX-S22..S23 with `vague` carried
+provisionally. Skip records only `vague` plus cooldown. Uncertainty explains
+the three mechanisms and returns; reverse navigation restores UX-S24.
+
 ## UX-K01 — Nature choice
 
 ```text

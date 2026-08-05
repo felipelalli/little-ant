@@ -284,6 +284,27 @@
   first accepted canonical handoff records `fear` plus `get support`; a real
   Dependency or active delegation replaces ordinary cooldown. Any route still
   awaiting confirmation remains reversible and evidence-free.
+- **WRK-084 [core] — Vague distinguishes content from missing work.**
+  Selecting `vague` opens UX-S24 with `goal`, `information`, `first step`,
+  `skip anyway`, and uncertainty. Vague alone is provisional navigation. Goal
+  enters FED-037 descriptive clarification; information enters FED-038
+  contextual Feed; first step opens UX-S27. Skip anyway records `vague` plus
+  ordinary cooldown without guessing what was unclear.
+- **WRK-085 [core] — Direct clarification keeps the Brick in place.** Goal
+  text and its Description change remain drafts through UX-S25..S26. Accepting
+  the preview atomically applies the canonical Description Raw revision and
+  records `vague` plus `clarify goal`. It creates no Brick, Dependency,
+  cooldown, importance evidence, phase, or lifecycle change. A served current
+  focus remains focused and returns to its sober continuation; an unstarted
+  proposal returns to ordinary Focus consent. Rejection or reverse navigation
+  creates no Raw revision or symptom evidence.
+- **WRK-086 [core] — Missing work must be accepted before it blocks.** An
+  accepted information, learning, decomposition, or support preview records
+  `vague` plus the chosen recovery atomically. Enabling work and accepted
+  decomposition use their existing Dependency or child structure instead of
+  ordinary cooldown; rejected and provisional routes remain evidence-free.
+  Asking for help reuses UX-S22..S23 with `vague` carried rather than `fear`.
+  A direct skip from UX-S27 records only `vague` plus cooldown.
 
 ## Time
 

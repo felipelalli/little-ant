@@ -400,7 +400,20 @@ Verify request plus successor Wait for advice, one unscheduled enabling Brick
 for collaboration, and the existing preview/approval lifecycle for delegation.
 No unaccepted route may record `fear`, fabricate an Entity, schedule a meeting,
 or delegate work. Replay one attributed assisted suggestion and prove rejection
-returns to the corresponding unchanged dumb route. Then verify `[b]locked or waiting`,
+returns to the corresponding unchanged dumb route.
+
+Select `vague` and validate UX-S24's content-versus-work distinction without a
+new semantic axis or default. Enter a goal in UX-S25, reject and edit UX-S26,
+then accept it and verify one Description Raw change plus `vague` clarification
+without a Brick, Dependency, cooldown, importance, phase, or lifecycle change.
+Preserve a current focus and return an unstarted proposal to ordinary Focus
+consent. Exercise `information` through contextual collect-more-context Feed
+and all UX-S27 first-step routes: decomposition, learning work, typed support,
+and direct skip. Confirm only an accepted existing preview records `vague` and
+recovery, while real enabling structure replaces cooldown. Keep Description
+Raw replacement/revision encoding under `OPEN-RAW-001`. Reject one attributed
+assisted proposal and prove the original dumb checkpoint and text survive.
+Then verify `[b]locked or waiting`,
 `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality
