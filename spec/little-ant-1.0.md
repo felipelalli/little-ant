@@ -143,7 +143,11 @@ Pomodoro default, a target-derived live countdown where supported, sparse
 start/terminal evidence, and an expiry choice that never claims progress or
 completion. The main `tired` and `bored` flows are complete except their
 declared empty and multi-Domain edges and the bounded custom-duration picker.
-Resume Gate 4 with the next unresolved served-work symptom in
+`FED-034..036`, `WRK-081..083`, `UX-115..118`, and UX-S18..S23 then settle
+`fear` without adding a risk axis: dumb mode asks for validation or a safer
+first move, or selects a typed ExternalEntity for advice, collaboration, or
+delegation; all accepted paths reuse explicit prerequisite and handoff
+mechanisms. Resume Gate 4 with the next unresolved served-work symptom in
 `OPEN-SKIP-001`; keep deriving core semantics through its dumb UX before
 mirroring assisted surfaces.
 

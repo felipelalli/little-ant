@@ -260,6 +260,30 @@
   duration is accepted. `Done` follows WRK-049. `Pause` follows WRK-048 and
   does not manufacture another `bored` or skip observation. Expiration never
   changes importance, effort, progress, Domain, or lifecycle by itself.
+- **WRK-081 [core] — Fear chooses recovery without becoming an axis.**
+  Selecting `fear` on the served-work symptom screen opens UX-S18 with
+  `validate the risk first`, `make a safer first move`, `get support`, `skip
+  anyway`, and uncertainty. Fear alone is provisional navigation and creates
+  no risk score, severity, lifecycle state, importance evidence, or hidden
+  psychological inference. Skip anyway records `fear` plus the ordinary
+  served-Brick cooldown and nothing about the cause.
+- **WRK-082 [core] — Validation and safer moves become explicit prerequisites.**
+  Validation and safer-move text remain drafts through UX-S19..S21. Accepting
+  the complete preview atomically creates one FED-034 enabling Brick using
+  FED-030's sibling, effective-Domain, Dependency, and local lazy-importance
+  baseline, then records `fear` plus the selected recovery. The Dependency
+  replaces ordinary skip cooldown. Validation sets phase `validation`; safer
+  move infers no phase. Rejecting, reversing, or abandoning the draft creates
+  no Brick, symptom evidence, relationship, or random consumption.
+- **WRK-083 [core] — Support reuses handoff mechanisms.** UX-S22..S23 select
+  one ExternalEntity and one explicit support form without recording `fear`.
+  Accepted advice follows FED-035 and WRK-050's request-plus-successor-Wait
+  handoff. Accepted collaboration creates one enabling preparation Brick and
+  Dependency without inventing a meeting or delegation. Accepted delegation
+  enters the existing preview-and-approval lifecycle under WRK-029..034. The
+  first accepted canonical handoff records `fear` plus `get support`; a real
+  Dependency or active delegation replaces ordinary cooldown. Any route still
+  awaiting confirmation remains reversible and evidence-free.
 
 ## Time
 

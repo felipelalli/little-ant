@@ -223,6 +223,31 @@
   names its source and still passes through the same human preview. Rejecting
   it opens the unchanged FED-032 classification; editing never lets assistance
   allocate an identity, accept its own evidence, or bypass the canonical CLI.
+- **FED-034 [core] — Dumb fear recovery asks for the missing content.** The
+  dumb `validate the risk first` and `make a safer first move` routes do not
+  invent advice from a title. They ask one short free-text question:
+  `What should be learned or tested first?` or `What would be a safer first
+  move?`. The input uses the ordinary English reminder and then opens the same
+  complete enabling-Brick preview. Validation proposes `atomic_task`, phase
+  `validation`, and lazy human Nature review. A safer move proposes
+  `atomic_task` with lazy human Nature review and no inferred phase.
+- **FED-035 [core] — Dumb support recovery is entity-first.** `Get support`
+  first selects an existing ExternalEntity through typed `@` autocomplete or
+  its visible `New person or company...` route. It then offers `ask for
+  advice`, `work together`, and `delegate this Brick`. Advice derives the
+  editable title `Ask <display name> for advice about: <served title>` and
+  enters the canonical request-handoff route, including its successor Wait.
+  Work together derives `Arrange work with <display name> on: <served title>`
+  and uses FED-030's enabling Dependency preview; it never invents a meeting,
+  schedule, or delegation. Delegate enters the canonical Delegation preview
+  for the served Brick and selected ExternalEntity.
+- **FED-036 [standard] — Assisted fear recovery preserves the dumb contract.**
+  Powered-up or Skill may prefill one attributed validation or safer-step
+  suggestion, or propose an ExternalEntity and support route from canonical
+  context. The complete editable preview remains mandatory. Rejection returns
+  to the corresponding unchanged dumb input or entity-first route; assistance
+  cannot create a risk score, accept its own proposal, or bypass CLI
+  authority.
 
 ## Reference flows
 

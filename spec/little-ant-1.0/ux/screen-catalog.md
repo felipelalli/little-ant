@@ -1458,6 +1458,183 @@ this example. Done completes immediately; pause clears attention and retains
 WIP. Uncertainty explains those consequences and returns. No branch interprets
 the elapsed timer as completion, progress, observed effort, or failure.
 
+## UX-S18 — Fear recovery
+
+```text
+#pmr "Present the migration risks"
+
+You're worried about this. What would help?
+
+🔬 [v]alidate the risk first
+🪜 [m]ake a safer first move
+🤝 [g]et support
+⏭️ [s]kip anyway
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #pmr
+```
+
+No option is a hidden default. Fear remains provisional until a final recovery
+or explicit skip is accepted. The screen creates no risk score or psychological
+classification. Reverse navigation restores UX-S01 without mutation.
+
+## UX-S19 — Dumb risk-validation input
+
+```text
+#pmr "Present the migration risks"
+
+What should be learned or tested first?
+
+›
+
+Tip: write in English when possible.
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #pmr
+```
+
+The dumb core asks for the missing content instead of fabricating a validation
+method. Submitting `Test the migration with a small internal group` opens
+UX-S21. Empty Backspace, Escape, or Left Arrow returns to UX-S18; ordinary
+Backspace edits nonempty input.
+
+## UX-S20 — Dumb safer-move input
+
+```text
+#pmr "Present the migration risks"
+
+What would be a safer first move?
+
+›
+
+Tip: write in English when possible.
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #pmr
+```
+
+Submitting `Present the migration risks to Alice privately` opens UX-S21. The
+navigation and editing rules are identical to UX-S19. This route proposes no
+validation phase merely because its origin was fear.
+
+## UX-S21 — Fear enabling-Brick preview
+
+The validation example produces:
+
+```text
+Do this first:
+
+"Test the migration with a small internal group"
+
+Then return to:
+
+#pmr "Present the migration risks"
+
+Behaves as: atomic task · validation · review later
+
+Create this enabling Brick?
+
+[y]es   [e]dit   [n]o   [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #pmr
+```
+
+The safer-move variant omits `validation` from `Behaves as`. Both previews also
+carry FED-030's visible sibling placement, effective Domain, Dependency, and
+local lazy importance evidence. The draft has no handle before acceptance.
+Yes follows WRK-082; edit returns to the applicable input and then this full
+preview; no restores UX-S18; uncertainty explains the structure and returns.
+
+## UX-S22 — Support target
+
+```text
+#pmr "Present the migration risks"
+
+Who could help?
+
+› @
+
+Type @ to find a person or company.
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #pmr
+```
+
+The typed autocomplete includes existing ExternalEntities and `New person or
+company...`. Choosing the latter enters the ordinary ExternalEntity creation
+preview and returns here after acceptance. Arbitrary text is not silently
+promoted to an Entity. Reverse navigation restores UX-S18 without mutation.
+
+## UX-S23 — Support form
+
+After selecting Alice:
+
+```text
+#pmr "Present the migration risks"
+
+How could @am "Alice Moreira" help?
+
+[a]sk for advice
+[w]ork together
+[d]elegate this Brick
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rm "Recover the migration"
+  Orbit › Platform › Migration
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #pmr
+```
+
+Advice enters the request-handoff preview with `Ask Alice Moreira for advice
+about: Present the migration risks`; accepted request completion activates its
+successor Wait. Work together previews `Arrange work with Alice Moreira on:
+Present the migration risks` as an enabling Brick without inventing a meeting.
+Delegate enters the existing Delegation preview. No choice is a default, and
+no `fear` evidence is recorded before the resulting canonical preview is
+accepted.
+
 ## UX-K01 — Nature choice
 
 ```text

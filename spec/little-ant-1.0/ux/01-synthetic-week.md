@@ -385,7 +385,22 @@ default. Reject and reverse without mutation; edit the title with the dumb
 English reminder; finally accept one prerequisite atomically and verify one
 new enabling Brick, local importance evidence, `bored` recovery, Dependency,
 and no cooldown. Replay one attributed assisted proposal and prove rejection
-returns to the unchanged dumb classifier. Then verify `[b]locked or waiting`,
+returns to the unchanged dumb classifier.
+
+Select `fear` and validate UX-S18 without mutation, a risk axis, or a default.
+Enter UX-S19 and UX-S20 independently; verify the quiet English reminder,
+ordinary editing, empty-input reverse navigation, and no generated placeholder.
+Submit one validation and one safer-step draft, inspect both UX-S21 variants,
+then reject and reverse without evidence. Accept each on independent replays
+and verify one sibling enabling Brick, effective Domain, Dependency, local lazy
+importance evidence, and `fear` recovery with no cooldown; only validation has
+phase `validation`. Enter UX-S22, select an existing ExternalEntity and create
+one through `New person or company...`, then exercise all UX-S23 support forms.
+Verify request plus successor Wait for advice, one unscheduled enabling Brick
+for collaboration, and the existing preview/approval lifecycle for delegation.
+No unaccepted route may record `fear`, fabricate an Entity, schedule a meeting,
+or delegate work. Replay one attributed assisted suggestion and prove rejection
+returns to the corresponding unchanged dumb route. Then verify `[b]locked or waiting`,
 `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality
