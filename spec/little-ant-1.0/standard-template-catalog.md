@@ -5,7 +5,8 @@ Status: **release-review ledger**
 This catalog tracks the declarative BrickTemplates considered for the offline
 Little Ant 1.0 standard library. It does not add domain branches to the core.
 Every Template expands validated Natures and capabilities, records provenance,
-and loses authority after creation.
+and loses authority after creation. Later behavior updates change Nature under
+MOD-058..059; they never edit or falsify Template provenance.
 
 Status meanings:
 

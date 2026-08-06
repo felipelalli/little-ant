@@ -308,6 +308,12 @@ multiline editor uses Enter for a newline, `Ctrl-D` to review, and a protected
 Escape path for an altered draft. Empty text reaches an explicit removal
 preview rather than deleting or detaching anything immediately.
 
+Within `behavior`, the only mutable classification is Nature. Schedules remain
+under `timing`, structure remains under `plan`, and a Template remains
+inspectable creation provenance rather than live behavior. A Nature change
+preserves identity and history, gathers any target-required configuration, and
+cannot proceed until incompatible active state has an explicit reconciliation.
+
 In the terminal editor, `Ctrl-X Ctrl-E` may hand the same pending text to a
 configured external editor. Little Ant imports the result back into its normal
 preview; the external program never commits a Raw revision or bypasses human

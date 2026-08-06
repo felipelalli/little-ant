@@ -902,8 +902,8 @@ Domains, lifecycle, WIP, and focus remain unchanged and the former title does
 not become an alias. Unchanged title submission must be an event-free no-op.
 In separate description replays, create an ordinary text Raw plus its
 `RawLink(role = description)` when absent; revise the same Raw identity when
-present; preserve earlier revisions; mark an existing English normalization stale;
-list every other affected non-description consumer; and detach without
+present; preserve earlier revisions; mark an existing English normalization
+stale; list every other affected non-description consumer; and detach without
 deleting or archiving the Raw. Reject a second active description role for
 either the Brick or the Raw rather than silently copying. Verify there is no
 Description field, entity, or Raw subtype. Keep only generic Raw revision
@@ -929,6 +929,21 @@ archive and review; accepting it must restore the same identity and create the
 one lazy importance review. Pair the dumb run with one visibly attributed
 assisted branch suggestion and reject it without changing the available
 grammar.
+
+For Nature/behavior, first select the current Nature in UX-S46 and prove an
+event-free no-op. Traverse the full mechanical discovery route over the
+existing Brick, reject its result, and verify no classification evidence was
+recorded. Then reclassify `#tm "Take medication"` from `habit` to
+`recurring_obligation`: collect the required schedule, render UX-S47, preserve
+identity, importance, Domains, description, and all typed habit outcomes; stop
+future habit windows and streak extension without rewriting history; and
+release only future obligation occurrences after acceptance. Reject and edit
+the preview on separate runs. Repeat with one attributed assisted Nature and
+reject it back to exact dumb UX-S46. Finally exercise `OPEN-NAT-001` fixtures
+for a project with children, checklist with entries, repeatable with a pending
+return, obligation with open occurrences, scheduled commitment with an active
+interval, and focused/WIP Work; every incompatible fact must obtain an
+explicit resolution or block confirmation without silent conversion.
 
 ### SCN-EXT-001 — Import and source deletion
 

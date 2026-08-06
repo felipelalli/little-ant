@@ -219,6 +219,22 @@ The factory library contains:
   generic checklist category. Templates expand generic Natures rather than add
   domain branches. `feature_backlog` has a `collection` root whose features
   are independently focusable child Bricks, not ListEntries.
+- **MOD-058 [core] — Behavior has one canonical classification axis.** In the
+  semantic update hub, human-facing `behavior` means the Brick's Nature and
+  nothing else. Cadence, schedule, and recurrence timing belong to `timing`;
+  parts, Dependencies, Waits, and Delegation belong to `plan`. A Template is a
+  one-time creation recipe whose immutable provenance may be inspected but not
+  changed as if it were live behavior. Applying later explicit plan or timing
+  changes never rewrites their original Template provenance.
+- **MOD-059 [core] — Nature reclassification never discards active truth.** A
+  proposed Nature change retains the Brick UUID, handle, title, description,
+  importance position and evidence, Domains, compatible relationships, and
+  complete typed history. Target-required configuration is collected before
+  preview. Any current structure, entry, occurrence, schedule, focus, WIP, or
+  other active state that the target Nature cannot represent requires one
+  explicit typed reconciliation before confirmation. The core never silently
+  deletes, archives, completes, detaches, flattens, converts, or forgets that
+  state merely to make the new Nature validate.
 
 ## Content, movement, and effective metadata
 

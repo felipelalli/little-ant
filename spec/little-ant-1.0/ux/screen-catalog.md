@@ -2192,7 +2192,7 @@ What seems stale?
     Title or description.
 
 [b]ehavior
-    Task, checklist, habit, recurrence, or another way this Work behaves.
+    What kind of Work this is: task, checklist, habit, or another Nature.
 
 [p]lan
     Parts, prerequisites, waits, or delegation.
@@ -2495,6 +2495,100 @@ Yes detaches only `RawLink(role = description)` under WRK-105 and reaches
 UX-S38. Edit returns to the empty UX-S43 draft. No discards the draft and
 restores UX-S39. Question mark explains preservation and restores the preview.
 No option deletes or archives the Raw.
+
+## UX-S46 — Existing-Brick Nature choice
+
+```text
+Update behavior:
+
+#tm "Take medication"
+
+Current Nature:
+
+habit
+    Missed windows affect history, but do not become overdue Work.
+
+How should this behave now?
+
+[a]tomic task           e.g. "Replace a broken light bulb"
+[p]roject               e.g. "Migrate the website"
+[c]ollection            e.g. "Books to read"
+[f]inite checklist      e.g. "Pack for a trip"
+[l]iving checklist      e.g. "Grocery list"
+[r]epeatable            e.g. "Reread an article later"
+recurring [o]bligation  e.g. "Take required daily medication"
+[h]abit                 current
+[s]cheduled commitment  e.g. "Attend an appointment"
+[?] I don't know
+
+────────────────────────────────────────
+. <root>
+  Personal › Health
+. Last focused: Thu, Aug 6, 08:00
+          Now: Thu, Aug 6, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The current row is factual, not a default, and no row receives `*` in dumb
+mode. Selecting it produces no mutation or direct human reclassification
+claim. A different row begins target validation under MOD-059 and WRK-107;
+it does not mutate immediately. Question mark reuses UX-K02..K03 over this
+existing Brick. Escape restores UX-S37. Template provenance remains visible
+through `/show`, not editable here.
+
+## UX-S47 — Reclassification preview
+
+```text
+Change behavior?
+
+#tm "Take medication"
+
+From:
+habit
+    One standing Brick with expiring windows and a streak projection.
+
+To:
+recurring obligation
+    Each required dose becomes an independently resolvable occurrence.
+
+Preserved:
+
+- Brick identity, title, importance, Domains, and history
+- 14 previous habit-window outcomes
+
+Will change:
+
+- no new habit windows will be created
+- the streak remains historical but stops extending
+- future required doses will be released as occurrence Bricks
+
+Schedule:
+
+every day · 08:00
+first occurrence: Fri, Aug 7 · 08:00
+
+Apply this change?
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+────────────────────────────────────────
+. <root>
+  Personal › Health
+. Last focused: Thu, Aug 6, 08:00
+          Now: Thu, Aug 6, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+This is one concrete source-to-target example, not the complete matrix. Yes
+applies one reversible WRK-107 action and reaches UX-S38. Edit restores the
+typed schedule builder in this example; no discards the complete draft and
+restores UX-S46. Question mark explains the shown preservation and
+consequences, then restores the preview. Previous habit outcomes remain typed
+history rather than being converted into obligation occurrences. A source
+with unresolved incompatible active state must render its reconciliation
+before this confirmable composition under `OPEN-NAT-001`.
 
 ## UX-K01 — Nature choice
 

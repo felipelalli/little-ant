@@ -827,6 +827,25 @@ no-emoji rendering remain `OPEN-UX-001`.
   a host-mediated presentation capability under DAT-046, not Pack process
   authority, a domain effect, a special Raw revision route, or a facility that
   Skill and web/mobile must imitate.
+- **UX-163 [core] — Behavior choice visibly means Nature.** UX-S46 labels the
+  current Nature and explains its observable consequence before asking `How
+  should this behave now?`. It reuses the example-backed canonical Nature
+  list, marks the current row only with `current`, and assigns no `*` in dumb
+  mode. Choosing the current row follows WRK-106. Question mark enters the
+  mechanical Nature tree and result confirmation; Escape restores UX-S37.
+  Powered-up or Skill may mark at most one different Nature with an attributed
+  reason, but rejection restores this exact dumb grammar.
+- **UX-164 [core] — Reclassification preview separates preservation from
+  consequences.** UX-S47 renders the same Brick once, then `From`, `To`,
+  `Preserved`, `Will change`, target configuration, and any explicit
+  reconciliation before `[y]es`, `[e]dit`, `[n]o`, and uncertainty. It exposes
+  no generic field names, Template selector, or storage diff. Yes and no follow
+  WRK-107. Edit returns to the nearest typed configuration or reconciliation
+  checkpoint and cannot mutate a preview field directly. If target-required
+  or incompatible active state remains unresolved, the screen has no yes
+  action and names the next typed decision instead. Assistance may propose
+  values through those same builders, with provenance retained in the final
+  preview; it cannot waive a conflict or approve itself.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

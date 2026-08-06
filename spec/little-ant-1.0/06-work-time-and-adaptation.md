@@ -468,9 +468,8 @@
   `context`, `source material`, and read-only `view everything`. These are UI
   dispatch purposes, not Brick fields, status values, event kinds, or another
   ontology axis. Meaning reaches title or the Raw attached as description;
-  behavior reaches Nature, Template, or the applicable run/repetition
-  behavior; plan reaches parts, Dependencies, Waits, or Delegation; timing
-  reaches the applicable
+  behavior reaches only Nature under MOD-058; plan reaches parts,
+  Dependencies, Waits, or Delegation; timing reaches the applicable
   `not_before`, `best_before`, deadline, schedule, or recurrence route; context
   reaches Domains, ExternalEntities, and related Work; source material reaches
   RawLinks or external-source reconciliation; and view everything reuses
@@ -485,8 +484,10 @@
   symptom. The result may return to the hub for another independent change;
   later changes do not duplicate the originating symptom. Each accepted change
   has its own history and semantic-undo boundary rather than joining an
-  unbounded cross-domain megadraft. A focused Brick remains focused and a
-  pending Focus proposal is revalidated. From `update and restore`, the first
+  unbounded cross-domain megadraft. A focused Brick remains focused unless a
+  branch proves its target cannot represent that active focus and includes an
+  explicit typed reconciliation in its preview; focus never changes silently.
+  A pending Focus proposal is revalidated. From `update and restore`, the first
   accepted change atomically performs WRK-100 restoration, resolves the archive
   review, and creates its lazy importance review; leaving before acceptance
   keeps the Brick archived. Returning to Work never starts focus silently.
@@ -509,8 +510,8 @@
 - **WRK-105 [core] — Description revision keeps ordinary Raw identity.** If
   the Brick has a `RawLink(role = description)`, accepting changed original
   text appends a content revision to that same Raw and retains every prior
-  revision in append-only history. It never replaces the Raw identity or creates a
-  second Raw for that role. If no such link exists, the first accepted
+  revision in append-only history. It never replaces the Raw identity or
+  creates a second Raw for that role. If no such link exists, the first accepted
   description atomically creates one ordinary text Raw and the MOD-057-valid
   link. Any existing English normalization on the changed original becomes
   explicitly stale rather than being copied forward as current; `/translate`
@@ -520,6 +521,26 @@
   that link and preserves the Raw. Silent cloning, unlinking, deletion, or
   normalization is forbidden. Multiline interaction follows UX-159..161;
   generic Raw revision representation remains `OPEN-RAW-001`.
+- **WRK-106 [core] — Behavior update enters existing-Brick Nature choice.**
+  Selecting `behavior` opens UX-S46 with the current Nature and its concise
+  consequence, followed by the canonical nine-Nature choice and uncertainty.
+  There is no separate Template, recurrence, run-policy, or generic behavior
+  editor. Selecting the current Nature is an educational no-op with no event,
+  revision, `out_of_date` evidence, or human-authority claim. Uncertainty
+  reuses FED-024..027 over the existing Brick and its current facts; it cannot
+  choose a Nature silently.
+- **WRK-107 [core] — Nature change is one reconciled semantic action.** After
+  a different Nature is selected, the core collects only target-required
+  configuration and every MOD-059 reconciliation needed by incompatible
+  active state. Until all are resolved, no confirmation action is available.
+  UX-S47 then previews From, To, preserved facts, stopped or newly enabled
+  behavior, target configuration, every reconciliation, and resulting focus
+  or eligibility consequences. Yes applies the complete change atomically as
+  one WRK-102 action; edit restores its nearest typed builder; no discards the
+  reclassification and restores UX-S46. A change never reapplies a Template or
+  rewrites Template provenance. The capability-delta rules sufficient to
+  derive every source-to-target transition are release-blocking under
+  `OPEN-NAT-001`.
 
 ## Time
 
