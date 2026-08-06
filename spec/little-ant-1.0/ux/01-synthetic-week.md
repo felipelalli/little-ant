@@ -821,6 +821,19 @@ and require the same interaction grammar and explicit attribution.
 Validate concise recent actions, `/history`, time/Brick/actor/family filters,
 return to the exact envelope, and bounded operator context.
 
+### SCN-SRCH-001 — Global search without losing the current flow
+
+From a finite choice, a text draft with a non-terminal cursor, and a nested
+provisional checkpoint, invoke `/search` and `Ctrl-F`. Search across a Brick,
+Raw, ListEntry, person or company, Domain, and RawShelf; require visible human
+kind labels, bounded deterministic pagination, and a read-only inspection
+round trip. Escape through the result, result list, and search entry and verify
+that the exact original envelope, draft, cursor, selection, and checkpoints
+return without an event or another draw. Validate empty-result recovery and
+prove that global selection cannot fill a contextual typed selector. Confirm
+that `/find` is not accepted as a core alias and that event queries remain in
+`/history`.
+
 ### SCN-REC-001 — Crash and stale answer
 
 Restore an input draft after a simulated crash, advance domain state elsewhere,

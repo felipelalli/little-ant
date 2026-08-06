@@ -298,6 +298,20 @@ History queries are typed, composable, bounded, and paginated. Ordinary
 history returns one concise summary per semantic action instead of dumping
 complete event JSON into an agent context.
 
+### Search globally without losing the current screen
+
+```text
+ant> /search milk
+```
+
+`/search` is available from every ordinary interaction. In the REPL,
+`Ctrl-F` opens the same type-visible search across Bricks, Raw, list items,
+people or companies, Domains, and Raw shelves. Escape returns to the exact
+pending screen, including an unfinished draft. Selecting a global result only
+inspects it; contextual selectors use their own narrower searches. Event
+history remains under `/history`, and the core intentionally has no `/find`
+alias.
+
 ### Use the powered-up REPL
 
 ```sh

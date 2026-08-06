@@ -154,6 +154,42 @@ inspectable mapping report and creates no alias. If the datasets contain the
 same UUID with incompatible lineage, this confirmation is replaced by a typed
 identity-conflict result with a concrete recovery path.
 
+## UX-RF03 — Global search
+
+Invoking `/search` or pressing `Ctrl-F` suspends the exact current interaction
+and opens one type-visible dataset search:
+
+```text
+Search Little Ant:
+
+› milk
+
+  Work       #bg "Buy groceries"
+  List item  Milk · within #bg "Buy groceries"
+  Raw        "milk" · Inbox
+  Shelf      "Cooking notes"
+
+↑/↓ select · Enter inspect · Esc back
+
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Result kinds are human labels, not serialized constructor names. Results may
+include Bricks, Raw, ListEntries, people or companies, Domains, and RawShelves.
+Selecting one opens read-only inspection; backing out restores the search and
+then the exact suspended screen, draft, cursor, and checkpoints. This global
+route never chooses a value for another pending field. A contextual selector,
+such as Raw destination search, retains its narrower result type and returns a
+value to its owning flow. Empty results remain inside this screen with a
+concise recovery to edit or clear the query; they never fall through to
+creation. `/history` remains the event-search route.
+
 ## UX-R01 — Civil clock and operational day
 
 At 02:00 on Tuesday, the stacked footer keeps the real civil date. If the

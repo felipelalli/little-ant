@@ -900,6 +900,21 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-028 [standard] — Full history.** `/history` opens searchable, paginated
   semantic history and returns to the exact pending screen. CLI filters cover
   time, Brick/entity, scope, actor, semantic family, and relevance.
+- **UX-151 [core] — Global search is always reachable.** `/search` is the one
+  canonical global discovery command and is valid while any ordinary
+  interaction is pending. `Ctrl-F` is the REPL accelerator for the same
+  command; it is not a second semantic action. Opening search suspends the
+  exact InteractionEnvelope, including any draft buffer, selection, cursor,
+  and navigation checkpoints. Escape restores that envelope unchanged, while
+  selecting a result opens read-only inspection and can return to the same
+  result set and then to the suspended interaction. Global search covers
+  Bricks, Raw, ListEntries, ExternalEntities, Domains, and RawShelves with
+  visible result kinds and bounded deterministic pagination. It emits no
+  domain event, consumes no draw, and never supplies a value to a pending
+  typed selector unless that selector explicitly invoked its own contextual
+  search. `/find` is not a core alias; an operator may interpret natural
+  language such as "find" as `/search`. `/history` remains the separate route
+  for semantic events rather than joining entity search.
 - **UX-029 [core] — Revision binding.** Every response cites the interaction
   identity and revision it answered. A stale keypress is rejected rather than
   applied to another prompt.
