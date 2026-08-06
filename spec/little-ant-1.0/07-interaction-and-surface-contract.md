@@ -822,12 +822,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   follows one bounded behavioral tree and records no disposition. `skip`
   invokes FOC-051's typed triage deferral. No Raw is rendered as a Brick or
   assigned a `#` handle merely because it is being reviewed.
-- **UX-146 [core] — Destination pages distinguish more from none.** UX-T02
+- **UX-146 [core] — Destination pages separate browsing from creation.** UX-T02
   displays a bounded, core-ranked page of compatible existing checklists,
   RawShelves, and Bricks. `[m]ore matches...` advances through the same
-  deterministic candidate set. `[n]one fit` opens UX-T03 and means the user
-  rejects every existing candidate, not that another page is desired. Because
-  this screen owns `more`, its slash action reads `[/] menu...`.
+  deterministic candidate set, `[s]earch...` opens typed autocomplete across
+  the complete compatible set, and `[c]reate a new group...` opens UX-T03.
+  No action asks the user to claim that every unseen destination is unsuitable.
+  Because this screen owns `more`, its slash action reads `[/] menu...`.
 - **UX-147 [core] — Destination consequences stay contextual.** Selecting a
   checklist asks whether to add a ListEntry; selecting a RawShelf asks whether
   to add membership; selecting a Brick uses UX-T04 to distinguish independent
@@ -848,6 +849,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   resolved entry instead explains that reuse reopens the same identity while
   preserving its earlier history. No action silently increments or replaces a
   quantity.
+- **UX-150 [core] — New-group discovery resolves existing kinds.** UX-T03
+  uses `group` only as human-facing umbrella language and offers list, shelf,
+  and independently suggestible Work behavior with one concrete explanation
+  each. List continues to a finite-versus-living lifecycle question; shelf
+  continues to RawShelf naming and preview; Work continues to ordinary Nature
+  and structure discovery. No `Group` record, hidden fallback, or object is
+  created merely by entering this screen.
 
 ## Status, history, and recovery
 

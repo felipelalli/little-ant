@@ -67,7 +67,7 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Feed asks for no metadata form before entry | `O`, README/skill/Allium | **strengthened and simplified** | every ordinary Feed commits Inbox Raw immediately; routing, Nature, targets, duplicates, and importance are separate lazy triage under `MOD-001`, `MOD-054`, `FED-001..009`, and `FED-042..047` | Raw-first dumb, assisted-batch, ListEntry, and Work-materialization routes |
+| Feed asks for no metadata form before entry | `O`, README/skill/Allium | **strengthened and simplified** | every ordinary Feed commits Inbox Raw immediately; routing, Nature, targets, duplicates, and importance are separate lazy triage under `MOD-001`, `MOD-054`, `FED-001..009`, and `FED-042..048` | Raw-first dumb, assisted-batch, ListEntry, and Work-materialization routes |
 | Raw can yield zero or more work items | `I+T`, extraction tests | **strengthened** | durable, reusable Raw under `MOD-001`, `MOD-023`, `MOD-029`, `MOD-049`, `FED-010..014` | Raw review and description routes |
 | Description is a scalar Brick field | `I`, `set --desc` | **replaced** | description is linked Raw under `MOD-029` | create/edit/reuse description Raw |
 | Title-derived IDs and exact-title collision | `I+T`, `Ids.hs` | **replaced** | UUIDv7 identities, repeated titles, and duplicate suspicion under `MOD-008..012`, `FED-015..018` | duplicate-title scenarios |

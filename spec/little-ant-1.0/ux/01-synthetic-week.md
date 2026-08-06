@@ -119,8 +119,11 @@ Validate:
 - a later recorded `raw_triage` draw renders the Raw without a Brick `#`
   handle and asks the independent-Work question;
 - `no` ranks compatible existing destinations using only inspectable dumb
-  evidence; `[m]ore matches...` pages that set while `[n]one fit` opens the
-  create/standalone/leave-Inbox result screen;
+  evidence; `[m]ore matches...` pages that set, `[s]earch...` autocompletes
+  across it, and `[c]reate a new group...` opens behavioral discovery without
+  asserting that unseen candidates are unsuitable;
+- new-group discovery creates no generic Group object and reaches explicit
+  list, RawShelf, or independently focusable Work previews;
 - selecting `#bg "Buy groceries"` proposes a ListEntry and duplicate review
   without a global `milk` identity;
 - open and resolved duplicate cases expose keep/reopen, add or change

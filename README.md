@@ -188,12 +188,15 @@ Does "milk" belong with any of these?
      living checklist
 
  [m]ore matches...
- [n]one fit
+ [s]earch...
+ [c]reate a new group...
 [?] I don't know
 ```
 
-`more matches` pages additional existing targets; `none fit` offers creating a
-list or shelf, accepting standalone Raw, or leaving it in the Inbox. Duplicate
+`more matches` pages additional existing targets; `search` autocompletes across
+all compatible existing destinations; and `create a new group` asks whether
+the result should behave as a list, Raw shelf, or independently focusable Work
+container. `Group` is only interface language, never a core object. Duplicate
 review distinguishes keeping an existing list item, adding quantity, changing
 quantity, reopening a resolved item, and creating a separate distinguishable
 item. Nothing is merged or incremented silently. Powered-up mode or a Skill

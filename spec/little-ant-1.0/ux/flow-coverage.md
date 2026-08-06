@@ -32,7 +32,7 @@ run as an interactive transcript.
 | 3 | Preserve/normalize Raw | `MOD-001`, `MOD-029`, `MOD-049` | missing | `OPEN-RAW-001..002` |
 | 3 | Nature discovery | `UX-K01..K03`, `FED-024..027` | partial | exact full traversal transcript |
 | 3 | Template selection/proposal | `UX-K04..K06`, `FED-028..029` | partial | resulting route and complete preview |
-| 3 | Raw triage and disposition | `MOD-001`, `MOD-054`, `FED-001..009`, `FED-042..047`, `FOC-051..052`, `UX-144..148`, `UX-T01..T04`, `UX-T06` | partial | honest-answer trees, create-list/shelf continuation, standalone result, and deterministic replay |
+| 3 | Raw triage and disposition | `MOD-001`, `MOD-054`, `FED-001..009`, `FED-042..048`, `FOC-051..052`, `UX-144..150`, `UX-T01..T04`, `UX-T06` | partial | honest-answer trees, list/shelf/Work-group previews, standalone disposition, and deterministic replay |
 | 3 | Duplicate suspicion | `MOD-008..012`, `FED-015..018`, `FED-046`, `UX-149`, `UX-T05` | partial | non-ListEntry candidate/outcome screens and quantity/unit closure |
 | 3 | Parent/owner/Domain choice | `FED-005`, `FED-007`, `FED-022..023`, `FED-042..043`, `UX-T02..T04` | partial | optional Domain and create-target screens |
 | 3 | Initial importance insertion | `UX-C01`, `UX-O11..O15`, `IMP-004..010`, `IMP-040..044`, `UX-134..138` | partial | accepted answer through final placement and no-nearby-candidate recovery |

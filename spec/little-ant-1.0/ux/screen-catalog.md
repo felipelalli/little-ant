@@ -3157,7 +3157,8 @@ Does "milk" belong with any of these?
      work
 
  [m]ore matches...
- [n]one fit
+ [s]earch...
+ [c]reate a new group...
  [?] I don't know
 
 [/] menu...
@@ -3173,20 +3174,27 @@ Does "milk" belong with any of these?
 
 The factory default is present only when the leading candidate has defensible
 recorded evidence under FED-007. `more matches` pages additional existing
-candidates without changing the ranking. `none fit` opens UX-T03 and rejects
-the existing set; it does not fetch another page. The slash label is `menu`
-only to distinguish the command palette from candidate expansion.
+candidates without changing the ranking. `search` opens typed autocomplete
+across all compatible existing destinations. `create a new group` opens
+UX-T03 without asserting anything about unseen candidates. The slash label is
+`menu` only to distinguish the command palette from candidate expansion.
 
-## UX-T03 — No existing destination fits
+## UX-T03 — Create a new group
 
 ```text
-No existing destination fits "milk".
+Create a new group for "milk"
 
-What should happen?
+How should this group behave?
 
-[c]reate a list or shelf...
-[k]eep as standalone raw material
-[s]kip for now
+[l]ist
+    Show its items together as one working unit.
+
+[s]helf
+    Organize raw material without turning it into Work.
+
+[w]ork group
+    Let its children appear independently in next.
+
 [?] I don't know
 
 [/] more...
@@ -3200,11 +3208,13 @@ What should happen?
   mode: dumb, focus: idle
 ```
 
-Create enters an explicit list-versus-shelf flow and creates nothing before
-its complete preview. Standalone records a reviewed disposition without
-adding structure. Skip invokes the same typed deferral as UX-T01, records no
-disposition, and leaves the Raw eligible for later triage with ordinary
-cooldown, pressure, and history.
+`group` is interface language, not a canonical kind. List asks whether the
+group should remain available after every current item is resolved, thereby
+resolving `living_checklist` versus `finite_checklist`, then asks for its name
+and complete Brick preview. Shelf asks for a RawShelf name and preview. Work
+group enters ordinary Nature and structure discovery for independently
+focusable child Bricks. Escape returns to UX-T02; no branch creates an object
+before its final preview.
 
 ## UX-T04 — Raw under an ordinary Brick
 

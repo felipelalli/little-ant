@@ -176,15 +176,18 @@ weighted-draw explanation, explicitly consent to Focus, or enter existing
 symptom discovery while preserving any prior current focus. The nested
 question-mark tree inside the forecast explanation remains named in
 `OPEN-UX-004` rather than being invented here. `MOD-054`, `FED-001..009`,
-`FED-042..047`, `FOC-051..052`, `UX-144..149`, and UX-T01..T06 then simplify
+`FED-042..048`, `FOC-051..052`, `UX-144..150`, and UX-T01..T06 then simplify
 ordinary Feed to one immediate Raw commit: the derived Inbox holds unresolved
 material, and later weighted triage may keep it standalone, shelve or attach
 it, create or reuse an owner-scoped ListEntry, or materialize positioned Work.
 The dumb route ranks inspectable existing destinations; `[m]ore matches...`
-paginates while `[n]one fit` rejects that set. Assisted modes may propose an
+paginates, `[s]earch...` autocompletes across the compatible set, and
+`[c]reate a new group...` begins explicit list, RawShelf, or Work-container
+discovery without claiming unseen candidates do not fit. `Group` remains
+interface language rather than a core object. Assisted modes may propose an
 attributed bounded recent-Raw batch but never delay Feed or accept routing.
-Continue this Feed review by completing the UX-T01 honest-answer tree, the
-UX-T03 create-list/shelf continuation, Raw human-reference grammar, and the
+Continue this Feed review by completing the UX-T01 and UX-T03 honest-answer
+trees, the list/shelf/Work-group previews, Raw human-reference grammar, and the
 end-to-end Raw-to-Work transaction; then close the remaining question-mark and
 `OPEN-SKIP-001` edges before mirroring assisted surfaces.
 

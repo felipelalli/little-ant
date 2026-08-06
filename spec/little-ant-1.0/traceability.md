@@ -47,7 +47,7 @@ from `70cb5b0`; the failed implementation remains on
 | Current subject | Canonical destination | Primary evidence |
 |---|---|---|
 | Product promise, English, no aliases, scope rings | `PRD-*` | initial design, later vocabulary corrections, UX recovery |
-| Raw, Inbox, lazy triage, Description, same-Raw normalization, shelves, sources | `MOD-001`, `MOD-023`, `MOD-029`, `MOD-049`, `MOD-054`, `FED-001..018`, `FED-042..047`, `FOC-051..052`, `UX-144..149`, `DAT-002`, `DAT-011..017`, `DAT-042..043`, `OPEN-RAW-*` | `98dbe1c`, explicit post-`9a748bf` correction, `33e9dd3`, Raw-first Feed UX review |
+| Raw, Inbox, lazy triage, Description, same-Raw normalization, shelves, sources | `MOD-001`, `MOD-023`, `MOD-029`, `MOD-049`, `MOD-054`, `FED-001..018`, `FED-042..048`, `FOC-051..052`, `UX-144..150`, `DAT-002`, `DAT-011..017`, `DAT-042..043`, `OPEN-RAW-*` | `98dbe1c`, explicit post-`9a748bf` correction, `33e9dd3`, Raw-first Feed UX review |
 | UUIDv7 identity, mnemonic handles, repeated titles, duplicate suspicion, merge | `MOD-008..012`, `FED-004`, `FED-015..018`, `UX-075..076`, `OPEN-MERGE-001`, `OPEN-REF-001` | v0 audit plus the 1.0 identity and human-reference redesign |
 | Brick axes, Natures, Templates, ListEntries | `MOD-002..005`, `MOD-013..018`, `MOD-025..054`, `OPEN-LST-001` | conceptual sessions and Nature/Template screen reviews |
 | Composition, sibling locality, Domains, dependencies | `MOD-019..024`, `MOD-031..034`, `FED-030..041`, `OPEN-TREE-001`, `OPEN-DOM-*` | hierarchy, Domain, and enabling-recovery sessions including fear, vague, and hard recovery |

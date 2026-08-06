@@ -114,7 +114,8 @@ start or restore
 → revalidate next
 → later draw Raw triage
 → choose independent Work or rank compatible destinations
-→ page more existing matches or explicitly reject them all
+→ page more matches, search all compatible destinations, or explicitly create
+  a new list, RawShelf, or Work container
 → create shelf membership, attach Raw, create/reuse ListEntry, keep standalone,
   leave in Inbox, or materialize Work
 → for Work only: resolve Nature and optional Template, review duplicate,

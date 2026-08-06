@@ -301,14 +301,14 @@
   local importance settlement; `no` proposes a typed Raw attachment. A target
   is never treated as a generic folder, and its Nature is never inferred from
   the fed text.
-- **FED-043 [core] — More and none are different.** `[m]ore matches...`
-  deterministically pages additional existing candidates from the same ranked
-  set. `[n]one fit` asserts that no existing candidate is suitable and opens
-  explicit choices to create a list or shelf, accept the Raw as reviewed but
-  standalone, or leave triage pending in the Inbox. It never silently creates
-  a container or repeats the same candidate page. The unchanged slash palette
-  is labelled `[/] menu...` on this screen so `more` cannot be mistaken for
-  system commands.
+- **FED-043 [core] — Browse, search, and create are distinct.** `[m]ore
+  matches...` deterministically pages additional existing candidates from the
+  same ranked set. `[s]earch...` opens typed autocomplete across every
+  compatible existing destination. `[c]reate a new group...` stops searching
+  and enters explicit new-destination discovery. None of these actions claims
+  that the user has inspected or rejected unseen candidates. The unchanged
+  slash palette is labelled `[/] menu...` on this screen so `more` cannot be
+  mistaken for system commands.
 - **FED-044 [standard] — Recent material may support one batch proposal.** A
   Skill or powered-up host may observe a bounded recent-Feed window and propose
   one explicit disposition for several named Raws, such as routing `milk`,
@@ -339,6 +339,13 @@
   that later preview creates no Brick and leaves the Raw in the Inbox. This is
   not semantic inference and does not change ordinary `/feed`, whose only
   immediate result remains Raw.
+- **FED-048 [core] — Group is interface language only.** `Group` is not a
+  durable core kind. New-group discovery asks how members should behave. A
+  list shown as one working unit creates a Brick whose subsequent lifecycle
+  question resolves `living_checklist` or `finite_checklist`; a shelf creates
+  a RawShelf; independently suggestible child Work enters ordinary Brick
+  Nature and structure discovery. Every branch shows its resulting canonical
+  object before creation and keeps the source Raw in the Inbox if abandoned.
 
 ## Reference flows
 
