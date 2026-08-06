@@ -911,7 +911,12 @@ encoding open under `OPEN-RAW-001`. Exercise the accepted UX-159..161 grammar:
 selected replacement, arrow selection collapse, literal slash, newline
 insertion, multiline paste with a trailing newline, `Ctrl-D` review, unchanged
 and changed Escape, keep/discard/continue, global search suspension, crash
-restoration, empty-new no-op, and explicit removal.
+restoration, empty-new no-op, and explicit removal. Then exercise UX-162 with
+an explicit argv editor, `$VISUAL`, `$EDITOR`, unavailable configuration,
+unchanged text, changed multiline text, empty text, nonzero exit, a GUI command
+missing its wait flag, terminal restoration, permission-`0600` temporary
+material, cleanup, and the unchanged canonical confirmation boundary. Verify
+that executable Pack code never receives process or file authority.
 
 In further separate replays accept one Nature/behavior, plan, timing,
 Domain/relationship, and source-reconciliation change through its typed

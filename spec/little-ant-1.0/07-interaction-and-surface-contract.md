@@ -807,6 +807,26 @@ no-emoji rendering remain `OPEN-UX-001`.
   the empty UX-S43 draft; no discards the draft and restores UX-S39. Empty
   input never silently creates an empty Raw, detaches a link, deletes content,
   or serves as a navigation alias.
+- **UX-162 [standard] — External editing transports only a text draft.** In
+  any compatible textual-Raw draft editor, the terminal chord `Ctrl-X Ctrl-E`
+  asks its surface host to open the current complete buffer in the configured
+  external editor. The host checkpoints the original draft, leaves raw or
+  alternate-screen mode cleanly, writes only the original text bytes to a
+  permission-`0600` secure temporary file, invokes the editor without a shell,
+  and waits for it to exit. Resolution order is explicit Little Ant editor
+  argv, then `$VISUAL`, then `$EDITOR`; environment fallback is tokenized into
+  argv without command expansion, redirection, or pipelines. A GUI command is
+  responsible for its own wait flag. Exit zero with changed nonempty content
+  imports one new pending buffer and opens the ordinary preview; changed empty
+  content opens the ordinary removal preview; unchanged content restores the
+  internal editor with one discreet no-change hint. Spawn, read, or nonzero
+  exit failure restores the exact prelaunch draft with one typed educational
+  diagnostic. The host removes the temporary file after import or failure;
+  after a crash it removes only stale temporary files it owns and never imports
+  them. Recovery remains the interaction checkpoint, never that file. This is
+  a host-mediated presentation capability under DAT-046, not Pack process
+  authority, a domain effect, a special Raw revision route, or a facility that
+  Skill and web/mobile must imitate.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

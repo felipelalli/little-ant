@@ -2422,7 +2422,7 @@ Update description:
   Document obsolete exceptions and their replacements.
   _
 
-Enter newline · Ctrl-D review · Esc back
+Enter newline · Ctrl-D review · Ctrl-X Ctrl-E external editor · Esc back
 
 Tip: write in English when possible.
 
@@ -2440,7 +2440,9 @@ treatment of UX-A02; the code block cannot show that styling. An absent
 description starts empty. Input, cursor, newline, paste, search suspension,
 and review follow UX-159. Slash is literal content here, so this active editor
 does not display `[/] more...`. Escape behavior follows UX-160. None of these
-editor operations mutates domain state.
+editor operations mutates domain state. `Ctrl-X Ctrl-E` follows UX-162 and
+returns either to this editor or to the same UX-S42/UX-S45 preview that
+`Ctrl-D` would have opened.
 
 ## UX-S44 — Leave changed description draft
 

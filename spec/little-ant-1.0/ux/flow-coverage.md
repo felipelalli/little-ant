@@ -29,7 +29,7 @@ run as an interactive transcript.
 | 3 | Pristine first start | `UX-E00`, `FOC-029` | screened | Feed/back/end-to-end transition |
 | 3 | Useful non-pristine empty | `UX-E01`, `FOC-028` | screened | state-derived choice transitions |
 | 3 | Feed text input | `UX-M01`, `UX-I02`, `UX-047..049`, `UX-144` | screened | accepted Raw commit, exact post-commit proposal revalidation, and failure replay |
-| 3 | Preserve/normalize Raw | `MOD-001`, `MOD-029`, `MOD-049`, `MOD-056..057`, `WRK-105`, `UX-158..161`, `UX-S42..S45` | partial | generic Raw representation under `OPEN-RAW-001`, `/translate` under `OPEN-RAW-002`, and paired transcript replay |
+| 3 | Preserve/normalize Raw | `MOD-001`, `MOD-029`, `MOD-049`, `MOD-056..057`, `WRK-105`, `UX-158..162`, `DAT-046`, `UX-S42..S45` | partial | generic Raw representation under `OPEN-RAW-001`, `/translate` under `OPEN-RAW-002`, and paired internal/external-editor transcript replay |
 | 3 | Nature discovery | `UX-K01..K03`, `FED-024..027` | partial | exact full traversal transcript |
 | 3 | Template selection/proposal | `UX-K04..K06`, `FED-028..029` | partial | resulting route and complete preview |
 | 3 | Raw triage and disposition | `MOD-001`, `MOD-054`, `FED-001..009`, `FED-042..048`, `FOC-051..052`, `UX-144..150`, `UX-T01..T04`, `UX-T06` | partial | honest-answer trees, list/shelf/Work-group previews, standalone disposition, and deterministic replay |
@@ -46,7 +46,7 @@ run as an interactive transcript.
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Archive and relevance review | `MOD-055..057`, `FOC-053`, `WRK-098..105`, `UX-152..161`, `UX-S35..S45`, `SCN-ARC-001` | partial | remaining typed branch screens, supersession transfer, honest-answer tree, subtree outcomes, and paired surface replay |
-| 4 | Meaning, title, and attached description | `MOD-056..057`, `FED-037`, `WRK-103..105`, `UX-156..161`, `UX-S39..S45`, `SCN-ARC-001` | partial | generic Raw revision event under `OPEN-RAW-001`, uncertainty trees, and paired surface replay |
+| 4 | Meaning, title, and attached description | `MOD-056..057`, `FED-037`, `WRK-103..105`, `UX-156..162`, `DAT-046`, `UX-S39..S45`, `SCN-ARC-001` | partial | generic Raw revision event under `OPEN-RAW-001`, uncertainty trees, and paired surface replay |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001`, `OPEN-UNDO-001` | partial | exhaustive typed compensation matrix and conflict replay |
 | 4 | Global search and return | `UX-151`, `UX-RF03`, `SCN-SRCH-001` | partial | deterministic cross-kind ranking, pagination, and paired surface replay |
 | 5 | Cross-Domain focus | `UX-F02`, `UX-F12..F14`, `FOC-014..019`, `FOC-048..050` | partial | hard scope and equal-specificity target |

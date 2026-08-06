@@ -172,6 +172,15 @@ The concrete vault, recovery, rotation, and memory-agent security design is
   retain credentials. Like the REPL, Skill, and first-party web/mobile hosts,
   it invokes the canonical CLI/protocol dispatcher rather than another
   presentation surface.
+- **DAT-046 [standard] — External text editors are host-mediated.** A
+  first-party surface host, or a host explicitly serving a UIAdapter, may
+  transport one pending text draft through UX-162. Executable Pack code never
+  receives subprocess, filesystem-path, environment, or temporary-file
+  authority: it can render or select the declared action only. Imported bytes
+  return as an ordinary pending interaction action bound to the displayed
+  revision and pass through the canonical preview. Editor launch, failure,
+  cleanup, and local draft recovery are presentation operations and emit no
+  domain event.
 - **DAT-033 [standard] — Standard and community catalogs.** A standard offline
   Pack ships with 1.0. A separate `little-ant-packs` repository may distribute
   a broader inspectable community catalog without becoming domain authority.
