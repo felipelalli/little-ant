@@ -159,8 +159,9 @@ Close:
 - meaning choice, selected title editing with stable identity and handle, and
   description editing as revision of an ordinary one-to-one
   `RawLink(role = description)` target rather than a Brick field or Raw subtype;
-- the exact cross-surface multiline draft grammar in `OPEN-UX-005`, including
-  create, revise, detach, paste, cancellation, recovery, and preview return;
+- replay the settled UX-159..161 cross-surface multiline draft grammar,
+  including create, revise, detach, paste, cancellation, recovery, and preview
+  return;
 - Escape versus semantic undo, redo conflict, stale answer, restored draft, and
   the complete typed compensation matrix in `OPEN-UNDO-001`.
 

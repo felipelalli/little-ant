@@ -902,13 +902,16 @@ Domains, lifecycle, WIP, and focus remain unchanged and the former title does
 not become an alias. Unchanged title submission must be an event-free no-op.
 In separate description replays, create an ordinary text Raw plus its
 `RawLink(role = description)` when absent; revise the same Raw identity when
-present;
-preserve earlier revisions; mark an existing English normalization stale;
+present; preserve earlier revisions; mark an existing English normalization stale;
 list every other affected non-description consumer; and detach without
 deleting or archiving the Raw. Reject a second active description role for
 either the Brick or the Raw rather than silently copying. Verify there is no
-Description field, entity, or Raw subtype. Stop only multiline key behavior at
-`OPEN-UX-005` and generic Raw revision encoding at `OPEN-RAW-001`.
+Description field, entity, or Raw subtype. Keep only generic Raw revision
+encoding open under `OPEN-RAW-001`. Exercise the accepted UX-159..161 grammar:
+selected replacement, arrow selection collapse, literal slash, newline
+insertion, multiline paste with a trailing newline, `Ctrl-D` review, unchanged
+and changed Escape, keep/discard/continue, global search suspension, crash
+restoration, empty-new no-op, and explicit removal.
 
 In further separate replays accept one Nature/behavior, plan, timing,
 Domain/relationship, and source-reconciliation change through its typed

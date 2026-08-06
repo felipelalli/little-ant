@@ -2405,11 +2405,94 @@ will need review after this change
 The screen never exposes a Description object or technical Raw ID. Yes appends
 the proposed original-text revision to the same ordinary Raw and reaches
 UX-S38; when no `RawLink(role = description)` exists, it instead creates one
-ordinary Raw and the link atomically. Edit returns to the still-open multiline
+ordinary Raw and the link atomically. Edit returns to UX-S43 with the exact
 draft; no discards it and restores UX-S39. The normalization warning is omitted when
 none exists. If the Raw has other non-description consumers, a human-visible
 `Also used by:` block lists each affected Brick, RawShelf, Domain, or other
-projection before the actions. Exact multiline input remains `OPEN-UX-005`.
+projection before the actions.
+
+## UX-S43 — Multiline description editor
+
+```text
+Update description:
+
+#rrsr "Review Rock Splitter rules"
+
+› Review the rules currently deployed in production.
+  Document obsolete exceptions and their replacements.
+  _
+
+Enter newline · Ctrl-D review · Esc back
+
+Tip: write in English when possible.
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+On entry, the complete existing original text is selected with the accessible
+treatment of UX-A02; the code block cannot show that styling. An absent
+description starts empty. Input, cursor, newline, paste, search suspension,
+and review follow UX-159. Slash is literal content here, so this active editor
+does not display `[/] more...`. Escape behavior follows UX-160. None of these
+editor operations mutates domain state.
+
+## UX-S44 — Leave changed description draft
+
+```text
+Leave description editor?
+
+*[k]eep the draft
+ [d]iscard it
+ [c]ontinue editing
+ [?] I don't know
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Keep is the visible default and means an interaction checkpoint, not a Raw,
+history event, or accepted description. It returns to UX-S39; selecting
+description again resumes the exact buffer. Discard returns without the draft.
+Continue restores UX-S43 at the exact cursor and selection. Uncertainty
+explains that distinction and restores this screen. Crash recovery follows
+UX-160 and UX-030.
+
+## UX-S45 — Remove-description preview
+
+```text
+Remove description?
+
+#rrsr "Review Rock Splitter rules"
+
+The attached Raw material will be preserved.
+Its history and other links will remain unchanged.
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Yes detaches only `RawLink(role = description)` under WRK-105 and reaches
+UX-S38. Edit returns to the empty UX-S43 draft. No discards the draft and
+restores UX-S39. Question mark explains preservation and restores the preview.
+No option deletes or archives the Raw.
 
 ## UX-K01 — Nature choice
 

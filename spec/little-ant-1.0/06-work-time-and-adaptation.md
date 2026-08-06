@@ -518,8 +518,8 @@
   non-description consumers, the preview enumerates every other affected link
   or membership before a shared revision. Removing a description detaches only
   that link and preserves the Raw. Silent cloning, unlinking, deletion, or
-  normalization is forbidden. The exact multiline editor keys and generic Raw
-  revision representation remain with their explicit open decisions.
+  normalization is forbidden. Multiline interaction follows UX-159..161;
+  generic Raw revision representation remains `OPEN-RAW-001`.
 
 ## Time
 

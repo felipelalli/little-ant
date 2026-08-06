@@ -769,16 +769,44 @@ no-emoji rendering remain `OPEN-UX-001`.
   returns with the draft selected; no discards it and restores UX-S39; Escape
   follows ordinary checkpoint navigation.
 - **UX-158 [core] — Description preview exposes Raw consequences, not storage
-  jargon.** After a surface obtains one multiline description draft, UX-S42
-  shows complete current and proposed original text. When applicable it also
+  jargon.** Reviewing UX-S43 opens UX-S42 with complete current and proposed
+  original text. When applicable it also
   states that the English normalization will need review and lists every other
   human-visible link or membership that will observe the same Raw revision.
   It never renders a Description entity, technical Raw ID, or false local-only
   edit. Actions are `[y]es`, `[e]dit`, `[n]o`, and uncertainty without a
   default. Yes follows WRK-105 and renders UX-S38; edit restores the multiline
-  draft; no discards it and restores UX-S39. The exact cross-surface multiline
-  finish, review, cancel, selection, paste, and recovery grammar is
-  release-blocking under `OPEN-UX-005` rather than guessed by this screen.
+  draft in UX-S43; no discards it and restores UX-S39.
+- **UX-159 [core] — Multiline editing has one portable finish gesture.**
+  UX-S43 opens with the complete current original description selected; an
+  absent description opens an empty buffer. Printable input or paste replaces
+  the selection, while arrows collapse it and use conventional text-cursor
+  behavior. Enter inserts a newline. `Ctrl-D` reviews the complete buffer
+  through UX-S42 or UX-S45 and never commits directly. Bracketed or ordinary
+  multiline paste is one draft edit: embedded or trailing newlines cannot
+  trigger review. Slash is literal text while the buffer owns input; `Ctrl-F`
+  may suspend and restore the exact editor through global search. The quiet
+  English-writing reminder remains advisory. No editor action creates a Raw,
+  Raw revision, link, symptom, or domain event before an accepted preview.
+- **UX-160 [core] — Leaving a changed multiline buffer protects the draft.**
+  Escape with an unchanged buffer restores UX-S39 immediately. Escape or
+  empty-buffer Backspace after a change opens UX-S44 with `keep the draft`,
+  `discard it`, `continue editing`, and uncertainty. Keep is the visible
+  default and restores UX-S39 while retaining only a resumable interaction
+  checkpoint; selecting description again resumes it. Discard restores
+  UX-S39 without the draft. Continue returns to the exact buffer, cursor, and
+  selection. None records a domain event. After interruption or crash, a
+  capable surface restores the exact checkpoint under UX-030 and states
+  `Draft restored after interruption.` Web/mobile controls and Skill actions
+  express these same intents without pretending to send terminal keypresses.
+- **UX-161 [core] — Empty description review is explicit.** `Ctrl-D` on an
+  empty new-description buffer is an educational no-op that keeps UX-S43.
+  `Ctrl-D` after clearing an existing description opens UX-S45. That preview
+  states that the attachment will be removed while its ordinary Raw, history,
+  and other links remain. Yes follows WRK-105 and reaches UX-S38; edit restores
+  the empty UX-S43 draft; no discards the draft and restores UX-S39. Empty
+  input never silently creates an empty Raw, detaches a link, deletes content,
+  or serves as a navigation alias.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

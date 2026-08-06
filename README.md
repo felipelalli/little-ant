@@ -304,8 +304,9 @@ preserves the Brick UUID, `#handle`, hierarchy, order, relationships,
 lifecycle, and focus; the former title remains history but does not become an
 alias. Description editing revises the ordinary Raw attached with role
 `description`, or atomically creates that Raw and link when absent. The exact
-multiline-editor grammar is still a release-blocking UX decision rather than
-an implicit storage shortcut.
+multiline editor uses Enter for a newline, `Ctrl-D` to review, and a protected
+Escape path for an altered draft. Empty text reaches an explicit removal
+preview rather than deleting or detaching anything immediately.
 
 ### Read an article again later
 
