@@ -891,6 +891,21 @@ still find the Brick throughout. Run the same transcript for an archived child
 and stop at the explicit `OPEN-TREE-001` boundary rather than inventing parent
 closure semantics.
 
+From both active `update it` and archived `update and restore`, enter UX-S37.
+Verify all seven semantic purposes, no dumb default, read-only `/show` round
+trip, exact reverse navigation, and absence of a generic field patch. In
+separate replays accept one title, Description Raw, Nature/behavior, plan,
+timing, Domain/relationship, and source-reconciliation change through its
+typed preview. The first active edit must record `out_of_date` atomically;
+inspection and rejected drafts must not. Confirm that each UX-S38 receipt has
+an independent undo boundary, that `update something else` does not record the
+symptom again, and that `return to Work` neither focuses nor redraws silently.
+For archived Work, leaving before the first accepted edit must preserve the
+archive and review; accepting it must restore the same identity and create the
+one lazy importance review. Pair the dumb run with one visibly attributed
+assisted branch suggestion and reject it without changing the available
+grammar.
+
 ### SCN-EXT-001 — Import and source deletion
 
 Migrate a small Microsoft To Do source, verify it, preview

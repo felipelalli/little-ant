@@ -272,6 +272,26 @@ archived, restore the same identity, update and restore it, or link newer Work
 as its replacement. `/undo` can compensate the original archive immediately;
 later restoration is a new recorded action rather than deleted history.
 
+`update it` does not expose an arbitrary field editor. It first asks which
+human-facing aspect is stale:
+
+```text
+[m]eaning          Title or description.
+[b]ehavior         Task, checklist, habit, recurrence, or similar behavior.
+[p]lan             Parts, prerequisites, waits, or delegation.
+[t]iming           When it may start, should happen, or repeat.
+[c]ontext          Domains, people or companies, and related Work.
+[s]ource material  Linked Raw material or external sources.
+[v]iew everything  Inspect without changing anything.
+[?] I don't know
+```
+
+Each branch invokes a typed canonical operation with its own preview. One
+accepted change produces one history and undo boundary; `update something
+else` returns to the same hub instead of accumulating an unbounded generic
+patch. Powered-up mode or a Skill may mark one likely branch and explain why,
+but cannot mutate or bypass its normal preview.
+
 ### Read an article again later
 
 ```text

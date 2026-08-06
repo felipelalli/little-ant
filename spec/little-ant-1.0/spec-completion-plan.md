@@ -154,6 +154,8 @@ Close:
 - atomic break and Nature change;
 - WIP review, unfocus, return-to-idle, direct done, archive, archive-relevance
   review, supersede, and merge;
+- out-of-date update dispatch, every typed branch preview, one-change receipts,
+  and return-to-Work behavior without a generic patch editor;
 - Escape versus semantic undo, redo conflict, stale answer, restored draft, and
   the complete typed compensation matrix in `OPEN-UNDO-001`.
 

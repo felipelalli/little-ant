@@ -462,6 +462,33 @@
   unchanged, applying only review cooldown and pressure. Exact structured edit
   selection and supersession relationship transfer remain with their owning
   open decisions rather than being guessed here.
+- **WRK-101 [core] — Updating dispatches by human meaning, not storage field.**
+  `update it` and `update and restore` enter one non-mutating update hub whose
+  closed first-level purposes are `meaning`, `behavior`, `plan`, `timing`,
+  `context`, `source material`, and read-only `view everything`. These are UI
+  dispatch purposes, not Brick fields, status values, event kinds, or another
+  ontology axis. Meaning reaches title or Description Raw; behavior reaches
+  Nature, Template, or the applicable run/repetition behavior; plan reaches
+  parts, Dependencies, Waits, or Delegation; timing reaches the applicable
+  `not_before`, `best_before`, deadline, schedule, or recurrence route; context
+  reaches Domains, ExternalEntities, and related Work; source material reaches
+  RawLinks or external-source reconciliation; and view everything reuses
+  read-only `/show` before restoring the hub. Every branch invokes a closed
+  canonical operation with its own validation and preview. There is no generic
+  field editor, arbitrary patch payload, or catch-all metadata mutation.
+- **WRK-102 [core] — Each accepted update is one reversible semantic action.**
+  A branch drafts and previews one typed change at a time. Accepting the first
+  change from an active out-of-date flow atomically records `out_of_date` with
+  that change and retains the same Brick identity and active lifecycle;
+  browsing, inspecting, editing a draft, rejecting, or leaving records no
+  symptom. The result may return to the hub for another independent change;
+  later changes do not duplicate the originating symptom. Each accepted change
+  has its own history and semantic-undo boundary rather than joining an
+  unbounded cross-domain megadraft. A focused Brick remains focused and a
+  pending Focus proposal is revalidated. From `update and restore`, the first
+  accepted change atomically performs WRK-100 restoration, resolves the archive
+  review, and creates its lazy importance review; leaving before acceptance
+  keeps the Brick archived. Returning to Work never starts focus silently.
 
 ## Time
 

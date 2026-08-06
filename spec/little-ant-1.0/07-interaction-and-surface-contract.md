@@ -735,6 +735,24 @@ no-emoji rendering remain `OPEN-UX-001`.
   forward mutation before commit; review skip follows WRK-100. Immediate
   `/undo` of the original archive remains a distinct semantic compensation,
   not another label for restore.
+- **UX-154 [core] — Update hub exposes semantic purposes.** UX-S37 asks `What
+  seems stale?` and lists `[m]eaning`, `[b]ehavior`, `[p]lan`, `[t]iming`,
+  `[c]ontext`, `[s]ource material`, `[v]iew everything`, and uncertainty, in
+  that order and without a dumb default. Each item includes one short human
+  explanation and follows WRK-101. View is read-only and restores the exact
+  hub. Escape and reverse navigation restore UX-S35 or UX-S36, including its
+  pending review, without recording `out_of_date`.
+- **UX-155 [core] — Update assistance and receipts preserve one grammar.**
+  Powered-up or Skill may mark at most one existing hub purpose and give one
+  concise attributed reason under UX-059; it cannot bypass the hub with a
+  generic patch. Once the human enters a typed branch, assistance may propose
+  one exact edit only through that branch's ordinary complete preview. Every
+  accepted change renders UX-S38 with `[u]pdate something else`, `[r]eturn to
+  Work`, and the slash palette. Update loops to UX-S37. Return restores a
+  revalidated pending Focus screen, the current-focus screen, or—after archive
+  restoration—ordinary Focus consent for the restored Brick; it never starts
+  focus or draws another subject. The palette exposes semantic undo, and Left
+  Arrow at the committed receipt uses UX-U01 rather than provisional back.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

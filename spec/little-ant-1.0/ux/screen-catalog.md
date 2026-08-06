@@ -2179,6 +2179,104 @@ no lifecycle or lineage and leaves this marker unresolved with review
 cooldown. Every mutation has its own preview; immediate semantic undo of the
 original archive is not presented as restoration.
 
+## UX-S37 — Semantic update hub
+
+```text
+Update:
+
+#rrsr "Review Rock Splitter rules"
+
+What seems stale?
+
+[m]eaning
+    Title or description.
+
+[b]ehavior
+    Task, checklist, habit, recurrence, or another way this Work behaves.
+
+[p]lan
+    Parts, prerequisites, waits, or delegation.
+
+[t]iming
+    When it may start, should happen, or repeat.
+
+[c]ontext
+    Domains, people or companies, and related Work.
+
+[s]ource material
+    Linked Raw material or external sources.
+
+[v]iew everything
+    Inspect the complete Brick without changing it.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+This screen dispatches only to the closed typed routes in WRK-101. It is not a
+form, schema browser, generic object editor, or domain event. No option is a
+dumb default. View everything opens `/show` read-only and returns here with the
+same pending interaction. Assistance may mark one option and add an attributed
+reason, for example:
+
+```text
+*[s]ource material
+    Linked Raw material or external sources.
+
+Suggestion: the linked Microsoft document changed after this Brick was last reviewed.
+```
+
+The suggested branch and every other action remain unchanged. Exact edits
+still require their typed branch preview. Reverse navigation returns to the
+originating out-of-date or archive-review screen without evidence.
+
+## UX-S38 — One accepted update
+
+After an accepted title preview, the stable receipt is:
+
+```text
+Updated:
+
+#rrsr "Review the current Rock Splitter rules"
+
+Title:
+"Review the old Rock Splitter rules"
+→
+"Review the current Rock Splitter rules"
+
+Anything else?
+
+[u]pdate something else
+[r]eturn to Work
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Updated: Mon, Aug 3, 09:06
+      Now: Mon, Aug 3, 09:06
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The changed fact block varies with the typed operation but always shows the
+complete human-relevant before and after values. Update something else returns
+to UX-S37. Return to Work follows UX-155 without focusing or drawing silently.
+The first accepted active update records `out_of_date` in the same semantic
+transaction; later updates in this update sequence do not repeat it. Every
+receipt has its own `/undo`, and Left Arrow opens UX-U01 rather than crossing
+the commit boundary as navigation.
+
 ## UX-K01 — Nature choice
 
 ```text
