@@ -779,6 +779,37 @@ no-emoji rendering remain `OPEN-UX-001`.
   may suggest `either_order` when evidence supports indifference, but must
   traverse the same confirmation and cannot record a direction, symmetric
   evidence, provisional position, or investigation Brick automatically.
+- **UX-139 [core] — Focus uncertainty starts with the work itself.** Question
+  mark on UX-F01, UX-F02, or UX-F03 opens UX-F12 at FOC-048 Q0. Each question
+  retains the complete proposed Brick citation and ordinary footer while
+  preserving cross-Domain and blocker-path context. Reverse navigation from
+  Q0 restores the exact proposal without a draw or revision change.
+- **UX-140 [core] — Missing understanding reuses context and vague.** Q1
+  inspection opens the existing read-only `/show` projection for the proposed
+  Brick and then asks whether its goal, information, and starting point are
+  now understandable. A remaining explicit `no` opens UX-S34 with `vague` and
+  the reason that existing context was insufficient; confirmation opens the
+  existing vague reaction but records nothing. Exact `/show` projection fields
+  remain owned by `OPEN-DAT-001`, not duplicated by Focus.
+- **UX-141 [core] — Selection explanation is contextual evidence.** Q3 `yes`
+  opens UX-F13 with the immutable FOC-049 facts. Its primary actions are
+  `[c]ontinue · [b]ack · [?] I don't know`, avoiding a false yes/no question:
+  continue reaches Q4, back restores Q2, and uncertainty enters the still-open
+  bounded explanation aid under `OPEN-UX-004`. The explanation may be folded,
+  expanded, or paraphrased without changing its structured facts.
+- **UX-142 [core] — Final Focus consent remains explicit.** FOC-048 Q4 renders
+  UX-F14 with `Start focusing this Brick?` and
+  `[y]es · [n]o · [?] I don't know`. `yes` invokes the original Focus accept
+  transition immediately. `no` and uncertainty both open UX-S33 without
+  recording a skip; their local answers remain distinct even though the
+  recovery screen is the same. The symptom tree and final reaction own any
+  later deferral evidence.
+- **UX-143 [standard] — Assisted Focus cannot persuade or accept.** Skill or
+  powered-up mode may summarize `/show`, paraphrase the exact FOC-049 facts, or
+  mark one binary answer with concise attribution. It cannot add persuasive
+  reasons, hide the positive-tail nature of the draw, claim the Brick is best,
+  skip a question, start Focus, select a symptom, or commit a reaction. Dumb,
+  powered-up, Skill, and later UI adapters preserve the same consent boundary.
 
 ## Status, history, and recovery
 

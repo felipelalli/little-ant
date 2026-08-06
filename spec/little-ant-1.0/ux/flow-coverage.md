@@ -37,7 +37,7 @@ run as an interactive transcript.
 | 3 | Parent/owner/Domain choice | `FED-005`, `FED-022..023` | missing | target and optional-membership screens |
 | 3 | Initial importance insertion | `UX-C01`, `UX-O11..O15`, `IMP-004..010`, `IMP-040..044`, `UX-134..138` | partial | accepted answer through final placement and no-nearby-candidate recovery |
 | 3 | Complete Feed confirmation/result | `FED-019..021` | missing | full preview, mutation, prior-proposal revalidation |
-| 3 | Focus proposal and active completion | `UX-F01..F05`, `UX-F07`, `UX-M01`, `WRK-002`, `WRK-005`, `WRK-049`, `UX-069` | partial | exact replay through ordinary and zero-eligible post-completion `next` results |
+| 3 | Focus proposal and active completion | `UX-F01..F05`, `UX-F07`, `UX-F12..F14`, `UX-M01`, `FOC-048..050`, `WRK-002`, `WRK-005`, `WRK-049`, `UX-069`, `UX-139..143`, `SCN-FOC-006` | partial | nested UX-F13 uncertainty tree, exact `/show` projection, and replay through ordinary and zero-eligible post-completion `next` results |
 | 4 | Ordering uncertainty, skip, and provisional placement | `IMP-008..010`, `IMP-040..044`, `UX-096`, `UX-134..138`, `UX-O05`, `UX-O11..O15`, `SCN-IMP-002`, `SCN-IMP-004` | partial | exact unavailable-alternative recovery outside the honest-answer aid and contextual `tie-break for me` route under `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015`, `IMP-033..037`, `FOC-042..043`, `UX-097..102`, `UX-O06..O10`, `SCN-IMP-003` | partial | deterministic end-to-end replay still pending |
 | 4 | Adaptive bulk ordering | `IMP-005`, `IMP-031..044`, `FOC-041..043`, `UX-091..102`, `UX-134..138`, `UX-O01..O15` | partial | deterministic end-to-end replay |
@@ -46,8 +46,8 @@ run as an interactive transcript.
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
-| 5 | Cross-Domain focus | `UX-F02`, `FOC-014..019` | partial | hard scope and equal-specificity target |
-| 5 | N-step/branching blockers | `UX-F03`, `FOC-020..024` | partial | non-Brick endpoint and branch inspection |
+| 5 | Cross-Domain focus | `UX-F02`, `UX-F12..F14`, `FOC-014..019`, `FOC-048..050` | partial | hard scope and equal-specificity target |
+| 5 | N-step/branching blockers | `UX-F03`, `UX-F12..F14`, `FOC-020..024`, `FOC-048..050` | partial | non-Brick endpoint and branch inspection |
 | 5 | Wait activation and review | `MOD-050`, `FOC-034`, `WRK-050..054`, `UX-S02C`, `UX-W01`, `SCN-WAIT-001` | partial | first-review and repeated-review policy under `OPEN-WAIT-001` |
 | 5 | Project/collection descent | `MOD-015`, `MOD-045..046`, `FOC-010..013`, `FOC-039`, `WRK-066`, `UX-083`, `UX-F01`, `UX-F11`, `UX-B01`, `SCN-FOC-004` | partial | final-child transition result plus dropped/superseded child and subtree outcomes under `OPEN-TREE-001` |
 | 5 | Lazy claim review lottery | `MOD-052..053`, `IMP-030..031`, `FOC-040..041`, `UX-090..091`, `UX-095`, `UX-B02`, `UX-N01`, `UX-O01`, `UX-O04`, `SCN-FOC-004` | partial | exact Nature-review result envelope and deterministic paired replay |

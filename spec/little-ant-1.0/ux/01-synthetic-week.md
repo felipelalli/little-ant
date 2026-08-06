@@ -314,6 +314,32 @@ action outside its variant. Finally add deadline pressure, one discreet
 warning, and explanatory context to a subject and verify that none creates an
 additional opportunity or top-level ticket by itself.
 
+### SCN-FOC-006 — Honest Focus assistance
+
+From UX-F01 enter UX-F12 and traverse every FOC-048 branch. Exercise Q0 and Q2
+uncertainty converging on the same recovery as `no` without negative evidence;
+exercise Q1 and Q3 alternate probes and repeated pending uncertainty. Inspect
+the proposed Brick through `/show`, return to the exact checkpoint, and answer
+both enough and still unclear. The latter must open UX-S34 with `vague` and
+record nothing until a final vague reaction. Reject that result and verify the
+original proposal and random cursor remain intact.
+
+Open UX-F13 from ordinary, cross-Domain, and N-step blocker proposals. Verify
+the immutable strongest signal, bounded bonuses, admitted count, Domain or
+blocker path, branch alternatives, and replay identity against the recorded
+draw. Continue to Q4 and back to Q2 without recomputation. Leave the exact
+explanation-specific uncertainty tree open under `OPEN-UX-004`. At UX-F14,
+accept `yes` and verify the ordinary Focus and active-Domain transition;
+separately answer `no` and uncertainty and verify both open UX-S33 without
+being the same local answer or recording a skip.
+
+Repeat the complete flow after invoking `/next` from an unrelated current
+focus. Every question, inspection, reverse path, and unaccepted symptom
+reaction must preserve the prior focus and WIP. Accepting UX-F14 alone switches
+focus; accepting a final reaction for the proposed Brick defers only that
+proposal. Replay powered-up and Skill summaries without persuasion, hidden
+answers, automatic Focus, or a second draw.
+
 ## Day 4 — Focus and skip adaptation
 
 ### SCN-WRK-001 — Focus lifecycle

@@ -230,9 +230,8 @@ Focus?
   mode: dumb, focus: idle
 ```
 
-`yes` focuses and starts WIP. `skip` opens UX-S01. `?` enters the UX-016
-honest-answer route without consuming another draw; its exact Focus tree is
-tracked by `OPEN-UX-004`. Direct completion remains available as `/done` in
+`yes` focuses and starts WIP. `skip` opens UX-S01. `?` enters UX-F12 without
+consuming another draw. Direct completion remains available as `/done` in
 UX-M01. Pressing unbound `n` gives the educational UX-062 result and restores
 this same opportunity without mutation. This exact composition also serves an
 undecomposed `project`; its Nature alone never inserts a structural preflight.
@@ -287,8 +286,107 @@ Focus?
 ```
 
 Long paths may fold visually, but every cited Brick retains its complete
-compact label. `?` shows the entire selected path, alternatives at branching
-nodes, and recorded probabilities without redrawing.
+compact label. `?` enters UX-F12; its UX-F13 explanation shows the entire
+selected path, alternatives at branching nodes, and recorded probabilities
+without redrawing.
+
+## UX-F12 — Guided Focus decision
+
+Question mark on an ordinary proposal begins with the work itself:
+
+```text
+#wtms "Write the migration specification"
+
+Do you understand what this Brick asks you to do?
+
+[y]es    [n]o    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #rlav2 "Recover Little Ant v1"
+  Personal › Little Ant
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Successive screens ask one FOC-048 Q0..Q4 question with the same proposal and
+footer. Q1 `yes` opens read-only `/show`; after inspection, an explicit `no`
+reuses UX-S34 to confirm `vague`. Q0, Q2, and Q4 may route uncertainty to the
+same recovery as `no` without turning it into negative evidence. Reverse
+navigation restores the preceding question and, from Q0, UX-F01, UX-F02, or
+UX-F03 exactly.
+
+## UX-F13 — Forecast explanation during Focus consent
+
+Q3 `yes` renders the recorded selection rather than drawing again:
+
+```text
+Why this appeared:
+
+#wtms "Write the migration specification"
+
+Selected by the weighted focus forecast.
+
+Strongest signal:
+importance within #rlav2 "Recover Little Ant v1"
+
+Additional signals:
+same active Domain
+unfocused for 9 days
+no active cooldown
+
+Selection:
+1 of 18 admitted Bricks
+replay-deterministic draw
+
+[c]ontinue    [b]ack    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #rlav2 "Recover Little Ant v1"
+  Personal › Little Ant
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The displayed values are illustrative renderings of exact FOC-049 facts, not
+a fixed universal signal list. A cross-Domain result includes both paths; a
+blocker redirect includes the complete chosen chain and unchosen branch
+alternatives. Continue reaches Q4, back restores Q2, and uncertainty remains
+open under `OPEN-UX-004` for its dedicated explanation tree. None consumes or
+recomputes the draw.
+
+## UX-F14 — Final Focus consent after assistance
+
+After sufficient context and optional forecast inspection:
+
+```text
+Work:
+
+#wtms "Write the migration specification"
+
+Start focusing this Brick?
+
+[y]es    [n]o    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #rlav2 "Recover Little Ant v1"
+  Personal › Little Ant
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`yes` accepts the original proposal and starts Focus. `no` and uncertainty
+both enter UX-S33 without recording a skip or symptom. If `/next` produced
+this proposal while another Brick remained current, every uncommitted route
+preserves that Focus; only this final `yes` switches it.
 
 ## UX-F04 — Current focus resting state
 

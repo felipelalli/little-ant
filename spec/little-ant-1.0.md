@@ -169,10 +169,16 @@ taxonomy-review opportunity but never mutates vocabulary automatically.
 `WRK-095..097`, `UX-130..133`, and UX-S33..S34 settle the first complete
 application of the global honest-answer protocol: symptom uncertainty follows
 a deterministic binary tree to one confirmed existing symptom or `other`, and
-records nothing before a final reaction. Continue Gate 4 by declaring the same
-honest-answer contract for every remaining visible question mark and closing
-the recovery edges in `OPEN-SKIP-001`, deriving core semantics through dumb UX
-before mirroring assisted surfaces.
+records nothing before a final reaction.
+`FOC-048..050`, `UX-139..143`, and UX-F12..F14 settle the primary Focus
+honest-answer tree: understand the Brick through `/show`, inspect the immutable
+weighted-draw explanation, explicitly consent to Focus, or enter existing
+symptom discovery while preserving any prior current focus. The nested
+question-mark tree inside the forecast explanation remains named in
+`OPEN-UX-004` rather than being invented here. Continue Gate 4 by declaring
+the same honest-answer contract for every remaining visible question mark and
+closing the recovery edges in `OPEN-SKIP-001`, deriving core semantics through
+dumb UX before mirroring assisted surfaces.
 
 ## Scope rings
 

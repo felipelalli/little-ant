@@ -351,6 +351,54 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   Domain. All other Domains retain positive probability after the scoped draw;
   no-target and ambiguous multi-membership recovery remain explicit open
   boundaries.
+- **FOC-048 [core] — Focus uncertainty is consent assistance.** Question mark
+  on an ordinary Focus proposal asks one question per screen and follows this
+  bounded tree for the proposed Brick:
+
+  ```text
+  Q0. Do you understand what this Brick asks you to do?
+  ├─ yes → Q2
+  └─ no or unknown
+     Q1. Would reviewing its existing context and linked material be enough?
+     ├─ yes → inspect through /show, then ask whether it is now enough
+     │  ├─ yes → Q2
+     │  └─ no  → confirm vague through UX-S34
+     └─ no  → confirm vague through UX-S34
+
+  Q2. Do you understand why Little Ant selected this Brick?
+  ├─ yes → Q4
+  └─ no or unknown
+     Q3. Would reviewing the selection evidence help you decide?
+     ├─ yes → inspect the recorded forecast explanation, then continue to Q4
+     └─ no  → Q4
+
+  Q4. Start focusing this Brick?
+  ├─ yes → accept the original Focus proposal
+  └─ no or unknown → open UX-S33 symptom discovery
+  ```
+
+  Q0, Q2, and Q4 permit uncertainty to reach the same recovery as `no`
+  because neither supplies the confident understanding or consent required by
+  the `yes` branch. This navigation is not a negative answer or skip. Q1 and
+  Q3 use alternate probes under UX-017; repeated uncertainty remains pending.
+- **FOC-049 [core] — Forecast explanation is the recorded draw.** The Focus
+  aid's explanation reads the immutable selection record from FOC-002 and
+  FOC-005: the proposed Brick, strongest signal, bounded additional signals,
+  admitted-set size, final subject and local opportunity choices, Domain or
+  blocker path when applicable, and replay identity. It never redraws,
+  recomputes against later state, invents a causal story, or exposes a hidden
+  score as human importance. The read-only screen continues to Q4 or returns
+  to Q2. Its nested explanation-specific uncertainty tree remains explicitly
+  under `OPEN-UX-004` until reviewed.
+- **FOC-050 [core] — Assistance preserves the prior attention state.** Every
+  Q0..Q4 answer, `/show` view, forecast explanation, symptom question, and
+  unaccepted reaction preserves the proposal, random cursor, active Domain,
+  WIP set, and any previous current focus. Only Q4 `yes` accepts the original
+  proposal and performs the ordinary FOC-017 focus or Domain transition. A
+  final accepted symptom reaction defers only the proposed Brick under its
+  canonical semantics; it never pauses, closes, or replaces an unrelated
+  current focus. Confirming `vague` alone still records nothing until its
+  reaction is accepted under WRK-047.
 
 ## Forecast inputs
 
