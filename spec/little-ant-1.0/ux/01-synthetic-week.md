@@ -113,12 +113,22 @@ Validate:
 - no translation, task-shape, target, duplicate, or Nature judgment is
   attributed to a model;
 - original Portuguese is preserved;
-- no hidden Nature fallback exists: direct factory Nature choices and the
-  guided `[?] I don't know` path precede any compatible Template catalog;
-- every decision needed to obtain an English canonical title and route is
-  reachable through deterministic one-key/input screens;
-- duplicate suspicion uses core mechanics without a global `milk` identity;
-- the exact route, parent, and Nature are visible before confirmation.
+- Enter creates exactly one Inbox Raw and asks no classification or metadata
+  question;
+- the suspended proposal is revalidated after that Raw commit;
+- a later recorded `raw_triage` draw renders the Raw without a Brick `#`
+  handle and asks the independent-Work question;
+- `no` ranks compatible existing destinations using only inspectable dumb
+  evidence; `[m]ore matches...` pages that set while `[n]one fit` opens the
+  create/standalone/leave-Inbox result screen;
+- selecting `#bg "Buy groceries"` proposes a ListEntry and duplicate review
+  without a global `milk` identity;
+- open and resolved duplicate cases expose keep/reopen, add or change
+  quantity, and distinguishable-separate-item behavior;
+- if the Raw is instead materialized as Work, no hidden Nature fallback
+  exists: direct factory Nature choices and guided `[?] I don't know` precede
+  any compatible Template, and the exact parent and local importance position
+  are visible before the Brick is committed.
 
 Do not predetermine how many screens are required. The baseline exists to
 discover whether language normalization, target selection, or Nature choice
@@ -133,19 +143,25 @@ mode: powered up · by: /bin/claude-fast.sh
 ```
 
 It must automatically serve the same opening `next` opportunity. Press
-`/`, select `/feed`, enter `comprar leite`, and submit it. Validate that the
-model may propose canonical English, ListEntry route,
-`#bg "Buy groceries"`, and duplicate interpretation in fewer screens
-while using the same canonical envelope/action IDs. Any proposed Template
-must expose its resulting Nature and source, require `[y]es`, `[n]o`, or
-`[?] I don't know`, and enter the unchanged dumb flow after `no`. Record
-every skipped dumb screen and the provenance of every added default.
+`/`, select `/feed`, enter `comprar leite`, and submit it. The Raw commit must
+complete before any model-derived proposal. Validate that a later assisted
+triage may propose canonical English, the ListEntry disposition,
+`#bg "Buy groceries"`, and duplicate interpretation in fewer screens while
+using the same canonical envelope/action IDs. Also feed `milk`, `coffee`, and
+`bread` separately and exercise one bounded, attributed recent-Raw batch
+proposal. `no` must enter UX-T01 for the originally selected Raw without
+resolving or penalizing its neighbors. Any proposed Template must expose its
+resulting Nature and source, require `[y]es`, `[n]o`, or `[?] I don't know`,
+and enter the unchanged dumb flow after `no`. Record every skipped dumb screen
+and the provenance of every added default.
 
 ### SCN-FED-003 — Article URL
 
-Run the URL flow in dumb REPL first, then replay it powered up. Preserve Raw,
-propose an `article_reading` Brick when confirmed, attach source material, and
-enter sibling importance insertion without treating the URL as completed work.
+Run the URL flow in dumb REPL first, then replay it powered up. Ordinary Feed
+must commit the URL Raw without a route question. Later triage may propose an
+`article_reading` Brick; when confirmed it attaches the preserved source
+material and enters sibling importance insertion without treating the URL as
+completed work.
 
 ### SCN-FED-004 — Skill and web/mobile mirror
 
@@ -155,13 +171,14 @@ almost-literal parity; do not let the skill supply a missing dumb-core path.
 
 ### SCN-FED-005 — Nature discovery coverage
 
-Starting from identical pending Feed input, replay the dumb discovery tree once
-for each factory Nature leaf. At every split, replay `[?] I don't know`, verify
+Starting from identical pending Raw-to-Work triage, replay the dumb discovery
+tree once for each factory Nature leaf. At every split, replay
+`[?] I don't know`, verify
 the alternate probe and its branch equivalence, then use uncertainty again and
-verify that Feed remains pending without creating a Brick. At a leaf, verify
+verify that triage remains pending without creating a Brick. At a leaf, verify
 the Nature, decisive reason, final confirmation, `no` return to direct choice,
 `?` restart from Q0, and Escape return to the previous question. None may lose
-Feed input, create a Brick, record a domain event, or consume a draw.
+the source Raw, create a Brick, record a domain event, or consume a draw.
 
 ## Day 2 — Importance and uncertainty
 
@@ -605,7 +622,9 @@ no automatic draw or persistent `paused` state.
 Enter the common `[b]locked or waiting` route and classify each branch in
 UX-S02. Verify that another task opens UX-S02A; select and cancel an
 existing-Brick search, create and cancel an enabling-Brick Feed route, and
-prove that neither leaves partial state. Then complete each route and verify
+prove that neither leaves a partial Brick, relationship, symptom, or cooldown;
+after submitted contextual text, prove that its preserved Raw remains in the
+Inbox. Then complete each route and verify
 one atomic prerequisite, Dependency, `blocked` evidence, reaction, and
 cooldown. Open the response route and validate UX-S02B with both an existing
 person and an existing team: typing filters one combined autocomplete,

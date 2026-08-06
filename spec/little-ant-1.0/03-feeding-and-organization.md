@@ -3,50 +3,56 @@
 ## One ingress
 
 - **FED-001 [core] — Feed is the door.** `feed` is the sole canonical ingress
-  vocabulary. It accepts material or intent without assuming in advance which
-  durable entity should result.
-- **FED-002 [core] — Canonical routes.** A resolved feed may preserve Raw,
-  create a positioned Brick, add a ListEntry to a compatible owner, instantiate
-  a template, or enrich an existing entity after duplicate review.
+  vocabulary. Every accepted submission immediately creates Raw material in
+  the derived Inbox without asking for Nature, Template, parent, Domain,
+  shelf, importance, or final route.
+- **FED-002 [core] — Routing is lazy triage.** A later Raw-triage opportunity
+  may keep the Raw standalone, place it on one or more RawShelves, attach it
+  to an existing entity, use it as the source of a ListEntry, or materialize
+  one or more positioned Bricks. These are dispositions of preserved Raw,
+  never alternate meanings of the `feed` command.
 - **FED-003 [core] — Preserve before interpretation.** Original input is
   retained before normalization, translation, extraction, or routing, so a
   rejected proposal cannot lose user material.
-- **FED-004 [core] — Fast path.** Creating a Brick requires a title and one
-  Nature. Phase, effort, impact, Domain, descriptive Raw, dates, and other
-  optional axes are enriched later when useful. A creation preview may show
-  the proposed mnemonic handle, but no durable identity is recorded for
-  abandoned input. The atomic creation commit stores one generated UUIDv7 and
-  allocates the deterministic dataset-local handle from MOD-010. Duplicate
-  suspicion is resolved before this commit, so choosing `reuse` or `enrich`
-  targets the existing UUID rather than creating and then hiding a new object.
+- **FED-004 [core] — Fast path commits only Raw.** Submitting nonempty Feed
+  input atomically stores its original representation and provenance as one
+  Raw with a generated UUIDv7, then returns to the ordinary useful envelope.
+  No model call or classification blocks that commit. Escape before submission
+  creates nothing. Later materialization performs duplicate review before
+  allocating a Brick, ListEntry, or other target identity, so reuse and
+  attachment never create and then hide a duplicate.
 
 ## Classification and confirmation
 
-- **FED-005 [core] — One validated Nature.** The operator skill or powered-up
-  REPL may rank Nature, template, parent, Domain, or entry-target candidates.
-  The dumb REPL obtains the same bounded candidate set from the core. The
-  resulting concrete route is shown whenever it changes structure or lifecycle
-  semantics. Dumb interaction resolves Nature before offering compatible
-  Templates; it never mixes both concepts in one flat choice.
-- **FED-006 [core] — No hidden fallback.** Nature uncertainty opens a bounded
-  tree of capability questions answered with `yes`, `no`, or
-  `[?] I don't know`. The tree resolves a validated Nature before creation.
-  Repeated uncertainty keeps the Feed interaction pending; it never assigns a
-  generic Nature or silently routes to a parent or ListEntry owner.
-- **FED-007 [standard] — Contextual convenience.** A currently open collection
-  or exactly one compatible target may provide a suggested default. It remains
-  visible and reversible. Template selection is optional after Nature
-  resolution unless a confirmed Template has already resolved that Nature.
-- **FED-008 [standard] — Powered-up assistance.** A model may translate,
-  classify, rank duplicate candidates, and provisionally pre-order, but its
-  structured proposal is attributed AI evidence and cannot fabricate human
-  comparison history. A proposed Template shows its resulting Nature and
-  source before `[y]es · [n]o · [?]`; `no` enters the unchanged dumb
-  classification flow.
-- **FED-009 [standard] — Dumb completeness.** Every powered-up proposal has a
-  deterministic dumb route using the factory Nature choice, capability
-  questions, and later compatible-Template browsing. A Pack may supply
-  validated definitions, but no executable Pack or model is required.
+- **FED-005 [core] — Triage begins with one behavioral distinction.** Dumb
+  triage first asks whether the Raw, as it stands, is something the user could
+  work on by itself. `yes` enters Work materialization; `no` ranks compatible
+  existing destinations that may supply missing meaning or ownership. This
+  question occurs during a later review, never as a toll on `feed`.
+- **FED-006 [core] — No hidden fallback.** Materializing Work still requires
+  one validated Nature. Nature uncertainty opens the bounded capability tree
+  answered with `yes`, `no`, or `[?] I don't know`; unresolved uncertainty
+  leaves the Raw in the Inbox and creates no Brick. No path silently assigns a
+  generic Nature, parent, shelf, ListEntry owner, or attachment role.
+- **FED-007 [standard] — Contextual candidate ranking.** Dumb mode ranks a
+  bounded set of compatible existing destinations using only recorded and
+  inspectable evidence: target mechanics, current focus and Domain, recent
+  modification and use, earlier accepted Feed destinations, lexical or
+  duplicate evidence, and temporal proximity among recently fed Raws. A
+  visible default requires a defensible leading candidate. Every compatible
+  candidate remains discoverable through deterministic pagination and search.
+- **FED-008 [standard] — Assisted triage.** Skill or powered-up mode may add
+  attributed semantic evidence from the Raw, canonical context, and a bounded
+  recent-Feed window; translate; rank duplicate or destination candidates;
+  suggest a batch disposition; and provisionally pre-order Work. It never
+  delays or rewrites the completed Feed commit, silently accepts its own
+  proposal, or fabricates human comparison history. Rejection enters the
+  unchanged dumb triage with every Raw preserved.
+- **FED-009 [standard] — Dumb completeness.** Every assisted disposition has a
+  deterministic dumb route using behavioral questions, core-ranked targets,
+  factory Nature choice, capability questions, and compatible-Template
+  browsing. A Pack may supply validated definitions, but no executable Pack
+  or model is required.
 
 ## Raw, shelves, and sources
 
@@ -92,9 +98,10 @@
 
 ## Placement after feeding
 
-- **FED-019 [core] — Immediate position.** Every new active Brick receives a
-  sibling position during the feed interaction. It is never left in an
-  unordered staging pool.
+- **FED-019 [core] — Immediate position.** Every Brick materialized from Raw
+  receives a sibling position in the same accepted operation. Comparison
+  answers may remain in the pending triage draft until that atomic commit; the
+  Brick is never left in an unordered staging pool.
 - **FED-020 [core] — Human settlement.** AI or Nature priors may suggest an
   initial direction, but the importance mechanism in `IMP-004` through
   `IMP-009` settles the recorded order and uncertainty.
@@ -114,7 +121,8 @@
 
 ## Nature discovery decision tree
 
-- **FED-024 [core] — Mechanical discovery.** Dumb Nature discovery asks one
+- **FED-024 [core] — Mechanical discovery.** Dumb Nature discovery during
+  Work materialization asks one
   behavioral question per screen and follows this factory tree:
 
   ```text
@@ -161,24 +169,25 @@
   | obligation or non-accumulating work | If missed, should the old occurrence remain open or overdue? | recurring obligation | non-accumulating work |
   | habit or repeatable | Should a missed window record an unfulfilled outcome or affect a streak? | habit | repeatable |
 
-  A second uncertainty at the same split leaves Feed pending instead of
+  A second uncertainty at the same split leaves Raw triage pending instead of
   guessing.
 - **FED-026 [core] — Confirm the discovered Nature.** Reaching a leaf shows the
   resulting Nature and the decisive behavioral reason, then asks whether the
-  classification is right. `yes` accepts the Nature and continues the Feed
-  route. `no` discards only the local discovery path and returns to the
-  factory Nature choice, where the user may select directly or use
+  classification is right. `yes` accepts the Nature and continues Work
+  materialization. `no` discards only the local discovery path and returns to
+  the factory Nature choice, where the user may select directly or use
   `[?] I don't know` to run discovery again. `[?] I don't know` at the result
   restarts discovery from Q0. None of these paths creates a Brick before the
-  complete Feed route is confirmed.
+  complete materialization route is confirmed.
 - **FED-027 [core] — Discovery checkpoints.** Every discovery question and its
   result is an uncommitted navigation checkpoint. Escape returns to the
   immediately preceding question and discards only the answer and descendants
   after that checkpoint. Escape from Q0 returns to the factory Nature choice.
-  Original Feed input, the prior proposal, and the random cursor are
-  preserved; no domain event, semantic undo, or new draw occurs.
-- **FED-028 [core] — Explicit optional Template.** After dumb Feed resolves a
-  Nature, it presents the compatible Template choice whenever the installed
+  The source Raw, the prior proposal, and the random cursor are preserved; no
+  domain event, semantic undo, or new draw occurs.
+- **FED-028 [core] — Explicit optional Template.** After dumb Work
+  materialization resolves a Nature, it presents the compatible Template
+  choice whenever the installed
   catalog contains at least one candidate. The user may select one Template or
   explicitly continue with no Template. Absence of a Template never prevents
   creation because the resolved Nature is already sufficient.
@@ -186,7 +195,7 @@
   powered-up classification consider the full installed compatible Template
   catalog rather than a hard-coded shortlist. Template guidance under
   `MOD-048` may improve recall and explain candidate evidence, but judgment may
-  also use the preserved Feed input and canonical context. The attributed
+  also use the preserved source Raw and canonical context. The attributed
   proposal identifies the winning Template and catalog version; low
   confidence or no suitable candidate enters the unchanged dumb route.
 - **FED-030 [core] — Contextual enabling baseline.** Feeding an enabling Brick
@@ -285,20 +294,67 @@
   still enters the corresponding complete dumb preview. Rejection returns to
   the unchanged dumb route, and assistance cannot classify effort, accept a
   structure, or create enabling work on its own.
+- **FED-042 [core] — Target mechanics choose the continuation.** Selecting a
+  checklist owner proposes a ListEntry; selecting a RawShelf proposes shelf
+  membership; selecting an ordinary Brick asks whether the Raw should become
+  independently suggestible child Work. `yes` enters Nature, structure, and
+  local importance settlement; `no` proposes a typed Raw attachment. A target
+  is never treated as a generic folder, and its Nature is never inferred from
+  the fed text.
+- **FED-043 [core] — More and none are different.** `[m]ore matches...`
+  deterministically pages additional existing candidates from the same ranked
+  set. `[n]one fit` asserts that no existing candidate is suitable and opens
+  explicit choices to create a list or shelf, accept the Raw as reviewed but
+  standalone, or leave triage pending in the Inbox. It never silently creates
+  a container or repeats the same candidate page. The unchanged slash palette
+  is labelled `[/] menu...` on this screen so `more` cannot be mistaken for
+  system commands.
+- **FED-044 [standard] — Recent material may support one batch proposal.** A
+  Skill or powered-up host may observe a bounded recent-Feed window and propose
+  one explicit disposition for several named Raws, such as routing `milk`,
+  `coffee`, and `bread` to one grocery checklist. The proposal identifies its
+  source, enumerates every affected Raw and resulting ListEntry or link, and
+  requires ordinary consent. Rejecting it neither weakens nor resolves any Raw
+  and enters dumb triage. Dumb mode may expose deterministic recent-neighbor
+  evidence but performs no semantic clustering.
+- **FED-045 [core] — Routing preserves origin.** Materializing a Brick or
+  ListEntry, adding a shelf membership, or attaching content records an
+  explicit link to the source Raw and a triage disposition. The Raw keeps its
+  original representation, normalization, provenance, and identity. Semantic
+  undo reverses the disposition and derived mutation without inventing or
+  losing the original Feed material.
+- **FED-046 [core] — Owner-scoped ListEntry reuse and quantity.** Duplicate
+  review for a ListEntry is scoped to its checklist owner; a label such as
+  `Milk` is not a global object. Refeeding an open match offers keeping it as
+  is, adding the newly fed quantity, changing quantity, or creating a
+  deliberately separate distinguishable entry. Reusing a resolved match
+  reopens the same owner-scoped identity while preserving its earlier result
+  in history. Quantity is optional structured state; exact unit vocabulary and
+  parser grammar remain in `OPEN-LST-001`.
+- **FED-047 [core] — Explicit contextual builders may continue.** When the
+  user has already chosen an unambiguous result such as creating a
+  prerequisite, investigation, or child Work item, submitting its contextual
+  text still commits source Raw first and may immediately continue the
+  corresponding preview instead of asking UX-T01 again. Rejecting or escaping
+  that later preview creates no Brick and leaves the Raw in the Inbox. This is
+  not semantic inference and does not change ordinary `/feed`, whose only
+  immediate result remains Raw.
 
 ## Reference flows
 
-Feeding `comprar leite` may produce:
+Feeding `comprar leite` first produces exactly one Inbox Raw preserving the
+original Portuguese input. Later dumb or assisted triage may produce:
 
-1. a Raw preserving the original Portuguese input;
-2. attributed canonical English `milk` on that same Raw;
-3. duplicate and compatible-target candidates;
-4. a proposal to add one ListEntry under `#… "Buy groceries"`;
+1. attributed canonical English `milk` on that same Raw;
+2. duplicate and compatible-target candidates;
+3. a proposal to add one ListEntry under `#… "Buy groceries"`;
+4. an explicit keep, quantity, reopen, or separate-item result;
 5. a deterministic choice rather than silent routing.
 
-Feeding `https://example.com/article` may produce:
+Feeding `https://example.com/article` first produces one URL Raw. Later triage
+may produce:
 
-1. URL Raw with external origin and snapshot policy;
+1. external-origin and snapshot policy on that same Raw;
 2. a proposal for `#… "Read …"` using `article_reading`;
 3. ordinary sibling importance insertion;
 4. after completion, an optional deterministic future `not_before`.

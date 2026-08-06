@@ -71,9 +71,12 @@ envelope; it is not a catch-all public command or extension point.
 
 ## Scope policy
 
-- **PRD-014 [core] — Minimal happy path.** Feeding requires only enough
-  information to choose a canonical route and, for a Brick, one Nature.
-  Optional axes are gathered lazily.
+- **PRD-014 [core] — Minimal happy path.** Ordinary feeding requires only
+  nonempty material and commits one Raw to the derived Inbox. Route, Nature,
+  target, duplicate handling, importance, and optional axes are gathered
+  lazily during review. An explicit contextual builder may continue from its
+  already chosen result under FED-047, but never bypasses source-Raw
+  preservation.
 - **PRD-015 [standard] — Standard without intrusion.** Recurrence,
   delegation, imports, planning, and extensions ship as supported 1.0
   capabilities but appear only when the current Nature or situation makes

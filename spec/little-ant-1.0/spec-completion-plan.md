@@ -110,15 +110,16 @@ Close this complete route:
 start or restore
 → next or useful empty state
 → feed
-→ preserve original / normalize English
-→ choose Raw, Brick, ListEntry, or enrichment route
-→ resolve Nature and optional Template
-→ review duplicate and target
-→ choose parent and optional Domain
-→ attach descriptive/source Raw
-→ settle sibling importance position
-→ preview and confirm
+→ commit original Raw to Inbox without a metadata form
 → revalidate next
+→ later draw Raw triage
+→ choose independent Work or rank compatible destinations
+→ page more existing matches or explicitly reject them all
+→ create shelf membership, attach Raw, create/reuse ListEntry, keep standalone,
+  leave in Inbox, or materialize Work
+→ for Work only: resolve Nature and optional Template, review duplicate,
+  choose parent and optional Domain, settle sibling importance, and confirm
+→ preserve the source Raw through every accepted disposition
 → focus
 → done
 → next or safe end

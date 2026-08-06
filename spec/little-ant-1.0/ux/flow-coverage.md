@@ -28,15 +28,15 @@ run as an interactive transcript.
 | 3 | Restore/startup to `next` | `UX-R00`, `UX-F04..F05`, `UX-F09`, `UX-046`, `UX-063`, `UX-080` | partial | pending-envelope result transition |
 | 3 | Pristine first start | `UX-E00`, `FOC-029` | screened | Feed/back/end-to-end transition |
 | 3 | Useful non-pristine empty | `UX-E01`, `FOC-028` | screened | state-derived choice transitions |
-| 3 | Feed text input | `UX-M01`, `UX-I02`, `UX-047..049` | partial | submit route and proposal revalidation |
+| 3 | Feed text input | `UX-M01`, `UX-I02`, `UX-047..049`, `UX-144` | screened | accepted Raw commit, exact post-commit proposal revalidation, and failure replay |
 | 3 | Preserve/normalize Raw | `MOD-001`, `MOD-029`, `MOD-049` | missing | `OPEN-RAW-001..002` |
 | 3 | Nature discovery | `UX-K01..K03`, `FED-024..027` | partial | exact full traversal transcript |
 | 3 | Template selection/proposal | `UX-K04..K06`, `FED-028..029` | partial | resulting route and complete preview |
-| 3 | Raw/Brick/ListEntry/enrich route | `FED-001..009` | missing | route-choice grammar |
-| 3 | Duplicate suspicion | `MOD-008..012`, `FED-015..018` | missing | candidate/outcome screens |
-| 3 | Parent/owner/Domain choice | `FED-005`, `FED-022..023` | missing | target and optional-membership screens |
+| 3 | Raw triage and disposition | `MOD-001`, `MOD-054`, `FED-001..009`, `FED-042..047`, `FOC-051..052`, `UX-144..148`, `UX-T01..T04`, `UX-T06` | partial | honest-answer trees, create-list/shelf continuation, standalone result, and deterministic replay |
+| 3 | Duplicate suspicion | `MOD-008..012`, `FED-015..018`, `FED-046`, `UX-149`, `UX-T05` | partial | non-ListEntry candidate/outcome screens and quantity/unit closure |
+| 3 | Parent/owner/Domain choice | `FED-005`, `FED-007`, `FED-022..023`, `FED-042..043`, `UX-T02..T04` | partial | optional Domain and create-target screens |
 | 3 | Initial importance insertion | `UX-C01`, `UX-O11..O15`, `IMP-004..010`, `IMP-040..044`, `UX-134..138` | partial | accepted answer through final placement and no-nearby-candidate recovery |
-| 3 | Complete Feed confirmation/result | `FED-019..021` | missing | full preview, mutation, prior-proposal revalidation |
+| 3 | Complete Raw-to-Work materialization | `FED-019..021`, `FED-045`, `UX-K01..K06` | partial | full preview, atomic mutation, and accepted comparison-to-position replay |
 | 3 | Focus proposal and active completion | `UX-F01..F05`, `UX-F07`, `UX-F12..F14`, `UX-M01`, `FOC-048..050`, `WRK-002`, `WRK-005`, `WRK-049`, `UX-069`, `UX-139..143`, `SCN-FOC-006` | partial | nested UX-F13 uncertainty tree, exact `/show` projection, and replay through ordinary and zero-eligible post-completion `next` results |
 | 4 | Ordering uncertainty, skip, and provisional placement | `IMP-008..010`, `IMP-040..044`, `UX-096`, `UX-134..138`, `UX-O05`, `UX-O11..O15`, `SCN-IMP-002`, `SCN-IMP-004` | partial | exact unavailable-alternative recovery outside the honest-answer aid and contextual `tie-break for me` route under `OPEN-IMP-001` |
 | 4 | Contradiction/recalibration | `IMP-013..015`, `IMP-033..037`, `FOC-042..043`, `UX-097..102`, `UX-O06..O10`, `SCN-IMP-003` | partial | deterministic end-to-end replay still pending |

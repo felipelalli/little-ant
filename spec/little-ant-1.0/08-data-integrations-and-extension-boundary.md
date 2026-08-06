@@ -225,10 +225,10 @@ reproducible archives remain `OPEN-PACK-001`.
   instead of hiding the distinction.
 - **DAT-041 [core] — No lexical domain rules.** Calendar words and provider
   metadata do not create hard-coded title branches in the deterministic core.
-  Assisted classification follows `FED-005` through `FED-009` and `FED-029`:
-  the proposed route is attributed and previewed, `[y]es` accepts it, `[n]o`
-  enters the ordinary dumb classification flow, and uncertainty remains
-  explicit.
+  After source Raw is preserved, assisted triage follows `FED-005` through
+  `FED-009` and `FED-029`: the proposed disposition is attributed and
+  previewed, `[y]es` accepts it, `[n]o` enters ordinary dumb Raw triage, and
+  uncertainty remains explicit.
 
 ## Source safety refinements
 

@@ -102,7 +102,7 @@ Only currently valid commands participate in search. The initial suggestions
 are contextual and replay-deterministic. Descriptions expose the current
 target rather than relying on a hidden argument. Escape restores UX-R00
 unchanged. `/show` returns to it; `/done` resolves it; a completed `/feed`
-route revalidates it before anything may act on the old proposal.
+Raw commit revalidates it before anything may act on the old proposal.
 
 ## UX-RF01 — Typed Brick autocomplete
 
@@ -1030,16 +1030,19 @@ Esc returns without recording anything.
   mode: dumb, focus: #rrsr
 ```
 
-Enter preserves the draft and runs the ordinary duplicate, Nature, optional
-Template, and importance-insertion route without committing partial domain
-state. Because an editor is active, Backspace deletes and Left Arrow moves the
-cursor. The keypress that deletes the final character leaves the empty editor
-open; another Backspace while already empty, or Escape, returns to UX-S02A
-under UX-019.
+Enter commits the entered text as source Raw and, because the user explicitly
+chose an enabling Brick, continues the ordinary duplicate, Nature, optional
+Template, and importance-insertion route without UX-T01. Rejecting that later
+preview leaves the Raw in the Inbox but commits no partial Brick, Dependency,
+symptom, or cooldown. Because an editor is active, Backspace deletes and Left
+Arrow moves the cursor. The keypress that deletes the final character leaves
+the empty editor open; another Backspace while already empty, or Escape,
+returns to UX-S02A under UX-019.
 
 ## UX-S04 — Dumb enabling structure
 
-After the pending Feed resolves `#ratpl`, dumb mode applies FED-030:
+After the contextual Raw-backed builder resolves the pending `#ratpl` proposal,
+dumb mode applies FED-030:
 
 ```text
 Enabling Brick:
@@ -1071,9 +1074,10 @@ IMP-004; the Dependency never supplies an importance answer or comparator
 anchor. `no` opens the canonical parent and Domain choices with the same draft
 and blocked target preserved. `?` explains composition, Domain, Dependency,
 and importance separately before restoring this confirmation. Reverse
-navigation restores the preceding pending Feed checkpoint. No Brick,
-Dependency, symptom, cooldown, or comparison is durable until the complete
-reaction succeeds atomically.
+navigation restores the preceding pending builder checkpoint. The source Raw
+already exists after input submission, but no Brick, Dependency, symptom,
+cooldown, or comparison is durable until the complete reaction succeeds
+atomically.
 
 Skill or powered-up mode may instead precede UX-S04 with one attributed
 FED-031 proposal containing the same three visible structural fields. Its
@@ -1904,9 +1908,10 @@ Tip: write in English when possible.
   mode: dumb, focus: #cdd
 ```
 
-Submitting a nonblank title enters ordinary contextual Feed: Nature remains an
-explicit choice, and the complete preview shows sibling placement, effective
-Domain, Dependency, and local importance insertion. The dumb core does not
+Submitting a nonblank title commits source Raw and enters the explicit
+contextual Work builder without UX-T01: Nature remains an explicit choice, and
+the complete preview shows sibling placement, effective Domain, Dependency,
+and local importance insertion. The dumb core does not
 assume that practice is a habit or that learning is atomic. Empty Backspace,
 Escape, or Left Arrow restores UX-S28 without mutation.
 
@@ -2087,8 +2092,10 @@ recurring [o]bligation  e.g. "Pay the monthly rent"
   mode: dumb, focus: idle
 ```
 
-`?` opens UX-K02. No selection is a hidden fallback and no Template appears
-on this screen. Each example is illustrative UI copy, not input to
+`?` opens UX-K02. This screen occurs only after Raw triage has chosen Work or
+an explicit contextual builder has already chosen that result; ordinary Feed
+never opens it. No selection is a hidden fallback and no Template appears on
+this screen. Each example is illustrative UI copy, not input to
 classification or Template selection.
 
 ## UX-K02 — Guided Nature discovery
@@ -2112,7 +2119,7 @@ Will completing this once finish the whole intention?
 Successive `yes`, `no`, and uncertainty answers traverse the bounded,
 inspectable tree in `FED-024..027`. Escape returns to the immediately preceding
 question without recording an answer. Repeated uncertainty at one split leaves
-Feed pending rather than creating a Brick.
+Raw-to-Work materialization pending rather than creating a Brick.
 
 ## UX-K03 — Discovered Nature confirmation
 
@@ -2136,8 +2143,8 @@ Is this right?
   mode: dumb, focus: idle
 ```
 
-`yes` accepts the Nature and continues Feed. `no` returns to UX-K01 with the
-original input preserved. `?` restarts UX-K02 at Q0. Escape
+`yes` accepts the Nature and continues Work materialization. `no` returns to
+UX-K01 with the source Raw preserved. `?` restarts UX-K02 at Q0. Escape
 returns to the last decisive question. These are navigation and local
 classification changes, not domain events or semantic undo.
 
@@ -2164,7 +2171,7 @@ Use this setup?
 ```
 
 The skill uses the same confirmation envelope. `no` restores the unchanged
-Feed input and enters UX-K01; no Nature, Template, or ranking evidence is
+source Raw and enters UX-K01; no Nature, Template, or ranking evidence is
 accepted from the rejected proposal. This is a declared `UX-060` gateway:
 it may replace UX-K01 through UX-K03 only when its accepted result contains
 the same canonical Nature and optional Template values that those dumb screens
@@ -2193,8 +2200,8 @@ Choose an optional setup:
 The catalog contains only Templates compatible with the resolved Nature.
 Every option is explicit and none receives `*` in dumb mode. Skill or
 powered-up mode may highlight one attributed compatible suggestion. If the
-installed catalog has no compatible Template, Feed skips this screen and
-continues with the resolved Nature.
+installed catalog has no compatible Template, materialization skips this
+screen and continues with the resolved Nature.
 
 ## UX-K06 — Dense scheduled-commitment Template choice
 
@@ -2921,11 +2928,12 @@ Tip: write in English when possible.
 [/] more...
 ```
 
-The dumb core supplies no method or title. Enter proceeds through ordinary
-Nature, placement, and Feed confirmation; the preview identifies the A/B
-importance review that will wait for this investigation without making either
-Brick blocked. Escape or empty-buffer Backspace restores the decisive tree
-question with the draft rules of UX-019. Assisted proposals follow UX-138.
+The dumb core supplies no method or title. Enter commits source Raw and
+proceeds through ordinary Nature, placement, and Work confirmation; the
+preview identifies the A/B importance review that will wait for this
+investigation without making either Brick blocked. Escape or empty-buffer
+Backspace restores the decisive tree question with the draft rules of UX-019.
+Assisted proposals follow UX-138.
 
 ## UX-O15 — Provisional-placement confirmation
 
@@ -3094,11 +3102,201 @@ Tip: prefer English for consistent titles and search.
   mode: dumb, focus: idle
 ```
 
-Enter begins the deterministic Feed route. Escape restores the exact proposal
-and random cursor shown before Feed was opened. The tip is advisory and, under
-`UX-049`, appears beside every dumb-mode free-text input rather than only on
-Feed. Single-key choice screens omit it. Until Enter, the text remains only a
-local draft; this guarantee is behavioral and is not rendered in the footer.
+Enter commits one Raw to the derived Inbox without classification and then
+revalidates the suspended useful envelope under UX-047. Escape restores the
+exact proposal and random cursor shown before Feed was opened. The tip is
+advisory and, under `UX-049`, appears beside every dumb-mode free-text input
+rather than only on Feed. Single-key choice screens omit it. Until Enter, the
+text remains only a local draft; this guarantee is behavioral and is not
+rendered in the footer.
+
+## UX-T01 — Raw triage
+
+```text
+Review raw material
+
+"milk"
+
+Is this something you could work on by itself?
+
+[y]es    [n]o    [s]kip    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Fed: Mon, Aug 3, 08:58
+       Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The Raw has no `#` handle and is not rendered as a Brick. `yes` enters Nature,
+optional Template, structure, duplicate, and local importance settlement
+before creating Work. `no` opens UX-T02. `skip` records only a typed triage
+deferral and leaves the Raw in the Inbox. Question mark enters a bounded
+behavioral aid without resolving the Raw. Escape records nothing and restores
+the prior useful envelope.
+
+## UX-T02 — Ranked existing destinations
+
+```text
+Does "milk" belong with any of these?
+
+*[1] #bg "Buy groceries"
+     living checklist
+
+ [2] Books
+     raw shelf
+
+ [3] Technical articles
+     raw shelf
+
+ [4] #ibbq "Implement BBQ on Rock Splitter"
+     work
+
+ [m]ore matches...
+ [n]one fit
+ [?] I don't know
+
+[/] menu...
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Fed: Mon, Aug 3, 08:58
+       Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The factory default is present only when the leading candidate has defensible
+recorded evidence under FED-007. `more matches` pages additional existing
+candidates without changing the ranking. `none fit` opens UX-T03 and rejects
+the existing set; it does not fetch another page. The slash label is `menu`
+only to distinguish the command palette from candidate expansion.
+
+## UX-T03 — No existing destination fits
+
+```text
+No existing destination fits "milk".
+
+What should happen?
+
+[c]reate a list or shelf...
+[k]eep as standalone raw material
+[s]kip for now
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Fed: Mon, Aug 3, 08:58
+       Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Create enters an explicit list-versus-shelf flow and creates nothing before
+its complete preview. Standalone records a reviewed disposition without
+adding structure. Skip invokes the same typed deferral as UX-T01, records no
+disposition, and leaves the Raw eligible for later triage with ordinary
+cooldown, pressure, and history.
+
+## UX-T04 — Raw under an ordinary Brick
+
+```text
+"API error notes"
+
+Should Little Ant suggest this independently as Work
+within #ibbq "Implement BBQ on Rock Splitter"?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #ibbq "Implement BBQ on Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Fed: Mon, Aug 3, 08:58
+       Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`yes` enters child-Work materialization with one validated Nature and local
+sibling importance position. `no` proposes a typed Raw attachment to the
+selected Brick. Neither path treats the Brick as a generic folder.
+
+## UX-T05 — Open ListEntry duplicate and quantity
+
+```text
+A similar list item already exists:
+
+Milk
+Within: #bg "Buy groceries"
+State: open
+Existing quantity: 1
+Fed quantity: 1
+
+What should happen?
+
+*[k]eep it as is
+ [a]dd the fed quantity        1 + 1 → 2
+ [c]hange the quantity...
+ [s]eparate item...
+ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #bg "Buy groceries"
+  Personal › Housekeeping
+. Last changed: Mon, Aug 3, 08:10
+            Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`separate item` first edits or otherwise distinguishes the proposed entry; it
+does not silently create an indistinguishable duplicate. For a resolved match,
+the equivalent screen replaces `keep` with `reuse and reopen` and states that
+the prior resolution remains in history. Exact quantity units and input
+grammar remain `OPEN-LST-001`.
+
+## UX-T06 — Assisted recent-Raw proposal
+
+```text
+Suggested organization
+
+milk
+coffee
+bread
+
+Add these as list items to #bg "Buy groceries"?
+
+*[y]es    [n]o    [s]kip    [?] I don't know
+
+Suggestion: powered up
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Oldest feed: Mon, Aug 3, 08:56
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 9 raws, 3 reviews
+  mode: powered up, by: /bin/claude-fast.sh, focus: idle
+```
+
+The canonical payload enumerates each source Raw and proposed ListEntry,
+duplicate, and quantity result. `no` returns to UX-T01 for the originally
+selected Raw. `skip` defers only that selected Raw. Neither action resolves or
+penalizes any other member of the proposed batch.
 
 ## UX-P01 — Habit consequence
 
@@ -3159,7 +3357,7 @@ import candidate:
 ```text
 No Bricks yet.
 
-Feed Little Ant its first Brick to get started.
+Feed Little Ant its first raw material to get started.
 
 [f]eed   [/] more...
 

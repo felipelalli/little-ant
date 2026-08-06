@@ -40,6 +40,10 @@ commands.
 URL, note, pasted conversation, brainstorm, file, source snapshot, attachment,
 or imported object. Linking or routing a Raw never consumes it.
 
+Every accepted `feed` creates Raw material immediately. Untriaged Raw appears
+in a derived Inbox and is organized later through ordinary weighted review;
+feeding never begins with a metadata form.
+
 Raw material:
 
 - is never ordered by importance, focused, started, or completed;
@@ -154,17 +158,47 @@ preserve the same actions and revisions while adapting their presentation.
 
 ```text
 $ lant
-ant> /feed Buy milk
+ant> /feed
 
-Possible destination: "Buy groceries" (Grocery list)
-[y]es — add as a list entry
-[n]o  — choose another route
+Feed Little Ant
+
+Tip: prefer English for consistent titles and search.
+
+› milk
+```
+
+Enter saves one Raw immediately. A later triage opportunity may ask:
+
+```text
+Review raw material
+
+"milk"
+
+Is this something you could work on by itself?
+
+[y]es    [n]o    [s]kip    [?] I don't know
+```
+
+After `no`, compatible existing destinations are ranked:
+
+```text
+Does "milk" belong with any of these?
+
+*[1] #bg "Buy groceries"
+     living checklist
+
+ [m]ore matches...
+ [n]one fit
 [?] I don't know
 ```
 
-Duplicate suspicion runs before creation. Nothing is merged silently. In dumb
-mode, the REPL asks for a route when it cannot infer one safely; a skill or
-powered-up adapter may make an attributed proposal.
+`more matches` pages additional existing targets; `none fit` offers creating a
+list or shelf, accepting standalone Raw, or leaving it in the Inbox. Duplicate
+review distinguishes keeping an existing list item, adding quantity, changing
+quantity, reopening a resolved item, and creating a separate distinguishable
+item. Nothing is merged or incremented silently. Powered-up mode or a Skill
+may propose routing several recent Raws such as `milk`, `coffee`, and `bread`,
+but requires the same explicit consent.
 
 ### Insert work into importance order
 
@@ -209,7 +243,11 @@ does not imply completion.
 
 ```text
 ant> /feed https://example.com/paper
-Route: preserve as Raw, then create "Read the storage design paper"
+Raw material saved to Inbox.
+
+...during later triage...
+
+Create Work: "Read the storage design paper"
 
 ...after reading...
 
@@ -265,8 +303,9 @@ lant --power-up /path/to/claude-fast.sh
 
 The executable is validated before the REPL starts, receives requests only via
 stdin, and must return one bounded structured result. Powered-up mode can
-propose translations, routes, comparisons, and pre-ordering; it cannot mutate
-state directly or bypass confirmation.
+propose translations, Raw dispositions, recent-Feed batches, comparisons, and
+pre-ordering; it cannot delay Feed persistence, mutate state directly, or
+bypass confirmation.
 
 ```text
 mode: powered up · by: /path/to/claude-fast.sh
@@ -383,7 +422,7 @@ historical evidence, not implementation guidance.
 | Ordering asked whether one task came before another | Importance ordering asks which Brick is **more important**; uncertainty is retained instead of treated as equality |
 | `next` and priority were easy to conflate | Importance order and the read-only focus forecast are explicit, separate views |
 | IDs were derived from original titles | IDs are opaque and survive renames |
-| Most fed items became full tasks | Raw remains material; lightweight ListEntries belong to checklist Bricks |
+| Most fed items became full tasks | Every Feed becomes Inbox Raw first; lazy triage may later create linked Work or lightweight checklist entries |
 | Domain-specific mechanics tended to emerge in operator policy | Closed generic Natures plus inspectable templates cover projects, collections, checklists, repetition, obligations, and habits |
 | Effort was a generic weight or direct hour estimate | Effort uses subjective comparable bands; hour ranges belong to a versioned planning profile |
 | Recurrence was mostly future work | Repeatable work, recurring obligations, habit opportunities, streaks, and schedule revision have explicit history |

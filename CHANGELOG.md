@@ -77,9 +77,17 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Separate importance and forecast projections.
 - Proposal pressure for unresolved importance, stale focus, source
   reconciliation, repeated habit friction, approvals, and reviews.
-- Feed intents with explicit routes to Raw, Brick, ListEntry, template
-  instantiation, or enrichment of an existing target.
-- Deterministic layered duplicate suspicion with explicit reuse, enrich, or
+- Zero-toll Feed: every accepted submission immediately becomes preserved Raw
+  in a derived Inbox; routing and classification happen later through weighted
+  triage rather than an ingress metadata form.
+- Dumb Raw triage that distinguishes independently suggestible Work from
+  ranked compatible checklists, RawShelves, and Bricks without presenting one
+  abstract ontology form.
+- Contextual destination ranking from inspectable mechanics, focus/Domain,
+  recency, accepted destinations, lexical evidence, and recent-Feed locality;
+  assisted modes may add attributed semantic and bounded batch proposals.
+- Deterministic layered duplicate suspicion with explicit reuse, attachment,
+  owner-scoped ListEntry reopening, quantity changes, or distinguishable
   separate decisions.
 - Investigation-Brick proposals for decision-relevant uncertainty.
 
@@ -87,6 +95,8 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 
 - Immutable Raw snapshots backed by a content-addressed blob-store contract.
 - Flat Raw shelves.
+- A derived Inbox for active Raw without an accepted triage disposition; it is
+  not a shelf, Domain, Nature, or parent.
 - Source, evidence, attachment, and derived-from links.
 - Brick descriptions represented as linked Raw content rather than a separate
   scalar field.

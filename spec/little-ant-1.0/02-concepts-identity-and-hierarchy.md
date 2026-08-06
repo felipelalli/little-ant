@@ -2,11 +2,13 @@
 
 ## Core concepts
 
-- **MOD-001 [core] — Raw.** Raw is the durable general content record. It may
-  hold a description, note, URL, imported object, pasted conversation, source
-  snapshot, attachment, or other material. It can be reviewed, linked,
-  enriched, archived, and reconciled with an external origin. It is not work,
-  is not importance-orderable, and has no `done` operation.
+- **MOD-001 [core] — Raw.** Raw is the durable general content record and the
+  immediate result of every accepted `feed`. It may hold a description, note,
+  URL, imported object, pasted conversation, source snapshot, attachment, or
+  other material. It can be reviewed, linked, enriched, archived, and
+  reconciled with an external origin. It is not work, is not
+  importance-orderable, and has no `done` operation. Routing it later never
+  consumes it.
 - **MOD-002 [core] — Brick.** A Brick is one durable unit of intention or
   responsibility. Every active Brick has one Nature and one deterministic
   position among its siblings from birth.
@@ -172,7 +174,7 @@ The factory library contains:
   validated Nature at birth. There is no hidden fallback Nature. `[?] I don't
   know` starts bounded capability questions whose `yes`, `no`, and uncertainty
   answers resolve an existing validated Nature. If uncertainty remains, the
-  Feed interaction remains pending and no Brick is created.
+  Raw-to-Work materialization remains pending and no Brick is created.
 - **MOD-026 [core] — Closed capabilities.** Nature definitions can compose only
   capabilities implemented by the core. No scripts, prompts, network calls,
   title-keyword branches, or arbitrary lifecycle hooks are allowed.
@@ -347,3 +349,9 @@ The factory library contains:
   isolated settlement. Review skip changes neither Nature nor provenance and
   leaves the marker unresolved under FOC-040. Confirmation or reclassification
   cannot settle sibling Natures, importance, or Dependencies by implication.
+- **MOD-054 [core] — Raw Inbox is derived.** The Inbox is the view of active
+  Raw material for which no triage disposition has been accepted. It is not a
+  RawShelf, Domain, parent, Nature, or storage owner. Accepting a standalone,
+  shelf-membership, attachment, ListEntry, or Work disposition removes the
+  Raw from that view without deleting, transforming, or archiving it. Leaving
+  triage pending keeps it in the Inbox and available to later review.

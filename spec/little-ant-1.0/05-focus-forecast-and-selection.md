@@ -399,6 +399,22 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   canonical semantics; it never pauses, closes, or replaces an unrelated
   current focus. Confirming `vague` alone still records nothing until its
   reaction is accepted under WRK-047.
+- **FOC-051 [core] — Inbox Raw creates triage opportunities.** Each active Raw
+  without an accepted disposition may contribute one typed `raw_triage`
+  opportunity to the ordinary lottery. Raw has no importance position and its
+  selection never pretends to be execution Work. Its weight may use age,
+  prior deferrals, recent-Feed locality, duplicate evidence, and the current
+  organization-maintenance continuity established by FOC-046. Every admitted
+  Raw retains positive probability, and selecting one consumes only the
+  recorded draw required to present its triage interaction. Its visible typed
+  skip defers only that Raw, applies the review cooldown and pressure policy,
+  and leaves its disposition unresolved in the Inbox.
+- **FOC-052 [standard] — Assisted batching does not multiply tickets.** An
+  accepted Skill or powered-up batch proposal may include bounded recent Raws
+  after one `raw_triage` opportunity is selected, but merely appearing in a
+  semantic cluster gives no Raw additional top-level lottery ticket. The
+  interaction enumerates the affected identities, and rejection returns to
+  the originally selected Raw's dumb triage without resolving its neighbors.
 
 ## Forecast inputs
 

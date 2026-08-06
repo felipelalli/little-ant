@@ -770,9 +770,10 @@ no-emoji rendering remain `OPEN-UX-001`.
 - **UX-137 [core] — Inspection and investigation remain ordinary tools.** A
   context-inspection leaf opens the existing read-only `/show` projection for
   exactly A or B, then returns to Q0 or Q2 without losing the comparison.
-  Investigation uses UX-O14's dumb English input and the ordinary Feed preview
-  before creating anything. Its final preview visibly links the new Brick to
-  the A/B importance review without claiming a Dependency on either Brick.
+  Investigation uses UX-O14's dumb English input and the contextual
+  Raw-backed Work preview before creating a Brick. Its final preview visibly
+  links the new Brick to the A/B importance review without claiming a
+  Dependency on either Brick.
 - **UX-138 [standard] — Assisted importance remains advisory.** Skill or
   powered-up mode may summarize existing context, mark one current binary
   answer, or propose one investigation method and title with attribution. It
@@ -810,6 +811,43 @@ no-emoji rendering remain `OPEN-UX-001`.
   reasons, hide the positive-tail nature of the draw, claim the Brick is best,
   skip a question, start Focus, select a symptom, or commit a reaction. Dumb,
   powered-up, Skill, and later UI adapters preserve the same consent boundary.
+- **UX-144 [core] — Feed has no classification toll.** Enter on UX-I02 commits
+  exactly one Inbox Raw and does not open a route, Nature, Template, target,
+  duplicate, or importance screen. The resulting revision revalidates the
+  suspended proposal under UX-047. If no execution Work exists, ordinary
+  `next` may immediately select the new Raw's useful triage opportunity.
+- **UX-145 [core] — Raw triage starts with independent Work.** UX-T01 asks
+  whether the Raw as it stands is something the user could work on by itself.
+  `yes` enters complete Work materialization; `no` opens UX-T02; uncertainty
+  follows one bounded behavioral tree and records no disposition. `skip`
+  invokes FOC-051's typed triage deferral. No Raw is rendered as a Brick or
+  assigned a `#` handle merely because it is being reviewed.
+- **UX-146 [core] — Destination pages distinguish more from none.** UX-T02
+  displays a bounded, core-ranked page of compatible existing checklists,
+  RawShelves, and Bricks. `[m]ore matches...` advances through the same
+  deterministic candidate set. `[n]one fit` opens UX-T03 and means the user
+  rejects every existing candidate, not that another page is desired. Because
+  this screen owns `more`, its slash action reads `[/] menu...`.
+- **UX-147 [core] — Destination consequences stay contextual.** Selecting a
+  checklist asks whether to add a ListEntry; selecting a RawShelf asks whether
+  to add membership; selecting a Brick uses UX-T04 to distinguish independent
+  child Work from attached Raw context. The screen explains the selected
+  target's consequence rather than asking the user to choose among Raw,
+  ListEntry, and Brick ontology terms in one abstract form.
+- **UX-148 [standard] — Assisted triage mirrors the dumb result.** Skill or
+  powered-up mode may put one attributed disposition or bounded recent-Raw
+  batch proposal before UX-T01. It shows every affected Raw, target, resulting
+  entity kind, quantity operation, Nature, and Template that the proposal
+  would settle. `no` enters unchanged dumb triage; `skip` defers only the Raw
+  whose lottery opportunity opened the gateway. Assistance never treats recent
+  temporal proximity as human confirmation.
+- **UX-149 [core] — ListEntry duplicate actions expose quantity.** UX-T05
+  shows owner, state, existing quantity, and newly fed quantity whenever an
+  owner-scoped duplicate is suspected. An open entry offers keep, add the new
+  amount, change quantity, and create a distinguishable separate item. A
+  resolved entry instead explains that reuse reopens the same identity while
+  preserving its earlier history. No action silently increments or replaces a
+  quantity.
 
 ## Status, history, and recovery
 
@@ -969,7 +1007,7 @@ no-emoji rendering remain `OPEN-UX-001`.
   revision, so the old proposal is revalidated and, when stale, recomputed
   instead of being applied blindly. A pristine first start remains the
   deliberate exception: it displays `[f]eed` directly because feeding the
-  first Brick is its primary useful action.
+  first Raw material is its primary useful action.
 - **UX-048 [core] — Next action grid.** The reference `next` screen renders
   the primary Focus answers on the first row and the secondary command escape
   on the second, using stable whitespace-aligned columns rather than
@@ -990,9 +1028,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   the original input is preserved under `PRD-012`. An input known to accept
   only Brick titles uses the more precise `Tip: write Brick titles in
   English.` instead.
-- **UX-050 [core] — Nature before Template.** Dumb Feed resolves one Nature
-  through UX-K01, or through UX-K02 followed by UX-K03, before optionally
-  offering compatible Templates.
+- **UX-050 [core] — Nature before Template.** Dumb Raw-to-Work materialization
+  resolves one Nature through UX-K01, or through UX-K02 followed by UX-K03,
+  before optionally offering compatible Templates.
   Nature and Template never share one flat choice screen.
 - **UX-051 [core] — Assisted proposal consent.** Skill or powered-up mode may
   use the `UX-060` gateway to propose a Template that visibly resolves one
@@ -1005,11 +1043,12 @@ no-emoji rendering remain `OPEN-UX-001`.
   behavior only: they are not classification evidence, title suggestions,
   Template selections, or domain-specific branches.
 - **UX-053 [core] — Template-choice defaults.** UX-K05 lists compatible
-  Templates only after dumb Feed has resolved one Nature. Dumb mode marks no
-  Template and not even `no template` with `*`; the human must make an explicit
-  choice. Skill or powered-up mode may mark one compatible Template as an
-  attributed suggestion, but cannot mark an unattributed or ambiguous
-  default. Rejecting or bypassing a Template preserves the resolved Nature.
+  Templates only after dumb Work materialization has resolved one Nature.
+  Dumb mode marks no Template and not even `no template` with `*`; the human
+  must make an explicit choice. Skill or powered-up mode may mark one
+  compatible Template as an attributed suggestion, but cannot mark an
+  unattributed or ambiguous default. Rejecting or bypassing a Template
+  preserves the resolved Nature.
 - **UX-054 [core] — Structured dumb scheduling.** Dumb mode configures cadence
   through bounded schedule-shape, preset, positive-integer, calendar-anchor,
   and time-unit choices. It never asks the core to interpret natural-language
