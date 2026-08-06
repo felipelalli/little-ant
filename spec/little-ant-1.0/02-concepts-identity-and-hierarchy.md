@@ -99,7 +99,7 @@ open release decision rather than an inferred v1 commitment.
 - **MOD-013 [core] — Independent axes.**
 
   ```text
-  status     = active | done | dropped | superseded
+  status     = active | done | archived | superseded
   phase?     = idea | spec | exec | validation
   work_state = idle | wip
   focus      = zero or one current Brick globally
@@ -108,6 +108,15 @@ open release decision rather than an inferred v1 commitment.
 - **MOD-014 [core] — Direct completion.** `done` is a direct transition from
   any structurally completable active Brick. It requires no invented
   intermediate stage or start event.
+- **MOD-055 [core] — Archived Work is retained, not completed.** `archived` is
+  the canonical Brick status for Work the user has stopped pursuing without
+  claiming completion or replacement. An archived Brick keeps its identity,
+  content, relationships, provenance, history, and prior importance evidence,
+  but leaves the active importance projection and is not served as ordinary
+  executable Work. It remains searchable and may be restored as the same
+  Brick. `dropped` is not a v1 status, command alias, or UI synonym. Raw
+  archival remains the independent Raw disposition in MOD-001 rather than a
+  Brick lifecycle transition.
 - **MOD-015 [core] — Structural completion.** A finite Brick with no tracked
   child parts remains directly executable regardless of whether its Nature is
   `atomic_task` or `project`. Once it has been decomposed into child Bricks,
@@ -115,7 +124,7 @@ open release decision rather than an inferred v1 commitment.
   incomplete. Completing the final child never cascades completion to the
   parent; it releases a parent-scope review that may confirm completion or
   introduce more work. Standing execution, repeatable work, and pending
-  external effects retain their Nature-aware closure paths. Whether dropped
+  external effects retain their Nature-aware closure paths. Whether archived
   or superseded children satisfy the all-children-finished boundary remains
   part of `OPEN-TREE-001`.
 - **MOD-016 [core] — Removed stages.** `seed`, `committed`, and `ready` do not

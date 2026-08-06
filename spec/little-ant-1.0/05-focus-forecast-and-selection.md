@@ -250,7 +250,7 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   cannot return as `finite_work`. Selection only asks whether the whole
   outcome is complete or whether more tracked work is needed; it never
   completes the parent by inference. A newly active child invalidates the
-  pending review. Dropped and superseded child boundaries remain governed by
+  pending review. Archived and superseded child boundaries remain governed by
   `OPEN-TREE-001`.
 - **FOC-040 [core] — Lazy review means weighted review.** A lazy human-review
   marker immediately contributes one typed non-execution opportunity to the
@@ -266,6 +266,16 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   removing it from the unresolved footer count in UX-025. Settling or
   invalidating the exact claim removes that opportunity; one review never
   settles another claim by implication.
+- **FOC-053 [core] — Archived relevance review remains drawable.** An archived
+  Brick is excluded from every execution variant and from the active
+  importance projection, but its unresolved `archive_relevance_review` marker
+  contributes one typed non-execution opportunity through the same subject
+  ticket and lazy weighting rules as FOC-040. The opportunity's initially low
+  chance may gain pressure from age or new linked evidence without making the
+  archived Brick ordinary Work. `keep archived`, restoration, or supersession
+  resolves the marker; typed review skip preserves it with cooldown. After
+  `keep archived`, no recurring review is synthesized, though explicit search,
+  inspection, restoration, and archive history remain available.
 - **FOC-041 [core] — Interaction-family continuity.** Completing an
   ordinary-lottery interaction may establish a transient, replay-recorded
   affinity for its semantic activity family. A successful importance

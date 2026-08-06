@@ -72,9 +72,13 @@ Its lifecycle is deliberately small:
 
 ```text
 active ──▶ done
-   ├─────▶ dropped
+   ├─────▶ archived
    └─────▶ superseded
 ```
+
+`archived` means that the Work is no longer being pursued without claiming it
+was completed. It remains searchable, reversible, and eligible for one lazy
+relevance review; it is not ordinary executable Work while archived.
 
 `seed`, `committed`, and `ready` do not exist in 1.0. Commitment is inferred
 from position in the human importance tree: higher means more important.
@@ -241,6 +245,32 @@ Focus?
 Direct `done` is honest: it does not invent a start time or zero-duration
 execution. A served-work skip records a reason and changes later pressure; it
 does not imply completion.
+
+### Archive Work that has lost its meaning
+
+From the served Work screen, press `[s]kip`, then choose `o[u]t of date`:
+
+```text
+What does "out of date" mean here?
+
+[a]rchive it
+    It no longer seems worth pursuing; review that decision later.
+
+[r]eplaced by newer Work
+    Preserve the relationship by superseding it.
+
+[u]pdate it
+    The intention remains, but its content or structure is stale.
+
+[s]kip anyway
+[?] I don't know
+```
+
+Archive removes the Brick from active Work without claiming completion and
+creates one low-pressure relevance review. That later review may keep it
+archived, restore the same identity, update and restore it, or link newer Work
+as its replacement. `/undo` can compensate the original archive immediately;
+later restoration is a new recorded action rather than deleted history.
 
 ### Read an article again later
 
@@ -434,7 +464,7 @@ historical evidence, not implementation guidance.
 
 | v0 | v1 |
 |---|---|
-| `seed → committed → ready → wip` mixed commitment, readiness, and execution | A Brick is simply `active`, `done`, `dropped`, or `superseded`; WIP and optional phase are independent axes |
+| `seed → committed → ready → wip` mixed commitment, readiness, and execution | A Brick is simply `active`, `done`, `archived`, or `superseded`; WIP and optional phase are independent axes |
 | Only frontier tasks were ordered | Every active Brick has one strict position among its siblings |
 | Ordering asked whether one task came before another | Importance ordering asks which Brick is **more important**; uncertainty is retained instead of treated as equality |
 | `next` and priority were easy to conflate | Importance order and the read-only focus forecast are explicit, separate views |

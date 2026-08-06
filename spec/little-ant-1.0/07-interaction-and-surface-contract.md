@@ -166,6 +166,10 @@ no-emoji rendering remain `OPEN-UX-001`.
   Confirming the boundary preview opened by `Right Arrow` invokes this exact
   operation. A newly committed action after undo invalidates any incompatible
   redo chain. External effects require a separately approved compensation.
+  The exhaustive reversible-event catalog, compensating-event matrix, conflict
+  rules for related state, and effect-specific compensation remain an explicit
+  release boundary under `OPEN-UNDO-001`; no implementation may infer a
+  generic inverse from an event name.
 - **UX-022 [core] — More palette.** The canonical `[/] more...` action opens a
   searchable input palette containing only commands and secondary actions
   valid in the current state. Before any query, it shows a small,
@@ -715,6 +719,22 @@ no-emoji rendering remain `OPEN-UX-001`.
   preserved in the interaction checkpoint; rejecting it renders unchanged
   UX-S32. Assistance cannot create a symptom, commit a skip, or bypass the
   later taxonomy-review opportunity under WRK-094.
+- **UX-152 [core] — Out-of-date recovery names the semantic outcomes.**
+  Selecting `out of date` opens UX-S35 and offers `[a]rchive it`, `[r]eplaced
+  by newer Work`, `[u]pdate it`, `[s]kip anyway`, and uncertainty, in that
+  order and without a default. Archive follows WRK-099. Replacement opens an
+  explicit supersession target and preview; update enters read-only inspection
+  followed by canonical editing of the same Brick; neither records the
+  symptom before its final accepted mutation. Skip records only the symptom
+  and ordinary cooldown. Reverse navigation restores UX-S01 unchanged.
+- **UX-153 [core] — Archive relevance review is a bounded lazy screen.** When
+  FOC-053 selects the marker, UX-S36 identifies the archived Brick, archive
+  reason, and archive instant, then offers `[k]eep archived`, `[r]estore it`,
+  `[u]pdate and restore`, `[n]ewer Work replaced it`, `[s]kip`, and
+  uncertainty, without a default. The first four actions preview their exact
+  forward mutation before commit; review skip follows WRK-100. Immediate
+  `/undo` of the original archive remains a distinct semantic compensation,
+  not another label for restore.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies
@@ -1196,8 +1216,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   internal `Dependency`, `Wait`, time, or Place terminology. The relative,
   present-tense importance symptom is `[l]ess important`; it does not
   introduce a `priority` field or permanently reclassify the Brick. `[d]one`
-  remains reserved for completion. The same bindings apply on every surface
-  that renders this symptom namespace.
+  remains reserved for completion. Stale intent or content uses the visible
+  in-word shortcut `o[u]t of date`, leaving `[o]ther` unchanged. The same
+  bindings apply on every surface that renders this symptom namespace.
 - **UX-069 [core] — Current-focus done has no confirmation toll.** Pressing
   `[d]one` on the current-focus screen commits `WRK-049` immediately and
   renders one `work_completed` result. That transition may use the

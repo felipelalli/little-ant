@@ -152,8 +152,10 @@ Close:
 - every served-work symptom and its bounded reaction screen;
 - `other` plus taxonomy watch;
 - atomic break and Nature change;
-- WIP review, unfocus, return-to-idle, direct done, drop, supersede, and merge;
-- Escape versus semantic undo, redo conflict, stale answer, and restored draft.
+- WIP review, unfocus, return-to-idle, direct done, archive, archive-relevance
+  review, supersede, and merge;
+- Escape versus semantic undo, redo conflict, stale answer, restored draft, and
+  the complete typed compensation matrix in `OPEN-UNDO-001`.
 
 Exit:
 

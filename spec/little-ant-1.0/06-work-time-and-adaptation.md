@@ -14,15 +14,15 @@
 - **WRK-004 [core] — No silent clearing.** A stale current focus remains the
   current continuation and asks for an explicit check-in under `UX-080`; it
   does not enter the lottery. A WIP Brick that is no longer current may create
-  a separate review opportunity to resume, return to idle, complete, drop, or
-  supersede. Nothing is silently completed or cleared, and neither path
+  a separate review opportunity to resume, return to idle, complete, archive,
+  or supersede. Nothing is silently completed or cleared, and neither path
   fabricates observed work duration.
 - **WRK-005 [core] — Done is direct.** A served Brick can be completed without
   first starting it through the contextual `/done` command. Completion
   without a prior start is ordinary `done` with unknown observed duration,
   not `already done` or a synthetic zero-length run. Direct completion remains
   available without competing visually with Focus and skip.
-- **WRK-006 [core] — Terminal distinctions.** `done`, `dropped`, and
+- **WRK-006 [core] — Lifecycle distinctions.** `done`, `archived`, and
   `superseded` preserve different outcomes and lineage. Stopping an execution,
   missing a habit opportunity, and abandoning an external delegation are
   context-specific outcomes, not one generic `abandon` command.
@@ -50,7 +50,7 @@
 
   ```text
   vague | hard | big | blocked_or_waiting | tired | bored | fear
-  | less_important | other
+  | less_important | out_of_date | other
   ```
 
   `blocked_or_waiting` is the visible and explicitly unclassified obstacle
@@ -384,27 +384,30 @@
                knowledge, skill, or available approach?
            ├─ yes → hard
            └─ no
-              Q4. If this Brick and more-important work were mutually
-                  exclusive forever, would you leave this Brick undone?
-              ├─ yes → less_important
+              Q4. Have changed facts or context made this Brick stale?
+              ├─ yes → out_of_date
               └─ no
-                 Q5. Is insufficient energy the main obstacle?
-                 ├─ yes → tired
+                 Q5. If this Brick and more-important work were mutually
+                     exclusive forever, would you leave this Brick undone?
+                 ├─ yes → less_important
                  └─ no
-                    Q6. Is lack of interest or stimulation the main obstacle?
-                    ├─ yes → bored
+                    Q6. Is insufficient energy the main obstacle?
+                    ├─ yes → tired
                     └─ no
-                       Q7. Is worry about risk or consequences the main
-                           obstacle?
-                       ├─ yes → fear
-                       └─ no  → other
+                       Q7. Is lack of interest or stimulation the main obstacle?
+                       ├─ yes → bored
+                       └─ no
+                          Q8. Is worry about risk or consequences the main
+                              obstacle?
+                          ├─ yes → fear
+                          └─ no  → other
   ```
 
   The order is versioned and deterministic. `main` makes the result the one
   symptom being addressed in this interaction; it does not claim that every
   other symptom is false or erase earlier evidence.
 - **WRK-096 [core] — Uncertainty probes preserve each split.** Question mark
-  at Q0..Q7 does not choose a branch. It explains the current distinction with
+  at Q0..Q8 does not choose a branch. It explains the current distinction with
   one example from each side and asks the corresponding alternate probe:
 
   | Split | Alternate probe | `yes` | `no` |
@@ -413,9 +416,10 @@
   | unclear work | Would a clearer result, more information, or a defined first step be enough to get moving? | `vague` | Q2 |
   | one piece or parts | Would one `done` hide progress worth tracking separately? | `big` | Q3 |
   | clear but difficult | Do you know what needs doing but not how to do it effectively? | `hard` | Q4 |
-  | relative importance | If only this Brick or more-important work could ever be completed, would you give this one up? | `less_important` | Q5 |
-  | energy | Would rest or easier work help without changing the Brick? | `tired` | Q6 |
-  | interest | Would a more engaging method help without changing the intended result? | `bored` | Q7 |
+  | stale intention or content | Would current facts make you archive, replace, or revise this Brick rather than merely postpone it? | `out_of_date` | Q5 |
+  | relative importance | If only this Brick or more-important work could ever be completed, would you give this one up? | `less_important` | Q6 |
+  | energy | Would rest or easier work help without changing the Brick? | `tired` | Q7 |
+  | interest | Would a more engaging method help without changing the intended result? | `bored` | Q8 |
   | perceived risk | Would validating or reducing a perceived risk help? | `fear` | `other` |
 
   A second uncertainty at the same split leaves the interaction pending rather
@@ -428,6 +432,36 @@
   commits only the final accepted reaction. Rejection returns to the direct
   symptom screen, and reverse navigation restores the exact preceding answer
   without an event, cooldown, Domain signal, focus change, or random draw.
+- **WRK-098 [core] — Out of date is stale meaning, not low importance.**
+  Selecting `out_of_date` opens UX-S35 with `archive it`, `replaced by newer
+  Work`, `update it`, `skip anyway`, and uncertainty. It does not mean merely
+  less important or temporarily ineligible: those remain `less_important` and
+  `not_before`. The symptom is provisional until one reaction commits. The
+  replacement route enters canonical supersession with explicit lineage; the
+  update route keeps the same active identity and enters ordinary inspected
+  editing; skip records only `out_of_date` plus cooldown.
+- **WRK-099 [core] — Archive is reversible retirement with one review.**
+  Accepting `archive it` atomically records `out_of_date`, changes the Brick
+  from `active` to `archived`, closes its current focus or WIP state, preserves
+  its prior importance evidence and local-neighborhood snapshot, and creates
+  exactly one unresolved `archive_relevance_review` marker. It applies no
+  ordinary skip cooldown because the Brick is no longer executable. The
+  archive event is eligible for immediate semantic undo when its recorded
+  preconditions still hold; later review-based restoration is a new forward
+  action and never erases the archive history.
+- **WRK-100 [core] — Archive review has bounded forward outcomes.** A selected
+  `archive_relevance_review` offers `keep archived`, `restore it`, `update and
+  restore`, `newer Work replaced it`, typed review skip, and uncertainty.
+  Keeping it archived resolves this one automatic marker and creates no
+  periodic nag. Restore reactivates the same Brick and deterministically seeds
+  its complete sibling order from the last valid local neighborhood; the
+  restored placement is explicitly uncertain and creates one lazy
+  `importance_run_review`. Update and restore first applies an accepted edit
+  to the same Brick and then follows the same restoration. Newer Work enters
+  canonical supersession with lineage. Review skip leaves status and marker
+  unchanged, applying only review cooldown and pressure. Exact structured edit
+  selection and supersession relationship transfer remain with their owning
+  open decisions rather than being guessed here.
 
 ## Time
 
@@ -562,7 +596,7 @@
   not open served-work symptom diagnosis or mutate WIP. Completion uses the
   ordinary direct completion outcome. Returning to idle clears WIP while
   preserving the Brick, importance, Domain membership, and history; it is not
-  completion, pause, or skip evidence. Drop and supersede remain explicit
+  completion, pause, or skip evidence. Archive and supersede remain explicit
   contextual-palette outcomes. Every mutation is semantically undoable when
   its recorded preconditions still hold.
 - **WRK-066 [core] — Explicit scope-closure outcomes.** A selected
@@ -574,7 +608,7 @@
   Review skip records only typed scope-review deferral and cooldown; it never
   opens served-work symptom diagnosis or makes the parent executable. The
   contextual palette may inspect or reactivate one completed child and expose
-  valid `drop` or `supersede` routes; unresolved subtree consequences remain
+  valid `archive` or `supersede` routes; unresolved subtree consequences remain
   under `OPEN-TREE-001`.
 - **WRK-028 [standard] — Event-triggered opportunity.** A supported canonical
   source event may idempotently release one opportunity on an existing

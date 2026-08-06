@@ -871,6 +871,26 @@ reapplication. Verify that `Escape` and empty-buffer `Backspace` never cross a
 commit boundary. Finally create a redo conflict and require an explicit
 diagnostic.
 
+### SCN-ARC-001 — Out-of-date Work and one later relevance review
+
+Serve `#rrsr "Review Rock Splitter rules"`, enter skip diagnosis, and choose
+`o[u]t of date`. Prove that archive, replacement, update, and defer remain
+different reactions. Archive it and verify one atomic transition to
+`archived`, preserved identity/history/relationships and importance evidence,
+closed focus/WIP, no ordinary skip cooldown, exclusion from executable Work,
+and exactly one low-weight `archive_relevance_review`. Immediately undo and
+redo the archive once using typed events; no history may be erased.
+
+Replay from the archived state until the lazy review is selected. Exercise
+`skip` without changing lifecycle, then on separate replays verify `keep
+archived`, restoration of the same identity near its recorded sibling
+neighborhood with one lazy importance review, update-and-restore after an
+accepted edit, and explicit supersession by newer Work. Keeping archived must
+resolve the one automatic review without creating a periodic nag. Search must
+still find the Brick throughout. Run the same transcript for an archived child
+and stop at the explicit `OPEN-TREE-001` boundary rather than inventing parent
+closure semantics.
+
 ### SCN-EXT-001 — Import and source deletion
 
 Migrate a small Microsoft To Do source, verify it, preview

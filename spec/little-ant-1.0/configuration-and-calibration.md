@@ -112,6 +112,8 @@ evidence:
 - provocative-validation target share within served importance maintenance,
   candidate scoring, cooldown, and confidence/consequence multipliers;
 - taxonomy-watch evidence count, window, and decay;
+- archive-relevance initial review weight, aging pressure, evidence bonus, and
+  review-skip cooldown;
 - habit-review and carried-entry evidence thresholds;
 - date-notice lead times, deduplication windows, and rotation;
 - repeatable-work default jitter seeds and template-specific ranges;

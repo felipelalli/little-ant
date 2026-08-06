@@ -544,7 +544,7 @@ What should happen?
 defers only the selected review and leaves the Brick WIP; it does not open the
 served-work symptom screen. `done` completes directly. `return to idle`
 removes WIP without implying completion, failure, or deferment. The palette
-may expose `drop`, `supersede`, history, and inspection without crowding the
+may expose `archive`, `supersede`, history, and inspection without crowding the
 ordinary choice. No action is selected merely by rendering the screen.
 
 ## UX-F11 — Scope-closure review
@@ -578,7 +578,7 @@ What should happen?
 parent already resolved as the proposed owner; nothing changes until a new
 child is confirmed and locally inserted. `skip` defers only this review and
 never returns the parent as Work. `?` may inspect child history and completion
-context. Reopening a child, `drop`, and `supersede` remain contextual-palette
+context. Reopening a child, `archive`, and `supersede` remain contextual-palette
 routes. This composition is shared by every decomposed finite Brick and never
 branches merely because its Nature is `project`.
 
@@ -772,7 +772,7 @@ What's getting in the way?
 💭 [v]ague    🧗 [h]ard     🏔️ bi[g]
 🚧 [b]locked or waiting
 🥱 [t]ired    😐 bo[r]ed    😨 [f]ear
-⬇️ [l]ess important
+⬇️ [l]ess important    🕰️ o[u]t of date
 🧩 [o]ther
 ❓ [?] I don't know
 
@@ -2060,7 +2060,7 @@ Must something outside this Brick happen before you can continue?
   mode: dumb, focus: #cdd
 ```
 
-Successive answers traverse the exact Q0..Q7 tree in WRK-095. Each screen asks
+Successive answers traverse the exact Q0..Q8 tree in WRK-095. Each screen asks
 only its current question with the same grammar. Question mark substitutes the
 alternate probe in WRK-096 for that split without choosing a branch; repeated
 uncertainty leaves the interaction pending. Escape, empty-buffer Backspace, or
@@ -2100,6 +2100,84 @@ the existing reaction screen and records nothing; `other` opens UX-S31. `no`
 restores UX-S01, uncertainty restarts UX-S33 at Q0, and reverse navigation
 restores the decisive question. Assisted markings follow UX-133 and never
 replace this confirmation.
+
+## UX-S35 — Out-of-date recovery
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+What does "out of date" mean here?
+
+🗄️ [a]rchive it
+    It no longer seems worth pursuing; review that decision later.
+
+🔁 [r]eplaced by newer Work
+    Preserve the relationship by superseding it.
+
+✏️ [u]pdate it
+    The intention remains, but its content or structure is stale.
+
+⏭️ [s]kip anyway
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+No action is a default. Archive commits WRK-099 and then renders a concise
+result with `/undo` in the palette; it does not apply ordinary cooldown.
+Replacement and update remain uncommitted until their existing complete
+preview is accepted. Skip records only `out_of_date` and cooldown. Question
+mark distinguishes retirement, replacement, revision, and temporary deferral
+through a bounded UX-016 tree. Escape, Backspace, or Left Arrow restores
+UX-S01 without evidence.
+
+## UX-S36 — Archived relevance review
+
+```text
+Review:
+
+#rrsr "Review Rock Splitter rules"
+
+Archived because: out of date
+Archived: Mon, Aug 3, 09:04
+
+What should happen now?
+
+[k]eep archived
+[r]estore it
+[u]pdate and restore
+[n]ewer Work replaced it
+[s]kip
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Archived: Mon, Aug 3, 09:04
+       Now: Mon, Aug 17, 10:11
+. 17 bricks, 7 raws, 4 reviews
+  mode: dumb, focus: idle
+```
+
+The review is an ordinary weighted non-execution opportunity, not execution
+of the archived Brick. Keep resolves this one automatic review without
+creating another. Restore preserves identity and history, deterministically
+places the Brick near its last valid sibling neighborhood, and marks that
+placement for lazy importance review. Update and restore first previews an
+edit to the same Brick. Newer Work enters explicit supersession. Skip changes
+no lifecycle or lineage and leaves this marker unresolved with review
+cooldown. Every mutation has its own preview; immediate semantic undo of the
+original archive is not presented as restoration.
 
 ## UX-K01 — Nature choice
 

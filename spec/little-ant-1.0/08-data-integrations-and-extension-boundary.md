@@ -65,7 +65,7 @@
   provider/account scope and maps each external identity idempotently to at
   most one canonical adoption.
 - **DAT-013 [standard] — External presence is not work state.** A missing
-  provider object does not imply `done`, `dropped`, or erased local work.
+  provider object does not imply `done`, `archived`, or erased local work.
   Source observation and canonical work status remain independent.
 - **DAT-014 [standard] — Synchronize versus migrate.** Synchronization keeps
   observing the source. Migration imports, verifies, cuts over, and may then

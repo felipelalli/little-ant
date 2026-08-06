@@ -45,12 +45,13 @@ run as an interactive transcript.
 | 4 | Atomic break/reclassification | `UX-S06`, `UX-B00..B02`, `MOD-045..047`, `MOD-052`, `IMP-030`, `FOC-040`, `UX-057`, `UX-085..089` | partial | deterministic interactive replay and exact undo compensation |
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
-| 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001` | partial | redo conflict and no-candidate educational result |
+| 4 | Archive and relevance review | `MOD-055`, `FOC-053`, `WRK-098..100`, `UX-152..153`, `UX-S35..S36`, `SCN-ARC-001` | partial | exact update editor, supersession transfer, honest-answer tree, subtree outcomes, and paired surface replay |
+| 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001`, `OPEN-UNDO-001` | partial | exhaustive typed compensation matrix and conflict replay |
 | 4 | Global search and return | `UX-151`, `UX-RF03`, `SCN-SRCH-001` | partial | deterministic cross-kind ranking, pagination, and paired surface replay |
 | 5 | Cross-Domain focus | `UX-F02`, `UX-F12..F14`, `FOC-014..019`, `FOC-048..050` | partial | hard scope and equal-specificity target |
 | 5 | N-step/branching blockers | `UX-F03`, `UX-F12..F14`, `FOC-020..024`, `FOC-048..050` | partial | non-Brick endpoint and branch inspection |
 | 5 | Wait activation and review | `MOD-050`, `FOC-034`, `WRK-050..054`, `UX-S02C`, `UX-W01`, `SCN-WAIT-001` | partial | first-review and repeated-review policy under `OPEN-WAIT-001` |
-| 5 | Project/collection descent | `MOD-015`, `MOD-045..046`, `FOC-010..013`, `FOC-039`, `WRK-066`, `UX-083`, `UX-F01`, `UX-F11`, `UX-B01`, `SCN-FOC-004` | partial | final-child transition result plus dropped/superseded child and subtree outcomes under `OPEN-TREE-001` |
+| 5 | Project/collection descent | `MOD-015`, `MOD-045..046`, `FOC-010..013`, `FOC-039`, `WRK-066`, `UX-083`, `UX-F01`, `UX-F11`, `UX-B01`, `SCN-FOC-004` | partial | final-child transition result plus archived/superseded child and subtree outcomes under `OPEN-TREE-001` |
 | 5 | Lazy claim review lottery | `MOD-052..053`, `IMP-030..031`, `FOC-040..041`, `UX-090..091`, `UX-095`, `UX-B02`, `UX-N01`, `UX-O01`, `UX-O04`, `SCN-FOC-004` | partial | exact Nature-review result envelope and deterministic paired replay |
 | 5 | Importance/forecast projections | `IMP-003`, `FOC-002`, `FOC-013` | missing | list choice, inspect, recursive queries |
 | 6 | Living-checklist run | `UX-L01`, `MOD-035..037`, `WRK-019..020` | partial | `OPEN-LST-001` |

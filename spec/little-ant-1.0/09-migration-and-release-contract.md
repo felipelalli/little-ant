@@ -27,8 +27,9 @@
   - v0 `seed`, `committed`, and `ready` become `active`/`idle`;
   - v0 `wip` becomes `active`/`wip`, with current focus preserved only when
     explicit evidence identifies it;
-  - terminal `done`, `dropped`, and `superseded` retain their outcomes and
-    lineage;
+  - terminal v0 `done` and `superseded` retain their outcomes and lineage;
+    any explicit v0 `dropped` outcome maps to canonical v1 `archived` with
+    its source vocabulary and reason preserved as migration evidence;
   - no legacy stage is converted into phase merely by name.
 
 - **MIG-007 [core] — Importance.** Existing valid sibling order and comparison
