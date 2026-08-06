@@ -2277,6 +2277,140 @@ transaction; later updates in this update sequence do not repeat it. Every
 receipt has its own `/undo`, and Left Arrow opens UX-U01 rather than crossing
 the commit boundary as navigation.
 
+## UX-S39 — Meaning choice
+
+```text
+Update meaning:
+
+#rrsr "Review Rock Splitter rules"
+
+What part of its meaning is stale?
+
+[t]itle
+    The short canonical name shown in lists and references.
+
+[d]escription
+    Longer context, intended result, and useful explanation.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Description is the human projection of an ordinary attached Raw under
+MOD-056, not a Brick field. There is no `both`; completing either independent
+change reaches UX-S38, where `update something else` can return here. No option
+is a default. Reverse navigation restores UX-S37 without evidence.
+
+## UX-S40 — Selected title editor
+
+```text
+Update title:
+
+#rrsr "Review Rock Splitter rules"
+
+› Review Rock Splitter rules
+
+Tip: write in English when possible.
+
+Enter review · Esc back
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+On entry, the complete current title is selected with the same accessible
+treatment as UX-A02. Printable input or paste replaces it, Backspace or Delete
+clears it, and an arrow collapses the selection without editing. Enter reviews
+a changed nonblank draft through UX-S41; unchanged input produces no event and
+keeps this editor. Escape restores UX-S39.
+
+## UX-S41 — Title-change preview
+
+```text
+Change title?
+
+From:
+"Review Rock Splitter rules"
+
+To:
+"Review the current Rock Splitter rules"
+
+Reference:
+#rrsr · unchanged
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Yes follows WRK-104 and reaches UX-S38. Edit returns to UX-S40 with the draft
+selected; no discards it and returns to UX-S39. The UUID, handle, structural
+and importance context, lifecycle, WIP, and focus do not change, and the old
+title does not become an alias. Question mark explains those consequences and
+restores this preview.
+
+## UX-S42 — Description revision preview
+
+```text
+Update description?
+
+Current:
+
+"Review the rules that were deployed during the first Rock Splitter pilot."
+
+Proposed:
+
+"Review the rules currently deployed in production and document obsolete exceptions."
+
+English normalization:
+will need review after this change
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The screen never exposes a Description object or technical Raw ID. Yes appends
+the proposed original-text revision to the same ordinary Raw and reaches
+UX-S38; when no `RawLink(role = description)` exists, it instead creates one
+ordinary Raw and the link atomically. Edit returns to the still-open multiline
+draft; no discards it and restores UX-S39. The normalization warning is omitted when
+none exists. If the Raw has other non-description consumers, a human-visible
+`Also used by:` block lists each affected Brick, RawShelf, Domain, or other
+projection before the actions. Exact multiline input remains `OPEN-UX-005`.
+
 ## UX-K01 — Nature choice
 
 ```text

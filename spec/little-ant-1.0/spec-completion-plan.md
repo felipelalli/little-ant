@@ -156,6 +156,11 @@ Close:
   review, supersede, and merge;
 - out-of-date update dispatch, every typed branch preview, one-change receipts,
   and return-to-Work behavior without a generic patch editor;
+- meaning choice, selected title editing with stable identity and handle, and
+  description editing as revision of an ordinary one-to-one
+  `RawLink(role = description)` target rather than a Brick field or Raw subtype;
+- the exact cross-surface multiline draft grammar in `OPEN-UX-005`, including
+  create, revise, detach, paste, cancellation, recovery, and preview return;
 - Escape versus semantic undo, redo conflict, stale answer, restored draft, and
   the complete typed compensation matrix in `OPEN-UNDO-001`.
 
@@ -238,8 +243,10 @@ Exit:
 
 Render and settle:
 
-- Raw editing, description, shelves, source observations, reconciliation, and
-  `/translate`;
+- generic Raw editing and revision encoding, shelves, source observations,
+  reconciliation, and `/translate`; description-specific linkage,
+  cardinality, revision, and detach semantics are already settled under
+  MOD-056..057 and WRK-105;
 - ExternalEntity contacts and local delivery bindings;
 - Delegation from draft through terminal reconciliation;
 - typed write-back and notification;

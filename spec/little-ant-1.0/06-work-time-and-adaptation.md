@@ -292,7 +292,7 @@
   ordinary cooldown without guessing what was unclear.
 - **WRK-085 [core] — Direct clarification keeps the Brick in place.** Goal
   text and its Description change remain drafts through UX-S25..S26. Accepting
-  the preview atomically applies the canonical Description Raw revision and
+  the preview atomically revises the canonical Raw attached as description and
   records `vague` plus `clarify goal`. It creates no Brick, Dependency,
   cooldown, importance evidence, phase, or lifecycle change. A served current
   focus remains focused and returns to its sober continuation; an unstarted
@@ -467,9 +467,10 @@
   closed first-level purposes are `meaning`, `behavior`, `plan`, `timing`,
   `context`, `source material`, and read-only `view everything`. These are UI
   dispatch purposes, not Brick fields, status values, event kinds, or another
-  ontology axis. Meaning reaches title or Description Raw; behavior reaches
-  Nature, Template, or the applicable run/repetition behavior; plan reaches
-  parts, Dependencies, Waits, or Delegation; timing reaches the applicable
+  ontology axis. Meaning reaches title or the Raw attached as description;
+  behavior reaches Nature, Template, or the applicable run/repetition
+  behavior; plan reaches parts, Dependencies, Waits, or Delegation; timing
+  reaches the applicable
   `not_before`, `best_before`, deadline, schedule, or recurrence route; context
   reaches Domains, ExternalEntities, and related Work; source material reaches
   RawLinks or external-source reconciliation; and view everything reuses
@@ -489,6 +490,36 @@
   accepted change atomically performs WRK-100 restoration, resolves the archive
   review, and creates its lazy importance review; leaving before acceptance
   keeps the Brick archived. Returning to Work never starts focus silently.
+- **WRK-103 [core] — Meaning separates label from attached description.**
+  Selecting `meaning` opens UX-S39 with exactly `title`, `description`, and
+  uncertainty. There is no `both`: after either independent update, UX-S38
+  already offers `update something else`. Title follows WRK-104. Description
+  follows WRK-105 and denotes the MOD-056 RawLink projection rather than a
+  Brick field. Merely choosing a branch records nothing.
+- **WRK-104 [core] — Title revision preserves references.** Title editing
+  starts with the complete current title selected and the ordinary quiet
+  English-writing reminder. Printable input or paste replaces the selection;
+  arrows collapse it without mutation. A nonblank changed title requires the
+  complete before/after preview in UX-S41. Accepting changes only the canonical
+  title and follows WRK-102 for the originating symptom. UUID, mnemonic handle,
+  parent, sibling order, relationships, Domain membership, lifecycle, WIP, and
+  focus remain unchanged. The previous title remains history and does not
+  become an alias. Submitting unchanged text is an educational no-op with no
+  event, revision, or `out_of_date` evidence.
+- **WRK-105 [core] — Description revision keeps ordinary Raw identity.** If
+  the Brick has a `RawLink(role = description)`, accepting changed original
+  text appends a content revision to that same Raw and retains every prior
+  revision in append-only history. It never replaces the Raw identity or creates a
+  second Raw for that role. If no such link exists, the first accepted
+  description atomically creates one ordinary text Raw and the MOD-057-valid
+  link. Any existing English normalization on the changed original becomes
+  explicitly stale rather than being copied forward as current; `/translate`
+  remains its separate same-Raw route. Because the Raw may have other
+  non-description consumers, the preview enumerates every other affected link
+  or membership before a shared revision. Removing a description detaches only
+  that link and preserves the Raw. Silent cloning, unlinking, deletion, or
+  normalization is forbidden. The exact multiline editor keys and generic Raw
+  revision representation remain with their explicit open decisions.
 
 ## Time
 

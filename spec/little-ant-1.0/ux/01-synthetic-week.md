@@ -479,14 +479,15 @@ returns to the corresponding unchanged dumb route.
 
 Select `vague` and validate UX-S24's content-versus-work distinction without a
 new semantic axis or default. Enter a goal in UX-S25, reject and edit UX-S26,
-then accept it and verify one Description Raw change plus `vague` clarification
+then accept it and verify one revision of the Raw attached as description plus
+`vague` clarification
 without a Brick, Dependency, cooldown, importance, phase, or lifecycle change.
 Preserve a current focus and return an unstarted proposal to ordinary Focus
 consent. Exercise `information` through contextual collect-more-context Feed
 and all UX-S27 first-step routes: decomposition, learning work, typed support,
 and direct skip. Confirm only an accepted existing preview records `vague` and
-recovery, while real enabling structure replaces cooldown. Keep Description
-Raw replacement/revision encoding under `OPEN-RAW-001`. Reject one attributed
+recovery, while real enabling structure replaces cooldown. Keep generic Raw
+revision-event encoding under `OPEN-RAW-001`. Reject one attributed
 assisted proposal and prove the original dumb checkpoint and text survive.
 
 Select `hard` and validate all UX-S28 recoveries without a default or an
@@ -544,7 +545,8 @@ from UX-S06 and confirm that `project` Nature, title wording, and an unaccepted
 assisted suggestion never invoke break.
 
 Replay decomposition in powered-up and Skill modes with evidence from the
-title, Description Raw, linked material, and related Bricks. Validate UX-B00A
+title, Raw attached as description, linked material, and related Bricks.
+Validate UX-B00A
 with `yes`, `edit`, `no`, uncertainty, and no `*`; every route must reach the
 same UX-B00 or UX-B01 envelope and canonical CLI validation. Exercise UX-B00B:
 Tab copies one suggestion without submitting, ordinary input dismisses it,
@@ -893,10 +895,24 @@ closure semantics.
 
 From both active `update it` and archived `update and restore`, enter UX-S37.
 Verify all seven semantic purposes, no dumb default, read-only `/show` round
-trip, exact reverse navigation, and absence of a generic field patch. In
-separate replays accept one title, Description Raw, Nature/behavior, plan,
-timing, Domain/relationship, and source-reconciliation change through its
-typed preview. The first active edit must record `out_of_date` atomically;
+trip, exact reverse navigation, and absence of a generic field patch. First
+exercise `meaning`: rename through selected prefill and the complete From/To
+preview, then prove that UUID, `#handle`, parent, sibling order, relationships,
+Domains, lifecycle, WIP, and focus remain unchanged and the former title does
+not become an alias. Unchanged title submission must be an event-free no-op.
+In separate description replays, create an ordinary text Raw plus its
+`RawLink(role = description)` when absent; revise the same Raw identity when
+present;
+preserve earlier revisions; mark an existing English normalization stale;
+list every other affected non-description consumer; and detach without
+deleting or archiving the Raw. Reject a second active description role for
+either the Brick or the Raw rather than silently copying. Verify there is no
+Description field, entity, or Raw subtype. Stop only multiline key behavior at
+`OPEN-UX-005` and generic Raw revision encoding at `OPEN-RAW-001`.
+
+In further separate replays accept one Nature/behavior, plan, timing,
+Domain/relationship, and source-reconciliation change through its typed
+preview. The first active edit must record `out_of_date` atomically;
 inspection and rejected drafts must not. Confirm that each UX-S38 receipt has
 an independent undo boundary, that `update something else` does not record the
 symptom again, and that `return to Work` neither focuses nor redraws silently.

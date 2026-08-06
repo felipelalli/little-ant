@@ -9,6 +9,27 @@
   reconciled with an external origin. It is not work, is not
   importance-orderable, and has no `done` operation. Routing it later never
   consumes it.
+- **MOD-056 [core] — Description is an ordinary Raw attachment.** A Brick has
+  no description string, Description entity, DescriptionRaw subtype, or owned
+  content slot. What surfaces render as `Description` is derived solely from
+  an ordinary RawLink whose local role is `description`:
+
+  ```text
+  Brick -- RawLink(role = description) --> Raw
+  ```
+
+  The target remains a normal Raw with ordinary identity, revisions,
+  normalization, RawShelf membership, Domain classification, provenance,
+  source reconciliation, and non-description links. The role changes only how
+  that one relationship is interpreted. Detaching it removes the description
+  projection without deleting, consuming, transforming, or archiving the Raw.
+- **MOD-057 [core] — Description-role cardinality is one-to-one.** One Brick
+  has at most one active RawLink with role `description`, and one Raw may be
+  the `description` target of at most one Brick. A Raw serving that role may
+  still have any otherwise-valid non-description links and memberships.
+  Shared supporting content therefore uses another compatible RawLink role
+  rather than making one mutable description govern several Bricks. Role
+  uniqueness is validated before commit and never repaired by silent copying.
 - **MOD-002 [core] — Brick.** A Brick is one durable unit of intention or
   responsibility. Every active Brick has one Nature and one deterministic
   position among its siblings from birth.

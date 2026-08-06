@@ -307,9 +307,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   input restores the preceding pending-part checkpoint. No title, handle,
   Nature, comparison, child, symptom, or history is durable during collection.
 - **UX-086 [standard] — Assisted decomposition draft.** When title,
-  Description Raw, linked material, or related-Brick evidence supports a
-  concrete decomposition, powered-up mode or the Skill may precede UX-085
-  with one English-language draft containing every suggested part and a
+  Raw attached as description, linked material, or related-Brick evidence
+  supports a concrete decomposition, powered-up mode or the Skill may precede
+  UX-085 with one English-language draft containing every suggested part and a
   concise attribution to the evidence used. The screen asks `Use this draft?`
   and exposes `[y]es`, `[e]dit`, `[n]o`, `[?] I don't know`, and
   `[/] more...`, without `*`. `yes` advances to the ordinary complete UX-B01
@@ -753,6 +753,32 @@ no-emoji rendering remain `OPEN-UX-001`.
   restoration—ordinary Focus consent for the restored Brick; it never starts
   focus or draws another subject. The palette exposes semantic undo, and Left
   Arrow at the committed receipt uses UX-U01 rather than provisional back.
+- **UX-156 [core] — Meaning choice stays two-way.** UX-S39 identifies the
+  Brick and asks `What part of its meaning is stale?`, offering `[t]itle`,
+  `[d]escription`, and uncertainty without a default. The explanations call
+  title the short canonical name and description the longer context and
+  intended result. Description is UI language for MOD-056's attached Raw, not
+  a separate field. Escape and reverse navigation restore UX-S37 unchanged.
+- **UX-157 [core] — Title uses selected prefill and stable-reference preview.**
+  UX-S40 uses the ordinary single-line editor with the current title entirely
+  selected, shows the quiet English reminder, and labels Enter as review rather
+  than commit. Enter on changed nonblank text opens UX-S41; unchanged input
+  returns one educational no-op and keeps the editor. The preview shows From,
+  To, and the unchanged `#handle`, then offers `[y]es`, `[e]dit`, `[n]o`, and
+  uncertainty without a default. Yes follows WRK-104 and renders UX-S38; edit
+  returns with the draft selected; no discards it and restores UX-S39; Escape
+  follows ordinary checkpoint navigation.
+- **UX-158 [core] — Description preview exposes Raw consequences, not storage
+  jargon.** After a surface obtains one multiline description draft, UX-S42
+  shows complete current and proposed original text. When applicable it also
+  states that the English normalization will need review and lists every other
+  human-visible link or membership that will observe the same Raw revision.
+  It never renders a Description entity, technical Raw ID, or false local-only
+  edit. Actions are `[y]es`, `[e]dit`, `[n]o`, and uncertainty without a
+  default. Yes follows WRK-105 and renders UX-S38; edit restores the multiline
+  draft; no discards it and restores UX-S39. The exact cross-surface multiline
+  finish, review, cancel, selection, paste, and recovery grammar is
+  release-blocking under `OPEN-UX-005` rather than guessed by this screen.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

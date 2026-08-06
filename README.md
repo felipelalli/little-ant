@@ -54,10 +54,17 @@ Raw material:
   evidence, attachment, or another typed role;
 - is archived rather than permanently deleted.
 
-A Brick does not own a separate scalar description field. Its description is
-linked Raw content. Translating that content does not create a second Raw: the
-original and canonical-English normalization remain distinguishable on the
-same identity.
+A Brick does not own a separate scalar description field or a special
+Description object. Its visible description is the projection of one ordinary
+Raw linked with role `description`. A Brick has at most one such active link,
+and that role is exclusive to one Brick; reusable supporting material uses
+another link role. Detaching the description never deletes the Raw.
+
+Editing a description appends a revision to that same Raw identity. Previous
+revisions remain in history, and any canonical-English normalization becomes
+explicitly stale until `/translate` reviews it. Translating content never
+creates a second Raw: original and canonical-English forms remain
+distinguishable on the same identity.
 
 See [concepts and identity](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md)
 and [feeding and organization](spec/little-ant-1.0/03-feeding-and-organization.md).
@@ -291,6 +298,14 @@ accepted change produces one history and undo boundary; `update something
 else` returns to the same hub instead of accumulating an unbounded generic
 patch. Powered-up mode or a Skill may mark one likely branch and explain why,
 but cannot mutate or bypass its normal preview.
+
+Within `meaning`, title and description are independent choices. Renaming
+preserves the Brick UUID, `#handle`, hierarchy, order, relationships,
+lifecycle, and focus; the former title remains history but does not become an
+alias. Description editing revises the ordinary Raw attached with role
+`description`, or atomically creates that Raw and link when absent. The exact
+multiline-editor grammar is still a release-blocking UX decision rather than
+an implicit storage shortcut.
 
 ### Read an article again later
 

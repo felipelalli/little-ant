@@ -227,8 +227,9 @@
   comparisons before creation. No handle or durable identity exists before
   acceptance.
 - **FED-033 [standard] — Assisted better-way proposal stays attributable.**
-  Powered-up or Skill may propose one concrete title, Description Raw, Nature,
-  or structure from the served Brick's actual context. The complete proposal
+  Powered-up or Skill may propose one concrete title, Raw content attached as
+  description, Nature, or structure from the served Brick's actual context.
+  The complete proposal
   names its source and still passes through the same human preview. Rejecting
   it opens the unchanged FED-032 classification; editing never lets assistance
   allocate an identity, accept its own evidence, or bypass the canonical CLI.
@@ -260,11 +261,16 @@
 - **FED-037 [core] — Goal clarification changes descriptive content, not
   ontology.** The dumb `vague` goal route asks `What result should this Brick
   produce?`, preserves the entered text as Raw content, and previews its
-  application to the Brick's Description Raw. It creates no `Definition`,
+  application through the Brick's `RawLink(role = description)`. It creates
+  no `Definition`,
   `Outcome`, acceptance-criterion field, or clarification Brick. The preview
-  exposes the complete resulting descriptive change before acceptance. Exact
-  Description Raw replacement, revision, and cardinality mechanics remain
-  owned by `OPEN-RAW-001`; this route may not guess them.
+  exposes the complete resulting descriptive change before acceptance. It
+  follows MOD-056..057 and WRK-105: the visible description is an ordinary Raw
+  attachment, an existing description is revised on the same Raw identity,
+  and a missing one creates one ordinary text Raw plus its
+  `RawLink(role = description)` atomically. Generic Raw revision encoding
+  remains `OPEN-RAW-001`; the
+  route may not expose that storage choice as a Description object.
 - **FED-038 [core] — Missing information and first steps reuse enabling work.**
   A `vague` information route reuses WRK-067's contextual `collect more
   context` Feed with the current symptom carried provisionally. A first-step
