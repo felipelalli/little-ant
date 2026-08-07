@@ -577,6 +577,27 @@
   cooldown, or focus refusal. The served-work origin retains its own
   defer-only action and commits symptom evidence only with a final accepted
   reaction under WRK-047.
+- **WRK-111 [core] — Structure is intent-first, not Nature-first.** Selecting
+  `structure` always offers `within larger Work`, `parts`, `list items`, and
+  uncertainty, regardless of the current Nature, and assigns no dumb default.
+  Selecting an intent first records nothing. `within larger Work` reaches
+  parent or root movement without changing Nature. `parts` reaches the
+  existing child/decomposition operation. `list items` reaches the existing
+  ListEntry operation. The core does not maintain separate first-level
+  structure menus for each Nature or hide a human intent because the current
+  classification cannot yet represent it.
+- **WRK-112 [core] — Incompatible structure proposes explicit behavior
+  change.** If the selected structural intent is unsupported by the current
+  Nature, no item, child, or relationship is created yet. The route first
+  resolves and previews a compatible Nature through MOD-045 and MOD-059. For
+  an `atomic_task`, independently tracked finite parts normally propose
+  `project`, while an open-ended member set may require `collection`; choosing
+  list items distinguishes finite from continuing ownership before proposing
+  `finite_checklist` or `living_checklist`. Existing children, ListEntries,
+  focus, WIP, schedule, and other incompatible facts require explicit
+  reconciliation. The accepted Nature change and requested initial structure
+  form one typed reversible action; rejection or reverse navigation preserves
+  the original Nature and structure completely.
 
 ## Time
 

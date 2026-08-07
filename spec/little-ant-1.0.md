@@ -187,7 +187,7 @@ discovery without claiming unseen candidates do not fit. `Group` remains
 interface language rather than a core object. Assisted modes may propose an
 attributed bounded recent-Raw batch but never delay Feed or accept routing.
 That review subsequently reached the stale-Work and semantic-maintenance
-flows. `WRK-098..110`, `UX-152..167`, and UX-S35..S49 now distinguish
+flows. `MOD-060`, `WRK-098..112`, `UX-152..169`, and UX-S35..S50 now distinguish
 reversible archive, restoration, stale correction, and ordinary direct
 `/update #brick`. All three update origins share one neutral semantic hub, but
 only the stale and archived origins carry their respective atomic evidence or
@@ -195,9 +195,12 @@ restoration consequence. `plan` is a human dispatch route to composition,
 gates, and responsibility rather than an entity, phase, or axis; `/edit` and
 `/plan` are not aliases. The Plan hub now has exactly structure, blockers, and
 responsibility; its blocker route reuses the existing human classifier while
-omitting skip-only grammar and evidence. Resume the UX-first review at Plan
-`[s]tructure`, then exercise responsibility before proceeding to timing,
-context, and source material.
+omitting skip-only grammar and evidence. Structure always exposes placement,
+child parts, and list items; an incompatible choice proposes explicit Nature
+reconciliation instead of disappearing or converting silently. Resume the
+UX-first review at Structure `[w]ithin larger Work`, then exercise parts, list
+items, and responsibility before proceeding to timing, context, and source
+material.
 
 ## Scope rings
 

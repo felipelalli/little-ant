@@ -2666,6 +2666,46 @@ confirmed result records its typed prerequisite plus only the update origin's
 WRK-102 consequence; this classifier adds no blocker skip evidence or
 cooldown. Escape or reverse navigation restores UX-S48 without an event.
 
+## UX-S50 — Structure intent
+
+```text
+Structure:
+
+#rrsr "Review Rock Splitter rules"
+
+What do you want to organize?
+
+[w]ithin larger Work
+    Move this Brick under other Work, or to root.
+
+[p]arts
+    Break it down, add parts, or organize existing child Bricks.
+
+list [i]tems
+    Add, change, resolve, or reopen entries shown together.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The three intents remain visible for every Nature and dumb mode has no
+default. `within larger Work` changes only composition placement. `parts`
+means independently tracked child Bricks; `list items` means entries shown and
+executed with one checklist owner. An unsupported choice opens an explicit
+Nature proposal and reconciliation under WRK-112 rather than disappearing,
+failing generically, or converting state silently. Assistance may mark one
+existing row or precede it with a complete UX-060 proposal; rejecting either
+restores this exact screen. Escape restores UX-S48 without evidence.
+
 ## UX-K01 — Nature choice
 
 ```text

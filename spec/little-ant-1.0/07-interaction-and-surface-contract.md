@@ -874,6 +874,23 @@ no-emoji rendering remain `OPEN-UX-001`.
   Escape and reverse navigation restore UX-S48. Powered-up and Skill may mark
   one existing situation and explain it, but may neither restore the absent
   skip action nor bypass the typed preview.
+- **UX-168 [core] — Structure presents the same three intents for every
+  Nature.** UX-S50 asks `What do you want to organize?` and lists `[w]ithin
+  larger Work`, `[p]arts`, `list [i]tems`, and uncertainty, in that order and
+  without a dumb default. All three remain visible and selectable even when
+  the current Nature cannot represent the requested result. The explanations
+  distinguish parent placement, independently tracked child Bricks, and
+  entries shown together without leading with ontology names. Escape restores
+  UX-S48 without evidence.
+- **UX-169 [core] — Structural incompatibility is an attributed proposal, not
+  a hidden conversion.** After an incompatible intent is selected, the screen
+  explains the current mechanical limitation and enters the smallest
+  applicable Nature distinction and WRK-112 preview. It never disables the
+  selected row, silently changes Nature, or drops existing state. Powered-up
+  and Skill may mark one of the same structure intents or propose a fully
+  resolved compatible result through UX-060, but rejection returns to exact
+  dumb UX-S50. The exact parent mover, child manager, ListEntry manager, and
+  incompatible-Nature choice screens remain under `OPEN-PLAN-001`.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

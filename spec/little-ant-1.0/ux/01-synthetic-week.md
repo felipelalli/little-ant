@@ -942,8 +942,18 @@ the five situations, shortcuts, typed builders, and previews must match, while
 the Plan origin alone omits `skip anyway`. Accept each situation on separate
 replays and prove that direct Plan entry records only its Dependency, Wait,
 `not_before`, Place, or event-condition result—never a skip symptom, cooldown,
-or refusal of focus. Leave structure and responsibility at their explicit
-`OPEN-PLAN-001` boundary until their screens are reviewed.
+or refusal of focus. Then enter UX-S50 from every factory Nature and verify
+that the same three intents remain available with no default. Move one
+compatible Brick toward parent selection
+without changing Nature. For parts, distinguish a finite `project` proposal
+from an open-ended `collection` proposal. For list items, distinguish finite
+from continuing ownership before proposing `finite_checklist` or
+`living_checklist`. Reject every incompatible proposal without creating a
+child, ListEntry, relationship, Nature claim, or reconciliation event; accept
+representative proposals only through the complete MOD-059 preview. Never
+convert a child Brick and ListEntry into one another. Leave each downstream
+structure manager and responsibility at its explicit `OPEN-PLAN-001` boundary
+until its screen is reviewed.
 
 For Nature/behavior, first select the current Nature in UX-S46 and prove an
 event-free no-op. Traverse the full mechanical discovery route over the

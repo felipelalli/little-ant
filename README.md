@@ -310,6 +310,13 @@ questions as skip diagnosis, but omits `skip anyway` and records no skip
 evidence or cooldown of its own. Any stale-update or restoration consequence
 still belongs atomically to the hub's original entry path.
 
+Structure stays intent-first across every Nature: move the Brick within larger
+Work, organize independently tracked child parts, or manage list items shown
+together. All three intentions remain discoverable. If the current Nature
+cannot represent the selected structure, Little Ant previews the necessary
+Nature change and reconciliation instead of hiding the choice or converting
+state silently.
+
 Within `meaning`, title and description are independent choices. Renaming
 preserves the Brick UUID, `#handle`, hierarchy, order, relationships,
 lifecycle, and focus; the former title remains history but does not become an

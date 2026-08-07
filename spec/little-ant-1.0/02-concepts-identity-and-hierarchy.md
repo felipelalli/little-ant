@@ -235,6 +235,14 @@ The factory library contains:
   explicit typed reconciliation before confirmation. The core never silently
   deletes, archives, completes, detaches, flattens, converts, or forgets that
   state merely to make the new Nature validate.
+- **MOD-060 [core] — Structure keeps three human intents distinct.** A Brick's
+  structural maintenance distinguishes: placement within larger Work, child
+  Brick parts, and Nature-owned ListEntries. Placement changes the composition
+  parent or moves the Brick to root. Parts are independently tracked Bricks
+  with their own identities, sibling importance, gates, and histories.
+  ListEntries are executed and shown together through their owning checklist
+  Brick under MOD-003 and MOD-036. Choosing one intent never silently converts
+  an existing child Brick into a ListEntry or vice versa.
 
 ## Content, movement, and effective metadata
 
