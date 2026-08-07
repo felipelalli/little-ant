@@ -463,19 +463,22 @@
   selection and supersession relationship transfer remain with their owning
   open decisions rather than being guessed here.
 - **WRK-101 [core] — Updating dispatches by human meaning, not storage field.**
-  `update it` and `update and restore` enter one non-mutating update hub whose
-  closed first-level purposes are `meaning`, `behavior`, `plan`, `timing`,
-  `context`, `source material`, and read-only `view everything`. These are UI
-  dispatch purposes, not Brick fields, status values, event kinds, or another
-  ontology axis. Meaning reaches title or the Raw attached as description;
-  behavior reaches only Nature under MOD-058; plan reaches parts,
-  Dependencies, Waits, or Delegation; timing reaches the applicable
-  `not_before`, `best_before`, deadline, schedule, or recurrence route; context
-  reaches Domains, ExternalEntities, and related Work; source material reaches
-  RawLinks or external-source reconciliation; and view everything reuses
-  read-only `/show` before restoring the hub. Every branch invokes a closed
-  canonical operation with its own validation and preview. There is no generic
-  field editor, arbitrary patch payload, or catch-all metadata mutation.
+  Direct `/update`, `update it`, and `update and restore` enter one
+  non-mutating update hub whose closed first-level purposes are `meaning`,
+  `behavior`, `plan`, `timing`, `context`, `source material`, and read-only
+  `view everything`. These are UI dispatch purposes, not Brick fields, status
+  values, event kinds, or another ontology axis. In particular, `plan` is a
+  human route to composition, gates, and responsibility; it does not create a
+  Plan entity, phase, or classification axis. Meaning reaches title or the Raw
+  attached as description; behavior reaches only Nature under MOD-058; plan
+  reaches parts, Dependencies, Waits, or Delegation; timing reaches the
+  applicable `not_before`, `best_before`, deadline, schedule, or recurrence
+  route; context reaches Domains, ExternalEntities, and related Work; source
+  material reaches RawLinks or external-source reconciliation; and view
+  everything reuses read-only `/show` before restoring the hub. Every branch
+  invokes a closed canonical operation with its own validation and preview.
+  There is no generic field editor, arbitrary patch payload, or catch-all
+  metadata mutation.
 - **WRK-102 [core] — Each accepted update is one reversible semantic action.**
   A branch drafts and previews one typed change at a time. Accepting the first
   change from an active out-of-date flow atomically records `out_of_date` with
@@ -541,6 +544,19 @@
   rewrites Template provenance. The capability-delta rules sufficient to
   derive every source-to-target transition are release-blocking under
   `OPEN-NAT-001`.
+- **WRK-108 [core] — Direct update is ordinary maintenance, not a symptom.**
+  `/update #brick` enters the same hub as WRK-101 for an active or otherwise
+  editable Brick without first requiring Focus, skip, `out_of_date`, or an
+  archive review. Entering, inspecting, drafting, rejecting, or leaving the
+  hub records no event. Each accepted typed change records only its own
+  canonical mutation and retains its ordinary independent undo boundary; it
+  never invents `out_of_date`, skip evidence, cooldown, restoration, or a
+  lottery draw. The contextual palette may omit the argument only when its
+  suspended InteractionEnvelope identifies exactly one Brick, and must render
+  that resolved `#handle` and title before invocation. Otherwise the command
+  requires ordinary typed Brick autocomplete. `/update` is the sole general
+  update command: the core provides neither `/edit` nor `/plan` as an alias or
+  overlapping shortcut.
 
 ## Time
 

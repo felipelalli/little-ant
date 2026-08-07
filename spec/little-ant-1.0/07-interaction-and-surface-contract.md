@@ -736,12 +736,14 @@ no-emoji rendering remain `OPEN-UX-001`.
   `/undo` of the original archive remains a distinct semantic compensation,
   not another label for restore.
 - **UX-154 [core] — Update hub exposes semantic purposes.** UX-S37 asks `What
-  seems stale?` and lists `[m]eaning`, `[b]ehavior`, `[p]lan`, `[t]iming`,
+  do you want to update?` and lists `[m]eaning`, `[b]ehavior`, `[p]lan`,
+  `[t]iming`,
   `[c]ontext`, `[s]ource material`, `[v]iew everything`, and uncertainty, in
   that order and without a dumb default. Each item includes one short human
   explanation and follows WRK-101. View is read-only and restores the exact
-  hub. Escape and reverse navigation restore UX-S35 or UX-S36, including its
-  pending review, without recording `out_of_date`.
+  hub. Escape and reverse navigation restore the exact originating screen:
+  UX-S35, UX-S36 including its pending review, or the interaction suspended by
+  direct `/update`, without recording `out_of_date`.
 - **UX-155 [core] — Update assistance and receipts preserve one grammar.**
   Powered-up or Skill may mark at most one existing hub purpose and give one
   concise attributed reason under UX-059; it cannot bypass the hub with a
@@ -846,6 +848,16 @@ no-emoji rendering remain `OPEN-UX-001`.
   action and names the next typed decision instead. Assistance may propose
   values through those same builders, with provenance retained in the final
   preview; it cannot waive a conflict or approve itself.
+- **UX-165 [core] — `/update` is the one direct semantic-maintenance route.**
+  The canonical explicit command is `/update #brick`. When the current
+  InteractionEnvelope identifies exactly one Brick, the contextual palette
+  may show a resolved action such as `/update #rrsr "Review Rock Splitter
+  rules"`; selecting it enters UX-S37 without another target question. In all
+  other contexts, `#` autocomplete resolves the required Brick before the hub
+  opens. Direct entry uses the neutral `What do you want to update?`, follows
+  WRK-108, and returns to the exact suspended interaction after an event-free
+  exit or completed update. The grammar registry exposes no `/edit` or
+  `/plan` alias.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

@@ -2186,7 +2186,7 @@ Update:
 
 #rrsr "Review Rock Splitter rules"
 
-What seems stale?
+What do you want to update?
 
 [m]eaning
     Title or description.
@@ -2222,11 +2222,14 @@ What seems stale?
   mode: dumb, focus: #rrsr
 ```
 
-This screen dispatches only to the closed typed routes in WRK-101. It is not a
-form, schema browser, generic object editor, or domain event. No option is a
-dumb default. View everything opens `/show` read-only and returns here with the
-same pending interaction. Assistance may mark one option and add an attributed
-reason, for example:
+This screen is reached directly through `/update #brick`, from active `update
+it`, or from archived `update and restore`. It dispatches only to the closed
+typed routes in WRK-101. `plan` is a UI route to parts, prerequisites, waits,
+or delegation; it is not a Plan entity, phase, or classification axis. The
+screen is not a form, schema browser, generic object editor, or domain event.
+No option is a dumb default. View everything opens `/show` read-only and
+returns here with the same pending interaction. Assistance may mark one option
+and add an attributed reason, for example:
 
 ```text
 *[s]ource material
@@ -2237,7 +2240,10 @@ Suggestion: the linked Microsoft document changed after this Brick was last revi
 
 The suggested branch and every other action remain unchanged. Exact edits
 still require their typed branch preview. Reverse navigation returns to the
-originating out-of-date or archive-review screen without evidence.
+exact originating screen without evidence. A direct update records only each
+accepted typed mutation. An active out-of-date entry records `out_of_date`
+atomically with its first accepted mutation; an archived entry restores only
+at that same boundary.
 
 ## UX-S38 — One accepted update
 

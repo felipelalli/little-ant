@@ -893,9 +893,13 @@ still find the Brick throughout. Run the same transcript for an archived child
 and stop at the explicit `OPEN-TREE-001` boundary rather than inventing parent
 closure semantics.
 
-From both active `update it` and archived `update and restore`, enter UX-S37.
-Verify all seven semantic purposes, no dumb default, read-only `/show` round
-trip, exact reverse navigation, and absence of a generic field patch. First
+Enter UX-S37 independently from direct `/update #brick`, active `update it`,
+and archived `update and restore`. Verify all seven semantic purposes, the
+neutral `What do you want to update?` question, no dumb default, read-only
+`/show` round trip, exact reverse navigation, and absence of a generic field
+patch, Plan entity, `/edit` alias, or `/plan` alias. Direct entry must neither
+require nor record a skip symptom and must resolve an omitted palette target
+only when exactly one Brick is identified. First
 exercise `meaning`: rename through selected prefill and the complete From/To
 preview, then prove that UUID, `#handle`, parent, sibling order, relationships,
 Domains, lifecycle, WIP, and focus remain unchanged and the former title does
@@ -920,7 +924,8 @@ that executable Pack code never receives process or file authority.
 
 In further separate replays accept one Nature/behavior, plan, timing,
 Domain/relationship, and source-reconciliation change through its typed
-preview. The first active edit must record `out_of_date` atomically;
+preview. A direct edit must record only that mutation. The first edit reached
+through the active stale route must record `out_of_date` atomically;
 inspection and rejected drafts must not. Confirm that each UX-S38 receipt has
 an independent undo boundary, that `update something else` does not record the
 symptom again, and that `return to Work` neither focuses nor redraws silently.

@@ -48,6 +48,7 @@ run as an interactive transcript.
 | 4 | Archive and relevance review | `MOD-055..057`, `FOC-053`, `WRK-098..105`, `UX-152..161`, `UX-S35..S45`, `SCN-ARC-001` | partial | remaining typed branch screens, supersession transfer, honest-answer tree, subtree outcomes, and paired surface replay |
 | 4 | Meaning, title, and attached description | `MOD-056..057`, `FED-037`, `WRK-103..105`, `UX-156..162`, `DAT-046`, `UX-S39..S45`, `SCN-ARC-001` | partial | generic Raw revision event under `OPEN-RAW-001`, uncertainty trees, and paired surface replay |
 | 4 | Behavior and Nature reclassification | `MOD-058..059`, `WRK-106..107`, `UX-163..164`, `UX-S46..S47`, `SCN-ARC-001` | partial | capability-delta consequences and generated transition validation under `OPEN-NAT-001`, uncertainty tree, typed builders, undo conflicts, and paired surface replay |
+| 4 | Direct semantic update | `WRK-101..108`, `UX-154..165`, `UX-S37..S47`, `SCN-ARC-001` | partial | plan, timing, context, and source-material branch screens; uncertainty tree; exact return envelopes; and paired direct/stale/archived replay |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001`, `OPEN-UNDO-001` | partial | exhaustive typed compensation matrix and conflict replay |
 | 4 | Global search and return | `UX-151`, `UX-RF03`, `SCN-SRCH-001` | partial | deterministic cross-kind ranking, pagination, and paired surface replay |
 | 5 | Cross-Domain focus | `UX-F02`, `UX-F12..F14`, `FOC-014..019`, `FOC-048..050` | partial | hard scope and equal-specificity target |

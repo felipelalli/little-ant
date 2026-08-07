@@ -279,8 +279,11 @@ archived, restore the same identity, update and restore it, or link newer Work
 as its replacement. `/undo` can compensate the original archive immediately;
 later restoration is a new recorded action rather than deleted history.
 
-`update it` does not expose an arbitrary field editor. It first asks which
-human-facing aspect is stale:
+`/update #brick` opens the same semantic maintenance hub directly, without
+requiring a skip or recording `out_of_date`. The stale-work choices `update
+it` and `update and restore` also enter this hub, but retain their own atomic
+stale-evidence and restoration consequences. It asks what you want to update
+rather than exposing an arbitrary field editor:
 
 ```text
 [m]eaning          Title or description.
@@ -298,6 +301,11 @@ accepted change produces one history and undo boundary; `update something
 else` returns to the same hub instead of accumulating an unbounded generic
 patch. Powered-up mode or a Skill may mark one likely branch and explain why,
 but cannot mutate or bypass its normal preview.
+
+`plan` is only the human-facing route to parts, prerequisites, waits, and
+delegation. It is not a Plan entity, phase, or classification axis. `/update`
+is the sole general maintenance command; there are no overlapping `/edit` or
+`/plan` aliases.
 
 Within `meaning`, title and description are independent choices. Renaming
 preserves the Brick UUID, `#handle`, hierarchy, order, relationships,

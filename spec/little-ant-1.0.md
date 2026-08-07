@@ -186,10 +186,16 @@ paginates, `[s]earch...` autocompletes across the compatible set, and
 discovery without claiming unseen candidates do not fit. `Group` remains
 interface language rather than a core object. Assisted modes may propose an
 attributed bounded recent-Raw batch but never delay Feed or accept routing.
-Continue this Feed review by completing the UX-T01 and UX-T03 honest-answer
-trees, the list/shelf/Work-group previews, Raw human-reference grammar, and the
-end-to-end Raw-to-Work transaction; then close the remaining question-mark and
-`OPEN-SKIP-001` edges before mirroring assisted surfaces.
+That review subsequently reached the stale-Work and semantic-maintenance
+flows. `WRK-098..108`, `UX-152..165`, and UX-S35..S47 now distinguish
+reversible archive, restoration, stale correction, and ordinary direct
+`/update #brick`. All three update origins share one neutral semantic hub, but
+only the stale and archived origins carry their respective atomic evidence or
+restoration consequence. `plan` is a human dispatch route to composition,
+gates, and responsibility rather than an entity, phase, or axis; `/edit` and
+`/plan` are not aliases. Resume the UX-first review at the first screen reached
+by UX-S37 `[p]lan`, then exercise its parts, blocker, and responsibility routes
+before proceeding to timing, context, and source material.
 
 ## Scope rings
 
