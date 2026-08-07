@@ -21,6 +21,7 @@ longer, or recoverable.
 | `33e9dd3` | Restored Description-as-Raw and same-Raw English normalization | Current Raw baseline |
 | `e4dd122` | Maintained v0→1.0 matrix and finite UX-first closure plan | Current regression and completion gates |
 | `f178f04` | Removed the live shadow tree, reorganized open decisions, and added UX flow coverage | Gate 1 closure and current active-spec boundary |
+| `1479841` | Last pre-compaction index closure narrative, including the accumulated UX review chronology | Historical navigation evidence only; never current product authority |
 
 The pre-rewrite bundle at
 `~/tmp/little-ant-pre-rewrite-202607101708.bundle` is older than the final v0
