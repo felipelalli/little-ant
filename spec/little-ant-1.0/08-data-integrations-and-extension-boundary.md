@@ -82,8 +82,8 @@
 - **DAT-017 [standard] — Partial failure is recoverable.** Successfully
   imported canonical objects remain valid if provider deletion fails; cleanup
   becomes retryable and never rolls back or marks the Brick complete.
-The 1.0 adapter catalog must cover these common sources through the standard
-Pack or its pinned companion catalog:
+The 1.0 adapter catalog covers these common sources through the standard Pack
+or official connector Pack:
 
 ```text
 Microsoft To Do
@@ -95,8 +95,10 @@ Notesnook
 Evernote
 ```
 
-Exact shipping placement and API feasibility are tracked under
-`OPEN-EXT-002`; the import protocol itself is a 1.0 requirement.
+Exact modes, cleanup capability, and shipping placement are closed in the
+[standard integration catalog](standard-integration-catalog.md). A source
+name never implies live sync or destructive cleanup when its platform cannot
+support them honestly.
 
 ## Little Ant Packs
 
@@ -303,9 +305,22 @@ that cryptographic format.
 - **DAT-033 [standard] — Standard and community catalogs.** A standard offline
   Pack ships with 1.0. A separate `little-ant-packs` repository may distribute
   a broader inspectable community catalog without becoming domain authority.
+- **DAT-074 [standard] — The shipping catalog is closed.** The
+  [standard integration catalog](standard-integration-catalog.md) is the exact
+  1.0 distribution and capability matrix. The offline standard Pack contains
+  file importers, standard exporters, declarative factory content, the Apple
+  Reminders export kit, and `local_web`. The official connector Pack contains
+  Microsoft To Do, Google Tasks, Google Calendar, and GitHub Issues adapters.
+  Provider credentials are requested only when a connector is configured.
+- **DAT-075 [standard] — Local web mirrors; it does not reinterpret.** The
+  shipped `local_web` UIAdapter is served by a first-party host on loopback
+  only. It carries the same action IDs, revisions, wording, ordering, approval
+  boundaries, and recovery paths as the accepted dumb envelope. An
+  unguessable per-session token and origin checks protect the local endpoint;
+  provider credentials never enter browser or Lua state. Remote binding and
+  remote-channel UIAdapters are not 1.0 release promises.
 
-Pack signing, trust roots, revocation, dependency/update policy, and
-reproducible archives remain `OPEN-PACK-001`.
+Pack archive trust and update policy remain `OPEN-PACK-001`.
 
 ## Planning reproducibility
 
@@ -357,6 +372,134 @@ reproducible archives remain `OPEN-PACK-001`.
   `FED-009` and `FED-029`: the proposed disposition is attributed and
   previewed, `[y]es` accepts it, `[n]o` enters ordinary dumb Raw triage, and
   uncertainty remains explicit.
+
+## External effects
+
+- **DAT-068 [standard] — Effect purposes form a closed catalog.** Little Ant
+  1.0 may request only `delegation_delivery`,
+  `delegation_take_back_notice`, `source_cleanup_item`,
+  `source_cleanup_container`, `calendar_create`, `calendar_update`, and
+  `calendar_cancel`. Initial and follow-up Delegation messages share
+  `delegation_delivery` with distinct typed reasons. There is no generic
+  `write_back`, `notify`, `spawn`, webhook, or arbitrary HTTP effect.
+- **DAT-069 [standard] — One immutable revision is the unit of consent.** An
+  effect revision records its UUID, purpose, adapter and component version,
+  provider account and binding, exact target, redacted human preview, complete
+  machine payload digest, originating command and dataset cursor, idempotency
+  key when supported, and state. Editing payload, recipient, target, account,
+  adapter version, or purpose creates a new revision and requires new human
+  approval. Approval never transfers across revisions or effects.
+- **DAT-070 [standard] — Dispatch intent is durable before I/O.** The closed
+  lifecycle is `proposed | approved | dispatching | succeeded |
+  failed_retryable | failed_terminal | outcome_unknown | rejected |
+  withdrawn`. The host durably records `dispatching` with the approved digest
+  before external I/O and records one redacted receipt afterward. A crash or
+  lost response after dispatch begins becomes `outcome_unknown`; it is never
+  reported as success or silently retried. Pack code proposes a typed request;
+  only the trusted host resolves credentials, verifies approval, performs the
+  request, and records the receipt.
+- **DAT-071 [standard] — Retry follows provider truth.** A
+  `failed_retryable` revision may retry without another approval only when the
+  adapter contract guarantees idempotency for the recorded key and the
+  approved payload, target, and component version are unchanged. An unknown
+  outcome first uses a read-only provider reconciliation when available. If
+  truth remains unknowable, dumb mode offers verify externally, retry with an
+  explicit duplicate-risk approval, or stop; it never guesses. A terminal
+  failure or corrected request requires a new effect revision and approval.
+- **DAT-072 [standard] — Batches are bounded sets of item effects.** A cleanup
+  or Calendar batch preview names the exact selected count, scope, adapter,
+  and irreversible consequences and provides an inspectable item list. One
+  approval covers only that finite set and payload revision. Dispatch remains
+  itemwise with one state and receipt per item; stopping leaves undispatched
+  items approved but pending and never rolls back verified local imports.
+- **DAT-073 [core] — Simulation and compensation stay honest.** `--dry-run`,
+  replay, exporters, and UI rendering never unlock credentials or dispatch an
+  effect. Before `dispatching`, undo may withdraw an effect. After dispatch
+  begins, local undo cannot retract the outside world. Delivery and cleanup
+  have no 1.0 compensation; a Calendar change may propose a new current-state
+  Calendar effect only after fresh observation and ordinary approval, never
+  replay a historical inverse blindly.
+
+## Import execution
+
+- **DAT-076 [standard] — Import preflight has one complete preview.** `/import`
+  selects a source, account/input, and explicit `snapshot`, `synchronize`, or
+  `migrate` mode supported by that adapter. Preflight shows source containers,
+  object and attachment counts, skipped/unsupported fields, destination
+  profile, duplicate suspicions, RawShelf suggestions, credential needs, and
+  whether cleanup is supported. It reads but does not adopt, clean up, or
+  change canonical state. A stale preview must be regenerated.
+- **DAT-077 [standard] — Local import commits Raw truth first.** Acceptance
+  preserves each selected source object as canonical Raw material with stable
+  source identity, bytes or normalized structured snapshot, provenance, and
+  its source-container relationship. It verifies counts, digests, and identity
+  uniqueness before reporting success. Task-shaped items may then enter a
+  separate ordinary bulk-adoption preview; note-shaped material remains lazy
+  Raw triage. No import silently creates a Domain, importance judgment, local
+  done outcome, or source mutation.
+- **DAT-078 [standard] — `erase-after-import` means queue a review, not erase
+  immediately.** The flag is valid only for a `migrate` adapter whose catalog
+  row declares cleanup. It performs local import and verification first, then
+  opens the exact item cleanup preview under DAT-068..073. Rejection or exit
+  keeps both local data and the source. An unsupported source fails preflight
+  before importing and suggests ordinary migration. Container deletion is
+  never implied by item cleanup and always has its own later preview.
+- **DAT-079 [standard] — Source-specific strength is explicit.** Microsoft To
+  Do and Google Tasks support observation plus verified item/container cleanup;
+  Google Calendar uses its separate reviewed write-back path; GitHub Issues
+  never substitutes close for delete; Apple Reminders uses the standard
+  Pack's inspectable Shortcut JSON export; Notesnook uses exported
+  Markdown/HTML/plain-text ZIP; and Evernote uses ENEX or HTML. File imports
+  retain the input digest and original relative path but have no live presence
+  inference.
+
+## Calendar authority and reconciliation
+
+- **DAT-080 [standard] — Calendar authority is allowlisted and observe-first.**
+  A Google Calendar ImportProfile selects exact calendars and begins
+  `observe_only` with read-only OAuth scope. The human may enable
+  `reviewed_writeback` separately per calendar after a scope-change preview;
+  there is no automatic write-back mode. Read loss pauses observation without
+  changing local Work. Write loss leaves observation usable and effects
+  unavailable rather than requesting broader authority silently.
+- **DAT-081 [standard] — Adoption follows time meaning, not provider shape.**
+  Every event is preserved as source Raw before adoption. One exact timed
+  occurrence may become `scheduled_commitment`. An all-day event remains Raw
+  or may become ordinary Work with civil-day `not_before`, `best_before`, or
+  `deadline`; it cannot become `scheduled_commitment` until the human supplies
+  exact endpoints. “This occurrence” and “whole series” are distinct visible
+  choices and neither is preselected in dumb mode.
+- **DAT-082 [standard] — Recurring Calendar adoption reuses existing Natures.**
+  A supported provider series may become a `habit` only when the human accepts
+  practice/streak meaning, a `recurring_obligation` with atomic occurrences
+  for repeated obligations, or a `recurring_obligation` with exact
+  `scheduled_commitment` occurrences for repeated attendance. Whole-series
+  adoption is available only when the provider rule maps exactly to WRK-148;
+  exceptions retain source identity and explicit reviewed overrides.
+  Unsupported RRULEs remain Raw or use separately reviewed finite occurrences.
+- **DAT-083 [standard] — Source changes are proposals, never outcomes.** A
+  changed event offers accept source locally, keep local, or detach. Keeping a
+  local value may then propose a separate Calendar update effect when
+  `reviewed_writeback` is available. A cancelled, deleted, or inaccessible
+  event offers cancel the local commitment, keep it and detach, or recreate it
+  through a separate effect; none means `done`, `attended`, or `missed`.
+  Recurring-instance cancellation affects only that occurrence unless a
+  separate whole-series preview is explicitly chosen.
+- **DAT-084 [standard] — Local edits do not smuggle remote edits.** Creating,
+  rescheduling, or cancelling a local source-bound commitment commits the
+  validated local change first and may then open one `calendar_create`,
+  `calendar_update`, or `calendar_cancel` preview. Rejecting, deferring, or
+  failing the effect leaves local truth intact and marks the SourceBinding
+  visibly divergent. A successful create attaches the returned provider
+  identity; update and cancel receipts advance the accepted baseline.
+- **DAT-085 [standard] — Calendar projections minimize private context.**
+  Provider account and calendar allowlist are visible. Default Pack,
+  powered-up, Skill, history-summary, and UIAdapter projections include only
+  title, interval/all-day dates, recurrence shape, calendar label, event
+  identity, and redacted location presence needed for the route. Description,
+  conferencing URLs, attachments, attendee identities, and attendee responses
+  require explicit inspection or per-profile opt-in. Attendees never become
+  ExternalEntities or ContactPoints without human adoption.
 
 ## Source safety refinements
 

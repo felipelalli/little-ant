@@ -1688,16 +1688,18 @@ assistance-label, and no-emoji rendering.
   render one compact no-draw receipt and return to the prior revalidated screen.
   The notice never borrows ordinary lottery skip or personality copy.
 - **UX-245 [standard] — Obligation occurrences look like Work, not a queue.**
-  UX-RO00 uses the ordinary `Work:` and `Focus?` grammar for the selected
-  occurrence, then shows `Occurrence:` and its series citation in secondary
-  context. Repeated titles are left intact. Contextual inspection explains
-  the nominal anchor and dates; done, archive, and skip affect only this
-  occurrence. The surface never says FIFO, next occurrence, missed cell, or
-  inserts an importance comparison among occurrences.
+  An atomic occurrence uses UX-RO00's ordinary `Work:` and `Focus?` grammar,
+  then shows `Occurrence:` and its series citation in secondary context. An
+  exact-time occurrence uses UX-SC02..SC04 with the same series citation and
+  occurrence label. Repeated titles are left intact. Contextual inspection
+  explains the nominal anchor and dates; every action affects only this
+  occurrence. The surface never says FIFO, next occurrence, or inserts an
+  importance comparison among occurrences.
 - **UX-246 [standard] — Recurrence input is finite and mechanical.** UX-RO01
   selects daily, weekly, monthly, or yearly, then shows only the fields required
-  by WRK-148: interval, times, zone, family anchor, and explicit temporal
-  offsets. Numeric and finite-choice input replaces recurrence prose. The
+  by WRK-148: occurrence Nature, interval, times, zone, family anchor,
+  scheduled duration when applicable, and explicit temporal offsets. Numeric
+  and finite-choice input replaces recurrence prose. The
   preview shows the next three nominal anchors and effective not-before,
   best-before, and deadline values before acceptance. Unsupported imported
   rules stop with preserve-as-Raw or reviewed finite-expansion recovery.
@@ -2335,6 +2337,51 @@ assistance-label, and no-emoji rendering.
   into its Focus screen; instead it offers the UX-019 undo preview for that
   typed completion. The surface does not ask the user to confirm work they
   have just declared complete.
+- **UX-265 [standard] — External consent shows the outside-world consequence.**
+  UX-A01 is the shared approval grammar for every DAT-068 purpose. Its heading
+  is a plain consequence question—send, delete, create, update, or cancel—and
+  its body names the exact provider account, target, payload summary, and
+  irreversibility. `[y]es` approves only the displayed effect revision;
+  `[e]dit` appears only for editable payloads; `[n]o` rejects it; `[l]ater`
+  appears only when a pending effect can remain meaningful. Lottery-selected
+  approvals alone retain typed `[s]kip`. Cleanup batches additionally expose
+  `[i]nspect items` before consent. No Pack key, variable-like purpose, UUID,
+  or idempotency token appears in the primary screen.
+- **UX-266 [standard] — Effect recovery never encourages blind repetition.**
+  UX-EFX00 renders succeeded, retryable failure, terminal failure, or unknown
+  outcome from DAT-070 as different states. Success names the observed
+  provider receipt in ordinary language. Retryable failure offers safe retry
+  only when DAT-071 permits it. Unknown outcome leads with read-only provider
+  checking when available; otherwise it requires explicit external
+  verification or a new duplicate-risk approval. Stop leaves inspectable
+  history and never relabels the effect as success. Powered-up and Skill may
+  explain an error or mark a safe recovery, but cannot retry, verify, approve,
+  or invent a provider result.
+- **UX-267 [standard] — Import is a short, Raw-first dumb flow.** UX-IMP00 uses
+  a searchable source selector, then only the modes declared by its catalog
+  row. UX-IMP01 is the complete read-only preflight. The only committing
+  action is `[i]mport`; it has no Enter default. UX-IMP02 reports verified Raw
+  counts and offers ordinary triage or next. Cleanup appears only after a
+  verified supported migration and uses UX-A01 as a separate consent. Imported
+  task-shaped content may offer one attributed or preset bulk-adoption
+  preview, but rejection returns to unchanged Raws and mixed notes never get a
+  Work default.
+- **UX-268 [standard] — Calendar adoption and reconciliation use visible
+  scope.** UX-CAL00 distinguishes this occurrence, whole series, all-day civil
+  Work, and preserve as Raw before any Work creation. UX-CAL01 shows local and
+  observed source values side by side and asks what to keep locally. Missing
+  or cancelled source data offers cancel local, keep and detach, or separately
+  recreate; none is selected by default and none implies attendance. Any
+  remote mutation then uses UX-A01. Assisted modes may propose one route with
+  attribution, but rejection restores the identical dumb choices.
+- **UX-269 [standard] — The shipped web surface is local and subordinate.**
+  `/web` starts DAT-075's loopback host, renders the access URL and expiration,
+  and opens no browser unless the presentation host is explicitly allowed to
+  do so. The browser receives canonical envelopes with the same visible action
+  labels and revision checks. Closing the host invalidates its session token;
+  reconnecting revalidates current state instead of replaying a browser action.
+  The UIAdapter cannot unlock the vault, retain provider credentials, or
+  create a second command grammar.
 
 ## Errors and dry-run
 

@@ -4851,9 +4851,9 @@ mutation.
 
 ## UX-A01 — External-effect confirmation
 
-The question derives from the typed effect purpose, such as `Send this
-delegation?`, `Send this follow-up?`, or `Send this take-back notice?`. When a
-follow-up approval is selected by the ordinary lottery:
+The question derives from the typed effect purpose in human language, such as
+`Send this delegation?`, `Delete these source items?`, or `Update this calendar
+event?`. When a follow-up approval is selected by the ordinary lottery:
 
 ```text
 Send this follow-up?
@@ -4921,6 +4921,183 @@ without editing. Enter returns to UX-A01 with the full edited payload under
 Factory or model identifiers are absent from the primary screen. The
 attributed origin and edit revisions remain inspectable through contextual
 assistance, history, and structured projections.
+
+## UX-EFX00 — External-effect result and recovery
+
+An unknown result with provider reconciliation available is:
+
+```text
+The external result is unknown.
+
+Microsoft To Do did not confirm whether this item was deleted:
+
+“Buy milk”
+List: Groceries · Personal account
+
+What next?
+
+*[c]heck the source
+ [v]erified outside Little Ant...
+ [r]etry — it may happen twice
+ [s]top
+ [?] I don't know
+
+[/] more...
+```
+
+Check is the safe default only when the adapter provides a read-only identity
+check. It performs no mutation, then renders the observed truth. `verified`
+asks whether the human directly confirmed success or non-success and previews
+that attributed observation before recording it. Retry is absent when the
+effect cannot be repeated and carries no default when duplicate risk exists;
+accepting it opens a fresh complete approval. Stop leaves the unknown outcome
+inspectable. A retryable idempotent failure instead offers `[r]etry`,
+`[l]ater`, and `[s]top`; a terminal failure offers configuration/contact edit
+when relevant and stop. No variant calls an unknown or failed result done.
+
+## UX-IMP00 — Import source and mode
+
+`/import` begins with a searchable catalog selector:
+
+```text
+Import from:
+
+› goo
+
+> Google Tasks
+  Google Calendar
+
+Type to filter available sources.
+↑/↓ select · Enter choose · Esc back
+```
+
+After choosing Microsoft To Do, the dumb mode selector is:
+
+```text
+Import Microsoft To Do:
+
+[s]napshot once
+     Preserve what exists now without checking again.
+[k]eep synchronizing
+     Observe later source changes for review.
+[m]igrate
+     Verify a local cutover and stop relying on the source.
+[?] I don't know
+
+[/] more...
+```
+
+There is no default. The mode list contains only capabilities declared for the
+source. A file-only source therefore omits keep synchronizing. Question mark
+asks whether the human wants a one-time copy, continuing observation, or to
+leave the old system; it never chooses cleanup.
+
+## UX-IMP01 — Import preflight
+
+```text
+Import preview:
+
+Microsoft To Do · Personal account
+Mode: migrate
+
+Lists: 4
+Items: 86 open · 19 completed
+Attachments: 3
+Will preserve: 108 Raws with source identity
+Suggested shelves: 4
+Possible duplicates: 7
+Unsupported fields: 2 reminders without a supported time zone
+
+Nothing will be deleted from Microsoft To Do.
+
+[i]mport    [b]ack    [?] I don't know
+
+[/] more...
+```
+
+Completed source items are included only when the prior source-options screen
+explicitly selected them. Inspecting counts, fields, duplicate candidates, or
+shelf suggestions returns here without mutation. Import requires `i`; Enter
+has no meaning. Powered-up or Skill may annotate likely destinations and
+duplicate groups, never change the selected set invisibly.
+
+## UX-IMP02 — Verified import result
+
+```text
+Import verified.
+
+108 Raws preserved · 0 source items changed
+7 possible duplicates need review
+
+[t]riage imported material
+[n]ext
+[/] more...
+```
+
+For a supported migration invoked with `--erase-after-import`, one additional
+row appears: `[c]lean up the source...`. It opens UX-A01 with the exact item
+set; it never dispatches from this result. Triage enters the existing Raw
+review flow with imported/source continuity. Next returns to the forecast.
+
+## UX-CAL00 — Calendar adoption scope
+
+For one exact occurrence in a recurring source series:
+
+```text
+Calendar event:
+
+“Weekly planning”
+Tue, Aug 4 · 10:00–10:45 · America/Montevideo
+Calendar: Work
+
+What should Little Ant adopt?
+
+[o]nly this occurrence
+[w]hole series...
+[k]eep as raw material
+[?] I don't know
+
+[/] more...
+```
+
+Whole series next asks whether its meaning is recurring attendance, a repeated
+obligation, or practice/habit and then reuses the corresponding dumb builder.
+It is available only for a recurrence exactly representable by WRK-148. An
+all-day event replaces the first two rows with `[c]ivil-day work...` and keep
+Raw; the civil-day builder exposes not-before, best-before, and deadline but no
+fabricated clock time. There is no default. Assisted modes may add one `*` and
+a quiet attributed reason.
+
+## UX-CAL01 — Calendar source reconciliation
+
+```text
+Calendar changed:
+
+#wp "Weekly planning"
+
+Local:  Tue, Aug 4 · 10:00–10:45
+Source: Tue, Aug 4 · 11:00–11:45
+Calendar: Work
+
+What should Little Ant keep locally?
+
+[s]ource time
+[l]ocal time
+[d]etach from the calendar
+[?] I don't know
+
+[/] more...
+```
+
+Source time enters the ordinary reschedule preview, including preparation and
+focus consequences. Local time records the reconciliation choice; when
+reviewed write-back is available, it may then offer UX-A01 as a separate
+effect. Detach stops future source checks without editing either side.
+
+A missing or cancelled source variant asks `What should happen locally?` and
+offers `[k]eep and detach`, `[c]ancel the commitment`, `[r]ecreate on the
+calendar`, and uncertainty, with no default. Recreate opens a separate effect
+preview. None records attended, missed, or done.
 
 ## UX-D01 — Delegation strategy review
 
@@ -5780,9 +5957,11 @@ Focus?
 
 The series keeps the human importance position; the occurrence has its own
 UUID, `#` handle, lifecycle, and history. The displayed label is separate from
-the repeated title. Yes starts only this occurrence. Done or archive resolves
-only it; skip follows ordinary finite-Work diagnosis and can increase later
-pressure without creating a missed historical cell. Contextual inspection
+the repeated title. Yes starts only this atomic occurrence. Done or archive
+resolves only it; skip follows ordinary finite-Work diagnosis and can increase
+later pressure without creating a missed historical cell. A series configured
+for exact-time occurrences uses UX-SC02..SC04 instead, with the same series
+citation and truthful scheduled-commitment outcomes. Contextual inspection
 shows every open series occurrence without calling the view a queue.
 
 ## UX-RO01 — Recurring-obligation schedule
@@ -5793,6 +5972,7 @@ Recurrence:
 #peb "Pay electricity bill"
 
 Family       › monthly
+Occurrence   › atomic task
 Every        › 1 month
 Day          › 10
 Time         › 17:00
@@ -5804,9 +5984,11 @@ Deadline     › at the anchor
 [Enter] review · [Esc] back
 ```
 
-Family is a finite selector. The weekly variant adds weekdays; yearly adds
-month/day; all accept one or more local clock times. Offsets are structured
-signed values and may be omitted only for best-before or deadline. Review
+Family and occurrence Nature are finite selectors. The weekly variant adds
+weekdays; yearly adds month/day; all accept one or more local clock times.
+Scheduled commitment adds a positive duration and optional distinct endpoint
+display zones. Offsets are structured signed values and may be omitted only
+for best-before or deadline. Review
 renders the next three nominal anchors and all effective absolute instants,
 then yes, edit, no, and uncertainty. Monthly day 31 visibly demonstrates
 clamping. No field accepts cron, RRULE, or prose.

@@ -1514,9 +1514,59 @@ to the identical baseline.
 
 ### SCN-EXT-001 — Import and source deletion
 
-Migrate a small Microsoft To Do source, verify it, preview
-`erase-after-import`, fail one deletion, and validate retained canonical work,
-retryable effect, and no false completion.
+Run UX-IMP00..IMP02 against fixed fake Microsoft To Do and Google Tasks
+providers. Exercise snapshot, synchronize, and migrate; completed-item opt-in;
+source-list shelf suggestions; duplicate suspicion; stale preflight; locked
+credentials; partial attachment failure; and repeated idempotent import. Prove
+that every accepted object becomes Raw before any adoption and that source
+completion, disappearance, and list structure create no local outcome,
+Domain, or importance evidence.
+
+Migrate Microsoft To Do with `--erase-after-import`. Verify local counts and
+digests before UX-A01 can appear, reject cleanup once, approve its exact item
+set once, interrupt it, fail one deletion, and resume. Prove one itemwise
+receipt, no duplicate deletion, no rollback, no false completion, and a
+separate empty-list approval. Request the flag for GitHub Issues, Apple
+Reminders, Notesnook, and Evernote and require `unsupported` before mutation.
+Import Apple Shortcut JSON, Notesnook Markdown ZIP, and Evernote ENEX twice and
+prove file-digest identity and lazy Raw triage.
+
+### SCN-EFF-001 — External-effect truth
+
+For every DAT-068 purpose, render UX-A01 with its exact target, account,
+payload summary, and consequence. Reject, defer where legal, edit one message,
+approve, crash after durable dispatch intent, and return through UX-EFX00.
+Replay idempotent retry, non-idempotent unknown outcome, read-only provider
+reconciliation, human external verification, terminal failure, and stop.
+Assert that no Pack invocation, dry-run, replay, undo, edit, stale approval, or
+batch receipt dispatches a new effect or transfers approval across revisions.
+
+### SCN-CAL-001 — Calendar adoption and reconciliation
+
+Against a fixed fake Google Calendar, allowlist one calendar in observe-only
+mode. Import a flight, isolated meeting, recurring meeting, recurring swim,
+all-day deadline, unsupported RRULE, one moved occurrence, one cancelled
+occurrence, and one event that later becomes inaccessible. Traverse UX-CAL00
+to adopt this occurrence, exact scheduled series, atomic recurring obligation,
+habit, civil-day Work, and preserve Raw. Verify exact zones, one series
+importance slot, occurrence identities, hard scheduled precedence, exception
+scope, and no inferred attendance or completion.
+
+Traverse UX-CAL01 for remote reschedule, cancellation, deletion, and access
+loss. Keep local, accept source, detach, and recreate on independent replays.
+Enable reviewed write-back for only that calendar, then create, update, and
+cancel through separate UX-A01 effects with failure and divergence recovery.
+Prove observe-only never asks for write scope, attendees never become
+ExternalEntities, private fields stay out of default assisted projections, and
+rejection of every assisted proposal returns to the identical dumb route.
+
+### SCN-UIA-001 — Local web mirror
+
+Start `/web` on loopback, replay accepted Feed, Focus, skip, import, Calendar,
+and effect envelopes, and compare wording, action order, revisions, stale
+recovery, and approval boundaries with the dumb REPL. Reject a replayed browser
+action after host restart, verify the session token never enters history or
+Pack state, and prove that non-loopback binding is unsupported in 1.0.
 
 ### SCN-EMPTY-001 — No eligible work
 

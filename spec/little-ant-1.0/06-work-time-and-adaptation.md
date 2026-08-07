@@ -842,8 +842,12 @@
 - **WRK-148 [standard] — Recurring obligations use a closed calendar rule.** A
   series stores a positive interval and exactly one frequency family:
   `daily`, `weekly`, `monthly`, or `yearly`; a named IANA zone; and one or more
-  local clock times. Weekly rules also store a nonempty weekday set, monthly
-  rules one intended day 1..31, and yearly rules one intended month/day.
+  local clock times. It also selects occurrence Nature `atomic_task` or
+  `scheduled_commitment`. A scheduled occurrence requires one positive
+  duration and may retain distinct start/end display zones; an atomic
+  occurrence has no duration. Weekly rules also store a nonempty weekday set,
+  monthly rules one intended day 1..31, and yearly rules one intended
+  month/day.
   Month-end clamping follows WRK-039 without drift. Each nominal anchor also
   has explicit signed offsets for occurrence `not_before` and optional
   `best_before` and `deadline`; no due meaning is inferred from frequency.
@@ -851,15 +855,18 @@
   finite expansion rather than approximate core recurrence.
 - **WRK-149 [core] — Occurrence release is idempotent and keeps debt.** At each
   canonical tick, every nominal anchor whose occurrence `not_before` has
-  opened produces exactly one `atomic_task` Brick keyed by series UUID and
-  nominal anchor. It receives a normal UUID and `#` handle, retains the series
-  title, and displays a separate occurrence label; repeated titles are valid.
-  It carries an `occurrence_of` edge, series provenance, effective direct
-  Domains, and the anchor's temporal facts, but no independent human
-  importance slot under IMP-057. A later anchor never closes an older one.
-  Done or explicit archive resolves only that occurrence. Schedule edits affect
-  future unreleased anchors; already released occurrences retain their facts
-  unless an explicit reviewed batch edits them.
+  opened produces exactly one Brick of the series' declared occurrence Nature,
+  keyed by series UUID and nominal anchor. It receives a normal UUID and `#`
+  handle, retains the series title, and displays a separate occurrence label;
+  repeated titles are valid. An atomic occurrence receives the anchor's
+  temporal facts. A scheduled occurrence receives the exact anchor start and
+  end and follows WRK-151..156, including attended/missed/cancelled truth and
+  hard precedence. Both carry an `occurrence_of` edge, series provenance,
+  effective direct Domains, and no independent human importance slot under
+  IMP-057. A later anchor never closes an older one. A Nature-owned outcome or
+  explicit archive resolves only that occurrence. Schedule edits affect future
+  unreleased anchors; already released occurrences retain their facts unless
+  an explicit reviewed batch edits them.
 - **WRK-150 [core] — Catch-up release is bounded, not lossy.** Offline time may
   open many obligation anchors. One command materializes at most the configured
   release-batch limit in nominal order, records the continuation cursor, and

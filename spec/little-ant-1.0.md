@@ -52,17 +52,17 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** external effects, importer/UIAdapter packaging, and Calendar
-authority.
+**Next review:** Pack archives, trust, installation, and updates.
 
 - Owning gate: Gate 8.
-- Owning boundaries: `OPEN-EFF-001`, `OPEN-EXT-002`, and `OPEN-CAL-001`.
-- Reuse, do not reopen: source/adoption separation, migration cleanup safety,
-  Calendar observation, host-brokered HTTP, typed contacts/bindings, vault and
-  locked-state UX, and the complete dumb surface grammar through `UX-264`.
-- Every external mutation remains a separately previewed effect; observation
-  alone never changes canonical work truth.
-- Do not enter here: Pack signing/update policy or v0 migration mapping.
+- Owning boundary: `OPEN-PACK-001`.
+- Reuse, do not reopen: the closed component kinds, sandboxed Lua runner,
+  host-brokered HTTP and credentials, standard/connector distribution split,
+  exact SourceAdapter modes, local-web UIAdapter, and complete external-effect
+  protocol through `DAT-085` and `UX-269`.
+- Installation and update may change available components, never replay or
+  canonical work semantics.
+- Do not enter here: v0 migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance
@@ -100,6 +100,7 @@ value may remain adjustable.
 
 - [Configuration and calibration](little-ant-1.0/configuration-and-calibration.md)
 - [Standard Template catalog](little-ant-1.0/standard-template-catalog.md)
+- [Standard integration catalog](little-ant-1.0/standard-integration-catalog.md)
 - [Factory personality catalog](little-ant-1.0/personality-catalog.md)
 - [Open release decisions](little-ant-1.0/open-release-decisions.md)
 - [V0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md)

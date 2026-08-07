@@ -449,17 +449,16 @@ Executable Pack components use a fresh bounded Lua 5.4 runtime. Host-mediated
 HTTP, credentials, and approved effects are typed capabilities; Pack code
 never runs during event replay.
 
-The official 1.0 catalog includes:
+The offline standard Pack includes file importers for Markdown, HTML, JSON,
+CSV, Org, Evernote ENEX, Notesnook exports, Apple Reminders Shortcut JSON, and
+TaskJuggler actuals; structural and TaskJuggler exporters; factory content; and
+the loopback-only `local_web` UI adapter.
 
-- Microsoft To Do source adapter;
-- Notesnook source adapter;
-- TaskJuggler read-only exporter;
-- local Metro-style web UI adapter.
-
-TaskJuggler is part of the standard Pack. The final offline-standard versus
-pinned official-companion placement of credentialed importers and UI adapters
-remains a release packaging decision; it does not weaken their 1.0 capability
-contracts.
+The separately installed, pinned official connector Pack includes Microsoft
+To Do, Google Tasks, Google Calendar, and GitHub Issues. Each source advertises
+its honest modes: file exports do not pretend to offer live sync, and sources
+without deletion do not accept destructive cleanup. See the exact
+[integration catalog](spec/little-ant-1.0/standard-integration-catalog.md).
 
 Normal synchronization treats upstream completion or removal as evidence, not
 as local completion or deletion. Destructive migration is a separate reviewed
@@ -470,9 +469,11 @@ lant import microsoft-todo
 lant import microsoft-todo --migrate --erase-after-import
 ```
 
-`--erase-after-import` is valid only for migration. Every imported item must be
-locally reconstructible and verified, and every external deletion is previewed,
-approved, and receipted. Container deletion requires a separate approval.
+`--erase-after-import` is valid only for a migration adapter that declares
+cleanup support. It never deletes during import: every item is locally
+reconstructible and verified first, then the exact external deletion set is
+previewed, approved, and receipted. Container deletion requires a separate
+approval.
 
 See [data, integrations, and extensions](spec/little-ant-1.0/08-data-integrations-and-extension-boundary.md).
 

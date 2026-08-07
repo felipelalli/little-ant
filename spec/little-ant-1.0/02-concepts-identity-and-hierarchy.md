@@ -233,7 +233,7 @@ The factory library contains:
 | `repeatable` | the same Brick returns after completed executions |
 | `living_checklist` | one durable parent owns changing entries and renders all open entries together |
 | `finite_checklist` | finite parent and entries render together |
-| `recurring_obligation` | standing series releases independent occurrence Bricks |
+| `recurring_obligation` | standing series releases independent atomic or exact-time occurrence Bricks |
 | `habit` | standing intention exposes expiring opportunities, streaks, and history |
 | `scheduled_commitment` | one externally anchored interval that cannot be performed at an arbitrary time |
 
@@ -359,7 +359,7 @@ The factory library contains:
   | `repeatable` | standing | one run of the Brick | none | none | finish or choose one completion-relative return |
   | `living_checklist` | standing | owner and open entries together | continuing ListEntries | none | finishing a run leaves the owner active |
   | `finite_checklist` | finite | owner and entries together | finite ListEntries | none | finished entries release scope review |
-  | `recurring_obligation` | standing | independently released occurrence Bricks | generated occurrences, never manual parts | recurrence rule | occurrences close independently; series retires explicitly |
+  | `recurring_obligation` | standing | independently released occurrence Bricks | generated atomic tasks or scheduled commitments, never manual parts | recurrence rule and occurrence Nature | occurrences close independently; series retires explicitly |
   | `habit` | standing | one expiring opportunity | none | fixed-slot or quota-window schedule | window outcomes extend history; owner retires explicitly |
   | `scheduled_commitment` | anchored finite | the exact commitment interval | optional preparation child Bricks | zoned interval | attended, missed, or cancelled outcome |
 

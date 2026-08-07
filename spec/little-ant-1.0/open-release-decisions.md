@@ -28,9 +28,6 @@ it.
 
 | ID | Blocking decision | Closure evidence |
 |---|---|---|
-| `OPEN-EFF-001` | Closed 1.0 external-effect families and authority model, especially general write-back and notification after arbitrary completion-time `spawn` is retired. Delegation now requires the named `delegation_delivery` and optional `delegation_take_back_notice` purposes under WRK-120, but their adapter protocol, failure/retry envelope, and place in the complete closed catalog remain here. | Completion, reconciliation, Calendar write-back, delegation delivery, failure, retry, and compensation scenarios. |
-| `OPEN-EXT-002` | Which listed importers, including required official Google Calendar support, and UIAdapters ship in the offline standard Pack versus a pinned official companion catalog. | API feasibility and release-packaging review; all listed sources remain supported 1.0 targets until explicitly deferred. |
-| `OPEN-CAL-001` | Google Calendar write-back authority and approval grammar; series versus occurrence adoption; all-day routing; cancellation reconciliation; and calendar/attendee privacy projections. Observation and reconciliation are already required. | Flight, meeting, recurring swimming, all-day, reschedule, cancellation, and access-loss simulations against a fake provider. |
 | `OPEN-PACK-001` | Pack signing, trust roots, revocation, dependency policy, update review, and reproducible archive format. | Supply-chain threat review and TaskJuggler reference Pack. |
 
 ## Migration and freeze
