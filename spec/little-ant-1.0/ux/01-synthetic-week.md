@@ -326,6 +326,50 @@ provisional position and verify low confidence, future review, and no edge,
 equality, `either_order`, or skip. Replay assisted markings and one proposed
 investigation title without allowing assistance to bypass any confirmation.
 
+### SCN-JUD-001 — Impact, maturity, and effort
+
+Open `/impact` for a root and traverse UX-J00 without selecting a class.
+Verify that no row is a default, missing impact stays absent, and invoking the
+same command on a child cites and routes to its root. Select every class on
+independent replays. With no selected evidence, accept UX-J01's visible
+`SPECULATIVE` default and prove that only maturity—not class—had a default.
+Attach a Description Raw, an independent supporting Raw, a completed POC, and
+one real-setting outcome in turn. Traverse every IMP-051 answer and
+uncertainty branch; prove that Description alone cannot become support and
+that supported, validated, and observed each cite applicable evidence. Make
+that evidence stale, contradicted, removed, and scope-inapplicable. Verify one
+`impact_maturity_review`, unchanged public judgment before acceptance, and
+explicit retain, demote, revise-class, and clear outcomes.
+
+Compare roots through UX-J02. Exercise more, less, about-the-same, skip,
+outcome inspection, investigation proposal, and no-basis behavior. Prove that
+relative evidence alone assigns no class; then bound one root against reviewed
+class anchors until a single class remains and require explicit confirmation.
+Create recent `A > B > C > A` impact evidence and traverse UX-J07 through
+changed, revise-answer, each three-way winner, about-the-same, and repeated
+uncertainty. Repeat after evidence decay and verify that the new human answer
+wins without interruption while old history remains. Trigger one never-direct
+transitive validation and prove its primary screen is indistinguishable from
+ordinary UX-J02, its skip is bounded, and explicit `/impact` never injects it.
+
+Open `/effort` for finite, decomposed-parent, repeatable-run, habit-window, and
+unbounded-standing subjects. Verify IMP-047's exact comparison unit or an
+educational refusal, all eight UX-J04 classes, current EffortProfile references,
+no default, and no stored hours. Run UX-J06 against zero, one, and three
+reviewed exemplars; exercise more, less, about-the-same, skip, one isolated
+class, and a remaining-class interval. Run UX-J05 with two and four comparable
+units, choose each row, and verify only relative easiest evidence. Create and
+resolve a fresh effort cycle through UX-J07. Change scope and verify `review
+due`; import actual hours and prove they remain evidence rather than rewriting
+the historical class.
+
+For both axes, accept and reject one powered-up/Skill proposal. Acceptance must
+remain visibly provisional with attribution until a later human review;
+rejection must return to the byte-equivalent dumb route. Inspect compact,
+structured, sparse-JSON, forecast, and TaskJuggler projections and verify that
+ordinary views expose no numeric confidence, missing fields remain omitted,
+and planning hours come only from the recorded profile version.
+
 ## Day 3 — Forecast, Domain, and blockers
 
 ### SCN-FOC-001 — Same-subject continuity

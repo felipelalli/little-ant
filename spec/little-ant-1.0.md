@@ -52,17 +52,18 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** judgment assistance for impact, effort, and maturity.
+**Next review:** Wait pressure, follow-up cadence, and standing-work commands.
 
-- Owning gate: Gate 4.
-- Owning boundary: `OPEN-JUD-001`.
-- Reuse, do not reopen: importance evidence in `IMP-001..016` and
-  `IMP-030..046`, subjective EffortProfiles in `IMP-022..029`, and accepted
-  comparison/recalibration screens.
+- Owning gates: Gates 5 through 7.
+- Owning boundaries: `OPEN-WAIT-001`, `OPEN-WRK-001`, and `OPEN-WRK-002`.
+- Reuse, do not reopen: Wait identity and review in `MOD-050`, `FOC-034`, and
+  `WRK-050..055`; repeatable, obligation, habit, and checklist semantics in
+  `WRK-019..027` and `WRK-062..066`; the shared date/time chooser; and all
+  accepted focus and symptom screens.
 - Preserve completed Plan and Delegation routes in `WRK-109..121`,
   `UX-166..183`, and their screen families.
-- Do not enter here: recurrence timing policy, adapter effects, source
-  packaging, or migration mapping.
+- Do not enter here: scheduled commitments, adapter effects, source packaging,
+  or migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

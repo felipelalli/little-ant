@@ -1525,6 +1525,92 @@ no-emoji rendering remain `OPEN-UX-001`.
   attribution. A rejected proposal returns to the exact dumb screen. No mode
   may infer external cancellation, select a terminal outcome, transfer a
   relationship, or approve a batch silently.
+- **UX-224 [standard] — Impact begins with a plain class ladder.** UX-J00
+  renders the selected root, asks how much difference its outcome is currently
+  expected to make after accounting for uncertainty, and shows all six IMP-018
+  classes with short semantic anchors. No class is preselected. Selecting one
+  opens UX-J01, where
+  `speculative` is the visible default only when no evidence has been selected;
+  it never acts as a class default. A child invocation first cites its root and
+  offers to inspect or classify that root rather than accepting a child value.
+- **UX-225 [core] — Impact comparison names both directions.** UX-J02 uses two
+  complete root citations and the exact actions `[m]ore impact`, `[l]ess
+  impact`, `[a]bout the same`, `[s]kip`, and uncertainty. Like importance, it
+  uses named directions instead of yes/no. Unlike importance, `about the same`
+  is valid class-band evidence under IMP-050. A provocative impact comparison
+  is visually identical; contextual inspection alone reveals its inferred
+  path and validation purpose.
+- **UX-226 [standard] — Maturity asks about selected evidence, not belief.**
+  UX-J03 shows one selected attached Raw or completed validation Brick and one
+  IMP-051 question per screen. Search and autocomplete may add or replace the
+  evidence item without leaving the flow. The leaf previews class, proposed
+  maturity, relied-upon evidence, and applicability assertion before yes,
+  edit, no, and uncertainty. No evidence item means only `SPECULATIVE` is
+  available. A maturity-review opportunity uses the same ladder and clearly
+  states why review became due.
+- **UX-227 [standard] — Effort begins with a complete profile ladder.** UX-J04
+  renders all eight IMP-024 classes and the realistic hours from the active
+  profile. It asks for total current-scope effort from start to finish, labels
+  hours as planning references, and has no default. Question mark enters the
+  exemplar route in UX-J06; when no suitable exemplar exists it explains that
+  briefly and returns to the same unmodified ladder. Missing effort is never
+  displayed as normal.
+- **UX-228 [core] — The lottery effort question is a small easiest-choice.**
+  UX-J05 shows two to four comparable work units as numbered complete Brick
+  citations and asks which looks easiest to complete. It has no default,
+  class, hour value, or hidden winner. Selection records IMP-054 relative
+  evidence and ends the lottery interaction with one compact receipt. Skip
+  applies typed comparison cooldown; uncertainty explains scope and may inspect
+  each Brick but does not turn tiredness or current preference into effort.
+- **UX-229 [standard] — Exemplar assistance remains a comparison.** UX-J06
+  compares one subject with one reviewed exemplar and exposes `[m]ore effort`,
+  `[l]ess effort`, `[a]bout the same`, `[s]kip`, and uncertainty. The exemplar
+  displays its class and realistic planning reference. Accepted answers move
+  directly to the next exemplar without a receipt; after at most three, the
+  flow proposes one isolated class or shows only the remaining classes. The
+  final class still requires the ordinary explicit confirmation.
+- **UX-230 [core] — Non-importance contradictions preserve a third answer.**
+  UX-J07 shows absolute-time evidence and offers `[c]hanged`, `[r]evise
+  answer`, and uncertainty. `Revise answer` returns to the original three-way
+  comparison rather than assuming the opposite direction. The uncertainty
+  aid asks the IMP-055 axis-specific three-way question and includes `[a]bout
+  the same`; it never uses urgency, current mood, or an importance winner as a
+  proxy. A still-uncertain result keeps the last coherent judgment and exposes
+  no confidence float.
+- **UX-231 [standard] — Judgment results are compact and attributed.** UX-J08
+  reports the resulting class and maturity or confidence label once, then
+  waits at the ordinary result boundary. A relative comparison receipt says
+  only `Impact comparison recorded` or `Effort comparison recorded`. Relevant
+  views render `Impact: HIGH · supported`, `Impact: HIGH · supported · from
+  #root`, `Effort: EASY (~6 work hours) · reviewed`, `provisional · assisted
+  by <provider>`, `review due`, or `not classified · N comparisons` as
+  applicable. Empty optional axes remain omitted elsewhere.
+- **UX-232 [standard] — Assistance compresses only the declared judgment
+  route.** Powered-up or Skill may precede UX-J00 or UX-J04 with one attributed
+  class-and-evidence proposal under UX-060, or mark one existing comparison
+  action under UX-059. Rejection reaches the exact dumb ladder or comparison.
+  Assistance cannot claim evidence maturity without selecting inspectable
+  evidence, convert hours into canonical state, suppress contradiction review,
+  or approve a judgment silently.
+- **UX-233 [core] — Judgment uncertainty is bounded and axis-specific.** On
+  UX-J02, question mark checks whether each outcome is understood, offers
+  read-only evidence inspection, then asks whether A, B, or neither has a
+  materially larger expected effect; the last branch offers
+  `about the same`, explicit investigation Work, or typed skip. On UX-J05 it
+  first explains total current-scope effort, then offers inspection of one
+  candidate or typed skip; it does not manufacture an easiest answer. On
+  UX-J00 and UX-J04 it offers the applicable reviewed exemplars and, when none
+  exist, leaves the value unclassified. UX-J03 follows IMP-051 exactly.
+  Repeated uncertainty preserves the pending review or returns to the direct
+  caller without evidence, class, cooldown, or invented middle value.
+- **UX-234 [standard] — Judgment commands are narrow.** The REPL exposes
+  `/impact #brick`, `/effort #brick`, and their contextual palette entries.
+  The CLI exposes `lant impact set|clear|show`, `lant effort set|clear|show`,
+  and read-only comparison/evidence inspection; guided missing references use
+  the ordinary `#` autocomplete. Mutating forms support `--dry-run`, require
+  the same previews as the REPL, and define no `weight`, `estimate-hours`, or
+  child-impact aliases. Relative lottery comparisons remain opportunities,
+  not commands that an ordinary user must memorize.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

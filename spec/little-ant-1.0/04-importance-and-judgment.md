@@ -358,7 +358,7 @@ Is
 - **IMP-024 [standard] — Versioned classes.** The factory EffortProfile is:
 
   ```text
-  VERY_EASY < EASY < NORMAL < MODERATED < HARD < VERY_HARD
+  VERY_EASY < EASY < NORMAL < MODERATE < HARD < VERY_HARD
             < MINI_PROJECT < PROJECT
   ```
 
@@ -391,7 +391,122 @@ Is
   occurrence, or checklist session it describes only the offered work unit
   and never the standing Brick's unbounded lifetime. The same choice is strong
   short-lived forecast evidence under FOC-044.
+- **IMP-047 [core] — Judgment units are explicit and comparable.** Importance
+  continues to compare sibling Bricks under IMP-001..016. Impact compares only
+  active composition roots and means the difference their outcomes are
+  currently expected to make; a child displays its current root's impact as
+  inherited evidence and cannot acquire a competing direct impact value. Effort compares
+  the complete current finite scope of Bricks with compatible execution
+  boundaries. A standing identity is compared only as one named run, window,
+  session, or occurrence, never as its unbounded lifetime. A screen that
+  cannot state comparable units does not ask the question.
+- **IMP-048 [standard] — Missing judgment is honest and neutral.** Impact and
+  effort remain absent until evidence or an explicit human classification
+  exists. Missing impact is not `MEDIUM`; missing effort is not `NORMAL`; and
+  neither receives a hidden weakest or strongest value. Forecasting preserves
+  positive probability for missing values. Compact views omit the absent
+  field, while a judgment screen says `not classified` rather than displaying
+  a fabricated class.
+- **IMP-049 [standard] — Direct impact classification has no class default.**
+  `/impact #brick` presents the six ordered public classes with short semantic
+  anchors and no selected row. After the human chooses a class, evidence
+  maturity defaults visibly to `SPECULATIVE` only when no supporting evidence
+  is selected. The default says that the class is a judgment without evidence;
+  it does not choose the class. A child route cites and opens its composition
+  root instead of storing a child override. Clearing a direct root judgment is
+  explicit and leaves history intact.
+- **IMP-050 [standard] — Impact comparison uses expected difference.** Two
+  comparable roots use `more impact`, `less impact`, `about the same`, `skip`,
+  and uncertainty. The comparison uses what is currently known about both
+  likely result and uncertainty of success; it never silently switches to
+  best-case or success-assumed magnitude. `About the same` is pair-local
+  evidence that the two outcomes plausibly occupy the same public class; it
+  is not equality of importance, a permanent equivalence class, or transitive
+  identity. Relative evidence never silently assigns a class. When reviewed
+  class anchors and comparisons narrow one root to a single class, the core
+  may propose that class for explicit confirmation.
+- **IMP-051 [standard] — Maturity is derived through one evidence ladder.**
+  Maturity exists only with a direct impact class. The dumb evidence review
+  selects attached Raw material or completed validation Work, then asks one
+  question per screen in descending order:
+
+  ```text
+  Q0. Was the claimed result observed in its real intended setting?
+  ├─ yes → OBSERVED
+  └─ no or unknown → Q1
+
+  Q1. Was it directly tested in a representative setting?
+  ├─ yes → VALIDATED
+  └─ no or unknown → Q2
+
+  Q2. Is there relevant support beyond intuition or the original claim?
+  ├─ yes → SUPPORTED
+  └─ no or unknown → SPECULATIVE
+  ```
+
+  `SUPPORTED` requires at least one selected relevant Raw or outcome;
+  `VALIDATED` requires an applicable deliberate test, analysis, POC, MVP,
+  questionnaire, experiment, or equivalent completed validation result; and
+  `OBSERVED` requires an applicable real-setting observation. The selected
+  evidence and applicability assertion remain attributed. A description alone
+  is not support merely because it is attached.
+- **IMP-052 [standard] — Promotion and demotion are explicit.** New or
+  completed evidence creates an `impact_maturity_review`; it never changes the
+  class or maturity itself. Removed, stale, contradicted, or scope-inapplicable
+  evidence marks the current judgment `review due` without silently demoting
+  it. Review may retain the level with replacement or reaffirmed applicable
+  evidence, choose the highest level supported by IMP-051, revise the impact
+  class, or clear the judgment. The accepted preview lists evidence added,
+  retained, and no longer relied upon. History preserves every former class,
+  maturity, and reason.
+- **IMP-053 [standard] — Direct effort classification uses the versioned
+  ladder.** `/effort #brick` lists all current EffortProfile classes in order,
+  with their realistic planning reference, and has no dumb default. The
+  question always names total effort from the current scope's start to finish.
+  A direct human choice is reviewed evidence; observed hours, elapsed focus,
+  emotional friction, and remaining effort do not silently select or rewrite
+  it. A structural scope change marks the value `review due` rather than
+  guessing a replacement.
+- **IMP-054 [standard] — Effort discovery favors small human comparisons.** A
+  lottery `effort_comparison` shows two to four comparable work units and asks
+  which looks easiest to complete. One selection records direct relative
+  evidence that the chosen unit is easier than every unchosen unit, but no
+  EffortProfile class or hour value. Uncertainty on direct classification may
+  instead compare the subject, one at a time, with at most three reviewed
+  historical exemplars using `more effort`, `less effort`, or `about the
+  same`. Each answer narrows the remaining class interval. If one class
+  remains, it is proposed explicitly; if several remain after the limit, only
+  those classes are shown for direct choice. With no suitable exemplar, the
+  direct ladder returns unchanged and no `NORMAL` fallback is invented.
+- **IMP-055 [core] — All pairwise judgments share recency and contradiction
+  discipline.** Impact and effort comparisons retain the same provenance,
+  temporal decay, weakest-path confidence, immutable history, fresh-cycle
+  gate, and smallest-segment recalibration principles as IMP-011..015 and
+  IMP-033..037. Each axis has an independent provocative validator outside
+  both the importance sorter and ordinary classification selector. It may ask
+  a never-directly-asked relation implied by recent evidence; explicit
+  `/order`, `/impact`, and `/effort` never inject such a question into their
+  direct cadence.
+
+  A recent strong impact or effort contradiction offers `changed`, `revise
+  answer`, and uncertainty. `Changed` accepts the pending relation and retires
+  only the conflicting current path; `revise answer` restores the original
+  comparison with no pending relation. The bounded uncertainty aid asks which
+  outcome has the greatest expected effect for impact, or which unit would
+  require the least total effort for effort, and also permits
+  `about the same`. Old weak paths yield to a newer direct human judgment
+  without interruption. Unresolved recent conflict preserves the last
+  coherent result and creates bounded future review pressure.
+- **IMP-056 [standard] — Confidence is useful without a public score.**
+  Ordinary rendering uses only `reviewed`, `provisional`, or `review due`, plus
+  concise provenance when it matters. A direct human class is `reviewed`;
+  enough compatible human comparisons may produce a reviewed class proposal
+  only after confirmation. An accepted powered-up or Skill proposal remains
+  `provisional · assisted by <provider>` until a later human review, even
+  though it is usable immediately. A stale or structurally invalidated class
+  is `review due`. Relative-only evidence renders as `not classified · N
+  comparisons`. Numeric confidence is available only in explicit structured
+  evidence/forecast inspection, never as a user-facing target to optimize.
 
 Importance, impact, effort, and phase remain independent. None is a hidden
-sort key for another. The remaining impact/effort assistance grammar and
-confidence presentation are `OPEN-JUD-001`.
+sort key for another.

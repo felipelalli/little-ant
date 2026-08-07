@@ -48,6 +48,7 @@ grants authority.
 | `ui.color_mode` | `auto` | Emit ANSI styles only when terminal capability and user environment allow it; explicit `always` and `never` remain presentation overrides. |
 | `ui.external_editor.argv` | `null` | Optional executable-plus-arguments array for UX-162. When absent, the local surface resolves `$VISUAL` then `$EDITOR`; all forms execute directly without a shell. |
 | `effort.assisted_comparison_limit` | `3` | Maximum exemplar questions in one assistance flow. |
+| `impact.assisted_comparison_limit` | `3` | Maximum reviewed-root exemplar questions in one assistance flow. |
 | `time.habit_day_starts_at` | `04:00` | Local boundary between nominal habit days. |
 | `time.workday_starts_at` | `06:00` | Local boundary between nominal workdays. |
 | `wait.human_response_first_review_days` | `3` | Factory suggestion before a human-response Wait first enters weighted review eligibility. |
@@ -71,7 +72,7 @@ before the 1.0 factory profile is frozen.
 | `VERY_EASY` | `EFFORT_2H` | 2h | 3h | 4h |
 | `EASY` | `EFFORT_4H` | 4h | 6h | 8h |
 | `NORMAL` | `EFFORT_1D` | 8h | 12h | 16h |
-| `MODERATED` | `EFFORT_2D` | 16h | 24h | 32h |
+| `MODERATE` | `EFFORT_2D` | 16h | 24h | 32h |
 | `HARD` | `EFFORT_4D` | 32h | 48h | 64h |
 | `VERY_HARD` | `EFFORT_8D` | 64h | 96h | 128h |
 | `MINI_PROJECT` | `EFFORT_16D` | 128h | 192h | 256h |
@@ -109,11 +110,12 @@ evidence:
   pressure; these parameters never collapse the semantic distinctions in
   `WRK-062..064`;
 - Domain fatigue cooldown and bounded negative signal;
-- direct-judgment confidence by provenance, temporal decay shape, relevance
-  horizon, and fresh-conflict threshold;
-- transitive path-length penalty and weakest-edge policy;
-- provocative-validation target share within served importance maintenance,
-  candidate scoring, cooldown, and confidence/consequence multipliers;
+- per-axis direct-judgment confidence by provenance, temporal decay shape,
+  relevance horizon, and fresh-conflict threshold;
+- per-axis transitive path-length penalty and weakest-edge policy;
+- per-axis provocative-validation target share within served judgment
+  maintenance, candidate scoring, cooldown, and confidence/consequence
+  multipliers;
 - taxonomy-watch evidence count, window, and decay;
 - archive-relevance initial review weight, aging pressure, evidence bonus, and
   review-skip cooldown;

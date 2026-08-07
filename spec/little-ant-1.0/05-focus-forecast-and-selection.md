@@ -88,8 +88,9 @@ version.
   | `raw_triage` | one unresolved Raw | materialize Work, choose destination, keep standalone / settle disposition |
   | `nature_review` | Brick and attributed Nature claim | confirm, change / settle exactly that claim |
   | `phase_review` | Brick and attributed phase claim | confirm, change, clear / settle exactly that claim |
-  | `effort_comparison` | two eligible comparable Bricks and evidence revisions | easier, harder / record one relative judgment |
-  | `impact_comparison` | two eligible comparable Bricks and evidence revisions | more impact, less impact, investigate / record or gate one judgment |
+  | `effort_comparison` | two to four eligible comparable work units and evidence revisions | choose easiest / record relative judgments |
+  | `impact_comparison` | two eligible comparable root Bricks and evidence revisions | more impact, less impact, about the same, investigate / record or gate one judgment |
+  | `impact_maturity_review` | one root, current class, selected evidence and review reason | retain evidence, reassess, revise class, clear / settle maturity claim |
   | `importance_run_review` | sibling run and unresolved pair | more important, less important / advance run |
   | `importance_validation` | transitive-only pair and path | more important, less important / validate or contradict path |
   | `importance_recalibration` | minimal incoherent sibling segment | compare, resolve contradiction / restore coherent evidence |
@@ -528,7 +529,8 @@ version.
   less-important routes, except FOC-047 continues to record no fatigue.
 - **FOC-061 [core] — Organization maintenance has a closed membership.** The
   FOC-046 family contains `raw_triage`, `nature_review`, `phase_review`,
-  `effort_comparison`, `impact_comparison`, all three importance variants,
+  `effort_comparison`, `impact_comparison`, `impact_maturity_review`, all three
+  importance variants,
   all three duplicate-review variants, `domain_membership_review`,
   `skip_taxonomy_review`, `wip_review`, `scope_closure_review`, and
   `archive_relevance_review`. Wait, Delegation, source, external effects, and

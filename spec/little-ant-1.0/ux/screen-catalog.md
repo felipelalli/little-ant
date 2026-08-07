@@ -5229,6 +5229,306 @@ the final preview says the dependent may become executable. Back discards the
 whole pending lifecycle draft. No `ignore`, `force`, or generic transfer row
 exists.
 
+## UX-J00 — Direct impact class
+
+```text
+Impact:
+
+#rs "Reduce payment fraud"
+
+Considering its likely result and uncertainty, how much difference is it
+expected to make?
+
+[1] very low
+    A barely noticeable, local improvement.
+[2] low
+    A small, limited improvement.
+[3] medium
+    A meaningful but bounded result.
+[4] high
+    A major result for an important responsibility.
+[5] very high
+    A transformative result or major loss avoided.
+[6] critical
+    Safety, legality, or essential continuity is at stake.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+No class is selected in dumb mode. The semantic anchors are deliberately
+short and do not claim domain-specific arithmetic. Question mark offers
+reviewed-root comparisons when available; with none it explains that the
+system has no basis and returns here without selecting `medium`. Invoking the
+route on a child replaces the question with its complete root citation and
+`[o]pen the root`, `[b]ack`, and uncertainty. A direct child impact is invalid.
+
+## UX-J01 — Impact evidence basis
+
+After a class is selected:
+
+```text
+Impact:
+
+#rs "Reduce payment fraud"
+Class: HIGH
+
+What supports this estimate?
+
+*[s]peculative
+    This is a judgment without selected supporting evidence.
+
+[e]vidence...
+    Review attached material or completed validation Work.
+
+[b]ack
+[?] I don't know
+
+[/] more...
+```
+
+Literal `*` or Enter chooses speculative only on this screen; it never chooses
+an impact class. Evidence opens a search over already attached Raws and
+completed validation Bricks, plus a contextual Feed route for new supporting
+material. Adding material returns here and does not promote maturity by
+itself. Powered-up or Skill may mark evidence only when it cites the exact
+inspectable item.
+
+## UX-J02 — Impact comparison
+
+```text
+Impact:
+
+#rs "Reduce payment fraud"
+
+compared with
+
+#ms "Improve monthly statements"
+
+Considering what is known, #rs is expected to have:
+
+[m]ore impact    [l]ess impact    [a]bout the same
+[s]kip           [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Orbit › R&D
+. Last reviewed: Sun, Aug 2, 22:14
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+All three substantive answers are pair-local evidence. About the same means a
+similar public impact class, not equal importance. Question mark can inspect
+outcomes and evidence, compare against another reviewed root, or propose one
+ordinary validation Brick under IMP-016; it never invents a class. A
+provocative comparison uses this exact primary composition without a label or
+suggested answer. Its first skip may try one other eligible inferred pair; the
+second ends with the existing order and class judgments unchanged.
+
+## UX-J03 — Impact evidence ladder
+
+```text
+Evidence maturity:
+
+#rs "Reduce payment fraud"
+Impact: HIGH
+
+Evidence:
++poc "Rock Splitter pilot results"
+
+Was the claimed result observed in its real intended setting?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+```
+
+No or node-local uncertainty advances to the representative-test question;
+another no advances to relevant support beyond intuition. The reached leaf
+opens one preview:
+
+```text
+Review impact?
+
+#rs "Reduce payment fraud"
+
+Impact: HIGH
+Maturity: VALIDATED
+Relies on: +poc "Rock Splitter pilot results"
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+```
+
+Edit may change class, selected evidence, or its applicability assertion. A
+promotion/demotion review leads with `Review due:` and the concrete reason,
+then reuses the same questions. No selected evidence can reach only
+`SPECULATIVE`.
+
+## UX-J04 — Direct effort class
+
+```text
+Effort:
+
+#rs "Reduce payment fraud"
+
+How much total effort would the current scope take from start to finish?
+
+[1] very easy       ~3 work hours
+[2] easy            ~6 work hours
+[3] normal          ~12 work hours
+[4] moderate        ~24 work hours
+[5] hard            ~48 work hours
+[6] very hard       ~96 work hours
+[7] mini project    ~192 work hours
+[8] project         ~384 work hours
+
+Hours are planning references from the active EffortProfile.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+No row is selected. The values come from the profile version shown through
+contextual inspection; they are neither promises nor stored hours. Question
+mark enters UX-J06 when a comparable reviewed exemplar exists. Otherwise it
+states that no suitable example exists and returns here. A standing Brick
+must first identify one run, window, session, or occurrence as the unit.
+
+## UX-J05 — Easiest-work comparison
+
+```text
+Which one looks easiest to complete from start to finish?
+
+[1] #rr "Review the current rules"
+[2] #wd "Write the deployment note"
+[3] #fc "Fix the currency label"
+
+[s]kip    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The list contains two to four comparable units and no default. Choosing `3`
+records only that #fc appears easier than #rr and #wd for total scope; it does
+not classify any row or start it. The result is the compact `Effort comparison
+recorded.` receipt. Question mark distinguishes scope effort from fear,
+tiredness, boredom, remaining effort, and current preference, then returns.
+
+## UX-J06 — Effort exemplar comparison
+
+```text
+Effort:
+
+#rs "Reduce payment fraud"
+
+compared with reviewed work
+
+#cm "Complete the chargeback migration"
+Effort: HARD (~48 work hours)
+
+#rs would require:
+
+[m]ore effort    [l]ess effort    [a]bout the same
+[s]kip           [?] I don't know
+
+[/] more...
+```
+
+An accepted answer advances directly to the next useful exemplar. After at
+most three comparisons, one isolated class is proposed through the ordinary
+confirmation, or only the remaining classes are rendered for direct choice.
+Skip records no effort relation and ends assistance when no other useful
+exemplar remains. Contextual inspection explains why the scopes are comparable
+and exposes the exemplar's profile version.
+
+## UX-J07 — Impact or effort contradiction
+
+```text
+Impact contradiction detected:
+
+Jul 10, 2026 · 00:23
+#a "A" had more impact than #b "B"
+
+Jul 10, 2026 · 00:29
+#b "B" had more impact than #c "C"
+
+Just now
+#c "C" had more impact than #a "A"
+
+What happened?
+
+[c]hanged
+    The newest judgment reflects a real change.
+
+[r]evise answer
+    Return to the comparison without recording the newest judgment.
+
+[?] I don't know
+    Compare all three without using urgency.
+
+[/] more...
+```
+
+The impact aid asks `Considering what is known, which would be expected to
+make the biggest difference?`; the effort aid asks `Which would require the
+least total effort from start to finish?`. Both show the three numbered Brick
+citations plus `[a]bout the same` and uncertainty. Changed retires only the
+conflicting current path. A second uncertainty keeps the last coherent
+judgment, marks the affected evidence for later review, and ends without a
+draw. Old paths below relevance yield silently to the new direct judgment and
+still remain visible in history.
+
+## UX-J08 — Judgment result
+
+```text
+Impact reviewed:
+
+#rs "Reduce payment fraud"
+HIGH · supported
+
+[n]ext    [/] more...
+```
+
+The effort-class variant renders, for example, `EASY (~6 work hours) ·
+reviewed`. Relative-only interactions render only `Impact comparison
+recorded.` or `Effort comparison recorded.` Assisted results retain
+`provisional · assisted by <provider>` until their lazy human review. Explicit
+command entry may return to its caller instead of showing `next`; the semantic
+result and footer are otherwise identical. No variant exposes a confidence
+float or redraws automatically.
+
 ## UX-I01 — Text input
 
 ```text
