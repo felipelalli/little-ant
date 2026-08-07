@@ -7394,6 +7394,129 @@ The styled rendering uses the same characters and columns, adding only ANSI
 roles and reverse video. No-emoji mode removes only declared decoration; color
 mode never changes glyphs.
 
+## UX-MIG00 — v0 migration preflight
+
+`/migrate` asks for or autocompletes an existing v0 JSONL archive and a v1
+dataset destination, then runs the read-only preflight before showing:
+
+```text
+Migrate Little Ant v0.1.0?
+
+Source: ~/archive/little-ant-v0/events.jsonl
+Target: ~/.local/share/little-ant/profiles/default
+
+1,284 events · archive verified
+146 Bricks · 89 Raws · 12 people or organizations
+
+Mappings:
+201 automatic
+ 38 provisional reviews
+ 17 historical only
+  0 blocking
+
+Important:
+Old before/after order will seed provisional positions.
+It will not become importance evidence.
+Old external effects will not run.
+
+[i]nspect mappings
+[b]uild candidate
+[c]ancel
+[?] I don't know
+
+[/] more...
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Preflight: Thu, Aug 6, 10:41
+         Now: Thu, Aug 6, 10:41
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
+```
+
+No row is selected. Enter does nothing and explains that migration requires an
+explicit action. With blockers, `build candidate` is absent and `[r]esolve
+blockers` appears after inspect. Each blocker opens its exact evidence and
+finite repairs, previews the selected repair, and then reruns preflight to
+produce a new plan. Cancel returns to the previous screen without writing.
+
+## UX-MIG01 — Validated migration candidate
+
+After explicit build and a full replay:
+
+```text
+Migration candidate ready.
+
+Candidate: lant-v1-candidate-7f31
+146 Bricks · 89 Raws · 38 lazy reviews
+
+✓ Full replay matches the projection.
+✓ The v0 archive is preserved and verified.
+✓ The live target is unchanged.
+
+[c]utover preview
+[i]nspect report
+[d]iscard candidate
+[?] I don't know
+
+[/] more...
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Built: Thu, Aug 6, 10:43
+    Now: Thu, Aug 6, 10:43
+. 146 bricks, 89 raws, 38 reviews
+  mode: dumb, focus: idle
+```
+
+No row is selected. Inspect opens the durable report and returns here without
+replaying or changing it. Discard requires a local deletion preview and does
+not touch the source or live target.
+
+## UX-MIG02 — Atomic cutover
+
+```text
+Switch to the v1 candidate?
+
+Current target: empty · 0e5751c0
+Candidate: lant-v1-candidate-7f31 · 9a71c2d4
+Backup: lant-before-v1-20260806-1043
+
+The source archive will remain unchanged.
+38 provisional reviews will enter the lazy review pool.
+No external action will run.
+
+[c]ut over
+[b]ack
+[?] I don't know
+
+[/] more...
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Candidate: Thu, Aug 6, 10:43
+        Now: Thu, Aug 6, 10:44
+. 146 bricks, 89 raws, 38 reviews
+  mode: dumb, focus: idle
+```
+
+No row is selected and Enter does nothing. Back returns to UX-MIG01. A stale
+target returns to a new preflight instead of offering an unsafe override.
+Successful cutover renders this ordinary result:
+
+```text
+✓ Migration complete.
+
+146 Bricks and 89 Raws are now active in v1.
+The prior target is preserved at lant-before-v1-20260806-1043.
+The verified v0 archive remains unchanged.
+
+[n]ext   [/] more...
+```
+
+`Left Arrow` offers operational switch-back instructions rather than a domain
+`/undo`; provider cleanup is not offered unless separately requested later.
+
 ## Surface mapping
 
 | Canonical element | REPL | Web/mobile | Operator skill |

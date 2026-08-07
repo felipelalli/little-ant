@@ -76,7 +76,8 @@ run as an interactive transcript.
 | 8 | Local web UIAdapter | `DAT-032`, `DAT-074..075`, `UX-269`, `SCN-UIA-001`, [`standard-integration-catalog.md`](../standard-integration-catalog.md) | specified | loopback-only mirror, session/revision safety, no browser credentials, and no second grammar |
 | 8 | Pack trust/install/update/remove | `DAT-018..023`, `DAT-033`, `DAT-086..091`, `UX-270..272`, UX-PACK00..PACK02, `SCN-PACK-001`, [`pack-format-and-trust.md`](../pack-format-and-trust.md) | specified | reproducible archive, signatures, official/community trust, revocation, zero cross-Pack dependencies, explicit updates, and safe removal |
 | 8 | Typed reference/error/dry-run | `MOD-008..010`, `UX-040..042`, `UX-075..076`, `UX-RF01..RF02`, `SCN-REF-001` | partial | technical-reference, not-found, precondition, edge-normalization, and generic dry-run screens |
-| 8 | Corrupt history/repair | `DAT-049`, `DAT-055..056`, `MIG-001..017`, UX-ER01 | specified | corrupt-log, unknown-version, backup, and repair fixtures |
+| 8 | Corrupt history/repair | `DAT-049`, `DAT-055..056`, `MIG-001..044`, UX-ER01 | specified | corrupt-log, unknown-version, backup, and repair fixtures |
+| 9 | v0.1 preflight/candidate/cutover | `MIG-001..044`, `UX-273..275`, UX-MIG00..MIG02, `SCN-MIG-001` | specified | exact-schema projection, blocker repair, stable identity allocation, stale plans, full replay, atomic cutover, backup, and no external effects |
 | 9 | Powered-up paired replay | `UX-033..039`, `UX-043`, `UX-059..060`, `UX-086..087`, `UX-B00A..B00B` | partial | replay accepted dumb flows |
 | 10 | Skill and web/mobile mirror | screen-catalog surface mapping | missing | accepted envelopes required first |
 

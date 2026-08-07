@@ -2408,6 +2408,27 @@ assistance-label, and no-emoji rendering.
   pause, manual fallback, and inspection reuse existing binding flows. A stale
   official catalog warns on the Pack manager and blocks only new official
   installation/update. Its uncertainty route is UX-196 `reaction_choice`.
+- **UX-273 [core] — Migration begins with evidence, not a promise.** UX-MIG00
+  is the dumb `/migrate` entry and the visual form of `MIG-035`. It shows the
+  exact source and target, verified event/object counts, the four mapping
+  classes, and three consequential truths: old before/after evidence is not
+  importance, old effects will not run, and neither source nor target has been
+  changed. Build is available only with zero blockers and has no default.
+  Inspecting or repairing returns to a newly hashed preflight report.
+- **UX-274 [core] — Candidate and cutover are separate consent boundaries.**
+  UX-MIG01 appears only after a full valid candidate replay and says explicitly
+  that the target remains unchanged. UX-MIG02 then previews the exact atomic
+  switch and retained backup. Neither screen has a selected row, Enter
+  behavior, `yes` shorthand, or assisted acceptance. Leaving either screen
+  preserves the candidate for later inspection; discarding it is a separate
+  previewed local operation.
+- **UX-275 [core] — Assistance cannot make migration less inspectable.** Skill
+  or powered-up mode may summarize why a mapping is provisional, rank the
+  finite repair choices, or mark one non-committing inspect action. It may not
+  omit a mapping class, convert a warning into a judgment, alter the source,
+  allocate identities, build, cut over, roll back, discard, or start provider
+  cleanup. Rejecting an assisted repair suggestion restores the exact dumb
+  blocker screen and plan revision.
 
 ## Errors and dry-run
 

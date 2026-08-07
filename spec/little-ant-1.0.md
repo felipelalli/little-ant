@@ -52,16 +52,15 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** deterministic v0 archive migration and release cutover.
+**Next review:** final contradiction, regression, terminology, and link audit.
 
-- Owning gate: Gate 8.
-- Owning boundary: `OPEN-MIG-001`.
-- Reuse, do not reopen: all current v1 semantics, identity/handle separation,
-  Raw completeness, explicit Nature review, legacy-vocabulary retirement,
-  Pack-free replay, dry-run, typed errors, and the closed Pack lifecycle
-  through `DAT-091` and `UX-272`.
-- Migration may preserve evidence and uncertainty; it may not invent a v1
-  judgment merely to finish automatically.
+- Owning gate: final specification freeze.
+- Open release boundary: none.
+- Reuse, do not reopen: the complete dumb UX contract, its bounded assisted
+  deltas, the v0 capability dispositions, and migration through `MIG-044`,
+  `UX-275`, and UX-MIG02.
+- The audit may reconcile contradictions and stale navigation text; it may not
+  invent a new product axis merely to make documentation symmetrical.
 - Do not enter here: Allium, generated tests, implementation, or live cutover.
 
 Current behavior lives in the subject chapters; unresolved semantics live in

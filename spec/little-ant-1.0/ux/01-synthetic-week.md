@@ -1586,6 +1586,35 @@ equivocation, known revocation, UX-PACK02, removal with active bindings, and
 garbage collection. Prove no background network/update, no Pack dependency,
 no canonical-data deletion, no replay execution, and no assisted approval.
 
+### SCN-MIG-001 — Verified v0.1 projection and cutover
+
+Create one signed-v0.1 fixture containing every stage, kind, atomicity value,
+skip reason, Party kind, SourceLink state, description revision, parent/part,
+Dependency, before/after comparison, Wait state, Delegation state, generic
+effect state, WIP transition, merge, supersession, and shipped legacy upcast.
+Include a second fixture with malformed lines, an unknown version, duplicate
+incompatible IDs, a context collision, relationship cycle, and irreconcilable
+lineage. Hash both sources before every run.
+
+Run the harmless command default and UX-MIG00. Verify the four mapping classes,
+exact old-to-new dispositions, provisional sibling position without importance
+evidence, conservative skip/Party/Nature handling, Description-as-Raw,
+SourceBinding pause, inert old effects, and no write to source or target. The
+invalid fixture must expose finite typed blockers and withhold build. Exercise
+one repair, prove that it changes the plan hash, and reject one assisted repair
+back to the identical dumb screen.
+
+Build the valid plan, interrupt before and after identity allocation, retry,
+and prove stable UUIDv7 mapping, handle suffixes, candidate isolation, embedded
+archive hash, full zero-state replay, and UX-MIG01. Change the source and target
+independently and require stale-plan failure. Traverse UX-MIG02, back out once,
+then cut over once and verify atomic target switch, retained prior-target
+backup, unchanged v0 bytes, complete MigrationRecord, no adapter invocation,
+and no `/undo` claim. Repeat into an existing v1 dataset with equal UUID
+lineage, conflicting equal UUID, and mnemonic-handle collision to exercise
+`MIG-023`. Provider cleanup, if requested afterward, must begin a new UX-A01
+effect and cannot reuse migration consent.
+
 ### SCN-EMPTY-001 — No eligible work
 
 Reach UX-E01 and validate a state-derived useful proposal instead of silence or
