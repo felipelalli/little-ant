@@ -858,6 +858,22 @@ no-emoji rendering remain `OPEN-UX-001`.
   WRK-108, and returns to the exact suspended interaction after an event-free
   exit or completed update. The grammar registry exposes no `/edit` or
   `/plan` alias.
+- **UX-166 [core] — Plan choice remains small and human-facing.** UX-S48 asks
+  `What do you want to change?` and offers `[s]tructure`, `[b]lockers`,
+  `[r]esponsibility`, and uncertainty, in that order and without a dumb
+  default. Each row gives one concrete explanation; it does not expose
+  composition, gate, relationship, or Delegation type names as the primary
+  choice. Assistance may mark at most one existing row with an attributed
+  reason under UX-059. Escape restores UX-S37 without evidence.
+- **UX-167 [core] — Plan blocker classification omits skip-only grammar.**
+  Selecting blockers opens UX-S49 with the same subject, question, five
+  situation choices, and shortcut letters as UX-S02. It deliberately omits
+  the `Continue without identifying it?` section and `[s]kip anyway`, because
+  no served-work skip is pending. Every selected situation enters the same
+  typed builder and preview used from UX-S02 but follows WRK-110 at commit.
+  Escape and reverse navigation restore UX-S48. Powered-up and Skill may mark
+  one existing situation and explain it, but may neither restore the absent
+  skip action nor bypass the typed preview.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

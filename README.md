@@ -305,7 +305,10 @@ but cannot mutate or bypass its normal preview.
 `plan` is only the human-facing route to parts, prerequisites, waits, and
 delegation. It is not a Plan entity, phase, or classification axis. `/update`
 is the sole general maintenance command; there are no overlapping `/edit` or
-`/plan` aliases.
+`/plan` aliases. Its blocker route reuses the same plain-language prerequisite
+questions as skip diagnosis, but omits `skip anyway` and records no skip
+evidence or cooldown of its own. Any stale-update or restoration consequence
+still belongs atomically to the hub's original entry path.
 
 Within `meaning`, title and description are independent choices. Renaming
 preserves the Brick UUID, `#handle`, hierarchy, order, relationships,

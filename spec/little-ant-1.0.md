@@ -187,15 +187,17 @@ discovery without claiming unseen candidates do not fit. `Group` remains
 interface language rather than a core object. Assisted modes may propose an
 attributed bounded recent-Raw batch but never delay Feed or accept routing.
 That review subsequently reached the stale-Work and semantic-maintenance
-flows. `WRK-098..108`, `UX-152..165`, and UX-S35..S47 now distinguish
+flows. `WRK-098..110`, `UX-152..167`, and UX-S35..S49 now distinguish
 reversible archive, restoration, stale correction, and ordinary direct
 `/update #brick`. All three update origins share one neutral semantic hub, but
 only the stale and archived origins carry their respective atomic evidence or
 restoration consequence. `plan` is a human dispatch route to composition,
 gates, and responsibility rather than an entity, phase, or axis; `/edit` and
-`/plan` are not aliases. Resume the UX-first review at the first screen reached
-by UX-S37 `[p]lan`, then exercise its parts, blocker, and responsibility routes
-before proceeding to timing, context, and source material.
+`/plan` are not aliases. The Plan hub now has exactly structure, blockers, and
+responsibility; its blocker route reuses the existing human classifier while
+omitting skip-only grammar and evidence. Resume the UX-first review at Plan
+`[s]tructure`, then exercise responsibility before proceeding to timing,
+context, and source material.
 
 ## Scope rings
 

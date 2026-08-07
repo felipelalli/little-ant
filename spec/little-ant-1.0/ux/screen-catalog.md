@@ -2596,6 +2596,76 @@ history rather than being converted into obligation occurrences. A source
 with unresolved incompatible active state must render its reconciliation
 before this confirmable composition under `OPEN-NAT-001`.
 
+## UX-S48 — Plan choice
+
+```text
+Plan:
+
+#rrsr "Review Rock Splitter rules"
+
+What do you want to change?
+
+[s]tructure
+    Its parent, parts, or list items.
+
+[b]lockers
+    What must happen before this Work can continue.
+
+[r]esponsibility
+    Who should do it.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+This is a closed human dispatch screen, not a Plan object or relationship
+editor. Dumb mode has no default. Structure, blockers, and responsibility
+follow WRK-109. Assistance may mark one existing row and add one attributed
+reason without changing the grammar. Escape restores UX-S37 without evidence.
+
+## UX-S49 — Planned-blocker classification
+
+Selecting `[b]lockers` on UX-S48 opens:
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+What needs to happen before you can continue?
+
+🧱 another [t]ask must be completed
+👤 someone must [r]espond
+🗓️ wait [u]ntil a date or time
+📍 be at a [l]ocation
+🔔 an [e]vent or condition must occur
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The question, choices, shortcuts, typed builders, and previews are shared with
+UX-S02. This plan origin deliberately omits `Continue without identifying it?`
+and `[s]kip anyway`: there is no blocker-classification skip to defer. A
+confirmed result records its typed prerequisite plus only the update origin's
+WRK-102 consequence; this classifier adds no blocker skip evidence or
+cooldown. Escape or reverse navigation restores UX-S48 without an event.
+
 ## UX-K01 — Nature choice
 
 ```text

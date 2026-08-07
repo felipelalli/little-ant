@@ -557,6 +557,26 @@
   requires ordinary typed Brick autocomplete. `/update` is the sole general
   update command: the core provides neither `/edit` nor `/plan` as an alias or
   overlapping shortcut.
+- **WRK-109 [core] — Plan dispatches to structure, blockers, or
+  responsibility.** Selecting `plan` opens one non-mutating choice among
+  `structure`, `blockers`, `responsibility`, and uncertainty. Structure reaches
+  the Brick's parent, child parts, or Nature-owned list items through their
+  existing typed operations. Blockers reaches the human-oriented
+  prerequisite classifier from WRK-009. Responsibility reaches Delegation.
+  These are closed UI purposes, not a Plan object or generic relationship
+  editor, and merely entering or leaving any route records nothing.
+- **WRK-110 [core] — Planned blockers reuse facts without inventing a skip.**
+  Entering the blocker classifier from `plan` presents the same five human
+  situations and produces the same typed Dependency, Wait, `not_before`,
+  Place, or event-condition result as the served-work classifier. It omits
+  `skip anyway`: Escape or reverse navigation returns toward the Plan hub
+  without a mutation, while uncertainty remains an explicit bounded route.
+  Accepting a typed result records that prerequisite under WRK-102 plus only
+  the update origin's already-declared atomic consequence. The classifier
+  itself adds no `blocked_or_waiting`, `blocked`, or `waiting` skip evidence,
+  cooldown, or focus refusal. The served-work origin retains its own
+  defer-only action and commits symptom evidence only with a final accepted
+  reaction under WRK-047.
 
 ## Time
 

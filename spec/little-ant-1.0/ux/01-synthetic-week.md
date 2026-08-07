@@ -935,6 +935,16 @@ one lazy importance review. Pair the dumb run with one visibly attributed
 assisted branch suggestion and reject it without changing the available
 grammar.
 
+For Plan, enter UX-S48 from direct, stale-active, and archived origins. Verify
+the same three human choices, no dumb default, no Plan entity, and exact
+event-free reverse navigation. Choose blockers and compare UX-S49 with UX-S02:
+the five situations, shortcuts, typed builders, and previews must match, while
+the Plan origin alone omits `skip anyway`. Accept each situation on separate
+replays and prove that direct Plan entry records only its Dependency, Wait,
+`not_before`, Place, or event-condition result—never a skip symptom, cooldown,
+or refusal of focus. Leave structure and responsibility at their explicit
+`OPEN-PLAN-001` boundary until their screens are reviewed.
+
 For Nature/behavior, first select the current Nature in UX-S46 and prove an
 event-free no-op. Traverse the full mechanical discovery route over the
 existing Brick, reject its result, and verify no classification evidence was
