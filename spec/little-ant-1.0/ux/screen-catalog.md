@@ -2934,7 +2934,7 @@ bounded factual view:
 ```text
 Parts:
 
-#rlav1 "Recover Little Ant v1"
+#rlav2 "Recover Little Ant v1"
 
 Active:
 
@@ -2965,10 +2965,10 @@ rows are rendered; exact overflow counts replace the rest. Inactive rows are
 plain lifecycle facts and claim no current importance position. When no active
 child exists, the active block renders `None.` rather than disappearing or
 showing an empty list, and `order` is absent. Contextual
-`/show #rlav1 "Recover Little Ant v1"` exposes the complete direct-child
+`/show #rlav2 "Recover Little Ant v1"` exposes the complete direct-child
 projection and returns here without mutation. `order` is omitted when fewer
 than two active children exist. It enters the ordinary continuous
-`/order #rlav1` cadence; its UX-O03 result adds `[p]arts`, which returns here
+`/order #rlav2` cadence; its UX-O03 result adds `[p]arts`, which returns here
 without a draw, while its existing `resume` and `next` meanings remain.
 
 The multi-subject screen never guesses which visible Brick a contextual
@@ -3026,6 +3026,153 @@ Should each intended item be able to appear separately as Work?
 A second uncertainty response returns unresolved to UX-S50. Escape, Left
 Arrow, and empty-buffer Backspace restore UX-S55 from either question. No
 answer is evidence about Nature, importance, completion, or scope.
+
+## UX-S57 — Parts behavior distinction
+
+When the affected Brick cannot own independently focusable parts, dumb mode
+asks only the distinction implied by the already-selected intent:
+
+```text
+Parts need a behavior change:
+
+#rrsr "Review Rock Splitter rules"
+
+Current behavior: atomic task
+
+What should happen after its planned parts are finished?
+
+[f]inish one outcome
+    Review the whole Work and complete it as one finite scope.
+    e.g. "Migrate the website"
+
+[k]eep accepting parts
+    Members may come and go without completing the larger Work.
+    e.g. "Books to read"
+
+[?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The two rows resolve `project` and `collection`, respectively, but no Nature
+change, draft, or authority claim is recorded here. A selected row first
+enters every target-required builder and supported reconciliation, then UX-B00.
+If a required reconciliation has no defined v1 choice, the route ends in its
+typed educational boundary and offers return; it never exposes a premature
+`yes`.
+
+Question mark uses the established finite-versus-continuing alternate probe:
+
+```text
+Should this Brick remain active after one complete set of parts is finished?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+```
+
+Yes resolves `keep accepting parts`; no resolves `finish one outcome`. The
+later combined preview remains the only confirmation. A second uncertainty
+response returns unresolved to UX-S50 for the subject Brick, or UX-S52 when
+the affected Brick was a proposed parent. Escape, Left Arrow, and
+empty-buffer Backspace restore the exact origin from the first screen and
+restore UX-S57 from the alternate probe. Powered-up or Skill may mark one row
+with one attributed reason but cannot select it.
+
+## UX-S58 — Parent behavior and move preview
+
+When an otherwise eligible parent needs a behavior change, the final preview
+names the parent first and the moving Brick second:
+
+```text
+Apply these changes?
+
+Larger Work will change:
+
+#rsm "Rock Splitter migration"
+
+Behavior:
+atomic task
+→
+project
+
+Preserved:
+identity, handle, meaning, Domains, history, and Template provenance
+
+Will change:
+- it can own independently focusable parts;
+- while active parts remain, they are suggested instead of the larger Work;
+- finishing all finite parts releases a scope review, not automatic completion.
+
+This Brick will move:
+
+#rrsr "Review Rock Splitter rules"
+
+From:
+#rs "Rock Splitter"
+
+To:
+#rsm "Rock Splitter migration"
+
+Domains stay the same.
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The behavior block contains every applicable UX-S47 preserved, stopped,
+started, configured, reconciled, focus, WIP, eligibility, restoration, and
+origin consequence; the example is the no-conflict minimum. If direct Domain
+sets differ, the existing UX-S51 mechanical block replaces `Domains stay the
+same.` and adds `[c]hange Domains...` before no. Change-Domains suspends the
+combined preview in the canonical editor and returns here. No restores UX-S52
+with its query; reverse navigation restores the nearest Nature builder or
+reconciliation. Yes appears only after all required decisions exist and
+commits both subjects atomically under WRK-116.
+
+## UX-S59 — Parent behavior and move uncertainty
+
+```text
+Should #rsm "Rock Splitter migration" become larger Work that owns
+#rrsr "Review Rock Splitter rules" as a separate part?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Yes restores UX-S58 unchanged; no restores UX-S52 with its query. Question
+mark explains once that the parent changes behavior, the child moves, direct
+Domains remain as shown, importance is local to the new siblings, and any
+listed focus, WIP, scope-review, or restoration consequence also applies. It
+then repeats the same question and actions. A second uncertainty response
+returns unresolved to UX-S52. Escape, Left Arrow, or empty-buffer Backspace
+restores UX-S58 from either question. `/show` may inspect either cited Brick
+and return to the exact question without mutation.
 
 ## UX-K01 — Nature choice
 
@@ -3204,7 +3351,8 @@ Template identities.
 
 ## UX-B00 — Dumb part collection
 
-After a first decomposition, dumb mode collects pending titles continuously:
+When the batch must reclassify the Brick, dumb mode collects pending titles
+under the decomposition heading:
 
 ```text
 Break into parts:
@@ -3233,12 +3381,14 @@ Tip: write Brick titles in English.
 
 The first rendering has no numbered titles and an active `1. ›` input.
 Non-empty Enter appends the draft and advances the number. Empty Enter exposes
-`review` only after two parts exist and then opens UX-B01. When UX-S55 enters
-the same editor, the heading is `Add parts:`, the list label is `New parts:`,
-and empty Enter exposes `review` after one draft. The title hint is visually
-dim. Reverse navigation from an already empty additive input restores UX-S55;
-the first-decomposition variant restores its exact preceding checkpoint.
-Neither path crosses semantic undo or creates durable state.
+`review` only after two parts exist when the batch reclassifies the Brick.
+Whenever the current Nature already supports parts, the heading is `Add
+parts:`, the list label is `New parts:`, and empty Enter exposes `review` after
+one draft—even when this is its first child. That compatible route comes
+directly from UX-S50 when no child exists and from UX-S55 otherwise. The title
+hint is visually dim. Reverse navigation from an already empty additive input
+restores its exact UX-S50 or UX-S55 origin; the reclassification variant
+restores UX-S57. Neither path crosses semantic undo or creates durable state.
 
 ## UX-B00A — Assisted decomposition draft
 
@@ -3335,14 +3485,17 @@ Apply this change?
 
 The numbered rows are pending parts, not Bricks, so no child handle is shown
 or reserved before `yes`. Confirmation preserves the parent identity, changes
-its Nature, creates every child and its handle atomically, and installs the
-displayed low-confidence sibling order without interposing importance
-questions. The parent then stops appearing as ordinary Work while incomplete
-children exist. Completing the final child releases a parent-scope review; it
-does not silently complete or immediately refocus the parent.
+its Nature only when the preview says so, creates every child and its handle
+atomically, and installs the displayed low-confidence sibling order without
+interposing importance questions. A resulting Nature governed by MOD-015
+stops appearing as ordinary Work while incomplete execution-bearing children
+exist; a scheduled commitment keeps its anchored focus and hard interval
+precedence while preparation children remain independently focusable.
+Completing a finite execution-bearing final child releases parent-scope review
+without silently completing or immediately refocusing the parent.
 
 `edit` restores UX-B00 with all drafts. `no` discards them and restores UX-S55
-for an additive Parts origin, UX-S50 for a first-decomposition Plan origin,
+for an existing-parts origin, UX-S50 for a no-existing-child Plan origin,
 UX-S06 for `big`, or the exact direct-command origin. It records no symptom,
 break, or other evidence. Escape, Backspace, and Left Arrow restore UX-B00 with the drafts
 under UX-019. `?` explains the project transition, reviewable default Natures,
@@ -3364,13 +3517,23 @@ Starting order: AI-suggested · review later
 Every assisted claim remains attributed after acceptance. If no exception
 exists, the preview remains identical to dumb UX-B01.
 
+When the batch also changes Nature, the simple `This Brick will become...`
+sentence expands into the same complete human-facing blocks as UX-S47:
+`Behavior: From → To`, `Preserved`, every applicable `Will stop` and `Will
+start`, target configuration, explicit reconciliations, and focus, WIP,
+eligibility, restoration, or origin consequences. The parts and their
+provisional order follow those blocks. No `yes` is rendered until the
+capability-delta owner supplies every required reconciliation. This combined
+preview, rather than UX-S57, is the human confirmation of both Nature and
+structure.
+
 Adding to an already child-owning Brick uses the same confirmation grammar but
 states only the real additive consequence:
 
 ```text
 Add parts:
 
-#rlav1 "Recover Little Ant v1"
+#rlav2 "Recover Little Ant v1"
 
 New parts:
 
@@ -3443,7 +3606,7 @@ decomposed:
 ```text
 Added 1 part to:
 
-#rlav1 "Recover Little Ant v1"
+#rlav2 "Recover Little Ant v1"
 └─ #wrf "Write replay fixtures"
 
 The new part can now appear as Work.

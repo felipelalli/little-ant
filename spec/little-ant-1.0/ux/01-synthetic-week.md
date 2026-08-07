@@ -991,6 +991,40 @@ with the identical dumb confirmation and reject both without mutation. Leave
 part-batch compensation under `OPEN-UNDO-001` and archived/superseded child
 closure under `OPEN-TREE-001`.
 
+For structural compatibility, mechanically replay every MOD-062 cell. Confirm
+that project and collection enter Parts directly, both checklists defer only
+to ListEntries, recurring-obligation occurrences do not become manual parts,
+and a scheduled commitment accepts ordinary preparation children without
+changing Nature, losing hard interval precedence, or inventing a relative-time
+anchor. Add exactly one first child to an empty compatible project, collection,
+and scheduled commitment through the one-draft additive route. Validate every
+standard Template expansion against the receiving
+Brick's structural capability; nested child checklists may own entries, but an
+incapable root may not acquire a mixed hidden structure.
+
+Select parts on an atomic task and traverse UX-S57 through each row, the
+finite-versus-continuing probe, repeated uncertainty, and every reverse path.
+Verify no Nature evidence or draft becomes durable before UX-B01. On separate
+replays attempt `habit → project` and `finite_checklist → collection`: require
+all available target configuration and incompatible-state reconciliation
+before collection, then require the complete UX-S47 disclosure inside UX-B01.
+If the all-pairs owner lacks a required reconciliation, stop with a typed
+return and no `yes`; never discard a window, entry, schedule, focus, WIP, or
+history. Accept one supported route atomically, then repeat from active-stale
+and archived Plan origins and verify their existing origin consequence.
+
+Choose an incapable existing parent in UX-S52. Resolve its finite/open
+behavior, then exercise UX-S58 with equal and unequal Domain sets. Require the
+parent behavior block first, child movement second, and Domain facts last;
+change Domains only in the unequal variant. Traverse UX-S59 fully, reject back
+to the exact parent query, reverse into the nearest builder, and stale both
+subjects independently before acceptance. Cover a focused/WIP parent, an
+already-decomposed parent, and a pending scope-closure review; proceed only
+where the all-pairs matrix supplies every reconciliation and disclose every
+focus/review consequence. Accept one supported two-subject action and prove
+that neither Nature nor composition can become visible alone. Leave exact
+compensation under `OPEN-UNDO-001`.
+
 For reparenting, cover identical, ancestor-related, partially overlapping,
 disjoint, and missing direct Domain path sets, including multiple memberships
 on both sides. Unequal sets must render every path and only their mechanical

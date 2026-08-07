@@ -206,3 +206,8 @@ Review one root Nature at a time. For each Template, decide:
 7. which examples, positive cues, counterexamples, and source shapes make its
    classification guidance useful without pretending to define recognition
    exhaustively.
+
+Every expansion also validates each created structure against the receiving
+Brick's MOD-062 capability. A root may create a child checklist that owns its
+own ListEntries, but no Template can make an incapable root own child parts or
+entries, or hide both ownership families under one root.

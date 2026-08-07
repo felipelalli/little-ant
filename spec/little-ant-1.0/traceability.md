@@ -50,13 +50,13 @@ from `70cb5b0`; the failed implementation remains on
 | Product promise, English, no aliases, scope rings | `PRD-*` | initial design, later vocabulary corrections, UX recovery |
 | Raw, Inbox, lazy triage, Description, same-Raw normalization, shelves, sources | `MOD-001`, `MOD-023`, `MOD-029`, `MOD-049`, `MOD-054`, `FED-001..018`, `FED-042..048`, `FOC-051..052`, `UX-144..150`, `DAT-002`, `DAT-011..017`, `DAT-042..043`, `OPEN-RAW-*` | `98dbe1c`, explicit post-`9a748bf` correction, `33e9dd3`, Raw-first Feed UX review |
 | UUIDv7 identity, typed mnemonic `#`/`+`/`@` handles, repeated titles, duplicate suspicion, merge | `MOD-008..012`, `FED-004`, `FED-015..018`, `UX-075..076`, `OPEN-MERGE-001`, `OPEN-REF-001` | v0 audit plus the 1.0 identity and human-reference redesign |
-| Brick axes, Natures, Templates, ListEntries | `MOD-002..005`, `MOD-013..018`, `MOD-025..061`, `OPEN-LST-001` | conceptual sessions and Nature/Template/structure screen reviews |
+| Brick axes, Natures, Templates, ListEntries | `MOD-002..005`, `MOD-013..018`, `MOD-025..062`, `OPEN-LST-001` | conceptual sessions and Nature/Template/structure capability and screen reviews |
 | Composition, sibling locality, Domains, dependencies | `MOD-019..024`, `MOD-031..034`, `MOD-060..061`, `FED-030..041`, `OPEN-TREE-001`, `OPEN-DOM-*` | hierarchy, direct-Domain, move-preview, and enabling-recovery sessions including fear, vague, and hard recovery |
 | Importance and `org-sort-tasks` | `IMP-001..016`, `IMP-030..045` | v0 `Order.hs`/tests, canonical importance correction, regression audit, lower-order recovery, honest-answer comparison, and additive-part sessions |
 | Impact, effort, planning calibration | `IMP-017..029`, `IMP-038`, `DAT-030..037`, calibration profile | estimation/TaskJuggler and tired-recovery sessions |
 | Forecast, hierarchy, Domain and interaction-family continuity, blockers, opportunity variants, and Focus assistance | `FOC-001..050` | recovery ledger decisions and fixed-stream UX scenarios |
-| Focus, WIP, skip, time, standing work, delegation, semantic maintenance | `WRK-001..115` | v0 behavior audit plus skip, recurrence, habit, delegation, honest-sprint, fear, vague, hard, less-important, other-recovery, honest-answer, direct-update, and Plan/structure/parts/move sessions |
-| Canonical interaction and dumb REPL | `UX-001..176`, screen catalog | REPL recovery and screen-by-screen review, including direct semantic update and the Plan, blocker, structure, parent-selection, parts, and Domain-contrast routes |
+| Focus, WIP, skip, time, standing work, delegation, semantic maintenance | `WRK-001..116` | v0 behavior audit plus skip, recurrence, habit, delegation, honest-sprint, fear, vague, hard, less-important, other-recovery, honest-answer, direct-update, and Plan/structure/parts/move sessions |
+| Canonical interaction and dumb REPL | `UX-001..179`, screen catalog | REPL recovery and screen-by-screen review, including direct semantic update and the Plan, blocker, structure, parent-selection, parts, structural compatibility, and Domain-contrast routes |
 | Event authority, sparse output, imports, Packs, Calendar | `DAT-001..045` | context-pollution, source safety, Pack, Calendar, cold-load, and sparse-timer sessions |
 | Migration and promotion gates | `MIG-001..023` | v0 archive review and failed-rewrite analysis |
 

@@ -902,8 +902,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   selected row, silently changes Nature, or drops existing state. Powered-up
   and Skill may mark one of the same structure intents or propose a fully
   resolved compatible result through UX-060, but rejection returns to exact
-  dumb UX-S50. The exact parent mover, child manager, ListEntry manager, and
-  incompatible-Nature choice screens remain under `OPEN-PLAN-001`.
+  dumb UX-S50. The parent mover, child manager, parts compatibility, and
+  incompatible-parent screens are settled by UX-170..179; the ListEntry
+  manager and responsibility route remain under `OPEN-PLAN-001`.
 - **UX-170 [core] — Move preview compares Domains mechanically.** When the
   selected parent and moving Brick have unequal direct Domain path sets, the
   move preview uses UX-S51. It renders From, To, the complete current and new
@@ -995,9 +996,10 @@ no-emoji rendering remain `OPEN-UX-001`.
   typed previews. Escape or reverse navigation restores UX-S50 without an
   event.
 - **UX-175 [core] — Part collection and results state the actual operation.**
-  UX-B00 says `Break into parts` for first decomposition and `Add parts` for
-  an additive route; empty Enter becomes available after respectively two or
-  one drafts. UX-B01 names a Nature transition only when one occurs, names
+  UX-B00 says `Break into parts` when the batch reclassifies the Brick and
+  `Add parts` when its current Nature already supports them; empty Enter
+  becomes available after respectively two or one drafts. UX-B01 names a
+  Nature transition only when one occurs, names
   existing children as unchanged on addition, exposes any duplicate
   suspicion before commit, and conditionally states that current focus stays
   on the parent or that an obsolete scope-closure review will be invalidated.
@@ -1025,6 +1027,57 @@ no-emoji rendering remain `OPEN-UX-001`.
   decomposition. Powered-up and Skill may use the existing attributed draft
   or mark one existing Parts action only; they cannot add a child, reorder
   human importance, skip the preview, or answer UX-S56.
+- **UX-177 [core] — Incompatible parts ask only finite versus open-ended.**
+  When MOD-062 says the current Nature cannot own parts, UX-S57 identifies the
+  affected Brick and current Nature, then asks what happens after the current
+  parts are finished. Its two consequence-first rows are `[f]inish one
+  outcome` and `[k]eep accepting parts`, mapping only to `project` and
+  `collection`; there is no default or nine-Nature chooser. Selecting a row
+  records nothing, checkpoints that target, completes every available WRK-112
+  builder and reconciliation, then enters UX-B00 when the affected Brick is
+  the Structure subject, or UX-S58 when it is the proposed parent and the
+  moving Brick itself supplies the first part. Question mark reuses the
+  existing FED-025 finite-versus-continuing probe over this existing Brick:
+  yes maps to the displayed continuing row and no to the finite row. The
+  combined UX-B01 preview is the classification confirmation, so no separate
+  Nature-confirmation toll intervenes. A second uncertainty response returns
+  unresolved to UX-S50, or to UX-S52 when the affected Brick is a proposed
+  parent. Reverse navigation follows the same origin; collector reverse
+  restores the last UX-S57 checkpoint while provisional builder and
+  reconciliation answers remain recoverable but uncommitted.
+  The list-items finite/living composition remains with its manager under
+  `OPEN-LST-001` rather than ending at an undefined checkpoint.
+- **UX-178 [core] — Combined part preview discloses the whole behavior
+  change.** When UX-B01 also changes Nature, it includes the same `From`, `To`,
+  `Preserved`, `Will stop`, `Will start`, target configuration,
+  reconciliations, focus/eligibility consequences, and origin consequence as
+  UX-S47 before listing the pending child batch and provisional order. No yes
+  action appears until every required choice has a supported resolution.
+  `yes` remains the sole atomic Nature-plus-structure commit; `edit` returns
+  to the nearest completed target builder or reconciliation using the existing
+  preview-edit meaning; `no` and reverse navigation preserve the appropriate
+  draft checkpoint exactly. Archived and active-stale origins carry their
+  already-declared restoration or `out_of_date` consequence in the same
+  preview. Scheduled-commitment preparation is already compatible, keeps the
+  commitment as focus unit, and therefore adds parts without this Nature
+  block or inferred relative timing.
+- **UX-179 [core] — An incompatible parent preview names both subjects.**
+  UX-S58 appears only after UX-S57 and all supported parent reconciliations.
+  It leads with the proposed parent's complete UX-S47 behavior-change block,
+  then shows the moving Brick's From/To composition, then the existing compact
+  or mechanical Domain block. The unequal-Domain variant retains `[c]hange
+  Domains...`; no separate edit action competes with reverse navigation to
+  builders. Actions are `[y]es`, conditional change-Domains, `[n]o`,
+  uncertainty, and the palette, without a default. Yes follows WRK-116; no
+  restores UX-S52 with its exact query; reverse restores the nearest parent
+  configuration checkpoint. Question mark opens UX-S59 and asks whether the
+  proposed parent should become larger Work that owns the moving Brick as a
+  separate part. Yes restores UX-S58, no restores UX-S52, and question mark
+  shows one complete two-subject consequence summary before repeating once; a
+  second uncertainty returns unresolved to UX-S52. All three reverse gestures
+  restore UX-S58 from either question. Powered-up and Skill may mark one
+  finite/open row and explain it, but cannot choose it, waive reconciliation,
+  omit a subject, skip the combined preview, or accept either mutation.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

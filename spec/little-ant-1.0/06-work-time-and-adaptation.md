@@ -589,15 +589,19 @@
 - **WRK-112 [core] — Incompatible structure proposes explicit behavior
   change.** If the selected structural intent is unsupported by the current
   Nature, no item, child, or relationship is created yet. The route first
-  resolves and previews a compatible Nature through MOD-045 and MOD-059. For
-  an `atomic_task`, independently tracked finite parts normally propose
-  `project`, while an open-ended member set may require `collection`; choosing
-  list items distinguishes finite from continuing ownership before proposing
-  `finite_checklist` or `living_checklist`. Existing children, ListEntries,
-  focus, WIP, schedule, and other incompatible facts require explicit
-  reconciliation. The accepted Nature change and requested initial structure
-  form one typed reversible action; rejection or reverse navigation preserves
-  the original Nature and structure completely.
+  resolves a compatible Nature through MOD-045, MOD-059, and MOD-062. Parts
+  distinguish one finite outcome (`project`) from open-ended members
+  (`collection`) before collecting child drafts; list items distinguish finite
+  from continuing ownership before proposing `finite_checklist` or
+  `living_checklist`. Target-required configuration and every reconciliation
+  for existing children, ListEntries, occurrences, focus, WIP, schedule, or
+  other incompatible active truth are completed before the collector or final
+  combined preview can proceed. The preview carries the same From, To,
+  preserved, stopped, enabled, configuration, and consequence disclosure as a
+  direct behavior change, plus the requested structure. The accepted Nature
+  change and requested initial structure form one typed reversible action;
+  rejection or reverse navigation preserves the original Nature, drafts, and
+  structure completely. Template provenance is never reapplied or rewritten.
 - **WRK-113 [core] — Reparenting preserves Domains and exposes structural
   divergence.** A move compares the Brick's direct Domain path set with the
   proposed parent's direct path set using only canonical equality, Domain-tree
@@ -630,9 +634,10 @@
   selecting `parts` opens the existing part collector immediately when no
   direct child exists, and otherwise opens one read-only child summary before
   reusing ordinary add, order, show, and typed child-update routes. Merely
-  opening, inspecting, or leaving either view records nothing. A first finite
-  decomposition requires at least two drafted parts; adding to an existing
-  child-owning Brick requires at least one. Acceptance creates the complete
+  opening, inspecting, or leaving either view records nothing. A batch that
+  reclassifies an incapable Brick into child-owning Work requires at least two
+  drafted parts; adding to any already compatible Nature requires at least
+  one, even when it has no existing child. Acceptance creates the complete
   batch and its handles atomically, preserves every existing child and
   unrelated parent fact, and places the batch under IMP-045. A matching
   duplicate suspicion follows FED-015..016 before commit
@@ -642,6 +647,23 @@
   and WIP remain unchanged; the preview and result say so rather than
   fabricating staleness or silently clearing attention. Incompatible Natures
   continue through WRK-112 before collection or mutation.
+- **WRK-116 [core] — Reclassifying a proposed parent is a two-subject atomic
+  move.** If an otherwise eligible proposed parent lacks the child-parts
+  capability in MOD-062, the finite/open distinction, target-required
+  configuration, and every supported MOD-059 reconciliation apply to that
+  parent, not to the moving child. No combined confirmation exists while a
+  required reconciliation has no defined choice. The final preview leads with
+  the parent's complete behavior change, then shows the child movement, and
+  lastly composes the ordinary equal- or unequal-Domain facts for the moving
+  child. Acceptance revalidates both Bricks, both Nature snapshots, move
+  eligibility, reconciliations, direct Domains, focus/WIP, and pending scope
+  reviews, then changes parent Nature and composition atomically. A focused or
+  WIP parent is never cleared silently; any supported consequence appears in
+  the same preview. Rejection changes neither subject and restores the parent
+  selector with its query. A released recurring-obligation occurrence follows
+  its own validated Brick Nature through the ordinary route; its standing
+  series is not the reclassification subject. Exact compensation of the
+  two-subject event remains under `OPEN-UNDO-001`.
 
 ## Time
 

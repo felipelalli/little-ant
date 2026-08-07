@@ -151,8 +151,9 @@ open release decision rather than an inferred v1 commitment.
   the parent stops being an ordinary Work candidate while any child remains
   incomplete. Completing the final child never cascades completion to the
   parent; it releases a parent-scope review that may confirm completion or
-  introduce more work. Standing execution, repeatable work, and pending
-  external effects retain their Nature-aware closure paths. Whether archived
+  introduce more work. Standing execution, repeatable work, scheduled
+  commitments with preparation children, and pending external effects retain
+  their Nature-aware focus and closure paths. Whether archived
   or superseded children satisfy the all-children-finished boundary remains
   part of `OPEN-TREE-001`.
 - **MOD-016 [core] — Removed stages.** `seed`, `committed`, and `ready` do not
@@ -260,6 +261,29 @@ The factory library contains:
   `effective Domain path` is therefore the ancestor path of an explicit direct
   membership for query and display, not membership inherited from a Brick
   parent.
+- **MOD-062 [core] — Structural compatibility is a Nature capability.** The
+  factory structural slice is authoritative for Structure dispatch; generated
+  recurring occurrences are a separate lifecycle capability rather than
+  manually managed parts:
+
+  | Nature | independently focusable child parts | owned ListEntries |
+  |---|---|---|
+  | `atomic_task` | none | none |
+  | `project` | finite outcome | none |
+  | `collection` | open-ended members | none |
+  | `repeatable` | none | none |
+  | `living_checklist` | none | continuing |
+  | `finite_checklist` | none | finite scope |
+  | `recurring_obligation` | none; occurrences are system-released | none |
+  | `habit` | none | none |
+  | `scheduled_commitment` | preparation | none |
+
+  A supported cell enters its existing manager without reclassification. An
+  unsupported intent first resolves a compatible target under WRK-112. A
+  `scheduled_commitment` preparation child can be focused independently before
+  the interval, while the commitment itself remains the anchored focus unit
+  under MOD-043, MOD-047, and FOC-030. This slice does not settle the remaining
+  all-pairs capability deltas in `OPEN-NAT-001`.
 
 ## Content, movement, and effective metadata
 
@@ -317,8 +341,12 @@ The factory library contains:
 - **MOD-039 [standard] — Composite Template expansion.** A Template advertises
   one root Nature for compatibility and may atomically instantiate a finite,
   previewed initial structure containing child Bricks of other Natures and
-  Nature-owned ListEntries. Every created Brick still has exactly one
-  validated Nature. Accepted expansion becomes ordinary canonical state;
+  Nature-owned ListEntries only where the receiving Brick's validated
+  structural capability permits them. A root may therefore create a child
+  checklist whose own Nature owns entries; it cannot make any incapable
+  receiving Brick own either structure family. Every created Brick still has
+  exactly one validated Nature. Accepted expansion becomes ordinary canonical
+  state;
   Template provenance remains inspectable, but the Template cannot create
   later descendants or retain runtime authority.
 - **MOD-040 [standard] — Relationship-habit Templates.** The standard library
@@ -350,9 +378,12 @@ The factory library contains:
   everyday choices from the built-in catalog.
 - **MOD-045 [core] — Atomic decomposition changes Nature.** An `atomic_task`
   cannot gain independently tracked child parts while remaining atomic.
-  `break` first determines whether the proposed parts require `project`,
-  `finite_checklist`, or `collection` mechanics and previews that Nature
-  change. A mere prerequisite remains an orthogonal Dependency and does not
+  `break` or Structure `parts` first determines whether finishing the planned
+  parts should finish one outcome (`project`) or whether members may remain
+  open-ended (`collection`), then collects the proposed child Bricks and
+  previews that Nature change with the batch. `finite_checklist` is never a
+  parts result: it owns ListEntries reached only through `list items`. A mere
+  prerequisite remains an orthogonal Dependency and does not
   by itself make the task non-atomic; notes or instructions remain content
   rather than child Bricks. The operation is reachable explicitly through
   contextual `/break` and through accepted recovery routes; a `project`
@@ -372,7 +403,11 @@ The factory library contains:
   Dependencies. The complete structure and relative timing are previewed
   before creation. After acceptance, ordinary canonical relationships and
   temporal constraints own the behavior; the Template retains provenance but
-  no runtime authority.
+  no runtime authority. Preparation children remain ordinary user-maintainable
+  Bricks, but they do not replace the scheduled commitment as its own focus
+  unit or weaken hard interval precedence. Manually adding one creates no
+  relative-time anchor by inference; anchor editing remains under the
+  scheduled-commitment timing contract.
 - **MOD-048 [standard] — Declarative classification guidance.** A Template
   may publish bounded, inspectable guidance containing representative
   canonical-English examples, positive semantic or structural cues,
