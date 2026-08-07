@@ -507,6 +507,16 @@ Is
   is `review due`. Relative-only evidence renders as `not classified · N
   comparisons`. Numeric confidence is available only in explicit structured
   evidence/forecast inspection, never as a user-facing target to optimize.
+- **IMP-057 [core] — Generated obligation occurrences reuse series
+  importance.** A `recurring_obligation` series owns one ordinary human
+  importance position. Its generated occurrences are independent Bricks for
+  lifecycle, focus, history, and references, but they do not create sibling
+  insertion questions or additional root importance positions. The importance
+  projection nests them beneath the series in nominal-anchor order; the focus
+  forecast chooses among open occurrences with ordinary age and temporal
+  evidence after the series attention subject wins. This is a closed
+  Nature-owned generated lane, not FIFO execution, manual composition, or a
+  general exception available to Packs.
 
 Importance, impact, effort, and phase remain independent. None is a hidden
 sort key for another.

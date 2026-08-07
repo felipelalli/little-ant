@@ -130,6 +130,7 @@ open release decision rather than an inferred v1 commitment.
 
   ```text
   status     = active | done | archived | superseded | merged
+             | missed | cancelled
   phase?     = idea | spec | exec | validation
   work_state = idle | wip
   focus      = zero or one current Brick globally
@@ -396,12 +397,23 @@ The factory library contains:
   Templates are deliberately broad in the offline product.
 - **MOD-083 [core] — Terminal child outcomes release review, not completion.**
   A finite parent has unfinished child scope while any direct child is
-  `active`. When none remains active, `done`, `archived`, `superseded`, and
-  `merged` children all satisfy the mechanical no-active-child boundary and
-  release one scope-closure review. The review reports the count of each
-  outcome separately. It never treats archive, replacement, or deduplication
-  as completion and never completes the parent automatically. Restoring or
-  adding an active child invalidates that review.
+  `active`. When none remains active, `done`, `archived`, `superseded`,
+  `merged`, `missed`, and `cancelled` children all satisfy the mechanical
+  no-active-child boundary and release one scope-closure review. The review
+  reports the count of each outcome separately. It never treats archive,
+  replacement, deduplication, absence, or cancellation as completion and never
+  completes the parent automatically. Restoring or adding an active child
+  invalidates that review.
+- **MOD-089 [core] — Missed and cancelled are narrow terminal truth.** In 1.0,
+  only a `scheduled_commitment` may enter Brick status `missed` or `cancelled`.
+  `missed` means its externally anchored interval passed without attendance;
+  `cancelled` means the commitment ceased to apply. Neither is `done`, archive,
+  skip, or an inferred source outcome. `attended` is the commitment-specific
+  successful outcome and closes the Brick as `done`. Missed and cancelled
+  Bricks are excluded from execution and current importance exactly like other
+  terminal Bricks, remain searchable and inspectable, and do not create an
+  archive-relevance review. Reopening either requires an explicit replacement
+  interval and preview; `/restore` is only for archived Work.
 - **MOD-084 [core] — Parent archive always declares its scope.** Archiving a
   Brick without children affects that Brick only. With direct children, the
   human must choose `this Brick only` or `entire subtree`. The first moves all

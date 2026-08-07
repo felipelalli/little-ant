@@ -5218,7 +5218,8 @@ What should be archived?
 
 No row is a default. This-only preserves each child's complete subtree and
 relative order in MOD-084's provisional sibling run. Entire-subtree leaves
-done, superseded, and merged descendants in their existing terminal states.
+terminal descendants in their exact existing states, including done,
+archived, superseded, merged, missed, and cancelled.
 Either route enters UX-LC05 only when live gates require choices, then the
 complete archive preview. Reverse navigation or back restores the caller with
 no mutation.
@@ -5357,6 +5358,7 @@ Review:
 No active direct parts remain.
 
 3 done · 1 archived · 1 superseded · 1 merged
+1 missed · 1 cancelled
 
 What should happen now?
 
@@ -5717,6 +5719,290 @@ recorded.` or `Effort comparison recorded.` Assisted results retain
 command entry may return to its caller instead of showing `next`; the semantic
 result and footer are otherwise identical. No variant exposes a confidence
 float or redraws automatically.
+
+## UX-NOT00 — Open temporal notice
+
+The dim footer line `⚠ #peb "Pay electricity bill" · deadline in 2h · +2
+notices` opens:
+
+```text
+Notice:
+
+#peb "Pay electricity bill"
+
+Deadline: Mon, Aug 3, 11:00
+America/Montevideo · UTC−03:00
+2 hours remain.
+
+[o]pen Work
+[a]cknowledge this notice
+[s]nooze this notice
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #bills "Bills to pay"
+  Personal › Finance
+. Deadline: Mon, Aug 3, 11:00
+       Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Nothing is selected. Open Work returns to its existing proposal or inspection
+without focusing it. Acknowledge hides only this subject/fact-revision/threshold
+notice. Snooze uses UX-DT00..DT02 with the heading `When may this notice return?`
+and changes only `notice_not_before`. An already passed deadline says how long
+ago it passed and keeps the same actions. `/notices` uses a bounded list of all
+active and snoozed notice identities; selecting one opens this screen.
+
+## UX-RO00 — Recurring-obligation occurrence
+
+```text
+Work:
+
+#peb2 "Pay electricity bill"
+
+Focus?
+
+[y]es    [s]kip    [?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. #peb "Pay electricity bill"
+  Personal › Finance
+. Occurrence: Aug 2026 · deadline Mon, Aug 10, 17:00
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The series keeps the human importance position; the occurrence has its own
+UUID, `#` handle, lifecycle, and history. The displayed label is separate from
+the repeated title. Yes starts only this occurrence. Done or archive resolves
+only it; skip follows ordinary finite-Work diagnosis and can increase later
+pressure without creating a missed historical cell. Contextual inspection
+shows every open series occurrence without calling the view a queue.
+
+## UX-RO01 — Recurring-obligation schedule
+
+```text
+Recurrence:
+
+#peb "Pay electricity bill"
+
+Family       › monthly
+Every        › 1 month
+Day          › 10
+Time         › 17:00
+Zone         › America/Montevideo
+Opens        › 7 days before
+Best before  › 1 day before
+Deadline     › at the anchor
+
+[Enter] review · [Esc] back
+```
+
+Family is a finite selector. The weekly variant adds weekdays; yearly adds
+month/day; all accept one or more local clock times. Offsets are structured
+signed values and may be omitted only for best-before or deadline. Review
+renders the next three nominal anchors and all effective absolute instants,
+then yes, edit, no, and uncertainty. Monthly day 31 visibly demonstrates
+clamping. No field accepts cron, RRULE, or prose.
+
+## UX-SC00 — Scheduled-commitment interval
+
+```text
+Commitment interval:
+
+#fa123 "Flight AD123 to Montevideo"
+
+Starts
+  Date  › 2026-08-20
+  Time  › 14:10
+  Zone  › America/Sao_Paulo
+
+Ends
+  Date  › 2026-08-20
+  Time  › 16:45
+  Zone  › America/Montevideo
+
+[Enter] review · [Esc] back
+```
+
+Each row uses the structured date/time behavior of UX-DT01. Review shows both
+local endpoint renderings, offsets, absolute duration, Place/source links, and
+known overlaps before yes, edit, no, and uncertainty. End is required and must
+be after start. An all-day value stops here with exact-time, choose-another-
+Nature, or preserve-as-Raw recovery; no default duration is invented.
+
+## UX-SC01 — Preparation proposal
+
+```text
+Prepare for:
+
+#fa123 "Flight AD123 to Montevideo"
+
+[x] Review travel documents
+    atomic task · best before 60 days before departure
+[x] Review travel insurance
+    atomic task · best before 14 days before departure
+[x] Pack for the trip
+    finite checklist · best before 2 days before departure
+[x] Travel to the airport
+    atomic task · best before 3 hours before departure
+
+↑/↓ select · Space include/remove · [e]dit · [c]ontinue
+[?] I don't know
+
+[/] more...
+```
+
+These are editable Template proposals, not universal travel truth. Edit opens
+the selected title, Nature, Dependencies, and relative timing. Continue renders
+one complete creation preview containing the interval and included preparation
+batch; only its yes creates anything. Meeting, appointment, exam, and service-
+window Templates use their own inspectable catalog rows through this identical
+surface. Dumb mode never adds a child from title inference alone.
+
+## UX-SC02 — Active commitment
+
+```text
+Commitment:
+
+#fa123 "Flight AD123 to Montevideo"
+
+Thu, Aug 20 · 14:10–16:45
+São Paulo (UTC−03:00) → Montevideo (UTC−03:00)
+
+Current focus:
+#rrsr "Review Rock Splitter rules"
+
+Attending now will leave the current Work in progress.
+
+[a]ttend now    [m]issed    [c]ancelled
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Travel
+. Interval: Thu, Aug 20, 14:10–16:45
+       Now: Thu, Aug 20, 14:12
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+There is no skip, later, done, or dumb default. Attend now atomically leaves
+the shown ordinary focus WIP and focuses the commitment. Missed before the end
+opens the same explicit outcome preview as UX-SC03 rather than treating a key
+press as accidental truth. Cancelled also previews the terminal outcome.
+Escape or exit records nothing; the unresolved interval returns at the next
+safe boundary.
+
+## UX-SC03 — Current or ended commitment outcome
+
+```text
+Current commitment:
+
+#fa123 "Flight AD123 to Montevideo"
+
+The scheduled interval has ended.
+
+What happened?
+
+[a]ttended    [m]issed    [c]ancelled
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Travel
+. Ended: Thu, Aug 20, 16:45
+    Now: Thu, Aug 20, 16:50
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #fa123
+```
+
+During the interval, the sentence becomes `How is this commitment ending?`
+without claiming it ended. Each choice previews the complete terminal result;
+attended produces `Done: ... · attended`, while missed and cancelled use their
+own headings and statuses. All close commitment focus/WIP, draw nothing, and
+wait at `[n]ext    [/] more...`. Question mark inspects source, interval, and
+preparation history or leaves the outcome unresolved; it never chooses one.
+
+## UX-SC04 — Overlapping commitments
+
+```text
+2 commitments overlap:
+
+[1] #fa123 "Flight AD123 to Montevideo"
+    Thu, Aug 20 · 14:10–16:45
+
+[2] #qm "Quarterly planning meeting"
+    Thu, Aug 20 · 15:00–16:00
+
+Which one should we handle?
+
+[1] first commitment    [2] second commitment
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  <multiple Domains>
+. Earliest start: Thu, Aug 20, 14:10
+             Now: Thu, Aug 20, 15:05
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+There is no default or lottery. Choosing a row opens UX-SC02 or UX-SC03 for
+that exact commitment; resolving it returns here while another remains. More
+than six uses deterministic pages. During creation/reschedule, this family
+instead offers `[k]eep both`, `[e]dit interval`, `[c]ancel`, and uncertainty,
+also without a default. Keep both records the reviewed overlap but no order,
+importance, attendance, or cancellation.
+
+## UX-SC05 — Reschedule with preparation
+
+```text
+Reschedule commitment?
+
+#fa123 "Flight AD123 to Montevideo"
+
+Interval
+  From: Thu, Aug 20 · 14:10–16:45
+  To:   Sat, Aug 22 · 08:00–10:35
+
+Relative preparation
+  #pt "Pack for the trip"
+    best before: Aug 18 → Aug 20
+  #ta "Travel to the airport"
+    best before: Aug 20, 11:10 → Aug 22, 05:00
+
+Unchanged
+  #vd "Review travel documents" · already done
+  #ins "Review travel insurance" · absolute override
+
+Attention
+  #ta is WIP and remains eligible after this change.
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+```
+
+Only nonempty sections render. A newly future-gated WIP row cannot reach this
+final preview until the user keeps an absolute override or accepts closing its
+focus/WIP. Passed preferred/deadline facts are warnings, not silent outcomes.
+If the new interval already ended, the commitment outcome appears as a required
+section. Yes commits interval, relative recalculation, overrides, and attention
+effects atomically. Source and assisted proposals cannot preselect yes.
 
 ## UX-I01 — Text input
 

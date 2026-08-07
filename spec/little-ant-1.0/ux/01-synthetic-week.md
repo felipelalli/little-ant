@@ -896,6 +896,67 @@ change. Skip the released bill occurrence, verify one immediate cooldown, and
 then verify that it remains open while avoidance and temporal evidence may
 increase its later selection pressure. A later period must not erase it.
 
+Open UX-NOT00 before, at, and after the represented threshold. Exercise open,
+acknowledge, snooze through UX-DT00..DT02, uncertainty, `/notices`, and reverse
+navigation. Prove that acknowledge hides only the exact fact-revision and
+threshold, snooze changes only `notice_not_before`, underlying forecast date
+pressure remains, and editing the date creates a new identity. With three
+equal-severity notices, advance real screen transitions and verify stable
+single-line round-robin plus `+2 notices`; redraws and active text/confirmation
+screens must not rotate or steal focus.
+
+Create daily, weekly, monthly-day-31, and yearly recurring obligations through
+UX-RO01, including several times and weekly weekdays. Verify the next three
+anchors, timezone/DST behavior, month/year clamping, explicit not-before,
+best-before, and deadline offsets, and rejection of prose/unsupported RRULE.
+Tick each series twice and prove idempotent occurrence identity, repeated title,
+separate occurrence label, one series importance slot, one series forecast
+ticket, and local positive-tail selection through UX-RO00. Accumulate two open
+bill occurrences, complete one and archive one without changing the series or
+future release. Simulate 1,501 offline openings and verify a 1,000-occurrence
+batch plus required continuation with no coalescing or loss.
+
+### SCN-SCH-001 — Scheduled commitment attention
+
+Create flight, meeting, appointment, service-window, and point-like source
+examples through UX-SC00. Verify required end, start/end zones, UTC offsets,
+DST ambiguity recovery, different flight endpoint zones, all-day refusal, and
+one explicit point-event duration. Before the interval, serve eligible
+preparation only through ordinary hierarchy. At start while ordinary Work is
+focused, require UX-SC02 at the next safe boundary without interrupting a text
+draft. Exercise exit, inspection, uncertainty, attend now, early missed, and
+cancelled. Attend now must leave the former focus WIP and focus the commitment;
+no outcome may be inferred. During and after the interval, exercise every
+UX-SC03 result, status, no-draw receipt, undo, and immutable preparation
+history. Confirm no generic skip, later, done, personality, or active-interval
+lottery route appears.
+
+Create two known overlaps and retain both through the explicit creation
+warning. At runtime, traverse UX-SC04 in each order with no default; resolve
+one and prove the other remains hard precedence. Replay with an already-current
+commitment and with seven overlapping commitments to cover pagination. Attempt
+Delegation on the owner and require WRK-155's educational stop; delegate one
+preparation child normally and prove it never suppresses commitment precedence.
+Pair dumb behavior with one accepted and one rejected attributed interval or
+Template proposal without allowing assistance to invent an end or attendance.
+
+### SCN-SCH-002 — Preparation and reschedule
+
+Create each WRK-156 factory proposal through UX-SC01. Toggle, edit, reject,
+and accept its children; verify exact Natures, relative temporal meanings,
+immediate/passed disclosure, no invented deadline, no runtime Template
+authority, and one atomic creation. Add one manual preparation Brick and prove
+it receives no relative anchor.
+
+Reschedule before and after preparation starts. In UX-SC05, cover pending
+relative children, completed children, absolute overrides, a newly opened
+child, newly future-gated idle and WIP children, passed best-before/deadline,
+Dependencies, and current focus. Require an override or explicit focus/WIP
+closure for the future-gated WIP case. Move the interval wholly into the past
+and require attended, missed, or cancelled in the same preview. Verify one
+atomic batch, dry-run identity, cancellation without partial edits, semantic
+undo, stale conflict, and source/assisted proposals with no preselected yes.
+
 ### SCN-REP-001 — Read again
 
 Complete `#rtfea`, request another reading in six months plus or minus three,
@@ -1357,8 +1418,8 @@ conflicting action.
 
 ### SCN-LC-001 — Parent lifecycle, merge, and supersession
 
-Build one finite tree containing active, done, archived, superseded, and
-merged direct children, an internal Dependency, one inbound Dependency from
+Build one finite tree containing active, done, archived, superseded, merged,
+missed, and cancelled direct children, an internal Dependency, one inbound Dependency from
 outside, an active Wait, disjoint and overlapping Delegations, pending and
 dispatched effects, two descriptions, recurrence history, and conflicting
 source baselines. Archive its parent through UX-LC00 on independent replays.

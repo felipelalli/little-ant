@@ -52,18 +52,18 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** notices, recurrence timing, and scheduled commitments.
+**Next review:** phase markers, accessibility, and the remaining shared surface
+grammar.
 
-- Owning gate: Gate 7.
-- Owning boundaries: `OPEN-TIME-001` and `OPEN-SCH-001..002`.
-- Reuse, do not reopen: date meanings and operational boundaries in
-  `WRK-014..018` and `WRK-041..046`; standing semantics and commands in
-  `WRK-019..028`, `WRK-062..064`, and `WRK-139..145`; Wait timing remains
-  independent; and active commitment precedence remains settled.
-- Preserve completed Plan and Delegation routes in `WRK-109..121`,
-  `UX-166..183`, and their screen families.
-- Do not enter here: adapter authority, credential storage, source packaging,
-  or migration mapping.
+- Owning gates: Gates 4 and 7.
+- Owning boundaries: `OPEN-MOD-002` and `OPEN-UX-001`.
+- Reuse, do not reopen: work headings, status-bar structure, command grammar,
+  contextual uncertainty, ANSI detection, reverse-video selection, and the
+  four 16-entry personality occasions already settled in `UX-001..251`.
+- Preserve textual labels in every rendering; decorative emoji and color may
+  never carry unique meaning.
+- Do not enter here: forecast mathematics, adapter authority, credential
+  storage, source packaging, or migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

@@ -708,12 +708,12 @@ no-emoji rendering remain `OPEN-UX-001`.
   that no lower sibling can be compared and returns without claiming a move.
 - **UX-126 [core] — Time and subject reuse their existing selectors.** Later
   opens the ordinary guided absolute-date chooser and shows the resulting
-  instant before acceptance; its exact date-entry grammar remains owned by
-  `OPEN-TIME-001`. Change subject reuses UX-S09's positive full-path Domain
-  pages with provisional `less_important`, including its screen-local
-  `[/] menu...` label. That variant omits `organize and review`, because this
-  reaction asks for a subject rather than a work family, and follows FOC-047
-  instead of inferring tiredness or boredom.
+  instant before acceptance through UX-DT00..DT02. Change subject reuses
+  UX-S09's positive full-path Domain pages with provisional
+  `less_important`, including its screen-local `[/] menu...` label. That
+  variant omits `organize and review`, because this reaction asks for a
+  subject rather than a work family, and follows FOC-047 instead of inferring
+  tiredness or boredom.
 - **UX-127 [core] — Other begins with one verbatim explanation.** Selecting
   `other` opens UX-S31, which asks `What else is getting in the way?` through
   the ordinary line editor, shows the quiet English reminder, and retains the
@@ -983,7 +983,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   appears only when the selected Brick already has direct child Bricks. It
   identifies the parent, shows active children first in current importance
   order, and then a bounded inactive summary whose visible rows carry their
-  plain `done`, `archived`, `superseded`, or `merged` state without claiming a
+  plain `done`, `archived`, `superseded`, `merged`, `missed`, or `cancelled`
+  state without claiming a
   current importance slot or aggregate completion. Overflow is stated by
   count, and the contextual `/show #parent` projection returns to the
   unchanged screen.
@@ -1494,8 +1495,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   WRK-129 gate reconciliation and the complete MOD-088 preview; it does not
   mutate structure while browsing.
 - **UX-219 [core] — Scope closure shows terminal counts before asking.**
-  UX-LC04 uses `Review:` and lists done, archived, superseded, and merged child
-  counts, including zero only when it clarifies the total. It offers complete
+  UX-LC04 uses `Review:` and lists done, archived, superseded, merged, missed,
+  and cancelled child counts, including zero only when it clarifies the total. It offers complete
   parent, review outcomes, add more work, lottery skip, and uncertainty.
   Completion has no default even when every child is done.
 - **UX-220 [core] — Duplicate review distinguishes sameness from
@@ -1674,6 +1675,63 @@ no-emoji rendering remain `OPEN-UX-001`.
   classify an expired window as blocked, modify a streak, or archive standing
   Work silently. Its rejection path is the identical dumb screen, and its copy
   may not use guilt, failure, laziness, or health claims.
+- **UX-244 [core] — A notice stays secondary until opened.** The persistent
+  frame renders at most one dim notice line and `+N notices` above its status
+  block. Selecting it or `/notices` opens UX-NOT00 with the complete subject,
+  temporal fact, absolute local instant, and `[o]pen Work`, `[a]cknowledge`,
+  `[s]nooze`, and uncertainty. No action is selected. Acknowledge and snooze
+  render one compact no-draw receipt and return to the prior revalidated screen.
+  The notice never borrows ordinary lottery skip or personality copy.
+- **UX-245 [standard] — Obligation occurrences look like Work, not a queue.**
+  UX-RO00 uses the ordinary `Work:` and `Focus?` grammar for the selected
+  occurrence, then shows `Occurrence:` and its series citation in secondary
+  context. Repeated titles are left intact. Contextual inspection explains
+  the nominal anchor and dates; done, archive, and skip affect only this
+  occurrence. The surface never says FIFO, next occurrence, missed cell, or
+  inserts an importance comparison among occurrences.
+- **UX-246 [standard] — Recurrence input is finite and mechanical.** UX-RO01
+  selects daily, weekly, monthly, or yearly, then shows only the fields required
+  by WRK-148: interval, times, zone, family anchor, and explicit temporal
+  offsets. Numeric and finite-choice input replaces recurrence prose. The
+  preview shows the next three nominal anchors and effective not-before,
+  best-before, and deadline values before acceptance. Unsupported imported
+  rules stop with preserve-as-Raw or reviewed finite-expansion recovery.
+- **UX-247 [core] — Commitment creation names the full interval.** UX-SC00
+  collects start date/time/zone and end date/time/zone as separate structured
+  fields and previews both absolute instants, duration, Place/source links,
+  and any overlap. No exact end means no Brick. UX-SC01 then previews every
+  Template-proposed preparation child and relative constraint as an editable
+  batch; accepting interval and preparation is one creation transaction.
+- **UX-248 [core] — Active commitment grammar contains no skip.** UX-SC02
+  leads with `Commitment:` and the live interval, then offers attend now,
+  missed, cancelled, and uncertainty. Once focused or after the interval ends,
+  UX-SC03 offers attended, missed, cancelled, and uncertainty. Generic Focus,
+  done, pause, later, and skip are absent from the primary actions. Every
+  terminal result names the truthful outcome and waits at next plus palette.
+- **UX-249 [core] — Current focus and overlaps remain visible.** When ordinary
+  Work is current, UX-SC02 shows that complete citation in secondary context
+  and explains that attend now will leave it WIP. UX-SC04 lists two to six
+  active overlapping commitments with numbered citations and full intervals;
+  more are paged without default or draw. Choosing one opens its unchanged
+  commitment screen, and resolving it returns to the remaining set. Known
+  overlap during creation/reschedule uses keep both, edit interval, or cancel
+  with no default.
+- **UX-250 [core] — Reschedule preview leads with changed human consequences.**
+  UX-SC05 shows old/new interval, then relative pending children that move,
+  completed children that remain historical, explicit absolute overrides that
+  remain unchanged, newly passed preferred/deadline facts, and focus/WIP
+  choices. Edit reaches the exact interval or child constraint. Yes is one
+  MOD-088-style batch; no restores the old anchor; uncertainty inspects why a
+  child changed without choosing. Assisted and source-originated reschedules
+  use the same preview and cannot approve it.
+- **UX-251 [standard] — Temporal assistance is attributed compression only.**
+  Powered-up or Skill may propose one exact interval, recurrence rule,
+  preparation batch, notice action, or overlap choice reachable through the
+  dumb screens. The proposal cites title/metadata, Template guidance, source,
+  or history and uses UX-060. Rejection restores the original mechanical
+  fields. Assistance cannot turn an all-day event into an interval, invent an
+  end time, mark attendance, suppress an overlap, or reinterpret one temporal
+  meaning as another.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

@@ -57,6 +57,7 @@ grants authority.
 | `habit.introspection_consecutive_unfulfilled` | `3` | Applicable unfulfilled outcomes that admit one lazy habit-introspection review. |
 | `habit.introspection_skip_count` | `3` | Explicit habit skips inside the configured evidence window that admit the same review. |
 | `habit.introspection_window_count` | `2` | Open habit windows inspected for the factory skip threshold. |
+| `recurrence.release_batch_limit` | `1000` | Maximum overdue obligation occurrences materialized by one tick before a required continuation. |
 | `delegation.review_delay_hours` | `72` | Visible default delay from a handoff or reviewed observation to the next internal Delegation review. |
 | `delegation.review_skip_cooldown_hours` | `24` | Cooldown after deferring an internal Delegation review without changing its facts or authorizing a message. |
 | `delegation.unanswered_follow_up_soft_cap` | `2` | Recorded follow-up handoffs without a meaningful outcome before automatic proposals pause for an explicit strategy review. |

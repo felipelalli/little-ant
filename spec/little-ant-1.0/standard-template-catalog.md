@@ -65,9 +65,26 @@ relative temporal constraints. Examples include:
 
 The proposal distinguishes the first eligible instant (`not_before`), the
 preferred completion instant (`best_before`), and any true external limit
-(`deadline`). Exact factory offsets and optional parts require Template-by-
-Template review rather than pretending that values such as 60 days or two
-hours fit every case. Rescheduling behavior remains `OPEN-SCH-002`.
+(`deadline`). The 1.0 factory starts with this conservative editable proposal
+set; every row is optional and every offset is relative to interval start:
+
+| Template | Proposed preparation | Nature | Temporal proposal |
+|---|---|---|---|
+| `flight` | Review travel documents | `atomic_task` | immediately eligible; best before 60 days before |
+| `flight` | Review travel insurance | `atomic_task` | immediately eligible; best before 14 days before |
+| `flight` | Pack for the trip | `finite_checklist` | not before 7 days before; best before 2 days before |
+| `flight` | Travel to the airport | `atomic_task` | not before 6 hours before; best before 3 hours before |
+| `appointment` | Prepare questions and material | `atomic_task` | not before 7 days before; best before 2 hours before |
+| `meeting` | Review agenda and prepare contributions | `atomic_task` | not before 7 days before; best before 2 hours before |
+| `exam` | Prepare for the exam | `project` | not before 30 days before; best before 1 day before |
+| `service_window` | Prepare access and the service area | `atomic_task` | not before 3 days before; best before 1 day before |
+
+If creation happens after a proposed `not_before`, the child is immediately
+eligible and the preview says so. A passed `best_before` is shown honestly but
+does not block creation. The factory invents no deadline for these preparations;
+only a known external limit may add one. Other scheduled Templates start with
+no preparation child rather than borrowing an unrelated recipe. After
+creation, WRK-154—not the Template—governs rescheduling.
 
 ## `project`
 

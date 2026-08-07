@@ -289,8 +289,8 @@ version.
   This is an explicit temporal precedence rule, not a hidden probability
   multiplier or duplicate ticket. Because this is hard precedence rather than
   a lottery result, it requires truthful commitment-specific outcomes instead
-  of the universal lottery skip. Conflicts with an already-current focus or
-  another overlapping commitment remain `OPEN-SCH-001`.
+  of the universal lottery skip. WRK-152 and UX-SC02..SC04 define current-focus
+  and overlap handling.
 - **FOC-031 [core] — Preparation before commitment.** Before the interval
   begins, a scheduled-commitment subject may descend to currently eligible
   preparatory descendants or resolve a hard prerequisite through the ordinary
@@ -298,6 +298,14 @@ version.
   determine when preparation first becomes selectable; `best_before` and
   `deadline` contribute their ordinary meanings. Preparation never gives the
   commitment extra root tickets.
+- **FOC-062 [core] — A recurring series remains one attention subject.** Open
+  occurrence Bricks never become parallel top-level tickets. When their series
+  subject wins, the core performs one replay-recorded local weighted draw among
+  its open occurrences using deadline, best-before, age, skip evidence, and
+  occurrence state. Every open occurrence retains positive chance; oldest is
+  not a FIFO guarantee. The chosen occurrence is then served as `finite_work`
+  with the series in secondary context. A series with no open occurrence and
+  no other review is dormant.
 - **FOC-032 [core] — Current focus rests outside the draw.** Accepting a Focus
   opportunity does not invoke `next` again. The current Brick becomes an
   explicit continuation and is excluded from the ordinary eligible-draw count
@@ -335,7 +343,8 @@ version.
   or open entry invalidates the pending review. The entry payload reports
   resolved and cancelled counts separately, so cancellation is never
   presented as completion evidence. Child-part payloads separately report
-  done, archived, superseded, and merged outcomes under WRK-130.
+  done, archived, superseded, merged, missed, and cancelled outcomes under
+  WRK-130.
 - **FOC-040 [core] — Lazy review means weighted review.** A lazy human-review
   marker immediately contributes one typed non-execution opportunity to the
   ordinary subject-first lottery with positive, initially low weight. It is

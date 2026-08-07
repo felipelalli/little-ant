@@ -817,6 +817,115 @@
   appear; `best_before` expresses preferred completion; `deadline` records the
   actual external consequence boundary. A Template may propose offsets but
   cannot silently treat one meaning as another.
+- **WRK-146 [standard] — Notices are derived, bounded, and safe-boundary
+  only.** Notice candidates derive from a revisioned `best_before` or
+  `deadline`, a newly released recurring-obligation occurrence, or a completed
+  temporal transition that explicitly declares a notice. `not_before` opening
+  changes eligibility without a default notification. At a safe screen
+  boundary, the REPL may render at most one discreet candidate plus the count
+  of remaining candidates; it never replaces active input, a confirmation, a
+  contradiction gate, or scheduled-commitment precedence. Candidate identity
+  includes subject, temporal fact revision, notice kind, and threshold, so a
+  redraw is stable while a later threshold or edited date is a new notice.
+  When several equal-severity candidates exist, a replay-recorded round-robin
+  cursor advances only on a real screen transition and prevents one warning
+  from monopolizing the footer.
+- **WRK-147 [core] — Notice actions change notice state only.** Opening a
+  notice offers open Work, acknowledge this notice, snooze this notice, and
+  uncertainty. Acknowledgment permanently hides only that exact notice
+  identity. Snooze stores a `notice_not_before` instant chosen through
+  UX-DT00..DT02; it never edits the Brick's `not_before`, `best_before`, or
+  `deadline`. Open Work inspects or proposes the existing subject without
+  starting it. Acknowledging or snoozing never changes importance, occurrence
+  debt, commitment outcome, or forecast pressure from the underlying date.
+  `/notices` lists all current and snoozed candidates with their exact state.
+- **WRK-148 [standard] — Recurring obligations use a closed calendar rule.** A
+  series stores a positive interval and exactly one frequency family:
+  `daily`, `weekly`, `monthly`, or `yearly`; a named IANA zone; and one or more
+  local clock times. Weekly rules also store a nonempty weekday set, monthly
+  rules one intended day 1..31, and yearly rules one intended month/day.
+  Month-end clamping follows WRK-039 without drift. Each nominal anchor also
+  has explicit signed offsets for occurrence `not_before` and optional
+  `best_before` and `deadline`; no due meaning is inferred from frequency.
+  Unsupported cron/RRULE shapes remain source material or require an explicit
+  finite expansion rather than approximate core recurrence.
+- **WRK-149 [core] — Occurrence release is idempotent and keeps debt.** At each
+  canonical tick, every nominal anchor whose occurrence `not_before` has
+  opened produces exactly one `atomic_task` Brick keyed by series UUID and
+  nominal anchor. It receives a normal UUID and `#` handle, retains the series
+  title, and displays a separate occurrence label; repeated titles are valid.
+  It carries an `occurrence_of` edge, series provenance, effective direct
+  Domains, and the anchor's temporal facts, but no independent human
+  importance slot under IMP-057. A later anchor never closes an older one.
+  Done or explicit archive resolves only that occurrence. Schedule edits affect
+  future unreleased anchors; already released occurrences retain their facts
+  unless an explicit reviewed batch edits them.
+- **WRK-150 [core] — Catch-up release is bounded, not lossy.** Offline time may
+  open many obligation anchors. One command materializes at most the configured
+  release-batch limit in nominal order, records the continuation cursor, and
+  completes further batches on subsequent ticks or startup replay before
+  claiming catch-up complete. No anchor is coalesced, skipped, or marked done.
+  The default limit is 1,000. The startup splash reports real replay/materialize
+  progress and useful-empty recovery remains unavailable while a required
+  catch-up continuation is pending.
+- **WRK-151 [core] — Scheduled commitment data is one exact interval.** A
+  `scheduled_commitment` requires `starts_at` and `ends_at` exact instants with
+  `ends_at > starts_at`. Each endpoint retains its own display IANA zone, so a
+  flight may depart and arrive in different zones. The interval also retains
+  provenance and may link Place, ExternalEntity participants, booking Raw
+  material, and a source binding through their existing typed relationships.
+  A point event requires an explicitly reviewed end or duration. An all-day
+  civil event is not this Nature until exact endpoints are supplied. Neither
+  workday nor habit-day boundaries reinterpret the interval.
+- **WRK-152 [core] — Commitment attention has three truthful outcomes.** At or
+  after start and before resolution, the commitment is hard precedence at each
+  safe interaction boundary. UX-SC02 can start attention with `attend now` or
+  record `cancelled`; it may record `missed` early only through explicit
+  outcome review. While current, UX-SC03 offers `attended`, `missed`,
+  `cancelled`, and uncertainty—never generic done or skip. After end, UX-SC03
+  asks the same outcomes without claiming what happened. Attended closes as
+  `done`; missed and cancelled use MOD-089. Every result closes any commitment
+  focus/WIP and preserves preparation history. Nothing infers an outcome from
+  time, location, calendar absence, or REPL inactivity.
+- **WRK-153 [core] — Hard precedence does not silently steal focus.** When a
+  commitment opens while ordinary Work is current, the active commitment
+  screen names that focus. Choosing `attend now` atomically leaves the old
+  Brick WIP and focuses the commitment; inspecting, exiting, or uncertainty
+  leaves the old focus unchanged even though the next safe boundary will still
+  surface the unresolved commitment. When two or more commitments overlap,
+  UX-SC04 lists every active unresolved interval in start-time order and asks
+  which to handle; there is no default and no lottery. Resolving one returns to
+  the remaining hard-precedence set. A known overlap at creation or reschedule
+  requires an explicit keep-both, edit-interval, or cancel choice but remains
+  legal.
+- **WRK-154 [core] — Anchor changes preview every preparation consequence.**
+  Rescheduling recomputes only still-relative constraints on active pending
+  preparation Bricks. Completed children retain their historical effective
+  instants; manually absolute constraints and explicit overrides remain
+  unchanged and are listed as such. The preview reports each old/new instant,
+  newly opened or future-gated child, passed best-before/deadline, Dependency,
+  and focus/WIP consequence. A focused/WIP child moved behind a future
+  `not_before` requires choosing an absolute override or closing focus/WIP in
+  the same batch. If the new commitment interval has already ended, attended,
+  missed, or cancelled must be selected before acceptance. The anchor edit,
+  relative recalculations, chosen overrides, and focus effects commit atomically
+  or not at all; dry-run and semantic undo use the same complete batch.
+- **WRK-155 [standard] — Anchored attendance is not delegated in 1.0.** A
+  `scheduled_commitment` owner has Delegation scope `disabled`. Preparation
+  children remain ordinary Bricks and may be delegated independently under
+  their own Natures. The disabled route explains that Little Ant cannot infer
+  whether another person's attendance would fulfill the same external
+  commitment and offers the preparation-child selector when applicable. No
+  handoff suppresses active commitment precedence.
+- **WRK-156 [standard] — Template preparation is an editable proposal.** The
+  offline `flight`, `appointment`, `meeting`, `exam`, and `service_window`
+  Templates may propose their catalogued preparation children and relative
+  offsets. Before creation, UX-SC01 lists every child, Nature, Dependency, and
+  temporal meaning; no item exists until one batch is accepted. Powered-up or
+  Skill may omit inapplicable proposals or suggest values with attribution,
+  but dumb mode exposes the same editable structure. Template provenance has
+  no runtime authority after creation; WRK-154 alone governs later anchor
+  changes.
 
 ## Standing work and recurrence
 
@@ -1028,11 +1137,11 @@
   | `finite_checklist` | `whole_scope` |
   | `recurring_obligation` | `whole_scope` |
   | `habit` | `disabled` |
+  | `scheduled_commitment` | `disabled`; preparation children remain independently delegable |
 
-  `scheduled_commitment` is intentionally absent until `OPEN-SCH-001`
-  resolves whether delegation applies to attendance, preparation, the whole
-  interval, or only selected Templates. An implementation must not infer a
-  default from another Nature.
+  The two disabled Natures give distinct educational recoveries: habit points
+  to enabling Work, while scheduled commitment points to ordinary preparation
+  children under WRK-155.
 
 - **WRK-033 [standard] — Preview and reconciliation.** Initial notice,
   cancellation, follow-up, nudge, refusal, and reported completion preserve
@@ -1114,9 +1223,9 @@
   meaningful Nature-aware scope choice; mandatory follow-up policy; positive
   review delay; available delivery adapter or manual handoff; and editable
   initial message. A disabled Nature stops with a concrete enabling-Work
-  route. `scheduled_commitment` remains an explicit educational stop only
-  until `OPEN-SCH-001` supplies its coverage; no other Nature is copied into
-  that gap.
+  route. `scheduled_commitment` follows WRK-155's explicit educational stop
+  and may select preparation children instead; no attendance handoff is
+  inferred.
 
   The complete preview names Work, target, scope, policy, review delay,
   handoff method, and message. Its sole yes creates one MOD-064 `proposed`
@@ -1297,7 +1406,8 @@
   prerequisite or rewrites importance to compensate.
 - **WRK-130 [core] — Scope closure reports how the children ended.** A
   `scope_closure_review` released by MOD-083 renders done, archived,
-  superseded, and merged direct-child counts separately. `complete the parent`
+  superseded, merged, missed, and cancelled direct-child counts separately.
+  `complete the parent`
   is available even when some children were not done, because it is a fresh
   human judgment about the parent outcome, but it is never preselected from
   cancelled or non-done evidence. `review outcomes` opens the bounded child
