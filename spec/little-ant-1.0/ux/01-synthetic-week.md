@@ -337,13 +337,24 @@ explanation without a hard filter.
 
 Use a recorded draw in which `#bg "Buy groceries"` wins. Validate UX-F02:
 no preliminary switch prompt; `yes` changes Domain; `skip` and non-focus
-palette actions do not.
+palette actions do not. Give one Brick two equally specific memberships and
+verify the recorded local tie draw, visible chosen path, inspection of tied
+alternatives, and no duplicate ticket. Sweep fixed streams with neglected
+low-chance Work: probability and aging remain positive, `/forecast` explains
+them, but no hidden Nth-draw service rule forces an outcome.
 
 ### SCN-FOC-003 — N-step blocker path
 
 Draw `#rlav "Release Little Ant v1"` and resolve through `#rio` to
 `#dtimc`. Validate UX-F03, local weighted branch evidence, complete `?`
 context, and no importance rewrite.
+
+Attach one Dependency to a decomposed parent and another to one child. Verify
+the parent blocker is resolved before child descent, while the child blocker
+applies only after that child wins. Resolve a blocker through another
+container, a branch, Wait, temporal gate, and corrupt endpoint; every result
+must retain the original scoped intention and never turn a non-Brick endpoint
+into Work.
 
 ### SCN-FOC-004 — Project descent
 
@@ -373,16 +384,31 @@ follow hard precedence. Reject project-scope review as execution and verify
 that recurring-obligation occurrences, preparation Bricks, and actionable
 Dependency endpoints use `finite_work`.
 
-Generate importance-comparison offers for insertion, revalidation, and a
-provocative consistency check. If their valid actions and transition family
-remain identical, verify that they use one canonical variant with distinct
-typed purposes and provenance. Generate two reviews whose valid actions or
-domain consequences differ and verify that the final catalog represents them
-with distinct discriminated variants even if both reuse the same visual
-grammar. Reject a hybrid payload containing mutually exclusive branches or an
-action outside its variant. Finally add deadline pressure, one discreet
-warning, and explanatory context to a subject and verify that none creates an
-additional opportunity or top-level ticket by itself.
+Generate every FOC-054 non-execution row and validate its required payload,
+actions, skip transition, and one-subject ticket. Importance run, validation,
+and recalibration remain distinct because their trigger and skip consequences
+differ even when they reuse the proposition screen. Reject a hybrid payload,
+generic review/interaction variant, Pack-defined row, or action outside its
+variant. Finally add deadline pressure, one discreet warning, and explanatory
+context to a subject and verify that none creates an additional opportunity or
+top-level ticket by itself.
+
+### SCN-DOM-001 — Domain forest, scope, and recovery
+
+Create roots `Orbit` and `Personal`, move `Rock Splitter` within the Orbit
+subtree, rename an ancestor, merge two sibling Domains, archive/restore the
+subtree, and dry-run every mutation. Verify identity-stable full paths, unique
+sibling names, preserved direct memberships, no member lifecycle changes,
+active-focus/scope reconciliation, no exclusions, and atomic undo. Count R&D
+recursively with one multi-member Brick and require direct, descendant, and
+deduplicated unique totals.
+
+Run UX-DM00 for one suggestion, stay within, and prefer. Confirm that hard
+scope ignores prior continuity for admission, persists only for stay-within,
+and may follow a blocker outside the subtree while explaining why. Exercise
+UX-DM01 with and without actionable gates and contextual Feed. From tired,
+bored, and less-important recovery, cover a multi-Domain source, no-Domain
+source, several target pages, and UX-DM02 with and without organization work.
 
 ### SCN-FOC-006 — Honest Focus assistance
 
@@ -471,8 +497,8 @@ target and verify the current-side branch inferred from the paths' divergence,
 one target-scoped draw, decaying source fatigue and target affinity, positive
 later probability everywhere, no automatic focus, and no active-Domain change
 before focus acceptance. Exercise same-parent, different-parent, and
-different-root targets. Keep no-target, no-Domain, and multi-membership cases
-open rather than guessing. With an eligible meta-opportunity, verify the
+different-root targets, then the FOC-060 no-target, no-Domain, and
+multi-membership routes. With an eligible meta-opportunity, verify the
 separate `organize and review` action, one draw outside the source branch from
 the versioned organization family, subsequent FOC-041 affinity, and no Domain,
 Brick, importance rewrite, or persistent-mode claim. Verify that the option is
@@ -561,8 +587,8 @@ visible absolute instant and verify only `not_before`, with no importance
 rewrite or redundant cooldown. Choose a full-path target Domain, verify one
 FOC-047 scoped draw with no source fatigue or target affinity, and change
 active Domain only after accepting replacement Focus. Direct skip preserves
-order, dates, and Domain. Keep exact custom date and no-target/multi-membership
-edges in their owning open decisions. Then verify `[b]locked or waiting`,
+order, dates, and Domain. Keep only exact custom-date input for the time block.
+Then verify `[b]locked or waiting`,
 `bo[r]ed`, `[l]ess important`, and the
 unchanged `[d]one` binding. Confirm that `n` is not accepted as the symptom
 shortcut, that every symptom family retains its icon, and that no personality

@@ -180,8 +180,8 @@ open release decision rather than an inferred v1 commitment.
   become actionable first. It neither reparents nor reorders either Brick.
 - **MOD-022 [core] — Multi-Domain membership.** A Brick may belong to several
   Domains. Membership does not duplicate the Brick or give it multiple
-  top-level lottery tickets. Domain lifecycle, multiple-taxonomy, exclusion,
-  and recursive-reference behavior remain `OPEN-DOM-002`.
+  top-level lottery tickets. MOD-073..076 define the single forest, lifecycle,
+  absence of exclusion, and recursive-query behavior.
 - **MOD-023 [standard] — Raw links.** Typed links connect Raw to a Brick,
   ListEntry, or other Raw with an explicit content role and provenance. The
   same Raw may participate in several links without being consumed or copied.
@@ -559,3 +559,32 @@ The factory library contains:
   membership neither creates Work nor affects focus eligibility, composition,
   shelves, SourceBindings, or the membership of linked records. Domain moves
   change the rendered path without rewriting the Raw relationship.
+- **MOD-073 [core] — Domains form one identity-stable forest.** V1 has one
+  Domain forest with any number of roots; each active Domain has at most one
+  parent and a nonempty English canonical name unique among active siblings.
+  Equal leaf names under different parents are valid and always render through
+  their complete `›` path. Rename or move preserves identity. Multiple
+  parallel taxonomy systems and negative/exclusion membership are not v1
+  concepts.
+- **MOD-074 [core] — Domain lifecycle never changes its members' lifecycle.**
+  A Domain is `active | archived`. Archiving a subtree preserves every direct
+  Brick/Raw membership and descendant identity but removes the path from
+  ordinary active classification and scoped draws; no member is archived,
+  moved, or completed. The preview must clear or retarget an active Domain or
+  hard scope inside the subtree. Restoring revives the same paths and
+  memberships.
+- **MOD-075 [core] — Domain movement and merge preserve direct truth.** Moving
+  a Domain moves its complete subtree after cycle and sibling-name validation,
+  changes rendered paths, and leaves direct memberships untouched. Merge
+  chooses one survivor, unions direct members and children, retargets active
+  Domain/scope, preserves lineage, and first resolves any resulting sibling
+  name conflict explicitly. Neither operation changes composition, importance,
+  or RawShelf membership; both provide dry-run and typed undo as an atomic
+  structure batch.
+- **MOD-076 [standard] — Recursive Domain queries are unique projections.** A
+  direct query returns only direct memberships. A recursive query includes the
+  selected Domain and descendants, deduplicates a record with several matching
+  memberships, and reports direct, descendant, and unique totals separately.
+  Natural questions such as “how many Bricks are in R&D?” use recursive scope
+  by default and show the resolved full path; an ambiguous leaf opens the
+  ordinary typed selector.

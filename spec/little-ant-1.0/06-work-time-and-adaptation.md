@@ -154,8 +154,8 @@
   `skip anyway`, and uncertainty. These are provisional human choices on
   UX-S07; selecting `tired` alone records no evidence. `Easier work` follows
   WRK-069, `change subject` follows WRK-070, and `pause for now` follows
-  WRK-071. Empty-candidate, no-Domain, and multi-membership recovery remains
-  bounded by `OPEN-SKIP-001` rather than being guessed from the symptom.
+  WRK-071. FOC-044 and FOC-060 define empty-candidate, no-Domain, and
+  multi-membership recovery without guessing from the symptom.
 - **WRK-069 [core] — Choosing easier work completes the reaction.** UX-S08
   selection is the final `tired` reaction. In one event-bound transaction it
   records `tired`, the served Brick's ordinary cooldown, the complete shown

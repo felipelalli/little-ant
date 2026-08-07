@@ -52,18 +52,17 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** forecast, hierarchy descent, blockers, Domains, and the closed
-opportunity catalog.
+**Next review:** Nature capability transitions and the remaining served-work
+recovery edges.
 
 - Owning gate: Gate 4.
-- Owning boundaries: `OPEN-FOC-001..003`, `OPEN-DOM-001..002`, and the
-  focus-facing zero-target portions of `OPEN-SKIP-001`.
-- Reuse, do not reopen: `FOC-001..053`, typed Focus assistance in
-  `UX-139..143`, and recovery/envelope rules `UX-191..204`.
+- Owning boundaries: `OPEN-NAT-001` and `OPEN-SKIP-001`.
+- Reuse, do not reopen: factory Nature capabilities in `MOD-025..047`,
+  structure decisions in `MOD-058..064`, and all accepted UX-S routes.
 - Preserve completed Plan and Delegation routes in `WRK-109..121`,
   `UX-166..183`, and their screen families.
-- Do not enter here: Nature transition matrices, recurrence details, adapter
-  effects, or migration mapping.
+- Do not enter here: recurrence timing policy, adapter effects, source
+  packaging, or migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

@@ -547,8 +547,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   action, the unchanged UX-022 palette is labeled `[/] menu...` here only.
   Powered-up or Skill may mark one attributed suggestion with `*`; rejecting
   it returns to this exact dumb baseline. Selecting a Domain follows WRK-070;
-  selecting organization follows WRK-075. Multi-membership, no-Domain, and
-  no-target cases remain explicit open boundaries rather than surface guesses.
+  selecting organization follows WRK-075. UX-208 and FOC-060 own
+  multi-membership, no-Domain, and no-target cases.
 - **UX-106 [core] — Tired-pause result rests.** Accepting `pause for now`
   follows WRK-071 and renders UX-S10 with `Taking a break:`, the complete
   served Brick citation, one truthful state sentence, optional replay-stable
@@ -1365,6 +1365,47 @@ no-emoji rendering remain `OPEN-UX-001`.
   not a core alias or packaging shim. Operator natural-language interpretation
   may map a user's words to `lant` commands but always renders the canonical
   command it invoked.
+- **UX-205 [core] — Domain focus asks for duration, not ontology.** The REPL
+  command is `/domain-focus`; the CLI equivalent is `lant domain focus`. After
+  one complete path is selected, UX-DM00 asks whether to draw one suggestion,
+  stay within until cleared, or merely prefer the Domain. No option is a
+  default. The first two immediately invoke `next` under FOC-057; prefer
+  returns one compact result without drawing. Powered-up and Skill may propose
+  one path with attribution but preserve this duration choice.
+- **UX-206 [core] — Hard scope is quiet but never hidden.** While stay-within
+  is active, every ordinary screen adds one dim secondary fact immediately
+  above the fixed footer: `Within Domain: <complete path> · until cleared`.
+  It does not replace the subject's direct Domain line. A blocker redirect
+  outside that path adds the concise primary-context fact `Needed for scoped
+  Work in: <path>` and the full chain remains under question mark.
+- **UX-207 [core] — Empty scope offers only real recoveries.** UX-DM01 names
+  the complete scope and separately counts blocked, temporal, waiting,
+  delegated, dormant, and absent Work when those counts are nonzero. It offers
+  review gates only when a review is actionable, contextual Feed with the
+  Domain merely proposed, choose another Domain, and leave scope. It never
+  falls through to global `next`; repeated uncertainty uses UX-196
+  `reaction_choice` and may honestly remain here.
+- **UX-208 [core] — Change-subject edge cases stay on one screen.** UX-DM02 is
+  the zero-target variant of UX-S09. It keeps the original Brick and symptom,
+  says no other subject currently has executable Work, offers organize and
+  review only when FOC-061 has a candidate, then skip anyway, back, and
+  uncertainty. A no-Domain source uses ordinary target pages but receives no
+  fatigue claim. A multi-Domain source displays the one path already recorded
+  by the draw; question mark may show the alternatives without changing it.
+- **UX-209 [standard] — Domain maintenance is consequence-first.** UX-DM03
+  uses complete old/new paths and direct/descendant/unique counts for create,
+  rename, move, merge, archive, and restore. Merge names the surviving identity
+  and conflicts; archive names active-focus/scope clearing; move names every
+  changed descendant path. Membership management stays on Brick/Raw detail.
+  There is no generic taxonomy editor, exclusion toggle, or multi-taxonomy
+  selector.
+- **UX-210 [core] — Forecast inspection distinguishes order from chance.**
+  `/forecast` shows the selected scope, current positive chance, strongest
+  signal, bounded bonuses, age, effective Domain path, blocker endpoint, and
+  opportunity variant without exposing a fake public score. It may list or
+  inspect probabilities without drawing. Its starvation wording says `chance
+  increases with age`, never `guaranteed by`, because FOC-059 deliberately has
+  no deterministic service deadline.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

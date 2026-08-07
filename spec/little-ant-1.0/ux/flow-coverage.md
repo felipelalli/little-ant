@@ -51,12 +51,12 @@ run as an interactive transcript.
 | 4 | Direct semantic update | `MOD-060..064`, `WRK-101..121`, `UX-154..183`, `UX-196..203`, `UX-S37..S59`, `UX-L00..L01`, `UX-D02..D04`, `SCN-ARC-001`, `SCN-DEL-001` | partial | timing, context, and source-material branch screens plus paired direct/stale/archived replay |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-191..200`, `UX-U01..U02`, UX-ER01..ER03, `SCN-UNDO-001` | specified | exhaustive mutation-family fixtures and concurrent-conflict replay |
 | 4 | Global search and return | `UX-151`, `UX-RF03`, `SCN-SRCH-001` | partial | deterministic cross-kind ranking, pagination, and paired surface replay |
-| 5 | Cross-Domain focus | `UX-F02`, `UX-F12..F14`, `FOC-014..019`, `FOC-048..050` | partial | hard scope and equal-specificity target |
-| 5 | N-step/branching blockers | `UX-F03`, `UX-F12..F14`, `FOC-020..024`, `FOC-048..050` | partial | non-Brick endpoint and branch inspection |
+| 5 | Cross-Domain focus | `MOD-073..076`, `FED-057..058`, `UX-F02`, `UX-F12..F14`, `UX-DM00..DM03`, `FOC-014..019`, `FOC-055..060`, `UX-205..210`, `SCN-DOM-001` | specified | deterministic forest, hard-scope, tie-path, and edge-case replay |
+| 5 | N-step/branching blockers | `UX-F03`, `UX-F12..F14`, `FOC-020..024`, `FOC-048..050`, `FOC-055..058` | specified | parent/child gate order and every non-Brick endpoint replay |
 | 5 | Wait activation and review | `MOD-050`, `FOC-034`, `WRK-050..054`, `UX-S02C`, `UX-W01`, `SCN-WAIT-001` | partial | first-review and repeated-review policy under `OPEN-WAIT-001` |
 | 5 | Project/collection descent | `MOD-015`, `MOD-045..046`, `FOC-010..013`, `FOC-039`, `WRK-066`, `UX-083`, `UX-F01`, `UX-F11`, `UX-B01`, `SCN-FOC-004` | partial | final-child transition result plus archived/superseded child and subtree outcomes under `OPEN-TREE-001` |
 | 5 | Lazy claim review lottery | `MOD-052..053`, `IMP-030..031`, `FOC-040..041`, `UX-090..091`, `UX-095`, `UX-B02`, `UX-N01`, `UX-O01`, `UX-O04`, `SCN-FOC-004` | partial | exact Nature-review result envelope and deterministic paired replay |
-| 5 | Importance/forecast projections | `IMP-003`, `FOC-002`, `FOC-013` | missing | list choice, inspect, recursive queries |
+| 5 | Importance/forecast projections | `IMP-003`, `FOC-002`, `FOC-013`, `FOC-054..061`, `UX-210`, `MOD-076` | screened | fixed-stream probabilities, opportunity-catalog fixtures, and recursive query replay |
 | 6 | Living-checklist run | `UX-L00..L01`, `MOD-003`, `MOD-035..037`, `MOD-063`, `WRK-019..020`, `WRK-117..118`, `UX-180..181`, `SCN-LST-001` | partial | deterministic transcript replay and exact undo compensation |
 | 6 | Finite-checklist run | `UX-083`, `UX-L00..L01`, `MOD-003`, `MOD-036..037`, `MOD-063`, `FOC-039`, `WRK-066`, `WRK-117..118`, `UX-180..181`, `SCN-LST-001` | partial | deterministic transcript replay and exact undo compensation |
 | 6 | Nature capability matrix | factory Nature table | missing | Gate 6 matrix |

@@ -449,6 +449,20 @@
   source review and cannot archive, complete, revise, or detach local data.
   Dumb mode can inspect and decide every branch; assisted modes may summarize
   differences or rank a branch but use the same preview and confirmation.
+- **FED-057 [core] — Domain membership management is direct and symmetric.**
+  Brick or Raw detail exposes `classify` with a searchable multi-selector over
+  active Domain paths. The final preview lists additions and removals; yes
+  applies one relationship batch, and an empty set means explicitly no Domain.
+  Creating a Domain is a separate named action and returns to the same draft.
+  Parentage, RawLinks, source, requester, title, and recent proximity may rank
+  a proposed path but never create membership without this preview.
+- **FED-058 [standard] — Domain maintenance uses a small command family.**
+  `lant domain` inspects the forest and offers create, rename, move, merge,
+  archive, restore, members, and focus behavior. Guided arguments use complete
+  paths and ordinary autocomplete. Each mutator shows identities, path changes,
+  affected direct membership counts, active-focus/scope consequence, and
+  conflicts before one atomic acceptance; no command overloads Brick
+  composition or RawShelf organization.
 
 ## Reference flows
 

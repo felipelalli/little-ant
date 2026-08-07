@@ -1433,8 +1433,108 @@ persistent mode. `Skip anyway` records only the carried `tired` or `bored`
 symptom and Brick cooldown. `?` explains these distinctions and returns.
 Escape, empty-state Backspace, or Left Arrow restores the originating UX-S07,
 UX-S11, or previous page without symptom, cooldown, signal, focus change,
-active-Domain change, or draw. Multi-Domain, no-Domain, and no-target recovery
-remain explicit release boundaries.
+active-Domain change, or draw. UX-DM02 and FOC-060 define multi-Domain,
+no-Domain, and no-target recovery.
+
+## UX-DM00 — Choose Domain focus behavior
+
+After `/domain-focus` resolves a complete path:
+
+```text
+Domain:
+Orbit › R&D › Rock Splitter
+
+What should this change?
+
+[o]ne suggestion
+    Draw once from this Domain, then release the scope.
+[s]tay within
+    Keep future draws inside this Domain until you leave.
+[p]refer it
+    Make it the soft current subject without excluding anything.
+[?] I don't know
+
+[/] more...
+```
+
+There is no default. One suggestion and stay within immediately run the normal
+pipeline after recording their visible scope semantics; prefer records only
+the active Domain and returns a compact result. The uncertainty route contrasts
+one draw, persistent filtering, and soft affinity without choosing.
+
+## UX-DM01 — Empty hard Domain scope
+
+```text
+No executable Work is available within:
+Orbit › R&D › Rock Splitter
+
+3 blocked · 1 waiting · 2 scheduled for later
+
+[r]eview available gates
+[f]eed something for this Domain
+[c]hoose another Domain
+[l]eave this scope
+[?] I don't know
+
+[/] more...
+
+Within Domain: Orbit › R&D › Rock Splitter · until cleared
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Only nonzero truthful categories appear. Review is omitted without an
+actionable gate. Feed commits Raw first and carries this Domain only as an
+explicit later classification proposal. A one-suggestion scope uses identical
+content without the persistent `Within Domain` fact and expires on this result.
+
+## UX-DM02 — No change-subject target
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+No other subject currently has executable Work.
+
+[o]rganize and review
+[s]kip anyway
+[b]ack
+[?] I don't know
+
+[/] more...
+```
+
+Organize appears only with an eligible FOC-061 opportunity. If it is absent,
+the remaining actions keep their order and no placeholder is shown. Skip
+records the carried symptom; back restores the reaction. A source without a
+Domain uses the ordinary UX-S09 pages when targets exist and receives no
+fatigue evidence.
+
+## UX-DM03 — Domain structure preview
+
+```text
+Move this Domain subtree?
+
+From: Orbit › R&D › Rock Splitter
+To:   Personal › Projects › Rock Splitter
+
+4 descendant Domains will receive new paths.
+18 Bricks and 7 Raw records keep their direct memberships.
+Importance and Work structure stay unchanged.
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+```
+
+Rename, merge, archive, and restore use the same consequence-first density but
+their own honest verbs and facts. Merge identifies the survivor; archive names
+active Domain or hard-scope clearing; conflicts must be resolved before this
+final screen. Yes is one atomic dry-runnable structure batch.
 
 ## UX-S10 — Tired-pause result
 

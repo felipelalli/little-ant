@@ -45,8 +45,8 @@
   grammar. Forecast signals, warnings, and secondary context modify selection
   or presentation and never become opportunities merely because they exist.
 
-The exact final catalog is a release-blocking decision tracked as
-`OPEN-FOC-001`; extending it later requires an explicit core version.
+FOC-054 closes the final catalog; extending it later requires an explicit core
+version.
 
 - **FOC-037 [core] — Distinct execution opportunities.** The ordinary 1.0
   lottery contains five canonical execution variants:
@@ -77,6 +77,45 @@ The exact final catalog is a release-blocking decision tracked as
   opportunity rather than execution; an active `scheduled_commitment` remains
   the hard-precedence result defined by FOC-030 rather than a sixth
   ordinary-lottery execution variant.
+- **FOC-054 [core] — The v1 ordinary-lottery catalog is exhaustive.** In
+  addition to FOC-037's five execution variants, the following non-execution
+  variants are the only selectable ordinary-lottery opportunities. Every row
+  also has typed `skip` and UX-196 uncertainty; the table names the remaining
+  primary actions and required payload:
+
+  | Variant | Required subject payload | Primary actions / transition |
+  |---|---|---|
+  | `raw_triage` | one unresolved Raw | materialize Work, choose destination, keep standalone / settle disposition |
+  | `nature_review` | Brick and attributed Nature claim | confirm, change / settle exactly that claim |
+  | `phase_review` | Brick and attributed phase claim | confirm, change, clear / settle exactly that claim |
+  | `effort_comparison` | two eligible comparable Bricks and evidence revisions | easier, harder / record one relative judgment |
+  | `impact_comparison` | two eligible comparable Bricks and evidence revisions | more impact, less impact, investigate / record or gate one judgment |
+  | `importance_run_review` | sibling run and unresolved pair | more important, less important / advance run |
+  | `importance_validation` | transitive-only pair and path | more important, less important / validate or contradict path |
+  | `importance_recalibration` | minimal incoherent sibling segment | compare, resolve contradiction / restore coherent evidence |
+  | `wip_review` | one non-current WIP and last activity | resume, done, return idle / reconcile WIP |
+  | `scope_closure_review` | finite parent plus `child_parts` or `list_entries` counts | done, add work / settle scope |
+  | `archive_relevance_review` | archived Brick and review marker | keep archived, restore, update, supersede / settle marker |
+  | `wait_review` | active Wait, affected Brick, policy and history | response received, wait longer, follow up, change blocker / review gate |
+  | `wait_resolution_review` | early attributed source observation and Wait | accept received, keep waiting, inspect / reconcile observation |
+  | `delegation_review` | active Delegation, coverage, policy and observations | progress, completed report, refusal, no response, take back / record or enter reconciliation |
+  | `delegation_completion_review` | reported completion and covered scope | accept applicable completion, keep active, take back / reconcile report |
+  | `delegation_refusal_review` | reported refusal and covered scope | take back, reassign, keep active / reconcile responsibility |
+  | `external_effect_approval` | one effect preview, purpose, authority and review instant | approve, reject, later / decide exact effect |
+  | `external_effect_recovery` | one failed effect and receipt | retry, edit replacement, cancel / recover without claiming delivery |
+  | `source_change_reconciliation` | Raw, SourceBinding, baseline and changed observation | revise same Raw, derive Raw, unrelated / reconcile content |
+  | `source_failure_review` | Raw, SourceBinding and typed failure | retry, pause, relocate, detach, later / manage origin |
+  | `raw_duplicate_review` | Raw candidates and evidence | reuse, derive/enrich, keep separate / settle suspicion |
+  | `brick_duplicate_review` | Brick candidates and transfer preview | merge, supersede, keep separate / settle suspicion |
+  | `list_entry_duplicate_review` | owner-local candidate, quantity and state | reuse, add quantity, reopen, separate / settle suspicion |
+  | `domain_membership_review` | Brick or Raw, current and proposed direct paths | confirm, change, clear / settle classification claim |
+  | `skip_taxonomy_review` | bounded repeated `other` evidence | name existing/new symptom proposal, keep as other / settle taxonomy watch |
+
+  Explicit command continuations, pending builders, current-focus and stale-
+  focus continuations, useful-empty recovery, active scheduled commitments,
+  safe-boundary notices, warnings, and read-only views are not lottery
+  variants. Domain structure maintenance is explicit command work; it does not
+  manufacture a review ticket. A Pack cannot add a row.
 
 ## Hierarchical selection
 
@@ -116,9 +155,40 @@ The exact final catalog is a release-blocking decision tracked as
   current Domains; `yes` performs the atomic transition.
 - **FOC-019 [standard] — Explicit Domain command.** The user may deliberately
   change the active Domain without waiting for a draw.
-
-Equal-specificity Domain target selection and the exact ordering of container
-descent versus dependency resolution remain `OPEN-FOC-002`.
+- **FOC-055 [core] — Scope, blockers, and composition have one order.** After
+  continuation and hard-precedence checks, `next` applies any hard Domain scope
+  to admission, draws one root attention subject, and then repeats at each
+  selected Brick: resolve an active Dependency owned by that Brick; otherwise
+  stop at its Nature focus boundary or draw among its admitted structural
+  children. The same rule applies recursively to a selected blocker. A
+  container-level Dependency therefore gates descent into its scope; a child
+  Dependency gates only that child. Wait, time, Place, Delegation, and corrupt
+  endpoints use their typed gate behavior rather than becoming Dependencies.
+- **FOC-056 [core] — Equal Domain membership is resolved in the recorded
+  draw.** For a multi-Domain candidate, strongest hierarchical affinity picks
+  its effective path. If several equally specific paths have equal affinity,
+  a replay-deterministic local tie draw chooses one and records every tied path.
+  The Focus proposal displays the chosen complete path; accepting it activates
+  that path under FOC-017. No pre-dialog asks the human to choose a Domain, no
+  membership creates another subject ticket, and question mark may inspect all
+  tied paths without redrawing.
+- **FOC-057 [core] — Hard Domain scope is separate and visible.** `lant domain
+  focus <path>` offers `one suggestion`, `stay within`, or `prefer`. One
+  suggestion constrains exactly one draw and then expires before Focus consent;
+  stay-within stores one inspectable hard scope until explicitly cleared;
+  prefer only changes the soft active Domain. A hard scope admits subjects with
+  at least one direct Brick Domain membership in the selected Domain subtree,
+  then ignores prior active-Domain continuity while weighting and descending.
+  It never adds membership or excludes a selected subject's blockers: blocker
+  resolution may visibly leave the Domain when necessary to make scoped work
+  actionable.
+- **FOC-058 [core] — Empty Domain scope ends usefully.** If a scoped draw has
+  no actionable endpoint, it records no random choice and returns a typed
+  empty-scope screen. The screen may review visible gates, Feed with the Domain
+  as an explicit proposal, choose another Domain, or clear/leave the scope.
+  A one-suggestion scope expires after this result; a stay-within scope remains
+  visible until cleared. The core never falls through to unrelated Work or
+  silently relaxes the selected subtree.
 
 ## Dependencies and waits
 
@@ -346,8 +416,8 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   work, and all Domains retain positive probability after the one scoped draw.
   Their calibrated magnitude and decay may differ for originating `tired` and
   `bored` evidence without changing this semantic mechanism. Neither signal
-  changes importance or active Domain. Exact no-target and multi-membership
-  recovery remains under `OPEN-SKIP-001` and `OPEN-DOM-001`.
+  changes importance or active Domain. FOC-060 closes no-Domain,
+  multi-membership, and no-target recovery.
 - **FOC-046 [core] — Organize and review targets an interaction family.**
   UX-S09 `organize and review` is not a Domain, Brick, persistent mode, or new
   forecast axis. It scopes one draw to an eligible organization-maintenance
@@ -359,9 +429,8 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   Nature review, importance maintenance and recalibration, Domain/taxonomy
   review, duplicate reconciliation, WIP review, and scope-closure review.
   Membership is by typed opportunity variant, never title or Nature. Hard
-  precedence is unchanged. Exact payloads and actions for still-unsettled
-  family members remain under `OPEN-FOC-001`; no-eligible recovery remains
-  under `OPEN-SKIP-001`.
+  precedence is unchanged. FOC-054 defines payloads and actions, FOC-061 the
+  exact family, and FOC-060 no-eligible recovery.
 - **FOC-047 [core] — Less-important subject change is scoped, not fatigued.**
   Choosing a target Domain from a `less important` reaction performs exactly
   one replacement draw among currently executable Work in that target and
@@ -370,8 +439,7 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   proposed Focus changes active Domain under FOC-017, after which ordinary
   continuity applies. Rejecting or leaving the proposal changes no active
   Domain. All other Domains retain positive probability after the scoped draw;
-  no-target and ambiguous multi-membership recovery remain explicit open
-  boundaries.
+  FOC-060 owns no-target, no-Domain, and multi-membership recovery.
 - **FOC-048 [core] — Focus uncertainty is consent assistance.** Question mark
   on an ordinary Focus proposal asks one question per screen and follows this
   bounded tree for the proposed Brick:
@@ -436,6 +504,36 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   semantic cluster gives no Raw additional top-level lottery ticket. The
   interaction enumerates the affected identities, and rejection returns to
   the originally selected Raw's dumb triage without resolving its neighbors.
+- **FOC-059 [core] — Probabilistic selection has no deterministic service
+  deadline.** Admission gives every candidate a configurable positive base
+  weight before normalization, and aging raises neglected candidates through a
+  bounded signal, but v1 does not force a candidate after N draws or promise a
+  maximum wait. The resulting probability necessarily depends on admitted-set
+  size. A service queue would contradict the recorded weighted draw and the
+  intended long tail. Calibration must publish fixed-stream starvation
+  distributions and flag unacceptable tails; `/forecast` exposes age and
+  current chance so the human can inspect or directly choose without
+  falsifying randomness.
+- **FOC-060 [core] — Change-subject recovery has complete edge behavior.** The
+  source path for fatigue is the effective Domain path recorded by the served
+  draw; for an existing current focus it is its recorded active path. With
+  several memberships, no new choice or additive penalty occurs. A subject
+  with no effective Domain receives no Domain fatigue, though the chosen target
+  still gets its bounded affinity. Target pages include every active Domain
+  subtree with executable Work outside the source path. When none exists,
+  UX-DM02 states that fact and offers organize-and-review when eligible, skip
+  anyway, or back; it never invents a Domain or silently selects unrelated
+  no-Domain Work. The same edge behavior applies to tired, bored, and
+  less-important routes, except FOC-047 continues to record no fatigue.
+- **FOC-061 [core] — Organization maintenance has a closed membership.** The
+  FOC-046 family contains `raw_triage`, `nature_review`, `phase_review`,
+  `effort_comparison`, `impact_comparison`, all three importance variants,
+  all three duplicate-review variants, `domain_membership_review`,
+  `skip_taxonomy_review`, `wip_review`, `scope_closure_review`, and
+  `archive_relevance_review`. Wait, Delegation, source, external effects, and
+  execution variants are not organization maintenance. If no listed variant
+  is eligible, the organize action is omitted rather than falling back to
+  arbitrary Work.
 
 ## Forecast inputs
 

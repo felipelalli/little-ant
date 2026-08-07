@@ -99,7 +99,7 @@ key. Missing phase uses the Nature/default neutral prior.
 The semantic behavior is settled, but factory numbers still require scenario
 evidence:
 
-- importance-to-chance curve and positive-tail floor;
+- importance-to-chance curve and positive-tail base-weight floor;
 - strongest-signal bonus curve, independence test, and cap;
 - Domain-affinity strength and decay after accepted focus;
 - interaction-family affinity strength, per-family contribution, skip
