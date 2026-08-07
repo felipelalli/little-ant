@@ -52,15 +52,16 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** child-part manager.
+**Next review:** incompatible-Structure Nature chooser.
 
 - Owning gate: Gate 4.
 - Owning boundary: `OPEN-PLAN-001`.
-- Owning records: `WRK-111..112`, `UX-168..169`, and UX-S50.
-- Do not close here: the full Nature transition matrix in `OPEN-NAT-001`.
-- Do not re-decide here: accepted batch ordering in `IMP-030`.
-- Do not enter here: ListEntry or responsibility managers; ListEntry semantics
-  remain under `OPEN-LST-001`.
+- Owning records: `WRK-112`, `UX-169`, and the accepted UX-S50 intent.
+- Reuse, do not reopen: the child-part route in `WRK-115`, `IMP-045`,
+  `UX-174..176`, and UX-S55..S56.
+- Close only the smallest compatible-Nature distinction and handoff; the full
+  capability-delta matrix remains under `OPEN-NAT-001`.
+- Do not enter here: ListEntry or responsibility managers.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

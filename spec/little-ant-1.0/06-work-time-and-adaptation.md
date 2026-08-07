@@ -625,6 +625,23 @@
   has no default. Candidate eligibility is core-owned and identical across
   modes; assistance may rank or mark a candidate but never add an ineligible
   target or select one silently.
+- **WRK-115 [core] — Parts reuse ordinary child Bricks instead of a project
+  manager.** On a Nature that can own independently focusable children,
+  selecting `parts` opens the existing part collector immediately when no
+  direct child exists, and otherwise opens one read-only child summary before
+  reusing ordinary add, order, show, and typed child-update routes. Merely
+  opening, inspecting, or leaving either view records nothing. A first finite
+  decomposition requires at least two drafted parts; adding to an existing
+  child-owning Brick requires at least one. Acceptance creates the complete
+  batch and its handles atomically, preserves every existing child and
+  unrelated parent fact, and places the batch under IMP-045. A matching
+  duplicate suspicion follows FED-015..016 before commit
+  and never merges silently. A newly active child invalidates an already
+  pending `scope_closure_review` exactly as FOC-039 requires, with the changed
+  review count visible in the result. If the parent is current focus, focus
+  and WIP remain unchanged; the preview and result say so rather than
+  fabricating staleness or silently clearing attention. Incompatible Natures
+  continue through WRK-112 before collection or mutation.
 
 ## Time
 

@@ -43,6 +43,18 @@
   list. This run-sensitive requirement preserves the useful intuition behind
   adaptive sorting without mandating Timsort instead of the resumable
   `org-sort-tasks` strategy in IMP-005.
+- **IMP-045 [core] — Added sibling batches start as one low-confidence
+  tail run.** When one accepted operation adds one or more active children to
+  a parent that already has active children, the new Bricks form one
+  contiguous provisional run after the current active siblings, in accepted
+  draft order. This lower-end placement is a deterministic birth position,
+  not human importance evidence, a dependency, or an execution sequence. It
+  does not reinterpret IMP-004's midpoint comparator as an unasked answer.
+  The whole added run contributes one `importance_run_review`; later adaptive
+  maintenance reuses the existing sibling order and asks only unresolved
+  comparisons. If no active sibling exists, the run is simply the complete
+  active sibling order. Inactive children occupy no current importance slot
+  and cannot anchor the new run.
 - **IMP-031 [core] — One algorithm, two cadences.** A lottery-selected
   `importance_run_review` serves one genuinely unresolved pair chosen by the
   resumable `org-sort-tasks` state. An accepted `more` or `less` answer records

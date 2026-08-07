@@ -303,11 +303,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   symptom screen without evidence or mutation. The screen has no technical
   Nature explanation or decorative personality line.
 - **UX-085 [core] — Dumb part collection.** Choosing `break` opens one pending
-  editor headed `Break into parts:`. It identifies the retained Brick, lists
+  editor headed `Break into parts:`. Entering from an existing-parts manager
+  instead heads the same editor `Add parts:`. It identifies the retained Brick, lists
   every drafted part in entry order, and keeps the next numbered `›` input
   active. Enter on non-empty text adds that draft and immediately opens the
-  next line. Once at least two parts exist, Enter on an empty input advances
-  to UX-B01; before then it cannot produce a decomposed preview. The input
+  next line. A first decomposition advances to UX-B01 only after two drafts;
+  an additive route advances after one. Before its applicable minimum it
+  cannot produce a preview. The input
   displays the discreet title-specific hint `Tip: write Brick titles in
   English.` under UX-049. Escape, Left Arrow, or Backspace on an already empty
   input restores the preceding pending-part checkpoint. No title, handle,
@@ -336,9 +338,10 @@ no-emoji rendering remain `OPEN-UX-001`.
   absent when evidence is insufficient. Other surfaces expose the same
   `accept suggestion` action through their native control under UX-003.
 - **UX-088 [core] — Human-facing break preview.** UX-B01 is the sole final
-  confirmation for decomposition. It identifies the retained Brick, states
-  naturally its resolved destination Nature (`project` in the reference
-  composition) and that its parts replace it as suggested Work, lists pending
+  confirmation for a part batch. It identifies the retained Brick, states
+  naturally any resolved destination Nature (`project` in the reference first
+  decomposition) and that active parts replace a finite parent as suggested
+  Work, lists pending
   parts without not-yet-durable handles, and
   groups the deterministic `atomic_task` and entered-order lazy-review
   defaults. It asks `Apply this change?` and exposes `[y]es`, `[e]dit`, `[n]o`,
@@ -346,17 +349,21 @@ no-emoji rendering remain `OPEN-UX-001`.
   one atomic mutation; `edit` restores UX-B00 with every draft; `no` discards
   the drafts, cancels decomposition, and restores its origin without evidence;
   uncertainty explains Nature, order, and provenance before returning.
-  Reverse navigation follows UX-019 and preserves the drafts. An assisted
+  An additive variant names no Nature transition, preserves existing children,
+  and uses the IMP-045 tail run. Reverse navigation follows UX-019 and
+  preserves the drafts. An assisted
   preview adds only explicit exceptions to the dumb baseline and marks every
   proposed Nature, initial-order, or Dependency claim `AI-suggested · review
   later`. Accepting the whole preview does not erase that provenance. When
   entry came from `big`, `yes` also records that symptom and recovery; direct
   `/break` never fabricates them.
-- **UX-089 [core] — Committed-break result.** After UX-B01 `yes`, UX-B02 states
-  `Broken into <count> parts:`, renders the retained parent and newly durable
+- **UX-089 [core] — Committed part result.** After UX-B01 `yes`, UX-B02 states
+  `Broken into <count> parts:` for first decomposition or `Added <count>
+  <part|parts> to:` for an additive direct/served-work origin, renders the retained parent and newly durable
   children with their allocated handles, explains that children may now
   appear as Work and that the parent returns only for scope review, and offers
-  `[n]ext` followed by `[/] more...`. It performs no automatic forecast draw,
+  `[n]ext` followed by `[/] more...`. A Plan origin instead reaches the
+  additive UX-S38 receipt under UX-175. Neither performs an automatic forecast draw,
   exposes no direct `focus first part`, and has no personality line. `next`
   invokes the ordinary weighted pipeline; the displayed sibling order never
   implies execution sequence. The footer uses `Changed` as its temporal fact
@@ -970,6 +977,54 @@ no-emoji rendering remain `OPEN-UX-001`.
   empty-buffer Backspace restore UX-S53 unchanged from either question.
   Read-only `/show` may inspect both records and return to the exact question,
   but never substitutes for the consequence summary.
+- **UX-174 [core] — Existing parts use one bounded factual screen.** UX-S55
+  appears only when the selected Brick already has direct child Bricks. It
+  identifies the parent, shows active children first in current importance
+  order, and then a bounded inactive summary whose visible rows carry their
+  plain `done`, `archived`, or `superseded` state without claiming a current
+  importance slot or aggregate completion. Overflow is stated by count and
+  the contextual `/show #parent` projection returns to the unchanged screen.
+  Primary actions are `[a]dd parts`, `[o]rder active parts` when at least two
+  active children exist, uncertainty, and the slash palette, with no default.
+  Add reuses UX-B00; order reuses the ordinary continuous `/order #parent`
+  cadence. Its UX-O03 result adds a contextual `[p]arts` action that restores
+  UX-S55 without a draw while retaining `[r]esume` when incomplete and
+  `[n]ext` as the explicit exit to the global forecast. Per-child show,
+  update, move, archive, and supersede routes require an explicit resolved
+  child reference in this multi-subject envelope and retain their existing
+  typed previews. Escape or reverse navigation restores UX-S50 without an
+  event.
+- **UX-175 [core] — Part collection and results state the actual operation.**
+  UX-B00 says `Break into parts` for first decomposition and `Add parts` for
+  an additive route; empty Enter becomes available after respectively two or
+  one drafts. UX-B01 names a Nature transition only when one occurs, names
+  existing children as unchanged on addition, exposes any duplicate
+  suspicion before commit, and conditionally states that current focus stays
+  on the parent or that an obsolete scope-closure review will be invalidated.
+  The accepted transaction is unchanged: no handle or child exists before
+  `yes`. A Plan-origin acceptance reaches UX-S38 with an additive fact block
+  containing the prior and resulting active-child counts plus every newly
+  durable child. Direct `/break` and served-work `big` retain UX-B02, whose
+  heading and consequence copy derive from `broken into` versus `added`, the
+  resulting Nature, and whether finite scope review applies. Neither receipt
+  draws nor focuses. Reverse navigation returns to UX-S55 when collection
+  began there and otherwise to the exact prior checkpoint; only a served-work
+  accepted break records `big`.
+- **UX-176 [core] — Parts uncertainty explains the focus-unit distinction.**
+  Question mark on UX-S55 opens UX-S56 and asks whether each intended item
+  should be able to appear separately as Work. Yes returns to unchanged
+  UX-S55; no returns to UX-S50 so `list items` or another structure may be
+  chosen. Question mark shows one bounded consequence block: parts are child
+  Bricks with their own importance, blockers, dates, and history; an active
+  finite parent is not ordinarily suggested while unfinished parts remain;
+  finishing them releases scope review rather than implicit completion; and
+  ListEntries instead appear together through one owner. The same question is
+  then asked once more. A second uncertainty response returns unresolved to
+  UX-S50. Escape, Left Arrow, or empty-buffer Backspace restores UX-S55 from
+  either question. No branch mutates, classifies, orders, or proposes a
+  decomposition. Powered-up and Skill may use the existing attributed draft
+  or mark one existing Parts action only; they cannot add a child, reorder
+  human importance, skip the preview, or answer UX-S56.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

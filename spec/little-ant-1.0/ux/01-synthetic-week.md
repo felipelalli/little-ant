@@ -964,9 +964,32 @@ from continuing ownership before proposing `finite_checklist` or
 `living_checklist`. Reject every incompatible proposal without creating a
 child, ListEntry, relationship, Nature claim, or reconciliation event; accept
 representative proposals only through the complete MOD-059 preview. Never
-convert a child Brick and ListEntry into one another. Leave each downstream
-structure manager and responsibility at its explicit `OPEN-PLAN-001` boundary
-until its screen is reviewed.
+convert a child Brick and ListEntry into one another. Leave the ListEntry,
+incompatible-Nature, and responsibility routes at their explicit
+`OPEN-PLAN-001` boundary until each screen is reviewed.
+
+For parts, first select a compatible parent with no children and prove that
+UX-B00 opens directly without an empty manager. Reject one draft, accept two,
+and verify the first-decomposition copy, atomic handles, Nature consequence,
+IMP-030 run, and origin-appropriate UX-B02. Then open UX-S55 on a parent with
+more active and inactive children than the visible bounds. Verify active
+importance order, plain inactive states, exact overflow counts, and a
+read-only `/show` round trip. Require explicit child autocomplete for every
+multi-subject palette mutation. Traverse UX-S56 through yes, no, the bounded
+explanation, repeated uncertainty, and every reverse gesture without an
+event. Add one and then several parts on separate Plan replays; accept only
+through UX-B01, preserve all existing facts, allocate the batch atomically at
+the IMP-045 provisional tail, add one importance-run review, and render the
+additive UX-S38 counts and handles. Repeat with current focus and with a
+pending scope-closure review, proving respectively unchanged focus and the
+visible FOC-039 invalidation. Make the child set stale before acceptance and
+require re-rendering. Trigger a duplicate suspicion and require FED-016
+without silent reuse. Enter continuous ordering from UX-S55 and verify that
+only the stable UX-O03 result offers `[p]arts`; resume and next retain their
+ordinary meanings. Pair one assisted draft and one attributed action hint
+with the identical dumb confirmation and reject both without mutation. Leave
+part-batch compensation under `OPEN-UNDO-001` and archived/superseded child
+closure under `OPEN-TREE-001`.
 
 For reparenting, cover identical, ancestor-related, partially overlapping,
 disjoint, and missing direct Domain path sets, including multiple memberships

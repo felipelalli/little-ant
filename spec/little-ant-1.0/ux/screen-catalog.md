@@ -2926,6 +2926,107 @@ Contextual `/show` may inspect either complete record and then restore the
 exact pending question. Escape, Left Arrow, and empty-buffer Backspace restore
 UX-S53 unchanged from either question.
 
+## UX-S55 — Existing parts
+
+Selecting `parts` for a Brick that already has direct children opens one
+bounded factual view:
+
+```text
+Parts:
+
+#rlav1 "Recover Little Ant v1"
+
+Active:
+
+1. #wms "Write the migration specification"
+2. #rui "Review the REPL interaction"
+3. #cmt "Complete the Nature matrix"
+
+Other:
+
+#rva "Review the v0 archive" — done
+… 2 more inactive parts
+
+[a]dd parts    [o]rder active parts
+[?] I don't know
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Projects
+. Last changed: Mon, Aug 3, 08:40
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Active rows use current importance order. At most ten active and five inactive
+rows are rendered; exact overflow counts replace the rest. Inactive rows are
+plain lifecycle facts and claim no current importance position. When no active
+child exists, the active block renders `None.` rather than disappearing or
+showing an empty list, and `order` is absent. Contextual
+`/show #rlav1 "Recover Little Ant v1"` exposes the complete direct-child
+projection and returns here without mutation. `order` is omitted when fewer
+than two active children exist. It enters the ordinary continuous
+`/order #rlav1` cadence; its UX-O03 result adds `[p]arts`, which returns here
+without a draw, while its existing `resume` and `next` meanings remain.
+
+The multi-subject screen never guesses which visible Brick a contextual
+operation targets. Palette actions for showing, updating, moving, archiving,
+or superseding a child require `#` autocomplete and render the resolved child
+before proceeding. Add opens the additive UX-B00 variant. Escape, Left Arrow,
+or empty-buffer Backspace restores UX-S50 unchanged.
+
+## UX-S56 — Parts uncertainty
+
+```text
+Parts are separate Bricks. Each one can appear as Work on its own.
+
+Should each intended item be able to appear separately as Work?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Projects
+. Last changed: Mon, Aug 3, 08:40
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Yes restores UX-S55. No restores UX-S50, where `list items` remains visible.
+Question mark shows the bounded distinction and repeats the question once:
+
+```text
+Each part has its own importance, blockers, dates, and history.
+An active finite parent is not normally suggested while unfinished parts
+remain. Finishing every part releases a scope review; it does not complete
+the parent automatically.
+
+List items are different: they are shown together through one owner.
+
+Should each intended item be able to appear separately as Work?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Projects
+. Last changed: Mon, Aug 3, 08:40
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+A second uncertainty response returns unresolved to UX-S50. Escape, Left
+Arrow, and empty-buffer Backspace restore UX-S55 from either question. No
+answer is evidence about Nature, importance, completion, or scope.
+
 ## UX-K01 — Nature choice
 
 ```text
@@ -3103,7 +3204,7 @@ Template identities.
 
 ## UX-B00 — Dumb part collection
 
-After `[b]reak it into parts`, dumb mode collects pending titles continuously:
+After a first decomposition, dumb mode collects pending titles continuously:
 
 ```text
 Break into parts:
@@ -3132,9 +3233,12 @@ Tip: write Brick titles in English.
 
 The first rendering has no numbered titles and an active `1. ›` input.
 Non-empty Enter appends the draft and advances the number. Empty Enter exposes
-`review` only after two parts exist and then opens UX-B01. The title hint is
-visually dim. Reverse navigation from an already empty input restores the
-preceding pending-part checkpoint without semantic undo or durable state.
+`review` only after two parts exist and then opens UX-B01. When UX-S55 enters
+the same editor, the heading is `Add parts:`, the list label is `New parts:`,
+and empty Enter exposes `review` after one draft. The title hint is visually
+dim. Reverse navigation from an already empty additive input restores UX-S55;
+the first-decomposition variant restores its exact preceding checkpoint.
+Neither path crosses semantic undo or creates durable state.
 
 ## UX-B00A — Assisted decomposition draft
 
@@ -3174,7 +3278,9 @@ committing. `edit` opens UX-B00 with these
 four drafts; `no` opens it empty; and uncertainty reveals the specific source
 evidence before restoring this screen. No action is the default. The Skill
 uses the same envelope and action semantics. Insufficient evidence goes
-directly to UX-B00 without a weak or decorative proposal.
+directly to UX-B00 without a weak or decorative proposal. On an additive
+route, the heading and list label become `Add parts:` and `Suggested new
+parts:` without changing any action.
 
 ## UX-B00B — Assisted inline suggestion
 
@@ -3194,7 +3300,7 @@ ordinary character dismisses the suggestion and writes the user's own title.
 The Skill and graphical surfaces expose the same semantic action without
 requiring a literal Tab key.
 
-## UX-B01 — Break an atomic task
+## UX-B01 — Preview a part batch
 
 ```text
 Break into parts:
@@ -3235,9 +3341,10 @@ questions. The parent then stops appearing as ordinary Work while incomplete
 children exist. Completing the final child releases a parent-scope review; it
 does not silently complete or immediately refocus the parent.
 
-`edit` restores UX-B00 with all drafts. `no` discards them and restores UX-S06
-or the direct-command origin without recording `big`, break, or any other
-evidence. Escape, Backspace, and Left Arrow restore UX-B00 with the drafts
+`edit` restores UX-B00 with all drafts. `no` discards them and restores UX-S55
+for an additive Parts origin, UX-S50 for a first-decomposition Plan origin,
+UX-S06 for `big`, or the exact direct-command origin. It records no symptom,
+break, or other evidence. Escape, Backspace, and Left Arrow restore UX-B00 with the drafts
 under UX-019. `?` explains the project transition, reviewable default Natures,
 provisional importance run, and any assisted provenance. The palette provides
 detail and dry-run inspection without competing with confirmation.
@@ -3256,6 +3363,37 @@ Starting order: AI-suggested · review later
 
 Every assisted claim remains attributed after acceptance. If no exception
 exists, the preview remains identical to dumb UX-B01.
+
+Adding to an already child-owning Brick uses the same confirmation grammar but
+states only the real additive consequence:
+
+```text
+Add parts:
+
+#rlav1 "Recover Little Ant v1"
+
+New parts:
+
+1. "Write replay fixtures"
+
+Existing parts stay unchanged.
+The new parts start after the current active parts, in the order above.
+Little Ant may review their Nature and importance later.
+
+Apply this change?
+
+[y]es    [e]dit    [n]o    [?] I don't know
+[/] more...
+```
+
+This variant names no Nature change. If the parent is current focus, it adds
+`Current focus stays on this Brick.` If a `scope_closure_review` is pending,
+it adds `The pending scope review will no longer be needed after active work
+is added.` Exact or
+bounded duplicate candidates enter FED-016 before this final preview; no title
+match silently reuses or merges a child. A stale change to the parent Nature,
+child set, focus, or pending scope review re-renders the applicable preview
+before acceptance.
 
 ## UX-B02 — Committed break result
 
@@ -3297,6 +3435,29 @@ prefer the first displayed child merely because it appears first. The palette
 offers contextual `/undo` and inspection; exact compensation still obeys
 event-history, identity, and precondition rules rather than deleting the
 accepted transaction.
+
+For an additive direct `/break` or served-work route, the same result derives
+its heading and consequences instead of pretending that the parent was first
+decomposed:
+
+```text
+Added 1 part to:
+
+#rlav1 "Recover Little Ant v1"
+└─ #wrf "Write replay fixtures"
+
+The new part can now appear as Work.
+
+[n]ext    [/] more...
+```
+
+A finite parent mentions future scope review; an open-ended collection does
+not. Conditional lines report unchanged current focus and invalidation of a
+formerly pending scope review. A Plan-origin acceptance instead uses UX-S38:
+its fact block shows `Active parts: <before> → <after>`, lists every added
+`#handle "title"`, and shows either conditional consequence. That additive
+before/after block satisfies the ordinary update-receipt contract without
+inventing a prior value for each new child.
 
 ## UX-N01 — Nature review
 
@@ -3490,6 +3651,17 @@ Personal › Housekeeping
 
 Both variants retain the ordinary persistent footer below the shown content.
 Neither performs an automatic forecast draw.
+
+When continuous ordering was entered from UX-S55, both result variants add a
+contextual return without changing the existing exits:
+
+```text
+[r]esume    [p]arts    [n]ext    [/] more...
+```
+
+The completed variant omits `resume`. `parts` restores UX-S55 against the
+current revision without a draw; `next` still leaves maintenance for the
+global forecast. No ordering answer returns to Parts before this stable result.
 
 If the pass finishes with provisional placements, the same completed variant
 replaces the coherence sentence with the unresolved confidence count:
