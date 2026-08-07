@@ -15,8 +15,10 @@ These decisions close Gates 2 through 7 of the
 
 | ID | Blocking decision | Closure evidence |
 |---|---|---|
-| `OPEN-MOD-002` | Exact accessible markers for `idea`, `exec`, and `validation`; `spec = 📐` is settled. | Canonical screen-catalog review. |
-| `OPEN-UX-001` | Remaining shortcut collisions after settling ordinary `[n]ext`, natural `[n]o` only for unavoidable binary propositions, importance `[m]ore/[l]ess`, `[b]locked or waiting`, `bo[r]ed`, served-work `[l]ess important`, and `[d]one`; choice/input layouts, contextual-assistance labels, the exact monochrome selection marker and no-emoji rendering, and the exact English copy for all four settled 16-entry personality catalogs. `Work:`, `Current focus:`, and `Done:` are settled work-flow headings; `Next:` is not a visible opportunity heading; comparisons begin directly with their natural proposition and have no type heading; every ordinary-lottery screen exposes typed `[s]kip`, while hard precedence does not. ANSI capability detection, theme-owned colors, reverse-video selection, and display-cell alignment are settled by `UX-070..073`. | Almost-literal REPL/web/Skill screen and factory-copy review. |
+
+No core or dumb-REPL interaction boundary remains open. New uncertainty found
+during the final contradiction audit must receive a new ID rather than being
+hidden in prose.
 
 ## External and standard 1.0 closure
 

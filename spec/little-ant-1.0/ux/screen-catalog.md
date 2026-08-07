@@ -81,10 +81,10 @@ More:
 
 › /
 
-/done       Mark #rrsr "Review Rock Splitter rules" as done
-/feed       Feed Little Ant
-/show       Inspect #rrsr "Review Rock Splitter rules"
-/history    Open interaction history
+> /done       Mark #rrsr "Review Rock Splitter rules" as done
+  /feed       Feed Little Ant
+  /show       Inspect #rrsr "Review Rock Splitter rules"
+  /history    Open interaction history
 
 Type to filter available commands.
 ↑/↓ select · Enter run · Esc back
@@ -114,7 +114,7 @@ Choose a Brick:
 
 › #rs
 
-  #rs "Rock Splitter"
+> #rs "Rock Splitter"
   #rs2 "Reason Season"
   New Brick...
 
@@ -130,7 +130,7 @@ Choose raw material:
 
 › +milk
 
-  +milk "milk"
+> +milk "milk"
   +aen "API error notes"
   New raw material...
 
@@ -183,7 +183,7 @@ Search Little Ant:
 
 › milk
 
-  Work       #bg "Buy groceries"
+> Work       #bg "Buy groceries"
   List item  Milk · within #bg "Buy groceries"
   Raw        "milk" · Inbox
   Shelf      "Cooking notes"
@@ -1115,7 +1115,7 @@ Whose response are you waiting for?
 
 › Alice
 
-  @am "Alice Moreira"    person
+> @am "Alice Moreira"    person
   @as "Alice Support"    team
   New person or company...
 ```
@@ -4458,7 +4458,7 @@ Order:
 › /order "Bring someth
 
 Sibling groups
-  /order #bs "Bring something..."
+> /order #bs "Bring something..."
 
 ↑/↓ select · Enter start · Esc back
 ```
@@ -5844,13 +5844,13 @@ Prepare for:
 
 #fa123 "Flight AD123 to Montevideo"
 
-[x] Review travel documents
+> [x] Review travel documents
     atomic task · best before 60 days before departure
-[x] Review travel insurance
+  [x] Review travel insurance
     atomic task · best before 14 days before departure
-[x] Pack for the trip
+  [x] Pack for the trip
     finite checklist · best before 2 days before departure
-[x] Travel to the airport
+  [x] Travel to the airport
     atomic task · best before 3 hours before departure
 
 ↑/↓ select · Space include/remove · [e]dit · [c]ontinue
@@ -6925,6 +6925,97 @@ What next?
 
 The available choices derive from actual state; the screen never fabricates
 work merely to avoid emptiness.
+
+## UX-PH00 — Phase review or update
+
+Phase remains optional and descriptive. A lazy review or `/update #wtms phase`
+uses the same dumb screen:
+
+```text
+Phase:
+
+#wtms "Write the migration specification"
+
+Which description fits the work now?
+
+💡 [i]dea        Still taking shape.
+📐 [s]pec        Being planned or specified.
+🔨 [e]xecution   Being carried out.
+🧪 [v]alidation  Being tested or evaluated.
+[c]lear phase    Leave it unspecified.
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rlav "Recover Little Ant v1"
+  Personal › Little Ant
+. Last reviewed: Sun, Aug 2, 22:14
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Clear appears only when a phase exists; otherwise the row is `[l]eave
+unspecified`. There is no dumb default. A direct choice commits only that
+phase claim and renders one compact no-draw result. Uncertainty asks whether
+the work is still an immature direction, needs definition, is being carried
+out, or is being tested, one consequence-oriented question at a time. If none
+can be answered, phase remains unspecified.
+
+With `emoji_mode = never`, the primary rows are exactly:
+
+```text
+[i]dea        Still taking shape.
+[s]pec        Being planned or specified.
+[e]xecution   Being carried out.
+[v]alidation  Being tested or evaluated.
+[c]lear phase Leave it unspecified.
+[?] I don't know
+```
+
+No alignment, shortcut, or explanation depends on the suppressed icons.
+Powered-up or Skill may mark one row with `*` and add one attributed quiet
+reason; rejecting or navigating elsewhere leaves this exact dumb choice.
+
+## UX-A11Y00 — Palette and narrow-screen fallbacks
+
+The plain palette always keeps its ASCII selection cursor:
+
+```text
+More:
+
+› /f
+
+> /feed       Feed Little Ant
+  /focus      Focus a named Brick
+
+Type to filter available commands.
+↑/↓ select · Enter run · Esc back
+```
+
+On a narrow screen, the ordinary Focus actions reflow without shortening or
+reordering them:
+
+```text
+[y]es
+[s]kip
+[?] I don't know
+[/] more...
+────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D ›
+  Rock Splitter
+. Workday: Mon, Aug 3
+  Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws,
+  3 reviews
+  mode: dumb, focus: idle
+```
+
+The styled rendering uses the same characters and columns, adding only ANSI
+roles and reverse video. No-emoji mode removes only declared decoration; color
+mode never changes glyphs.
 
 ## Surface mapping
 

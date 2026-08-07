@@ -165,8 +165,12 @@ open release decision rather than an inferred v1 commitment.
   irrelevant, or disabled. Missing phase is neutral and never blocks feeding
   or focus.
 - **MOD-018 [standard] — Descriptive phase.** Phase is not a required workflow
-  and never sorts importance. `spec` uses `📐`; the remaining exact phase
-  markers must be approved through the UX catalog under `OPEN-MOD-002`.
+  and never sorts importance. Its closed human rendering is `💡 idea`,
+  `📐 spec`, `🔨 execution`, and `🧪 validation`; the stored value behind
+  `execution` is `exec`. Every icon is decorative and the adjacent English
+  label is mandatory. With emoji disabled, the exact labels remain `idea`,
+  `spec`, `execution`, and `validation`. A phase change is an ordinary
+  explicit update, not an automatic lifecycle transition.
 
 ## Composition and relationships
 

@@ -99,8 +99,8 @@ The normative reference renderings live in
   selected by the ordinary lottery; its variant defines the typed deferral,
   cooldown, and pressure without inventing a substantive outcome. Hard
   precedence and non-lottery screens expose only their truthful contextual
-  routes. Remaining cross-screen shortcut preferences and collisions stay
-  under `OPEN-UX-001`.
+  routes. Shortcut allocation follows UX-254 rather than a global letter
+  namespace.
 
 - **UX-015 [core] — Suggested default.** `*` marks at most one defensible
   suggested action. On a finite choice with a visible default, pressing either
@@ -132,8 +132,8 @@ The normative reference renderings live in
   deferrable proposals and opens an explicit date choice before recording
   anything.
 
-Final shortcut collisions, layout variants, assistance labels, and accessible
-no-emoji rendering remain `OPEN-UX-001`.
+UX-252..259 close phase, shortcut, compact-layout, selection,
+assistance-label, and no-emoji rendering.
 
 ## Navigation, undo, and commands
 
@@ -253,8 +253,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   streak with completed and unfulfilled windows. Repeatable Work may show a
   completion count beside `Last completed`, but never an invented missed
   cell. Recurring obligations show open and resolved occurrences rather than
-  streaks. Text or symbols preserve the distinction without relying on color;
-  the exact compact rendering remains under `OPEN-UX-001`.
+  streaks. Habit history uses one oldest-to-newest token per applicable window:
+  `[x]` for completed and `[-]` for unfulfilled, followed by a textual current-
+  or next-window label. Blocked, paused, and inapplicable windows remain words
+  and create no token. Without reliable glyph or display-width support, the
+  strip becomes `done · unfulfilled` in the same order. Repeatable and
+  recurring-obligation history uses the textual forms in UX-F08 and UX-RO00;
+  neither borrows habit cells. Color is never the only distinction.
 - **UX-080 [core] — Stale focus remains a continuation.** At the first safe
   interaction boundary on or after the configured stale-focus threshold, the
   current-focus continuation asks `Still working on this?` and exposes
@@ -1732,6 +1737,69 @@ no-emoji rendering remain `OPEN-UX-001`.
   fields. Assistance cannot turn an all-day event into an interval, invent an
   end time, mark attendance, suppress an overlap, or reinterpret one temporal
   meaning as another.
+- **UX-252 [standard] — Phase is always text first.** Phase is rendered with
+  MOD-018's English label in every compact row, detail view, selector, and
+  projection. The factory icon may precede the label but never replaces it.
+  UX-PH00 is the single dumb phase selector used by lazy review and `/update`;
+  it has no phase default, mandatory progression, or automatic transition.
+  Assisted modes may mark one existing row as suggested with attribution, but
+  only the human's accepted row becomes a direct claim.
+- **UX-253 [core] — Decoration is removable without loss.** The terminal
+  renderer supports `emoji_mode = auto | always | never`. Auto requires an
+  interactive UTF-8 surface with a declared reliable display-width policy;
+  otherwise it behaves as never. Never suppresses only decorative emoji and
+  repairs adjacent whitespace. It retains all words, shortcut brackets,
+  punctuation, ASCII cursor markers, warnings, history cells, and statuses.
+  Emoji mode is independent of ANSI color mode. First-party web/mobile and
+  accessible renderers expose the same semantic text even when they choose a
+  different decorative representation.
+- **UX-254 [core] — Shortcuts are unique per screen, not globally.** Within one
+  pending finite screen, every visible one-key action has a distinct key. The
+  allocator first keeps canonical meanings from UX-014, then an unused natural
+  initial, then an unused visible in-word letter. If wording can name the
+  consequence more clearly, it changes the action label before taking an
+  awkward in-word letter. Number keys belong to dense candidate lists, not to
+  stable semantic verbs. Reuse on another screen is allowed and preferred when
+  the same obvious word returns. `?`, `/`, `*`, Enter, Escape, Backspace, and
+  arrows retain their declared control meanings and are never action letters.
+- **UX-255 [core] — Selection has one visible ASCII cursor.** Every
+  arrow-navigable result or palette row reserves a two-cell prefix: `> ` for
+  the selected row and two spaces for every other row. Capable ANSI rendering
+  additionally applies reverse video to the selected row; it never removes
+  the cursor. Therefore stripping style preserves the same columns and
+  selection. `*` remains the separate default marker on finite action choices
+  and never means cursor position. A selected prefilled text buffer follows
+  UX-077 and does not borrow the row cursor.
+- **UX-256 [core] — Narrow layouts reflow; they do not abbreviate meaning.** At
+  widths where an approved action row or aligned footer would wrap
+  ambiguously, actions render one per line in canonical order, then the palette
+  escape. Candidate rows remain one per line. Long titles and Domain paths use
+  hanging continuation indentation; the handle remains on the first line and
+  every path segment remains present. The three footer blocks retain their
+  order but may drop alignment padding. No horizontal scrolling is required
+  for a decision, no action label is truncated, and a renderer may paginate
+  only a declared candidate collection—not the current question or actions.
+- **UX-257 [core] — Input and choice never masquerade as each other.** A text
+  input always shows the `› ` edit prompt, cursor, Enter/Escape hint, and the
+  dumb English-writing reminder when UX-049 applies. A finite choice has no
+  edit prompt and reacts to one visible key. Search and autocomplete are input
+  followed by a cursor list; typing edits the query, Up/Down moves the `>` row,
+  Enter chooses it, and Escape returns. A screen cannot accept both arbitrary
+  text and hidden one-key semantic actions in the same input state.
+- **UX-258 [core] — Assistance and navigation labels stay literal.** The
+  canonical finite uncertainty label is always `[?] I don't know`; product
+  help is always `/help`; the global secondary escape is `[/] more...` except
+  UX-S09's already-declared `[/] menu...`; and an explicit local return is
+  `[b]ack`. A candidate paginator says `show [m]ore options...`, so it cannot
+  be confused with the command palette. Empty or terminal result screens name
+  `[n]ext` only when they truly invoke the global forecast. Labels such as
+  `help`, `other`, `none`, `more`, and `skip` are never treated as synonyms.
+- **UX-259 [standard] — Factory personality text is closed and inspectable.**
+  The exact 64 English phrases and stable IDs live in
+  [`personality-catalog.md`](personality-catalog.md). The factory count remains
+  exactly 16 per UX-064 intent. Dumb mode selects only from that file;
+  powered-up and Skill paraphrase only under UX-065. Disabling emoji removes
+  the catalog's declared prefix/suffix decorations but leaves its wording.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies
@@ -1974,10 +2042,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   background color or infer a theme.
 - **UX-072 [core] — Selection and color-independent meaning.** Arrow-key
   selection in the command palette uses reverse video. Selection also has a
-  non-style cursor indication in monochrome rendering, whose exact accessible
-  marker remains under `OPEN-UX-001`. Color and intensity may reinforce but
-  never exclusively communicate selection, action, warning, state, or
-  validity.
+  non-style cursor indication in every rendering under UX-255. Color and
+  intensity may reinforce but never exclusively communicate selection, action,
+  warning, state, or validity.
 - **UX-073 [core] — Display-cell alignment.** ANSI control sequences have zero
   display width. Padding, columns, clipping, and wrapping use rendered Unicode
   display cells rather than bytes, code points, or styled-string length.
@@ -2168,7 +2235,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   completion is the positive ordinary outcome of active focus. `skip` opens
   the served-work symptom screen for the focused Brick; pressing it alone
   records no skip evidence, cooldown, or lifecycle change. The Little Ant
-  state block identifies the focused Brick. The immediate `focus_started`
+  footer state block identifies the focused Brick. The immediate
+  `focus_started`
   result may carry
   UX-064 microcopy. Restarting or restoring the REPL later resumes a sober
   rendering of this screen while that focus remains valid; it neither repeats

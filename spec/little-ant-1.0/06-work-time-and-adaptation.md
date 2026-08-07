@@ -996,8 +996,8 @@
   expected windows, so it may expose completion count and `Last completed`
   but never inserts a gap merely because no execution occurred. A recurring
   obligation exposes open and resolved occurrence state rather than a streak;
-  an unresolved occurrence is debt, not a missed historical cell. Exact
-  glyphs and compact layout remain surface work under `OPEN-UX-001`.
+  an unresolved occurrence is debt, not a missed historical cell. UX-079 and
+  UX-H00 define the exact accessible compact forms.
 - **WRK-139 [core] — Public focus and standing commands are semantic, not
   aliases.** REPL commands are `/focus #brick`, `/pause`,
   `/return-to-idle #brick`, `/done #brick`, `/finish #brick`, and

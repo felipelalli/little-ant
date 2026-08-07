@@ -46,6 +46,7 @@ grants authority.
 | `ui.max_visible_warnings` | `1` | Additional warnings appear as a count. |
 | `ui.microcopy_variants_per_intent` | `16` | Factory English phrases for every declared personality intent. |
 | `ui.color_mode` | `auto` | Emit ANSI styles only when terminal capability and user environment allow it; explicit `always` and `never` remain presentation overrides. |
+| `ui.emoji_mode` | `auto` | Render decorative emoji when the interactive UTF-8 surface declares reliable width support; explicit `always` and `never` remain presentation overrides. |
 | `ui.external_editor.argv` | `null` | Optional executable-plus-arguments array for UX-162. When absent, the local surface resolves `$VISUAL` then `$EDITOR`; all forms execute directly without a shell. |
 | `effort.assisted_comparison_limit` | `3` | Maximum exemplar questions in one assistance flow. |
 | `impact.assisted_comparison_limit` | `3` | Maximum reviewed-root exemplar questions in one assistance flow. |

@@ -18,11 +18,11 @@ run as an interactive transcript.
 
 | Gate | Flow | Current references | Status | Missing boundary |
 |---:|---|---|---|---|
-| 2 | Shared frame and footer | `UX-R00..R01`, `UX-025`, `UX-045..049`, `UX-062..065`, `UX-070..073`, `SCN-015` | partial | exact monochrome selection marker, narrow/accessibility form, unbound-key rendering, and personality catalogs |
-| 2 | JSONL loading splash | `DAT-044`, `UX-094`, `UX-R02` | screened | exact factory ASCII-art polish and interactive cold-load replay |
-| 2 | Contextual personality | `UX-F04..F05`, `UX-064..065`, `SCN-014` | partial | review all four 16-phrase English catalogs |
+| 2 | Shared frame and footer | `UX-R00..R02`, `UX-025`, `UX-045..049`, `UX-062..065`, `UX-070..073`, `UX-252..259`, UX-A11Y00, `SCN-014..015`, `SCN-UI-001` | specified | styled/plain/emoji/narrow parity, permanent cursor, unbound keys, and exact catalogs |
+| 2 | JSONL loading splash | `DAT-044`, `UX-094`, UX-R02, `SCN-UI-001` | specified | factual cold replay, cancellation, corruption, and noninteractive omission |
+| 2 | Contextual personality | `UX-F04..F05`, `UX-064..065`, `UX-259`, [`personality-catalog.md`](../personality-catalog.md), `SCN-014`, `SCN-UI-001` | specified | exact four-by-sixteen English catalog and dumb/assisted replay |
 | 2 | Honest-answer assistance | `UX-016..017`, `UX-130..143`, `UX-196`, `SCN-016` | specified | generated family-route coverage for every finite screen and paired assisted annotations |
-| 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048`, `UX-072..073` | partial | remaining screen placement, monochrome cursor marker, and unavailable/search recovery |
+| 2 | Palette/command escape | UX-M01, `UX-022..024`, `UX-047..048`, `UX-072..073`, `UX-254..258`, UX-A11Y00, `SCN-UI-001` | specified | contextual placement, permanent cursor, filtering, unavailable-key recovery, and exact return |
 | 2 | Revision/stale response | `UX-029..031`, `UX-191..193`, UX-ER02 | screened | concurrency, crash, and integrity-token fixture replay |
 | 2 | Reference selection | `MOD-010`, `MOD-024`, `UX-075..076`, `UX-201..203`, UX-RF01, UX-RF04 | screened | edge-normalization and deterministic cross-surface replay |
 | 3 | Restore/startup to `next` | `UX-R00`, `UX-F04..F05`, `UX-F09`, `UX-046`, `UX-063`, `UX-080` | partial | pending-envelope result transition |
@@ -42,6 +42,7 @@ run as an interactive transcript.
 | 4 | Contradiction/recalibration | `IMP-013..015`, `IMP-033..037`, `IMP-055`, `FOC-042..043`, `UX-097..102`, `UX-230`, `UX-O06..O10`, UX-J07, `SCN-IMP-003`, `SCN-JUD-001` | specified | deterministic per-axis decay, cycle, provocation, skip, and assisted replay |
 | 4 | Adaptive bulk ordering | `IMP-005`, `IMP-031..044`, `FOC-041..043`, `UX-091..102`, `UX-134..138`, `UX-O01..O15` | partial | deterministic end-to-end replay |
 | 4 | Impact, maturity, and effort judgment | `IMP-017..029`, `IMP-038`, `IMP-047..056`, `FOC-054`, `FOC-061`, `UX-224..234`, UX-J00..J08, `SCN-JUD-001` | specified | direct, comparative, evidence-ladder, stale-evidence, contradiction, structured-output, and paired assisted replay |
+| 4 | Optional phase review | `MOD-017..018`, `FOC-061`, `UX-252..253`, UX-PH00, `SCN-UI-001` | specified | all four phases, no-phase path, text/emoji parity, lazy review, direct update, undo, and assisted suggestion |
 | 4 | Served-work symptom | `UX-S01..S47`, UX-S08E, UX-S15A, UX-S35A, UX-S37A, UX-DT00..DT02, UX-UP00..UP02, `WRK-007..013`, `WRK-047`, `WRK-067..128`, `UX-084`, `UX-103..133`, `UX-152..164`, `UX-211..217`, `FED-030..041`, `IMP-039`, `FOC-047`, `DAT-045` | specified | deterministic replay of every symptom, Nature-owned completion/deferral, shared date input, and paired assisted surface; downstream Feed or handoff results remain with their owning flows |
 | 4 | Atomic break/reclassification and part addition | `UX-S06`, `UX-S55..S59`, `UX-B00..B02`, UX-NAT01, `MOD-045..047`, `MOD-052`, `MOD-062`, `MOD-077..081`, `IMP-030`, `IMP-045`, `FOC-039..040`, `WRK-112`, `WRK-115..116`, `WRK-122`, `UX-057`, `UX-085..089`, `UX-174..179` | specified | deterministic interactive replay, duplicate-suspicion handoff, and exact undo compensation |
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, UX-F06/F09/F10/F15, `UX-066..069`, `UX-080..081`, `UX-238`, `WRK-001..006`, `WRK-048..049`, `WRK-065`, `WRK-139..140`, `SCN-WRK-001` | specified | focus, pause, idle, Nature-owned done/finish, archive, invalid-alias, dry-run, undo, and paired operator replay |

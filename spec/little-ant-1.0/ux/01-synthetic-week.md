@@ -26,6 +26,34 @@ line. Small input must not be artificially slowed; non-interactive variants
 must contain no splash bytes; cancellation must preserve data; and corruption
 must end in the typed startup error rather than a false completed count.
 
+### SCN-UI-001 — Shared grammar and decoration parity
+
+Before Day 1, render UX-R00, UX-M01, UX-RF01, UX-PH00, UX-H00, and
+UX-A11Y00 with ANSI and emoji independently set to `always` and `never`, then
+with both on factory `auto`. Strip ANSI and verify byte-for-byte semantic text,
+the permanent `> ` selection cursor, stable display columns, and unchanged
+action order. Suppress every emoji and prove that phase, symptom, history,
+warning, success, and state meaning remains explicit in words. Reflow each
+screen at 40, 60, and 80 display cells; no action may be truncated, combined,
+or reordered.
+
+Traverse phase review from every current phase and from no phase. Exercise all
+four choices, clear or leave unspecified, reverse navigation, semantic undo,
+and one accepted plus one rejected attributed suggestion. Phase must never
+sort importance, block focus, imply WIP, or advance automatically.
+
+Render every stable ID in the factory personality catalog at its one valid
+intent transition. Verify exactly 16 unique phrases per intent, replay-stable
+selection separate from forecast randomness, no phrase on a decision or
+high-stakes screen, and sober continuation after restart. Replay each with
+emoji disabled and one powered-up paraphrase; wording may vary only in the
+assisted phrase while the intent ID, state, actions, and subject remain fixed.
+
+Finally press one unbound letter on every finite screen family and verify the
+same concise no-event recovery. Open each arrow-navigable list, move the cursor,
+filter it, return, and run the selected action. `*` and Enter must select only
+one visibly marked default and must never mean the `> ` cursor.
+
 ## Fixture
 
 ### Domains

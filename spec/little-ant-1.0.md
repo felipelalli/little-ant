@@ -52,18 +52,17 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** phase markers, accessibility, and the remaining shared surface
-grammar.
+**Next review:** preferences, contact delivery, and local credential security.
 
-- Owning gates: Gates 4 and 7.
-- Owning boundaries: `OPEN-MOD-002` and `OPEN-UX-001`.
-- Reuse, do not reopen: work headings, status-bar structure, command grammar,
-  contextual uncertainty, ANSI detection, reverse-video selection, and the
-  four 16-entry personality occasions already settled in `UX-001..251`.
-- Preserve textual labels in every rendering; decorative emoji and color may
-  never carry unique meaning.
-- Do not enter here: forecast mathematics, adapter authority, credential
-  storage, source packaging, or migration mapping.
+- Owning gate: Gate 8.
+- Owning boundaries: `OPEN-MOD-001`, `OPEN-PREF-001`, and `OPEN-EXT-001`.
+- Reuse, do not reopen: ExternalEntity identity and autocomplete, Delegation
+  and Wait flows, canonical English, sparse configuration, event authority,
+  and the complete dumb surface grammar through `UX-259`.
+- Keep declarative preferences, schema-validated calibration, integration
+  bindings, and secrets as separate typed concerns.
+- Do not enter here: provider-specific import coverage, Calendar write-back,
+  Pack supply-chain policy, or migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance
@@ -101,6 +100,7 @@ value may remain adjustable.
 
 - [Configuration and calibration](little-ant-1.0/configuration-and-calibration.md)
 - [Standard Template catalog](little-ant-1.0/standard-template-catalog.md)
+- [Factory personality catalog](little-ant-1.0/personality-catalog.md)
 - [Open release decisions](little-ant-1.0/open-release-decisions.md)
 - [V0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md)
 - [Specification completion plan](little-ant-1.0/spec-completion-plan.md)
