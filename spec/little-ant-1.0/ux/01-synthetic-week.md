@@ -992,6 +992,29 @@ Powered-up and Skill may reorder the same eligible results and mark one, but
 must not change eligibility or accept it. Preserve the exact query and move
 draft across search suspension and reverse navigation.
 
+For UX-S53, first choose an eligible parent with exactly the same direct Domain
+set. Verify the compact From/To body, absence of Domain contrast and
+`change Domains`, and conditional rendering of both quiet information lines.
+Exercise no, every reverse gesture, and UX-S54 through direct yes, direct no,
+read-only consequence inspection, `/show`, and repeated uncertainty; none may
+move or record evidence before UX-S53 yes. Exercise Escape, Left Arrow, and
+empty-buffer Backspace from both UX-S54 questions and require exact UX-S53
+restoration. Make the target stale before one acceptance and require
+UX-029..031 recovery. On separate fixed-state replays,
+cover an empty sibling set, a nonempty set fully resolved by reusable evidence,
+and a genuinely unresolved first midpoint comparison. The first two go
+directly to UX-S38; the last enters ordinary uninterrupted insertion, then
+reaches the same receipt on resolution or exit without a per-answer result or
+draw. Verify the move and valid provisional position are atomic, old-scope
+comparisons become inactive history, subtree order and direct Domains remain,
+and any scope-review consequence is derived rather than silently completed.
+Move a Domained Brick to root through the compact variant, and treat root while
+already at root as the same event-free current-parent no-op. From the receipt,
+reach context editing through `[u]pdate something else` then `[c]ontext` in two
+keypresses. Powered-up and Skill may annotate the selector but must preserve
+the preview, actions, absence of default, and commit boundary. Leave exact
+move-plus-comparison compensation at `OPEN-UNDO-001`.
+
 For Nature/behavior, first select the current Nature in UX-S46 and prove an
 event-free no-op. Traverse the full mechanical discovery route over the
 existing Brick, reject its result, and verify no classification evidence was

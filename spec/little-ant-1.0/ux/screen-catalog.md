@@ -2816,6 +2816,116 @@ eligibility is identical across modes. Assistance may reorder or mark one
 candidate with an attributed reason but cannot manufacture a candidate or
 select it. Escape, Left Arrow, or empty-buffer Backspace restores UX-S50.
 
+## UX-S53 — Compact move preview
+
+When the selected existing parent has the same direct Domains, the dumb route
+uses no contrast block:
+
+```text
+Move this Brick?
+
+#rrsr "Review Rock Splitter rules"
+
+From:
+#rs "Rock Splitter"
+
+To:
+#rsm "Rock Splitter migration"
+
+Domains stay the same.
+An importance comparison comes next.
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The Domain line is omitted when the moving Brick has no direct Domain. The
+importance line appears only when reusable evidence leaves a genuinely
+unresolved first comparator; otherwise acceptance goes directly to the
+receipt. A move to literal root uses `To: <root>` and the same compact grammar,
+because root is not a parent Brick with a Domain set. The screen has no
+default, personality, similarity claim, Nature row, or `change Domains`
+action. No and reverse navigation restore UX-S52 with its query intact.
+
+Yes revalidates both records, commits composition placement plus a valid
+provisional sibling position, and continues the existing importance insertion
+without a draw or per-answer receipt. Exiting that sequence leaves the Brick
+placed and future review visible in the ordinary footer. At resolution or
+exit, UX-S38 shows only the changed fact:
+
+```text
+Within:
+#rs "Rock Splitter"
+→
+#rsm "Rock Splitter migration"
+```
+
+Its ordinary actions remain `[u]pdate something else`, `[r]eturn to Work`, and
+the slash palette. The first reaches the update hub, where `[c]ontext` remains
+available; the compact preview does not hide or duplicate Domain editing.
+
+## UX-S54 — Compact move uncertainty
+
+```text
+Would you expect to find #rrsr "Review Rock Splitter rules"
+within #rsm "Rock Splitter migration" when organizing that Work?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Yes restores UX-S53 unchanged; the human must still press its `[y]es` to move.
+No restores UX-S52 directly. Question mark shows the bounded explanation:
+
+```text
+Moving it may change:
+
+- where it appears within larger Work;
+- its importance position among the new siblings;
+- whether the old or new larger Work needs a later scope review.
+
+It keeps its identity, handle, meaning, Domains, blockers, waits,
+delegations, focus state, and internal parts.
+
+After seeing this, would you expect to find it there?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The second uncertainty response returns to UX-S52 without evidence or
+mutation. The root variant asks whether the Brick belongs `at the top level`.
+Contextual `/show` may inspect either complete record and then restore the
+exact pending question. Escape, Left Arrow, and empty-buffer Backspace restore
+UX-S53 unchanged from either question.
+
 ## UX-K01 — Nature choice
 
 ```text

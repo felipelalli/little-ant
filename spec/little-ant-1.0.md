@@ -52,16 +52,15 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** compact same-Domain reparenting preview.
+**Next review:** child-part manager.
 
 - Owning gate: Gate 4.
 - Owning boundary: `OPEN-PLAN-001`.
-- Owning records: `WRK-113..114`, `UX-170..171`, and UX-S51..S52.
-- Do not close here: Domain mode or relationship-inheritance semantics in
-  `OPEN-MOD-003`.
-- Do not re-decide here: binary insertion in `IMP-004` and `MOD-031`.
-- Do not enter here: child-part, ListEntry, or responsibility managers;
-  ListEntry semantics remain under `OPEN-LST-001`.
+- Owning records: `WRK-111..112`, `UX-168..169`, and UX-S50.
+- Do not close here: the full Nature transition matrix in `OPEN-NAT-001`.
+- Do not re-decide here: accepted batch ordering in `IMP-030`.
+- Do not enter here: ListEntry or responsibility managers; ListEntry semantics
+  remain under `OPEN-LST-001`.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

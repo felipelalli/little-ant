@@ -906,8 +906,13 @@ no-emoji rendering remain `OPEN-UX-001`.
   uncertainty, without a dumb default. Yes follows WRK-113; change enters the
   typed Domain editor and returns to a combined preview; no restores the parent
   selector. Assistance may mark change and append one attributed semantic
-  reason, but the dumb renderer never claims semantic distance. Exact parent
-  selection and same-Domain compact preview remain under `OPEN-PLAN-001`.
+  reason, but the dumb renderer never claims semantic distance. Parent
+  selection follows UX-171; equal-Domain and literal-root moves follow the
+  compact UX-172 preview.
+  Literal `<root>` is not a parent Brick and supplies no membership set to
+  compare: moving to root therefore uses the compact preview and preserves the
+  moving Brick's direct Domains rather than fabricating a missing-parent
+  contrast.
 - **UX-171 [core] — Parent autocomplete keeps root, existing, and new scope in
   one place.** UX-S52 identifies the moving Brick and current parent, then
   opens `New parent ›` as a searchable input without a default. Typing `#` or
@@ -922,6 +927,49 @@ no-emoji rendering remain `OPEN-UX-001`.
   mark one result with an attributed reason; rejection restores the dumb
   ordering and query. Exact dumb ranking ties remain with the reference-search
   closure in `OPEN-REF-001`.
+- **UX-172 [core] — Same-context moves use one compact confirmation.** UX-S53
+  follows UX-S52 when the eligible existing parent's direct Domain path set is
+  canonically equal to the moving Brick's set, or whenever the selected target
+  is literal root. It renders the moving Brick, complete old and new parents,
+  one quiet `Domains stay the same.` line only when the Brick has a direct
+  Domain, and `An importance comparison comes next.` only when IMP-004 has a
+  genuinely unresolved first comparator. It omits the UX-S51 contrast,
+  relationship conclusion, and `change Domains` action. Actions are `[y]es`,
+  `[n]o`, uncertainty, and the slash palette, without a default or personality
+  line. No and reverse navigation restore UX-S52 with its query and selection
+  intact. Yes first revalidates subject and target under UX-029..031, then
+  applies WRK-113, MOD-031..032, and IMP-004 as one reparenting boundary: the
+  composition placement and deterministic low-confidence sibling position
+  change together; internal subtree order and every unrelated fact remain;
+  old-scope comparisons become inactive history; and any affected scope review
+  is only the existing derived consequence. No forecast draw occurs. Existing
+  resumable insertion continues immediately only while an unresolved
+  comparator exists; accepted answers use the ordinary comparison grammar and
+  UX-095 cadence, and exit always leaves a valid provisional position. An
+  empty or already-resolved sibling set goes directly to the existing UX-S38
+  receipt. At resolution or exit, that receipt varies only its fact block to
+  show old and new parent; the footer already carries unresolved-review counts.
+  Update-something-else reaches `context` in one further hub choice, while
+  return-to-Work neither focuses nor draws. Selecting the current parent—or
+  selecting root while already at root—remains UX-S52's event-free no-op and
+  never reaches this preview. Powered-up and Skill may annotate or rank the
+  selector but cannot skip UX-S53, add a default, or accept the move.
+- **UX-173 [core] — Move uncertainty asks one human grouping question.** From
+  UX-S53, question mark opens UX-S54 and asks whether the user would expect to
+  find the Brick within the proposed larger Work when organizing it; the root
+  variant asks whether it belongs at top level. Yes returns to unchanged
+  UX-S53, whose `[y]es` remains the sole commit action. No returns directly to
+  UX-S52 without a second confirmation. Question mark reveals one read-only
+  consequence summary: the parent and new-sibling importance position may
+  change and old/new scope may later need review, while identity, handle,
+  meaning, Domains, blockers, waits, delegations, focus/WIP, and the internal
+  subtree remain.
+  It then asks the same grouping question once more. A second uncertainty
+  response returns unresolved to UX-S52; it records no judgment, movement,
+  comparison, review, or random-state change. Escape, Left Arrow, and
+  empty-buffer Backspace restore UX-S53 unchanged from either question.
+  Read-only `/show` may inspect both records and return to the exact question,
+  but never substitutes for the consequence summary.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies
