@@ -2498,10 +2498,13 @@ assistance-label, and no-emoji rendering.
 - **UX-040 [core] — Typed educational errors.** Failures include stable codes
   for at least precondition, not found, and ambiguous reference, plus safe
   concrete recovery actions when available.
-- **UX-041 [core] — Global dry-run.** Every mutating CLI operation supports
-  `--dry-run`, performing ordinary parsing, resolution, validation, tick, and
-  deterministic calculation without events, checkpoints, Pack invocation,
-  persistent randomness, or external effects.
+- **UX-041 [core] — Global dry-run.** Every catalogued CLI operation accepts
+  `--dry-run`. A mutating operation performs ordinary parsing, resolution,
+  validation, tick, and deterministic calculation without events,
+  checkpoints, persistent randomness, or external effects. A read-only
+  operation returns its ordinary validated projection with the dry-run fact
+  visible and neither gains authority nor fails merely because the option is
+  redundant.
 - **UX-042 [core] — Useful failure ending.** An error leaves the user with a
   concrete correction, bounded search, valid alternative, or explicit safe
   stop; never an unexplained dead end.

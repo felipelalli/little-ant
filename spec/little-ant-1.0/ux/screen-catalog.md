@@ -3192,7 +3192,7 @@ Update behavior:
 Current Nature:
 
 habit
-    Missed windows affect history, but do not become overdue Work.
+    Unfulfilled windows affect history, but do not become overdue Work.
 
 How should this behave now?
 
@@ -4290,7 +4290,7 @@ The three child handles become durable only in the accepted transaction. The
 dataset and three active children were added. The `reviews` count rises from
 3 to 7: three child `nature_review` opportunities and one sibling
 `importance_run_review`. All four enter the weighted lottery immediately with
-low positive weight. They may therefore be drawn next, although ordinary Work
+a low positive chance. They may therefore be drawn next, although ordinary Work
 or another review may win the replay-stable draw instead. A later review skip
 can cool one opportunity without lowering this unresolved count.
 

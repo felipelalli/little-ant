@@ -168,8 +168,8 @@
   | project or finite checklist | Could any part need its own `next`, importance, blocker, date, Domain, or history? | project | finite checklist |
   | members or executions | Will items be added or removed while the parent remains? | members | executions |
   | collection or living checklist | At focus time, must the whole open set appear together? | living checklist | collection |
-  | obligation or non-accumulating work | If missed, should the old occurrence remain open or overdue? | recurring obligation | non-accumulating work |
-  | habit or repeatable | Should a missed window record an unfulfilled outcome or affect a streak? | habit | repeatable |
+  | obligation or non-accumulating work | If one due period is not completed, should its occurrence remain open or overdue? | recurring obligation | non-accumulating work |
+  | habit or repeatable | Should an unfulfilled window affect history or a streak? | habit | repeatable |
 
   A second uncertainty at the same split leaves Raw triage pending instead of
   guessing.

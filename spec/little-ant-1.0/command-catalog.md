@@ -29,10 +29,13 @@ mutation.
 - In the REPL, an omitted argument is guided under UX-195. In noninteractive
   CLI use, an omitted required argument is a typed `precondition` error with
   the exact usage; it never guesses from recency.
-- Every mutating CLI form accepts `--dry-run` and traverses the same parsing,
-  resolution, validation, tick, preview, and permission path without
-  appending events or dispatching effects. Read-only forms reject `--dry-run`
-  as unnecessary rather than pretending it changed behavior.
+- Every catalogued CLI operation accepts global `--dry-run`. A mutating form
+  traverses the same parsing, resolution, validation, tick, preview, and
+  permission path without appending events, advancing persistent randomness,
+  or dispatching external effects. An inherently read-only form returns its
+  ordinary validated projection with the dry-run
+  fact visible; the option grants no additional authority and is never an
+  unnecessary-option error.
 - The global profile selector precedes the command as `--profile <name>`.
   Common structured-output and presentation options appear where each
   command's help declares them. Sparse JSON is the default structured
@@ -58,7 +61,7 @@ mutation.
 | `/tie-break` | `lant tie-break` | Resolve only the pending skipped importance comparison through its deterministic aid. |
 | `/domain-focus [Domain]` | `lant domain focus <Domain>` | Choose one suggestion, stay within, or prefer a Domain. |
 | `/update [reference] [section]` | `lant update <reference> [section]` | Open the one semantic-maintenance hub; there is no generic field editor. |
-| `/merge [#survivor] [#absorbed]` | `lant merge <#survivor> <#absorbed>` | Unify two Bricks through the complete transfer/conflict preview. |
+| `/merge [#survivor] [#absorbed]` | `lant merge <#survivor> <#absorbed>` | Merge two Bricks through the complete transfer/conflict preview. |
 | `/supersede [#old] [#replacement]` | `lant supersede <#old> <#replacement>` | Record that one Brick has been replaced by another. |
 
 `lant domain` is the separate Domain-forest manager defined by FED-058. Its
@@ -105,7 +108,7 @@ admitted attention subject's current positive chance, opportunity variant,
 age, strongest signal, effective Domain path, and blocker endpoint. Neither
 view consumes randomness or changes importance. Pagination is stable for its
 dataset cursor; direct reference or Domain scope narrows rather than
-reinterprets the view. `/forecast` is not an alias.
+reinterprets the view. Neither `/importance` nor `/forecast` is an alias.
 
 ## Integrations, configuration, and hosts
 
@@ -149,9 +152,10 @@ credential, external-effect, and undo boundaries from chapters 7–9.
 
 ## Explicitly rejected vocabulary
 
-The core rejects `/capture`, `/priority`, `/weight`, `/estimate-hours`,
-`/complete`, `/retire`, `/stop`, `/resume`, `/edit`, `/plan`, `/find`,
-`/forecast`, `/focus blocker`, and `/focus_blocker`. Natural-language
-operators may understand the user's intent, but their visible result names the
-canonical command above. This keeps old terminology and friendly language at
-the boundary without making the core ambiguous.
+The core rejects `/capture`, `/priority`, `/importance`, `/forecast`,
+`/weight`, `/estimate-hours`, `/complete`, `/retire`, `/abandon`, `/kill`,
+`/stop`, `/resume`, `/start`, `/edit`, `/plan`, `/find`, `/unify`,
+`/interaction`, `/focus blocker`, and `/focus_blocker`. Natural-language
+operators may understand the user's intent, but their visible result names
+the canonical command above. This keeps old terminology and friendly language
+at the boundary without making the core ambiguous.

@@ -58,7 +58,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | A full command word can interrupt a pending one-key question | `O`; partial parser behavior | **replaced** | explicit `[/] more...` palette suspends the pending interaction under `UX-022`, `UX-047`, and `UX-M01`; bare hidden aliases are rejected by `UX-062` | palette navigation, mutation, Escape, and stale-revalidation simulation |
 | JSON success/error envelope includes canonical human rendering | `I+T`, `Main.hs::emit` | **replaced** | `DAT-006..010` sparse typed response plus explicit depth | sparse-versus-complete scenario |
 | Typed educational errors distinguish precondition, not found, ambiguous reference, and collision | `I+T`, `CmdError` and exit-code tests | **strengthened** | `UX-040..042`, `UX-191..200`, UX-ER01..ER03 | failure-recovery scenario |
-| Global `--dry-run` validates without writing | `I+T`, ordinary and migration tests | **strengthened** | `UX-041`, `MIG-014` | mutator/effect/migration dry-runs |
+| Global `--dry-run` validates without writing | `I+T`, ordinary and migration tests | **strengthened** | `UX-041`, `MIG-014` | mutator, read-only, effect, and migration dry-runs |
 | Every command advances due temporal rules; explicit `tick` runs the same phase | `I+T`, `Tick.hs` | **strengthened** | `WRK-017` | deterministic-clock scenario |
 | A guided session ends usefully rather than falling silent | `O`, Allium/skill; v0 CLI violated it on empty state | **strengthened** | `PRD-004`, `FOC-027..029`, `UX-E00..E01` | first-start, empty, filtered-empty, safe-end transcripts |
 | Data and product vocabulary are English | `O`; uneven historic data | **retained** | `PRD-010..012`, `UX-049`, `MOD-049` | multilingual Feed and `/translate` route |

@@ -149,7 +149,7 @@ creation, WRK-154—not the Template—governs rescheduling.
 | `maintenance_task` | confirmed | Repeat one maintenance action after a completion-relative delay. |
 | `backup_verification` | confirmed | Recheck a backup after the previous verification. |
 | `subscription_review` | confirmed | Reconsider one subscription later without accumulating missed periods. |
-| `geocaching_outing` | confirmed | Suggest another outing after a completed one without recording missed windows. |
+| `geocaching_outing` | confirmed | Suggest another outing after a completed one without recording unfulfilled windows. |
 | `decluttering_session` | confirmed | Offer another session after the previous session is completed. |
 | `personal_retrospective` | confirmed | Revisit a personal retrospective after completion. |
 
@@ -179,7 +179,7 @@ creation, WRK-154—not the Template—governs rescheduling.
 | `study_habit` | confirmed | Complete study opportunities for a chosen subject. |
 | `meditation_habit` | confirmed | Complete meditation opportunities and preserve outcomes. |
 | `journaling_habit` | confirmed | Complete journaling opportunities and preserve outcomes. |
-| `sleep_routine` | confirmed | Track a recurring sleep-related intention and missed windows. |
+| `sleep_routine` | confirmed | Track a recurring sleep-related intention and unfulfilled windows. |
 | `housekeeping_habit` | confirmed | Track recurring housekeeping opportunities without overdue accumulation. |
 | `outdoor_time` | confirmed | Track regular time outdoors. |
 
