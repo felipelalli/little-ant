@@ -52,17 +52,15 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** ListEntry manager.
+**Next review:** Plan responsibility and Delegation entry.
 
 - Owning gate: Gate 4.
-- Owning boundary: `OPEN-PLAN-001`.
-- Owning boundaries: `OPEN-LST-001` and the remaining list-items branch of
-  `OPEN-PLAN-001`.
-- Reuse, do not reopen: `MOD-060`, `MOD-062`, `WRK-111..112`, and UX-S50.
-- Preserve the accepted parts and incompatible-parent routes in
-  `WRK-115..116`, `UX-174..179`, and UX-S55..S59.
-- Do not enter here: responsibility/Delegation or the full all-pairs Nature
-  matrix.
+- Owning boundary: `OPEN-PLAN-001` with `OPEN-DEL-001`.
+- Reuse, do not reopen: `MOD-050..051`, `WRK-029..034`, `WRK-056..061`, and
+  the already settled delegation screens.
+- Preserve the completed Structure routes in `WRK-111..118`, `UX-168..181`,
+  UX-S50..S59, UX-B00..B02, and UX-L00..L01.
+- Do not enter here: the full all-pairs Nature matrix or generic Wait policy.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

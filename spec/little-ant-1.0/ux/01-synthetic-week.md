@@ -718,9 +718,23 @@ silent Wait resolution.
 
 ### SCN-LST-001 — Grocery run
 
-Render all open entries together, add Milk, start a run, resolve listed and
-unlisted purchases, leave one item open, and finish the run without retiring
-the standing Brick.
+Create a continuing grocery list through the finite-versus-continuing question
+and parse `Milk`, `2 x Coffee`, and `1.5 kg x Rice`, verifying the separated
+preview fields and owner-scoped identities. Refeed Milk, add one count, then
+attempt a unit mismatch and verify that no add or conversion action appears.
+Open the manager, select without mutating, resolve one item directly, cancel
+and reopen another, and confirm that identity and history survive.
+
+Serve the living owner, verify that its proposal has no direct done action,
+start a run, resolve listed and newly added unlisted purchases, leave one item
+open, and finish without retiring the standing Brick. Crash after one item
+mutation and verify the same run, stable row indices, and committed outcome on
+restore. Finish a later zero-open run and verify dormancy. Repeat with a finite
+trip checklist: partial finish carries entries; zero-open finish creates a
+separate scope-closure review with resolved and cancelled counts; add-more
+invalidates it; cancelled-only scope has no default; explicit completion is a
+separate event. Exercise a list longer than nine rows, local selection from a
+global search result, reverse navigation, and each declared undo boundary.
 
 ### SCN-TIME-001 — Bill and warning
 

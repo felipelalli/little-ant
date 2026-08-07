@@ -664,6 +664,51 @@
   its own validated Brick Nature through the ordinary route; its standing
   series is not the reclassification subject. Exact compensation of the
   two-subject event remains under `OPEN-UNDO-001`.
+- **WRK-117 [standard] — List-item structure reuses one owner surface.** On a
+  Nature that owns ListEntries, selecting `list items` enters the collector
+  immediately when none exists and otherwise opens the ordinary checklist
+  manager. The collector accepts one or more MOD-063 lines, preserves its
+  multiline draft through reverse navigation or crash recovery, exposes every
+  parsed field and duplicate suspicion before commit, and commits one batch
+  atomically. One entry is sufficient even when the accepted batch also
+  reclassifies the owner: unlike breaking Work into parts, a one-item list is
+  already a meaningful execution unit and does not claim decomposition.
+
+  On an incompatible Nature, WRK-112 first asks only whether the list remains
+  available after the current entries close, resolves every target builder and
+  reconciliation, then reaches the collector and one combined
+  Nature-plus-entry preview. Child Bricks and ListEntries never convert into
+  one another. The manager operates on the selected owner and its local
+  entries; every contextual palette mutation must resolve and display that
+  target explicitly rather than treating the multi-row surface as an implicit
+  global reference.
+- **WRK-118 [standard] — Checklist runs preserve honest item and owner
+  outcomes.** Accepting a checklist Focus proposal starts or resumes at most
+  one active run correlation for that owner. The run ends only through an
+  explicit finish; switching focus, pausing, crossing a stale-focus boundary,
+  or restarting the REPL preserves it through the ordinary WIP and checkpoint
+  rules. Each entry mutation is committed immediately and survives a crash.
+  Rows keep their run-local position after resolution or cancellation until
+  the run ends, preventing later key presses from targeting a shifted row.
+
+  Finishing after at least one committed entry mutation records resolved,
+  cancelled, and still-open counts, clears current focus, applies the ordinary
+  standing-run cooldown, and carries every unresolved identity forward. A
+  zero-change run cannot be finished as fictitious work; pause, skip, and
+  reverse navigation remain available. A `living_checklist_run` never retires
+  its owner; zero open entries derive dormancy. A `finite_checklist_run` with
+  remaining open entries leaves its owner active after cooldown. With none, it
+  finishes the run and immediately enters the existing
+  `scope_closure_review`; leaving that continuation preserves the weighted
+  review for later. Completion remains a separate explicit action and may be
+  chosen even when all entries were cancelled, but the screen must disclose
+  that fact and never infer completion from cancellation.
+
+  One entry resolution, cancellation, reopen, or edit; one added batch; one
+  run finish; and one checklist completion are separate semantic undo
+  boundaries. Their exact compensation and intervening-event preconditions
+  remain owned by `OPEN-UNDO-001`; undoing a run finish never silently reopens
+  its item mutations.
 
 ## Time
 
@@ -728,8 +773,11 @@
   Brick records an execution outcome, clears focus/WIP as applicable, and
   leaves the standing responsibility active.
 - **WRK-020 [standard] — Living checklist.** All open entries render
-  together. Bought or resolved entries leave the open view but remain in
-  history; unresolved entries remain. Empty state is dormant, not done.
+  through one focus unit and checklist surface, with bounded deterministic
+  scrolling and exact counts permitted for large sets. Bought or resolved
+  entries leave the next fresh open view but remain in history; during an
+  active run they stay visibly closed in their stable row until the run ends.
+  Unresolved entries remain. Empty state is dormant, not done.
 - **WRK-021 [standard] — Repeatable Brick.** Completing a repeatable execution
   may finish the Brick terminally or schedule the same identity behind one
   future `not_before`. It is never reinserted in importance.
@@ -811,7 +859,12 @@
   opens served-work symptom diagnosis or makes the parent executable. The
   contextual palette may inspect or reactivate one completed child and expose
   valid `archive` or `supersede` routes; unresolved subtree consequences remain
-  under `OPEN-TREE-001`.
+  under `OPEN-TREE-001`. For the `list_entries` purpose, the same transition
+  family reports resolved and cancelled counts separately; `add more work`
+  opens the ListEntry collector, and a committed open entry invalidates the
+  review. Deferral keeps the zero-open finite checklist non-executable until
+  this review is served again. An explicit completion is allowed after a
+  cancelled-only scope but never inferred or preselected from that evidence.
 - **WRK-028 [standard] — Event-triggered opportunity.** A supported canonical
   source event may idempotently release one opportunity on an existing
   compatible standing Brick. This is closed core data, not generic automation.

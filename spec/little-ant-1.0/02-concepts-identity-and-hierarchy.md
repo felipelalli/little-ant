@@ -35,7 +35,9 @@
   position among its siblings from birth.
 - **MOD-003 [standard] — ListEntry.** A ListEntry is a structured member owned
   by a Nature that treats entries as part of one execution unit. It is not
-  automatically an independent Brick or globally unique world object.
+  automatically an independent Brick or globally unique world object. Its
+  identity is stable only within one owning Brick: resolving, cancelling, or
+  reopening it appends history to that same identity rather than replacing it.
 - **MOD-004 [core] — BrickNature.** A BrickNature is a versioned,
   core-validated set of observable capabilities governing focus unit,
   structure, completion, standing execution, recurrence, entry ownership,
@@ -284,6 +286,24 @@ The factory library contains:
   the interval, while the commitment itself remains the anchored focus unit
   under MOD-043, MOD-047, and FOC-030. This slice does not settle the remaining
   all-pairs capability deltas in `OPEN-NAT-001`.
+- **MOD-063 [standard] — ListEntry state and quantity stay small.** A
+  ListEntry has exactly one lifecycle state: `open`, `resolved`, or
+  `cancelled`. Reopening either closed state preserves its owner-scoped
+  identity and prior outcomes. Display order is stable insertion order in
+  1.0; entries have no sibling importance, independent focus, global handle,
+  or reorder operation.
+
+  Quantity is one positive finite decimal amount and one normalized unit. An
+  omitted quantity canonicalizes to `1 count`; the ordinary projection omits
+  that default. Dumb entry input accepts exactly `label`, `N x label`, or
+  `N UNIT x label`, where `N` uses `.` as its decimal separator, `x` has
+  surrounding whitespace, and `UNIT` is one non-whitespace Unicode token.
+  The confirmation or batch preview always renders the parsed label, amount,
+  and unit separately before commit. Unit normalization is Unicode case-fold
+  plus surrounding-whitespace removal; the core performs no conversion,
+  plural interpretation, or dimensional inference. Quantity addition is
+  valid only for equal normalized units. Editing exposes label, amount, and
+  unit as separate fields rather than reparsing the display form.
 
 ## Content, movement, and effective metadata
 
@@ -322,9 +342,11 @@ The factory library contains:
 
 - **MOD-035 [standard] — Living checklist.** A `living_checklist` is one
   durable Brick that owns changing ListEntries. When it has open entries,
-  `next` serves the parent as the focus unit and the surface renders every
-  open entry together. Resolved entries remain in history. An empty list is
-  dormant rather than done, and adding a new entry makes it eligible again.
+  `next` serves the parent as the focus unit and one checklist surface makes
+  the complete open set available together. A bounded viewport may show only
+  part of a large set when it also exposes exact counts and deterministic
+  scrolling. Resolved entries remain in history. An empty list is dormant
+  rather than done, and adding a new entry makes it eligible again.
 - **MOD-036 [core] — Checklist versus collection.** A `finite_checklist` and a
   `living_checklist` own ListEntries and focus the parent as one unit. A
   `collection` owns independently focusable child Bricks, each of which may

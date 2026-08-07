@@ -4469,10 +4469,11 @@ What should happen?
 ```
 
 `separate item` first edits or otherwise distinguishes the proposed entry; it
-does not silently create an indistinguishable duplicate. For a resolved match,
-the equivalent screen replaces `keep` with `reuse and reopen` and states that
-the prior resolution remains in history. Exact quantity units and input
-grammar remain `OPEN-LST-001`.
+does not silently create an indistinguishable duplicate. For a resolved or
+cancelled match, the equivalent screen replaces `keep` with `reuse and reopen`
+and states that the prior outcome remains in history. The add row appears only
+when both quantities use the same MOD-063 normalized unit. A different unit
+offers keep, change, or distinguishable separation and never conversion.
 
 ## UX-T06 — Assisted recent-Raw proposal
 
@@ -4528,33 +4529,169 @@ Continue?
 An ordinary defer-only skip never opens this confirmation or claims the streak
 has ended.
 
-## UX-L01 — Living checklist
+## UX-L00 — List-item lifecycle and collector
+
+An incompatible Structure request first asks only the mechanical distinction:
 
 ```text
 #bg "Buy groceries"
 
-Open items
+Should this list remain available after all current items are closed?
 
-[ ] Milk
-[ ] Coffee
-[ ] Dish soap
+[y]es    [n]o    [?] I don't know
 
-Start this run?
+[/] more...
+```
 
-[y]es · [d]one · [s]kip · [?] I don't know
+`yes` means a continuing `living_checklist`; `no` means one completable
+`finite_checklist`. Question mark asks `Do you expect to add new items after
+this current set?` and maps yes/no to the same two rows. A second uncertainty
+shows both consequences once, then returns unresolved to Structure. No choice
+has a dumb default.
+
+After any required WRK-112 reconciliation, or immediately for a compatible
+empty owner, the collector is:
+
+```text
+List items for #bg "Buy groceries"
+
+Enter one item per line.
+Examples: Milk · 2 x Milk · 1.5 kg x Rice
+
+› Milk
+  2 x Coffee
+  1.5 kg x Rice
+  _
+
+Empty Enter reviews the batch. Esc goes back.
+
+Tip: write in English when possible.
+```
+
+The preview renders `Label`, `Amount`, and `Unit` separately for every parsed
+line, so an accidental quantity parse can be edited before commit. It applies
+owner-scoped duplicate review before exposing yes. A compatible add uses the
+ordinary batch preview; a reclassifying add composes the complete behavior
+change and entries in one confirmation. One entry is enough. No entry or
+Nature change becomes durable before that final yes.
+
+## UX-L01 — Checklist surface family
+
+The same row composition has explicitly different manager, proposal, and run
+grammars. A Structure-origin manager is:
+
+```text
+List items:
+
+#bg "Buy groceries"
+
+Open: 3    Resolved: 12    Cancelled: 1
+
+> [1] Milk
+  [2] Coffee × 2
+  [3] Rice · 1.5 kg
+
+[d]one item    [a]dd item    [e]dit item
+[c]ancel item  [r]eopen...   [/] more...
 
 ────────────────────────────────────────
-3 open
 . <root>
   Personal › Housekeeping
-. Last run: Tue, Jul 28, 09:00
-          Now: Mon, Aug 3, 09:00
+. Last changed: Mon, Aug 3, 08:58
+           Now: Mon, Aug 3, 09:00
 . 18 bricks, 7 raws, 3 reviews
   mode: dumb, focus: idle
 ```
 
-All open entries appear together. `done` is interpreted through the
-living-checklist Nature and cannot silently retire the standing Brick.
+Up/Down and `1..9` only move the visible selection. `done item`, edit, and
+cancel target that row; reopen opens the same local selector over closed rows.
+Direct resolution outside a run records the entry outcome but fabricates no
+run. Ordinary `/show` and `/history` expose older closed rows. There is no
+ListEntry handle or bespoke history command.
+
+The ordinary lottery proposal is:
+
+```text
+Work:
+
+#bg "Buy groceries"
+
+Open items: 3
+
+  [1] Milk
+  [2] Coffee × 2
+  [3] Rice · 1.5 kg
+
+Focus?
+
+[y]es    [s]kip    [?] I don't know
+[/] more...
+```
+
+This proposal deliberately has no direct `done`: accepting starts or resumes
+the owner run, while item resolution and finite-scope completion remain
+distinct honest actions. Skip retains the checklist variant's typed skip
+semantics.
+
+The active run is:
+
+```text
+Current focus:
+
+#bg "Buy groceries"
+
+> [1] [ ] Milk
+  [2] [x] Coffee × 2
+  [3] [ ] Rice · 1.5 kg
+
+[d]one item    [a]dd item    [f]inish run
+[s]kip         [/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Run started: Mon, Aug 3, 08:40
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #bg
+```
+
+`done item` changes the selected open row immediately without a confirmation
+or receipt. Closed rows remain in their run-local positions until finish. Add
+uses one collector line and owner-scoped duplicate review, then returns with
+the new open row selected. Finish is unavailable until an item mutation has
+committed; the educational recovery points to `/pause`, skip, or back.
+
+A partial finish reports resolved, cancelled, and still-open counts, clears
+focus, applies cooldown, and waits at `[n]ext    [/] more...`. A living owner
+with zero open entries additionally says it is now dormant. A finite owner
+with zero open entries transitions to the existing scope-closure review:
+
+```text
+Review:
+
+#tc "Prepare for the trip"
+
+No list items are open.
+Resolved: 8    Cancelled: 2
+
+What should happen?
+
+[d]one    [a]dd more work
+[s]kip    [?] I don't know
+
+[/] more...
+```
+
+Nothing is preselected, including a cancelled-only scope. Leaving or skipping
+preserves the typed review for a later weighted draw; it does not make the
+empty checklist executable. Adding an entry invalidates the review. Completing
+the checklist is a separate reversible mutation after the run finish.
+
+Large lists retain this composition with a nine-row viewport, exact counts,
+Up/Down and PageUp/PageDown. Search results show the owner, entry label, and
+state, then open this surface with the row selected rather than inventing a
+global entry sigil.
 
 ## UX-E00 — Pristine first start
 

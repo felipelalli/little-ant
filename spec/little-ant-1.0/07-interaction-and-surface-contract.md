@@ -288,12 +288,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   fragments compose into the smallest existing grammar under `FOC-009`.
 - **UX-083 [core] — Scope-closure review grammar.** A selected
   `scope_closure_review` uses the `Review:` heading, identifies the finite
-  parent, states `All <count> tracked parts are done.`, and asks `What should
-  happen?`. Its visible actions are `[d]one · [a]dd more work` followed by
-  `[s]kip · [?] I don't know`, then `[/] more...`. `Last child done` is the
-  primary temporal footer fact. Actions follow `WRK-066`; uncertainty and
-  Escape preserve the pending review. The screen has no Nature label,
-  project-only wording, completion inference, or decorative personality line.
+  parent, and asks `What should happen?`. The `child_parts` purpose states
+  `All <count> tracked parts are done.` and uses `Last child done` as its
+  primary temporal fact. The `list_entries` purpose states that no entry is
+  open, reports resolved and cancelled counts separately, and uses `Last run`
+  as its temporal fact. Both expose `[d]one · [a]dd more work`, followed by
+  `[s]kip · [?] I don't know` and `[/] more...`, without a default. Actions
+  follow WRK-066; uncertainty and Escape preserve the pending review. The
+  screen has no Nature label, project-only wording, completion inference, or
+  decorative personality line.
 - **UX-084 [core] — Big-recovery grammar.** Selecting `bi[g]` on the served-work
   symptom screen opens a provisional reaction on the same Brick. It asks
   `What would help?` and exposes `[b]reak it into parts`, `[c]ollect more
@@ -903,8 +906,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   and Skill may mark one of the same structure intents or propose a fully
   resolved compatible result through UX-060, but rejection returns to exact
   dumb UX-S50. The parent mover, child manager, parts compatibility, and
-  incompatible-parent screens are settled by UX-170..179; the ListEntry
-  manager and responsibility route remain under `OPEN-PLAN-001`.
+  incompatible-parent screens are settled by UX-170..179; the ListEntry route
+  is settled by UX-180..181, while responsibility remains under
+  `OPEN-PLAN-001`.
 - **UX-170 [core] — Move preview compares Domains mechanically.** When the
   selected parent and moving Brick have unequal direct Domain path sets, the
   move preview uses UX-S51. It renders From, To, the complete current and new
@@ -1045,8 +1049,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   parent. Reverse navigation follows the same origin; collector reverse
   restores the last UX-S57 checkpoint while provisional builder and
   reconciliation answers remain recoverable but uncommitted.
-  The list-items finite/living composition remains with its manager under
-  `OPEN-LST-001` rather than ending at an undefined checkpoint.
+  List items use the parallel but independently worded lifecycle route in
+  UX-181 rather than entering this parts question.
 - **UX-178 [core] — Combined part preview discloses the whole behavior
   change.** When UX-B01 also changes Nature, it includes the same `From`, `To`,
   `Preserved`, `Will stop`, `Will start`, target configuration,
@@ -1078,6 +1082,49 @@ no-emoji rendering remain `OPEN-UX-001`.
   restore UX-S58 from either question. Powered-up and Skill may mark one
   finite/open row and explain it, but cannot choose it, waive reconciliation,
   omit a subject, skip the combined preview, or accept either mutation.
+- **UX-180 [core] — One checklist surface keeps item work fast and
+  unambiguous.** UX-L01 composes the ListEntry manager, checklist Focus
+  proposal, active run, and finite closure continuation without collapsing
+  their discriminated payloads. Manager and active-run rows use stable
+  insertion order and one cursor. Up and Down Arrow move it; Left and Right
+  retain only the settled reverse/undo and forward/redo meanings. Number keys
+  `1..9` select a visible row and never mutate it. `[d]one item` resolves the
+  selected open entry in either state, `[a]dd item` opens one collector line,
+  and explicit edit, cancel, or reopen actions operate only on the visibly
+  selected row. There is no Space shortcut or action mode.
+
+  During a run, a resolved or cancelled row stays in place with its outcome
+  visible until the run finishes; repeated keystrokes therefore cannot target
+  a row that shifted after mutation. A nine-row viewport, exact total and
+  state counts, Up/Down, and PageUp/PageDown make a large set one semantic
+  checklist surface without claiming every row fits on screen. Fresh manager
+  views lead with open entries and may page closed history through ordinary
+  `/show` or `/history`; there is no bespoke history action. The Focus
+  proposal is the deliberate exception to direct `[d]one`: it exposes only
+  `[y]es`, `[s]kip`, uncertainty, and the palette because item and terminal
+  completion require their own honest scope. The active run exposes done item,
+  add item, finish run, skip, and the palette; finish is unavailable before an
+  item mutation and points to pause or skip instead of recording empty work.
+- **UX-181 [core] — List-item setup and assistance preserve the dumb path.**
+  A compatible empty owner opens the UX-L00 collector; a compatible nonempty
+  owner opens UX-L01 manager. An incompatible owner asks `Should this list
+  remain available after all current items are closed?` with `[y]es`, `[n]o`,
+  and uncertainty, mapping to `living_checklist` and `finite_checklist` before
+  WRK-112 reconciliation and one combined preview. Question mark asks whether
+  new items are expected after the current set: yes returns to the continuing
+  row, no to the finite row, and a second uncertainty explains both
+  consequences once before returning unresolved to Structure. Reverse
+  navigation restores the prior checkpoint and drafts without mutation.
+
+  Global search gives no ListEntry a new sigil. A result renders its owner as
+  `#handle "title"`, then the entry label and state; accepting it opens the
+  owner surface with that row selected. Any command from the multi-row surface
+  resolves and displays its Brick or local entry target before mutation.
+  Powered-up and Skill may propose one attributed bounded entry batch from
+  Raw, mark one existing lifecycle or manager action, and render a semantic
+  suggestion beside the unchanged dumb choices. They may not resolve, cancel,
+  reopen, edit quantity, finish a run, complete a checklist, or invent a unit
+  conversion.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies
@@ -1210,9 +1257,11 @@ no-emoji rendering remain `OPEN-UX-001`.
   shows owner, state, existing quantity, and newly fed quantity whenever an
   owner-scoped duplicate is suspected. An open entry offers keep, add the new
   amount, change quantity, and create a distinguishable separate item. A
-  resolved entry instead explains that reuse reopens the same identity while
-  preserving its earlier history. No action silently increments or replaces a
-  quantity.
+  resolved or cancelled entry instead explains that reuse reopens the same
+  identity while preserving its earlier history. The add row appears only for
+  equal MOD-063 normalized units; a differing unit leaves keep, change, and
+  distinguishable separation. No action silently increments, converts, or
+  replaces a quantity.
 - **UX-150 [core] — New-group discovery resolves existing kinds.** UX-T03
   uses `group` only as human-facing umbrella language and offers list, shelf,
   and independently suggestible Work behavior with one concrete explanation

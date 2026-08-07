@@ -243,15 +243,19 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   the ordinary typed-review skip under `FOC-026`. Selecting it never resumes
   work by itself.
 - **FOC-039 [core] — Scope closure is a review.** An active finite parent whose
-  tracked child Bricks are all `done` contributes one typed
-  `scope_closure_review` opportunity to the ordinary subject-first lottery.
-  It is attached to the existing parent attention subject and never creates a
-  second Brick or root ticket. The parent remains excluded from execution and
-  cannot return as `finite_work`. Selection only asks whether the whole
-  outcome is complete or whether more tracked work is needed; it never
-  completes the parent by inference. A newly active child invalidates the
-  pending review. Archived and superseded child boundaries remain governed by
-  `OPEN-TREE-001`.
+  tracked child Bricks are all `done`, or an active `finite_checklist` with no
+  open ListEntry, contributes one typed `scope_closure_review` opportunity to
+  the ordinary subject-first lottery. Its typed purpose is `child_parts` or
+  `list_entries`; the two payloads remain discriminated. It is attached to the
+  existing parent attention subject and never creates a second Brick or root
+  ticket. The subject remains excluded from execution and cannot return as
+  `finite_work` or `finite_checklist_run` while its scope is empty. Selection
+  only asks whether the whole outcome is complete or whether more tracked work
+  is needed; it never completes the parent by inference. A newly active child
+  or open entry invalidates the pending review. The entry payload reports
+  resolved and cancelled counts separately, so cancellation is never
+  presented as completion evidence. Archived and superseded child boundaries
+  remain governed by `OPEN-TREE-001`.
 - **FOC-040 [core] — Lazy review means weighted review.** A lazy human-review
   marker immediately contributes one typed non-execution opportunity to the
   ordinary subject-first lottery with positive, initially low weight. It is

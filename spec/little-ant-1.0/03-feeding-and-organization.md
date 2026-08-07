@@ -335,10 +335,12 @@
   review for a ListEntry is scoped to its checklist owner; a label such as
   `Milk` is not a global object. Refeeding an open match offers keeping it as
   is, adding the newly fed quantity, changing quantity, or creating a
-  deliberately separate distinguishable entry. Reusing a resolved match
-  reopens the same owner-scoped identity while preserving its earlier result
-  in history. Quantity is optional structured state; exact unit vocabulary and
-  parser grammar remain in `OPEN-LST-001`.
+  deliberately separate distinguishable entry. Reusing a resolved or
+  cancelled match reopens the same owner-scoped identity while preserving its
+  earlier result in history. Quantity follows MOD-063. The add action appears
+  only when both amounts have the same normalized unit; otherwise the screen
+  offers keep, change, or distinguishable separation without implying a
+  conversion.
 - **FED-047 [core] — Explicit contextual builders may continue.** When the
   user has already chosen an unambiguous result such as creating a
   prerequisite, investigation, or child Work item, submitting its contextual
