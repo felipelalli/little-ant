@@ -65,6 +65,11 @@ grants authority.
 | `delegation.unanswered_follow_up_soft_cap` | `2` | Recorded follow-up handoffs without a meaningful outcome before automatic proposals pause for an explicit strategy review. |
 | `place.negative_answer_cooldown_minutes` | `60` | Cooldown after the human says a selected required PlaceCondition is not currently met. |
 
+The complete fixed-point selection and confidence defaults live in the
+[deterministic calculation profile](deterministic-calculation-profile.md).
+Those values are part of the factory calibration profile and obey CAL-001..008
+exactly like the table above.
+
 `time.operational_timezone` is required profile data rather than a universal
 factory value. It is an IANA identifier such as `America/Montevideo`. A
 habit-specific schedule may override `time.habit_day_starts_at`; there is no
@@ -104,13 +109,14 @@ exists, the v1 starting profile may use:
 The percentage is a binary-insertion prior, not a band, constraint, or sort
 key. Missing phase uses the Nature/default neutral prior.
 
-## Defaults to calibrate before implementation freeze
+## Values that remain calibratable
 
-The semantic behavior is settled, but factory numbers still require scenario
-evidence:
+The semantic behavior and starting factory values are settled. Fixed-stream
+simulation may justify a versioned numeric revision before release or during
+later calibration; it may not replace the formula or invent a signal:
 
-- importance-to-chance curve and positive-tail base-weight floor;
-- strongest-signal bonus curve, independence test, and cap;
+- importance-to-chance curve and positive-tail bottom/neutral factors;
+- strongest-signal bonus fraction and pressure gain;
 - Domain-affinity strength and decay after accepted focus;
 - interaction-family affinity strength, per-family contribution, skip
   reduction, and decay after an accepted interaction;
@@ -119,8 +125,8 @@ evidence:
   pressure; these parameters never collapse the semantic distinctions in
   `WRK-062..064`;
 - Domain fatigue cooldown and bounded negative signal;
-- per-axis direct-judgment confidence by provenance, temporal decay shape,
-  relevance horizon, and fresh-conflict threshold;
+- per-axis direct-judgment confidence by provenance, temporal horizon,
+  relevance threshold, and fresh-conflict threshold;
 - per-axis transitive path-length penalty and weakest-edge policy;
 - per-axis provocative-validation target share within served judgment
   maintenance, candidate scoring, cooldown, and confidence/consequence

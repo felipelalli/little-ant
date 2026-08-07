@@ -98,6 +98,7 @@ value may remain adjustable.
 ## Supporting records
 
 - [Configuration and calibration](little-ant-1.0/configuration-and-calibration.md)
+- [Deterministic calculation profile](little-ant-1.0/deterministic-calculation-profile.md)
 - [Standard Template catalog](little-ant-1.0/standard-template-catalog.md)
 - [Standard integration catalog](little-ant-1.0/standard-integration-catalog.md)
 - [Pack format and trust](little-ant-1.0/pack-format-and-trust.md)

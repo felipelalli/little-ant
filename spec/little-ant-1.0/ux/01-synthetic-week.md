@@ -511,6 +511,18 @@ focus; accepting a final reaction for the proposed Brick defers only that
 proposal. Replay powered-up and Skill summaries without persuasion, hidden
 answers, automatic Focus, or a second draw.
 
+### SCN-FOC-007 — Fixed-point forecast calculation
+
+Replay every reference vector and boundary in the
+[deterministic calculation profile](../deterministic-calculation-profile.md).
+Verify exact integer factors after each named rounding step, correlation-key
+collapse, strongest-plus-extra pressure, current-Domain affinity, family and
+fatigue decay, canonical candidate order, rejection sampling, local
+opportunity normalization, and hierarchical leaf projection. Sweep every
+factory parameter while holding events, clock, and random cursor fixed. No
+admitted weight reaches zero, a displayed rounded percentage never feeds a
+draw, and replay under an older recorded profile hash remains byte-identical.
+
 ### SCN-PLACE-001 — Lightweight Place conditions
 
 From the dumb blocked-or-waiting route, classify `#bg "Buy groceries"` as

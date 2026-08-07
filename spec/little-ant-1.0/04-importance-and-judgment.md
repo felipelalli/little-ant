@@ -171,10 +171,14 @@ Is
 - **IMP-015 [core] — Provocative validation is not sorting.** A separate
   validator may choose two siblings whose strict relation is currently implied
   only by a transitive path and has never been asked directly. Its
-  replay-deterministic configured probability is evaluated outside the
-  `org-sort-tasks` pair selector, so the minimal sorter never invents a
-  redundant comparison and explicit `/order` never interleaves validation
-  questions. Confirmation records a direct edge and strengthens the path. A
+  replay-deterministic configured target rate is evaluated outside the
+  `org-sort-tasks` pair selector under FOC-042 and the
+  [deterministic calculation profile](deterministic-calculation-profile.md).
+  The rate applies only after the weighted lottery chooses the importance-
+  maintenance family; it is not a percentage of all served work. The minimal
+  sorter never invents a redundant comparison and explicit `/order` never
+  interleaves validation questions. Confirmation records a direct edge and
+  strengthens the path. A
   contrary answer follows IMP-013: weak old support yields to the new judgment,
   while a recent strong cycle opens UX-O06. Candidate scoring may favor age,
   low confidence, consequence, or a weak path, but never changes the implied
@@ -316,6 +320,38 @@ Is
   marker; the previously inferred relation keeps only the confidence it
   already had and continues ordinary temporal decay. The independent validator
   may consider the pair again after cooldown.
+
+- **IMP-058 [core] — Confidence uses one deterministic profile.** Current
+  judgment confidence, provenance strengths, linear horizons, relevance and
+  fresh-conflict thresholds, and public labels follow the
+  [deterministic calculation profile](deterministic-calculation-profile.md).
+  A current calculation may not substitute a model-specific score or
+  wall-clock recency shortcut.
+- **IMP-059 [core] — Recent direct judgment has bounded authority.** A direct
+  human answer begins stronger and lasts longer than an accepted assisted
+  proposal; both decay monotonically to zero. A new direct answer outranks an
+  old path below relevance, while a path whose every edge remains fresh opens
+  contradiction UX rather than being deleted or silently reversed.
+- **IMP-060 [core] — Transitive choice is deterministic.** Among paths that
+  imply the same relation, the core maximizes effective path confidence, then
+  minimizes edge count, then uses canonical UUID path order. Path confidence
+  is the weakest edge times the configured per-extra-edge penalty. Merely
+  finding more paths never adds confidence.
+- **IMP-061 [standard] — Axes share provenance, not horizons.** Importance,
+  Impact, and Effort use the same provenance classes and current/history
+  distinction, but the profile may give an axis a different horizon. Scope
+  invalidation can weaken applicable Impact or Effort evidence; it cannot
+  strengthen it, refresh its timestamp, or alter another axis.
+- **IMP-062 [core] — Configuration changes are prospective.** A profile
+  revision changes confidence only at future calculation instants. Replaying
+  an old judgment or draw uses its recorded profile hash; viewing history does
+  not refresh evidence. Existing evidence is never rewritten to resemble the
+  new curve.
+- **IMP-063 [core] — Floats stay out of human judgment.** Internal fixed-point
+  confidence supports comparison, contradiction, and inspection, but ordinary
+  UI renders only `reviewed`, `provisional`, `review due`, or `historical
+  only`, plus provenance and age on request. A user never edits a confidence
+  number.
 
 ## Expected impact
 

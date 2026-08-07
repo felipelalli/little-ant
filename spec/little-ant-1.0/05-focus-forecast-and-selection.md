@@ -18,6 +18,38 @@
 - **FOC-005 [core] — Replay-deterministic draw.** `next` records the clock,
   configuration version, random seed or cursor, admitted set, probabilities,
   every branch choice, and the final opportunity so replay reproduces it.
+- **FOC-064 [core] — One calculation profile owns every weighted choice.**
+  Subject draws, hierarchical descent, blocker branch choice, and local
+  opportunity choice use the fixed-point factors and integer sampler in the
+  [deterministic calculation profile](deterministic-calculation-profile.md).
+  A caller cannot supply a custom scorer or reorder the recorded candidates.
+- **FOC-065 [core] — Importance is strong but not absolute.** The local sibling
+  rank, its effective confidence, and the factory bottom/neutral curve produce
+  the importance factor. A Raw or subject without active importance uses the
+  neutral factor. Bounded pressure and context may change chance, but no
+  admitted candidate receives zero weight.
+- **FOC-066 [core] — Strongest signal remains explainable.** Typed positive
+  signals consolidate by correlation key, the maximum signal anchors pressure,
+  and independent extras use the profile's bounded complement-product bonus.
+  The forecast records every contributing signal and names only the strongest
+  plus bounded extras in ordinary inspection.
+- **FOC-067 [core] — Negative context cannot become exclusion.** Domain
+  fatigue, a known preferred-Place mismatch, and other declared soft negative
+  signals use the bounded negative factor. Missing evidence is neutral and the
+  factor never reaches zero. Hard exclusion still requires an explicit gate,
+  cooldown, or scope rule outside this formula.
+- **FOC-068 [core] — Local draws do not duplicate a subject.** Subject pressure
+  uses the strongest aggregated eligible local opportunity. Only after that
+  subject wins does the core normalize its local variants. Subject-level
+  importance and Domain factors are not added again inside that local draw.
+- **FOC-069 [core] — Selection uses recorded integer intervals.** The core
+  samples without modulo bias from canonical candidate order and records
+  identities, integer weights, total, cursor, sampled integer, and chosen
+  interval. Displayed percentages are derived and rounded only after selection.
+- **FOC-070 [core] — Hierarchical chance remains a projection.** A flat leaf
+  chance multiplies the recorded local probabilities along its path. It never
+  participates in selection, moves a Brick, or becomes another stored score.
+  The `/list` forecast view labels it accordingly.
 
 ## Subjects and opportunities
 

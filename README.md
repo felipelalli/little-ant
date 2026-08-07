@@ -165,6 +165,9 @@ pressure accumulated from skips.
 
 See [importance and judgment](spec/little-ant-1.0/04-importance-and-judgment.md)
 and [focus forecast and selection](spec/little-ant-1.0/05-focus-forecast-and-selection.md).
+The exact fixed-point confidence, long-tail curve, signal combination, and
+replay-safe sampling contract is the
+[deterministic calculation profile](spec/little-ant-1.0/deterministic-calculation-profile.md).
 
 ## Common flows
 
