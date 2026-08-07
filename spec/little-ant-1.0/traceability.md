@@ -22,6 +22,13 @@ longer, or recoverable.
 | `e4dd122` | Maintained v0→1.0 matrix and finite UX-first closure plan | Current regression and completion gates |
 | `f178f04` | Removed the live shadow tree, reorganized open decisions, and added UX flow coverage | Gate 1 closure and current active-spec boundary |
 | `1479841` | Last pre-compaction index closure narrative, including the accumulated UX review chronology | Historical navigation evidence only; never current product authority |
+| `e85d808` | Closed the zero-toll Raw-first Feed-to-Work loop and its dumb screens | Golden-loop contract |
+| `5e55f38` | Defined replay-safe confidence decay, pressure combination, weighted choice, and reference vectors | Normative deterministic calculation profile |
+| `54ead2e` | Closed the typed Pack execution boundary and separated the official connector Pack | Normative extension and release boundary |
+| `a572169` | Re-ran the regression audit against signed tag `v0.1.0` and its delivered schema | Final v0 capability and migration evidence |
+| `09f585b` | Preserved every Feed as an attributable Raw receipt while moving duplicate resolution to Work and ListEntry materialization | Current duplicate boundary |
+| `de4be7f` | Closed the canonical command and rejected-vocabulary audit | Current public vocabulary boundary |
+| `3ad6660` | Reconciled eligibility gates, forecast factors, duplicate-review count, and UUID rule reference | Final semantic contradiction audit before freeze |
 
 The pre-rewrite bundle at
 `~/tmp/little-ant-pre-rewrite-202607101708.bundle` is older than the final v0
@@ -99,10 +106,11 @@ commit
 
 ## Downstream promotion trace
 
-Allium and tests do not yet exist for the recovered 1.0 contract. When the
-specification reaches Gate 12 of the
-[completion plan](spec-completion-plan.md), promotion adds these fields for
-every canonical rule and flow:
+Allium and tests do not yet exist for the recovered 1.0 contract. The
+specification has reached Gate 12 of the
+[completion plan](spec-completion-plan.md). In the next separately authorized
+implementation phase, promotion adds these fields for every canonical rule and
+flow:
 
 ```text
 Allium obligation

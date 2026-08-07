@@ -76,6 +76,8 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 #### Selection and feeding
 
 - Read-only, explainable forecast with replay-safe weighted `next` draws.
+- Versioned fixed-point confidence decay and weighted-choice formulas with
+  recorded random streams, reference vectors, and positive long-tail chance.
 - Separate importance and forecast projections.
 - Proposal pressure for unresolved importance, stale focus, source
   reconciliation, repeated habit friction, approvals, and reviews.

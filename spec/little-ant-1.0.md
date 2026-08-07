@@ -1,6 +1,6 @@
 # Little Ant 1.0
 
-Status: **canonical product-specification draft**
+Status: **canonical 1.0 implementation contract; product discovery complete**
 
 Target release: **Little Ant 1.0**
 
@@ -16,8 +16,9 @@ required to operate or implement the product.
 
 The previous implementation, Allium garden, and generated tests were removed
 from the working tree after their divergence was diagnosed. Git history and a
-versioned v0 archive remain migration evidence only. The current README and v0
-operator skill are not authoritative for 1.0.
+versioned v0 archive remain migration evidence only. The README summarizes
+this contract, while the v0 operator skill remains historical evidence; neither
+overrides a canonical rule.
 
 ## Authority
 
@@ -47,26 +48,18 @@ the same IDs so a rule cannot silently disappear between layers.
 
 ## Current closure state
 
-Gate 1 of the [completion plan](little-ant-1.0/spec-completion-plan.md) is
-complete. Historical recovery has produced partial coverage beyond it; exact
-per-flow status lives only in the
-[UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
+All 12 gates of the
+[completion plan](little-ant-1.0/spec-completion-plan.md) are complete. The
+contract has no open release-blocking semantic boundary or unresolved v0
+regression. Every route in the
+[UX flow inventory](little-ant-1.0/ux/flow-coverage.md) is `specified`; none is
+claimed `verified` before a conforming implementation passes its cited replay.
 
-**Next review:** final contradiction, regression, terminology, and link audit.
-
-- Owning gate: final specification freeze.
-- Open release boundary: none.
-- Reuse, do not reopen: the complete dumb UX contract, its bounded assisted
-  deltas, the v0 capability dispositions, and migration through `MIG-044`,
-  `UX-275`, and UX-MIG02.
-- The audit may reconcile contradictions and stale navigation text; it may not
-  invent a new product axis merely to make documentation symmetrical.
-- Do not enter here: Allium, generated tests, implementation, or live cutover.
-
-Current behavior lives in the subject chapters; unresolved semantics live in
-[open release decisions](little-ant-1.0/open-release-decisions.md); provenance
-lives in [traceability](little-ant-1.0/traceability.md); missing transitions
-live in the [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
+**Next phase:** a separately authorized implementation plan that promotes the
+stable rule and scenario IDs into inspected obligations, high-level tests, and
+then product code. Allium and generated tests remain absent and
+non-authoritative until that phase. A later concrete counterexample reopens
+only the smallest affected rule and flow, never product discovery as a whole.
 
 ## Scope rings
 
@@ -123,8 +116,8 @@ value may remain adjustable.
   future mobile must conform there but is not a 1.0 deliverable.
 - Imports, Packs, exporters, and TaskJuggler: chapter 8.
 - Implementation or migration planning: chapters 2, 8, and 9.
-- Finishing product discovery: follow the specification completion plan in
-  gate order.
+- Implementation planning: begin with the frozen completion record, flow
+  inventory, command catalog, and migration contract.
 - Why a rule exists: follow its ID through `traceability.md`.
 
 ## Maintenance rules
@@ -137,8 +130,10 @@ value may remain adjustable.
   `open-release-decisions.md`; do not hide it in prose or invent an answer.
 - Keep chronology in small signed commits, not a second specification,
   corrections chapter, or append-only session log.
-- Keep `Current closure state` at 25 lines or fewer with exactly one
-  `Next review:` marker. Closing a boundary replaces that marker; it never
-  appends a closure narrative. `Resume` is ordinary prose, not a checkpoint.
-- Do not promote this record into Allium or tests until the UX simulations
-  have validated the observable contract.
+- Keep `Current closure state` at 25 lines or fewer. During discovery it owns
+  one `Next review:` marker; after specification freeze it owns one `Next
+  phase:` marker instead. `Resume` is ordinary prose, not a checkpoint.
+- Promote this record into Allium or tests only in a separately authorized
+  implementation phase. Generated artifacts must preserve originating IDs and
+  be inspected against the dumb UX contract before product code relies on
+  them.

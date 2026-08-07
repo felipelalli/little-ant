@@ -26,7 +26,7 @@ implementation starts from this greenfield behavioral baseline.
 The maintained [v0→1.0 capability matrix](spec/little-ant-1.0/v0-v1-capability-matrix.md)
 prevents accidental regressions, while the finite
 [specification completion record](spec/little-ant-1.0/spec-completion-plan.md)
-shows how the UX-first contract reached its final audit.
+shows how the UX-first contract closed all 12 specification gates.
 
 The core has one unambiguous command vocabulary and no compatibility aliases.
 A skill or operator may translate natural language into those canonical

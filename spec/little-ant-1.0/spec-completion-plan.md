@@ -1,6 +1,6 @@
 # 1.0 specification completion plan
 
-Status: **closure record; final freeze audit in progress**
+Status: **complete; all 12 specification gates closed**
 
 This plan gives the remaining specification journey a beginning, middle, and
 end. It is deliberately UX-first: the dumb REPL exposes one concrete human
@@ -339,8 +339,7 @@ Exit:
 
 ### Gate 12 — Specification freeze
 
-Status: **in progress: final contradiction, terminology, ID, link, and README
-audit**
+Status: **complete**
 
 - close all core-affecting `OPEN-*` items;
 - explicitly include, defer, or remove each remaining standard item;
@@ -355,15 +354,23 @@ Exit:
 
 - every core rule has an exact flow;
 - every flow cites canonical rules;
-- every retained capability has an executable obligation or a reviewed
-  non-testable rationale;
+- every retained capability has a traceable implementation-acceptance route or
+  a reviewed non-testable rationale;
 - the user can authorize Allium/tests as the next phase without reopening
   product discovery.
 
 ## Closure result
 
-Gates 1 through 11 are semantically closed. Gate 12 is the present mechanical
-and contradiction audit. Once it closes, the next phase is an implementation
-plan that promotes stable rule/scenario IDs into inspected obligations and
-high-level tests before writing product code. A later concrete counterexample
-may reopen only the smallest affected rule and flow, never this entire journey.
+All 12 gates are closed, and all 65 inventory routes are semantically
+`specified`. The final audit found no open release decision,
+unresolved v0 capability disposition, duplicate normative rule definition,
+missing local link, undefined exact rule reference, or numeric rule-ID gap.
+It also reconciled the ordinary-lottery catalog with its screens, separated
+eligibility gates from weighted signals, and removed obsolete public
+vocabulary while retaining deliberate migration evidence.
+
+The next phase is an implementation plan that promotes stable rule/scenario
+IDs into inspected obligations and high-level tests before writing product
+code. Those artifacts do not yet exist and are not implied by this closure. A
+later concrete counterexample may reopen only the smallest affected rule and
+flow, never this entire journey.

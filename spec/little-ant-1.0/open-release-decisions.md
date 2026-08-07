@@ -8,10 +8,10 @@ ordinary implementation choices wait for the implementation plan.
 An `OPEN-*` item is not permission to guess. It names the exact boundary and
 the UX or threat-model evidence required to close it.
 
-The 1.0 contract currently has **no open release-blocking semantic boundary**.
+The frozen 1.0 contract has **no open release-blocking semantic boundary**.
 The v0.1 projection and cutover are closed by `MIG-001..044` and UX-MIG00..02.
-New uncertainty found during the final contradiction audit must receive a new
-ID rather than being hidden in prose.
+A later concrete counterexample must receive a new ID rather than being hidden
+in prose, and may reopen only its smallest affected rule and flow.
 
 ## Blocking decisions
 
