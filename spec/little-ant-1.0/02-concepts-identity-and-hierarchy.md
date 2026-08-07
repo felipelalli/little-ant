@@ -347,10 +347,10 @@ The factory library contains:
   ```
 
 - **MOD-034 [standard] — Inheritance must be explicit.** Domain membership is
-  direct-only under MOD-061. Final mode vocabulary, nearest-ancestor mode
-  behavior, and inheritance of requester, `about`, or RawLinks remain
-  `OPEN-MOD-003`. Implementations must not infer them from the old free-text
-  `context` field.
+  direct-only under MOD-061, and MOD-068 makes RawLinks, requester,
+  responsible actor, and `about` direct-only as well. V1 has no generic
+  inherited domain-model mode. Implementations must not infer any of these
+  relations from ancestry or the old free-text `context` field.
 
 ## Nature behavioral boundaries
 
@@ -455,8 +455,8 @@ The factory library contains:
   original representation and may also carry one attributed canonical-English
   normalization on the same Raw identity. Translation or normalization alone
   never creates a second Raw. The normalization records its source and remains
-  distinguishable from the original; exact revision and stale-normalization
-  behavior is settled under `OPEN-RAW-002`.
+  distinguishable from the original; MOD-071 defines revision attribution and
+  stale-normalization behavior.
 - **MOD-050 [core] — Wait is a gate, not work.** A Wait is a durable typed gate
   attached to an affected Brick because progress depends on an external
   response, event, or condition for which no current human action is known. It
@@ -497,3 +497,65 @@ The factory library contains:
   shelf-membership, attachment, ListEntry, or Work disposition removes the
   Raw from that view without deleting, transforming, or archiving it. Leaving
   triage pending keeps it in the Inbox and available to later review.
+- **MOD-065 [core] — Raw content has four representations and immutable
+  revisions.** Each Raw content revision is exactly one of `text`, `uri`,
+  `blob`, or `structured`. Text stores Unicode text; URI stores one absolute
+  identifier and an optional source-supplied label; blob stores bytes by
+  cryptographic digest plus media type, byte length, and optional filename;
+  structured stores canonical JSON plus a versioned schema identifier. Every
+  accepted edit appends a revision with its UUID, ordinal, recorded instant,
+  provenance, representation, payload or blob reference, and digest. The
+  original and all superseded revisions remain addressable; `current_revision`
+  is a projection, never an overwrite. A representation change requires the
+  same edit preview as a content change.
+- **MOD-066 [core] — Revision versus derivation is an explicit human
+  distinction.** A corrected or newer representation of the same material is
+  a revision of the same Raw. An extraction, summary, transcription,
+  compilation, or independently meaningful artifact is a new Raw linked with
+  `derived_from`. A derivation may cite several source Raws, forms an acyclic
+  graph, and never archives or revises its sources. English normalization is
+  the deliberate exception in MOD-049: it remains attributed metadata on one
+  source revision and never becomes another Raw.
+- **MOD-067 [core] — RawLink has a closed small role catalog.** The v1 roles
+  are `description`, `materialization_source`, `attachment`, `evidence`, and
+  `derived_from`. Description targets one Brick and obeys MOD-057; its current
+  Raw revision must be text. Materialization source targets a Brick or
+  ListEntry. Attachment and evidence may target a Brick, ListEntry, or Raw.
+  Derived-from connects a derived Raw to one or more source Raws. Except for
+  description, roles are many-to-many ordered sets: link acceptance order is
+  the default display order and explicit reordering changes only that order.
+  Note and URL are content meanings, not extra roles; import provenance is a
+  SourceBinding, not a RawLink. Detach always preserves both endpoints.
+- **MOD-068 [core] — Content relationships are direct-only.** RawLinks,
+  requester, responsible actor, and `about` relationships never inherit
+  through composition. A surface may separately show ancestor context, but it
+  cannot present it as a relationship of the child. Domain membership remains
+  direct-only under MOD-061. V1 has no generic inherited domain-model `mode`:
+  dumb/powered-up is a surface capability, while Place, Domain, time, and
+  explicit relations express operational context.
+- **MOD-069 [standard] — RawShelf is a flat, many-to-many semantic organizer.**
+  A RawShelf has identity, name, lifecycle, and ordered direct Raw membership.
+  One Raw may appear on several shelves. Shelves do not nest, own files,
+  convey provenance, grant Domain membership, become Work, or define review
+  state. Rename preserves identity; archive hides the shelf without archiving
+  members; merge unions membership after a preview and retains lineage.
+- **MOD-070 [core] — Raw lifecycle is reversible.** Raw lifecycle is
+  `active | archived`. Archive removes it from ordinary active views and
+  source checking but preserves revisions, links, shelf/Domain memberships,
+  origins, and history; unarchive restores them. V1 exposes no per-Raw
+  permanent delete. Whole-dataset destruction and physical retention policy
+  are administrative boundaries, not domain events disguised as deletion.
+- **MOD-071 [core] — English normalization is revision-scoped.** One Raw
+  revision may have at most one current canonical-English normalization,
+  carrying normalized text, source (`human | powered_up | skill | import`),
+  producer identity/version when applicable, acceptance instant, and optional
+  confidence. Replacing it appends history. A later content revision makes the
+  prior normalization `stale`; it remains inspectable but is not silently
+  copied forward. Non-text material gains normalization only from an explicit
+  accepted textual extraction; a URI itself, filename, or opaque bytes are
+  never presented as translated content.
+- **MOD-072 [standard] — Raw Domain classification is optional and direct.** A
+  Raw may belong directly to zero or more existing Domains for retrieval. Its
+  membership neither creates Work nor affects focus eligibility, composition,
+  shelves, SourceBindings, or the membership of linked records. Domain moves
+  change the rendered path without rewriting the Raw relationship.

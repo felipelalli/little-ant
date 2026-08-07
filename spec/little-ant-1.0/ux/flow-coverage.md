@@ -29,10 +29,10 @@ run as an interactive transcript.
 | 3 | Pristine first start | `UX-E00`, `FOC-029` | screened | Feed/back/end-to-end transition |
 | 3 | Useful non-pristine empty | `UX-E01`, `FOC-028` | screened | state-derived choice transitions |
 | 3 | Feed text input | `FED-049`, `UX-M01`, `UX-I02`, `UX-047..049`, `UX-144`, `UX-184` | partial | deterministic post-commit revalidation, pristine transition, empty-input failure, and crash replay |
-| 3 | Preserve/normalize Raw | `MOD-001`, `MOD-029`, `MOD-049`, `MOD-056..057`, `WRK-105`, `UX-158..162`, `DAT-046`, `UX-S42..S45` | partial | generic Raw representation under `OPEN-RAW-001`, `/translate` under `OPEN-RAW-002`, and paired internal/external-editor transcript replay |
+| 3 | Preserve/normalize Raw | `MOD-001`, `MOD-029`, `MOD-049`, `MOD-056..057`, `MOD-065..072`, `FED-052..056`, `WRK-105`, `UX-158..162`, `UX-186..190`, `DAT-046..050`, `UX-S42..S45`, `UX-RA00..RA04` | partial | deterministic paired internal/external-editor and dumb/assisted transcript replay |
 | 3 | Nature discovery | `UX-K01..K03`, `FED-024..027` | partial | exact full traversal transcript |
 | 3 | Template selection/proposal | `UX-K04..K06`, `FED-028..029` | partial | resulting route and complete preview |
-| 3 | Raw triage and disposition | `MOD-001`, `MOD-054`, `FED-001..009`, `FED-042..051`, `FOC-051..052`, `UX-144..150`, `UX-184..185`, `UX-T01..T09` | partial | shelf and Work-group creation previews, Raw storage/source closure, and deterministic replay |
+| 3 | Raw triage and disposition | `MOD-001`, `MOD-054`, `MOD-065..072`, `FED-001..009`, `FED-042..056`, `FOC-051..052`, `UX-144..150`, `UX-184..190`, `UX-T01..T09`, `UX-RA00..RA04` | partial | deterministic triage, shelf/link/source, archive, revision, and source-recovery replay |
 | 3 | Duplicate suspicion | `MOD-008..012`, `MOD-063`, `FED-015..018`, `FED-046`, `FED-051`, `UX-149`, `UX-T05`, `UX-T08` | partial | Raw-to-Raw and durable Brick-to-Brick merge outcomes plus deterministic replay |
 | 3 | Parent/owner/Domain choice | `FED-005`, `FED-007`, `FED-022..023`, `FED-042..043`, `FED-051`, `UX-T02..T04`, `UX-T07` | partial | RawShelf creation and deterministic multi-Domain replay |
 | 3 | Initial importance insertion | `UX-C01`, `UX-T07`, `UX-T09`, `IMP-004..010`, `IMP-040..046`, `UX-134..138` | partial | deterministic accepted, skip, no-alternative, either-order, and cancelled-draft replay |
@@ -46,7 +46,7 @@ run as an interactive transcript.
 | 4 | Focus/WIP interruption | `FOC-025`, `FOC-032..033`, `FOC-038`, `UX-F06`, `UX-F09..F10`, `UX-066..067`, `UX-080..081`, `WRK-001..006`, `WRK-048`, `WRK-065` | partial | WIP action result screens, public command names, and remaining `OPEN-WRK-001` boundary |
 | 4 | Merge/supersede/subtree outcome | `MOD-011..012`, `MOD-031..032`, `UX-RF02` | partial | relationship-transfer and subtree outcomes under `OPEN-MERGE-001`, `OPEN-TREE-001` |
 | 4 | Archive and relevance review | `MOD-055..057`, `FOC-053`, `WRK-098..105`, `UX-152..161`, `UX-S35..S45`, `SCN-ARC-001` | partial | remaining typed branch screens, supersession transfer, honest-answer tree, subtree outcomes, and paired surface replay |
-| 4 | Meaning, title, and attached description | `MOD-056..057`, `FED-037`, `WRK-103..105`, `UX-156..162`, `DAT-046`, `UX-S39..S45`, `SCN-ARC-001` | partial | generic Raw revision event under `OPEN-RAW-001`, uncertainty trees, and paired surface replay |
+| 4 | Meaning, title, and attached description | `MOD-056..057`, `MOD-065..071`, `FED-037`, `FED-052..055`, `WRK-103..105`, `UX-156..162`, `UX-186..188`, `DAT-046`, `UX-S39..S45`, `UX-RA00..RA03`, `SCN-ARC-001` | partial | remaining uncertainty trees and paired surface replay |
 | 4 | Behavior and Nature reclassification | `MOD-058..063`, `WRK-106..118`, `UX-163..181`, `UX-S46..S59`, `UX-L00..L01`, `SCN-ARC-001` | partial | remaining all-pairs capability-delta consequences and generated transition validation under `OPEN-NAT-001`, direct behavior uncertainty tree, undo conflicts, and paired surface replay |
 | 4 | Direct semantic update | `MOD-060..064`, `WRK-101..121`, `UX-154..183`, `UX-S37..S59`, `UX-L00..L01`, `UX-D02..D04`, `SCN-ARC-001`, `SCN-DEL-001` | partial | placement reuses `IMP-004`, `IMP-045`, and `MOD-031`; compensation remains under `OPEN-UNDO-001`; parent-search tie ranking remains under `OPEN-REF-001`; timing, context, and source-material branch screens, remaining uncertainty trees, exact return envelopes, and paired direct/stale/archived replay |
 | 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001`, `OPEN-UNDO-001` | partial | exhaustive typed compensation matrix and conflict replay |
@@ -65,8 +65,8 @@ run as an interactive transcript.
 | 7 | Recurring obligation | `WRK-023`, `WRK-062`, `WRK-064`, `SCN-TIME-001` | missing | occurrence release, overdue, close, and exact skip result screen |
 | 7 | Habit schedule/outcome | `WRK-024..027`, `WRK-062..064`, `UX-079`, `UX-P01`, `SCN-PRC-001` | partial | `OPEN-WRK-002`, exact fixed-slot/quota skip results, and schedule screens |
 | 7 | Scheduled commitment | `FOC-030..031`, `WRK-041..046` | missing | `OPEN-SCH-001..002` |
-| 8 | Raw review/source reconcile | `FED-010..014`, `DAT-011..017` | missing | `OPEN-RAW-003` |
-| 8 | `/translate` | `MOD-049` | missing | `OPEN-RAW-002` |
+| 8 | Raw review/source reconcile | `MOD-065..072`, `FED-010..014`, `FED-052..056`, `UX-186..190`, `DAT-011..017`, `DAT-047..050`, UX-RA00..RA04 | screened | deterministic end-to-end and corrupt-blob fixture replay |
+| 8 | `/translate` | `MOD-049`, `MOD-071`, `FED-054..055`, `UX-188`, UX-RA03 | screened | deterministic dumb/assisted queue replay |
 | 8 | Delegation lifecycle | `MOD-051`, `MOD-064`, `FOC-035..036`, `WRK-029..034`, `WRK-056..061`, `WRK-119..121`, `UX-182..183`, `UX-A01..A02`, `UX-D01..D04`, `SCN-DEL-001` | partial | deterministic transcript replay, ContactPoint bindings under `OPEN-MOD-001`, effect adapter protocol under `OPEN-EFF-001`, scheduled-commitment scope under `OPEN-SCH-001`, and exact compensation under `OPEN-UNDO-001` |
 | 8 | Import/migrate/erase source | `DAT-011..017`, `DAT-042..043` | missing | effect/failure screens |
 | 8 | Calendar observe/write | `DAT-038..041` | missing | `OPEN-CAL-001` |

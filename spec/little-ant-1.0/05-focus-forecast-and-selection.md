@@ -440,7 +440,7 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
 ## Forecast inputs
 
 The closed weighting function may use importance path and confidence, impact,
-effort, dates, Domain and Place context, mode, Nature, current WIP, phase,
+effort, dates, Domain and Place context, Nature, current WIP, phase,
 dependencies, waits, skip evidence, recurrence, habits, delegation,
 reviews, and aging. Optional missing axes are neutral. There is no universal
 phase multiplier and no hidden public score.

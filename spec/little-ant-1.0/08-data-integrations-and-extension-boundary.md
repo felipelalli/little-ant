@@ -252,3 +252,32 @@ reproducible archives remain `OPEN-PACK-001`.
   ImportProfile is retired only after every selected object has a terminal
   cleanup disposition; deleting an external container always requires a
   separate destructive approval.
+- **DAT-047 [core] — SourceBinding is the stable external-origin record.** A
+  SourceBinding joins one Raw to a source kind, optional ImportProfile UUID,
+  stable external identity when supplied, current locator, explicit mode
+  (`snapshot | synchronize | migrate`), check policy (`manual | interval`),
+  optional positive interval, lifecycle (`active | paused | detached`), and
+  accepted reconciliation baseline. A Raw may have several bindings; none is
+  silently primary. Changing a locator preserves binding identity only after
+  provider identity verifies it or the human explicitly accepts the move.
+- **DAT-048 [core] — SourceObservation is immutable and typed.** Every check
+  appends observed instant, binding, locator, outcome (`unchanged | changed |
+  missing | unreachable | unauthorized | malformed`), provider version or
+  fingerprint when available, and optional immutable snapshot digest. A
+  changed observation does not become current Raw content or reconciliation
+  baseline until FED-056 accepts it. Snapshot bytes are canonical material
+  under DAT-002; an adapter cache is not a substitute.
+- **DAT-049 [core] — Corrupt canonical material fails locally and loudly.** A
+  missing or digest-invalid Raw revision or SourceObservation snapshot places
+  that Raw in explicit degraded read-only state and reports the exact record
+  and recovery choices. Restoration may use a byte-identical verified backup
+  or re-fetch with the same provider fingerprint; different bytes form a new
+  observation and require reconciliation. The loader never silently drops,
+  rewrites, or substitutes canonical bytes. Unaffected records remain usable
+  when their fold does not depend on the damaged material.
+- **DAT-050 [standard] — Source schedules are replayable facts.** Interval
+  checking derives `next_check_at` from the last terminal observation and the
+  accepted positive duration. Pausing, resuming, changing policy, relocating,
+  and detaching are explicit events. Detach stops future checking but preserves
+  all observations and Raw content. Archive pauses checks; unarchive restores
+  the prior policy without inventing a missed observation.

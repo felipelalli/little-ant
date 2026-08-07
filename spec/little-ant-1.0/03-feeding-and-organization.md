@@ -270,9 +270,8 @@
   follows MOD-056..057 and WRK-105: the visible description is an ordinary Raw
   attachment, an existing description is revised on the same Raw identity,
   and a missing one creates one ordinary text Raw plus its
-  `RawLink(role = description)` atomically. Generic Raw revision encoding
-  remains `OPEN-RAW-001`; the
-  route may not expose that storage choice as a Description object.
+  `RawLink(role = description)` atomically. MOD-065 owns the generic revision
+  encoding; the route may not expose it as a Description object.
 - **FED-038 [core] — Missing information and first steps reuse enabling work.**
   A `vague` information route reuses WRK-067's contextual `collect more
   context` Feed with the current symptom carried provisionally. A first-step
@@ -409,6 +408,47 @@
   facts. No rejects only this materialization and leaves the Raw in the Inbox;
   reverse navigation edits the nearest draft fact. No partial Brick or human
   comparison evidence survives cancellation.
+- **FED-052 [core] — Raw organization asks one consequence at a time.** The
+  dumb Raw detail surface offers `revise`, `link`, `shelve`, `classify`,
+  `source`, `translate`, and `archive`; it never opens a metadata form. Link
+  first chooses one MOD-067 role, then a compatible autocomplete target, then
+  previews the relationship. Shelve and classify use bounded searchable
+  multi-selectors. Empty selection is valid. Every accepted action is one
+  reversible event family and returns to the same Raw detail.
+- **FED-053 [core] — Description editing remains ordinary Raw editing.** If a
+  Raw is a description, revision preview names the Brick and any other direct
+  consumers before commit. Changing its current representation away from text
+  is unavailable until the description link is detached or moved. Creating a
+  description from Brick context first creates one text Raw and its unique
+  link atomically; detaching never archives it. A cardinality conflict shows
+  the two existing endpoints and offers only inspect, detach one explicitly,
+  or cancel—never copy or merge by implication.
+- **FED-054 [standard] — `/translate` is an interruptible review queue.** With
+  a target it opens that Brick title or Raw; without one it previews counts for
+  active non-English Brick titles and stale or missing Raw normalizations.
+  Archived material is excluded unless explicitly included. Brick titles are
+  replaced in place after an individual preview; event history preserves the
+  prior title. Raw text is stored as MOD-071 normalization on the same Raw and
+  original revision. Unsupported non-text candidates are reported, not
+  guessed. Dumb mode uses a selected editable English field; powered-up or
+  Skill may prefill and attribute that same field. Each acceptance is atomic,
+  interruption resumes at the next unresolved candidate, and rejection opens
+  the dumb editor rather than skipping consent.
+- **FED-055 [standard] — Search uses both human memory and English
+  normalization.** Exact handle and exact original-content matches rank before
+  normalized matches. Current accepted English normalization supports
+  language-independent matching and duplicate suspicion. Stale normalization
+  remains searchable with a visible stale marker and lower rank; no result is
+  hidden merely because translation is missing. Proper ExternalEntity names
+  retain declared spelling and are outside bulk translation.
+- **FED-056 [standard] — Source checking proposes truth; it never rewrites it.**
+  A changed external observation presents a bounded difference and asks
+  whether it is a newer revision of the same Raw, separate derived material,
+  or unrelated. An unchanged check records only the observation. Missing,
+  inaccessible, unauthorized, malformed, or relocated sources enter typed
+  source review and cannot archive, complete, revise, or detach local data.
+  Dumb mode can inspect and decide every branch; assisted modes may summarize
+  differences or rank a branch but use the same preview and confirmation.
 
 ## Reference flows
 

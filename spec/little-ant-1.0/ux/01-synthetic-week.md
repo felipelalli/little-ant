@@ -198,7 +198,23 @@ Run the URL flow in dumb REPL first, then replay it powered up. Ordinary Feed
 must commit the URL Raw without a route question. Later triage may propose an
 `article_reading` Brick; when confirmed it attaches the preserved source
 material and enters sibling importance insertion without treating the URL as
-completed work.
+completed work. From UX-RA00, exercise each closed Raw role, two shelves, two
+direct Domains, archive/unarchive, and one text revision that makes an accepted
+normalization stale. Verify that no relationship inherits to a child Brick.
+
+Run `/translate` over one Portuguese title, one Portuguese text Raw, one URI,
+one blob, one stale normalization, and one archived Raw. Dumb mode must expose
+the editable queue; assisted mode may prefill the same field. Verify title
+rename versus same-Raw normalization, unsupported non-text reporting, archived
+scope opt-in, original-content search precedence, interruption/resume, and
+per-candidate atomic history.
+
+Then attach a manual URL SourceBinding and replay unchanged, changed, missing,
+unauthorized, relocation, detach, corrupt snapshot, and byte-identical restore.
+Changed content must require same-Raw revision, derived Raw, or unrelated;
+every failure preserves local material and Work state. Rebuild the dataset and
+verify identical current revision, baseline, check schedule, and degraded
+state.
 
 ### SCN-FED-004 — Skill and web/mobile mirror
 
@@ -520,8 +536,8 @@ Preserve a current focus and return an unstarted proposal to ordinary Focus
 consent. Exercise `information` through contextual collect-more-context Feed
 and all UX-S27 first-step routes: decomposition, learning work, typed support,
 and direct skip. Confirm only an accepted existing preview records `vague` and
-recovery, while real enabling structure replaces cooldown. Keep generic Raw
-revision-event encoding under `OPEN-RAW-001`. Reject one attributed
+recovery, while real enabling structure replaces cooldown. Verify the MOD-065
+revision event and stale normalization. Reject one attributed
 assisted proposal and prove the original dumb checkpoint and text survive.
 
 Select `hard` and validate all UX-S28 recoveries without a default or an
@@ -994,8 +1010,8 @@ present; preserve earlier revisions; mark an existing English normalization
 stale; list every other affected non-description consumer; and detach without
 deleting or archiving the Raw. Reject a second active description role for
 either the Brick or the Raw rather than silently copying. Verify there is no
-Description field, entity, or Raw subtype. Keep only generic Raw revision
-encoding open under `OPEN-RAW-001`. Exercise the accepted UX-159..161 grammar:
+Description field, entity, or Raw subtype. Exercise the MOD-065 revision
+encoding and the accepted UX-159..161 grammar:
 selected replacement, arrow selection collapse, literal slash, newline
 insertion, multiline paste with a trailing newline, `Ctrl-D` review, unchanged
 and changed Escape, keep/discard/continue, global search suspension, crash

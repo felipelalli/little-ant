@@ -52,18 +52,18 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** Raw representation, links, shelves, sources, and translation.
+**Next review:** correction, uncertainty, undo/redo, errors, and interaction
+recovery.
 
 - Owning gate: Gate 4.
-- Owning boundaries: `OPEN-RAW-001..003`, `OPEN-MOD-003`, and the Raw portions
-  of `OPEN-DAT-001..002`.
-- Reuse, do not reopen: Raw-first Feed and return in `FED-001..009` and
-  `FED-049`, lazy triage and atomic Work materialization in `FED-042..051`,
-  and UX-T01..T09.
+- Owning boundaries: `OPEN-UX-002..004`, `OPEN-UNDO-001`, `OPEN-REF-001`,
+  `OPEN-DAT-001..002`, and `OPEN-UX-001` only where recovery copy is affected.
+- Reuse, do not reopen: navigation versus semantic undo in `UX-019..021`,
+  global search return in `UX-151`, and every accepted UX-T/UX-RA workflow.
 - Preserve completed Plan and Delegation routes in `WRK-109..121`,
   `UX-166..183`, and their screen families.
-- Do not enter here: import adapter policy, the full all-pairs Nature matrix,
-  or external effect execution.
+- Do not enter here: Nature transition policy, focus weighting, time behavior,
+  adapter effects, or migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

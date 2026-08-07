@@ -1876,9 +1876,9 @@ Apply this clarification?
   mode: dumb, focus: #rmr
 ```
 
-The preview describes the semantic Description change without exposing whether
-the canonical Raw implementation revises, replaces, or relinks content; that
-storage decision remains `OPEN-RAW-001`. Yes follows WRK-085. Edit returns to
+The preview describes the semantic Description change without exposing
+storage mechanics; MOD-065 still requires a same-Raw immutable revision. Yes
+follows WRK-085. Edit returns to
 UX-S25 with the text selected, no restores UX-S24, and uncertainty explains
 that this is content rather than another Brick.
 
@@ -4922,6 +4922,184 @@ Importance: between #aco and #dui
 The result performs no draw. If Raw triage was opened transactionally while
 another Brick remained current, this block appears once as a compact fact on
 the sober current-focus continuation instead of displacing that focus.
+
+## UX-RA00 — Raw detail and actions
+
+```text
+Raw:
+
++fabow "fix a bug on website"
+
+Original · text · revision 1
+fix a bug on website
+
+English: missing
+Links: none
+Shelves: none
+Domains: none
+Sources: none
+
+[r]evise    [l]ink       [s]helve     [c]lassify
+[o]rigin    [t]ranslate  [a]rchive    [/] more...
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Fed: Mon, Aug 3, 08:58
+       Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`origin` is the human label for SourceBinding actions. Long text, structured
+content, and blobs show a bounded preview plus `[v]iew`; opening full content
+is read-only. No action is selected by default. Back returns to the exact
+calling selector or result.
+
+## UX-RA01 — Revise one Raw
+
+The current editable text starts selected. Ordinary typing replaces it;
+arrows preserve and edit it; `/editor` uses UX-162.
+
+```text
+Revise +fabow "fix a bug on website"
+
+› Fix a bug on the website_
+
+[Enter] preview    [Esc] back    [/] more...
+
+Tip: write canonical text in English when practical.
+```
+
+The preview is consequence-first:
+
+```text
+Revise this Raw?
+
++fabow "fix a bug on website"
+Representation: text
+Revision: 1 › 2
+Changed by: human
+Also used by: #fabow "Fix a bug on website"
+English normalization: will become stale
+
+*[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+```
+
+Yes appends one revision. No returns to UX-RA00 unchanged. Question mark first
+shows the bounded old/new difference and explains the affected direct
+consumers; repeated uncertainty leaves the draft pending.
+
+## UX-RA02 — Link one Raw
+
+```text
+How does +fabow "fix a bug on website" support something else?
+
+[d]escription
+    Show this text as one Brick's description.
+[m]aterialization source
+    Record where a Brick or list entry came from.
+[a]ttachment
+    Keep useful material beside it.
+[e]vidence
+    Record material that supports a judgment or claim.
+de[r]ived from
+    Record which Raw material produced this Raw.
+[?] I don't know
+
+[/] more...
+```
+
+The chosen role opens typed target autocomplete, followed by a preview naming
+both complete references, cardinality, and resulting display order. Invalid
+targets never appear. The uncertainty tree asks one consequence question at a
+time and reaches one existing role or leaves the decision pending; it never
+creates a generic link.
+
+## UX-RA03 — Translate and normalize
+
+Without a target, `/translate` begins with scope rather than changing data:
+
+```text
+Translate what?
+
+*[a]ll active titles and Raw material    12 candidates
+ [t]itles only                            4 candidates
+ [r]aw material only                      8 candidates
+ [i]nclude archived material
+ [?] I don't know
+
+[Enter] continue    [/] more...
+```
+
+The queue then presents one candidate. Dumb mode leaves the English field
+blank; this example shows an attributed assisted suggestion selected:
+
+```text
+English normalization for
++cl "comprar leite"
+
+Original · Portuguese
+comprar leite
+
+› Buy milk_
+
+Suggested by: powered-up · /bin/claude-fast.sh
+
+[Enter] preview    [s]kip    [?] I don't know
+
+Progress: 3 of 12
+[/] more...
+```
+
+Any ordinary typed character replaces the selected suggestion. No from its
+preview returns to a blank dumb editor; skip leaves this candidate unresolved.
+Accepting a Raw normalization reports `Normalized +cl · 4 of 12` and advances
+directly. Accepting a title reports its unchanged handle and old/new title.
+Escape suspends the queue after the last accepted item. Unsupported opaque
+content is counted and reported without opening an empty editor.
+
+## UX-RA04 — Reconcile an external origin
+
+```text
+Source changed:
+
++ar "https://example.com/article"
+Origin: https://example.com/article
+Checked: Mon, Aug 3 · 09:04
+
+Changed: title and 14 text lines
+[v]iew differences
+
+What does the observed content mean?
+
+*[u]pdate the same Raw
+ [d]erive new Raw material
+ [i]gnore as unrelated
+ [?] I don't know
+
+[/] more...
+```
+
+Update previews a new immutable revision and baseline. Derive previews a new
+Raw plus `derived_from`; ignore retains the observation but changes no local
+content. A failed check instead renders its exact typed outcome and only the
+applicable actions:
+
+```text
+We could not read this origin: unauthorized
+
+[r]etry    [p]ause checks    [m]ove origin
+[d]etach origin             [l]ater    [?] I don't know
+
+[/] more...
+```
+
+No source screen offers done or infers archive. Moving verifies provider
+identity when possible and otherwise requires a visible human confirmation.
+Detach and pause preserve every local revision and observation.
 
 ## UX-P01 — Habit consequence
 

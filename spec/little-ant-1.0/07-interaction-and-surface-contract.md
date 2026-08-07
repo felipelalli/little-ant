@@ -1203,6 +1203,38 @@ no-emoji rendering remain `OPEN-UX-001`.
   decision, accept their own proposal, or omit the final dumb-equivalent
   preview. Rejection returns to the earliest unresolved dumb fact with the Raw
   and draft checkpoint intact.
+- **UX-186 [core] — Raw detail is a quiet action hub.** UX-RA00 renders the
+  current original representation first, then current English normalization
+  or its stale/missing state, followed by compact direct relationships,
+  shelves, Domains, and sources. The primary keys invoke FED-052 one action at
+  a time; there is no default mutation. A large payload is summarized with an
+  explicit open/view action and never floods the terminal or operator context.
+- **UX-187 [core] — Raw revision and link previews name every consequence.**
+  UX-RA01 starts text selected, supports the external editor contract, and
+  shows representation, prior/current digest, provenance, and affected direct
+  consumers before commit. UX-RA02 chooses only MOD-067 roles and compatible
+  targets. Repeated uncertainty may inspect role consequences once, then
+  leaves the decision pending. Powered-up and Skill may propose content or a
+  role with attribution but cannot invent a consumer or bypass the same final
+  preview.
+- **UX-188 [core] — Translation keeps the dumb editor authoritative.** UX-RA03
+  previews bulk scope before work begins and then presents one candidate at a
+  time. A powered-up or Skill suggestion starts selected and includes its
+  attribution; any ordinary typing replaces it, arrows preserve it for edit,
+  and no opens the blank dumb editor. The result reports renamed title or
+  same-Raw normalization, progress, and the next candidate without a second
+  receipt screen.
+- **UX-189 [core] — Source reconciliation never impersonates Work.** UX-RA04
+  identifies source, observation outcome, and bounded difference before its
+  exact same-Raw/new-derived-Raw/unrelated question. Missing or failed checks
+  offer retry, pause, relocate, detach, or keep for later as applicable, never
+  done or archive-by-inference. Effects and adapter errors remain visible even
+  when the Raw has an attached Brick.
+- **UX-190 [core] — No generic inherited mode exists.** Status `mode: dumb` or
+  `mode: powered-up` describes only the current surface. Ancestor context is
+  rendered under `Within`, while direct Domains and direct content/participant
+  relationships retain their own labels. A child never displays an inherited
+  requester, `about`, RawLink, or ambiguous `mode` fact.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

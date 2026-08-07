@@ -523,7 +523,7 @@
   or membership before a shared revision. Removing a description detaches only
   that link and preserves the Raw. Silent cloning, unlinking, deletion, or
   normalization is forbidden. Multiline interaction follows UX-159..161;
-  generic Raw revision representation remains `OPEN-RAW-001`.
+  generic Raw revision representation follows MOD-065.
 - **WRK-106 [core] — Behavior update enters existing-Brick Nature choice.**
   Selecting `behavior` opens UX-S46 with the current Nature and its concise
   consequence, followed by the canonical nine-Nature choice and uncertainty.
