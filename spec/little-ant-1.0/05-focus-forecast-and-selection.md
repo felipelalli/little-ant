@@ -402,8 +402,8 @@ version.
   through the ordinary `Work:`/`Focus?` envelope without a second draw.
   The selection is strong, decaying contextual evidence for similar
   low-energy recovery, not a new Brick axis or a rewrite of importance.
-  If no other executable Work opportunity exists, UX-S08 is not rendered; the
-  exact useful recovery remains an explicit `OPEN-SKIP-001` edge case.
+  If no other executable Work opportunity exists, UX-S08 is not rendered;
+  UX-S08E follows WRK-125 without committing `tired` or fabricating Work.
 - **FOC-045 [core] — Positive subject change infers the branch left behind.**
   UX-S09 offers target Domain paths that contain currently executable Work and
   do not contain the served Brick's current effective Domain path. Selecting

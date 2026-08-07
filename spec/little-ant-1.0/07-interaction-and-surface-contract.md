@@ -531,8 +531,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   follows WRK-069 and then renders the normal `Work:`/`Focus?` proposal for
   that candidate. Differing effective Domains are shown beneath only the
   affected candidate so that a quiet screen never hides a context switch.
-  The zero-candidate recovery is still `OPEN-SKIP-001`; it may not render an
-  empty selector, fabricate a candidate, or commit `tired`.
+  With zero candidates, UX-S08E follows UX-212; it never renders an empty
+  selector, fabricates a candidate, or commits `tired` merely by appearing.
 - **UX-105 [core] — Positive full-path subject choice.** Choosing `change
   subject` from UX-S07 or UX-S11 opens UX-S09 and asks what the user would
   rather work on. It first exposes `[o]rganize and review` only when an
@@ -597,10 +597,10 @@ no-emoji rendering remain `OPEN-UX-001`.
   `just get started`, `a short attempt`, and `a Pomodoro`, and marks 25 minutes
   with `*` in dumb mode. A row number chooses that row; `*` or Enter chooses
   the visible default. `[c]ustom...`, uncertainty, reverse navigation, and the
-  ordinary slash palette remain available. The exact custom-duration chooser
-  remains an explicit release boundary; a surface may not replace it with an
-  unbounded guessed duration. Accepting a duration follows WRK-078 directly,
-  without another Focus question or celebratory claim that work happened.
+  ordinary slash palette remain available. Custom uses bounded UX-S15A;
+  a surface may not replace it with an unbounded guessed duration. Accepting a
+  duration follows WRK-078 directly, without another Focus question or
+  celebratory claim that work happened.
 - **UX-113 [core] — An active sprint is visible but subordinate.** UX-S16 uses
   the sober `Current focus:` composition with ordinary `[d]one`, `[s]kip`, and
   `[/] more...`. Its temporal footer shows `Sprint: MM:SS remaining` plus the
@@ -1406,6 +1406,86 @@ no-emoji rendering remain `OPEN-UX-001`.
   inspect probabilities without drawing. Its starvation wording says `chance
   increases with age`, never `guaranteed by`, because FOC-059 deliberately has
   no deterministic service deadline.
+- **UX-211 [core] — Served-work symptoms do not branch by Nature.** Every
+  FOC-037 execution variant renders UX-S01 unchanged. Its `done` action follows
+  WRK-123 and its committed reaction follows WRK-124; those typed transitions,
+  not another visible symptom taxonomy, preserve Nature-specific truth. An
+  unavailable recovery explains its exact precondition and restores the same
+  reaction screen. Powered-up and Skill may mark one existing reaction but
+  cannot remove a symptom, invent a Nature-specific shortcut, or reinterpret
+  one key.
+- **UX-212 [core] — Empty easier-work recovery keeps the pending symptom.**
+  UX-S08E replaces, rather than follows, an empty shortlist. It carries the
+  uncommitted `tired` origin and offers only canonical recoveries that are
+  currently usable. Back returns to UX-S07; no action is a default. A selected
+  route commits at its established reaction boundary, never when this factual
+  screen appears.
+- **UX-213 [core] — Short-sprint custom input is bounded.** UX-S15A is a
+  single numeric editor labeled `Minutes (1–120)`. Enter validates and opens a
+  start preview containing duration and absolute end time; it does not start
+  focus. Escape or empty-buffer Backspace restores UX-S15. Question mark on
+  the duration menu explains the three factory choices and returns there; it
+  never guesses a custom value.
+- **UX-214 [core] — Date/time input uses one portable component.** UX-DT00
+  renders caller-owned presets with complete absolute local date and time,
+  then `choose another...` and uncertainty. UX-DT01 collects a numeric civil
+  date and clock time with the caller's suggested time visible and editable;
+  UX-DT02 previews local date, time, zone, UTC offset, and resulting purpose
+  before confirmation. Time-zone autocomplete appears only when changed from
+  the visible profile zone. There is no natural-language parser, silent
+  operational-day rounding, or commit before UX-DT02.
+- **UX-215 [core] — Out-of-date uncertainty has one exact decision tree.**
+  Question mark on UX-S35 asks, one screen at a time:
+
+  ```text
+  Q0. Has the intended result already happened?
+  ├─ yes → done through UX-S01
+  └─ no
+     Q1. Would you still choose to pursue the same intention?
+     ├─ no  → archive it
+     └─ yes
+        Q2. Is newer Work now responsible for that intention?
+        ├─ yes → replaced by newer Work
+        └─ no
+           Q3. Would revising this Brick make it usable again?
+           ├─ yes → update it
+           └─ no
+              Q4. Do you only want to postpone it without changing it?
+              ├─ yes → skip anyway
+              └─ no  → out of date was not confirmed; restore UX-S01
+  ```
+
+  Every action leaf is confirmed in the ordinary UX-S01 or UX-S35 grammar
+  before a mutation. The final no is an event-free classification result, not
+  `other` evidence. Question mark at a node uses UX-196's alternate probe
+  once; repeated uncertainty leaves the original decision pending.
+- **UX-216 [core] — Update uncertainty tests observable consequences.**
+  Question mark on UX-S37 asks this exact sequence until one purpose remains:
+
+  ```text
+  Q0. Is its short name or explanation stale?              yes → meaning
+  Q1. Does the kind of Work need to change?                 yes → behavior
+  Q2. Is its parent, parts, blocker, wait, or responsibility stale?
+                                                            yes → plan
+  Q3. Are its dates, schedule, or repetition stale?         yes → timing
+  Q4. Are its Domains, people, or companies stale?
+                                                            yes → context
+  Q5. Is linked material or its external origin stale?      yes → source material
+  Q6. Do you need to inspect the complete Brick first?      yes → view everything
+                                                            no  → no update identified
+  ```
+
+  A no advances; a yes restores UX-S37 with the corresponding row visibly
+  suggested from those answers, where the human still confirms it. `no update
+  identified` restores UX-S37 event-free. Node uncertainty uses UX-196 and may
+  remain pending.
+- **UX-217 [core] — Typed update submenus contain only human consequences.**
+  UX-UP00..UP02 render WRK-128's timing, context, and source-material choices.
+  Each row includes one short consequence, applies only when its canonical
+  manager is valid, and has no dumb default. Uncertainty uses the same
+  observable wording as UX-216 restricted to that submenu. An assisted mode
+  may mark one row with attribution but reaches the identical typed manager
+  and preview.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

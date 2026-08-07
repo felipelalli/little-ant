@@ -512,6 +512,14 @@ action, no draw, no automatic process exit, no active-Domain change, and no
 persistent `paused` state. Contrast direct `/pause`, which retains neither
 symptom nor cooldown.
 
+Repeat easier-work with zero executable alternatives and validate UX-S08E:
+no empty selector, no committed symptom on entry, no fabricated candidate,
+and only currently usable subject, organization, pause, skip, back, and
+uncertainty routes. Traverse every FOC-037 execution variant through UX-S01.
+Verify the unchanged symptom grammar, WRK-123 completion dispatch, WRK-124
+defer-only aftermath, checklist entry preservation, fixed-slot versus quota
+habit behavior, and absence of this route for scheduled commitments.
+
 Reopen the symptom screen and select `bo[r]ed`. Validate UX-S11 and both its
 subject-change reuse and UX-S12 transformation branch. Choose short sprint and
 validate UX-S15's 5/15/25-minute rows, visible 25-minute `a Pomodoro` default,
@@ -527,8 +535,10 @@ continue, another sprint, done, and pause on independent replays and verify one
 truthful terminal outcome per timebox. Confirm elapsed and continue leave the
 Brick focused and WIP, another sprint reopens UX-S15 with the prior duration,
 done follows immediate reversible completion, and pause leaves WIP without
-adding another symptom. Keep the exact custom-duration chooser open rather
-than accepting an unbounded guess. Accept visible decomposition and verify
+adding another symptom. Enter UX-S15A, reject zero, a fraction, natural
+language, and 121; then preview and start 40 minutes, verifying the displayed
+absolute end instant and the same focus-consent event as a factory duration.
+Accept visible decomposition and verify
 `bored` plus recovery with no redundant cooldown.
 Enter UX-S13, exercise all four mechanical classifications and uncertainty,
 then inspect UX-S14: deterministic editable prefix, no preallocated handle,
@@ -1037,7 +1047,9 @@ cutover retains the original backup and never silently quarantines evidence.
 
 Serve `#rrsr "Review Rock Splitter rules"`, enter skip diagnosis, and choose
 `o[u]t of date`. Prove that archive, replacement, update, and defer remain
-different reactions. Archive it and verify one atomic transition to
+different reactions. Traverse every UX-S35A leaf, its alternate probe,
+reverse path, and final event-free `not confirmed` result before accepting any
+reaction. Archive it and verify one atomic transition to
 `archived`, preserved identity/history/relationships and importance evidence,
 closed focus/WIP, no ordinary skip cooldown, exclusion from executable Work,
 and exactly one low-weight `archive_relevance_review`. Immediately undo and
@@ -1060,6 +1072,12 @@ neutral `What do you want to update?` question, no dumb default, read-only
 patch, Plan entity, `/edit` alias, or `/plan` alias. Direct entry must neither
 require nor record a skip symptom and must resolve an omitted palette target
 only when exactly one Brick is identified. First
+traverse UX-S37A to every purpose and the event-free no-update result. Exercise
+UX-UP00..UP02, applicable-row omission, typed managers, and the unchanged
+assisted baseline. Use UX-DT00..DT02 for `not_before`, `best_before`, and
+deadline: verify structured date/time input, workday-start suggestion,
+explicit zone and offset, DST ambiguity handling, final confirmation, and no
+natural-language parser. Then
 exercise `meaning`: rename through selected prefill and the complete From/To
 preview, then prove that UUID, `#handle`, parent, sibling order, relationships,
 Domains, lifecycle, WIP, and focus remain unchanged and the former title does

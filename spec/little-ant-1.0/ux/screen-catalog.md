@@ -1073,9 +1073,9 @@ Waiting for:
 
 When may we start checking again?
 
-[t]omorrow      (Tue, Aug 4)
-*three [d]ays   (Thu, Aug 6)
-one [w]eek      (Mon, Aug 10)
+[t]omorrow      (Tue, Aug 4 · 09:00)
+*three [d]ays   (Thu, Aug 6 · 09:00)
+one [w]eek      (Mon, Aug 10 · 09:00)
 [c]hoose...
 
 [?] I don't know
@@ -1092,13 +1092,106 @@ one [w]eek      (Mon, Aug 10)
 ```
 
 The factory dumb suggestion for a human response is three days. Each relative
-option exposes its absolute local date; the committed value is a timezone-aware
-`review_not_before` instant. `choose` opens a guided date/time selector without
-free text. Historical evidence, powered-up mode, or the Skill may move `*` to
+option exposes its absolute local date and time; the committed value is a
+timezone-aware `review_not_before` instant. `choose` opens UX-DT01. Historical
+evidence, powered-up mode, or the Skill may move `*` to
 one of these same actions under UX-059 and explain why, but cannot replace the
 finite dumb baseline with an invented duration. Crossing the chosen threshold
 only admits a weighted review opportunity; it does not force an immediate
 screen, create a deadline, or become overdue.
+
+## UX-DT00 — Shared deferral presets
+
+Callers without their own preset screen use this component with their actual
+temporal purpose in the question. A `later` reaction renders:
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+When may this Work return?
+
+*[t]omorrow      Tue, Aug 4 · 06:00
+ one [w]eek      Mon, Aug 10 · 06:00
+ [c]hoose another...
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The caller declares the presets and visible factory suggestion; this example
+uses the configured 06:00 workday start. `*` and Enter accept the same visible
+preset. Every row is already an absolute instant in the shown profile zone.
+Choose another opens UX-DT01. Question mark explains `not before` and the
+displayed dates, then returns without choosing.
+
+## UX-DT01 — Structured custom date and time
+
+```text
+Choose another time:
+
+#rrsr "Review Rock Splitter rules"
+
+Date (YYYY-MM-DD) › 2026-08-12
+Time (HH:MM)      › 06:00
+Zone              › America/Montevideo
+
+Enter review · Esc back
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The active row alone owns input; Enter advances date, time, then review. The
+time starts selected with WRK-127's caller suggestion. Zone starts as the
+profile IANA zone and opens typed autocomplete only when edited. Invalid or
+ambiguous values retain the exact field and give one correction. Escape,
+Left Arrow outside field navigation, or empty-buffer Backspace returns one
+checkpoint without a domain event.
+
+## UX-DT02 — Absolute-time preview
+
+```text
+Set when this Work may return?
+
+#rrsr "Review Rock Splitter rules"
+
+Wed, Aug 12, 2026 · 06:00
+America/Montevideo · UTC−03:00
+
+This changes not before. Importance stays the same.
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The heading and consequence name the caller's actual purpose: `not before`,
+Wait review, or another eligible instant. Yes is the sole commit; edit restores
+UX-DT01 with the selected field, no restores the caller, and uncertainty uses
+the `date_time` family. No operational-day label or relative phrase is stored
+in place of the displayed instant.
 
 ## UX-W01 — Open Wait review
 
@@ -1325,8 +1418,8 @@ You're tired. What would help?
 The choices are recovery proposals rather than new symptoms. Selecting
 `tired` alone records nothing; reverse navigation restores UX-S01 exactly.
 `Easier work` follows UX-S08, `change subject` follows UX-S09, and `pause for
-now` follows UX-S10. Only their declared empty and multi-Domain boundaries
-remain in `OPEN-SKIP-001`.
+now` follows UX-S10. UX-S08E and UX-DM02 close their empty and Domain edge
+behavior.
 
 ## UX-S08 — Easier-work shortlist
 
@@ -1360,8 +1453,7 @@ executability is required, the served Brick is excluded, same-Domain and
 lower-effort evidence are favored, and missing effort retains positive
 probability. A candidate from another Domain shows its Domain path as a quiet
 indented line beneath its citation; identical paths are omitted. With no
-candidate, UX-S08 is not rendered; the exact useful recovery remains
-`OPEN-SKIP-001` and may not commit or fabricate anything.
+candidate, UX-S08 is not rendered; UX-S08E preserves the pending reaction.
 
 Pressing a visible number accepts WRK-069 atomically and then opens the exact
 candidate in the ordinary UX-F01 focus proposal. The candidate is not focused
@@ -1372,6 +1464,39 @@ empty-state Backspace, or Left Arrow restores UX-S07 with no symptom,
 cooldown, evidence, focus change, or draw. Once a number has committed the
 reaction, reverse navigation offers semantic undo under UX-019 rather than
 silently traversing the mutation.
+
+## UX-S08E — No easier Work available
+
+```text
+#rrsr "Review Rock Splitter rules"
+
+No other executable Work is available right now.
+
+What would help?
+
+🔀 [c]hange subject
+🧭 [o]rganize and review
+🌙 [p]ause for now
+⏭️ [s]kip anyway
+↩️ [b]ack
+❓ [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+`organize and review` is omitted when FOC-061 has no eligible opportunity.
+The screen records no `tired` evidence merely by appearing. Change subject,
+organization, pause, and skip follow WRK-125's existing reaction boundaries;
+back restores UX-S07. If subject change also has no target, UX-DM02 returns
+here. No row is a dumb default, and assistance may only mark one visible row.
 
 ## UX-S09 — Positive change-subject target
 
@@ -1735,10 +1860,36 @@ How long would you like to give it?
 
 `1`, `2`, and `3` choose their visible duration. `*` and Enter choose the
 visible default; 25 minutes is the dumb factory default, not a hidden model
-choice. A custom route is visible, but its exact bounded chooser remains an
-explicit release boundary. Accepting a duration is focus consent and follows
-WRK-078 without a second `Focus?` screen. Escape, Backspace, or Left Arrow
-returns to UX-S12 without evidence or a timer.
+choice. Custom opens UX-S15A. Accepting any duration is focus consent and
+follows WRK-078 without a second `Focus?` screen. Escape, Backspace, or Left
+Arrow returns to UX-S12 without evidence or a timer.
+
+## UX-S15A — Custom short sprint
+
+```text
+Custom short sprint:
+
+#rrsr "Review Rock Splitter rules"
+
+Minutes (1–120) › 40
+
+Enter review · Esc back
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Only digits enter the buffer. Enter on `40` previews `40 minutes` and `Ends:
+Mon, Aug 3, 09:40` with `[s]tart`, `[e]dit`, `[c]ancel`, and `[?] I don't
+know`; it starts nothing until `start`. Invalid input keeps this editor and
+gives the one-line WRK-126 correction. Escape or empty-buffer Backspace
+restores UX-S15. Assisted modes may suggest one valid number in this same
+selected editor but cannot start it.
 
 ## UX-S16 — Active short sprint
 
@@ -2336,8 +2487,37 @@ result with `/undo` in the palette; it does not apply ordinary cooldown.
 Replacement and update remain uncommitted until their existing complete
 preview is accepted. Skip records only `out_of_date` and cooldown. Question
 mark distinguishes retirement, replacement, revision, and temporary deferral
-through a bounded UX-016 tree. Escape, Backspace, or Left Arrow restores
-UX-S01 without evidence.
+through UX-S35A. Escape, Backspace, or Left Arrow restores UX-S01 without
+evidence.
+
+## UX-S35A — Out-of-date assistance
+
+```text
+Understand "out of date":
+
+#rrsr "Review Rock Splitter rules"
+
+Has the intended result already happened?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The next screen replaces only the question while traversing UX-215. The `done`
+leaf returns to UX-S01 with its existing completion row marked; every other
+action leaf returns to UX-S35 with the matching row marked. The human still
+selects it. The final `out of date was not confirmed` leaf restores UX-S01
+with no symptom, cooldown, or answer event. Reverse navigation returns to the
+preceding question exactly.
 
 ## UX-S36 — Archived relevance review
 
@@ -2401,7 +2581,7 @@ What do you want to update?
     When it may start, should happen, or repeat.
 
 [c]ontext
-    Domains, people or companies, and related Work.
+    Domains, people, or companies.
 
 [s]ource material
     Linked Raw material or external sources.
@@ -2444,6 +2624,114 @@ exact originating screen without evidence. A direct update records only each
 accepted typed mutation. An active out-of-date entry records `out_of_date`
 atomically with its first accepted mutation; an archived entry restores only
 at that same boundary.
+
+## UX-S37A — Update-purpose assistance
+
+```text
+Find what needs updating:
+
+#rrsr "Review Rock Splitter rules"
+
+Is its short name or explanation stale?
+
+[y]es    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Each no advances through UX-216; a yes restores UX-S37 with exactly one
+purpose marked as the visible suggestion. The human still selects that row.
+If no purpose is identified, the exact update hub returns unchanged with the
+quiet line `No update was identified.` and no event. Reverse navigation
+returns to the prior question.
+
+## UX-UP00 — Timing update
+
+```text
+Update timing:
+
+#rrsr "Review Rock Splitter rules"
+
+[s]tart time
+    Do not suggest it before an instant.
+
+[p]referred time
+    It becomes less useful after an instant.
+
+[d]eadline
+    An external consequence occurs at an instant.
+
+[r]epetition
+    Change a habit, repeatable return, or recurring series.
+
+[i]nterval
+    Change an anchored commitment's start or end.
+
+[?] I don't know
+
+[/] more...
+```
+
+Only rows applicable to the Brick's Nature and current timing are rendered.
+Start, preferred time, and deadline use UX-DT00..DT02. Repetition and interval
+use their Nature-owned structured builders. No row is a dumb default.
+
+## UX-UP01 — Context update
+
+```text
+Update context:
+
+#rrsr "Review Rock Splitter rules"
+
+[d]omains
+    Where it belongs for retrieval and focus continuity.
+
+[p]eople or companies
+    Its requester or direct about relationship.
+
+[?] I don't know
+
+[/] more...
+```
+
+Every route uses typed target autocomplete and previews the exact direct
+relationship. Parentage remains under Plan › Structure, blockers under Plan ›
+Blockers, responsibility transfer under Plan › Responsibility, and
+supersession in its explicit lifecycle route. This is not a generic graph
+editor.
+
+## UX-UP02 — Source-material update
+
+```text
+Update source material:
+
+#rrsr "Review Rock Splitter rules"
+
+[l]inked Raw material
+    Add, detach, revise, or change one explicit content role.
+
+[e]xternal origin
+    Inspect, check, relocate, pause, or detach one source binding.
+
+[?] I don't know
+
+[/] more...
+```
+
+Linked material enters the MOD-067 RawLink manager for non-description roles;
+external origin enters the SourceBinding and reconciliation screens.
+Description revision stays under Meaning › Description. Neither route edits
+imported data or performs network effects before its ordinary attributed
+observation and preview boundaries.
+All three update submenus use the unchanged persistent footer shown on UX-S37.
 
 ## UX-S38 — One accepted update
 

@@ -473,7 +473,7 @@
   attached as description; behavior reaches only Nature under MOD-058; plan
   reaches parts, Dependencies, Waits, or Delegation; timing reaches the
   applicable `not_before`, `best_before`, deadline, schedule, or recurrence
-  route; context reaches Domains, ExternalEntities, and related Work; source
+  route; context reaches Domains and ExternalEntities; source
   material reaches RawLinks or external-source reconciliation; and view
   everything reuses read-only `/show` before restoring the hub. Every branch
   invokes a closed canonical operation with its own validation and preview.
@@ -1086,6 +1086,79 @@
   category, answer it from prose alone, add a conversion, or bypass the final
   confirmation. If no valid disposition exists, the behavior remains
   unchanged and the result names the exact fact and useful manager to open.
+
+- **WRK-123 [core] — Served-work diagnosis is uniform; completion is
+  Nature-owned.** UX-S01 uses the same symptom names and order for all five
+  ordinary execution variants in FOC-037. No Nature gets a private diagnostic
+  screen, and no symptom is hidden merely because its eventual recovery may
+  require reclassification. The `Already finished?` action dispatches to the
+  truthful execution outcome: `finite_work` completes its finite Brick;
+  `repeatable_run` finishes this run and enters the existing finish-or-return
+  choice; `habit_window` records this opportunity as `done`; and either
+  checklist variant opens its owner surface to reconcile open entries before
+  finishing the run. It never marks unseen checklist entries done in bulk.
+  When every finite-checklist entry is already closed, run finish releases the
+  ordinary scope-closure review. Scheduled commitments do not use UX-S01 and
+  retain their anchored outcome screen.
+
+  Every other recovery remains available through its established semantic
+  preconditions. In particular, `big` may enter MOD-077..081 reclassification
+  from any Nature; if active state makes the requested change unavailable, the
+  surface explains that exact fact and returns to the unchanged `collect more
+  context`, `learn`, `skip anyway`, and back routes. It does not silently
+  replace decomposition with a different remedy.
+- **WRK-124 [core] — Defer-only aftermath follows the served execution
+  variant.** A final reaction that applies an ordinary cooldown closes the
+  focus interval only when the served Brick was current; declining an
+  unstarted Focus proposal creates no WIP. Finite Work, repeatable runs, and
+  active checklist runs remain active and, if they had started, WIP. Checklist
+  entries and run state are untouched. A fixed-slot habit skip settles the
+  opportunity under WRK-063 and returns its standing owner to idle; a
+  quota-window skip closes current attention but leaves the still-achievable
+  window and any existing WIP honest. Released recurring-obligation
+  occurrences behave as finite Work and remain open debt. Recovery-specific
+  Dependency, Wait, Place, Domain, or pause consequences continue to replace
+  this default wherever their accepted rule says so. No branch changes
+  importance or fabricates progress.
+- **WRK-125 [core] — No easier candidate becomes a useful reaction, not an
+  empty list.** When FOC-044 finds no other executable Work, UX-S08E states
+  that fact before `tired` has committed and offers `change subject`,
+  `organize and review` when eligible, `pause for now`, `skip anyway`, back,
+  and uncertainty. Each selected route reuses WRK-070, WRK-075, WRK-071, or
+  WRK-047 respectively. If a downstream subject or organization route also
+  has no target, its existing useful-empty result returns here without
+  fabricating a candidate or recording two reactions.
+- **WRK-126 [standard] — A custom short sprint stays short and structured.**
+  UX-S15A accepts one whole number of minutes from 1 through 120. It accepts
+  digits only, shows the resulting end instant before starting, and returns a
+  typed correction for zero, fractions, units, natural language, or a value
+  above 120. The factory still recommends the visible 5, 15, and 25-minute
+  choices; custom input adds no learned duration and uses the same WRK-078
+  focus-consent boundary.
+- **WRK-127 [core] — One absolute date/time chooser serves deferral.** Every
+  `later`, Wait-review custom choice, and other ordinary instant builder uses
+  UX-DT00..DT02. The caller supplies honest visible presets and one suggested
+  clock time, but the accepted value is always one unambiguous absolute
+  instant plus its named IANA zone. Dumb custom input is structured
+  `YYYY-MM-DD`, then `HH:MM`; it accepts no natural-language date parser. A
+  later-style date suggests that profile's workday start. A Wait-review date
+  suggests the current local wall-clock minute. The user may change the clock
+  time or zone before final confirmation. Relative presets preserve the local
+  wall-clock time across civil dates, show the complete resulting local date
+  and time before selection, and resolve gaps or repeated clocks explicitly
+  under WRK-042. Reverse navigation commits nothing.
+- **WRK-128 [core] — Remaining update purposes dispatch to small typed
+  managers.** Timing offers only the applicable subset of `may start`,
+  `preferred by`, `deadline`, `repetition`, and `commitment interval`.
+  Context offers `Domains` and `people or companies`. Source material offers
+  `linked Raw material` and `external origin`. Each
+  row invokes its already typed relationship, temporal, RawLink, or
+  SourceBinding manager and one-change preview. Inapplicable rows are omitted
+  with no disabled clutter; if none apply, the screen explains why and returns
+  to UX-S37. Description remains under meaning; parent, parts, blockers, and
+  responsibility remain under plan; supersession remains its explicit
+  lifecycle route. These screens create no generic metadata or relationship
+  editor.
 
 ## Place context
 
