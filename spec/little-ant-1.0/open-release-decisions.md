@@ -21,7 +21,8 @@ None.
 
 These do not justify inventing more core behavior before simulation:
 
-- exact forecast curve coefficients and cooldown lengths;
+- empirical revisions to registered forecast values inside their declared
+  safe ranges;
 - exact screen region sizes, colors, terminal library, or web framework;
 - whether a particular personal Template is popular;
 - automatic semantic causality for skip patterns;

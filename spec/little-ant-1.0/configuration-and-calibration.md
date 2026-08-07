@@ -33,37 +33,74 @@ grants authority.
 
 ## Settled factory defaults
 
-| Parameter | Factory value | Meaning |
-|---|---:|---|
-| `work.wip_soft_limit` | `3` | More WIPs are allowed but add review pressure. |
-| `work.short_sprint_durations_minutes` | `[5, 15, 25]` | Visible dumb duration choices for the bounded-attempt recovery. |
-| `work.short_sprint_default_minutes` | `25` | Visible default, labeled `a Pomodoro`; it must be one of the configured choices. |
-| `importance.nearby_skip_min_distance` | `1` | Minimum alternative-comparator distance. |
-| `importance.nearby_skip_max_distance` | `3` | Maximum alternative-comparator distance. |
-| `importance.skips_before_uncertain_placement` | `2` | Consecutive unresolved comparisons before provisional placement. |
-| `importance.sanity_new_arrivals` | `7` | V0-proven starting trigger for a bulk sanity opportunity. |
-| `importance.sanity_interval_days` | `14` | V0-proven starting drift interval. |
-| `ui.max_visible_warnings` | `1` | Additional warnings appear as a count. |
-| `ui.microcopy_variants_per_intent` | `16` | Factory English phrases for every declared personality intent. |
-| `ui.color_mode` | `auto` | Emit ANSI styles only when terminal capability and user environment allow it; explicit `always` and `never` remain presentation overrides. |
-| `ui.emoji_mode` | `auto` | Render decorative emoji when the interactive UTF-8 surface declares reliable width support; explicit `always` and `never` remain presentation overrides. |
-| `ui.external_editor.argv` | `null` | Optional executable-plus-arguments array for UX-162. When absent, the local surface resolves `$VISUAL` then `$EDITOR`; all forms execute directly without a shell. |
-| `effort.assisted_comparison_limit` | `3` | Maximum exemplar questions in one assistance flow. |
-| `impact.assisted_comparison_limit` | `3` | Maximum reviewed-root exemplar questions in one assistance flow. |
-| `time.habit_day_starts_at` | `04:00` | Local boundary between nominal habit days. |
-| `time.workday_starts_at` | `06:00` | Local boundary between nominal workdays. |
-| `wait.human_response_first_review_days` | `3` | Factory suggestion before a human-response Wait first enters weighted review eligibility. |
-| `wait.response_history_min_samples` | `3` | Comparable resolved Waits required before history may move the visible timing suggestion. |
-| `wait.unanswered_follow_up_soft_cap` | `2` | Consecutive follow-up handoffs without a meaningful response before strategy review replaces the ordinary follow-up action. |
-| `habit.introspection_consecutive_unfulfilled` | `3` | Applicable unfulfilled outcomes that admit one lazy habit-introspection review. |
-| `habit.introspection_skip_count` | `3` | Explicit habit skips inside the configured evidence window that admit the same review. |
-| `habit.introspection_window_count` | `2` | Open habit windows inspected for the factory skip threshold. |
-| `recurrence.release_batch_limit` | `1000` | Maximum overdue obligation occurrences materialized by one tick before a required continuation. |
-| `vault.agent_idle_lock_minutes` | `30` | Minutes without a credential operation before the profile-scoped memory agent locks; explicit lock and logout remain immediate. |
-| `delegation.review_delay_hours` | `72` | Visible default delay from a handoff or reviewed observation to the next internal Delegation review. |
-| `delegation.review_skip_cooldown_hours` | `24` | Cooldown after deferring an internal Delegation review without changing its facts or authorizing a message. |
-| `delegation.unanswered_follow_up_soft_cap` | `2` | Recorded follow-up handoffs without a meaningful outcome before automatic proposals pause for an explicit strategy review. |
-| `place.negative_answer_cooldown_minutes` | `60` | Cooldown after the human says a selected required PlaceCondition is not currently met. |
+Unless a row says otherwise, changing it affects future interactions and
+temporal openings only; it does not rewrite history. Array entries obey the
+listed per-entry range, remain ordered and unique, and use at most eight
+entries.
+
+| Parameter | Factory | Allowed range or schema | Meaning |
+|---|---:|---|---|
+| `work.wip_soft_limit` | `3` | integer `1..50` | More WIPs are allowed but add review pressure. |
+| `work.short_sprint_durations_minutes` | `[5, 15, 25]` | integer entries `1..240` | Visible dumb duration choices for bounded attempts. |
+| `work.short_sprint_default_minutes` | `25` | one configured duration | Visible default, labeled `a Pomodoro`. |
+| `work.served_skip_cooldown_minutes` | `30` | integer `1..1440` | Cooldown after an accepted skip reaction for an execution opportunity. |
+| `review.skip_cooldown_hours` | `24` | integer `1..720` | Default cooldown after skipping a non-execution lottery review. |
+| `work.stale_focus_hours` | `8` | integer `1..168` | Elapsed time after the latest focus activity before UX-080 checks in. |
+| `importance.nearby_skip_min_distance` | `1` | integer `1..10` | Minimum alternative-comparator distance. |
+| `importance.nearby_skip_max_distance` | `3` | integer `min..20` | Maximum alternative-comparator distance. |
+| `importance.skips_before_uncertain_placement` | `2` | integer `1..10` | Consecutive unresolved comparisons before provisional placement. |
+| `importance.sanity_new_arrivals` | `7` | integer `1..100` | New-arrival trigger for a bulk sanity opportunity. |
+| `importance.sanity_interval_days` | `14` | integer `1..365` | Drift interval for a bulk sanity opportunity. |
+| `taxonomy.other_evidence_count` | `3` | integer `2..20` | Matching accepted `other` observations needed for one taxonomy watch. |
+| `taxonomy.other_window_days` | `30` | integer `1..365` | Window in which the matching observations count. |
+| `taxonomy.other_decay_days` | `90` | integer `window..3650` | Age after which an observation no longer helps current clustering. |
+| `ui.max_visible_warnings` | `1` | integer `0..10` | Additional warnings appear as a count. |
+| `ui.microcopy_variants_per_intent` | `16` | integer `1..64` | Factory English phrases for each declared personality intent. |
+| `ui.color_mode` | `auto` | `auto | always | never` | ANSI presentation policy. |
+| `ui.emoji_mode` | `auto` | `auto | always | never` | Decorative emoji presentation policy. |
+| `ui.external_editor.argv` | `null` | null or `1..32` nonempty argv strings | Optional direct executable invocation for UX-162; otherwise resolve `$VISUAL`, then `$EDITOR`, without a shell. |
+| `effort.assisted_comparison_limit` | `3` | integer `1..10` | Maximum exemplar questions in one assistance flow. |
+| `impact.assisted_comparison_limit` | `3` | integer `1..10` | Maximum reviewed-root exemplar questions in one assistance flow. |
+| `time.habit_day_starts_at` | `04:00` | valid local `HH:MM` | Boundary between nominal habit days. |
+| `time.workday_starts_at` | `06:00` | valid local `HH:MM` | Boundary between nominal workdays. |
+| `wait.human_response_first_review_days` | `3` | integer `0..365` | Suggested delay before a human-response Wait first enters review eligibility. |
+| `wait.response_history_min_samples` | `3` | integer `1..100` | Comparable resolved Waits needed before history may move that suggestion. |
+| `wait.unanswered_follow_up_soft_cap` | `2` | integer `1..20` | Unanswered follow-ups before strategy review replaces ordinary follow-up. |
+| `habit.introspection_consecutive_unfulfilled` | `3` | integer `1..100` | Applicable unfulfilled outcomes that admit one introspection review. |
+| `habit.introspection_skip_count` | `3` | integer `1..100` | Explicit habit skips that admit the same review. |
+| `habit.introspection_window_count` | `2` | integer `1..52` | Applicable windows inspected for the skip threshold. |
+| `recurrence.release_batch_limit` | `1000` | integer `1..100000` | Overdue occurrences materialized by one tick before continuation. |
+| `vault.agent_idle_lock_minutes` | `30` | integer `1..1440` | Credential inactivity before the profile agent locks. |
+| `delegation.review_delay_hours` | `72` | integer `0..8760` | Default delay from a handoff or observation to internal review. |
+| `delegation.review_skip_cooldown_hours` | `24` | integer `1..720` | Override after deferring an internal Delegation review. |
+| `delegation.unanswered_follow_up_soft_cap` | `2` | integer `1..20` | Handoffs without outcome before explicit strategy review. |
+| `place.negative_answer_cooldown_minutes` | `60` | integer `0..1440` | Cooldown after a selected required PlaceCondition is not met. |
+| `powered_up.handshake_timeout_seconds` | `10` | integer `1..60` | Startup challenge execution and parse limit. |
+| `powered_up.request_timeout_seconds` | `30` | integer `1..300` | Per-request adapter execution limit. |
+| `powered_up.max_request_bytes` | `262144` | integer `1024..4194304` | Maximum structured prompt written to adapter stdin. |
+| `powered_up.max_response_bytes` | `262144` | integer `1024..4194304` | Maximum captured stdout before rejection. |
+| `powered_up.max_json_depth` | `32` | integer `4..128` | Maximum accepted structured-response nesting. |
+| `powered_up.max_extraction_candidates` | `4` | integer `1..16` | Bounded objects considered when framing text surrounds output. |
+| `pack.runner_timeout_seconds` | `30` | integer `1..300` | Maximum fresh Lua invocation wall time. |
+| `pack.instruction_limit` | `10000000` | integer `10000..1000000000` | Lua instruction budget before termination. |
+| `pack.memory_limit_bytes` | `67108864` | integer `1048576..1073741824` | Fresh runner memory cap. |
+| `pack.input_limit_bytes` | `8388608` | integer `1024..67108864` | Maximum serialized invocation input. |
+| `pack.result_limit_bytes` | `8388608` | integer `1024..67108864` | Maximum validated component result. |
+| `pack.max_value_depth` | `32` | integer `4..128` | Maximum input/result structured nesting. |
+| `pack.http_body_limit_bytes` | `16777216` | integer `1024..134217728` | Maximum host-brokered HTTP response body. |
+| `pack.http_redirect_limit` | `5` | integer `0..20` | Redirect hops, each revalidated against allowed hosts. |
+| `provider.read_retry_attempts` | `3` | integer `0..10` | Retries for idempotent reads or pre-dispatch failures only. |
+| `provider.retry_base_seconds` | `1` | integer `1..60` | Initial exponential-backoff delay. |
+| `provider.retry_max_seconds` | `60` | integer `base..3600` | Maximum exact exponential-backoff delay; v1 adds no retry jitter. |
+
+FOC-037 execution variants use `work.served_skip_cooldown_minutes` after an
+accepted skip reaction. FOC-054 non-execution variants use
+`review.skip_cooldown_hours` unless their canonical rule names a more specific
+row above or the human chooses an explicit future instant. Active scheduled
+commitments have truthful outcomes rather than either generic skip. The date
+notice defaults reuse the deterministic calculation profile's
+`best_before`/`deadline` lead windows; notice identity and WRK-146 round-robin
+make a separate deduplication or rotation duration unnecessary.
 
 The complete fixed-point selection and confidence defaults live in the
 [deterministic calculation profile](deterministic-calculation-profile.md).
@@ -76,8 +113,8 @@ habit-specific schedule may override `time.habit_day_starts_at`; there is no
 corresponding implicit override for exact instants.
 
 The two importance-sanity values are restored v0 defaults, not universal human
-truth. Synthetic and real shadow-day simulations may recommend changing them
-before the 1.0 factory profile is frozen.
+truth. Synthetic and real shadow-day simulations may recommend a later
+versioned profile revision without changing their meaning.
 
 ## EffortProfile v1
 
@@ -109,43 +146,18 @@ exists, the v1 starting profile may use:
 The percentage is a binary-insertion prior, not a band, constraint, or sort
 key. Missing phase uses the Nature/default neutral prior.
 
-## Values that remain calibratable
+## Calibration boundary
 
-The semantic behavior and starting factory values are settled. Fixed-stream
-simulation may justify a versioned numeric revision before release or during
-later calibration; it may not replace the formula or invent a signal:
+The keys in this file and the deterministic calculation profile are the
+complete 1.0 calibration registry. Simulation may recommend a versioned value
+change within its declared range, but it may not invent an unregistered key,
+replace a formula, add a signal, collapse Nature-specific skip meaning, or
+silently learn policy from behavior. Archive review, Wait review, WIP review,
+recurrence, habits, and source/effect reviews reuse the registered availability,
+age, deferral, uncertainty, date, schedule, and consequence formulas; they do
+not own hidden coefficients.
 
-- importance-to-chance curve and positive-tail bottom/neutral factors;
-- strongest-signal bonus fraction and pressure gain;
-- Domain-affinity strength and decay after accepted focus;
-- interaction-family affinity strength, per-family contribution, skip
-  reduction, and decay after an accepted interaction;
-- served-skip cooldown plus separately calibrated repeatable aging,
-  quota-window schedule pressure, and recurring-obligation avoidance
-  pressure; these parameters never collapse the semantic distinctions in
-  `WRK-062..064`;
-- Domain fatigue cooldown and bounded negative signal;
-- per-axis direct-judgment confidence by provenance, temporal horizon,
-  relevance threshold, and fresh-conflict threshold;
-- per-axis transitive path-length penalty and weakest-edge policy;
-- per-axis provocative-validation target share within served judgment
-  maintenance, candidate scoring, cooldown, and confidence/consequence
-  multipliers;
-- taxonomy-watch evidence count, window, and decay;
-- archive-relevance initial review weight, aging pressure, evidence bonus, and
-  review-skip cooldown;
-- habit-review coefficient tuning around the settled factory evidence counts,
-  plus carried-entry evidence thresholds;
-- date-notice lead times, deduplication windows, and rotation;
-- repeatable-work default jitter seeds and template-specific ranges;
-- stale-focus and stale-comparison thresholds;
-- Wait review age curve, unresolved-review bonus, historical-response evidence
-  threshold, and caps;
-- powered-up handshake timeout, response bytes, nesting, and extraction bounds;
-- Pack runner time, instruction, memory, result, and nesting limits;
-- vault idle timeout and provider retry/backoff defaults.
-
-The synthetic-week fixture establishes initial values. The real shadow day
-checks whether they produce surprising starvation, interruption, repetition,
-or warning noise. Parameters remain adjustable after 1.0 while their semantics
-and safe ranges remain versioned.
+The synthetic week and real shadow day check for starvation, interruption,
+repetition, warning noise, unsafe resource use, and awkward cooldowns while
+holding state, time, and random streams fixed. A change after 1.0 records a new
+profile version and hash under CAL-002.

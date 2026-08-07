@@ -554,8 +554,9 @@ version.
   accepted Skill or powered-up batch proposal may include bounded recent Raws
   after one `raw_triage` opportunity is selected, but merely appearing in a
   semantic cluster gives no Raw additional top-level lottery ticket. The
-  interaction enumerates the affected identities, and rejection returns to
-  the originally selected Raw's dumb triage without resolving its neighbors.
+  interaction enumerates the affected identities through UX-T06, and rejection
+  returns to the originally selected Raw's dumb triage without resolving its
+  neighbors.
 - **FOC-059 [core] — Probabilistic selection has no deterministic service
   deadline.** Admission gives every candidate a configurable positive base
   weight before normalization, and aging raises neglected candidates through a

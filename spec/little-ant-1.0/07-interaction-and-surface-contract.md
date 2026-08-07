@@ -68,7 +68,8 @@
   in-word shortcuts, an optional suggested default, and uncertainty.
 - **UX-011 [core] — Input.** Explicit text-editing mode uses Enter to submit
   and Escape to cancel. The REPL marks the editable line with `›`; one-key
-  command shortcuts never steal typed text.
+  command shortcuts never steal typed text. UX-I01 is the canonical
+  single-line selected-prefill rendering.
 
 The normative reference renderings live in
 [the screen catalog](ux/screen-catalog.md).
@@ -167,8 +168,8 @@ assistance-label, and no-emoji rendering.
   operation. A newly committed action after undo invalidates any incompatible
   redo chain. External effects require a separately approved compensation.
   UX-197..199 define targeting, the exhaustive compensation classes, and
-  conflict rules; no implementation may infer a generic inverse from an event
-  name.
+  conflict rules; UX-U02 is the contextual preview. No implementation may
+  infer a generic inverse from an event name.
 - **UX-022 [core] — More palette.** The canonical `[/] more...` action opens a
   searchable input palette containing only commands and secondary actions
   valid in the current state. Before any query, it shows a small,
@@ -799,7 +800,8 @@ assistance-label, and no-emoji rendering.
   `[t]iming`,
   `[c]ontext`, `[s]ource material`, `[v]iew everything`, and uncertainty, in
   that order and without a dumb default. Each item includes one short human
-  explanation and follows WRK-101. View is read-only and restores the exact
+  explanation and follows WRK-101; UX-UP01 and UX-UP02 are the canonical
+  context and source-material submenus. View is read-only and restores the exact
   hub. Escape and reverse navigation restore the exact originating screen:
   UX-S35, UX-S36 including its pending review, or the interaction suspended by
   direct `/update`, without recording `out_of_date`.
@@ -1372,7 +1374,8 @@ assistance-label, and no-emoji rendering.
   invalidates it unless its declared write set is disjoint and the original
   postcondition hash still validates. Redo re-runs current validation and
   reuses stored intent, never old external responses or stale provider data.
-  Failure is typed `redo_conflict` with inspect-current-state and stop actions.
+  Failure renders the typed UX-ER03 `redo_conflict` with inspect-current-state
+  and stop actions.
 - **UX-200 [core] — Errors have one sparse educational envelope.** Every
   failure carries stable `code`, human message, command/interaction identity,
   relevant subject/query, unchanged/advanced cursor, retry safety, bounded
@@ -2251,13 +2254,15 @@ assistance-label, and no-emoji rendering.
   A served habit whose nominal habit day differs identifies that nominal slot
   and its exact closing instant in subject-specific context. No surface may
   replace a civil date with an operational label or make a flight,
-  appointment, or timed deadline appear to occur on another date.
+  appointment, or timed deadline appear to occur on another date. UX-R01 is
+  the canonical differing-day rendering.
 - **UX-056 [core] — Dense Template choice before categories.** A Template
   choice lists all compatible options together while they fit the bounded
   surface and each visible option can receive a unique in-word shortcut.
   Shortcut characters never repeat within one screen. Only when that contract
   cannot be satisfied does the interaction introduce stable navigational
-  categories or pagination. Categories organize discovery; they never change
+  categories or pagination. UX-K06 fixes the dense scheduled-commitment
+  boundary example. Categories organize discovery; they never change
   Nature, Template semantics, ranking evidence, or runtime behavior.
 - **UX-057 [core] — Atomic break preview.** Breaking an `atomic_task` previews
   the proposed destination Nature, the retained parent, every new part and its

@@ -413,7 +413,11 @@
   or adding a versioned symptom, but acceptance is explicit and never rewrites
   historical verbatim evidence. One `other` answer never infers blocked,
   waiting, tired, Domain fatigue, importance, or a new category. Exact text
-  grouping, thresholds, window, and decay remain calibration concerns.
+  grouping in dumb mode uses Unicode NFKC, case folding, trimmed collapsed
+  whitespace, and exact equality only; the original text remains unchanged.
+  The count, window, and decay use the factory calibration registry.
+  Powered-up or Skill may propose an attributed semantic cluster, but it does
+  not count until the human accepts the exact included observations.
 - **WRK-095 [core] — Mechanical symptom discovery.** Choosing uncertainty on
   UX-S01 asks one behavioral question per screen and follows this factory tree:
 
@@ -488,7 +492,8 @@
   replacement route enters canonical supersession with explicit lineage; the
   update route keeps the same active identity and enters ordinary inspected
   editing; skip records only `out_of_date` plus cooldown.
-- **WRK-099 [core] — Archive is reversible retirement with one review.**
+- **WRK-099 [core] — Archive is reversible removal from active Work with one
+  review.**
   Accepting `archive it` atomically records `out_of_date`, changes the Brick
   from `active` to `archived`, closes its current focus or WIP state, preserves
   its prior importance evidence and local-neighborhood snapshot, and creates
@@ -1015,7 +1020,7 @@
   `/return-to-idle` clears WIP and any focus on that Brick without claiming an
   outcome. `/done` dispatches by the current execution variant under WRK-123.
   `/finish` exists only for an active checklist run, which may honestly retain
-  open entries. `/archive` is the only retirement command for a standing
+  open entries. `/archive` is the only archival command for a standing
   Brick. The core defines no `/resume`, `/stop`, `/retire`, `/complete`, or
   Nature-specific alias; operators may map natural language to these commands.
 - **WRK-140 [core] — Done never retires a standing identity by accident.** For
