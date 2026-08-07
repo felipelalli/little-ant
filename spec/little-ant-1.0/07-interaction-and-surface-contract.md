@@ -902,6 +902,20 @@ no-emoji rendering remain `OPEN-UX-001`.
   selector. Assistance may mark change and append one attributed semantic
   reason, but the dumb renderer never claims semantic distance. Exact parent
   selection and same-Domain compact preview remain under `OPEN-PLAN-001`.
+- **UX-171 [core] — Parent autocomplete keeps root, existing, and new scope in
+  one place.** UX-S52 identifies the moving Brick and current parent, then
+  opens `New parent ›` as a searchable input without a default. Typing `#` or
+  title text filters eligible Bricks by canonical handle and title. Results
+  use complete `#handle "title"` rendering and may also contain literal
+  `<root>` and `New larger Work...`; the current parent is labeled `current`
+  when matched. Self and descendants never appear. Selecting root or another
+  parent continues to the appropriate compact or UX-S51 preview. Selecting
+  new Work opens only an uncommitted draft and later returns to one combined
+  preview under WRK-114. Escape, Left Arrow, or empty-buffer Backspace restores
+  UX-S50 unchanged. Powered-up and Skill may reorder the same eligible set and
+  mark one result with an attributed reason; rejection restores the dumb
+  ordering and query. Exact dumb ranking ties remain with the reference-search
+  closure in `OPEN-REF-001`.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

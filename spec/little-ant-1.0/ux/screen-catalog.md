@@ -2754,6 +2754,49 @@ mark follows a bounded explanation or existing action without inventing the
 human's desired context. Assistance may recommend change with an attributed
 semantic reason, but cannot alter this comparison or mutate silently.
 
+## UX-S52 — Parent selector
+
+```text
+Move within larger Work:
+
+#rrsr "Review Rock Splitter rules"
+
+Current parent:
+#rs "Rock Splitter"
+
+New parent ›
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+Typing `#` or part of a title opens the same input-owned autocomplete:
+
+```text
+  <root>
+  #rsm "Rock Splitter migration"
+  #rdf "R&D features"
+  #pi "Product improvements"
+  New larger Work...
+```
+
+No result is a dumb default. Every Brick result uses its complete human
+reference. The current parent is rendered with `current` when it matches the
+query; selecting it is an event-free no-op. The moving Brick and descendants
+are absent rather than selectable cycle errors. `<root>` removes the parent.
+`New larger Work...` opens an uncommitted canonical Work draft and returns to
+one combined preview, so cancellation cannot leave a new orphan Brick. A
+structurally incompatible existing parent remains selectable and enters the
+explicit Nature reconciliation already required by WRK-112. Candidate
+eligibility is identical across modes. Assistance may reorder or mark one
+candidate with an attributed reason but cannot manufacture a candidate or
+select it. Escape, Left Arrow, or empty-buffer Backspace restores UX-S50.
+
 ## UX-K01 — Nature choice
 
 ```text

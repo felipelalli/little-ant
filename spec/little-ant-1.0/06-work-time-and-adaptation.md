@@ -611,6 +611,20 @@
   move to a parent with identical memberships may omit the contrast block.
   Powered-up or Skill may mark `change Domains` and explain semantic evidence,
   but cannot alter the dumb comparison or apply a membership silently.
+- **WRK-114 [core] — Parent selection is searchable and may draft a new
+  scope.** The `within larger Work` route selects exactly one existing eligible
+  Brick or literal root through handle/title autocomplete. Root removes the
+  current parent. The moving Brick and all its descendants are excluded to
+  prevent cycles; the current parent may appear as `current`, and selecting it
+  is an educational no-op. A selected parent whose current Nature cannot own
+  the requested child enters explicit WRK-112 reconciliation instead of being
+  hidden. `New larger Work...` opens the ordinary title, Nature, Domain, and
+  structure builders as a draft inside the suspended move. Neither a new
+  parent nor a reparenting event exists until one complete combined preview is
+  accepted; cancellation therefore cannot leave an orphan. The dumb selector
+  has no default. Candidate eligibility is core-owned and identical across
+  modes; assistance may rank or mark a candidate but never add an ineligible
+  target or select one silently.
 
 ## Time
 

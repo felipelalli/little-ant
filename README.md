@@ -323,6 +323,9 @@ membership. Moving Work preserves its Domains. When the new parent has a
 different Domain path set, dumb mode shows the exact structural contrast and
 offers either to keep the current memberships or edit them before one combined
 preview. Only powered-up mode or a Skill may add a semantic recommendation.
+The parent selector searches complete Brick handles and titles, includes
+`<root>`, and can draft `New larger Work...` inside the same atomic move; a
+cancelled move never leaves an orphan parent.
 
 Within `meaning`, title and description are independent choices. Renaming
 preserves the Brick UUID, `#handle`, hierarchy, order, relationships,

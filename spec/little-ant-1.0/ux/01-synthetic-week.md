@@ -967,6 +967,18 @@ reversible combined action. Creation under a parent may visibly propose its
 paths, but acceptance must store direct memberships; later parent movement must
 not cascade a Domain change through any descendant.
 
+In UX-S52, search by exact handle, handle prefix, and title fragment; move to
+root and to an existing compatible parent on separate replays. Confirm that the
+current parent is an educational no-op and that self and every descendant are
+absent. Select an incompatible parent and require its complete Nature
+reconciliation. Then choose `New larger Work...`, traverse ordinary title,
+Nature, Domain, and structure drafting, cancel at each checkpoint, and prove no
+parent identity, handle, or move was committed. Accept one complete combined
+preview and prove the new parent and reparenting become visible atomically.
+Powered-up and Skill may reorder the same eligible results and mark one, but
+must not change eligibility or accept it. Preserve the exact query and move
+draft across search suspension and reverse navigation.
+
 For Nature/behavior, first select the current Nature in UX-S46 and prove an
 event-free no-op. Traverse the full mechanical discovery route over the
 existing Brick, reject its result, and verify no classification evidence was

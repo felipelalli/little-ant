@@ -54,8 +54,8 @@ from `70cb5b0`; the failed implementation remains on
 | Importance and `org-sort-tasks` | `IMP-001..016`, `IMP-030..044` | v0 `Order.hs`/tests, canonical importance correction, regression audit, lower-order recovery, and honest-answer comparison sessions |
 | Impact, effort, planning calibration | `IMP-017..029`, `IMP-038`, `DAT-030..037`, calibration profile | estimation/TaskJuggler and tired-recovery sessions |
 | Forecast, hierarchy, Domain and interaction-family continuity, blockers, opportunity variants, and Focus assistance | `FOC-001..050` | recovery ledger decisions and fixed-stream UX scenarios |
-| Focus, WIP, skip, time, standing work, delegation, semantic maintenance | `WRK-001..113` | v0 behavior audit plus skip, recurrence, habit, delegation, honest-sprint, fear, vague, hard, less-important, other-recovery, honest-answer, direct-update, and Plan/structure/move sessions |
-| Canonical interaction and dumb REPL | `UX-001..170`, screen catalog | REPL recovery and screen-by-screen review, including direct semantic update and the Plan, blocker, structure, and Domain-contrast routes |
+| Focus, WIP, skip, time, standing work, delegation, semantic maintenance | `WRK-001..114` | v0 behavior audit plus skip, recurrence, habit, delegation, honest-sprint, fear, vague, hard, less-important, other-recovery, honest-answer, direct-update, and Plan/structure/move sessions |
+| Canonical interaction and dumb REPL | `UX-001..171`, screen catalog | REPL recovery and screen-by-screen review, including direct semantic update and the Plan, blocker, structure, parent-selection, and Domain-contrast routes |
 | Event authority, sparse output, imports, Packs, Calendar | `DAT-001..045` | context-pollution, source safety, Pack, Calendar, cold-load, and sparse-timer sessions |
 | Migration and promotion gates | `MIG-001..023` | v0 archive review and failed-rewrite analysis |
 
