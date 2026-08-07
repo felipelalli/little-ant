@@ -41,8 +41,13 @@
 ## Canonical language
 
 - **PRD-010 [core] — English canonical product.** Commands, action labels,
-  identifiers, canonical titles, Raw English normalizations, responses,
-  documentation, and default UI are English.
+  identifiers, accepted Raw English normalizations, responses, documentation,
+  and default UI are English. English is also the canonical target for Brick
+  titles, but dumb mode cannot truthfully classify the language of arbitrary
+  text: it accepts a title in any language after UX-049's reminder. Such a title is
+  the current searchable title, appears in FED-054's explicit `/translate`
+  inventory, and never gains a fabricated translation. Powered-up mode or the
+  Skill may propose English before acceptance through the same visible field.
 - **PRD-011 [standard] — Presentation preference.** A skill or UI adapter may
   translate presentation only when the user explicitly requests it or a
   user-owned preference selects it. Canonical data and action identity remain

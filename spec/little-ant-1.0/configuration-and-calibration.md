@@ -41,11 +41,13 @@ entries.
 | Parameter | Factory | Allowed range or schema | Meaning |
 |---|---:|---|---|
 | `work.wip_soft_limit` | `3` | integer `1..50` | More WIPs are allowed but add review pressure. |
-| `work.short_sprint_durations_minutes` | `[5, 15, 25]` | integer entries `1..240` | Visible dumb duration choices for bounded attempts. |
+| `work.short_sprint_durations_minutes` | `[5, 15, 25]` | integer entries `1..120` | Visible dumb duration choices for bounded attempts. |
 | `work.short_sprint_default_minutes` | `25` | one configured duration | Visible default, labeled `a Pomodoro`. |
 | `work.served_skip_cooldown_minutes` | `30` | integer `1..1440` | Cooldown after an accepted skip reaction for an execution opportunity. |
 | `review.skip_cooldown_hours` | `24` | integer `1..720` | Default cooldown after skipping a non-execution lottery review. |
 | `work.stale_focus_hours` | `8` | integer `1..168` | Elapsed time after the latest focus activity before UX-080 checks in. |
+| `feed.assisted_recent_window_minutes` | `30` | integer `1..1440` | Lookback for a recent-Raw assisted batch proposal. |
+| `feed.assisted_batch_limit` | `8` | integer `2..32` | Maximum Raws named by one assisted batch proposal. |
 | `importance.nearby_skip_min_distance` | `1` | integer `1..10` | Minimum alternative-comparator distance. |
 | `importance.nearby_skip_max_distance` | `3` | integer `min..20` | Maximum alternative-comparator distance. |
 | `importance.skips_before_uncertain_placement` | `2` | integer `1..10` | Consecutive unresolved comparisons before provisional placement. |

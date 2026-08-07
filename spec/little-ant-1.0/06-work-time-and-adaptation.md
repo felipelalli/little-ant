@@ -17,26 +17,30 @@
   a separate review opportunity to resume, return to idle, complete, archive,
   or supersede. Nothing is silently completed or cleared, and neither path
   fabricates observed work duration.
-- **WRK-005 [core] — Done is direct.** A served Brick can be completed without
-  first starting it through the contextual `/done` command. Completion
-  without a prior start is ordinary `done` with unknown observed duration,
-  not `already done` or a synthetic zero-length run. Direct completion remains
-  available without competing visually with Focus and skip.
+- **WRK-005 [core] — Done is direct.** A served execution unit can receive its
+  Nature-owned `done` outcome without first starting it through the contextual
+  `/done` command. For finite Work this completes the Brick; for a run,
+  occurrence, or habit opportunity it closes only that unit under WRK-123 and
+  WRK-140. A `done` outcome without a prior start has unknown observed
+  duration, not an `already done` label or synthetic zero-length run. Direct
+  `done` remains available without competing visually with Focus and skip.
 - **WRK-006 [core] — Lifecycle distinctions.** `done`, `archived`, and
   `superseded` preserve different outcomes and lineage. Stopping an execution,
-  missing a habit opportunity, and abandoning an external delegation are
-  context-specific outcomes, not one generic `abandon` command.
+  leaving a habit opportunity unfulfilled, and ending an external Delegation
+  are context-specific outcomes, not one generic `abandon` command.
 - **WRK-048 [core] — Pause clears attention, not work.** Pausing closes the
   current focus interval and clears the global focus pointer while leaving the
   Brick WIP. It preserves the active Domain and importance evidence, records
   no skip symptom, applies no cooldown, and performs no new draw. `paused` is
   an action and historical fact, not another Brick lifecycle state.
-- **WRK-049 [core] — Focused completion is immediate and reversible.**
-  Pressing `[d]one` on the current-focus screen atomically closes the current
-  focus interval, completes the focused Brick, and clears the focus pointer.
-  It does not interpose a confirmation screen. The typed completion event is
-  eligible for semantic undo under `UX-020`; undo restores the prior Brick and
-  focus state when its recorded preconditions still hold.
+- **WRK-049 [core] — Focused done is immediate and reversible.** Pressing
+  `[d]one` on the current-focus screen atomically closes the current focus
+  interval, records the Nature-owned outcome from WRK-123 and WRK-140, and
+  clears the focus pointer. It completes a finite Brick, but never archives a
+  standing owner merely because one run, occurrence, or habit opportunity was
+  completed. It does not interpose a confirmation screen. The typed outcome
+  event is eligible for semantic undo under `UX-020`; undo restores the prior
+  execution unit and focus state when its recorded preconditions still hold.
 
 ## Skip as evidence
 
@@ -751,7 +755,7 @@
   cancelled, and still-open counts, clears current focus, applies the ordinary
   standing-run cooldown, and carries every unresolved identity forward. A
   zero-change run cannot be finished as fictitious work; pause, skip, and
-  reverse navigation remain available. A `living_checklist_run` never retires
+  reverse navigation remain available. A `living_checklist_run` never archives
   its owner; zero open entries derive dormancy. A `finite_checklist_run` with
   remaining open entries leaves its owner active after cooldown. With none, it
   finishes the run and immediately enters the existing
@@ -952,8 +956,10 @@
   active run they stay visibly closed in their stable row until the run ends.
   Unresolved entries remain. Empty state is dormant, not done.
 - **WRK-021 [standard] — Repeatable Brick.** Completing a repeatable execution
-  may finish the Brick terminally or schedule the same identity behind one
-  future `not_before`. It is never reinserted in importance.
+  closes one run, then requires the return-policy checkpoint in WRK-141. The
+  same standing identity becomes manual-only, returns behind one future
+  `not_before`, or is explicitly archived; completion alone never makes the
+  owner terminal. It is never reinserted in importance.
 - **WRK-022 [standard] — Deterministic jitter.** An approximate return such as
   six months plus or minus three months chooses and records one replay-safe
   date, preventing a batch of completions from necessarily returning together.
@@ -1023,7 +1029,7 @@
   open entries. `/archive` is the only archival command for a standing
   Brick. The core defines no `/resume`, `/stop`, `/retire`, `/complete`, or
   Nature-specific alias; operators may map natural language to these commands.
-- **WRK-140 [core] — Done never retires a standing identity by accident.** For
+- **WRK-140 [core] — Done never archives a standing identity by accident.** For
   finite Work and a recurring-obligation occurrence, `/done` records that
   finite unit done. For a repeatable run it records the run complete and enters
   UX-REP00. For an applicable habit opportunity it records that opportunity

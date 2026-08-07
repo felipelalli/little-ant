@@ -213,7 +213,7 @@ For each factory Nature, settle:
 
 ```text
 focus unit
-completion and retirement
+completion and archival
 standing identity
 child or ListEntry ownership
 importance scope
@@ -254,7 +254,7 @@ Render and settle:
 Exit:
 
 - no operational-day convenience can move an exact event;
-- one standing execution never accidentally retires the standing identity;
+- one standing execution never accidentally archives the standing identity;
 - all terminal and missed outcomes use canonical non-generic vocabulary.
 
 ### Gate 8 — External truth and effects

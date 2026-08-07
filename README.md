@@ -110,8 +110,9 @@ such as `+milk "milk"`; and people or companies use `@`, such as
 `@am "Alice Moreira"`. Handles are searchable, survive ordinary title,
 content, and name changes, and never replace UUIDs inside relationships or
 events. Typing `#`, `+`, or `@` opens the corresponding autocomplete, so users
-do not need to memorize technical identifiers. Canonical searchable titles
-are English; original titles remain available as provenance.
+do not need to memorize technical identifiers. English is the canonical target
+for searchable Brick titles, but dumb mode accepts any language. Explicit
+`/translate` can review all active titles rather than guessing their language.
 
 See [concepts and identity](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md)
 and [work, time, and adaptation](spec/little-ant-1.0/06-work-time-and-adaptation.md).
@@ -134,7 +135,7 @@ defaults; they do not inject hidden domain logic.
 
 The 1.0 catalog includes generic Natures for atomic tasks, projects,
 collections, repeatable work, finite and living checklists, recurring
-obligations, and habits. Standard templates include:
+obligations, habits, and scheduled commitments. Standard templates include:
 
 - grocery and trip checklists;
 - reading lists and repeatable article reading;

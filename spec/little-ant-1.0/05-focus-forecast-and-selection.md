@@ -99,7 +99,7 @@ version.
   identity that may later return. `habit_window` serves one applicable
   opportunity of a standing habit without creating overdue task backlog. The
   two checklist variants present their owning checklist and entries, but
-  finishing a `living_checklist_run` never retires its standing owner, while
+  finishing a `living_checklist_run` never archives its standing owner, while
   completion of a `finite_checklist_run` may finish its finite owner.
 
   These variants may reuse `Work:` composition or other shared visual
@@ -295,12 +295,14 @@ version.
   opportunity kind participates in the same subject-first lottery. No review,
   approval, or question family receives an invisible pre-lottery lane. Every
   opportunity selected by this lottery exposes a visible typed `skip` action:
-  it records that this particular opportunity was deferred, applies its
-  replay-deterministic cooldown, then invokes the opportunity variant's
-  declared outcome and future-pressure policy under `WRK-062`. It never
-  fabricates generic completion or a terminal Brick outcome. Continuations,
-  useful-empty recovery, and hard precedence are not lottery selections and
-  do not acquire a misleading universal skip from this rule.
+  it records that this particular opportunity was deferred and applies its
+  replay-deterministic cooldown. FOC-037 execution variants then follow the
+  Nature-owned consequences in WRK-062..064; FOC-054 non-execution variants
+  preserve their unresolved subject and follow only their own declared review
+  policy. Neither branch fabricates generic completion or a terminal Brick
+  outcome. Continuations, useful-empty recovery, and hard precedence are not
+  lottery selections and do not acquire a misleading universal skip from this
+  rule.
 - **FOC-027 [core] — Explicit failure.** Invalid state that prevents a valid
   forecast yields a typed diagnostic and concrete recovery suggestion, not a
   fake focus opportunity.

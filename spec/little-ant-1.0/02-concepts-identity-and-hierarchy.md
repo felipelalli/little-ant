@@ -391,7 +391,7 @@ The factory library contains:
   a ListEntry, a ListEntry never converts to a Brick, and a recurring
   occurrence never converts into either merely because its series changes.
 - **MOD-080 [core] — Standing and anchored state has one explicit stop rule.**
-  Leaving `repeatable` retires its future-return rule but retains prior runs.
+  Leaving `repeatable` disables its future-return rule but retains prior runs.
   Leaving `recurring_obligation` stops future releases only after every open
   occurrence is independently resolved or moved out as ordinary Work; already
   closed occurrences remain history of the series. Leaving `habit` stops

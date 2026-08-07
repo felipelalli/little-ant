@@ -6406,9 +6406,10 @@ Does +milk "milk" belong with any of these?
 
 The factory default is present only when the leading candidate has defensible
 recorded evidence under FED-007. `more matches` pages additional existing
-candidates without changing the ranking. `search` opens typed autocomplete
-across all compatible existing destinations. `create a new group` opens
-UX-T03 without asserting anything about unseen candidates. The slash label is
+candidates in pages of at most four without changing the ranking. `search`
+opens typed autocomplete across all compatible existing destinations.
+`create a new group` opens UX-T03 without asserting anything about unseen
+candidates. The slash label is
 `menu` only to distinguish the command palette from candidate expansion.
 `keep` records a standalone disposition and removes the Raw from the Inbox
 without creating, linking, shelving, archiving, or completing anything.

@@ -142,8 +142,10 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 
 ### Changed
 
-- Canonical searchable work titles and product vocabulary are English, while
-  original input remains verbatim and attributed.
+- English is the canonical target for searchable work titles and product
+  vocabulary. Dumb title input remains non-blocking; explicit `/translate`
+  can review all active titles without hidden language classification, while
+  original Raw input stays verbatim and attributed.
 - Phase is now optional (`idea`, `spec`, `execution`, or `validation`) and may
   be disabled by Nature.
 - Done, archive, merge, and supersede are distinct terminal outcomes; only a

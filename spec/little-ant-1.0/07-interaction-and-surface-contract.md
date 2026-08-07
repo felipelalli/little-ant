@@ -1834,9 +1834,11 @@ assistance-label, and no-emoji rendering.
 - **UX-258 [core] — Assistance and navigation labels stay literal.** The
   canonical finite uncertainty label is always `[?] I don't know`; product
   help is always `/help`; the global secondary escape is `[/] more...` except
-  UX-S09's already-declared `[/] menu...`; and an explicit local return is
-  `[b]ack`. A candidate paginator says `show [m]ore options...`, so it cannot
-  be confused with the command palette. Empty or terminal result screens name
+  on UX-S09 and UX-T02, whose local candidate pagination requires the declared
+  `[/] menu...`; and an explicit local return is `[b]ack`. A candidate
+  paginator says `[m]ore options...`, `[m]ore matches...`, or another
+  collection-specific literal already declared by its screen, so it cannot be
+  confused with the command palette. Empty or terminal result screens name
   `[n]ext` only when they truly invoke the global forecast. Labels such as
   `help`, `other`, `none`, `more`, and `skip` are never treated as synonyms.
 - **UX-259 [standard] — Factory personality text is closed and inspectable.**
@@ -1991,7 +1993,7 @@ assistance-label, and no-emoji rendering.
   assigned a `#` handle merely because it is being reviewed; it keeps the
   canonical `+` reference allocated when Feed created it.
 - **UX-146 [core] — Destination pages separate browsing from creation.** UX-T02
-  displays a bounded, core-ranked page of compatible existing checklists,
+  displays at most four core-ranked compatible existing checklists,
   RawShelves, and Bricks. `[m]ore matches...` advances through the same
   deterministic candidate set, `[s]earch...` opens typed autocomplete across
   the complete compatible set, and `[c]reate a new group...` opens UX-T03.
@@ -2004,8 +2006,8 @@ assistance-label, and no-emoji rendering.
   target's consequence rather than asking the user to choose among Raw,
   ListEntry, and Brick ontology terms in one abstract form.
 - **UX-148 [standard] — Assisted triage mirrors the dumb result.** Skill or
-  powered-up mode may put one attributed disposition or bounded recent-Raw
-  batch proposal before UX-T01. It shows every affected Raw, target, resulting
+  powered-up mode may put one attributed disposition or FED-044-bounded
+  recent-Raw batch proposal before UX-T01. It shows every affected Raw, target,
   entity kind, quantity operation, Nature, and Template that the proposal
   would settle. `no` enters unchanged dumb triage; `skip` defers only the Raw
   whose lottery opportunity opened the gateway. Assistance never treats recent

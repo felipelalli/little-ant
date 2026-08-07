@@ -317,10 +317,13 @@
   slash palette is labelled `[/] menu...` on this screen so `more` cannot be
   mistaken for system commands.
 - **FED-044 [standard] — Recent material may support one batch proposal.** A
-  Skill or powered-up host may observe a bounded recent-Feed window and propose
-  one explicit disposition for several named Raws, such as routing `milk`,
-  `coffee`, and `bread` to one grocery checklist. The proposal identifies its
-  source, enumerates every affected Raw and resulting ListEntry or link, and
+  Skill or powered-up host may observe only the newest unresolved Inbox Raws
+  inside `feed.assisted_recent_window_minutes`, up to
+  `feed.assisted_batch_limit`, including the Raw whose triage opportunity
+  opened the gateway. The factory values are 30 minutes and eight Raws. It may
+  propose one explicit disposition for two or more of them—for example,
+  routing `milk`, `coffee`, and `bread` to one grocery checklist. It identifies
+  its source, enumerates every affected Raw and resulting ListEntry or link, and
   requires ordinary consent. Rejecting it neither weakens nor resolves any Raw
   and enters dumb triage. Dumb mode may expose deterministic recent-neighbor
   evidence but performs no semantic clustering.
@@ -425,7 +428,9 @@
   or cancel—never copy or merge by implication.
 - **FED-054 [standard] — `/translate` is an interruptible review queue.** With
   a target it opens that Brick title or Raw; without one it previews counts for
-  active non-English Brick titles and stale or missing Raw normalizations.
+  all active Brick titles and stale or missing Raw normalizations. Dumb mode
+  therefore performs no hidden language classification: an already-English
+  title may be kept unchanged from its preview.
   Archived material is excluded unless explicitly included. Brick titles are
   replaced in place after an individual preview; event history preserves the
   prior title. Raw text is stored as MOD-071 normalization on the same Raw and
