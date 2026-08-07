@@ -174,9 +174,12 @@ support them honestly.
   presentation conveniences. `calibration.yaml` uses
   `little-ant/calibration@1` and contains only CAL-001 parameters.
   `integrations.yaml` uses `little-ant/integrations@1` and contains installed
-  component pins, provider accounts, CredentialBinding names, and
-  DeliveryBindings. Operational ImportProfiles and SourceBindings remain
-  canonical dataset records rather than configuration. `selection.yaml` uses
+  component pins, provider accounts, CredentialBinding names,
+  DeliveryBindings, and explicitly trusted community publisher public keys.
+  Verified official-catalog metadata and last accepted sequence live under the
+  profile state directory; the compiled official root is not YAML.
+  Operational ImportProfiles and SourceBindings remain canonical dataset
+  records rather than configuration. `selection.yaml` uses
   `little-ant/profile-selection@1` and contains only one selected profile name.
   Unknown keys are errors. No YAML file accepts secret values or arbitrary
   adapter configuration outside its component schema.
@@ -320,7 +323,45 @@ that cryptographic format.
   provider credentials never enter browser or Lua state. Remote binding and
   remote-channel UIAdapters are not 1.0 release promises.
 
-Pack archive trust and update policy remain `OPEN-PACK-001`.
+- **DAT-086 [standard] — One reproducible archive format.** The exact ZIP32,
+  JCS manifest, Ed25519 signature, path, size, digest, and limit rules live in
+  [Pack format and trust](pack-format-and-trust.md). The host verifies the
+  complete archive before extraction or Lua startup. Pack identity is
+  publisher, reverse-DNS name, SemVer, manifest digest, and archive digest;
+  a reused version with different bytes is rejected as equivocation.
+- **DAT-087 [standard] — Trust is explicit and local.** The only trust classes
+  are `built in`, `verified official`, `trusted publisher`, `untrusted`, and
+  `revoked`. Official trust descends from the root embedded in the binary and
+  its signed catalog. A community publisher key requires a separate local
+  fingerprint approval. Unsigned and revoked archives never execute. Trusting
+  a signer does not approve a Pack's permissions or future updates.
+- **DAT-088 [standard] — Revocation stops code, not data.** Explicit catalog
+  refresh from `/packs` or `lant packs refresh` may accept only newer,
+  unexpired, root-signed catalog
+  metadata. A known revoked signer or digest immediately disables affected
+  executable components and effects without deleting canonical data,
+  SourceBindings, provenance, or archives. Pack-free replay and inspection
+  remain available. Expired metadata blocks new official installs/updates but
+  does not break an already pinned non-revoked Pack offline.
+- **DAT-089 [standard] — No dependency solver exists.** Packs cannot depend on
+  other Packs, run installation hooks, or fetch executable code. Lua libraries
+  are vendored under one declared component root and signed like every other
+  payload. Compatibility names exact core/component contract majors; SemVer
+  ranges never substitute for a content digest or permission review.
+- **DAT-090 [standard] — Installation and update never happen in the
+  background.** The `/packs` manager and `lant packs install|update` verify to the
+  content-addressed store, then preview trust, exact versions/digests,
+  components, permissions, configuration changes, and affected bindings before
+  changing a profile pin. Updates remain side by side. Existing bindings use
+  their pinned version until the same preview explicitly rebinds them.
+  The updates view is read-only and there is no automatic update timer.
+- **DAT-091 [standard] — Removal preserves meaning.** Removing a Pack through
+  `/packs` or `lant packs remove`
+  deactivates a profile pin only after every affected binding, pending effect,
+  and UIAdapter is re-bound, paused, rejected, or explicitly left unavailable.
+  Existing Brick Nature snapshots and historical provenance remain valid.
+  Explicit `lant packs gc` removes only unreferenced archives after an exact byte
+  preview; no ordinary startup, update, or uninstall runs garbage collection.
 
 ## Planning reproducibility
 

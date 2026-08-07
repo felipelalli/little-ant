@@ -460,6 +460,12 @@ its honest modes: file exports do not pretend to offer live sync, and sources
 without deletion do not accept destructive cleanup. See the exact
 [integration catalog](spec/little-ant-1.0/standard-integration-catalog.md).
 
+Packs are immutable, content-addressed, reproducible, and Ed25519-signed.
+There are no cross-Pack dependencies, install scripts, or automatic updates.
+Every install/update previews signer trust, components, permissions, and
+affected bindings; known revocations disable code without deleting Little Ant
+data. See [Pack format and trust](spec/little-ant-1.0/pack-format-and-trust.md).
+
 Normal synchronization treats upstream completion or removal as evidence, not
 as local completion or deletion. Destructive migration is a separate reviewed
 flow:

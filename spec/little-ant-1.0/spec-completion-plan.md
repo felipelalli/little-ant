@@ -253,7 +253,7 @@ Render and settle:
   MOD-056..057 and WRK-105;
 - ExternalEntity contacts and local delivery bindings;
 - Delegation from draft through terminal reconciliation;
-- typed write-back and notification;
+- the closed delegation-delivery, source-cleanup, and Calendar effect catalog;
 - import, synchronization, migration cleanup, mass-removal guard, and partial
   failure;
 - Calendar observation and approved write-back;

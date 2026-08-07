@@ -1568,6 +1568,24 @@ recovery, and approval boundaries with the dumb REPL. Reject a replayed browser
 action after host restart, verify the session token never enters history or
 Pack state, and prove that non-loopback binding is unsupported in 1.0.
 
+### SCN-PACK-001 — Reproducible Pack trust and lifecycle
+
+Build the same fixture Pack twice and require byte-identical `.lantpack` and
+SHA-256 digests. Mutate path order, timestamp, extra field, duplicate path,
+Unicode-colliding path, manifest byte, payload byte, signature, declared
+permission, oversize input, and trailing archive data independently; every
+noncanonical or unverifiable candidate must fail before extraction or Lua.
+
+Traverse UX-PACK00 for built-in, verified official, trusted community,
+untrusted community, unsigned, invalid, and revoked fixtures. Trust a community
+key and prove it returns to an unapproved install. Traverse UX-PACK01 with
+component, permission, configuration, and binding changes; reject once and
+accept one exact plan while retaining the old archive side by side. Exercise
+expired catalog, explicit refresh, rollback catalog, root transition,
+equivocation, known revocation, UX-PACK02, removal with active bindings, and
+garbage collection. Prove no background network/update, no Pack dependency,
+no canonical-data deletion, no replay execution, and no assisted approval.
+
 ### SCN-EMPTY-001 — No eligible work
 
 Reach UX-E01 and validate a state-derived useful proposal instead of silence or

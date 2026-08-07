@@ -2382,6 +2382,32 @@ assistance-label, and no-emoji rendering.
   reconnecting revalidates current state instead of replaying a browser action.
   The UIAdapter cannot unlock the vault, retain provider credentials, or
   create a second command grammar.
+- **UX-270 [standard] — Pack installation requires two independent
+  understandings.** UX-PACK00 first establishes signer trust, then separately
+  previews installation. A verified official or already trusted publisher
+  skips only the trust question, never the Pack preview. The preview names
+  display name, publisher/trust class, version, exact digest abbreviation,
+  every component kind, HTTP hosts, credentials, effect purposes, and local
+  UI authority in human language. It has no default or Enter acceptance.
+  Trusting a new community key shows its full fingerprint and returns to the
+  still-unapproved Pack preview. Trust and install use UX-196
+  `binary_consent` independently.
+- **UX-271 [standard] — Updates show semantic and permission difference.**
+  UX-PACK01 compares installed and candidate version/digest, components,
+  permissions, configuration, and every binding that would remain old, be
+  rebound, or become unavailable. `[u]pdate` accepts only that complete plan;
+  `[k]eep current` changes nothing. An update with no visible difference still
+  requires the same approval. Powered-up and Skill may summarize or flag risk,
+  but cannot trust a key, install, update, rebind, remove, refresh, or collect
+  archives. Update uses UX-196 `binary_consent`; inspect changes is its bounded
+  evidence view.
+- **UX-272 [standard] — Revocation is a sober unavailable state.** UX-PACK02
+  names the Pack, signer/digest, affected components and bindings, catalog
+  sequence, and plain recovery choices. It never offers run anyway, ignore,
+  downgrade to another revoked digest, or delete canonical data. Replacement,
+  pause, manual fallback, and inspection reuse existing binding flows. A stale
+  official catalog warns on the Pack manager and blocks only new official
+  installation/update. Its uncertainty route is UX-196 `reaction_choice`.
 
 ## Errors and dry-run
 

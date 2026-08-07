@@ -5099,6 +5099,93 @@ offers `[k]eep and detach`, `[c]ancel the commitment`, `[r]ecreate on the
 calendar`, and uncertainty, with no default. Recreate opens a separate effect
 preview. None records attended, missed, or done.
 
+## UX-PACK00 — Pack installation and publisher trust
+
+An already verified official candidate renders:
+
+```text
+Install Pack?
+
+Little Ant Connectors 1.0.0
+Publisher: Little Ant Project · verified official
+Digest: sha256:91c6…4a20
+
+Components:
+  4 source adapters
+HTTP: graph.microsoft.com, tasks.googleapis.com,
+      www.googleapis.com, api.github.com
+Credentials: Microsoft, Google, GitHub accounts when configured
+External effects: source cleanup, Calendar create/update/cancel
+
+[i]nstall    [b]ack    [?] I don't know
+
+[/] more...
+```
+
+There is no default. Inspecting expands exact components, methods, paths,
+credential slots, limits, and effect purposes without leaving the preview.
+
+For a valid but untrusted community signature, the first screen instead says
+`Publisher: untrusted` and offers `[t]rust publisher...`, back, and
+uncertainty. Trust opens a separate full-fingerprint preview. Acceptance stores
+only that publisher key and returns to this installation preview; it does not
+install the Pack. Unsigned or invalid archives have no trust action.
+
+## UX-PACK01 — Pack update
+
+```text
+Update Pack?
+
+Little Ant Connectors
+Installed: 1.0.0 · sha256:91c6…4a20
+Candidate: 1.1.0 · sha256:a53d…9b71
+Publisher: Little Ant Project · verified official
+
+Components: +1 · -0 · 2 changed
+HTTP hosts: +calendar.google.com
+Credentials: unchanged
+External effects: unchanged
+Configuration: 1 new optional field
+
+Bindings:
+  2 will use the new version
+  1 will keep the installed version
+
+[u]pdate    [k]eep current
+[i]nspect changes    [?] I don't know
+
+[/] more...
+```
+
+No row is selected by default. Inspect shows the complete signed diff and the
+explicit per-binding plan. Update stores the candidate and applies only the
+displayed profile pin/rebinding plan. Keep current downloads or mutates
+nothing. A failed download or verification leaves the installed version
+active.
+
+## UX-PACK02 — Revoked Pack
+
+```text
+Pack disabled.
+
+Little Ant Connectors 1.0.0
+Reason: this signed release was revoked by the official catalog
+Affects: 3 source bindings · 1 pending Calendar update
+
+[r]eplace the Pack...
+[p]ause affected integrations
+[m]anual alternatives
+[i]nspect details
+[?] I don't know
+
+[/] more...
+```
+
+There is no bypass action and no default. Pending effects remain pending but
+cannot dispatch. Replacing or pausing uses one complete affected-binding
+preview. Manual alternatives never claim an external outcome. Canonical data,
+history, and Pack-free replay remain available.
+
 ## UX-D01 — Delegation strategy review
 
 When an ordinary-lottery internal review reaches the configured soft cap:
