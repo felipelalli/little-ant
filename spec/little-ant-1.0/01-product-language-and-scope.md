@@ -46,8 +46,8 @@
 - **PRD-011 [standard] — Presentation preference.** A skill or UI adapter may
   translate presentation only when the user explicitly requests it or a
   user-owned preference selects it. Canonical data and action identity remain
-  English. The preference, integration-binding, calibration, and secret
-  boundaries are closed under `OPEN-PREF-001`.
+  English. DAT-057..067 keep presentation preferences, integration bindings,
+  calibration, and secrets in separate typed stores.
 - **PRD-012 [standard] — Original input.** When Raw content is normalized or
   translated, the original representation and its language remain on that
   same Raw as attributable evidence instead of being discarded.

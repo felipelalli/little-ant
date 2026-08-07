@@ -1053,8 +1053,8 @@ from advice and collaboration through the bounded question tree; resolve a
 target with `@` autocomplete. Exercise every WRK-032 Nature: fixed scopes omit
 the chooser, project asks brick-only versus whole scope, habit points to
 separate enabling Work, a released recurring occurrence follows its own
-Nature, and scheduled commitment stops explicitly until its owning boundary is
-closed. Confirm that no two displayed scope rows have identical coverage.
+Nature, and scheduled commitment stops with WRK-155's preparation-child
+recovery. Confirm that no two displayed scope rows have identical coverage.
 
 Delegate a project-like Brick. Validate the target, scope, mandatory
 `once | every | explicitly none`, 24/72/168-hour and custom review-delay
@@ -1138,6 +1138,41 @@ preview under `Message:` without sending; Escape must retain the prior
 suggestion. History, assistance, and the structured projection must retain the
 factory origin and human edit attribution. Repeat with a powered-up proposal
 and require the same interaction grammar and explicit attribution.
+
+### SCN-SEC-001 — Contacts, configuration, and credentials
+
+Add email, phone, URI, and provider-recipient ContactPoints to Alice through
+UX-CNT01. Import a changed email and a missing remote contact; verify attributed
+review rather than silent replacement or retirement. Configure Work Mail and
+one purpose-scoped preferred DeliveryBinding without placing a secret in the
+dataset or any YAML. Traverse UX-CNT00 with the preferred binding ready,
+locked, unavailable, and absent. Manual handoff must remain usable, and merely
+choosing a method must never send or activate Delegation.
+
+Create `default` and `work` profiles. Validate every DAT-057 resolved path,
+schema, file mode, selection precedence, no cross-profile merge, and the
+redacted `/config`/CLI views. Change presentation language and prove only the
+wrapper changes; canonical titles, actions, events, and structured results
+remain English. Change calibration separately and prove its content hash
+enters only affected future evidence. Move `integrations.yaml` without the
+vault and require `unbound`, not copied credentials or provider failure.
+
+Create a vault, inspect its age v1 scrypt header without decrypting it, and
+verify work factor `2^18`, fresh salt/nonces, authenticated `vault@1` payload,
+private paths, and absence of plaintext fragments. Exercise correct and wrong
+passphrases, explicit lock, idle lock, logout, corrupt ciphertext, unsupported
+header, backup, passphrase rotation, provider-secret rotation, atomic write
+failure, and restored-old-file warning. Lost-passphrase recovery must state
+that only credentials are lost and must never offer a bypass.
+
+From a pending delegation effect, enter UX-VLT00, cancel unlock, unlock, then
+return to the byte-equivalent still-unapproved message preview. Approve it only
+afterward. Verify that Lua, UIAdapter, Skill, powered-up input, Interaction
+Envelope, history, diagnostics, logs, process arguments, environment, UI
+checkpoint, and crash report never contain the secret. A locked calendar check
+must remain due without provider backoff. Finally, connect with a wrong UID,
+send malformed or oversized IPC, and request arbitrary decrypt; the agent
+rejects all three without exiting or revealing binding inventory.
 
 ## Day 7 — Context, recovery, and boundaries
 

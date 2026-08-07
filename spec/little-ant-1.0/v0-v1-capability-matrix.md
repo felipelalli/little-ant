@@ -89,7 +89,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | `unify` retargets comparisons and marks one Brick superseded | `I+T` | **replaced** | explicit same-intention `merge`, distinct `merged` terminal state, survivor choice, and complete transfer matrix under `MOD-011..012`, `MOD-085..088`, `WRK-131`, and UX-LC01..LC02 | merge-conflict route |
 | `supersede` preserves lineage and selected relationships | `I+T` | **strengthened** | replacement remains distinct, no relationship follows by resemblance, and every child/gate transfer is explicit under `MOD-085`, `MOD-087..088`, `WRK-129`, `WRK-132`, and UX-LC01/LC03/LC05 | finite and standing replacement routes |
 | One free `context` string owns a Brick's organizational placement | `I` | **replaced** | hierarchical, non-exclusive Domain plus composition under `MOD-006`, `MOD-019..022` | Domain membership/query route |
-| Person/agent/company/area registry supports requester and delegation | `I+T`, but only name/type were delivered | **strengthened** | ExternalEntity under `MOD-007`, `MOD-030`, `WRK-029`; contacts remain `OPEN-MOD-001` | requester/delegation route |
+| Person/agent/company/area registry supports requester and delegation | `I+T`, but only name/type were delivered | **strengthened** | ExternalEntity and attributed non-secret ContactPoints under `MOD-007`, `MOD-030`, `MOD-090..092`; local delivery and credential boundaries under `DAT-057..067` | requester/delegation/contact route |
 
 ## Importance order
 
@@ -130,7 +130,7 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Delegation draft, preview boundary, cancel-before-send, due nudge, approve/decline, and completed/refused/abandoned outcomes | `I+T`, delegation tests | **strengthened; generic abandon removed** | explicit proposed/active/terminal lifecycle, Nature-aware coverage, review cadence, manual/adapter handoff, attributed observations, reconciliation, soft cap, and no implicit Wait under `MOD-064`, `FOC-035..036`, `WRK-029..034`, `WRK-056..061`, and `WRK-119..121`; transport remains with `OPEN-MOD-001` and `OPEN-EFF-001` | `SCN-DEL-001` plus delivery/manual handoff and full effect routes |
+| Delegation draft, preview boundary, cancel-before-send, due nudge, approve/decline, and completed/refused/abandoned outcomes | `I+T`, delegation tests | **strengthened; generic abandon removed** | explicit proposed/active/terminal lifecycle, Nature-aware coverage, review cadence, manual/adapter handoff, attributed observations, reconciliation, soft cap, no implicit Wait, and typed contact/binding selection under `MOD-064`, `MOD-090..092`, `FOC-035..036`, `WRK-029..034`, `WRK-056..061`, `WRK-119..121`, and `DAT-057..067`; transport remains with `OPEN-EFF-001` | `SCN-DEL-001` plus delivery/manual handoff and full effect routes |
 | Delegated work does not consume human focus/WIP or remain human-executable | `I+T` | **strengthened** | `WRK-029`, `WRK-057`, `FOC-035` | delegation/focus/importance interleave with exact scope |
 | Completion effects `write_back`, `notify`, and arbitrary `spawn` stop for approval | `I+T` | **replaced** | external preview retained by `PRD-009`; general effect families in `OPEN-EFF-001`; arbitrary spawn retired in favor of closed release rules | external-effect route |
 | Every later answer resolves to an explicit absolute date | `O`; implemented nudge dates | **strengthened** | `UX-018`, `WRK-016` | later/date route |

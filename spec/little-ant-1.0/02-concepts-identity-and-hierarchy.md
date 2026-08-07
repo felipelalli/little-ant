@@ -121,8 +121,31 @@ person | team | organization | ai_agent | service
 ```
 
 `area` is not an entity kind; hierarchical organizational classification uses
-Domain. The exact ContactPoint and local delivery-binding schema remains an
-open release decision rather than an inferred v1 commitment.
+Domain.
+
+- **MOD-090 [standard] — ContactPoint is non-secret reachability.** An
+  ExternalEntity may own zero or more ContactPoints. Each has UUIDv7 identity,
+  one closed kind (`email | phone | uri | provider_recipient`), an optional
+  human label, a kind-valid exact value, active or retired state, and
+  provenance. A provider recipient additionally names its provider namespace
+  and stable remote recipient identifier. ContactPoints are canonical dataset
+  records and may synchronize with the dataset; they never contain passwords,
+  access tokens, refresh tokens, private keys, or local credential handles.
+- **MOD-091 [standard] — Contact truth is attributed, not inferred.** A
+  ContactPoint records whether its value was entered by the human or observed
+  from a named source. `verified` means only that the human or source asserted
+  the value at a recorded instant; it does not prove future deliverability.
+  A changed or missing source contact creates a review and never silently
+  retires a locally used value. Editing creates a revision; retiring preserves
+  history and prevents new delivery selection without invalidating receipts.
+- **MOD-092 [standard] — DeliveryBinding is local integration state.** A
+  DeliveryBinding joins one active ContactPoint to one installed adapter,
+  provider account, optional CredentialBinding, and nonempty supported-purpose
+  set. It lives in the local typed integration manifest, not the canonical
+  dataset, because account and credential availability are machine/profile
+  concerns. A redacted projection may show its name and readiness. It never
+  stores a secret, grants sending authority, or makes one contact globally
+  preferred; a purpose-scoped preferred binding is only a visible UI default.
 
 ## Brick state
 

@@ -52,17 +52,17 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** preferences, contact delivery, and local credential security.
+**Next review:** external effects, importer/UIAdapter packaging, and Calendar
+authority.
 
 - Owning gate: Gate 8.
-- Owning boundaries: `OPEN-MOD-001`, `OPEN-PREF-001`, and `OPEN-EXT-001`.
-- Reuse, do not reopen: ExternalEntity identity and autocomplete, Delegation
-  and Wait flows, canonical English, sparse configuration, event authority,
-  and the complete dumb surface grammar through `UX-259`.
-- Keep declarative preferences, schema-validated calibration, integration
-  bindings, and secrets as separate typed concerns.
-- Do not enter here: provider-specific import coverage, Calendar write-back,
-  Pack supply-chain policy, or migration mapping.
+- Owning boundaries: `OPEN-EFF-001`, `OPEN-EXT-002`, and `OPEN-CAL-001`.
+- Reuse, do not reopen: source/adoption separation, migration cleanup safety,
+  Calendar observation, host-brokered HTTP, typed contacts/bindings, vault and
+  locked-state UX, and the complete dumb surface grammar through `UX-264`.
+- Every external mutation remains a separately previewed effect; observation
+  alone never changes canonical work truth.
+- Do not enter here: Pack signing/update policy or v0 migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

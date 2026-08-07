@@ -6926,6 +6926,114 @@ What next?
 The available choices derive from actual state; the screen never fabricates
 work merely to avoid emptiness.
 
+## UX-CNT00 — Delivery method
+
+After choosing `@am "Alice Moreira"`, a delegation handoff uses only configured
+and currently usable methods:
+
+```text
+Deliver to:
+
+@am "Alice Moreira"
+
+*[m]anual handoff
+     You will send or tell Alice outside Little Ant.
+ [e]mail · alice@example.com
+     via Work Mail
+ [?] I don't know
+
+[/] more...
+```
+
+Manual is the factory safe default when no purpose-scoped preferred ready
+binding exists. If one does, `*` moves to that unchanged row and a quiet line
+names it as the configured preference. Choosing a method returns that method
+to the still-uncommitted Delegation builder. It does not send, unlock, or mark
+a handoff. A configured but unavailable binding appears only under inspection
+with its exact redacted reason; a locked ready binding remains selectable and
+enters UX-VLT00 only when the approved effect actually needs it.
+
+## UX-CNT01 — Contact maintenance
+
+```text
+Contact details:
+
+@am "Alice Moreira"
+
+[e]mail
+[p]hone
+[u]ri
+provider [r]ecipient
+[?] I don't know
+
+[/] more...
+```
+
+Choosing a kind opens structured fields for its exact value, optional label,
+and source. The preview says `This adds contact information only. Nothing will
+be sent.` Existing rows can be edited or retired through the same route. A
+retirement preview lists every local binding that would become unavailable and
+requires replacement or explicit acceptance. There is no preferred-contact
+flag in canonical data; preference belongs to the purpose-scoped local binding.
+
+## UX-VLT00 — Locked credentials
+
+```text
+Credentials are locked.
+
+Needed for: deliver the delegation message
+Account: Work Mail
+To: alice@example.com
+
+[u]nlock
+[c]hoose another method
+[l]ater
+[?] I don't know
+
+[/] more...
+```
+
+Unlock opens this no-echo input:
+
+```text
+Unlock credentials:
+
+Passphrase ›
+
+Enter unlock · Esc back
+```
+
+Success says only `Credentials unlocked.` and restores the exact original
+message preview with no action selected; it does not send or approve it. A
+failed unlock says `Could not unlock these credentials.` and returns here
+without distinguishing a wrong passphrase from invalid ciphertext. Choose
+another method returns to UX-CNT00. Later uses the original effect's review
+timing and leaves it pending. `/vault diagnose` provides separately requested
+technical recovery without revealing secret values.
+
+## UX-CFG00 — Configuration hub
+
+```text
+Configuration:
+
+[p]resentation
+[c]alibration
+[i]ntegrations
+[v]ault
+pro[f]ile
+[r]esolved paths
+[?] I don't know
+
+[/] more...
+```
+
+Each row opens a schema-owned view and edits only that concern. Resolved paths
+is read-only and shows the selected profile plus every DAT-057 location.
+Integration inspection is redacted. Vault opens lock, unlock, entry, rotation,
+backup, and diagnose actions but never YAML or a plaintext export. The profile
+screen lists names and the effective dataset; switching requires confirmation
+when it would leave a pending interaction or current focus in another dataset.
+
 ## UX-PH00 — Phase review or update
 
 Phase remains optional and descriptive. A lazy review or `/update #wtms phase`

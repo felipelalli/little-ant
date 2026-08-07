@@ -1800,6 +1800,41 @@ assistance-label, and no-emoji rendering.
   exactly 16 per UX-064 intent. Dumb mode selects only from that file;
   powered-up and Skill paraphrase only under UX-065. Disabling emoji removes
   the catalog's declared prefix/suffix decorations but leaves its wording.
+- **UX-260 [standard] — Contact selection stays human-facing.** A flow that
+  needs a delivery target first resolves the person or company through UX-075,
+  then renders only usable delivery choices through UX-CNT00. Each automatic
+  row names the contact value, adapter/account label, and purpose in ordinary
+  words; `ContactPoint`, `DeliveryBinding`, credential slot, and component key
+  remain inspection details. Manual handoff is always available. Only a
+  purpose-scoped preferred ready binding may carry `*`; otherwise manual is
+  the visible safe default.
+- **UX-261 [standard] — Contact maintenance is separate from sending.**
+  `/update @entity contacts` opens UX-CNT01. Adding or revising a contact
+  previews the exact kind, value, source, and affected local delivery bindings.
+  Accepting changes only contact data; it neither creates a binding, verifies
+  delivery, sends, delegates, nor retries an effect. Retiring an in-use contact
+  first requires choosing replacement bindings or leaving them explicitly
+  unavailable.
+- **UX-262 [standard] — Unlock returns to the same approval.** UX-VLT00 names
+  the integration purpose and account that need credentials without exposing
+  a secret or technical slot. `[u]nlock` enters a no-echo passphrase field;
+  success returns to the exact prior effect/source preview still awaiting its
+  original approval. Another method and later remain owning-flow actions, not
+  vault outcomes. A failed attempt returns to the same screen and creates no
+  domain event, provider failure, or permanent lockout; the scrypt work factor
+  already supplies the offline and interactive attempt cost.
+- **UX-263 [standard] — Configuration is inspectable by concern.** `/config`
+  opens UX-CFG00 with presentation, calibration, integrations, vault, profile,
+  and resolved-path sections. Each section validates and writes only its typed
+  file; the screen never presents one giant YAML editor. `lant config show`,
+  `lant config paths`, and `lant config validate` provide sparse, redacted
+  equivalents. Secret entry and unlock stay under `/vault`, never `/config`.
+- **UX-264 [standard] — Secret input cannot become transcript.** No-echo input
+  shows only a fixed prompt and attempt outcome. It is excluded from UI
+  checkpoints, recent actions, history, shell-completion logs, crash recovery,
+  clipboard helpers, powered-up/Skill context, and external editors. Back or
+  Escape clears the whole buffer. Paste may be disabled by the terminal host;
+  the canonical protocol never echoes length or characters.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

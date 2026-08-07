@@ -145,9 +145,128 @@ Exact shipping placement and API feasibility are tracked under
 - **DAT-027 [standard] — Locked is not failed.** A due credential-dependent
   check remains due while the vault is locked and does not advance provider
   failure backoff.
+- **DAT-057 [standard] — Configuration uses separate typed XDG files.** On
+  Unix-like systems, one named profile resolves these paths:
 
-The concrete vault, recovery, rotation, and memory-agent security design is
-`OPEN-EXT-001`.
+  ```text
+  $XDG_CONFIG_HOME/lant/selection.yaml
+  $XDG_CONFIG_HOME/lant/profiles/<name>/profile.yaml
+  $XDG_CONFIG_HOME/lant/profiles/<name>/preferences.yaml
+  $XDG_CONFIG_HOME/lant/profiles/<name>/calibration.yaml
+  $XDG_CONFIG_HOME/lant/profiles/<name>/integrations.yaml
+  $XDG_DATA_HOME/lant/vaults/<name>.age
+  $XDG_STATE_HOME/lant/profiles/<name>/
+  $XDG_RUNTIME_DIR/lant/<name>/vault.sock
+  ```
+
+  The ordinary XDG fallbacks apply when an environment variable is absent.
+  Configuration, data, persistent UI state, and runtime IPC therefore do not
+  share one directory. Parent directories are private to the user. Other
+  platforms use their native per-user configuration, data, state, and runtime
+  equivalents and expose the resolved paths through `/config paths`.
+- **DAT-058 [standard] — Each file owns one schema.** `profile.yaml` uses
+  `little-ant/profile@1` and contains only dataset location plus explicit
+  references to the other three YAML files and one vault name.
+  `preferences.yaml` uses `little-ant/preferences@1` and contains presentation
+  language, color/emoji modes, editor argv, powered-up argv, and other
+  presentation conveniences. `calibration.yaml` uses
+  `little-ant/calibration@1` and contains only CAL-001 parameters.
+  `integrations.yaml` uses `little-ant/integrations@1` and contains installed
+  component pins, provider accounts, CredentialBinding names, and
+  DeliveryBindings. Operational ImportProfiles and SourceBindings remain
+  canonical dataset records rather than configuration. `selection.yaml` uses
+  `little-ant/profile-selection@1` and contains only one selected profile name.
+  Unknown keys are errors. No YAML file accepts secret values or arbitrary
+  adapter configuration outside its component schema.
+- **DAT-059 [standard] — Profile selection is explicit and non-merging.** The
+  selected profile is, in order, the CLI `--profile <name>`, `LANT_PROFILE`,
+  DAT-058's selection file, or literal `default`. `/profile use <name>` writes
+  only that selection file for future starts; the resolved name remains visible
+  in `/config paths` and technical output. Files from two profiles are never
+  deep-merged. Skill, powered-up, REPL, and first-party clients query the
+  resolved typed configuration through the CLI/protocol rather than parsing
+  YAML independently. Canonical English remains unchanged when a presentation
+  preference requests translated wrapper text.
+- **DAT-060 [standard] — Bindings are references, not secrets.** A
+  CredentialBinding maps a component-declared credential slot and provider
+  account to one opaque vault-entry UUID. A DeliveryBinding follows MOD-092.
+  Config inspection and diagnostics render only binding name, scheme,
+  component/account, purposes, readiness, and redacted last four characters
+  when the scheme defines them. Moving or copying an integration manifest
+  without its vault yields `unbound`, not an authentication failure or a
+  copied secret.
+- **DAT-061 [standard] — Vault 1 uses the age v1 passphrase format.** The file
+  at DAT-057's vault path is one binary `age-encryption.org/v1` file with its
+  sole native `scrypt` recipient stanza. New and rotated v1 vaults use a fresh
+  16-byte salt, work factor `2^18`, `r = 8`, `p = 1`, and the age v1
+  ChaCha20-Poly1305 wrapping and payload construction. The authenticated
+  plaintext is canonical UTF-8 JSON with schema `little-ant/vault@1`, vault
+  UUID, monotonically increasing revision, and UUID-keyed typed secret
+  entries. Passphrases are consumed as entered UTF-8 bytes without trimming or
+  normalization. The implementation uses a reviewed age-format library, not
+  a shell command or a Little-Ant-specific cipher construction.
+- **DAT-062 [standard] — Vault writes are whole-file and atomic.** Creating,
+  changing, or deleting an entry decrypts in trusted memory, validates the
+  complete next plaintext, and writes a freshly encrypted age file to a new
+  same-directory inode with mode `0600`; file and directory are synchronized
+  before atomic replacement. Failure preserves the prior file. Rotation uses
+  a fresh file key, salt, and payload nonce and verifies the replacement before
+  cutover. The vault never joins dataset JSONL, sync, history, Pack input,
+  crash dumps, debug output, or general backups.
+- **DAT-063 [standard] — Recovery is honest, not escrow.** Vault creation asks
+  for and confirms one nonempty passphrase through no-echo input, then requires
+  the user to create or explicitly decline an encrypted backup. `/vault backup`
+  verifies the current ciphertext before copying that ciphertext—never
+  plaintext—to an explicit destination. The same passphrase unlocks it. There
+  is no server escrow, reset link, hidden recovery key, or bypass: losing the
+  passphrase and every unlocked session loses the credentials, while canonical
+  Little Ant data remains intact and integrations can be reconnected. A
+  passphrase change is DAT-062 rotation; provider-secret rotation is a separate
+  adapter-specific reviewed effect.
+- **DAT-064 [standard] — One memory agent owns each unlocked profile.** The
+  first trusted host that needs a credential starts or connects to one
+  profile-scoped agent. On Unix it uses DAT-057's AF_UNIX socket inside a
+  `0700` runtime directory; the socket is `0600`, peer UID is checked, and the
+  protocol is length-delimited, schema-versioned, size-bounded, and rejects
+  unknown operations. The agent exposes only lock/unlock, redacted inventory,
+  typed entry mutation, and resolution of a named CredentialBinding to the
+  trusted host. It offers no arbitrary file decrypt/encrypt primitive and no
+  Pack/UIAdapter connection. Explicit `/vault lock`, agent shutdown, logout,
+  or the configured idle timeout clears decrypted entries and keys with
+  best-effort locked memory and zeroization.
+- **DAT-065 [standard] — Secret use has a narrow trusted path.** The canonical
+  host resolves a binding only while executing the exact host-brokered HTTP or
+  external-effect request that declared the credential slot. It injects the
+  secret after Pack output validation, never returns it to Lua, and redacts
+  request headers, URLs, bodies, errors, receipts, and traces according to the
+  component manifest. OAuth authorization and refresh happen in the trusted
+  host/agent boundary; refresh-token replacement is an atomic vault mutation.
+  Secrets are never accepted in command arguments, environment variables,
+  YAML, ordinary stdin, or InteractionEnvelopes. Dedicated no-echo unlock and
+  authorization-code inputs are the only interactive secret inputs.
+- **DAT-066 [standard] — Locked state preserves the interrupted intention.** A
+  credentialed route encountering a locked vault renders UX-VLT00. Unlock uses
+  no-echo input and, on success, returns to the exact still-unapproved preview;
+  it never retries, sends, syncs, or approves automatically. Choosing another
+  method or later follows the owning flow. Failure reveals no distinction
+  between wrong passphrase and corrupt authentication until explicit
+  `/vault diagnose`; provider backoff and source cursors do not advance.
+- **DAT-067 [standard] — The security boundary is stated plainly.** The vault
+  protects secrets at rest, from accidental dataset/configuration sharing,
+  from Packs, and from unprivileged OS users. It does not claim to resist a
+  compromised process running as the same OS user, a debugger attached to the
+  trusted host or agent, kernel compromise, terminal capture during unlock,
+  or rollback to an older whole vault file. Diagnostics warn about unsafe
+  permissions, symlinks, unsupported age headers, excessive KDF work factors,
+  and revision rollback observed against local state; they never weaken or
+  silently repair authentication.
+
+DAT-057 follows the
+[XDG Base Directory Specification 0.8](https://specifications.freedesktop.org/basedir/).
+DAT-061 is a constrained use of the reviewed
+[age v1 file format](https://age-encryption.org/v1), including its native
+scrypt stanza and authenticated streaming payload; Little Ant does not fork
+that cryptographic format.
 
 ## Exporters and UI adapters
 
