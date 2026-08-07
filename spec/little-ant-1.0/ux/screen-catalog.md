@@ -4537,6 +4537,17 @@ rather than only on Feed. Single-key choice screens omit it. Until Enter, the
 text remains only a local draft; this guarantee is behavioral and is not
 rendered in the footer.
 
+There is no Feed receipt screen. From an existing proposal or focus, the
+revalidated screen gains this one-use fact above its footer:
+
+```text
+Fed: +cl "comprar leite"
+```
+
+It does not replace or answer the primary question. From UX-E00, the first Raw
+is the only useful opportunity, so the same commit proceeds directly to
+UX-T01 with no intermediate acknowledgment.
+
 ## UX-T01 — Raw triage
 
 ```text
@@ -4563,8 +4574,11 @@ The `+` handle was allocated with the Raw at Feed time. It is not a `#` Brick
 handle and does not make the Raw Work. `yes` enters Nature, optional Template,
 structure, duplicate, and local importance settlement before creating Work.
 `no` opens UX-T02. `skip` records only a typed triage deferral and leaves the
-Raw in the Inbox. Question mark enters a bounded behavioral aid without
-resolving the Raw. Escape records nothing and restores the prior useful
+Raw in the Inbox. Question mark asks whether seeing this exact Raw alone under
+`Work:` would communicate a useful action such as doing, considering, or
+reading it. Yes returns to Work materialization and no to UX-T02. A second
+uncertainty may inspect the complete Raw once and repeat the question; another
+leaves triage pending. Escape records nothing and restores the prior useful
 envelope.
 
 ## UX-T02 — Ranked existing destinations
@@ -4584,6 +4598,7 @@ Does +milk "milk" belong with any of these?
  [4] #ibbq "Implement BBQ on Rock Splitter"
      work
 
+ [k]eep as standalone raw material
  [m]ore matches...
  [s]earch...
  [c]reate a new group...
@@ -4606,6 +4621,21 @@ candidates without changing the ranking. `search` opens typed autocomplete
 across all compatible existing destinations. `create a new group` opens
 UX-T03 without asserting anything about unseen candidates. The slash label is
 `menu` only to distinguish the command palette from candidate expansion.
+`keep` records a standalone disposition and removes the Raw from the Inbox
+without creating, linking, shelving, archiving, or completing anything.
+
+From the idle lottery, acceptance renders:
+
+```text
+Kept as standalone raw material:
+
++milk "milk"
+
+[n]ext    [/] more...
+```
+
+The result performs no draw. If triage temporarily interrupted a current
+focus, the same fact appears once on that focus continuation instead.
 
 ## UX-T03 — Create a new group
 
@@ -4736,6 +4766,162 @@ The canonical payload enumerates each source Raw and proposed ListEntry,
 duplicate, and quantity result. `no` returns to UX-T01 for the originally
 selected Raw. `skip` defers only that selected Raw. Neither action resolves or
 penalizes any other member of the proposed batch.
+
+## UX-T07 — Raw-to-Work draft
+
+After Nature, optional Template, and their required configuration are
+resolved, the canonical title is editable. A deterministic source-derived
+value starts selected:
+
+```text
+Brick title
+
+Source: +fabow "fix a bug on website"
+
+› Fix a bug on website_
+
+[Enter] continue    [Esc] back
+
+Tip: write Brick titles in English.
+```
+
+If recorded evidence supplies compatible parent candidates, the next screen
+appears; otherwise the draft remains at root and the final preview says so:
+
+```text
+Place this Work:
+
+*[1] within #ws "Website"
+ [r]oot
+ [s]earch...
+ [?] I don't know
+```
+
+Search uses ordinary Brick autocomplete and excludes invalid parents. A
+selected parent may supply Domain proposal evidence but no membership. When
+one or more Domain candidates exist, a bounded multi-selector follows:
+
+```text
+Select zero or more Domains:
+
+*[1] Orbit › Website
+ [2] Personal › Projects
+ [n]o Domain
+ [s]earch...
+ [?] I don't know
+
+[Enter] continue
+```
+
+Number keys toggle rows; `no Domain` clears them; Enter accepts the visible
+set. With no candidate the screen is omitted and the final preview says
+`Domains: none`. Edit from that preview can still open both complete selectors.
+
+When sibling evidence leaves an unresolved slot, insertion renders the draft
+without pretending it already has a handle:
+
+```text
+Is this proposed Work
+
+"Fix a bug on website"
+
+      more important than
+
+#aco "Add checkout observability"
+?
+
+[m]ore important    [l]ess important
+[s]kip              [?] I don't know
+
+[/] more...
+```
+
+Every answer remains in the materialization checkpoint until UX-T09 commits.
+The first skip redraws with the nearby alternative when one exists. If none
+exists, IMP-046 supplies provisional placement and continues rather than
+repeating an unanswerable question.
+
+## UX-T08 — Existing-Work suspicion
+
+```text
+Similar Work already exists:
+
+#fabow "Fix a bug on website"
+
+Proposed Work:
+"Fix a bug on website"
+Source: +fabow "fix a bug on website"
+
+Would completing the existing Work also handle this intention?
+
+[u]se existing Work
+[c]reate separate Work
+[s]how differences
+[?] I don't know
+
+[/] more...
+```
+
+Use existing attaches the preserved Raw as materialization source and creates
+no Brick, handle, or importance evidence. Create separate resumes the draft;
+equal titles remain allowed. Show differences is read-only. Question mark asks
+the displayed completion question once after that inspection; repeated
+uncertainty leaves the materialization pending. No `merge` action appears
+because the proposed Brick does not yet exist.
+
+Acceptance renders one compact relationship result:
+
+```text
++fabow "fix a bug on website" now supports
+#fabow "Fix a bug on website"
+
+[n]ext    [/] more...
+```
+
+The result performs no draw and follows the same current-focus preservation
+rule as every other accepted triage disposition.
+
+## UX-T09 — Atomic Work preview and result
+
+```text
+Create this Work?
+
+Source: +fabow "fix a bug on website"
+Title: "Fix a bug on website"
+Nature: atomic task
+Template: none
+Parent: #ws "Website"
+Domains: Orbit › Website
+Importance: below #aco "Add checkout observability"
+            above #dui "Document the user interface"
+Confidence: human comparison
+
+Raw material remains preserved.
+
+*[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+```
+
+Every applicable required configuration, lazy non-human claim, and provisional
+confidence reason appears in the same preview. `edit` returns to the nearest
+selected fact; `no` discards only the Work draft and returns the source Raw to
+UX-T01; reverse navigation retains the draft. Yes is the sole mutation and
+allocates the handle only after revalidation.
+
+```text
+Created:
+
+#fabow "Fix a bug on website"
+From: +fabow "fix a bug on website"
+Importance: between #aco and #dui
+
+[n]ext    [/] more...
+```
+
+The result performs no draw. If Raw triage was opened transactionally while
+another Brick remained current, this block appears once as a compact fact on
+the sober current-focus continuation instead of displacing that focus.
 
 ## UX-P01 — Habit consequence
 

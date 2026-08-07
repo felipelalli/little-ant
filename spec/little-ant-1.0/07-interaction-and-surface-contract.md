@@ -1170,6 +1170,39 @@ no-emoji rendering remain `OPEN-UX-001`.
   uncertainty asks whether the message or equivalent responsibility transfer
   was actually delivered. Every tree preserves reverse navigation and records
   nothing before a confirmed leaf.
+- **UX-184 [core] — Feed and Raw triage preserve attention.** UX-I02 commits
+  through FED-049 without a standalone receipt screen. A valid suspended Focus
+  proposal or sober current-focus screen returns with one transient Feed fact;
+  a stale proposal is recomputed, never accepted against an old revision. A
+  no-envelope Feed invokes `next`. UX-T01 question mark follows FED-050, and
+  UX-T02 always exposes standalone Raw as a concrete disposition rather than
+  using indefinite skip. An accepted non-Work disposition reached from the
+  idle lottery renders one compact result with `[n]ext`; when a current focus
+  was preserved, it returns there with the result as a one-use fact. Powered-up
+  and Skill may propose one attributed
+  normalization or disposition only after the Raw commit; rejection restores
+  exact dumb triage. They may not replace the Feed result, hold Raw durability
+  behind a model call, or treat temporal proximity as consent.
+- **UX-185 [core] — Work materialization stays lazy but commits atomically.**
+  UX-T07 implements FED-051. Parent and Domain selectors appear automatically
+  only with recorded candidates and otherwise remain available through edit.
+  Neither phase nor effort is a creation toll. A duplicate suspicion uses
+  UX-T08 before importance. Draft insertion uses the ordinary directional,
+  skip, nearby-alternative, honest-answer, and contradiction grammar, but
+  renders the unallocated side as `Proposed Work: "title"`. UX-T09 is the sole
+  final confirmation and may mark yes as the mechanical default only after
+  every shown fact and position is resolved. Acceptance renders one compact
+  creation result with `[n]ext` and the palette; when a pre-existing current
+  focus was transactionally preserved, it instead returns to that sober focus
+  with the same compact creation fact once.
+
+  Assisted modes may prefill and attribute title, Nature, Template,
+  configuration, parent, Domains, duplicate candidate, and provisional order,
+  and may use one UX-060 complete proposal. They cannot allocate a handle,
+  convert AI order into human evidence, bypass a required builder or duplicate
+  decision, accept their own proposal, or omit the final dumb-equivalent
+  preview. Rejection returns to the earliest unresolved dumb fact with the Raw
+  and draft checkpoint intact.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

@@ -55,6 +55,17 @@
   comparisons. If no active sibling exists, the run is simply the complete
   active sibling order. Inactive children occupy no current importance slot
   and cannot anchor the new run.
+- **IMP-046 [core] — A missing nearby alternative never traps insertion.** If
+  the first comparison skip has no other eligible sibling within IMP-008's
+  configured distance, the draft or Brick is placed immediately adjacent to
+  the last comparator using replay-deterministic direction, low confidence,
+  reason `no_nearby_alternative_after_skip`, and ordinary future review
+  pressure. The skip remains uncertainty, not indifference or human direction.
+  A pending comparison also exposes contextual `/tie-break`: it records an
+  attributed deterministic provisional direction, attempts the same nearby
+  validation when one exists, and otherwise reaches low-confidence placement.
+  It creates no human comparison edge. Cancelling an uncommitted creation
+  still discards that provisional placement with its draft.
 - **IMP-031 [core] — One algorithm, two cadences.** A lottery-selected
   `importance_run_review` serves one genuinely unresolved pair chosen by the
   resumable `org-sort-tasks` state. An accepted `more` or `less` answer records

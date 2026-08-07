@@ -356,6 +356,59 @@
   a RawShelf; independently suggestible child Work enters ordinary Brick
   Nature and structure discovery. Every branch shows its resulting canonical
   object before creation and keeps the source Raw in the Inbox if abandoned.
+- **FED-049 [core] — Feed returns to useful work without a receipt toll.** A
+  successful ordinary Feed commits one Raw, then redraws the revalidated
+  suspended proposal or current-focus continuation with one transient
+  `Fed: +handle "preview"` fact. The fact appears once, is not an event of its
+  own, and never steals the primary question. If there was no prior useful
+  envelope, the canonical `next` pipeline runs; a pristine store containing
+  only the new Raw therefore reaches its `raw_triage` opportunity. Empty input
+  stays in the editor with an educational error, and Escape before submission
+  returns unchanged. Contextual builders already covered by FED-047 resume
+  their declared continuation after the Raw commit rather than entering
+  ordinary triage.
+- **FED-050 [core] — Raw triage can finish without creating another object.**
+  Question mark on the independent-Work question asks whether seeing this Raw
+  alone under `Work:` would communicate one useful action such as doing,
+  considering, or reading it. Yes returns to Work materialization; no returns
+  to destination selection. A second uncertainty may inspect the complete Raw
+  once and repeat the question; another uncertainty leaves triage pending.
+  Destination selection always includes `keep as standalone raw material` in
+  addition to ranked compatible targets, search, and new-group discovery.
+  Accepting standalone records that triage disposition, removes the Raw from
+  the derived Inbox, and creates no shelf, link, entry, Brick, importance
+  evidence, archive state, or hidden classification.
+- **FED-051 [core] — Raw-to-Work materialization has one final mutation
+  boundary.** After triage chooses independent Work, the dumb route resolves,
+  in order: Nature; optional compatible Template and every required validated
+  Template/Nature input; an editable canonical title; optional parent proposal;
+  optional direct Domain membership proposal; duplicate suspicion; and local
+  sibling importance insertion. The title starts selected when a bounded text
+  line, source label, or filename supplies a deterministic draft; otherwise
+  the human enters it. The English hint remains advisory. With no recorded
+  parent evidence, root is the visible final fact and no selector toll appears.
+  With no recorded Domain evidence, the membership set is empty and no
+  selector toll appears. An explicit edit from the final preview can still
+  open either selector. A parent never supplies Domain membership silently.
+
+  A suspected existing Brick asks whether completing that existing Work would
+  also handle the proposed intention. Reuse links the preserved Raw to that
+  Brick as its materialization source and creates no new Brick or importance
+  slot; keep-separate retains the draft and may keep the same title because
+  equal titles are valid identities. Read-only differences may be inspected
+  and return to the same decision. `merge` is absent because no second Brick
+  exists yet.
+
+  Importance comparisons cite the draft as proposed Work without a `#` handle
+  and remain inside its recoverable checkpoint. When the exact sibling slot is
+  resolved, one final preview names source Raw, title, Nature, Template or
+  none, required configuration, parent or root, direct Domains or none,
+  adjacent importance neighbors, confidence/provenance, and any lazy claim.
+  Its yes atomically creates the Brick and handle, source relationship,
+  triage disposition, position, accepted draft comparisons, and configured
+  facts. No rejects only this materialization and leaves the Raw in the Inbox;
+  reverse navigation edits the nearest draft fact. No partial Brick or human
+  comparison evidence survives cancellation.
 
 ## Reference flows
 

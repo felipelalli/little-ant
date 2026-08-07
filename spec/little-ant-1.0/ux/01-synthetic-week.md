@@ -115,7 +115,10 @@ Validate:
 - original Portuguese is preserved;
 - Enter creates exactly one Inbox Raw and asks no classification or metadata
   question;
-- the suspended proposal is revalidated after that Raw commit;
+- the suspended proposal is revalidated after that Raw commit and returns
+  without a receipt screen, carrying one transient complete `Fed: +...` fact;
+- pristine Feed proceeds directly to its sole Raw-triage opportunity, while a
+  valid current focus remains primary after Feed or transactional triage;
 - a later recorded `raw_triage` draw renders the Raw through its complete
   `+handle "preview"` reference, never through a Brick `#` handle, and asks
   the independent-Work question;
@@ -123,6 +126,11 @@ Validate:
   evidence; `[m]ore matches...` pages that set, `[s]earch...` autocompletes
   across it, and `[c]reate a new group...` opens behavioral discovery without
   asserting that unseen candidates are unsuitable;
+- the Raw-triage question-mark tree reaches Work or destination selection only
+  through the standalone-Work consequence, while repeated uncertainty keeps
+  the Raw in the Inbox;
+- `keep as standalone raw material` records one disposition without creating
+  a shelf, link, Brick, archive, or importance position;
 - new-group discovery creates no generic Group object and reaches explicit
   list, RawShelf, or independently focusable Work previews;
 - selecting `#bg "Buy groceries"` proposes a ListEntry and duplicate review
@@ -133,7 +141,22 @@ Validate:
 - if the Raw is instead materialized as Work, no hidden Nature fallback
   exists: direct factory Nature choices and guided `[?] I don't know` precede
   any compatible Template, and the exact parent and local importance position
-  are visible before the Brick is committed.
+  are visible before the Brick is committed;
+- title, evidence-backed optional parent, explicit direct Domains, duplicate
+  suspicion, and each binary-insertion answer remain draft facts; root and no
+  Domain incur no extra screen without candidates but remain editable and
+  visible in the final preview;
+- a suspected existing Brick offers use-existing, create-separate, and
+  read-only differences without `merge`; use-existing creates no Brick;
+- final yes atomically creates handle, Raw source relationship, disposition,
+  exact sibling position, and accepted comparisons; no or cancellation leaves
+  no Brick or comparison evidence;
+- first ordering skip tries a nearby sibling; with none, low-confidence
+  placement completes rather than repeating the same question; contextual
+  `/tie-break` creates no human edge;
+- the creation result performs no draw, and pressing `n` reaches the ordinary
+  Focus proposal. With no sibling, the first Brick occupies the sole root slot
+  without a ceremonial comparison.
 
 From any reference-capable field in this flow, type `+` and verify that Raw
 autocomplete searches handle, original material, current English
@@ -143,9 +166,10 @@ the action stores its UUID. Paste the same visible text without selecting an
 autocomplete result and verify that it remains literal text rather than a
 silent Raw reference.
 
-Do not predetermine how many screens are required. The baseline exists to
-discover whether language normalization, target selection, or Nature choice
-creates unacceptable form-like friction.
+Count every screen and keypress in the dumb replay. Candidate-free root and
+Domain paths must omit their selectors, while assistance may shorten only the
+declared proposal gateways. Report any form-like friction as UX evidence rather
+than deleting a canonical fact from the final preview.
 
 ### SCN-FED-002 — Powered-up delta
 

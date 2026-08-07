@@ -52,18 +52,18 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** Golden daily loop from Feed through first Focus.
+**Next review:** Raw representation, links, shelves, sources, and translation.
 
 - Owning gate: Gate 4.
-- Owning boundaries: the post-commit path through `OPEN-RAW-001`,
-  `OPEN-IMP-001`, `OPEN-UX-002`, and `OPEN-UX-003`.
-- Reuse, do not reopen: Raw-first Feed in `FED-001..009`, lazy triage in
-  `FED-042..048`, Nature/Template discovery, initial importance insertion,
-  and the settled Focus proposal/current-focus grammar.
+- Owning boundaries: `OPEN-RAW-001..003`, `OPEN-MOD-003`, and the Raw portions
+  of `OPEN-DAT-001..002`.
+- Reuse, do not reopen: Raw-first Feed and return in `FED-001..009` and
+  `FED-049`, lazy triage and atomic Work materialization in `FED-042..051`,
+  and UX-T01..T09.
 - Preserve completed Plan and Delegation routes in `WRK-109..121`,
   `UX-166..183`, and their screen families.
-- Do not enter here: generic Raw revision schema, translation, imports, or the
-  full all-pairs Nature matrix.
+- Do not enter here: import adapter policy, the full all-pairs Nature matrix,
+  or external effect execution.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance
