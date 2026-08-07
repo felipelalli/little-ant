@@ -281,3 +281,42 @@ reproducible archives remain `OPEN-PACK-001`.
   and detaching are explicit events. Detach stops future checking but preserves
   all observations and Raw content. Archive pauses checks; unarchive restores
   the prior policy without inventing a missed observation.
+- **DAT-051 [core] — Structured result schemas are named and negotiated.** A
+  JSON result declares `schema = little-ant/<result-kind>@1`, `command_id` when
+  applicable, and dataset cursor. Clients request one supported major schema;
+  omission selects the current v1 major, while an unsupported major fails
+  before mutation with the supported set. Result kind, not an all-purpose
+  entity object, owns required fields and meaningful defaults.
+- **DAT-052 [core] — Projection depth has one public vocabulary.** Technical
+  commands accept `--view summary | operational | relationships | history |
+  complete`; command-specific sparse output remains the default. `complete`
+  means every field declared by that result schema, including requested empty
+  collections and meaningful false/zero/null, not every event or linked blob.
+  History and blob content still require their explicit projections.
+- **DAT-053 [core] — Presence rules are machine-readable.** Each schema marks
+  fields as required, optional-omitted, tri-state, meaningful-zero, or
+  requested-empty. DAT-008 follows that declaration exactly. Producers may not
+  omit `false`, zero, or empty merely to save tokens when the schema says the
+  value distinguishes states; consumers may not infer an omitted optional as
+  a universal false.
+- **DAT-054 [standard] — History filtering is closed and composable.** History
+  accepts inclusive `since`, exclusive `until`, subject UUID/reference,
+  structural scope, actor, semantic family, relevance, cursor, and positive
+  limit. Filters combine with AND; repeated values within one filter combine
+  with OR. Results are newest-first for human views, retain canonical log
+  positions, and page by opaque cursor without loading unrelated event payloads
+  into an operator context.
+- **DAT-055 [core] — Corrupt logs stop before evidence loss.** Malformed JSON,
+  invalid event schema, unknown event major version, broken hash/sequence, or a
+  missing referenced identity stops ordinary writable startup at the first
+  offending record. The valid prefix may be opened only in explicit degraded
+  read-only mode with a persistent warning and exact boundary; it cannot draw,
+  mutate, sync, or export an authoritative replacement.
+- **DAT-056 [core] — Repair creates a verified replacement dataset.**
+  `lant doctor` performs read-only full validation and reports exact offsets,
+  identities, versions, and safe recovery sources. `lant repair` never edits
+  the authoritative log in place: after explicit preview it writes a separate
+  candidate dataset, records every migration or restoration decision, replays
+  it completely, compares canonical counts/hashes, and only then may propose
+  an atomic cutover with retained backup. Unknown semantics cannot be
+  quarantined or skipped merely to make replay finish.

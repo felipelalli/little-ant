@@ -52,18 +52,18 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** correction, uncertainty, undo/redo, errors, and interaction
-recovery.
+**Next review:** forecast, hierarchy descent, blockers, Domains, and the closed
+opportunity catalog.
 
 - Owning gate: Gate 4.
-- Owning boundaries: `OPEN-UX-002..004`, `OPEN-UNDO-001`, `OPEN-REF-001`,
-  `OPEN-DAT-001..002`, and `OPEN-UX-001` only where recovery copy is affected.
-- Reuse, do not reopen: navigation versus semantic undo in `UX-019..021`,
-  global search return in `UX-151`, and every accepted UX-T/UX-RA workflow.
+- Owning boundaries: `OPEN-FOC-001..003`, `OPEN-DOM-001..002`, and the
+  focus-facing zero-target portions of `OPEN-SKIP-001`.
+- Reuse, do not reopen: `FOC-001..053`, typed Focus assistance in
+  `UX-139..143`, and recovery/envelope rules `UX-191..204`.
 - Preserve completed Plan and Delegation routes in `WRK-109..121`,
   `UX-166..183`, and their screen families.
-- Do not enter here: Nature transition policy, focus weighting, time behavior,
-  adapter effects, or migration mapping.
+- Do not enter here: Nature transition matrices, recurrence details, adapter
+  effects, or migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

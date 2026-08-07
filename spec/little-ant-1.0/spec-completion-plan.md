@@ -166,7 +166,7 @@ Close:
   including create, revise, detach, paste, cancellation, recovery, and preview
   return;
 - Escape versus semantic undo, redo conflict, stale answer, restored draft, and
-  the complete typed compensation matrix in `OPEN-UNDO-001`.
+  the complete typed compensation matrix in UX-197..199.
 
 Exit:
 

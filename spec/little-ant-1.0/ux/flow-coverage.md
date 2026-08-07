@@ -21,10 +21,10 @@ run as an interactive transcript.
 | 2 | Shared frame and footer | `UX-R00..R01`, `UX-025`, `UX-045..049`, `UX-062..065`, `UX-070..073`, `SCN-015` | partial | exact monochrome selection marker, narrow/accessibility form, unbound-key rendering, and personality catalogs |
 | 2 | JSONL loading splash | `DAT-044`, `UX-094`, `UX-R02` | screened | exact factory ASCII-art polish and interactive cold-load replay |
 | 2 | Contextual personality | `UX-F04..F05`, `UX-064..065`, `SCN-014` | partial | review all four 16-phrase English catalogs |
-| 2 | Honest-answer assistance | `UX-016..017`, `UX-130`, `SCN-016`, `OPEN-UX-004` | partial | declared bounded tree, leaf confirmation, reverse path, and `/help` recovery for every remaining finite screen |
+| 2 | Honest-answer assistance | `UX-016..017`, `UX-130..143`, `UX-196`, `SCN-016` | specified | generated family-route coverage for every finite screen and paired assisted annotations |
 | 2 | Palette/command escape | `UX-M01`, `UX-022..024`, `UX-047..048`, `UX-072..073` | partial | remaining screen placement, monochrome cursor marker, and unavailable/search recovery |
-| 2 | Revision/stale response | `UX-029..031` | missing | `OPEN-UX-002` |
-| 2 | Reference selection | `MOD-010`, `MOD-024`, `UX-075..076`, `UX-RF01` | screened | exact single-word/non-Latin handle normalization and recovery under `OPEN-REF-001` |
+| 2 | Revision/stale response | `UX-029..031`, `UX-191..193`, UX-ER02 | screened | concurrency, crash, and integrity-token fixture replay |
+| 2 | Reference selection | `MOD-010`, `MOD-024`, `UX-075..076`, `UX-201..203`, UX-RF01, UX-RF04 | screened | edge-normalization and deterministic cross-surface replay |
 | 3 | Restore/startup to `next` | `UX-R00`, `UX-F04..F05`, `UX-F09`, `UX-046`, `UX-063`, `UX-080` | partial | pending-envelope result transition |
 | 3 | Pristine first start | `UX-E00`, `FOC-029` | screened | Feed/back/end-to-end transition |
 | 3 | Useful non-pristine empty | `UX-E01`, `FOC-028` | screened | state-derived choice transitions |
@@ -48,8 +48,8 @@ run as an interactive transcript.
 | 4 | Archive and relevance review | `MOD-055..057`, `FOC-053`, `WRK-098..105`, `UX-152..161`, `UX-S35..S45`, `SCN-ARC-001` | partial | remaining typed branch screens, supersession transfer, honest-answer tree, subtree outcomes, and paired surface replay |
 | 4 | Meaning, title, and attached description | `MOD-056..057`, `MOD-065..071`, `FED-037`, `FED-052..055`, `WRK-103..105`, `UX-156..162`, `UX-186..188`, `DAT-046`, `UX-S39..S45`, `UX-RA00..RA03`, `SCN-ARC-001` | partial | remaining uncertainty trees and paired surface replay |
 | 4 | Behavior and Nature reclassification | `MOD-058..063`, `WRK-106..118`, `UX-163..181`, `UX-S46..S59`, `UX-L00..L01`, `SCN-ARC-001` | partial | remaining all-pairs capability-delta consequences and generated transition validation under `OPEN-NAT-001`, direct behavior uncertainty tree, undo conflicts, and paired surface replay |
-| 4 | Direct semantic update | `MOD-060..064`, `WRK-101..121`, `UX-154..183`, `UX-S37..S59`, `UX-L00..L01`, `UX-D02..D04`, `SCN-ARC-001`, `SCN-DEL-001` | partial | placement reuses `IMP-004`, `IMP-045`, and `MOD-031`; compensation remains under `OPEN-UNDO-001`; parent-search tie ranking remains under `OPEN-REF-001`; timing, context, and source-material branch screens, remaining uncertainty trees, exact return envelopes, and paired direct/stale/archived replay |
-| 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-U01..U02`, `SCN-UNDO-001`, `OPEN-UNDO-001` | partial | exhaustive typed compensation matrix and conflict replay |
+| 4 | Direct semantic update | `MOD-060..064`, `WRK-101..121`, `UX-154..183`, `UX-196..203`, `UX-S37..S59`, `UX-L00..L01`, `UX-D02..D04`, `SCN-ARC-001`, `SCN-DEL-001` | partial | timing, context, and source-material branch screens plus paired direct/stale/archived replay |
+| 4 | Escape/undo/redo/recovery | `UX-019..021`, `UX-191..200`, `UX-U01..U02`, UX-ER01..ER03, `SCN-UNDO-001` | specified | exhaustive mutation-family fixtures and concurrent-conflict replay |
 | 4 | Global search and return | `UX-151`, `UX-RF03`, `SCN-SRCH-001` | partial | deterministic cross-kind ranking, pagination, and paired surface replay |
 | 5 | Cross-Domain focus | `UX-F02`, `UX-F12..F14`, `FOC-014..019`, `FOC-048..050` | partial | hard scope and equal-specificity target |
 | 5 | N-step/branching blockers | `UX-F03`, `UX-F12..F14`, `FOC-020..024`, `FOC-048..050` | partial | non-Brick endpoint and branch inspection |
@@ -67,11 +67,11 @@ run as an interactive transcript.
 | 7 | Scheduled commitment | `FOC-030..031`, `WRK-041..046` | missing | `OPEN-SCH-001..002` |
 | 8 | Raw review/source reconcile | `MOD-065..072`, `FED-010..014`, `FED-052..056`, `UX-186..190`, `DAT-011..017`, `DAT-047..050`, UX-RA00..RA04 | screened | deterministic end-to-end and corrupt-blob fixture replay |
 | 8 | `/translate` | `MOD-049`, `MOD-071`, `FED-054..055`, `UX-188`, UX-RA03 | screened | deterministic dumb/assisted queue replay |
-| 8 | Delegation lifecycle | `MOD-051`, `MOD-064`, `FOC-035..036`, `WRK-029..034`, `WRK-056..061`, `WRK-119..121`, `UX-182..183`, `UX-A01..A02`, `UX-D01..D04`, `SCN-DEL-001` | partial | deterministic transcript replay, ContactPoint bindings under `OPEN-MOD-001`, effect adapter protocol under `OPEN-EFF-001`, scheduled-commitment scope under `OPEN-SCH-001`, and exact compensation under `OPEN-UNDO-001` |
+| 8 | Delegation lifecycle | `MOD-051`, `MOD-064`, `FOC-035..036`, `WRK-029..034`, `WRK-056..061`, `WRK-119..121`, `UX-182..183`, `UX-197..199`, `UX-A01..A02`, `UX-D01..D04`, `SCN-DEL-001` | partial | deterministic transcript replay, ContactPoint bindings, effect adapter protocol, and scheduled-commitment scope |
 | 8 | Import/migrate/erase source | `DAT-011..017`, `DAT-042..043` | missing | effect/failure screens |
 | 8 | Calendar observe/write | `DAT-038..041` | missing | `OPEN-CAL-001` |
 | 8 | Typed reference/error/dry-run | `MOD-008..010`, `UX-040..042`, `UX-075..076`, `UX-RF01..RF02`, `SCN-REF-001` | partial | technical-reference, not-found, precondition, edge-normalization, and generic dry-run screens |
-| 8 | Corrupt history/repair | `MIG-001..017` | missing | `OPEN-DAT-002` |
+| 8 | Corrupt history/repair | `DAT-049`, `DAT-055..056`, `MIG-001..017`, UX-ER01 | specified | corrupt-log, unknown-version, backup, and repair fixtures |
 | 9 | Powered-up paired replay | `UX-033..039`, `UX-043`, `UX-059..060`, `UX-086..087`, `UX-B00A..B00B` | partial | replay accepted dumb flows |
 | 10 | Skill and web/mobile mirror | screen-catalog surface mapping | missing | accepted envelopes required first |
 

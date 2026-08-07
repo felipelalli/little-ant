@@ -94,9 +94,9 @@
   `+milk`, and `+milk2`. The allocator is deterministic within one dataset
   and maintains separate `#`, `+`, and `@` namespaces. Retired handles are not
   reused. Renaming a title or name keeps its handle by default. An explicit
-  previewed handle rename creates no compatibility alias. Exact normalization
-  of single-word, non-Latin, empty, or punctuation-only seeds remains
-  `OPEN-REF-001`.
+  previewed handle rename creates no compatibility alias. UX-201 defines exact
+  edge normalization for single-word, non-Latin, empty, and punctuation-only
+  seeds.
 - **MOD-011 [core] — Suspicion is not equivalence.** Duplicate detection
   creates a reviewable suspicion. Only an explicit canonical outcome may
   reuse, enrich, merge, or keep entities separate.

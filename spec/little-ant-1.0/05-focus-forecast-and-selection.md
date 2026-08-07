@@ -409,8 +409,8 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   blocker path when applicable, and replay identity. It never redraws,
   recomputes against later state, invents a causal story, or exposes a hidden
   score as human importance. The read-only screen continues to Q4 or returns
-  to Q2. Its nested explanation-specific uncertainty tree remains explicitly
-  under `OPEN-UX-004` until reviewed.
+  to Q2. Its nested uncertainty follows UX-196 `understand_subject` and never
+  recomputes or answers the Focus decision.
 - **FOC-050 [core] — Assistance preserves the prior attention state.** Every
   Q0..Q4 answer, `/show` view, forecast explanation, symptom question, and
   unaccepted reaction preserves the proposal, random cursor, active Domain,

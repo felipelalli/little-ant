@@ -209,6 +209,87 @@ value to its owning flow. Empty results remain inside this screen with a
 concise recovery to edit or clear the query; they never fall through to
 creation. `/history` remains the event-search route.
 
+## UX-RF04 — Ambiguous reference recovery
+
+```text
+More than one Work item matches "risk":
+
+[1] #rs "Rock Splitter"
+[2] #rrsr "Review Rock Splitter rules"
+[3] #rra "Review risk assumptions"
+
+[r]efine search    [s]how more    [c]ancel
+[?] I don't know
+
+[/] more...
+```
+
+The original query and suspended interaction remain intact. A number selects
+only the visible revisioned result; refine returns to the input with the query
+selected; show more pages the same deterministic ranking; cancel returns to
+the caller. Question mark explains the expected reference kind and may open
+read-only inspection before returning. It never chooses the first row.
+
+## UX-ER01 — Typed educational failure
+
+```text
+This action cannot be applied because the Work changed.
+
+#rrsr "Review Rock Splitter rules"
+Expected: in progress
+Current: done
+
+[i]nspect current Work    [b]ack
+[?] I don't know
+
+Code: precondition_failed
+[/] more...
+```
+
+Only bounded relevant details appear. Recovery actions come from the error
+envelope and are therefore safe in the returned state; unavailable commands
+are not decorative suggestions. Back restores the replacement or unchanged
+pending envelope. Technical details and complete projections remain in the
+palette rather than flooding this screen.
+
+## UX-ER02 — Stale interaction recovery
+
+```text
+This question changed before your answer could be applied.
+
+Nothing was recorded.
+
+[c]ontinue with the updated question
+[i]nspect what changed
+[?] I don't know
+
+[/] more...
+```
+
+Continue renders the replacement envelope but does not replay the old key.
+Inspect shows the bounded relevant-state difference and returns. If only
+unrelated state advanced and UX-192 revalidated the response, this screen is
+not shown; the successful result reports both cursors in technical output.
+
+## UX-ER03 — Undo or redo conflict
+
+```text
+That completion can no longer be undone safely.
+
+#rrsr "Review Rock Splitter rules"
+Reason: later activity depends on the completed state
+
+[i]nspect later activity    [b]ack
+[?] I don't know
+
+Code: conflict
+[/] more...
+```
+
+The original and compensating history remain unchanged. Redo uses the same
+composition with `Code: redo_conflict`. There is no `force` action: the human
+may perform a new forward action after inspection.
+
 ## UX-R01 — Civil clock and operational day
 
 At 02:00 on Tuesday, the stacked footer keeps the real civil date. If the
@@ -411,9 +492,9 @@ replay-deterministic draw
 The displayed values are illustrative renderings of exact FOC-049 facts, not
 a fixed universal signal list. A cross-Domain result includes both paths; a
 blocker redirect includes the complete chosen chain and unchosen branch
-alternatives. Continue reaches Q4, back restores Q2, and uncertainty remains
-open under `OPEN-UX-004` for its dedicated explanation tree. None consumes or
-recomputes the draw.
+alternatives. Continue reaches Q4, back restores Q2, and uncertainty follows
+the UX-196 `understand_subject` explanation route. None consumes or recomputes
+the draw.
 
 ## UX-F14 — Final Focus consent after assistance
 

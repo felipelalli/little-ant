@@ -397,8 +397,9 @@ original proposal and random cursor remain intact.
 Open UX-F13 from ordinary, cross-Domain, and N-step blocker proposals. Verify
 the immutable strongest signal, bounded bonuses, admitted count, Domain or
 blocker path, branch alternatives, and replay identity against the recorded
-draw. Continue to Q4 and back to Q2 without recomputation. Leave the exact
-explanation-specific uncertainty tree open under `OPEN-UX-004`. At UX-F14,
+draw. Continue to Q4 and back to Q2 without recomputation. Exercise UX-196
+`understand_subject`, including inspection, restatement, and repeated pending
+uncertainty. At UX-F14,
 accept `yes` and verify the ordinary Focus and active-Domain transition;
 separately answer `no` and uncertainty and verify both open UX-S33 without
 being the same local answer or recording a skip.
@@ -936,7 +937,12 @@ that `/find` is not accepted as a core alias and that event queries remain in
 ### SCN-REC-001 — Crash and stale answer
 
 Restore an input draft after a simulated crash, advance domain state elsewhere,
-and ensure a stale keypress cannot answer the replacement prompt.
+and ensure a stale keypress cannot answer the replacement prompt. Replay an
+unrelated concurrent change whose precondition hash remains valid and verify
+safe revalidation with both cursors; then change a relevant subject and require
+UX-ER02 with no carried keypress. Corrupt the integrity token, action ID, and
+envelope revision separately and require typed rejection. Verify finite,
+recorded, range, and omitted progress without fictional percentages.
 
 ### SCN-REF-001 — UUID identity and typed mnemonic handles
 
@@ -951,6 +957,15 @@ both Bricks and revise and normalize both Raw records; verify that UUIDs and
 handles remain stable. Explicitly rename one handle, verify the old spelling
 does not resolve as an alias, retire it, and verify the allocator does not
 reuse it.
+
+Allocate handles from one long word, accented Latin, several words, digits,
+empty text, punctuation only, and non-Latin text. Verify UX-201 exactly and
+collision suffixes from `2`. Exercise Domain paths, Shelf names, owner-local
+ListEntries, Wait, Delegation, and SourceBinding selection without inventing
+new sigils. Create equal-ranked parent candidates and verify UX-203's tie
+order. Paste a complete citation in prose and prove it remains literal; use it
+in a typed CLI argument and require current-handle resolution plus stale-label
+warning.
 
 Then dry-run a merge between independent datasets containing different UUIDs
 that both use `#rs`. The preview must retain one handle and deterministically
@@ -972,6 +987,25 @@ with no local forward checkpoint, preview redo, and confirm a valid
 reapplication. Verify that `Escape` and empty-buffer `Backspace` never cross a
 commit boundary. Finally create a redo conflict and require an explicit
 diagnostic.
+
+Repeat immediate undo and valid redo for every UX-198 class: Feed/create,
+title and Raw revision, link/membership, importance evidence, reparent/break,
+focus/completion/skip, Wait/Delegation, atomic checklist batch, and a pending
+effect. For each, introduce one relevant later action and require all-or-none
+typed conflict. Introduce one disjoint mutation and verify redo remains valid
+only when its write-set and postcondition hash still match. A dispatched effect
+must require a separately approved compensating effect, never generic undo.
+
+### SCN-DAT-001 — Sparse projections and corrupt history
+
+Request every DAT-052 view at schema major 1 and one unsupported major. Verify
+schema-declared omission, meaningful false/zero/null, requested empty lists,
+explicit blob/history expansion, and every DAT-054 filter plus cursor paging.
+Inject malformed JSON, unknown event major, broken sequence, and missing
+identity references separately. Ordinary startup must stop at the exact
+record; degraded prefix mode must remain read-only. Run `lant doctor`, then
+repair into a separate candidate, fully replay and compare it, and verify that
+cutover retains the original backup and never silently quarantines evidence.
 
 ### SCN-ARC-001 — Out-of-date Work and one later relevance review
 
@@ -1075,7 +1109,7 @@ without silent reuse. Enter continuous ordering from UX-S55 and verify that
 only the stable UX-O03 result offers `[p]arts`; resume and next retain their
 ordinary meanings. Pair one assisted draft and one attributed action hint
 with the identical dumb confirmation and reject both without mutation. Leave
-part-batch compensation under `OPEN-UNDO-001` and archived/superseded child
+part-batch compensation through UX-198 and archived/superseded child
 closure under `OPEN-TREE-001`.
 
 For structural compatibility, mechanically replay every MOD-062 cell. Confirm
@@ -1109,8 +1143,8 @@ subjects independently before acceptance. Cover a focused/WIP parent, an
 already-decomposed parent, and a pending scope-closure review; proceed only
 where the all-pairs matrix supplies every reconciliation and disclose every
 focus/review consequence. Accept one supported two-subject action and prove
-that neither Nature nor composition can become visible alone. Leave exact
-compensation under `OPEN-UNDO-001`.
+that neither Nature nor composition can become visible alone. Verify atomic
+UX-198 `batch` compensation and one conflicting later structure edit.
 
 For reparenting, cover identical, ancestor-related, partially overlapping,
 disjoint, and missing direct Domain path sets, including multiple memberships
@@ -1156,8 +1190,8 @@ Move a Domained Brick to root through the compact variant, and treat root while
 already at root as the same event-free current-parent no-op. From the receipt,
 reach context editing through `[u]pdate something else` then `[c]ontext` in two
 keypresses. Powered-up and Skill may annotate the selector but must preserve
-the preview, actions, absence of default, and commit boundary. Leave exact
-move-plus-comparison compensation at `OPEN-UNDO-001`.
+the preview, actions, absence of default, and commit boundary. Verify atomic
+UX-198 `structure` plus `order_evidence` compensation.
 
 For Nature/behavior, first select the current Nature in UX-S46 and prove an
 event-free no-op. Traverse the full mechanical discovery route over the

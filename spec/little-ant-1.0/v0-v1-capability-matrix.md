@@ -56,12 +56,12 @@ unresolved            no trustworthy 1.0 disposition yet
 | Finite choices execute with one key and no Enter | `O`; partly terminal-tested | **retained** | `UX-011..014` | exact dumb-REPL transcript |
 | A full command word can interrupt a pending one-key question | `O`; partial parser behavior | **replaced** | explicit `[/] more...` palette suspends the pending interaction under `UX-022`, `UX-047`, and `UX-M01`; bare hidden aliases are rejected by `UX-062` | palette navigation, mutation, Escape, and stale-revalidation simulation |
 | JSON success/error envelope includes canonical human rendering | `I+T`, `Main.hs::emit` | **replaced** | `DAT-006..010` sparse typed response plus explicit depth | sparse-versus-complete scenario |
-| Typed educational errors distinguish precondition, not found, ambiguous reference, and collision | `I+T`, `CmdError` and exit-code tests | **retained** | `UX-040..042`; exact protocol in `OPEN-DAT-001` | failure-recovery scenario |
+| Typed educational errors distinguish precondition, not found, ambiguous reference, and collision | `I+T`, `CmdError` and exit-code tests | **strengthened** | `UX-040..042`, `UX-191..200`, UX-ER01..ER03 | failure-recovery scenario |
 | Global `--dry-run` validates without writing | `I+T`, ordinary and migration tests | **strengthened** | `UX-041`, `MIG-014` | mutator/effect/migration dry-runs |
 | Every command advances due temporal rules; explicit `tick` runs the same phase | `I+T`, `Tick.hs` | **strengthened** | `WRK-017` | deterministic-clock scenario |
 | A guided session ends usefully rather than falling silent | `O`, Allium/skill; v0 CLI violated it on empty state | **strengthened** | `PRD-004`, `FOC-027..029`, `UX-E00..E01` | first-start, empty, filtered-empty, safe-end transcripts |
 | Data and product vocabulary are English | `O`; uneven historic data | **retained** | `PRD-010..012`, `UX-049`, `MOD-049` | multilingual Feed and `/translate` route |
-| `la` and `lant` are both installed executable names | `I`, packaging | **unresolved** | `OPEN-CLI-001` | command-vocabulary review |
+| `la` and `lant` are both installed executable names | `I`, packaging | **deliberately replaced** | `lant` alone is canonical under UX-204; no alias survives | installation and shell-collision review |
 
 ## Identity, material, and feeding
 
@@ -71,7 +71,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | Raw can yield zero or more work items | `I+T`, extraction tests | **strengthened** | durable, reusable Raw under `MOD-001`, `MOD-023`, `MOD-029`, `MOD-049`, `FED-010..014` | Raw review and description routes |
 | Description is a scalar Brick field | `I`, `set --desc` | **replaced** | description is the projection of an ordinary one-to-one `RawLink(role = description)` under `MOD-056..057` | create, revise, detach, and preserve the linked Raw |
 | Title-derived IDs and exact-title collision | `I+T`, `Ids.hs` | **replaced** | UUIDv7 identities, repeated titles, and duplicate suspicion under `MOD-008..012`, `FED-015..018` | duplicate-title scenarios |
-| Unique-prefix reference resolution | `I+T`, `Ids.resolvePrefix` | **deliberately replaced and strengthened** | immutable UUIDv7 identities plus dataset-local mnemonic Brick `#`, Raw `+`, and ExternalEntity `@` handles, typed autocomplete, collision suffixes, rename/revision stability, and previewed merge remapping under `MOD-008..012` and `UX-075..076`; remaining edge grammar in `OPEN-REF-001` | handle allocation, autocomplete, rename, retired-handle, merge-conflict, technical-reference, and action-token scenarios |
+| Unique-prefix reference resolution | `I+T`, `Ids.resolvePrefix` | **deliberately replaced and strengthened** | immutable UUIDv7 identities plus dataset-local mnemonic Brick `#`, Raw `+`, and ExternalEntity `@` handles, typed autocomplete, collision suffixes, rename/revision stability, previewed merge remapping, edge normalization, and owner-addressed technical records under `MOD-008..012`, `UX-075..076`, and `UX-201..203` | handle allocation, autocomplete, rename, retired-handle, merge-conflict, technical-reference, and action-token scenarios |
 | Source fingerprints reveal drift and require reconciliation | `I+T`, source tests | **strengthened** | Raw origin, snapshots, observations, and reconciliation under `FED-014`, `FED-056`, `DAT-011..017`, and `DAT-047..050` | URL relocation/access-loss scenario |
 | Source/content use is non-consuming | `O`; limited v0 structure | **strengthened** | many-link Raw under `MOD-023` | shared description/source scenario |
 | Exact source grouping and semantic organization are the same thing | not a delivered guarantee | **retired** | source views and RawShelves remain distinct under `FED-012..013` | import-to-shelf route |
@@ -142,10 +142,10 @@ unresolved            no trustworthy 1.0 disposition yet
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
 | Tree, aligned table, CSV, Org, and self-contained HTML projections | `I+T`, `5eb485e`, `797466f` | **retained through boundary change** | standard Lua ReadOnlyExporters under `DAT-028..033` | exporter fixtures, including offline HTML |
-| Compact one-line Brick rendering | `I+T`, `d688947` | **retained** | complete Brick citation under `MOD-010`; exact summary projection `OPEN-DAT-001` | list/show rendering |
+| Compact one-line Brick rendering | `I+T`, `d688947` | **retained** | complete Brick citation under `MOD-010`; summary projection under DAT-051..053 | list/show rendering |
 | TaskJuggler export includes dependencies, order, estimates, and visible gaps | `I+T`, `49abaa5` | **strengthened** | planning cut, EffortProfile, immutable manifest, Lua exporter, separate actuals under `DAT-030..037` | planning-manifest replay |
-| `show`, `ls`, `status`, grammar, and event audit support inspection | `I`; some view tests | **strengthened but incomplete** | sparse depth and filtered semantic history under `DAT-006..010`, `UX-023`, `UX-025..028`; exact grammar `OPEN-DAT-001` | inspection/history route |
-| Event versions, upcasting, dry-run migration, and backup | `I+T`, `7a4dfab` | **strengthened but incomplete** | `MIG-001..017`; corrupt/unknown policy `OPEN-DAT-002` | migration failure/rollback route |
+| `show`, `ls`, `status`, grammar, and event audit support inspection | `I`; some view tests | **strengthened** | sparse depth, negotiated projections, and filtered semantic history under `DAT-006..010`, `DAT-051..054`, `UX-023`, `UX-025..028` | inspection/history route |
+| Event versions, upcasting, dry-run migration, and backup | `I+T`, `7a4dfab` | **strengthened** | `MIG-001..017`, `DAT-055..056` | migration failure/rollback route |
 | Append-only JSONL can be synchronized by event-set union, archived by rotation, and queried through snapshots | `D`, README roadmap; not delivered | **not a v0 regression** | any 1.0 adoption requires a separate explicit decision | outside core-UX closure |
 
 ## Outstanding regression decisions

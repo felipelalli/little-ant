@@ -166,10 +166,9 @@ no-emoji rendering remain `OPEN-UX-001`.
   Confirming the boundary preview opened by `Right Arrow` invokes this exact
   operation. A newly committed action after undo invalidates any incompatible
   redo chain. External effects require a separately approved compensation.
-  The exhaustive reversible-event catalog, compensating-event matrix, conflict
-  rules for related state, and effect-specific compensation remain an explicit
-  release boundary under `OPEN-UNDO-001`; no implementation may infer a
-  generic inverse from an event name.
+  UX-197..199 define targeting, the exhaustive compensation classes, and
+  conflict rules; no implementation may infer a generic inverse from an event
+  name.
 - **UX-022 [core] — More palette.** The canonical `[/] more...` action opens a
   searchable input palette containing only commands and secondary actions
   valid in the current state. Before any query, it shows a small,
@@ -184,8 +183,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   shortcut, action identity, contents, and behavior do not change. This is not
   a global rename or permission for another screen to change the label without
   explicit review.
-- **UX-023 [core] — Grammar inspection.** `la grammar`,
-  `la grammar --screen <grammar>`, and `la grammar --json` expose the same
+- **UX-023 [core] — Grammar inspection.** `lant grammar`,
+  `lant grammar --screen <grammar>`, and `lant grammar --json` expose the same
   versioned registry used by all surfaces. The current envelope remains the
   authority for state-valid actions.
 - **UX-024 [core] — Command transparency.** A confirmed guided action can show
@@ -936,8 +935,7 @@ no-emoji rendering remain `OPEN-UX-001`.
   preview under WRK-114. Escape, Left Arrow, or empty-buffer Backspace restores
   UX-S50 unchanged. Powered-up and Skill may reorder the same eligible set and
   mark one result with an attributed reason; rejection restores the dumb
-  ordering and query. Exact dumb ranking ties remain with the reference-search
-  closure in `OPEN-REF-001`.
+  ordering and query. UX-203 defines exact dumb ranking ties.
 - **UX-172 [core] — Same-context moves use one compact confirmation.** UX-S53
   follows UX-S52 when the eligible existing parent's direct Domain path set is
   canonically equal to the moving Brick's set, or whenever the selected target
@@ -1235,6 +1233,138 @@ no-emoji rendering remain `OPEN-UX-001`.
   rendered under `Within`, while direct Domains and direct content/participant
   relationships retain their own labels. A child never displays an inherited
   requester, `about`, RawLink, or ambiguous `mode` fact.
+- **UX-191 [core] — InteractionEnvelope has a closed transport shape.** Every
+  envelope carries `interaction_id` (UUIDv7), positive `revision`, canonical
+  `dataset_cursor`, `precondition_hash`, `grammar`, optional discriminated
+  `opportunity`, canonical English `content`, ordered `actions`, ordered valid
+  `commands`, optional `uncertainty_route`, bounded `context`, optional typed
+  `progress`, `provenance`, and an integrity token. Each action carries stable
+  ID, label, shortcut or native control, default status, consequence summary,
+  and argument schema when needed. Presentation checkpoints carry their own
+  ID and parent/forward links outside canonical domain state.
+- **UX-192 [core] — Responses are bound and safely revalidated.** A response
+  sends interaction ID, envelope revision, action ID, integrity token, and the
+  answered dataset cursor. The dispatcher rejects an unknown identity,
+  revision, action, or token. If the log advanced but the envelope's declared
+  precondition hash is unchanged, it may revalidate and apply the exact action,
+  returning the prior and accepted cursors. If relevant facts changed, it
+  returns typed `stale_interaction` plus the replacement envelope and never
+  carries the keypress, default, draft acceptance, or consent forward.
+- **UX-193 [core] — Progress has three honest variants.** `finite` carries
+  completed, total, and unit only when membership and total are stable;
+  `recorded` carries a count and unit without a percentage; `range` carries a
+  labeled lower and upper bound plus unit. Unknown progress is omitted. A
+  changing adaptive queue, lottery, or open checklist never fabricates a
+  total merely to fill these fields.
+- **UX-194 [core] — Command availability is contextual and recoverable.** All
+  non-input interaction and result screens expose `[/] more...`, except the
+  startup splash, streaming progress, and a fatal startup error. UX-S09 keeps
+  its settled `[/] menu...` label. Text editors keep slash literal under
+  UX-022 and reach the palette by cancelling back to their owning screen;
+  global `Ctrl-F` remains available. The palette lists only valid actions. A
+  directly typed unavailable command returns its stable reason, nearest valid
+  commands, and the unchanged or revalidated pending envelope.
+- **UX-195 [core] — Guided arguments are schema-driven.** A command with a
+  missing argument opens one input or selector per declared argument, in
+  dependency order, and ends with the same preview as a complete command.
+  Not-found and ambiguous references retain the query, show bounded typed
+  candidates, and offer edit, search, or cancel. They never select the first
+  fuzzy match, create an object, or discard a suspended interaction.
+- **UX-196 [core] — Honest-answer routes use a closed family registry.** Every
+  finite screen declares exactly one `uncertainty_route` from this table; no
+  surface invents a local question-mark behavior:
+
+  | Family | Deterministic dumb route |
+  |---|---|
+  | `understand_subject` | show bounded subject/context once, restate consequence, then answer or remain pending |
+  | `binary_consent` | inspect exact effects and authority, ask whether those effects are intended, then yes/no or pending |
+  | `classification` | use the registered capability tree for Nature/symptom; otherwise test displayed choices by observable consequence until one remains or pending |
+  | `target_choice` | show why candidates qualify, search all compatible targets, create only when valid, then select or remain pending |
+  | `proposal_text` | inspect source/difference, accept, edit, reject, or remain pending |
+  | `date_time` | show temporal constraints, presets, custom selector, then choose or remain pending |
+  | `observed_status` | ask only observable state questions, map the confirmed facts to an existing outcome, or remain pending |
+  | `comparison` | use the relation's registered comparison aid; importance uses IMP-040..044 |
+  | `reaction_choice` | ask which displayed consequence would help, eliminate choices one consequence at a time, then choose or remain pending |
+
+  A node's question mark shows its alternate probe; after every declared probe
+  has been used, another question mark leaves the original decision pending.
+  `?` may act like a negative branch only when that exact node asks whether the
+  human already knows or can observe a fact; it is never globally equivalent
+  to no. An explicit `either order`/`does not matter` leaf remains available
+  only in the importance aid and never means uncertainty.
+- **UX-197 [core] — Undo targets one command group, not one low-level event.**
+  Every successful mutator returns a `command_id`, typed `undo_class`, and
+  opaque `undo_token` bound to its postconditions. `/undo` without an argument
+  targets the latest uncompensated reversible command accepted by the same
+  actor profile; history may invoke `/undo <command-id>` explicitly.
+  Both paths show the same consequence preview. Read-only commands, draws,
+  source observations, loader repairs, and received external facts are not
+  undo candidates.
+- **UX-198 [core] — Compensation classes are exhaustive.** The dispatcher
+  validates the following closed matrix atomically; failure restores nothing
+  partially:
+
+  | Undo class | Compensation and precondition |
+  |---|---|
+  | `create` | retract the created command group only if every created record and relation has no later dependent mutation |
+  | `value` | restore the prior scalar/revision/lifecycle value only if the current value is the command's post-value |
+  | `relationship` | restore added/removed membership, link, annotation, ownership, or participant relation only if that exact relation has not changed |
+  | `order_evidence` | deactivate or restore the command's comparisons, provisional position, confidence, and lazy markers only if no later accepted ordering command touches the affected sibling run |
+  | `structure` | restore parent, children, Dependencies, and local positions only if affected nodes and cross-boundary relations have no later structural mutation |
+  | `work_state` | restore lifecycle, execution, focus, WIP, occurrence/window outcome, cooldown, and pressure only if no later activity depends on the post-state and no other current focus would be displaced |
+  | `gate_responsibility` | restore Wait or Delegation state, policy, spawned untouched follow-up records, and reviews only if no later observation, delivery, reassignment, or dependent action exists |
+  | `batch` | apply every declared member compensation or reject the whole undo |
+  | `external_effect` | before dispatch, withdraw the pending effect; after dispatch, require a separately modeled, previewed, approved compensating effect |
+
+  Title and Raw revisions use `value`; Feed, decomposition, materialization,
+  and checklist additions use `create` or atomic `batch`; skip evidence uses
+  `work_state`; merge/supersede use `batch` with their declared transfer
+  matrix. Compensating events preserve the original command and provenance.
+- **UX-199 [core] — Redo is one checked branch.** A successful undo returns one
+  redo token for that exact command group. Read-only commands and local
+  navigation do not invalidate it; any later canonical mutation by any actor
+  invalidates it unless its declared write set is disjoint and the original
+  postcondition hash still validates. Redo re-runs current validation and
+  reuses stored intent, never old external responses or stale provider data.
+  Failure is typed `redo_conflict` with inspect-current-state and stop actions.
+- **UX-200 [core] — Errors have one sparse educational envelope.** Every
+  failure carries stable `code`, human message, command/interaction identity,
+  relevant subject/query, unchanged/advanced cursor, retry safety, bounded
+  details, ordered recovery actions, and replacement InteractionEnvelope when
+  applicable. V1 codes are `invalid_input`, `precondition_failed`,
+  `not_found`, `ambiguous_reference`, `stale_interaction`, `conflict`,
+  `redo_conflict`, `unsupported`, `permission_required`, `external_failure`,
+  `corrupt_data`, and `unknown_event_version`. A failure never dumps a complete
+  entity or stack trace into the ordinary surface.
+- **UX-201 [core] — Human handles have deterministic edge normalization.** A
+  seed is Unicode NFKD-normalized, combining marks removed, ASCII-lowercased,
+  and split into nonempty ASCII alphanumeric tokens. One token uses at most
+  its first 12 characters; several tokens use their first characters, at most
+  12. If no token remains, the base is `brick`, `raw`, or `entity` by kind.
+  MOD-010 collision suffixing then applies. This deliberately avoids
+  locale-dependent transliteration. Displayed Unicode content remains intact.
+- **UX-202 [core] — Technical records stay owner-addressed.** Bricks, Raws,
+  and ExternalEntities alone have sigil handles. A Domain uses its quoted full
+  path; a RawShelf uses `Shelf "name"`; a ListEntry is selected within its
+  owner by stable local row and label; a Wait, Delegation, SourceBinding,
+  occurrence, or effect is selected through its owning complete reference and
+  typed local list. Technical JSON and diagnostics expose their UUIDs. The UI
+  never creates memorable global sigils merely to address implementation
+  records.
+- **UX-203 [core] — Reference ranking and parsing never guess.** Typed
+  selectors rank exact handle, exact canonical label, prefix, token, then fuzzy
+  matches; ties use current parent, direct Domain overlap, most recent direct
+  interaction, canonical label, then UUID. Parent search additionally excludes
+  invalid/cyclic targets before ranking. In a declared CLI reference argument,
+  an exact current sigil handle resolves and a pasted complete citation checks
+  its quoted label for staleness. In prose/input fields, sigils and action
+  letters remain literal until explicit autocomplete selection. Ambiguity
+  opens UX-RF04; it never resolves by list position.
+- **UX-204 [core] — `lant` is the sole executable name.** V1 documentation,
+  scripts, protocol examples, and error recovery use `lant`. `la` is retired,
+  not a core alias or packaging shim. Operator natural-language interpretation
+  may map a user's words to `lant` commands but always renders the canonical
+  command it invoked.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies
@@ -1245,8 +1375,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   a dumb replay. Trees may share existing selectors and builders rather than
   duplicate domain behavior. Older screen-specific rules that describe a
   direct uncertainty consequence settle only an allowable leaf; they do not
-  bypass this tree and confirmation contract, and remain incomplete under
-  `OPEN-UX-004` until their route is rendered.
+  bypass this tree and confirmation contract. UX-196 supplies the closed
+  family registry for every remaining finite screen.
 - **UX-131 [core] — Served-work uncertainty uses mechanical discrimination.**
   Question mark on UX-S01 opens UX-S33 and traverses the exact WRK-095 tree one
   binary question at a time. The questions seek the principal obstacle for
@@ -1311,13 +1441,15 @@ no-emoji rendering remain `OPEN-UX-001`.
   now understandable. A remaining explicit `no` opens UX-S34 with `vague` and
   the reason that existing context was insufficient; confirmation opens the
   existing vague reaction but records nothing. Exact `/show` projection fields
-  remain owned by `OPEN-DAT-001`, not duplicated by Focus.
+  follow DAT-051..054 and are not duplicated by Focus.
 - **UX-141 [core] — Selection explanation is contextual evidence.** Q3 `yes`
   opens UX-F13 with the immutable FOC-049 facts. Its primary actions are
   `[c]ontinue · [b]ack · [?] I don't know`, avoiding a false yes/no question:
-  continue reaches Q4, back restores Q2, and uncertainty enters the still-open
-  bounded explanation aid under `OPEN-UX-004`. The explanation may be folded,
-  expanded, or paraphrased without changing its structured facts.
+  continue reaches Q4, back restores Q2, and uncertainty uses UX-196
+  `understand_subject`: it explains the structured draw fields once, restates
+  whether they are sufficient, then continues, returns, or remains pending.
+  The explanation may be folded, expanded, or paraphrased without changing its
+  structured facts.
 - **UX-142 [core] — Final Focus consent remains explicit.** FOC-048 Q4 renders
   UX-F14 with `Start focusing this Brick?` and
   `[y]es · [n]o · [?] I don't know`. `yes` invokes the original Focus accept
@@ -1495,7 +1627,7 @@ no-emoji rendering remain `OPEN-UX-001`.
   transitions, deterministic draws, validation, undo eligibility, and domain
   events belong to the dispatcher and core.
 - **UX-034 [standard] — Explicit powered-up adapter.** A working invocation is
-  `la repl --power-up <executable>`. The executable receives prompts only on
+  `lant repl --power-up <executable>`. The executable receives prompts only on
   stdin.
 - **UX-035 [standard] — Startup handshake.** Before entering the REPL, the host
   sends a bounded versioned structured challenge, enforces execution and parse

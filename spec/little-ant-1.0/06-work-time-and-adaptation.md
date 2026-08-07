@@ -664,8 +664,8 @@
   the same preview. Rejection changes neither subject and restores the parent
   selector with its query. A released recurring-obligation occurrence follows
   its own validated Brick Nature through the ordinary route; its standing
-  series is not the reclassification subject. Exact compensation of the
-  two-subject event remains under `OPEN-UNDO-001`.
+  series is not the reclassification subject. The two-subject command uses
+  UX-198 atomic `batch` compensation over `value` and `structure` members.
 - **WRK-117 [standard] — List-item structure reuses one owner surface.** On a
   Nature that owns ListEntries, selecting `list items` enters the collector
   immediately when none exists and otherwise opens the ordinary checklist
@@ -710,9 +710,9 @@
 
   One entry resolution, cancellation, reopen, or edit; one added batch; one
   run finish; and one checklist completion are separate semantic undo
-  boundaries. Their exact compensation and intervening-event preconditions
-  remain owned by `OPEN-UNDO-001`; undoing a run finish never silently reopens
-  its item mutations.
+  boundaries. They use UX-198 `relationship`, `batch`, and `work_state`
+  compensation as applicable; undoing a run finish never silently reopens its
+  item mutations.
 
 ## Time
 
@@ -1058,8 +1058,9 @@
 
   Proposal creation, each effect approval, observed handoff, each observation,
   and each reconciliation or terminal transition are distinct semantic undo
-  boundaries. Exact compensation and multi-subject preconditions remain with
-  `OPEN-UNDO-001`. Adding a child or entry under active `whole_scope` coverage
+  boundaries. UX-198 `gate_responsibility`, `external_effect`, and atomic
+  `batch` classes own their exact compensation. Adding a child or entry under
+  active `whole_scope` coverage
   discloses before commit that it will already be delegated and excluded from
   human execution. A system-released recurring occurrence receives the same
   derived coverage and names it in the release result and history rather than
