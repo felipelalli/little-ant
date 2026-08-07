@@ -124,7 +124,9 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 #### Integrations and Packs
 
 - Closed Pack components for Natures, templates, import-profile presets,
-  source adapters, enrichers, read-only exporters, and UI adapters.
+  source adapters, read-only exporters, and UI adapters. Raw revision and
+  derivation stay inside typed source and assisted-proposal flows rather than
+  a generic executable content hook.
 - Fresh bounded Lua 5.4 execution through HsLua.
 - Host-mediated HTTP and credential brokering without exposing secrets to Lua.
 - Pinned Pack manifests, capability grants, and invocation provenance.

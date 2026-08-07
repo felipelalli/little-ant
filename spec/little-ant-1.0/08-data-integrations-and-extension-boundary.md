@@ -109,11 +109,15 @@ support them honestly.
 
   ```text
   BrickNature | BrickTemplate | ImportProfilePreset
-  SourceAdapter | Enricher | ReadOnlyExporter | UIAdapter
+  SourceAdapter | ReadOnlyExporter | UIAdapter
   ```
 
-  The first three are declarative. The last four execute as bounded Lua
+  The first three are declarative. The last three execute as bounded Lua
   components.
+
+  Version 1.0 has no generic executable `Enricher`: revising or deriving Raw,
+  reconciling a source, and accepting an assisted proposal remain their
+  existing typed flows rather than an extension hook.
 
 - **DAT-020 [standard] — No generic plugins.** Packs cannot add lifecycle
   hooks, entities, events, selection algorithms, storage engines, commands,
@@ -401,10 +405,11 @@ that cryptographic format.
 ## Calendar synchronization
 
 - **DAT-038 [standard] — Official Google Calendar path.** Little Ant 1.0 ships
-  or pins an officially maintained Google Calendar `SourceAdapter`. It must
-  observe and reconcile calendar events into canonical work without requiring
-  a community extension. Whether it resides in the offline standard Pack or an
-  official credentialed companion Pack is packaging, not a capability gap.
+  an officially maintained Google Calendar `SourceAdapter` in the separately
+  installed official connector Pack named by DAT-074. It observes and
+  reconciles calendar events into canonical work without requiring a community
+  extension; it is not present in the offline standard Pack because it needs a
+  provider account and credentials.
 - **DAT-039 [standard] — Occurrence identity and exact time.** The adapter uses
   provider, account, calendar, event, series, and recurrence-instance identity
   as applicable, so repeated synchronization updates one canonical adoption
@@ -416,9 +421,12 @@ that cryptographic format.
 - **DAT-040 [standard] — Assisted calendar classification.** Event title and
   structured evidence such as recurrence, interval, organizer, attendees,
   location, and source may support an attributed Skill or powered-up proposal
-  for Nature and Template. Template-owned guidance under `MOD-048` participates
-  in catalog-wide discovery; the following cases are illustrative, not a
-  closed recognition list. `Flight AD123` may propose
+  for Nature and Template, but private fields participate only when the human
+  explicitly exposes them under `DAT-085`; the default projection does not
+  inspect attendees, descriptions, conferencing URLs, or attachments.
+  Template-owned guidance under `MOD-048` participates in catalog-wide
+  discovery; the following cases are illustrative, not a closed recognition
+  list. `Flight AD123` may propose
   `scheduled_commitment` with `flight`, and `Quarterly planning meeting` may
   propose `scheduled_commitment` with `meeting`. A recurring `Swimming` event
   may support `habit` with `physical_activity`, while an isolated session may

@@ -471,9 +471,10 @@ See [interaction and surfaces](spec/little-ant-1.0/07-interaction-and-surface-co
 ## Imports, Packs, and external effects
 
 Little Ant Packs are the only 1.0 extension unit. Component kinds are closed:
-Natures, templates, import-profile presets, source adapters, enrichers,
-read-only exporters, and UI adapters. There is no generic arbitrary plugin
-hook.
+Natures, templates, import-profile presets, source adapters, read-only
+exporters, and UI adapters. There is no generic executable content hook or
+arbitrary plugin hook; Raw revision, derivation, and source reconciliation
+keep their typed core previews.
 
 Executable Pack components use a fresh bounded Lua 5.4 runtime. Host-mediated
 HTTP, credentials, and approved effects are typed capabilities; Pack code
@@ -501,7 +502,7 @@ as local completion or deletion. Destructive migration is a separate reviewed
 flow:
 
 ```sh
-lant import microsoft-todo
+lant import microsoft-todo --snapshot
 lant import microsoft-todo --migrate --erase-after-import
 ```
 
