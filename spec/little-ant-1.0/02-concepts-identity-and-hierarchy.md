@@ -72,22 +72,29 @@
   duplicate suspicion.
 - **MOD-010 [core] — Typed mnemonic handles and complete rendering.** Each
   Brick has one dataset-local canonical human handle rendered as
-  `#handle "canonical title"`; each ExternalEntity has one rendered as
-  `@handle "declared name"`. Optional kind emoji or text may supplement but
-  never replace the sigil. A bare handle is insufficient. The handle is a
-  discoverable human reference, not identity: relationships, events, and
-  annotations store the target UUID and render its current handle. Normal
-  surfaces do not expose UUIDs unless a technical or diagnostic projection
-  explicitly requests them. The default mnemonic base for a multi-word title
-  or name is its normalized lowercase ASCII initials without stop-word
-  removal. The first available base is unsuffixed; a collision receives the
-  smallest never-used integer suffix beginning at `2`, as in `#rs` and
-  `#rs2`. The
-  allocator is deterministic within one dataset and maintains separate `#`
-  and `@` namespaces. Retired handles are not reused. Renaming a title or name
-  keeps its handle by default. An explicit previewed handle rename creates no
-  compatibility alias. Exact normalization of single-word, non-Latin, empty,
-  or punctuation-only names remains `OPEN-REF-001`.
+  `#handle "canonical title"`; each Raw has one rendered as
+  `+handle "bounded original-content preview"`; and each ExternalEntity has
+  one rendered as `@handle "declared name"`. The Raw preview is a projection
+  of its original material, source label, or filename rather than a new title
+  field. Optional kind emoji or text may supplement but never replace the
+  sigil. A bare handle is insufficient. The handle is a discoverable human
+  reference, not identity: relationships, events, and annotations store the
+  target UUID and render its current handle. Normal surfaces do not expose
+  UUIDs unless a technical or diagnostic projection explicitly requests
+  them. The default mnemonic base for a multi-word title, name, or Raw display
+  seed is its normalized lowercase ASCII initials without stop-word removal.
+  A Raw's immutable allocation seed is the first available human-visible
+  source label, filename, or first nonblank line of its original material;
+  when none exists, it is `raw`. Later content revision, English
+  normalization, source reconciliation, or role changes retain the allocated
+  handle. The first available base is unsuffixed; a collision receives the
+  smallest never-used integer suffix beginning at `2`, as in `#rs`, `#rs2`,
+  `+milk`, and `+milk2`. The allocator is deterministic within one dataset
+  and maintains separate `#`, `+`, and `@` namespaces. Retired handles are not
+  reused. Renaming a title or name keeps its handle by default. An explicit
+  previewed handle rename creates no compatibility alias. Exact normalization
+  of single-word, non-Latin, empty, or punctuation-only seeds remains
+  `OPEN-REF-001`.
 - **MOD-011 [core] — Suspicion is not equivalence.** Duplicate detection
   creates a reviewable suspicion. Only an explicit canonical outcome may
   reuse, enrich, merge, or keep entities separate.
@@ -175,14 +182,14 @@ open release decision rather than an inferred v1 commitment.
 - **MOD-023 [standard] — Raw links.** Typed links connect Raw to a Brick,
   ListEntry, or other Raw with an explicit content role and provenance. The
   same Raw may participate in several links without being consumed or copied.
-- **MOD-024 [standard] — Explicit typed annotations.** `@` and `#` text becomes
-  an ExternalEntity or Brick annotation only after an explicit target
-  selection from the corresponding handle autocomplete on an
-  annotation-capable field. The annotation stores target UUID and the
-  applicable content revision, then renders the current canonical handle.
+- **MOD-024 [standard] — Explicit typed annotations.** `#`, `+`, or `@` text
+  becomes a Brick, Raw, or ExternalEntity annotation only after an explicit
+  target selection from the corresponding handle autocomplete on an
+  annotation-capable field. The annotation stores target UUID and, for Raw,
+  the applicable content revision, then renders the current canonical handle.
   Unselected lookalike text remains literal. An annotation supports navigation
-  and retrieval but never creates requester, delegation, waiting, dependency,
-  Domain, or other behavioral semantics by itself.
+  and retrieval but never creates RawLink, requester, delegation, waiting,
+  dependency, Domain, or other behavioral semantics by itself.
 
 ## Factory Natures
 

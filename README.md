@@ -100,12 +100,13 @@ Phase does not determine importance, completion, or WIP. Natures may disable
 phase or effort when those concepts would only add noise.
 
 Every durable record has an immutable internal UUIDv7 identity. Bricks use a
-separate mnemonic human handle such as `#rs "Rock Splitter"`; people and
-companies use `@`, such as `@am "Alice Moreira"`. Handles are searchable,
-survive ordinary renames, and never replace UUIDs inside relationships or
-events. Typing `#` or `@` opens the corresponding autocomplete, so users do
-not need to memorize technical identifiers. Canonical searchable titles are
-English; original titles remain available as provenance.
+separate mnemonic human handle such as `#rs "Rock Splitter"`; Raw uses `+`,
+such as `+milk "milk"`; and people or companies use `@`, such as
+`@am "Alice Moreira"`. Handles are searchable, survive ordinary title,
+content, and name changes, and never replace UUIDs inside relationships or
+events. Typing `#`, `+`, or `@` opens the corresponding autocomplete, so users
+do not need to memorize technical identifiers. Canonical searchable titles
+are English; original titles remain available as provenance.
 
 See [concepts and identity](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md)
 and [work, time, and adaptation](spec/little-ant-1.0/06-work-time-and-adaptation.md).

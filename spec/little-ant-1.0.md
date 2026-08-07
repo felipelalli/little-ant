@@ -202,9 +202,11 @@ silently. Composition never grants Domain membership; dumb reparenting
 compares only explicit path sets, preserves them by default, and exposes
 divergence without semantic guessing. Parent selection now searches root,
 eligible existing Work, or one atomically drafted new larger scope without
-creating an orphan. Resume the UX-first review at new-sibling importance
-placement and the compact same-Domain preview, then exercise parts, list items,
-and responsibility before proceeding to timing, context, and source material.
+creating an orphan. New and moved roots already reuse the ordinary resumable
+binary insertion from its unresolved midpoint under `IMP-004` and `MOD-031`;
+Plan defines no competing placement policy. Resume the UX-first review at the
+compact same-Domain preview, then exercise parts, list items, and
+responsibility before proceeding to timing, context, and source material.
 
 ## Scope rings
 

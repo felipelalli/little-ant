@@ -212,14 +212,20 @@ no-emoji rendering remain `OPEN-UX-001`.
   UX-019. Proper names keep their declared spelling, so this input omits the
   ordinary suggestion to write prose in English.
 - **UX-076 [core] — Typed handle autocomplete.** Typing `#` in a
-  reference-capable input opens Brick autocomplete; typing `@` opens
-  person-or-company autocomplete. Search matches the canonical handle and
-  title or name. Results always use the complete typed rendering from MOD-010.
-  `New Brick...` or `New person or company...` appears only when creation is a
-  valid action in the suspended interaction. Selecting a result returns its
-  UUID-backed reference; the user never has to memorize or type an internal
-  UUID. Handle search and creation do not make lookalike literal text into a
-  semantic annotation without confirmation.
+  reference-capable input opens Brick autocomplete; typing `+` opens Raw
+  autocomplete; and typing `@` opens person-or-company autocomplete. Search
+  matches the canonical handle plus the Brick title, Raw original and current
+  English-normalized content, source label or filename, or ExternalEntity
+  name as applicable. Results always use the complete typed rendering from
+  MOD-010. `New Brick...`, `New raw material...`, or `New person or
+  company...` appears only when creation is a valid action in the suspended
+  interaction. `New raw material...` suspends the field, enters the canonical
+  Feed draft, and returns the accepted Raw reference; it is not a second Raw
+  creation mechanism. Selecting a result returns its UUID-backed reference;
+  the user never has to memorize or type an internal UUID. Merely typing or
+  pasting a sigil does not turn lookalike literal text into a semantic
+  reference: autocomplete selection or another explicit disambiguation is
+  required.
 - **UX-077 [standard] — Editable suggested text.** A guided text editor opened
   from an explicit `edit` action may be prefilled with an attributed factory,
   powered-up, or Skill suggestion. The whole suggestion starts selected using
@@ -1022,7 +1028,8 @@ no-emoji rendering remain `OPEN-UX-001`.
   `yes` enters complete Work materialization; `no` opens UX-T02; uncertainty
   follows one bounded behavioral tree and records no disposition. `skip`
   invokes FOC-051's typed triage deferral. No Raw is rendered as a Brick or
-  assigned a `#` handle merely because it is being reviewed.
+  assigned a `#` handle merely because it is being reviewed; it keeps the
+  canonical `+` reference allocated when Feed created it.
 - **UX-146 [core] — Destination pages separate browsing from creation.** UX-T02
   displays a bounded, core-ranked page of compatible existing checklists,
   RawShelves, and Bricks. `[m]ore matches...` advances through the same

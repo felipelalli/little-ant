@@ -116,8 +116,9 @@ Validate:
 - Enter creates exactly one Inbox Raw and asks no classification or metadata
   question;
 - the suspended proposal is revalidated after that Raw commit;
-- a later recorded `raw_triage` draw renders the Raw without a Brick `#`
-  handle and asks the independent-Work question;
+- a later recorded `raw_triage` draw renders the Raw through its complete
+  `+handle "preview"` reference, never through a Brick `#` handle, and asks
+  the independent-Work question;
 - `no` ranks compatible existing destinations using only inspectable dumb
   evidence; `[m]ore matches...` pages that set, `[s]earch...` autocompletes
   across it, and `[c]reate a new group...` opens behavioral discovery without
@@ -125,13 +126,22 @@ Validate:
 - new-group discovery creates no generic Group object and reaches explicit
   list, RawShelf, or independently focusable Work previews;
 - selecting `#bg "Buy groceries"` proposes a ListEntry and duplicate review
-  without a global `milk` identity;
+  without turning that entry into a global world object; the source Raw keeps
+  its independent `+` reference;
 - open and resolved duplicate cases expose keep/reopen, add or change
   quantity, and distinguishable-separate-item behavior;
 - if the Raw is instead materialized as Work, no hidden Nature fallback
   exists: direct factory Nature choices and guided `[?] I don't know` precede
   any compatible Template, and the exact parent and local importance position
   are visible before the Brick is committed.
+
+From any reference-capable field in this flow, type `+` and verify that Raw
+autocomplete searches handle, original material, current English
+normalization when present, and source label or filename; every result uses
+the complete `+handle "preview"` rendering. Select one result and verify that
+the action stores its UUID. Paste the same visible text without selecting an
+autocomplete result and verify that it remains literal text rather than a
+silent Raw reference.
 
 Do not predetermine how many screens are required. The baseline exists to
 discover whether language normalization, target selection, or Nature choice
@@ -843,14 +853,17 @@ and ensure a stale keypress cannot answer the replacement prompt.
 
 ### SCN-REF-001 — UUID identity and typed mnemonic handles
 
-Using the existing `#rs "Rock Splitter"`, create `#rs2 "Reason Season"` and
-`@rs "Rita Santos"`, plus records whose internal UUIDv7 values share arbitrary
-prefixes. Verify that `#` autocomplete searches only Bricks by handle and
-title, `@` autocomplete searches only people or companies by handle and name,
-and ordinary rendering never exposes or asks the user to memorize those
-UUIDs. Rename both Bricks and verify that their UUIDs and handles remain
-stable. Explicitly rename one handle, verify the old spelling does not resolve
-as an alias, retire it, and verify the allocator does not reuse it.
+Using the existing `#rs "Rock Splitter"`, create `#rs2 "Reason Season"`,
+`+milk "milk"`, `+milk2 "milk"`, and `@rs "Rita Santos"`, plus records whose
+internal UUIDv7 values share arbitrary prefixes. Verify that `#` autocomplete
+searches only Bricks by handle and title, `+` autocomplete searches only Raw
+by handle, original or normalized content, source label, and filename, and
+`@` autocomplete searches only people or companies by handle and name.
+Ordinary rendering never exposes or asks the user to memorize UUIDs. Rename
+both Bricks and revise and normalize both Raw records; verify that UUIDs and
+handles remain stable. Explicitly rename one handle, verify the old spelling
+does not resolve as an alias, retire it, and verify the allocator does not
+reuse it.
 
 Then dry-run a merge between independent datasets containing different UUIDs
 that both use `#rs`. The preview must retain one handle and deterministically

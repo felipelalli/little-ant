@@ -104,7 +104,7 @@ target rather than relying on a hidden argument. Escape restores UX-R00
 unchanged. `/show` returns to it; `/done` resolves it; a completed `/feed`
 Raw commit revalidates it before anything may act on the old proposal.
 
-## UX-RF01 — Typed Brick autocomplete
+## UX-RF01 — Typed reference autocomplete
 
 Typing `#` in a reference-capable input opens a typed search rather than
 requiring a memorized identifier:
@@ -122,10 +122,29 @@ Choose a Brick:
 ```
 
 The query matches handles and canonical titles. `New Brick...` is absent when
-the pending interaction permits only an existing target. Typing `@` opens the
-equivalent person-or-company search from UX-075; its creation row is always
-`New person or company...`. UUIDv7 values are available in technical
-projections but never appear in this ordinary selector.
+the pending interaction permits only an existing target. Typing `+` opens the
+equivalent Raw search:
+
+```text
+Choose raw material:
+
+› +milk
+
+  +milk "milk"
+  +aen "API error notes"
+  New raw material...
+
+↑/↓ select · Enter choose · Esc back
+```
+
+It searches the Raw handle, original and current normalized content, source
+label, and filename. `New raw material...` is absent when creation is invalid
+in the suspended interaction; when selected, it opens ordinary Feed and
+returns the resulting `+` reference rather than creating Raw through another
+path. Typing `@` opens the equivalent person-or-company search from UX-075;
+its creation row is always `New person or company...`. UUIDv7 values are
+available in technical projections but never appear in these ordinary
+selectors.
 
 ## UX-RF02 — Dataset handle-conflict preview
 
@@ -3847,7 +3866,7 @@ rendered in the footer.
 ```text
 Review raw material
 
-"milk"
++milk "milk"
 
 Is this something you could work on by itself?
 
@@ -3864,17 +3883,18 @@ Is this something you could work on by itself?
   mode: dumb, focus: idle
 ```
 
-The Raw has no `#` handle and is not rendered as a Brick. `yes` enters Nature,
-optional Template, structure, duplicate, and local importance settlement
-before creating Work. `no` opens UX-T02. `skip` records only a typed triage
-deferral and leaves the Raw in the Inbox. Question mark enters a bounded
-behavioral aid without resolving the Raw. Escape records nothing and restores
-the prior useful envelope.
+The `+` handle was allocated with the Raw at Feed time. It is not a `#` Brick
+handle and does not make the Raw Work. `yes` enters Nature, optional Template,
+structure, duplicate, and local importance settlement before creating Work.
+`no` opens UX-T02. `skip` records only a typed triage deferral and leaves the
+Raw in the Inbox. Question mark enters a bounded behavioral aid without
+resolving the Raw. Escape records nothing and restores the prior useful
+envelope.
 
 ## UX-T02 — Ranked existing destinations
 
 ```text
-Does "milk" belong with any of these?
+Does +milk "milk" belong with any of these?
 
 *[1] #bg "Buy groceries"
      living checklist
@@ -3914,7 +3934,7 @@ UX-T03 without asserting anything about unseen candidates. The slash label is
 ## UX-T03 — Create a new group
 
 ```text
-Create a new group for "milk"
+Create a new group for +milk "milk"
 
 How should this group behave?
 
@@ -3951,7 +3971,7 @@ before its final preview.
 ## UX-T04 — Raw under an ordinary Brick
 
 ```text
-"API error notes"
++aen "API error notes"
 
 Should Little Ant suggest this independently as Work
 within #ibbq "Implement BBQ on Rock Splitter"?
@@ -4014,9 +4034,9 @@ grammar remain `OPEN-LST-001`.
 ```text
 Suggested organization
 
-milk
-coffee
-bread
++milk "milk"
++coffee "coffee"
++bread "bread"
 
 Add these as list items to #bg "Buy groceries"?
 
