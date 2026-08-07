@@ -101,6 +101,7 @@ value may remain adjustable.
 - [Standard Template catalog](little-ant-1.0/standard-template-catalog.md)
 - [Standard integration catalog](little-ant-1.0/standard-integration-catalog.md)
 - [Pack format and trust](little-ant-1.0/pack-format-and-trust.md)
+- [Canonical command catalog](little-ant-1.0/command-catalog.md)
 - [Factory personality catalog](little-ant-1.0/personality-catalog.md)
 - [Open release decisions](little-ant-1.0/open-release-decisions.md)
 - [V0→1.0 capability matrix](little-ant-1.0/v0-v1-capability-matrix.md)
@@ -116,7 +117,8 @@ value may remain adjustable.
 
 - Daily product behavior: chapters 1, 3, 4, 5, 6, and 7.
 - Domain model: chapters 1 and 2.
-- REPL, powered-up, Skill, and local-web parity: chapter 7 and the UX records;
+- REPL, powered-up, Skill, and local-web parity: chapter 7, the
+  [command catalog](little-ant-1.0/command-catalog.md), and the UX records;
   future mobile must conform there but is not a 1.0 deliverable.
 - Imports, Packs, exporters, and TaskJuggler: chapter 8.
 - Implementation or migration planning: chapters 2, 8, and 9.

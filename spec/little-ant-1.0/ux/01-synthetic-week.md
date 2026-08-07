@@ -413,7 +413,8 @@ no preliminary switch prompt; `yes` changes Domain; `skip` and non-focus
 palette actions do not. Give one Brick two equally specific memberships and
 verify the recorded local tie draw, visible chosen path, inspection of tied
 alternatives, and no duplicate ticket. Sweep fixed streams with neglected
-low-chance Work: probability and aging remain positive, `/forecast` explains
+low-chance Work: probability and aging remain positive, the Focus forecast in
+`/list` explains
 them, but no hidden Nth-draw service rule forces an outcome.
 
 ### SCN-FOC-003 — N-step blocker path
@@ -1528,6 +1529,26 @@ supersede, use both an existing and newly drafted replacement, move children
 to it and one level up, and prove MOD-087 transfers nothing by resemblance.
 Pair each dumb route with an attributed assisted suggestion and reject it back
 to the identical baseline.
+
+### SCN-CMD-001 — One public command language
+
+Enumerate the [canonical command catalog](../command-catalog.md) and prove
+that every registered slash command has a grammar entry, valid-state palette
+route, typed unavailable-state error, CLI semantic mapping, and help text.
+Prove no other public command appears in generated help or completion. Try all
+explicitly rejected spellings and verify a bounded educational suggestion,
+unchanged interaction revision, unchanged random cursor, and no event.
+
+Open `/list`, inspect both importance and Focus branches under full, Brick,
+and Domain scope, page them twice, return, and prove no draw or mutation.
+Compare `lant tick` against the automatic tick at the same injected instant;
+their temporal events match while explicit tick produces no opportunity.
+Export every standard ReadOnlyExporter to stdout and to a new file, then test
+an existing path, symlink, missing parent, nonregular target, exporter failure,
+and interrupted write. No Pack sees a path; failure leaves no partial target;
+success reports bytes and digest. Finally start `lant --power-up` with valid,
+invalid, silent, oversized, and malformed stdin/stdout helpers and prove that
+no `lant repl` compatibility spelling exists.
 
 ### SCN-EXT-001 — Import and source deletion
 

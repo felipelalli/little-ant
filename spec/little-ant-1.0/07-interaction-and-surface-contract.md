@@ -190,6 +190,45 @@ assistance-label, and no-emoji rendering.
 - **UX-024 [core] — Command transparency.** A confirmed guided action can show
   the exact canonical CLI command and canonical human result, teaching one
   scriptable language without exposing transport flags.
+- **UX-278 [core] — The command registry is closed.** The
+  [canonical command catalog](command-catalog.md) is the complete 1.0 public
+  vocabulary. Every current envelope draws its valid commands from that
+  registry; an implementation, Pack, assisted surface, or documentation
+  example cannot add an alias or an unregistered action. A new public command
+  requires an explicit specification revision, grammar entry, dumb route,
+  typed errors, and conformance replay.
+- **UX-279 [core] — Slash and CLI are one semantic language.** REPL slash
+  commands and CLI forms map to the same dispatcher operation and preview.
+  The catalog's few administrative namespaces organize staged operations; they
+  do not create alternate meanings. Missing REPL arguments are guided, while
+  missing noninteractive CLI arguments fail with exact usage. Neither surface
+  guesses a target from recency.
+- **UX-280 [core] — One list command exposes the two lists.** `/list` asks
+  `importance order` or `focus forecast`, with no default. The first renders
+  the strict sibling tree; the second renders current positive chances and
+  their bounded explanations. Both are cursor-stable, scoped, read-only, and
+  consume no draw. `/forecast` and `/importance` are not aliases.
+- **UX-281 [standard] — Administration stays out of the lazy-human path.**
+  Explicit `lant tick`, grammar inspection, diagnostics, and repair are
+  CLI-only. Every ordinary command still performs the canonical tick, so the
+  human never needs an administrative command to keep daily behavior correct.
+- **UX-282 [standard] — Export is read-only and host-bounded.** `/export`
+  guides exporter and scope selection. The CLI writes validated bytes to
+  stdout or exclusively creates one named new regular file. It never
+  overwrites, publishes, opens, or executes output, and Pack code receives no
+  filesystem path or authority.
+- **UX-283 [standard] — Profiles have a minimal lifecycle.** `/profile` and
+  `lant profile list|show|create|use` are the entire 1.0 profile manager.
+  Creation previews resolved typed paths and an empty or explicitly selected
+  dataset. Selection follows DAT-059. Removal is deliberately absent because
+  deleting a dataset and credentials is not required for daily use and would
+  need a separate destructive-data contract.
+- **UX-284 [core] — Unknown commands teach without acting.** An unknown or
+  unavailable command shows its stable reason and up to three nearest valid
+  canonical commands, preferring an exact semantic replacement when one is
+  declared in the rejected-vocabulary table. It leaves the pending interaction
+  and random cursor unchanged. Assisted interpretation may prevent the error,
+  but its receipt still names the invoked canonical command.
 - **UX-074 [core] — Compound slash-command grammar.** A public slash-command
   identifier is one lowercase kebab-case token. Whitespace ends the identifier
   and begins an argument or palette query; it never joins words in a command
@@ -1407,7 +1446,8 @@ assistance-label, and no-emoji rendering.
   There is no generic taxonomy editor, exclusion toggle, or multi-taxonomy
   selector.
 - **UX-210 [core] — Forecast inspection distinguishes order from chance.**
-  `/forecast` shows the selected scope, current positive chance, strongest
+  The `focus forecast` branch of `/list` shows the selected scope, current
+  positive chance, strongest
   signal, bounded bonuses, age, effective Domain path, blocker endpoint, and
   opportunity variant without exposing a fake public score. It may list or
   inspect probabilities without drawing. Its starvation wording says `chance
@@ -2098,7 +2138,7 @@ assistance-label, and no-emoji rendering.
   transitions, deterministic draws, validation, undo eligibility, and domain
   events belong to the dispatcher and core.
 - **UX-034 [standard] — Explicit powered-up adapter.** A working invocation is
-  `lant repl --power-up <executable>`. The executable receives prompts only on
+  `lant --power-up <executable>`. The executable receives prompts only on
   stdin.
 - **UX-035 [standard] — Startup handshake.** Before entering the REPL, the host
   sends a bounded versioned structured challenge, enforces execution and parse

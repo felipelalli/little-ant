@@ -403,12 +403,21 @@ the schedule.
 ### Inspect importance and forecast separately
 
 ```text
-Importance order
-# strict human importance tree
+› /list
 
-Focus forecast
-# weighted, explained, read-only candidates for next
+List:
+
+[i]mportance order
+    The strict sibling tree settled by human judgment.
+
+[f]ocus forecast
+    Current chances and reasons used by next.
+
+[?] I don't know
 ```
+
+There is no `/forecast` or `/importance` alias. The single `/list` command
+keeps the distinction visible without creating overlapping vocabulary.
 
 ### Review concise history
 
@@ -512,6 +521,9 @@ retains the previous target as a backup, preserves the v0 archive, and never
 runs legacy effects. See the [migration contract](spec/little-ant-1.0/09-migration-and-release-contract.md).
 
 See [data, integrations, and extensions](spec/little-ant-1.0/08-data-integrations-and-extension-boundary.md).
+
+The complete, alias-free public vocabulary is in the
+[canonical command catalog](spec/little-ant-1.0/command-catalog.md).
 
 ## Architecture
 

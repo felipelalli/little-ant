@@ -531,8 +531,8 @@ version.
   maximum wait. The resulting probability necessarily depends on admitted-set
   size. A service queue would contradict the recorded weighted draw and the
   intended long tail. Calibration must publish fixed-stream starvation
-  distributions and flag unacceptable tails; `/forecast` exposes age and
-  current chance so the human can inspect or directly choose without
+  distributions and flag unacceptable tails; `/list`'s Focus forecast exposes
+  age and current chance so the human can inspect or directly choose without
   falsifying randomness.
 - **FOC-060 [core] — Change-subject recovery has complete edge behavior.** The
   source path for fatigue is the effective Domain path recorded by the served

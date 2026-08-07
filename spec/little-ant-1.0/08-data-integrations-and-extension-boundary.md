@@ -279,6 +279,22 @@ that cryptographic format.
   versioned projection and returns bytes, media type, filename, warnings, and
   metadata. Writing, publishing, or invoking another program is a separate
   surface or effect.
+- **DAT-092 [standard] — Export destinations remain host-owned.** Pack code
+  receives projection data and returns bytes; it never receives an output path
+  or filesystem capability. The trusted `lant export` host writes to stdout by
+  default or exclusively creates one new regular file requested by
+  `--output`. Existing paths, symlinks, missing parents, and nonregular targets
+  fail before exporter invocation. Version 1.0 has no overwrite, publish,
+  automatic-open, or arbitrary-output effect.
+- **DAT-093 [standard] — Profile creation cannot escape its roots.** A profile
+  name is lowercase ASCII matching `[a-z0-9][a-z0-9-]{0,31}`; `default` is an
+  ordinary valid name. Creation resolves every DAT-057 path first, rejects an
+  existing name, symlink, non-directory parent, or path outside the resolved
+  XDG roots, then atomically creates private directories and the four minimal
+  typed YAML files. It points at a newly created empty dataset unless the
+  reviewed command explicitly selects an existing verified dataset. It never
+  copies another profile, imports data, creates credentials, or selects the
+  new profile implicitly. Version 1.0 has no profile-removal operation.
 - **DAT-029 [standard] — Standard structural formats.** The standard Pack
   ships tree text, aligned table, RFC 4180 CSV, Org, and self-contained HTML
   exporters.

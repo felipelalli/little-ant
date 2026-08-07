@@ -779,7 +779,8 @@
   date; it is not a universal response.
 - **WRK-017 [core] — Deterministic tick.** Every command advances due temporal
   rules from its canonical clock. An explicit administrative `tick` performs
-  the same advancement without inventing other work.
+  the same advancement through CLI-only `lant tick`, without drawing,
+  presenting an opportunity, or inventing other work.
 - **WRK-018 [standard] — Discreet notices.** Date notices are deduplicated,
   inspectable, acknowledgeable or snoozable as applicable, and rendered
   discreetly in secondary context rather than hijacking every screen.

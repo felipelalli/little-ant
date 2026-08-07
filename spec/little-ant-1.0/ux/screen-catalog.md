@@ -7397,6 +7397,71 @@ The styled rendering uses the same characters and columns, adding only ANSI
 roles and reverse video. No-emoji mode removes only declared decoration; color
 mode never changes glyphs.
 
+## UX-LIST00 — Importance and Focus views
+
+`/list` opens one selector with no default:
+
+```text
+List:
+
+[i]mportance order
+    The strict sibling tree settled by human judgment.
+
+[f]ocus forecast
+    Current chances and reasons used by next.
+
+[?] I don't know
+
+[/] more...
+```
+
+Importance renders the composition tree and sibling order, pages large trees,
+and labels groups with unresolved placement without manufacturing a score.
+Focus forecast renders a bounded page like:
+
+```text
+Focus forecast:
+
+  18.4%  #rrsr "Review Rock Splitter rules"
+         Domain continuity · age 2d
+
+   7.1%  #bg "Buy groceries"
+         preferred place unavailable · age 4d
+
+[n]ext page    [s]cope...    [/] more...
+```
+
+The exact chance is diagnostic, not a target or promise. `scope` uses typed
+Brick or Domain autocomplete; back restores the prior page and query. The
+same cursor and scope reproduce the page without consuming a draw. The
+importance branch uses the same pagination and scope actions but never shows
+probability columns.
+
+## UX-EXP00 — Read-only export
+
+`/export` opens a searchable installed-exporter selector. Each row uses its
+human display name and format, never a Lua symbol. After exporter and optional
+scope are chosen, the dumb REPL opens an ordinary selected text draft with the
+exporter's suggested filename:
+
+```text
+Output file:
+
+› little-ant-2026-08-06.html
+
+The file must not already exist.
+
+Enter review · Esc back
+```
+
+Review shows exporter, projection/scope, media type, destination, and warnings,
+then offers `[e]xport · [c]hange file · [?] I don't know` with no default. The
+accepted result reports the created path, byte count, and digest. An existing,
+symlinked, missing-parent, or nonregular destination returns the typed
+precondition plus change-file recovery and preserves the preview. CLI stdout
+export has no REPL equivalent because dumping arbitrary exporter bytes into
+the interactive screen would be hostile to the human.
+
 ## UX-PL00 — Place condition
 
 Direct Context maintenance first shows this finite choice; the
