@@ -52,17 +52,17 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** Wait pressure, follow-up cadence, and standing-work commands.
+**Next review:** notices, recurrence timing, and scheduled commitments.
 
-- Owning gates: Gates 5 through 7.
-- Owning boundaries: `OPEN-WAIT-001`, `OPEN-WRK-001`, and `OPEN-WRK-002`.
-- Reuse, do not reopen: Wait identity and review in `MOD-050`, `FOC-034`, and
-  `WRK-050..055`; repeatable, obligation, habit, and checklist semantics in
-  `WRK-019..027` and `WRK-062..066`; the shared date/time chooser; and all
-  accepted focus and symptom screens.
+- Owning gate: Gate 7.
+- Owning boundaries: `OPEN-TIME-001` and `OPEN-SCH-001..002`.
+- Reuse, do not reopen: date meanings and operational boundaries in
+  `WRK-014..018` and `WRK-041..046`; standing semantics and commands in
+  `WRK-019..028`, `WRK-062..064`, and `WRK-139..145`; Wait timing remains
+  independent; and active commitment precedence remains settled.
 - Preserve completed Plan and Delegation routes in `WRK-109..121`,
   `UX-166..183`, and their screen families.
-- Do not enter here: scheduled commitments, adapter effects, source packaging,
+- Do not enter here: adapter authority, credential storage, source packaging,
   or migration mapping.
 
 Current behavior lives in the subject chapters; unresolved semantics live in

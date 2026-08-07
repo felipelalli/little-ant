@@ -553,7 +553,7 @@ Rendering this interaction again does not choose another phrase. Powered-up
 and Skill surfaces may apply UX-065 without changing anything else. The
 opening UX-R00 intentionally has no personality line: Focus remains its single
 visual decision. The palette exposes only commands valid for the current
-focus; their final public names remain under `OPEN-WRK-001`.
+  focus; their final public names follow WRK-139.
 
 ## UX-F05 — Sober current-focus continuation
 
@@ -742,8 +742,87 @@ obligation, or terminal outcome. `?` may reveal execution history, source
 material, and the recorded return rule without changing the draw. The
 secondary history row does not rename the primary question or imply urgency.
 A completion count may later share that row under UX-079, but a repeatable
-Brick never renders invented missed cells. The completion/return/retire
-screens remain the next UX decisions.
+Brick never renders invented missed cells. Completion and return follow
+UX-REP00..REP01; retirement follows `/archive`.
+
+## UX-REP00 — Repeatable run completion
+
+With an existing return policy, `/done` on the active run records that run and
+opens:
+
+```text
+Run completed:
+
+#rtfea "Read the focus-engine article"
+
+6 completed runs
+
+What should happen next?
+
+*[k]eep this return
+    Around 6 months after completion, with ±3 months variation.
+
+[c]hange return...
+[m]anual only
+    Keep it available only through explicit /focus.
+
+[a]rchive
+    Retire the standing Brick after this completed run.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Learning
+. Last completed: Mon, Aug 3, 09:32
+           Now: Mon, Aug 3, 09:32
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Literal `*` and Enter keep the displayed existing policy. The first completed
+run has no default when no policy exists; its rows are `set a return`, `manual
+only`, and `archive`. Keep calculates and previews the replay-stable absolute
+`not_before` before commitment. Archive enters the ordinary lifecycle preview.
+Escape preserves the completed run and this pending result checkpoint; the
+Brick cannot return to an ordinary draw until the checkpoint is resolved.
+
+## UX-REP01 — Repeatable return editor
+
+```text
+Set a return:
+
+#rtfea "Read the focus-engine article"
+
+Center     › 6
+Unit       › months
+Variation  › 3
+Zone       › America/Montevideo
+
+Example: return around 6 months after each completed run,
+between 3 and 9 calendar months.
+
+[Enter] review · [Esc] back
+
+────────────────────────────────────────
+. <root>
+  Learning
+. Last completed: Mon, Aug 3, 09:32
+           Now: Mon, Aug 3, 09:32
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Center and variation accept structured nonnegative integers; center must be
+positive and variation cannot exceed it. Unit is a finite selector for days,
+weeks, months, or years. Zone uses IANA autocomplete. Zero variation is exact;
+nonzero variation draws one replay-stable uniform integer from the displayed
+inclusive range. Review shows the policy, this run's deterministic chosen
+offset, absolute `not_before`, named zone, and unchanged importance before yes,
+edit, no, and uncertainty. No field accepts natural-language recurrence prose
+in dumb mode.
 
 ## UX-U01 — Contextual undo preview
 
@@ -830,6 +909,31 @@ This Brick remains in progress.
 The completed focus interval is history, but there is no `paused` Brick state,
 skip evidence, cooldown, Domain change, personality phrase, or automatic
 draw. The contextual palette remains anchored to the displayed WIP Brick.
+
+## UX-F15 — Returned to idle result
+
+```text
+Idle:
+
+#rrsr "Review Rock Splitter rules"
+
+This Brick is no longer in progress.
+
+[n]ext    [/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:05
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`/return-to-idle` closes any current focus interval on this Brick, clears WIP,
+and records no completion, skip, cooldown, or archive. From UX-F10 the same
+result follows `[i]dle`. It does not draw automatically; semantic undo is
+available through the contextual palette and Left Arrow boundary.
 
 ## UX-C01 — Importance comparison
 
@@ -1235,6 +1339,91 @@ leaves the Wait and `review_not_before` unchanged, records only the typed
 review deferral, and applies the review's cooldown and future pressure. It is
 not `wait longer` and does not open served-work symptom diagnosis. The Wait
 itself is never cited as work, focused, importance-ordered, or completed.
+
+## UX-W02 — Source-observed Wait resolution
+
+```text
+Review:
+
+#rrsr "Review Rock Splitter rules"
+
+Waiting for:
+@am "Alice Moreira"
+
+Observed by Microsoft Graph · Fri, Aug 7, 08:42
+Alice replied in the tracked conversation.
+
+What happened?
+
+[r]esponse received
+[k]eep waiting
+[i]nspect evidence
+[s]kip
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last review: Mon, Aug 3, 09:00
+          Now: Fri, Aug 7, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+An event/condition Wait replaces the first row with `[c]ondition met`. No row
+is selected in dumb mode. A trusted typed observation may mark that positive
+row with attributed `*`, but Enter has no effect without a visible default.
+Inspect opens the exact provider observation and returns. Keep waiting settles
+only this proposal; skip defers only this proposal. Neither changes the Wait's
+existing `review_not_before` or claims that the source was wrong globally.
+
+## UX-W03 — Repeated follow-up strategy
+
+```text
+Review:
+
+#rrsr "Review Rock Splitter rules"
+
+Waiting for:
+@am "Alice Moreira"
+
+2 follow-ups were recorded without a meaningful response.
+
+What should happen now?
+
+[w]ait longer
+    Keep this Wait and choose when to review it again.
+
+[f]ollow up again
+    Create one more explicit follow-up and review its delivery.
+
+[c]hange what is blocking it
+    Replace this Wait through the ordinary blocker flow.
+
+s[t]op waiting
+    Remove this Wait without claiming a response.
+
+[s]kip
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last follow-up: Wed, Aug 5, 09:00
+            Now: Fri, Aug 7, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+No action is a default. Follow up again reuses the exact existing follow-up
+builder and, after an observed handoff, UX-W00. Stop waiting previews resolution
+reason `no longer waiting`, release of this gate, and every other gate that
+still keeps the Work unavailable. Skip preserves this strategy review with its
+typed cooldown.
 
 ## UX-S03 — Enabling-Brick input
 
@@ -1695,7 +1884,7 @@ that unstarted work is WIP or that unrelated attention was cleared.
 The illustrative line is one replay-stable `safe_end` personality phrase, not
 domain evidence or a command. No `[n]ext` or `[r]esume` competes with the rest
 result. `[/] more...` opens the ordinary contextual palette, which may contain
-valid `/next`, `/resume`, `/feed`, `/history`, or `/exit` actions according to
+valid `/next`, `/focus`, `/feed`, `/history`, or `/exit` actions according to
 current state. The REPL stays on this screen until the user acts or exits; the
 core never closes a process, starts work, draws, or invents a paused Brick
 state. Left Arrow after the committed result offers semantic undo rather than
@@ -6146,8 +6335,8 @@ Detach and pause preserve every local revision and observation.
 ## UX-P01 — Habit consequence
 
 ```text
-This will record an unfulfilled swimming opportunity
-and end a 2-occurrence streak.
+This will record this swimming opportunity as
+not completed in its window and end a 2-occurrence streak.
 
 Continue?
 
@@ -6163,8 +6352,77 @@ Continue?
   mode: dumb, focus: idle
 ```
 
-An ordinary defer-only skip never opens this confirmation or claims the streak
-has ended.
+This confirmation appears before an explicit fixed-slot skip or explicit close
+that would record `unfulfilled` and end a nonzero streak. A quota-window skip
+does not close the window and never opens it. Deterministic expiry cannot wait
+for confirmation; it records the real outcome and may surface one discreet
+notice afterward. `no` returns to the pending reaction without mutation.
+
+## UX-H00 — Habit outcome result
+
+```text
+Habit recorded:
+
+#stpw "Swim twice per week"
+
+Not completed in this window.
+
+[x][x][-] · next window starts Mon, Aug 10 at 04:00
+
+[n]ext    [/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Health
+. Habit day: Mon, Aug 3
+         Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The completed variant says `Completed in this window.` and uses `[x]`. The
+strip contains only actual applicable outcomes. A terminal without reliable
+glyph support renders `done · done · unfulfilled`; color is never the only
+distinction. The result draws nothing automatically. Blocked, paused, and
+inapplicable windows use their plain terms and do not insert `-` or end the
+streak.
+
+## UX-H01 — Habit introspection review
+
+```text
+Review:
+
+#stpw "Swim twice per week"
+
+The last 3 applicable opportunities were not completed.
+
+What would help?
+
+[r]eview what got in the way
+sc[h]edule
+[e]nabling work or blocker
+[p]ause the habit
+[a]rchive the habit
+[k]eep it unchanged
+[s]kip
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Health
+. Last completed: Sat, Jul 11, 10:00
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Schedule uses the first free character because `[s]kip` owns the more common
+initial. Review opens the bounded outcome and symptom history, then returns
+without inventing a cause. Schedule,
+enabling work, pause, and archive reuse their existing typed previews. Keep
+unchanged resolves only this introspection marker. No row is a default.
 
 ## UX-L00 — List-item lifecycle and collector
 

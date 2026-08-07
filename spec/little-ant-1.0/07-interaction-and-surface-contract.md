@@ -1611,6 +1611,69 @@ no-emoji rendering remain `OPEN-UX-001`.
   the same previews as the REPL, and define no `weight`, `estimate-hours`, or
   child-impact aliases. Relative lottery comparisons remain opportunities,
   not commands that an ordinary user must memorize.
+- **UX-235 [core] — Wait pressure never changes the Wait question.** UX-W01
+  keeps its sober `Review:` composition at every age. It may show `Waiting
+  since`, prior review count, and unanswered follow-up count in secondary
+  context, but never `due`, `overdue`, a numeric score, a countdown, or urgent
+  personality copy. Forecast inspection may explain the bounded WRK-134 terms.
+  The primary actions remain identical until WRK-137 deliberately switches to
+  UX-W03.
+- **UX-236 [core] — Source-observed Wait resolution cites the observation.**
+  UX-W02 leads with the affected Work, waiting target/condition, source, and
+  observed fact. It uses the Wait-kind-specific positive label, keep waiting,
+  inspect evidence, typed skip, and uncertainty. There is no dumb default.
+  A trusted source or assisted mode may mark the positive row with `*` and one
+  attributed explanation; rejection or keep-waiting preserves the exact Wait
+  gate and does not start ordinary Work.
+- **UX-237 [core] — Repeated follow-up becomes one strategy screen.** UX-W03
+  appears after WRK-137's soft cap and explains that two follow-ups were
+  recorded without a meaningful response. Its rows are wait longer, follow up
+  again, change what is blocking it, stop waiting, skip, and uncertainty, each
+  with one short consequence. Nothing is selected. Follow up again reuses the
+  existing enabling-Brick and effect path; stop waiting previews release of
+  only this Wait and never claims response or completion.
+- **UX-238 [standard] — Focus commands reuse the screens people already
+  know.** `/focus` reaches ordinary `Focus?` or the current-focus continuation;
+  `/pause` reaches UX-F06; `/return-to-idle` reaches UX-F15; `/done` dispatches
+  through the Nature-owned result; `/finish` reaches only the active checklist
+  finish surface; and `/archive` reaches the lifecycle preview. The palette
+  displays only valid commands and short human consequences. Unknown natural
+  aliases receive one educational suggestion rather than mutating state.
+- **UX-239 [standard] — Repeatable completion separates the run from its
+  return.** After run completion, UX-REP00 says `Run completed:` and shows the
+  same Brick, prior run count, and current return policy. Existing policy is a
+  visible default; a first policy has none. The choices keep/change return,
+  manual only, archive, and uncertainty. No row creates another Brick,
+  reinserts importance, calls the run missed, or changes history. Leaving the
+  screen preserves a completion-result continuation, not an immediately
+  drawable repeatable run.
+- **UX-240 [standard] — Repeatable return input is structured and previewed.**
+  UX-REP01 edits center, unit, and optional variation as separate fields, shows
+  one plain-language example plus the earliest/latest possible return, and
+  previews the policy before acceptance. Digits edit numeric fields; unit is a
+  finite selector. Dumb mode never parses `six-ish months` or asks an LLM.
+  Assisted modes may propose complete values with attribution and the same
+  preview.
+- **UX-241 [core] — Habit outcomes use calm factual language.** UX-H00 renders
+  `Habit recorded:`, the habit citation, `Completed` or `Not completed in this
+  window`, and the compact outcome strip. An explicit unfulfilled action that
+  would end a visible streak first uses corrected UX-P01; deterministic expiry
+  records truth and may show one discreet notice later, never a retroactive
+  confirmation. The screen performs no automatic draw and offers next plus the
+  palette. Glyph-free mode uses `done` and `unfulfilled` words.
+- **UX-242 [standard] — Habit introspection begins from observed history.**
+  UX-H01 shows only the bounded outcome/skip evidence that crossed WRK-145's
+  threshold, then offers inspect reasons, adjust schedule, add enabling work,
+  pause, archive, keep unchanged, skip, and uncertainty. No cause is written in
+  advance. Selecting inspect opens history and returns; every mutation reaches
+  its existing typed preview. Keep unchanged resolves this review only; skip
+  preserves it with cooldown.
+- **UX-243 [standard] — Assistance never moralizes standing work.** Powered-up
+  or Skill may mark one existing Wait strategy, return policy, or habit remedy
+  and explain cited history. It cannot invent a response, send a follow-up,
+  classify an expired window as blocked, modify a streak, or archive standing
+  Work silently. Its rejection path is the identical dumb screen, and its copy
+  may not use guilt, failure, laziness, or health claims.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

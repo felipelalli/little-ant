@@ -113,6 +113,54 @@
   before `review_not_before` and create an attributed candidate-resolution
   opportunity. It never silently resolves the Wait, marks the affected Brick
   done, or rewrites the review threshold.
+- **WRK-134 [core] — Wait pressure starts only after its review gate.** Before
+  `review_not_before`, an active Wait contributes no selectable review. At the
+  instant it opens, its one `wait_review` opportunity receives positive base
+  weight. Thereafter a monotonic, bounded age term grows from elapsed time
+  beyond that instant; bounded terms may also reflect explicit review
+  deferrals, completed follow-up handoffs without a meaningful response, and
+  the forecast consequence of the affected Work. No term makes the review
+  hard precedence, due, overdue, or guaranteed on an Nth draw. One Wait still
+  contributes one ticket. Review skip applies cooldown, then increments only
+  the bounded deferral term. `Wait longer` and a completed follow-up choose a
+  new `review_not_before`, reset post-opening age, and retain inspectable
+  history terms.
+- **WRK-135 [standard] — Historical timing requires comparable samples.** A
+  human-response Wait uses the factory three-day suggestion until at least
+  three resolved Waits for the same ExternalEntity and compatible ContactPoint
+  family contain both handoff and meaningful-response instants. The robust
+  median response duration then marks the nearest existing UX-W00 preset;
+  ties prefer the longer duration. It never invents a hidden custom date or
+  edits the factory options. Old samples decay from current suggestion
+  influence without leaving history. Powered-up or Skill may use broader
+  evidence only by marking one of those same visible choices with attribution.
+- **WRK-136 [core] — Follow-up cadence is always chosen after a real
+  handoff.** Selecting `follow up` creates ordinary enabling Work and no
+  outbound claim. Only completing that Work or accepting its delivery receipt
+  records a follow-up handoff. The same atomic transition keeps the Wait active
+  and opens UX-W00 before it can return to the lottery; there is no periodic
+  background message and no inherited cadence. Cancelling the follow-up Work
+  returns to the unresolved Wait without claiming a handoff.
+- **WRK-137 [standard] — Two unanswered follow-ups trigger strategy, not a
+  third nag.** After two consecutive recorded follow-up handoffs without a
+  meaningful response, the next selected review uses UX-W03 and omits the
+  ordinary one-key `follow up` action. The human may wait longer, explicitly
+  follow up again, change what is blocking the Work, or stop waiting. Follow
+  up again remains possible because the cap is soft, but it must pass through
+  this strategy screen and select another review instant after the handoff.
+  A meaningful response, replacement Wait target, or resolved Wait resets the
+  consecutive count; review skip and waiting longer do not. No strategy action
+  delegates, escalates, sends, archives, or completes Work by implication.
+- **WRK-138 [core] — Source-observed resolution stays a confirmation.** A
+  candidate resolution stores the exact source, observation identity, time,
+  affected Wait revision, and bounded evidence summary. UX-W02 offers
+  `response received` for a human-response Wait or `condition met` for an
+  event/condition Wait, plus keep waiting, inspect evidence, typed skip, and
+  uncertainty. Accepting the positive outcome resolves only that Wait. Keep
+  waiting settles this source proposal but preserves the Wait and its existing
+  review gate; skip defers only the proposal. A trusted typed source may mark
+  the positive row with attributed `*`, but no source or assisted mode may
+  accept it.
 - **WRK-010 [core] — Cooldown plus memory.** Explicitly deferring the served
   Brick after a symptom creates a short, replay-deterministic cooldown while
   preserving longer-term evidence and pressure. A recovery that returns to
@@ -841,6 +889,75 @@
   obligation exposes open and resolved occurrence state rather than a streak;
   an unresolved occurrence is debt, not a missed historical cell. Exact
   glyphs and compact layout remain surface work under `OPEN-UX-001`.
+- **WRK-139 [core] — Public focus and standing commands are semantic, not
+  aliases.** REPL commands are `/focus #brick`, `/pause`,
+  `/return-to-idle #brick`, `/done #brick`, `/finish #brick`, and
+  `/archive #brick`. Their CLI counterparts use the same hyphenated action
+  names after `lant`. `/focus` starts idle Work or resumes WIP through the same
+  focus transition. `/pause` requires current focus and leaves it WIP.
+  `/return-to-idle` clears WIP and any focus on that Brick without claiming an
+  outcome. `/done` dispatches by the current execution variant under WRK-123.
+  `/finish` exists only for an active checklist run, which may honestly retain
+  open entries. `/archive` is the only retirement command for a standing
+  Brick. The core defines no `/resume`, `/stop`, `/retire`, `/complete`, or
+  Nature-specific alias; operators may map natural language to these commands.
+- **WRK-140 [core] — Done never retires a standing identity by accident.** For
+  finite Work and a recurring-obligation occurrence, `/done` records that
+  finite unit done. For a repeatable run it records the run complete and enters
+  UX-REP00. For an applicable habit opportunity it records that opportunity
+  done and leaves the habit active. Living-checklist completion uses `/finish`
+  because unresolved entries may remain; finite-checklist finish may release
+  its separate scope-closure review. A standing owner can become terminal only
+  through its explicit `/archive` lifecycle preview.
+- **WRK-141 [standard] — Repeatable completion chooses one return policy.** A
+  completed run closes focus/WIP and appends history before selecting its next
+  availability in the same recoverable interaction. With an existing policy,
+  UX-REP00 visibly defaults to keeping it; without one, no row is selected.
+  The choices are keep/change a completion-relative return, make the Brick
+  manual-only, or archive it. A return policy schedules the same identity
+  behind one calculated `not_before`; manual-only keeps the active standing
+  Brick out of ordinary draws until explicit `/focus`. Archive uses MOD-088.
+  Leaving before the policy decision preserves a pending completion-result
+  checkpoint and never makes the just-completed run immediately eligible.
+  `/focus`, `/next`, and startup restore that checkpoint before another run can
+  begin; archive and semantic undo remain available from its palette.
+- **WRK-142 [standard] — A return policy is small structured data.** The
+  factory forms are `after_completion` with a positive integer center, one of
+  `days | weeks | months | years`, and an optional nonnegative symmetric
+  variation in the same unit, plus a named IANA zone; or `manual_only`.
+  Variation cannot exceed the center. Exact return uses variation zero. At run
+  completion, WRK-022 draws one replay-deterministic uniform integer from the
+  inclusive `center - variation` through `center + variation` range and
+  records both offset and absolute `not_before`; later completions draw again
+  from the same versioned policy. Calendar-month and calendar-year arithmetic
+  starts from that completion's local civil date and clock time, clamps to the
+  last valid day without drift, and resolves the result in the policy zone.
+  The dumb editor uses structured fields, not free-form recurrence prose.
+- **WRK-143 [core] — The canonical unmet habit outcome is `unfulfilled`.** It
+  means an applicable habit opportunity ended without completion. Human copy
+  says `not completed in this window`; it never says failure, abandonment,
+  overdue, or generic `not done`, which could be confused with an opportunity
+  that is still open. `blocked`, `paused`, and `inapplicable` remain distinct
+  non-failure window dispositions under WRK-025 and do not break a streak.
+- **WRK-144 [standard] — Habit quota outcomes match the missing count.** A
+  fixed slot yields one `done` or `unfulfilled` outcome. A quota-window
+  completion records one done unit until its target is met. Skip during the
+  open window records no unit outcome; at the boundary, an applicable unmet
+  quota records exactly the remaining number of `unfulfilled` units. A window
+  made blocked, paused, or inapplicable records that disposition for its
+  remaining units instead. Expiry is deterministic temporal advancement and
+  cannot pause for confirmation; an explicit action that would record
+  `unfulfilled` first shows UX-P01 when it would end a visible streak.
+- **WRK-145 [standard] — Habit introspection is help, not punishment.** The
+  factory profile begins with three consecutive applicable `unfulfilled`
+  outcomes or three explicit habit skips across the two most recent applicable
+  schedule windows as the lazy review threshold. One
+  `habit_introspection_review` then offers inspect
+  reasons, adjust the schedule, add enabling Work or a Dependency, pause the
+  habit, archive it, or keep it unchanged. It never creates a cause or remedy,
+  resets history, awards points, shames the human, or blocks ordinary Work.
+  A repeated pattern such as cold weather may support an attributed schedule
+  proposal, but the dumb route only exposes the existing typed managers.
 - **WRK-065 [core] — Explicit non-current WIP outcomes.** An accepted
   `wip_review` offers resume, defer this review, complete, or return the Brick
   to idle. Resume atomically opens a new focus interval and makes the reviewed
@@ -1240,8 +1357,8 @@
   of 31 produces January 31, February 28 or 29, March 31, April 30, and May 31
   without drift.
 - **WRK-040 [core] — Discrete habit outcome.** Every applicable habit
-  opportunity records one discrete outcome: `done` or the canonical
-  unfulfilled outcome chosen under `OPEN-WRK-002`. The 1.0 core does not add
+  opportunity records one discrete outcome: `done` or WRK-143's canonical
+  `unfulfilled`. The 1.0 core does not add
   generic target quantity, unit, observed value, or percentage-progress fields
   for habits. A desired amount such as pages, minutes, distance, or repetitions
   may remain in the title, description, completion criterion, or optional

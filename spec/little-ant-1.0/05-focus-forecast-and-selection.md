@@ -99,6 +99,7 @@ version.
   | `archive_relevance_review` | archived Brick and review marker | keep archived, restore, update, supersede / settle marker |
   | `wait_review` | active Wait, affected Brick, policy and history | response received, wait longer, follow up, change blocker / review gate |
   | `wait_resolution_review` | early attributed source observation and Wait | accept received, keep waiting, inspect / reconcile observation |
+  | `habit_introspection_review` | standing habit, recent applicable outcomes and skip evidence | inspect, adjust, enable, pause, archive, keep / review pattern |
   | `delegation_review` | active Delegation, coverage, policy and observations | progress, completed report, refusal, no response, take back / record or enter reconciliation |
   | `delegation_completion_review` | reported completion and covered scope | accept applicable completion, keep active, take back / reconcile report |
   | `delegation_refusal_review` | reported refusal and covered scope | take back, reassign, keep active / reconcile responsibility |
@@ -533,7 +534,8 @@ version.
   importance variants,
   all three duplicate-review variants, `domain_membership_review`,
   `skip_taxonomy_review`, `wip_review`, `scope_closure_review`, and
-  `archive_relevance_review`. Wait, Delegation, source, external effects, and
+  `archive_relevance_review`, and `habit_introspection_review`. Wait,
+  Delegation, source, external effects, and
   execution variants are not organization maintenance. If no listed variant
   is eligible, the organize action is omitted rather than falling back to
   arbitrary Work.

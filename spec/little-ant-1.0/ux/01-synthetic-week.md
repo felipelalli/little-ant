@@ -517,6 +517,17 @@ no automatic draw, renders `[n]ext`, and enters the ordinary `next` pipeline
 only after `n`. Verify that this result contains no binary question or `no`
 action.
 
+Replay each WRK-139 command from valid and invalid state. `/focus` must start
+idle Work and resume WIP through the same Focus transition; `/pause` must
+require current focus and preserve WIP; `/return-to-idle` must produce UX-F15
+from current and non-current WIP without an outcome; `/done` must follow the
+served Nature; `/finish` must exist only for an active checklist run; and
+`/archive` must be the standing-retirement route. Reject `/resume`, `/stop`,
+`/retire`, `/complete`, and Nature-specific aliases with a concrete canonical
+suggestion and no mutation. Pair each with CLI, dry-run, undo, stale revision,
+palette filtering, and operator natural-language mapping to the canonical
+command rather than a core alias.
+
 ### SCN-WRK-002 — Symptom then reaction
 
 Open UX-S01, Escape without mutation, reopen it, select `tired`, and enter
@@ -835,6 +846,26 @@ bounded future pressure increase after the new threshold. Finally introduce an
 early source observation and verify an attributed candidate resolution without
 silent Wait resolution.
 
+Run fixed-stream pressure replays immediately before, at, and long after
+`review_not_before`. Verify zero eligibility before it, positive bounded
+weight at it, monotonic saturating age afterward, one ticket, ordinary positive
+competition, and no due/overdue or Nth-draw guarantee. Add review skips and
+completed follow-up handoffs independently; verify cooldown, bounded retained
+terms, and age reset only after a newly chosen review gate. Resolve two
+comparable historical Waits and prove the factory three-day suggestion remains;
+resolve a third and prove only the nearest existing preset may receive the
+history-backed `*`.
+
+Complete two explicit follow-up Bricks without meaningful response. On the
+next selected review require UX-W03 instead of ordinary follow up. Exercise
+wait longer, follow up again, change blocker, stop waiting, skip, uncertainty,
+and every reverse path. Prove that no route sends, escalates, archives, or
+completes implicitly and that a meaningful response or replacement target
+resets the count. Replay UX-W02 for a human response and an event condition;
+inspect evidence, keep waiting, skip, accept the positive outcome, and reject
+an attributed source suggestion. Only explicit acceptance may resolve the
+Wait, and every other gate on the affected Work must survive.
+
 ## Day 5 — Lists, dates, and repetition
 
 ### SCN-LST-001 — Grocery run
@@ -881,12 +912,24 @@ a finalized skip, verify one immediate cooldown followed by ordinary
 repeatable availability and aging, with no missed window, debt, overdue
 occurrence, or gap in a compact history.
 
+Complete another run and traverse UX-REP00 with no prior policy: set a return,
+choose manual-only, and archive on independent replays, with no default.
+Configure six months plus or minus three through UX-REP01 and verify structured
+fields, range validation, month clamping, deterministic chosen offset, absolute
+`not_before`, unchanged UUID and importance, and no new occurrence. Complete a
+later run and verify that keeping the existing policy is the sole visible
+default, while changing it and leaving the result checkpoint cannot make the
+Brick immediately drawable. In manual-only mode, prove ordinary `next` omits
+the repeatable while explicit `/focus` can start it. Verify dry-run, crash
+recovery, assisted proposal rejection, and undo before and after a conflicting
+later run.
+
 ## Day 6 — Habits and delegation
 
 ### SCN-PRC-001 — Blocked habit
 
 Advance a swimming window while `#stpw` remains blocked by `#fsp`.
-Validate no `not_done` outcome and no streak loss.
+Validate no `unfulfilled` outcome and no streak loss.
 
 In an unblocked replay, skip one applicable fixed swimming slot and verify
 that the slot closes with the canonical unfulfilled outcome rather than
@@ -895,10 +938,23 @@ quota window: skip one offer, observe its cooldown, and verify that the same
 window remains eligible while the quota is unmet and achievable. Only the
 window boundary derives missing outcomes from an unmet quota.
 
+Use quota three with one completion and verify that the boundary records
+exactly two `unfulfilled` units. Make the remaining window blocked, paused,
+and inapplicable on separate replays and prove that none fabricates a failure
+cell or breaks the streak. Verify UX-H00's factual copy, real-only outcome
+strip, glyph-free equivalent, no automatic draw, and explicit outcome history.
+
 ### SCN-PRC-002 — Explicit unfulfilled intention
 
 After unblocking, attempt to end a window and validate UX-P01. Distinguish
 ordinary skip, explicit outcome, and deterministic expiry.
+
+Cross the factory introspection threshold once through three applicable
+unfulfilled outcomes and once through three explicit skips inside two windows.
+Validate exactly one weighted UX-H01 review, no invented cause, every existing
+typed remedy, keep-unchanged settlement, review-only skip, and calm assisted
+copy. A recorded cold-weather explanation may support a visible schedule
+proposal, but rejecting it must restore the identical dumb history screen.
 
 ### SCN-DEL-001 — Delegation contract
 

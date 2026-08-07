@@ -52,6 +52,11 @@ grants authority.
 | `time.habit_day_starts_at` | `04:00` | Local boundary between nominal habit days. |
 | `time.workday_starts_at` | `06:00` | Local boundary between nominal workdays. |
 | `wait.human_response_first_review_days` | `3` | Factory suggestion before a human-response Wait first enters weighted review eligibility. |
+| `wait.response_history_min_samples` | `3` | Comparable resolved Waits required before history may move the visible timing suggestion. |
+| `wait.unanswered_follow_up_soft_cap` | `2` | Consecutive follow-up handoffs without a meaningful response before strategy review replaces the ordinary follow-up action. |
+| `habit.introspection_consecutive_unfulfilled` | `3` | Applicable unfulfilled outcomes that admit one lazy habit-introspection review. |
+| `habit.introspection_skip_count` | `3` | Explicit habit skips inside the configured evidence window that admit the same review. |
+| `habit.introspection_window_count` | `2` | Open habit windows inspected for the factory skip threshold. |
 | `delegation.review_delay_hours` | `72` | Visible default delay from a handoff or reviewed observation to the next internal Delegation review. |
 | `delegation.review_skip_cooldown_hours` | `24` | Cooldown after deferring an internal Delegation review without changing its facts or authorizing a message. |
 | `delegation.unanswered_follow_up_soft_cap` | `2` | Recorded follow-up handoffs without a meaningful outcome before automatic proposals pause for an explicit strategy review. |
@@ -119,7 +124,8 @@ evidence:
 - taxonomy-watch evidence count, window, and decay;
 - archive-relevance initial review weight, aging pressure, evidence bonus, and
   review-skip cooldown;
-- habit-review and carried-entry evidence thresholds;
+- habit-review coefficient tuning around the settled factory evidence counts,
+  plus carried-entry evidence thresholds;
 - date-notice lead times, deduplication windows, and rotation;
 - repeatable-work default jitter seeds and template-specific ranges;
 - stale-focus and stale-comparison thresholds;
