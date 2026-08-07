@@ -31,7 +31,7 @@ not missing product design.
 | 3 | Nature discovery | `UX-K01..K03`, `FED-024..027`, `SCN-FED-005` | specified | exact full traversal transcript |
 | 3 | Template selection/proposal | `UX-K04..K06`, `FED-028..029` | specified | resulting route and complete preview |
 | 3 | Raw triage and disposition | `MOD-001`, `MOD-054`, `MOD-065..072`, `FED-001..009`, `FED-042..056`, `FOC-051..052`, `UX-144..150`, `UX-184..190`, `UX-T01..T09`, `UX-RA00..RA04` | specified | deterministic triage, shelf/link/source, archive, revision, and source-recovery replay |
-| 3 | Duplicate suspicion | `MOD-008..012`, `MOD-063`, `FED-015..018`, `FED-046`, `FED-051`, `UX-149`, `UX-T05`, `UX-T08` | specified | Raw-to-Raw and durable Brick-to-Brick merge outcomes plus deterministic replay |
+| 3 | Duplicate suspicion | `MOD-008..012`, `MOD-063`, `FED-015..018`, `FED-046`, `FED-051`, `UX-149`, `UX-T05`, `UX-T08` | specified | repeated Feed to existing Work/ListEntry, preserved Raw receipts, and durable Brick-to-Brick merge outcomes plus deterministic replay |
 | 3 | Parent/owner/Domain choice | `FED-005`, `FED-007`, `FED-022..023`, `FED-042..043`, `FED-051`, `UX-T02..T04`, `UX-T07` | specified | RawShelf creation and deterministic multi-Domain replay |
 | 3 | Initial importance insertion | `UX-C01`, `UX-T07`, `UX-T09`, `IMP-004..010`, `IMP-040..046`, `UX-134..138` | specified | deterministic accepted, skip, no-alternative, either-order, and cancelled-draft replay |
 | 3 | Complete Raw-to-Work materialization | `FED-019..021`, `FED-045`, `FED-051`, `UX-185`, `UX-K01..K06`, `UX-T07..T09` | specified | deterministic end-to-end replay and required builders for every factory Nature/Template |

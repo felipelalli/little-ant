@@ -5,7 +5,7 @@
 - **MOD-001 [core] — Raw.** Raw is the durable general content record and the
   immediate result of every accepted `feed`. It may hold a description, note,
   URL, imported object, pasted conversation, source snapshot, attachment, or
-  other material. It can be reviewed, linked, enriched, archived, and
+  other material. It can be reviewed, revised, derived, linked, archived, and
   reconciled with an external origin. It is not work, is not
   importance-orderable, and has no `done` operation. Routing it later never
   consumes it.
@@ -98,11 +98,14 @@
   edge normalization for single-word, non-Latin, empty, and punctuation-only
   seeds.
 - **MOD-011 [core] — Suspicion is not equivalence.** Duplicate detection
-  creates a reviewable suspicion. Only an explicit canonical outcome may
-  reuse, enrich, merge, or keep entities separate.
-- **MOD-012 [core] — Explicit object merge.** `merge` chooses a surviving UUID,
-  previews affected relationships and conflicts, preserves lineage and source
-  provenance, and supports dry-run. It is not a title- or handle-based
+  creates a reviewable suspicion. Only an explicit object-specific outcome may
+  reuse an existing downstream object, merge existing Bricks, or keep records
+  separate. Two independently fed Raws remain two attributable receipts even
+  when their material is equal; avoiding duplicate Work or ListEntries does
+  not rewrite Feed history.
+- **MOD-012 [core] — Explicit Brick merge.** `merge` chooses a surviving Brick
+  UUID, previews affected relationships and conflicts, preserves lineage and
+  source provenance, and supports dry-run. It is not a title- or handle-based
   deduplication. A dataset merge compares UUIDs before handles. The same UUID
   with compatible lineage denotes the same object and is reconciled;
   incompatible content or lineage under the same UUID is an explicit identity
@@ -583,7 +586,7 @@ The factory library contains:
   includes `physical_activity` with root Nature `habit`. It preserves the
   already fed title as the chosen activity and requires either a fixed-slot or
   quota-window schedule under `WRK-038`. Place, preferred time, weather,
-  season, and blockers remain optional enrichment. No compatibility alias is
+  season, and blockers remain optional context. No compatibility alias is
   defined.
 - **MOD-042 [standard] — Reading-habit Template.** The standard library
   includes `reading_habit` with root Nature `habit`. The fed title or

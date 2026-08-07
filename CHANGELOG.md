@@ -90,7 +90,8 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
   assisted modes may add attributed semantic and bounded batch proposals.
 - Deterministic layered duplicate suspicion with explicit reuse, attachment,
   owner-scoped ListEntry reopening, quantity changes, or distinguishable
-  separate decisions.
+  separate decisions. Repeated Feed preserves each Raw receipt while avoiding
+  duplicate downstream Work or ListEntries.
 - Investigation-Brick proposals for decision-relevant uncertainty.
 
 #### Raw material and provenance

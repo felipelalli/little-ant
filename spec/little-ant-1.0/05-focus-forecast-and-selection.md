@@ -139,7 +139,6 @@ version.
   | `external_effect_recovery` | one failed effect and receipt | retry, edit replacement, cancel / recover without claiming delivery |
   | `source_change_reconciliation` | Raw, SourceBinding, baseline and changed observation | revise same Raw, derive Raw, unrelated / reconcile content |
   | `source_failure_review` | Raw, SourceBinding and typed failure | retry, pause, relocate, detach, later / manage origin |
-  | `raw_duplicate_review` | Raw candidates and evidence | reuse, revise or derive, keep separate / settle suspicion |
   | `brick_duplicate_review` | Brick candidates and transfer preview | merge, supersede, keep separate / settle suspicion |
   | `list_entry_duplicate_review` | owner-local candidate, quantity and state | reuse, add quantity, reopen, separate / settle suspicion |
   | `domain_membership_review` | Brick or Raw, current and proposed direct paths | confirm, change, clear / settle classification claim |

@@ -79,22 +79,24 @@
   normalization and original representation, plus title fingerprints, source
   identity, parent, Nature, Domain, and historical continuity, may generate a
   bounded duplicate candidate set.
-- **FED-016 [core] — Scope-sensitive review.** The review distinguishes:
-
-  ```text
-  reuse | enrich | merge | keep separate
-  ```
-
-  The available outcomes depend on whether the candidate is Raw, Brick, or
-  ListEntry.
+- **FED-016 [core] — Scope-sensitive review.** Duplicate suspicion never opens
+  one generic verb menu. A newly fed Raw remains an attributable Feed receipt;
+  the review prevents it from creating duplicate Work or ListEntries rather
+  than merging Raw history. Proposed Work may use an existing Brick or remain
+  separate; two existing Bricks may enter canonical merge, supersession, or
+  remain separate; and a ListEntry uses its owner-local reuse, reopen,
+  quantity, and distinguishable-separation actions. Each route names its
+  actual consequence. Revise-versus-derive belongs only to ordinary Raw/source
+  reconciliation under MOD-066 and FED-056.
 
 - **FED-017 [core] — No global object catalog.** Repeated real-world labels
   such as `milk` do not create one universal object. A grocery entry belongs
   to its living checklist and may recur historically without title-derived
   identity.
 - **FED-018 [standard] — Recurrence-aware matching.** Series and period
-  identity participate in matching, so a manually fed bill can enrich the
-  existing occurrence instead of duplicating it.
+  identity participate in matching, so a manually fed bill can be linked to
+  or update the applicable existing occurrence through its typed route instead
+  of duplicating it.
 
 ## Placement after feeding
 

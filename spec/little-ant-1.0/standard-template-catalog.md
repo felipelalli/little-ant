@@ -190,7 +190,7 @@ creation, WRK-154—not the Template—governs rescheduling.
   `Go geocaching`; the Template does not replace it with a generic title.
 - Required creation input: one structured fixed-slot or quota-window schedule
   under `WRK-038`.
-- Lazy optional enrichment: Place, preferred time, weather, season, blockers,
+- Lazy optional context: Place, preferred time, weather, season, blockers,
   and other ordinary metadata.
 - No compatibility alias is defined.
 
