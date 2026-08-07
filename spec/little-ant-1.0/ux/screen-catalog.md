@@ -2793,8 +2793,48 @@ typed schedule builder in this example; no discards the complete draft and
 restores UX-S46. Question mark explains the shown preservation and
 consequences, then restores the preview. Previous habit outcomes remain typed
 history rather than being converted into obligation occurrences. A source
-with unresolved incompatible active state must render its reconciliation
-before this confirmable composition under `OPEN-NAT-001`.
+with incompatible active state first completes UX-NAT01; no unresolved fact
+can reach this confirmable composition.
+
+## UX-NAT01 — Nature reconciliation checkpoint
+
+Only a behavior change with incompatible active state renders this compact
+checkpoint. It asks about one WRK-122 category at a time:
+
+```text
+Change behavior:
+
+#bs "Books to study"
+collection → atomic task
+
+2 of 3 decisions
+
+These child Bricks cannot remain inside an atomic task.
+
+[m]ove them...
+[b]ack to behavior choices
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Learning
+. Last focused: Mon, Aug 3, 08:10
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+`move them` opens the ordinary validated multi-move selector and returns here
+for the next unresolved category. It does not convert, archive, complete, or
+detach a child. The corresponding category screens reuse the habit-outcome,
+occurrence-resolution, checklist, and temporal managers named by WRK-122.
+There is no generic `remove anyway` action. `back` discards the complete
+reclassification draft and restores UX-S46. Question mark enters the
+mechanical uncertainty family for the current distinction and returns here.
+When the final fact is resolved, UX-S47 shows the complete configuration,
+dispositions, focus effect, and resulting behavior before one atomic commit.
 
 ## UX-S48 — Plan choice
 

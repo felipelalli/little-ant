@@ -222,8 +222,8 @@ The factory library contains:
   replay-safe Nature version or resolved snapshot; editing a definition never
   silently changes them.
 - **MOD-028 [standard] — Template library.** The product ships an offline,
-  inspectable declarative Template library. Confirmed release commitments and
-  candidates under review are listed in the
+  inspectable declarative Template library. Its release commitments are listed
+  in the
   [standard Template catalog](standard-template-catalog.md). Additional
   checklist Templates should name a concrete situation rather than a vague
   generic checklist category. Templates expand generic Natures rather than add
@@ -284,8 +284,8 @@ The factory library contains:
   unsupported intent first resolves a compatible target under WRK-112. A
   `scheduled_commitment` preparation child can be focused independently before
   the interval, while the commitment itself remains the anchored focus unit
-  under MOD-043, MOD-047, and FOC-030. This slice does not settle the remaining
-  all-pairs capability deltas in `OPEN-NAT-001`.
+  under MOD-043, MOD-047, and FOC-030. MOD-077..081 close the remaining
+  behavior-capability deltas.
 - **MOD-063 [standard] — ListEntry state and quantity stay small.** A
   ListEntry has exactly one lifecycle state: `open`, `resolved`, or
   `cancelled`. Reopening either closed state preserves its owner-scoped
@@ -318,6 +318,83 @@ The factory library contains:
   Delegations may not cover the same execution responsibility; a builder that
   would overlap current coverage must edit, take back, reassign, or narrow it
   explicitly before confirmation. Disjoint sibling coverage remains valid.
+
+- **MOD-077 [core] — Nature behavior is one closed capability profile.** The
+  following matrix is sufficient to derive every factory source-to-target
+  reclassification. Empty cells mean that the Nature does not own that
+  capability; they are not permission to invent a fallback.
+
+  | Nature | lifetime | execution boundary | owned structure | required target builder | closure behavior |
+  |---|---|---|---|---|---|
+  | `atomic_task` | finite | the Brick | none | none | direct `done` |
+  | `project` | finite | the Brick until decomposed, then child Bricks | finite child parts | none | final child releases scope review |
+  | `collection` | standing | independently selected child Bricks | open child members | none | explicit retirement only |
+  | `repeatable` | standing | one run of the Brick | none | none | finish or choose one completion-relative return |
+  | `living_checklist` | standing | owner and open entries together | continuing ListEntries | none | finishing a run leaves the owner active |
+  | `finite_checklist` | finite | owner and entries together | finite ListEntries | none | finished entries release scope review |
+  | `recurring_obligation` | standing | independently released occurrence Bricks | generated occurrences, never manual parts | recurrence rule | occurrences close independently; series retires explicitly |
+  | `habit` | standing | one expiring opportunity | none | fixed-slot or quota-window schedule | window outcomes extend history; owner retires explicitly |
+  | `scheduled_commitment` | anchored finite | the exact commitment interval | optional preparation child Bricks | zoned interval | attended, missed, or cancelled outcome |
+
+  Lazy axes such as phase and effort, ordinary relationships, and Template
+  provenance are outside this profile. A generated occurrence is an ordinary
+  independently identified Brick after release, but generation remains a
+  capability of its series rather than a kind of manually managed child part.
+- **MOD-078 [core] — Reclassification first preserves universal truth.** For
+  every source and target Nature, the existing UUID, handle, title,
+  description RawLink, sibling importance and evidence, direct Domains,
+  ordinary compatible relationships, annotations, source provenance,
+  Template provenance, terminal historical runs or windows, and complete
+  typed history carry forward unchanged. Target-required builders in MOD-077
+  run before reconciliation and preview. A target with an incomplete or
+  invalid builder cannot be accepted. History is never converted to make it
+  look native to the new Nature: past habit windows do not become obligation
+  occurrences, for example.
+- **MOD-079 [core] — Structure changes by explicit disposition, never
+  conversion.** Equal owned-structure capabilities retain current live
+  structure. `project` to `collection` retains child Bricks and removes only
+  finite-scope closure; `collection` to `project` retains them only after the
+  preview confirms that the current child set represents a finite outcome.
+  Leaving a child-owning Nature requires every active direct child to be moved
+  to another valid parent or root, or the change is cancelled. Leaving a
+  checklist Nature requires every open ListEntry to be resolved or cancelled,
+  or the change is cancelled. Closed entries remain historical. Entering a
+  child-owning or checklist Nature starts empty unless the same atomic preview
+  explicitly adds valid children or entries. A child Brick never converts to
+  a ListEntry, a ListEntry never converts to a Brick, and a recurring
+  occurrence never converts into either merely because its series changes.
+- **MOD-080 [core] — Standing and anchored state has one explicit stop rule.**
+  Leaving `repeatable` retires its future-return rule but retains prior runs.
+  Leaving `recurring_obligation` stops future releases only after every open
+  occurrence is independently resolved or moved out as ordinary Work; already
+  closed occurrences remain history of the series. Leaving `habit` stops
+  future windows only after any currently open opportunity is settled as
+  `done`, unfulfilled, blocked, paused, or inapplicable. Leaving an active
+  `scheduled_commitment` is unavailable until that interval is attended,
+  missed, or cancelled. Its preparation children follow MOD-079, and any
+  still-relative temporal constraint must be converted to an explicit
+  absolute constraint or removed in the same preview. Entering a standing or
+  anchored capability creates no retroactive runs, windows, occurrences, or
+  intervals.
+- **MOD-081 [core] — Focus consequences are disclosed and atomic.** Current
+  focus and WIP survive only when the target still exposes that same Brick as
+  an executable focus unit at the acceptance instant. A change that transfers
+  execution to children, entries, a generated occurrence, a habit window, or
+  a future interval closes the current focus interval and clears invalid WIP
+  in the same preview; it never claims completion. If live focus or WIP cannot
+  be reconciled truthfully, the change is unavailable. Reclassification,
+  required target configuration, every accepted disposition, and focus
+  consequence commit as one revalidated batch. Semantic undo restores the
+  complete prior Nature snapshot and all batch members only while their
+  recorded compensation preconditions still hold; otherwise it explains the
+  intervening conflict and changes nothing.
+- **MOD-082 [standard] — The listed standard Templates ship offline.** Every
+  Template in the [standard Template catalog](standard-template-catalog.md)
+  is a Little Ant 1.0 built-in recipe, not a pending release candidate. Each
+  adds inspectable classification guidance, creation defaults, or structure
+  beyond merely renaming its root Nature. Specialized integrations and
+  uncommon domain recipes may remain in Packs, but ordinary daily-use
+  Templates are deliberately broad in the offline product.
 
 ## Content, movement, and effective metadata
 

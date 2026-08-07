@@ -541,9 +541,8 @@
   or eligibility consequences. Yes applies the complete change atomically as
   one WRK-102 action; edit restores its nearest typed builder; no discards the
   reclassification and restores UX-S46. A change never reapplies a Template or
-  rewrites Template provenance. The capability-delta rules sufficient to
-  derive every source-to-target transition are release-blocking under
-  `OPEN-NAT-001`.
+  rewrites Template provenance. MOD-077..081 derive every source-to-target
+  transition from the two closed capability profiles.
 - **WRK-108 [core] — Direct update is ordinary maintenance, not a symptom.**
   `/update #brick` enters the same hub as WRK-101 for an active or otherwise
   editable Brick without first requiring Focus, skip, `out_of_date`, or an
@@ -1065,6 +1064,28 @@
   human execution. A system-released recurring occurrence receives the same
   derived coverage and names it in the release result and history rather than
   inventing a human confirmation for scheduled generation.
+
+- **WRK-122 [core] — Reclassification resolves one incompatible fact at a
+  time.** After target configuration, the dumb surface visits incompatible
+  active facts in this deterministic order: an active anchored interval,
+  current focus or WIP, an open habit opportunity, open generated
+  occurrences, child Bricks, ListEntries, then relative preparation timing.
+  It skips absent categories and never asks about compatible state. Each step
+  reuses an existing truthful operation rather than inventing a generic
+  `discard`: settle the scheduled outcome; disclose closing invalid focus and
+  WIP; record the habit outcome; resolve an occurrence or adopt it as ordinary
+  independent Work; move child Bricks; resolve or cancel ListEntries; and
+  convert a relative constraint to its displayed absolute instant or remove
+  it. An active scheduled interval is an educational stop until its real
+  outcome exists. A builder may be left and resumed without committing any
+  partial disposition.
+
+  UX-NAT01 renders only the current category and progress, then the final
+  UX-S47 preview enumerates every accepted choice together. Powered-up and
+  Skill may propose the same choices with attribution, but cannot hide a
+  category, answer it from prose alone, add a conversion, or bypass the final
+  confirmation. If no valid disposition exists, the behavior remains
+  unchanged and the result names the exact fact and useful manager to open.
 
 ## Place context
 

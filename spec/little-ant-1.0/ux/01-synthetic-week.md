@@ -1228,11 +1228,14 @@ identity, importance, Domains, description, and all typed habit outcomes; stop
 future habit windows and streak extension without rewriting history; and
 release only future obligation occurrences after acceptance. Reject and edit
 the preview on separate runs. Repeat with one attributed assisted Nature and
-reject it back to exact dumb UX-S46. Finally exercise `OPEN-NAT-001` fixtures
-for a project with children, checklist with entries, repeatable with a pending
-return, obligation with open occurrences, scheduled commitment with an active
-interval, and focused/WIP Work; every incompatible fact must obtain an
-explicit resolution or block confirmation without silent conversion.
+reject it back to exact dumb UX-S46. Generate all 81 MOD-077 source-to-target
+pairs and mechanically derive preserved, removed, and added capabilities.
+Exercise UX-NAT01 fixtures for a project with children, checklist with entries,
+repeatable with a pending return, obligation with open occurrences, scheduled
+commitment with an active interval, and focused/WIP Work. Every incompatible
+fact must obtain WRK-122's explicit resolution or block confirmation without
+silent conversion; then replay undo both before and after one intervening
+conflicting action.
 
 ### SCN-EXT-001 — Import and source deletion
 

@@ -161,7 +161,7 @@ Close:
   `RawLink(role = description)` target rather than a Brick field or Raw subtype;
 - Nature-only behavior dispatch, immutable Template provenance, and the
   capability-delta rules plus generated non-destructive transition matrix in
-  `OPEN-NAT-001`;
+  `MOD-077..081`;
 - replay the settled UX-159..161 cross-surface multiline draft grammar,
   including create, revise, detach, paste, cancellation, recovery, and preview
   return;
