@@ -67,7 +67,7 @@ stream. The remaining purposes follow their explicit helper rules below. A
 core release must add a registry entry
 before adding another semantic use of randomness. UUIDv7 entropy is not a
 semantic choice stream: the allocated UUID is recorded as event input under
-MOD-009 and replay reuses it.
+MOD-008 and replay reuses it.
 
 Changing a numeric parameter affects only calculations whose recorded instant
 is at or after the accepted profile revision. Replay uses the recorded profile

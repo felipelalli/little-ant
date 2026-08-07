@@ -583,7 +583,7 @@ version.
   FOC-046 family contains `raw_triage`, `nature_review`, `phase_review`,
   `effort_comparison`, `impact_comparison`, `impact_maturity_review`, all three
   importance variants,
-  all three duplicate-review variants, `domain_membership_review`,
+  both duplicate-review variants, `domain_membership_review`,
   `skip_taxonomy_review`, `wip_review`, `scope_closure_review`, and
   `archive_relevance_review`, and `habit_introspection_review`. Wait,
   Delegation, source, external effects, and
@@ -593,8 +593,12 @@ version.
 
 ## Forecast inputs
 
-The closed weighting function may use importance path and confidence, impact,
-effort, dates, Domain and Place context, Nature, current WIP, phase,
-dependencies, waits, skip evidence, recurrence, habits, delegation,
-reviews, and aging. Optional missing axes are neutral. There is no universal
-phase multiplier and no hidden public score.
+Eligibility and typed continuations may use dates, dependencies, Waits, Place
+requirements, recurrence, habits, Delegation, and current focus. After those
+gates, the ordinary weighted draw uses only the factors and typed pressure
+signals closed by the deterministic calculation profile: importance and its
+confidence, impact, applicable dates, Domain and preferred Place context,
+current WIP, phase, skip evidence, review consequence, and aging. Missing
+optional evidence is neutral. Effort is reserved for planning,
+decomposition, and the explicit tired/easier-work recovery; Nature determines
+behavior but has no generic multiplier. There is no hidden public score.
