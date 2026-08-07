@@ -12,7 +12,7 @@ longer, or recoverable.
 
 | Commit | Evidence preserved | Authority now |
 |---|---|---|
-| `c6f3cb7` | Final implementation-first v0 baseline: core, tests, skill, Allium, README | Evidence of delivered v0 behavior; distinguish code/tests from aspirations |
+| signed tag `v0.1.0` → `c6f3cb7` | Final implementation-first v0 baseline: core, tests, skill, Allium, README | Evidence of delivered v0 behavior; distinguish code/tests from aspirations |
 | `98dbe1c` | First split 1.0 conceptual design record | Discovery evidence; unresolved text is not current behavior |
 | `70cb5b0` | Divergent mega-rewrite into Markdown, Allium, generated tests, and implementation contract | Failure evidence; never current product authority |
 | `e949c51` | Independent v0 capability-regression audit | Input to the maintained matrix |

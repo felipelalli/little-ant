@@ -517,8 +517,8 @@
   to the same Brick and then follows the same restoration. Newer Work enters
   canonical supersession with lineage. Review skip leaves status and marker
   unchanged, applying only review cooldown and pressure. Exact structured edit
-  selection and supersession relationship transfer remain with their owning
-  open decisions rather than being guessed here.
+  selection and supersession relationship transfer follow their settled
+  owning rules rather than being redefined here.
 - **WRK-101 [core] — Updating dispatches by human meaning, not storage field.**
   Direct `/update`, `update it`, and `update and restore` enter one
   non-mutating update hub whose closed first-level purposes are `meaning`,

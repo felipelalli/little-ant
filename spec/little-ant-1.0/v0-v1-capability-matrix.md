@@ -11,8 +11,9 @@ evidence that the capability survived.
 
 ## Evidence boundary
 
-The final implementation-first v0 baseline is commit `c6f3cb7`, immediately
-before the 1.0 conceptual-design work. Evidence strength is:
+The final implementation-first v0 baseline is signed tag `v0.1.0`, which
+resolves to commit `c6f3cb7`, immediately before the 1.0 conceptual-design
+work. Evidence strength is:
 
 ```text
 I+T  implemented and covered by a behavioral test

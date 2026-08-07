@@ -79,13 +79,13 @@
 ## Exact v0.1 projection
 
 - **MIG-024 [core] — The accepted source is the signed v0.1 schema.** The
-  migrator accepts the event vocabulary at signed tag `v0.1.0` plus exactly its
-  shipped upcasts for `raw_captured`, `brick_enriched` energy, legacy session
-  names, and legacy `focus_served` field. It verifies every JSON line, declared
-  version, intrinsic event hash, timestamp, reference, and final fold. Unknown
-  types/versions, duplicate incompatible event IDs, and malformed or reordered
-  evidence stop preflight; the migrator never inherits v0's tolerant unknown-
-  event skip.
+  migrator accepts the event vocabulary at signed tag `v0.1.0` (commit
+  `c6f3cb7`) plus exactly its shipped upcasts for `raw_captured`,
+  `brick_enriched` energy, legacy session names, and legacy `focus_served`
+  field. It verifies every JSON line, declared version, intrinsic event hash,
+  timestamp, reference, and final fold. Unknown types/versions, duplicate
+  incompatible event IDs, and malformed or reordered evidence stop preflight;
+  the migrator never inherits v0's tolerant unknown-event skip.
 - **MIG-025 [core] — One canonical MigrationRecord preserves provenance.** A
   successful candidate owns the exact v0 archive bytes as immutable canonical
   blob, archive SHA-256, source schema/tag, ordered event ID/line-digest table,
