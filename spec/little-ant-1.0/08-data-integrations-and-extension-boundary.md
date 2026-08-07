@@ -293,7 +293,8 @@ that cryptographic format.
 - **DAT-032 [standard] — UIAdapter.** A UIAdapter renders the canonical
   envelope and maps a channel response to exactly one action ID and displayed
   revision. It cannot invent semantics, weaken approval, claim authority, or
-  retain credentials. Like the REPL, Skill, and first-party web/mobile hosts,
+  retain credentials. Like the REPL, Skill, local-web host, and any future
+  conforming mobile host,
   it invokes the canonical CLI/protocol dispatcher rather than another
   presentation surface.
 - **DAT-046 [standard] — External text editors are host-mediated.** A

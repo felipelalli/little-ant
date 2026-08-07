@@ -1,12 +1,14 @@
 # 1.0 specification completion plan
 
-Status: **active closure plan**
+Status: **closure record; final freeze audit in progress**
 
 This plan gives the remaining specification journey a beginning, middle, and
 end. It is deliberately UX-first: the dumb REPL exposes one concrete human
 decision at a time, and the event, invariant, command, and projection
-contracts are derived from the accepted transition. Powered-up mode, the Skill,
-web/mobile, Allium, tests, and code follow in that order.
+contracts are derived from that transition. Powered-up mode and the Skill then
+mirror it; the shipped local web UI consumes the same envelopes. Allium,
+tests, and code are a separately authorized implementation phase. Future
+mobile surfaces must conform to the same contract but are not a 1.0 deliverable.
 
 ## Definition of finished
 
@@ -23,12 +25,14 @@ The 1.0 specification is finished when:
    it;
 7. every external effect has authority, preview, failure, retry, and
    compensation semantics;
-8. powered-up and downstream surfaces reproduce rather than invent the core
-   route;
-9. the synthetic week and isolated v0 shadow day pass;
+8. powered-up, Skill, and local-web surfaces reproduce rather than invent the
+   core route;
+9. the synthetic week and isolated v0 shadow day define deterministic
+   implementation-acceptance programs without embedding personal data;
 10. all core-affecting open decisions are closed and every remaining
     non-core deferral has an explicit release disposition;
-11. only then is Markdown promoted to Allium and tests.
+11. the frozen Markdown can be handed to a later Allium/test promotion without
+    reopening product discovery.
 
 Coding and data migration remain separately authorized phases.
 
@@ -76,7 +80,7 @@ Exit:
 
 ### Gate 2 — Close the interaction vocabulary
 
-Status: **in progress**
+Status: **complete**
 
 Decisions:
 
@@ -103,6 +107,8 @@ Exit:
 ## Middle — complete the dumb REPL state machine
 
 ### Gate 3 — Golden daily loop
+
+Status: **complete**
 
 Close this complete route:
 
@@ -141,6 +147,8 @@ Exit:
 
 ### Gate 4 — Uncertainty and correction
 
+Status: **complete**
+
 Close:
 
 - importance first skip, nearby comparator, second skip, provisional
@@ -177,6 +185,8 @@ Exit:
 
 ### Gate 5 — Hierarchy and focus forecast
 
+Status: **complete**
+
 Close:
 
 - project, collection, and checklist descent;
@@ -196,6 +206,8 @@ Exit:
 - forecast never rewrites importance.
 
 ### Gate 6 — Nature capability matrix
+
+Status: **complete**
 
 For each factory Nature, settle:
 
@@ -227,6 +239,8 @@ Exit:
 
 ### Gate 7 — Time and standing work
 
+Status: **complete**
+
 Render and settle:
 
 - `not_before`, `best_before`, deadline, notice, acknowledgment, and snooze;
@@ -244,6 +258,8 @@ Exit:
 - all terminal and missed outcomes use canonical non-generic vocabulary.
 
 ### Gate 8 — External truth and effects
+
+Status: **complete**
 
 Render and settle:
 
@@ -270,6 +286,9 @@ Exit:
 
 ### Gate 9 — Paired powered-up replay
 
+Status: **complete as a conformance contract; executable verification follows
+implementation**
+
 Replay every accepted dumb route from the same state, clock, configuration,
 and random cursor. A powered-up delta may only:
 
@@ -285,8 +304,12 @@ Exit:
 
 ### Gate 10 — Surface mirrors
 
-Render accepted envelopes through the operator Skill and first-party
-web/mobile reference.
+Status: **complete as a conformance contract; executable verification follows
+implementation**
+
+Render canonical envelopes through the operator Skill and the shipped local
+web UIAdapter. A future mobile surface is governed by the same contract but is
+not part of the 1.0 release.
 
 Exit:
 
@@ -297,8 +320,12 @@ Exit:
 
 ### Gate 11 — Regression, realism, and calibration
 
-- execute the synthetic week as exact turn-by-turn transcripts;
-- run the authorized isolated v0 shadow day without mutating personal data;
+Status: **complete as an acceptance program; parameter execution follows
+implementation**
+
+- define the synthetic week as exact turn-by-turn implementation replays;
+- define the isolated v0 shadow-day protocol without copying or mutating
+  personal data;
 - resolve every row in the capability matrix;
 - sweep forecast, Domain, cooldown, warning, and validation parameters only
   after semantics freeze;
@@ -312,13 +339,17 @@ Exit:
 
 ### Gate 12 — Specification freeze
 
+Status: **in progress: final contradiction, terminology, ID, link, and README
+audit**
+
 - close all core-affecting `OPEN-*` items;
 - explicitly include, defer, or remove each remaining standard item;
 - validate links, IDs, terminology, opportunity/flow coverage, and
   contradictions;
 - update the README and version summary from the frozen truth;
-- promote to Allium with originating IDs;
-- inspect generated obligations before generating high-level tests.
+- record the originating IDs required by later Allium promotion;
+- hand off obligation inspection and high-level test generation as the next,
+  separately authorized phase.
 
 Exit:
 
@@ -329,20 +360,10 @@ Exit:
 - the user can authorize Allium/tests as the next phase without reopening
   product discovery.
 
-## Ordered decision queue
+## Closure result
 
-Tomorrow's discussion starts at Gate 2, not with another broad brainstorm:
-
-1. opportunity catalog and shared envelope/chrome;
-2. golden Feed route, including Raw/description/normalization;
-3. importance uncertainty and adaptive maintenance;
-4. complete skip symptom-to-reaction matrix;
-5. hierarchy, blockers, Domain scope, and `next`;
-6. Nature capability matrix;
-7. time and standing work;
-8. external effects and integrations;
-9. powered-up and mirrors;
-10. regression/calibration/freeze.
-
-Each item closes before the next begins. A later concrete counterexample may
-reopen the smallest affected flow, never the whole specification.
+Gates 1 through 11 are semantically closed. Gate 12 is the present mechanical
+and contradiction audit. Once it closes, the next phase is an implementation
+plan that promotes stable rule/scenario IDs into inspected obligations and
+high-level tests before writing product code. A later concrete counterexample
+may reopen only the smallest affected rule and flow, never this entire journey.

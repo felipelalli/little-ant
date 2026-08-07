@@ -244,11 +244,12 @@ every failure preserves local material and Work state. Rebuild the dataset and
 verify identical current revision, baseline, check schedule, and degraded
 state.
 
-### SCN-FED-004 — Skill and web/mobile mirror
+### SCN-FED-004 — Skill and local-web mirror
 
 Only after SCN-FED-001 through SCN-FED-003 are accepted, render their existing
-envelopes in the operator skill and web/mobile reference. Validate
-almost-literal parity; do not let the skill supply a missing dumb-core path.
+envelopes in the operator Skill and shipped local-web reference. Validate
+almost-literal parity; do not let either mirror supply a missing dumb-core
+path. A future mobile client reuses this conformance scenario.
 
 ### SCN-FED-005 — Nature discovery coverage
 
@@ -508,6 +509,22 @@ reaction must preserve the prior focus and WIP. Accepting UX-F14 alone switches
 focus; accepting a final reaction for the proposed Brick defers only that
 proposal. Replay powered-up and Skill summaries without persuasion, hidden
 answers, automatic Focus, or a second draw.
+
+### SCN-PLACE-001 — Lightweight Place conditions
+
+From the dumb blocked-or-waiting route, classify `#bg "Buy groceries"` as
+requiring `grocery store`, accept UX-PL00, and prove that no Place entity,
+handle, Domain, Wait, or `not_before` is created. Draw the same Work without a
+location observation, reach UX-PL01, answer no, and verify one hour of local
+place deferral without skip evidence or active-Domain change. Replay from the
+same draw, answer yes, and verify that the exact original `Focus?` returns
+without a redraw and still requires acceptance.
+
+Through Context maintenance, add a preferred `home office` label and exercise
+matching, nonmatching, expired, and missing attributed adapter observations.
+Verify strongest-only bounded weighting, neutral unknown state, removal
+preview, autocomplete of prior labels without global identity, and paired
+assistance that cannot infer where the human is.
 
 ## Day 4 — Focus and skip adaptation
 

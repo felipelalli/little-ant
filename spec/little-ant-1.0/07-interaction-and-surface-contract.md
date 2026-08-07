@@ -11,17 +11,17 @@
   presents a selectable opportunity, one semantic variant discriminant owns
   its required payload and valid actions. The screen grammar is presentation
   reuse, not the opportunity's semantic type.
-- **UX-002 [core] — Almost-literal parity.** REPL, first-party web/mobile,
-  UIAdapters, and operator skill preserve the same wording, punctuation,
-  subject order, action order, shortcut letters, emojis, defaults, and screen
-  transitions.
+- **UX-002 [core] — Almost-literal parity.** REPL, powered-up REPL, the
+  operator Skill, the shipped local-web UIAdapter, and any future conforming
+  mobile surface preserve the same wording, punctuation, subject order, action
+  order, shortcut letters, emojis, defaults, and screen transitions.
 - **UX-003 [core] — Permitted adaptation.** A surface may change wrapping,
   density, pagination, physical control, and accessibility representation.
   It may not rename, reorder, omit, combine, or reinterpret canonical actions.
 - **UX-004 [core] — Dumb REPL reference composition.** The first-party dumb
   REPL is the reference layout and complete guided-flow harness. A screen and
-  transition are approved there before powered-up automation, skill, web, or
-  mobile presentation may claim parity. Other surfaces render the same
+  transition are defined there before powered-up assistance, Skill, or local
+  web may claim parity. A future mobile presentation must render the same
   composition with appropriate click, touch, speech, or natural-language
   controls. The REPL captures terminal input, maintains only local editing and
   rendering state, invokes the canonical CLI/protocol, and renders the
@@ -561,7 +561,7 @@ assistance-label, and no-emoji rendering.
   `next`, `resume`, or focus action, performs no draw, and does not close the
   REPL automatically. The contextual palette remains available with only
   currently valid commands; this does not elevate them into the primary
-  result. A first-party web/mobile surface preserves the same resting envelope
+  result. A non-terminal surface preserves the same resting envelope
   without pretending that an application process ended.
 - **UX-107 [core] — Bored reaction grammar.** Selecting `bored` on UX-S01
   opens UX-S11 with `change subject`, `make it more interesting`, explicit
@@ -819,7 +819,7 @@ assistance-label, and no-emoji rendering.
   UX-S39 without the draft. Continue returns to the exact buffer, cursor, and
   selection. None records a domain event. After interruption or crash, a
   capable surface restores the exact checkpoint under UX-030 and states
-  `Draft restored after interruption.` Web/mobile controls and Skill actions
+  `Draft restored after interruption.` Non-terminal controls and Skill actions
   express these same intents without pretending to send terminal keypresses.
 - **UX-161 [core] — Empty description review is explicit.** `Ctrl-D` on an
   empty new-description buffer is an educational no-op that keeps UX-S43.
@@ -848,7 +848,7 @@ assistance-label, and no-emoji rendering.
   them. Recovery remains the interaction checkpoint, never that file. This is
   a host-mediated presentation capability under DAT-046, not Pack process
   authority, a domain effect, a special Raw revision route, or a facility that
-  Skill and web/mobile must imitate.
+  Skill and non-terminal surfaces must imitate.
 - **UX-163 [core] — Behavior choice visibly means Nature.** UX-S46 labels the
   current Nature and explains its observable consequence before asking `How
   should this behave now?`. It reuses the example-backed canonical Nature
@@ -1752,9 +1752,9 @@ assistance-label, and no-emoji rendering.
   otherwise it behaves as never. Never suppresses only decorative emoji and
   repairs adjacent whitespace. It retains all words, shortcut brackets,
   punctuation, ASCII cursor markers, warnings, history cells, and statuses.
-  Emoji mode is independent of ANSI color mode. First-party web/mobile and
-  accessible renderers expose the same semantic text even when they choose a
-  different decorative representation.
+  Emoji mode is independent of ANSI color mode. Local-web, future conforming
+  mobile, and accessible renderers expose the same semantic text even when
+  they choose a different decorative representation.
 - **UX-254 [core] — Shortcuts are unique per screen, not globally.** Within one
   pending finite screen, every visible one-key action has a distinct key. The
   allocator first keeps canonical meanings from UX-014, then an unused natural
@@ -2128,10 +2128,11 @@ assistance-label, and no-emoji rendering.
   paraphrase under `UX-065`. A declared `UX-060` gateway may instead offer one
   complete canonical result before that flow. Powered-up mode never becomes
   the source of screen grammar.
-- **UX-044 [core] — Downstream mirror order.** Skill and web/mobile renderings
-  are reviewed only after the corresponding dumb and, when applicable,
-  powered-up REPL paths are accepted. A downstream convenience may motivate a
-  later REPL-contract revision, but cannot silently fork the product language.
+- **UX-044 [core] — Downstream mirror order.** Skill and local-web renderings
+  are derived only after the corresponding dumb and, when applicable,
+  powered-up REPL paths are defined. A future mobile surface follows the same
+  conformance order. A downstream convenience may motivate a later
+  REPL-contract revision, but cannot silently fork the product language.
 - **UX-045 [core] — Footer context block.** Parentage and Domain path occupy
   the first two footer lines. Missing values render explicitly as `<root>` and
   `<no Domain>` so the footer never shifts shape. At most one selected warning
@@ -2429,6 +2430,21 @@ assistance-label, and no-emoji rendering.
   allocate identities, build, cut over, roll back, discard, or start provider
   cleanup. Rejecting an assisted repair suggestion restores the exact dumb
   blocker screen and plan revision.
+- **UX-276 [standard] — Place stays lightweight in the UI.** UX-PL00 is the
+  only dumb PlaceCondition builder. The blocked-or-waiting route enters with
+  `required` already explained by the sentence “You said you cannot continue
+  until you are there”; direct Context maintenance first chooses required or
+  preferred. Input is one English place label with suggestions from labels
+  already used in the dataset. The preview exposes the kind and consequence;
+  it never asks for a Place object, global identity, hierarchy, coordinates,
+  or geofence.
+- **UX-277 [standard] — Place confirmation preserves the selected Work.**
+  UX-PL01 leads with the complete selected Brick and required label, then asks
+  `Are you there now?` with `[y]es · [n]o · [?] I don't know`. Yes continues
+  to the exact pending `Focus?`; no performs WRK-159's local deferral and draws
+  nothing until the next canonical `next` request. The screen has no default.
+  Powered-up and Skill may explain the condition or mark a current trusted
+  adapter observation, but cannot infer location, answer, or bypass consent.
 
 ## Errors and dry-run
 

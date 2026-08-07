@@ -1,7 +1,7 @@
 # V0 to 1.0 capability matrix
 
-Status: **authoritative regression register; unresolved rows block the 1.0
-specification freeze**
+Status: **authoritative regression register; all delivered v0 capabilities
+have a settled 1.0 disposition**
 
 This register protects product capability, not old command count or old names.
 Every meaningful v0 behavior receives an explicit 1.0 disposition. A removed
@@ -145,29 +145,18 @@ unresolved            no trustworthy 1.0 disposition yet
 | Compact one-line Brick rendering | `I+T`, `d688947` | **retained** | complete Brick citation under `MOD-010`; summary projection under DAT-051..053 | list/show rendering |
 | TaskJuggler export includes dependencies, order, estimates, and visible gaps | `I+T`, `49abaa5` | **strengthened** | planning cut, EffortProfile, immutable manifest, Lua exporter, separate actuals under `DAT-030..037` | planning-manifest replay |
 | `show`, `ls`, `status`, grammar, and event audit support inspection | `I`; some view tests | **strengthened** | sparse depth, negotiated projections, and filtered semantic history under `DAT-006..010`, `DAT-051..054`, `UX-023`, `UX-025..028` | inspection/history route |
-| Event versions, upcasting, dry-run migration, and backup | `I+T`, `7a4dfab` | **strengthened** | `MIG-001..017`, `DAT-055..056` | migration failure/rollback route |
-| Append-only JSONL can be synchronized by event-set union, archived by rotation, and queried through snapshots | `D`, README roadmap; not delivered | **not a v0 regression** | any 1.0 adoption requires a separate explicit decision | outside core-UX closure |
+| Event versions, upcasting, dry-run migration, and backup | `I+T`, `7a4dfab` | **strengthened** | `MIG-001..044`, `DAT-055..056` | `SCN-MIG-001` plus corruption/backup replay |
+| Append-only JSONL can be synchronized by event-set union, archived by rotation, and queried through snapshots | `D`, README roadmap; not delivered | **explicitly deferred beyond 1.0** | 1.0 provides local backup/rebuild and reviewed dataset merge under `DAT-055..056` and `MIG-023`; event-set-union device sync and automatic rotation are not release capabilities | no 1.0 acceptance route |
 
-## Outstanding regression decisions
+## Regression closure
 
-The rows marked unresolved, strengthened-but-incomplete, or
-replaced-with-open-details define concrete specification work:
-
-1. pending-question command escape and global palette behavior;
-2. canonical executable name;
-3. typed-handle edge normalization and technical-reference grammar;
-4. complete merge and supersede transfer matrices;
-5. hard temporary Domain scope and no-result recovery;
-6. whether positive probability needs any bounded service guarantee;
-7. complete skip symptom-to-reaction catalog;
-8. focus/WIP public commands and standing-run closure;
-9. Delegation lifecycle names and complete effect sequence;
-10. general external write-back/notification boundary;
-11. complete inspection/history projections and event corruption policy.
-
-No item may disappear by deleting an old command or chapter. It must become a
-canonical rule, a linked open decision with a closure scenario, or an explicit
-retirement in this register.
+There are no unresolved regression rows. Former gaps now have explicit
+dispositions for the palette, executable name, typed references, merge and
+supersession, Domain scope, positive-tail behavior, every skip symptom,
+focus/WIP, Delegation and effects, inspection/history, corruption recovery,
+and deterministic migration. A future change may update this register only by
+naming the affected capability, its replacement or retirement, and an
+acceptance route; deleting an old command is never itself a disposition.
 
 ## Promotion gate
 

@@ -1045,7 +1045,7 @@ served after 9 days · active Domain unchanged
 The choices describe the human situation, not storage primitives. `task`
 opens UX-S02A; `respond` opens UX-S02B for any eligible ExternalEntity rather
 than only a person; `until` gathers a timezone-aware instant for `not_before`;
-`location` gathers a Place condition; and `event or condition` accepts
+`location` opens UX-PL00 with a required PlaceCondition; and `event or condition` accepts
 dumb-mode free text preserved as linked Raw before creating a `Wait`. A
 request not yet made becomes an enabling Brick and Dependency, while an
 already-made request becomes a Wait with a future review opportunity. Each
@@ -2885,6 +2885,9 @@ Update context:
 
 [p]eople or companies
     Its requester or direct about relationship.
+
+[l]ocation
+    Where it must or preferably should be done.
 
 [?] I don't know
 
@@ -7394,6 +7397,75 @@ The styled rendering uses the same characters and columns, adding only ANSI
 roles and reverse video. No-emoji mode removes only declared decoration; color
 mode never changes glyphs.
 
+## UX-PL00 — Place condition
+
+Direct Context maintenance first shows this finite choice; the
+blocked-or-waiting `location` path skips it with `required` already selected
+and explained:
+
+```text
+How does location affect this Work?
+
+[r]equired
+    Ask before Focus unless the place is currently confirmed.
+
+[p]referred
+    Favor it when the place is currently confirmed.
+
+[?] I don't know
+
+[/] more...
+```
+
+The selected route opens ordinary text input:
+
+```text
+Name the place:
+
+#bg "Buy groceries"
+
+Place › grocery store
+
+Tip: write in English when possible.
+
+Enter review · Esc back
+```
+
+Previously used labels appear as completion suggestions but are not global
+objects. The review asks `Add this required place?`, shows the exact label and
+Focus consequence, and uses `[y]es · [n]o · [?] I don't know`; no row is
+selected. Removing an existing condition uses the same consequence preview.
+
+## UX-PL01 — Required-place confirmation
+
+After `next` selects Work whose required place is not currently confirmed:
+
+```text
+Work:
+
+#bg "Buy groceries"
+
+Required place: grocery store
+
+Are you there now?
+
+[y]es    [n]o    [?] I don't know
+[/] more...
+────────────────────────────────────────
+. <root>
+  Personal › Housekeeping
+. Last focused: Sun, Aug 2, 22:14
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Yes restores the already selected Brick through ordinary `Focus?` without a
+new draw. No records only the bounded place deferral and returns an ordinary
+no-draw result with `[n]ext · [/] more...`. Question mark explains the
+condition and asks whether the human can observe their current place; repeated
+uncertainty leaves the same decision pending.
+
 ## UX-MIG00 — v0 migration preflight
 
 `/migrate` asks for or autocompletes an existing v0 JSONL archive and a v1
@@ -7465,7 +7537,7 @@ Candidate: lant-v1-candidate-7f31
   <no Domain>
 . Built: Thu, Aug 6, 10:43
     Now: Thu, Aug 6, 10:43
-. 146 bricks, 89 raws, 38 reviews
+. 0 bricks, 0 raws, 0 reviews
   mode: dumb, focus: idle
 ```
 
@@ -7496,7 +7568,7 @@ No external action will run.
   <no Domain>
 . Candidate: Thu, Aug 6, 10:43
         Now: Thu, Aug 6, 10:44
-. 146 bricks, 89 raws, 38 reviews
+. 0 bricks, 0 raws, 0 reviews
   mode: dumb, focus: idle
 ```
 
@@ -7519,9 +7591,9 @@ The verified v0 archive remains unchanged.
 
 ## Surface mapping
 
-| Canonical element | REPL | Web/mobile | Operator skill |
+| Canonical element | REPL | Local web / future mobile | Operator Skill |
 |---|---|---|---|
-| primary block | terminal text | text/card with same order | same text block |
+| primary block | terminal text | local-web card with same order; future mobile conforms | same text block |
 | action | one key, no Enter | button/touch target retaining label and shortcut | natural language or canonical letter mapped to the same action ID |
 | secondary region | stacked footer below a divider | separated stacked footer | separated block after the prompt |
 | input | line editor | text field | free text |

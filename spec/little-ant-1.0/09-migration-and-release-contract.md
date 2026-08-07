@@ -190,12 +190,13 @@
   the atomic local cutover.
 - **MIG-035 [core] — Preflight is the harmless default.**
   `lant migrate --from <v0-jsonl> --into <v1-dataset>` performs only validated
-  preflight and emits a sparse mapping report. `/migrate` opens the equivalent
-  dumb guided route. Neither command writes a candidate, reserves identities,
-  changes the current target, or modifies the source unless the human later
-  chooses the separately named build and cutover steps. `--dry-run` is
-  accepted globally and makes this guarantee explicit; it is never required
-  merely to make the default safe.
+  preflight and emits a sparse mapping report plus one content-addressed
+  `<plan>` reference. `lant migrate --inspect <plan>` expands it, and
+  `/migrate` opens the equivalent dumb guided route. Neither command writes a
+  candidate, reserves identities, changes the current target, or modifies the
+  source unless the human later chooses the separately named build and cutover
+  steps. `--dry-run` is accepted globally and makes this guarantee explicit;
+  it is never required merely to make the default safe.
 - **MIG-036 [core] — One immutable plan controls later steps.** Preflight
   produces a content-addressed plan from the source archive hash, mapping
   policy version, relevant target revision/hash, accepted repair choices, and
@@ -203,13 +204,14 @@
   target, policy, or repair choice makes the plan stale and requires a new
   preflight; the migrator never silently recalculates under an old approval.
 - **MIG-037 [core] — Candidate construction is isolated and retry-safe.**
-  Explicit build writes a new candidate dataset beside, never inside, the
-  source or live target. It atomically persists an allocation table before
-  exposing the candidate: each new object receives one UUIDv7 exactly once,
-  and an interrupted retry reuses it. Mnemonic handles are proposed in legacy
-  creation order using the ordinary v1 derivation and numeric collision
-  suffixes. Dry-run may show deterministic handle proposals without
-  pretending to know UUIDs it did not allocate.
+  `lant migrate --build <plan>` writes a new candidate dataset beside, never
+  inside, the source or live target, and returns one `<candidate>` reference.
+  It atomically persists an allocation table before exposing the candidate:
+  each new object receives one UUIDv7 exactly once, and an interrupted retry
+  reuses it. Mnemonic handles are proposed in legacy creation order using the
+  ordinary v1 derivation and numeric collision suffixes. Dry-run may show
+  deterministic handle proposals without pretending to know UUIDs it did not
+  allocate.
 - **MIG-038 [core] — Candidate validation is a full replay.** A built candidate
   must replay from zero and reproduce its projection hash, MigrationRecord,
   identity table, object counts, references, lifecycle, orders, and all
@@ -223,7 +225,11 @@
   previous target is retained as a read-only backup and the source remains
   untouched. If the target changed after preflight, cutover fails before any
   rename. An existing v1 target follows `MIG-023` rather than being
-  overwritten as an empty destination.
+  overwritten as an empty destination. The noninteractive entry is
+  `lant migrate --cutover <candidate>`; it still emits the same consent and
+  requires an explicit answer on an interactive terminal. In a noninteractive
+  environment it stops after rendering the preview rather than accepting a
+  force flag.
 - **MIG-040 [core] — Migration never performs outside-world work.** Preflight,
   build, validation, and local cutover dispatch no adapter effect, delegation,
   notification, Calendar write, provider cleanup, or legacy effect. Later

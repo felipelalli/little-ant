@@ -22,8 +22,9 @@ may expose missing or contradictory rules.
   valid action IDs, shortcut letters, default, secondary context, and
   provenance. Prose summary is not a substitute.
 - **SCN-005 — Almost-literal renderings.** Once the canonical screen is
-  accepted, record REPL, web/mobile, and skill renderings. Differences are
-  allowed only under `UX-003`.
+  settled, record REPL, powered-up, Skill, and local-web renderings.
+  Differences are allowed only under `UX-003`; a future mobile client must
+  pass the same conformance replay.
 - **SCN-006 — State transition.** After an accepted action, record the
   canonical command, observable result, resulting revision, and next envelope.
 - **SCN-007 — No silent invention.** If the target behavior is unresolved,
@@ -42,9 +43,10 @@ may expose missing or contradictory rules.
   replay the accepted dumb flow from the same state, clock, configuration, and
   random stream. Record exactly which screens were removed, which default or
   proposal was added, and its AI provenance.
-- **SCN-011 — Mirrors last.** Only after the REPL pair is accepted, render the
-  same envelopes in the operator skill and web/mobile composition. Those
-  mirrors do not supply missing core decisions.
+- **SCN-011 — Mirrors last.** Only after the REPL pair is settled, render the
+  same envelopes in the operator Skill and local-web composition. Those
+  mirrors do not supply missing core decisions; future mobile remains a
+  conformance target rather than a 1.0 deliverable.
 - **SCN-012 — Feed is entered from `next`.** A Feed scenario starts on the
   ordinary proposal screen. Pressing `/`, then selecting `/feed`, opens text
   input. Escape first restores the palette checkpoint and then the exact

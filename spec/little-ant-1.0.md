@@ -116,7 +116,8 @@ value may remain adjustable.
 
 - Daily product behavior: chapters 1, 3, 4, 5, 6, and 7.
 - Domain model: chapters 1 and 2.
-- REPL, web/mobile, and skill parity: chapter 7 and the UX records.
+- REPL, powered-up, Skill, and local-web parity: chapter 7 and the UX records;
+  future mobile must conform there but is not a 1.0 deliverable.
 - Imports, Packs, exporters, and TaskJuggler: chapter 8.
 - Implementation or migration planning: chapters 2, 8, and 9.
 - Finishing product discovery: follow the specification completion plan in

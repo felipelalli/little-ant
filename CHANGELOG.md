@@ -51,10 +51,13 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 #### Work model
 
 - Independent Brick lifecycle, optional phase, and WIP state.
-- Composition trees with inherited context, mode, and date constraints.
-- Explicit subtree move, complete, drop, and supersede operations.
+- Composition trees with explicit parentage, direct Domain memberships, and
+  separately typed temporal constraints; hierarchy does not invent inherited
+  classification.
+- Explicit subtree move, completion, archive, merge, and supersede operations.
 - Natures for atomic tasks, projects, collections, finite and living
-  checklists, repeatable work, recurring obligations, and habits.
+  checklists, repeatable work, recurring obligations, habits, and scheduled
+  commitments.
 - Versioned factory and personal templates.
 - Structured checklist entries that remain subordinate to their owner Brick.
 - Direct completion without fabricated execution history.
@@ -64,12 +67,11 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Completion-triggered repetition on the same Brick with a jittered
   `not_before`.
 - Recurring obligation occurrences with stable period identities.
-- Habit opportunities recorded as `done`, `not_done`, or
-  `not_applicable`.
+- Habit opportunities recorded as `done` or `unfulfilled`, with `blocked`,
+  `paused`, and `inapplicable` kept distinct.
 - Derived streak history that does not count paused or blocked periods as
   failures.
 - Schedule and timezone revisions that preserve prior occurrence history.
-- Event-triggered opportunities with replay-safe source-event identities.
 
 #### Selection and feeding
 
@@ -126,12 +128,13 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 - Fresh bounded Lua 5.4 execution through HsLua.
 - Host-mediated HTTP and credential brokering without exposing secrets to Lua.
 - Pinned Pack manifests, capability grants, and invocation provenance.
-- Microsoft To Do and Notesnook as official 1.0 source-adapter targets; their
-  final offline-standard versus pinned-companion packaging remains under
-  review.
+- Offline file adapters for Markdown, HTML, JSON, CSV, Org, Evernote ENEX,
+  Notesnook exports, and Apple Reminders Shortcut JSON, plus a separately
+  installed official connector Pack for Microsoft To Do, Google Tasks, Google
+  Calendar, and GitHub Issues.
 - TaskJuggler exporter with immutable planning manifests and separate imported
   actuals.
-- Loopback-only Metro-style local web UI adapter.
+- Loopback-only local web UI adapter using the canonical screen grammar.
 - Safe synchronization where upstream completion or removal is evidence, not
   an automatic local state change.
 - Reviewed migration cleanup with item-level previews, approvals, retries, and
@@ -141,9 +144,10 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 
 - Canonical searchable work titles and product vocabulary are English, while
   original input remains verbatim and attributed.
-- Phase is now optional (`idea`, `spec`, `exec`, or `validation`) and may be
-  disabled by Nature.
-- “Done,” “drop,” and “supersede” are distinct terminal outcomes.
+- Phase is now optional (`idea`, `spec`, `execution`, or `validation`) and may
+  be disabled by Nature.
+- Done, archive, merge, and supersede are distinct terminal outcomes; only a
+  scheduled commitment may instead end as missed or cancelled.
 - `next` considers eligibility, focus, dates, dependencies, places, recurrence,
   pressure, and reviews while treating importance as one contribution.
 - External reads and writes are explicit. Ordinary rendering performs no
@@ -160,10 +164,12 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
   Bricks; former WIP also retains independent WIP state.
 - Every migrated title-derived ID maps to a new opaque ID through an explicit
   audit record.
-- Useful descriptions, comparisons, dependencies, waits, delegation,
-  provenance, execution facts, and timestamps are retained as evidence.
-- Activation is atomic and only available after archive and projection
-  verification.
+- Useful descriptions, old precedence comparisons, dependencies, waits,
+  delegation, provenance, execution facts, and timestamps are retained as
+  evidence; old before/after answers never become v1 importance judgments.
+- Preflight is read-only, candidate construction is isolated and replayed, and
+  cutover is a separate atomic consent that retains the prior target backup and
+  never runs legacy effects.
 
 See [the migration and release contract](spec/little-ant-1.0/09-migration-and-release-contract.md)
 for the complete cutover contract.

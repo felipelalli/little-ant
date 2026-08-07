@@ -306,6 +306,14 @@ version.
   not a FIFO guarantee. The chosen occurrence is then served as `finite_work`
   with the series in secondary context. A series with no open occurrence and
   no other review is dormant.
+- **FOC-063 [standard] — Required place is a continuation after selection.**
+  Place resolution runs only after one subject and executable endpoint have
+  already been recorded. A missing or nonmatching observation replaces that
+  endpoint's `Focus?` with UX-PL01 while preserving the draw, blocker path,
+  current focus, and active Domain. A human confirmation resumes the same
+  Focus proposal; rejection applies WRK-159 and asks for another ordinary
+  `next`. This continuation is not an ordinary-lottery opportunity, duplicate
+  subject ticket, Wait, Dependency, or hard-precedence lane.
 - **FOC-032 [core] — Current focus rests outside the draw.** Accepting a Focus
   opportunity does not invoke `next` again. The current Brick becomes an
   explicit continuation and is excluded from the ordinary eligible-draw count

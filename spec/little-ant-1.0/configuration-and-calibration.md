@@ -63,6 +63,7 @@ grants authority.
 | `delegation.review_delay_hours` | `72` | Visible default delay from a handoff or reviewed observation to the next internal Delegation review. |
 | `delegation.review_skip_cooldown_hours` | `24` | Cooldown after deferring an internal Delegation review without changing its facts or authorizing a message. |
 | `delegation.unanswered_follow_up_soft_cap` | `2` | Recorded follow-up handoffs without a meaningful outcome before automatic proposals pause for an explicit strategy review. |
+| `place.negative_answer_cooldown_minutes` | `60` | Cooldown after the human says a selected required PlaceCondition is not currently met. |
 
 `time.operational_timezone` is required profile data rather than a universal
 factory value. It is an IANA identifier such as `America/Montevideo`. A

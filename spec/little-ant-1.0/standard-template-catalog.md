@@ -29,7 +29,7 @@ classifier can recognize.
 | `bug_fix` | confirmed | Fix one bounded defect and optionally record verification evidence. |
 | `one_off_errand` | confirmed | Pick up, return, deliver, or obtain one thing under Place conditions. |
 | `one_off_purchase` | confirmed | Buy one independently focusable item rather than maintain a list. |
-| `document_review` | confirmed | Review one document with an attached Raw or SourceLink. |
+| `document_review` | confirmed | Review one document with an attached Raw and optional SourceBinding. |
 | `contact_someone` | confirmed | Make one call, visit, message, or other contact. |
 | `quick_repair` | confirmed | Repair one bounded physical item. |
 | `application_submission` | confirmed | Complete and submit one application or form. |

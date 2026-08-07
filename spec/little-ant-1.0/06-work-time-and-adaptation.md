@@ -1383,7 +1383,7 @@
 - **WRK-128 [core] — Remaining update purposes dispatch to small typed
   managers.** Timing offers only the applicable subset of `may start`,
   `preferred by`, `deadline`, `repetition`, and `commitment interval`.
-  Context offers `Domains` and `people or companies`. Source material offers
+  Context offers `Domains`, `people or companies`, and `location`. Source material offers
   `linked Raw material` and `external origin`. Each
   row invokes its already typed relationship, temporal, RawLink, or
   SourceBinding manager and one-change preview. Inapplicable rows are omitted
@@ -1451,14 +1451,50 @@
 
 ## Place context
 
-- **WRK-035 [standard] — Place conditions.** A Brick may have hard or soft
-  conditions associated with a named Place.
-- **WRK-036 [standard] — Attributed observations.** Current location is a
-  time-bounded, attributed observation from a human or adapter. It affects
-  eligibility or chance only within its declared strength and validity.
+- **WRK-035 [standard] — Place conditions.** A Brick may have zero or more
+  `required` or `preferred` PlaceConditions. A condition is a canonical
+  English nonempty place label plus its kind; it is not a Place entity, handle,
+  Domain, hierarchy, ExternalEntity, or world-object registry. Labels used
+  before may be suggested by autocomplete, but selecting or typing one stores
+  the value directly on this condition and creates no global record.
+- **WRK-036 [standard] — Attributed observations.** Current location is an
+  attributed observation from a human or adapter. An adapter observation has
+  exact `observed_at` and `valid_until` instants and one or more matching place
+  labels. The one-screen human confirmation in WRK-159 is valid only for that
+  pending Focus proposal and creates no lasting location claim. Location
+  affects eligibility or chance only within its declared strength and
+  validity.
 - **WRK-037 [standard] — Privacy boundary.** Adapters provide observations;
   the core does not continuously track location or silently perform external
   actions.
+- **WRK-157 [standard] — Required means confirm before focus.** A required
+  PlaceCondition does not remove its Brick's attention subject from the
+  positive-tail draw. After the subject and executable Work endpoint are
+  selected, a valid matching observation proceeds normally. Otherwise the
+  core returns the `place_confirmation` continuation in FOC-063 instead of
+  pretending the Work is currently executable. Required labels are OR choices:
+  matching any one is enough. A Brick that truly requires several places at
+  once must use one honest combined label rather than an unsupported Boolean
+  expression.
+- **WRK-158 [standard] — Preferred is a bounded hint.** A valid matching
+  observation may add one bounded forecast signal for a preferred condition;
+  a known nonmatch may add a bounded negative signal; missing or expired
+  observation is neutral. Multiple matching preferred labels use the strongest
+  signal and never multiply tickets. Preferred place cannot exclude Work,
+  reorder importance, or become a deadline.
+- **WRK-159 [standard] — Human place answer is local to one proposal.** On
+  UX-PL01, `yes` records an attributed one-proposal confirmation and continues
+  to the already selected Work's ordinary `Focus?` without another draw. `no`
+  records only a replay-stable place deferral and configured cooldown for that
+  Brick, then returns to `next`; it is not a served-work skip, Wait,
+  `not_before`, active Domain change, or persistent claim that the human is
+  elsewhere. Uncertainty remains in the same bounded confirmation route.
+- **WRK-160 [standard] — Place maintenance is one small manager.** The
+  blocked-or-waiting `location` route creates one required condition. Context
+  maintenance can add required or preferred conditions and remove one existing
+  condition. Every change shows the Brick, label, kind, and resulting focus
+  consequence in one preview; no free-form Boolean rules or background
+  geofences exist in 1.0.
 
 ## Schedule semantics
 

@@ -25,8 +25,8 @@ implementation starts from this greenfield behavioral baseline.
 
 The maintained [v0→1.0 capability matrix](spec/little-ant-1.0/v0-v1-capability-matrix.md)
 prevents accidental regressions, while the finite
-[specification completion plan](spec/little-ant-1.0/spec-completion-plan.md)
-defines the remaining UX-first path to specification freeze.
+[specification completion record](spec/little-ant-1.0/spec-completion-plan.md)
+shows how the UX-first contract reached its final audit.
 
 The core has one unambiguous command vocabulary and no compatibility aliases.
 A skill or operator may translate natural language into those canonical
@@ -73,15 +73,20 @@ and [feeding and organization](spec/little-ant-1.0/03-feeding-and-organization.m
 
 `Brick` is the single work abstraction. A Brick may be an atomic task, a
 project, a living checklist, a collection, a repeatable activity, a recurring
-obligation, or a habit.
+obligation, a habit, or a scheduled commitment.
 
 Its lifecycle is deliberately small:
 
 ```text
 active ──▶ done
    ├─────▶ archived
-   └─────▶ superseded
+   ├─────▶ superseded
+   └─────▶ merged
 ```
+
+Only a scheduled commitment may instead end as `missed` or `cancelled`; those
+statuses record the truth of its anchored interval rather than inventing a
+generic failure state.
 
 `archived` means that the Work is no longer being pursued without claiming it
 was completed. It remains searchable, reversible, and eligible for one lazy
@@ -93,7 +98,7 @@ from position in the human importance tree: higher means more important.
 Optional phase is a separate axis:
 
 ```text
-idea · spec · exec · validation
+idea · spec · execution · validation
 ```
 
 Phase does not determine importance, completion, or WIP. Natures may disable
@@ -170,7 +175,7 @@ preserve the same actions and revisions while adapting their presentation.
 
 ```text
 $ lant
-ant> /feed
+› /feed
 
 Feed Little Ant
 
@@ -238,7 +243,7 @@ position and gains future validation pressure.
 ### Ask what to do next
 
 ```text
-ant> /next
+› /next
 
 Work:
 
@@ -250,9 +255,19 @@ Focus?
 [/] more...
 ```
 
-Direct `done` is honest: it does not invent a start time or zero-duration
-execution. A served-work skip records a reason and changes later pressure; it
-does not imply completion.
+After `yes`, the resting focus screen is deliberately smaller:
+
+```text
+Current focus:
+
+#rtlb "Replace the laptop battery"
+
+[d]one    [s]kip    [/] more...
+```
+
+Direct `done` is honest: it records completion without inventing a start time
+or zero-duration execution. A served-work skip records a reason and changes
+later pressure; it does not imply completion.
 
 ### Archive Work that has lost its meaning
 
@@ -351,7 +366,7 @@ confirmation.
 ### Read an article again later
 
 ```text
-ant> /feed https://example.com/paper
+› /feed https://example.com/paper
 Raw material saved to Inbox.
 
 ...during later triage...
@@ -360,13 +375,15 @@ Create Work: "Read the storage design paper"
 
 ...after reading...
 
-Read it again in roughly six months?
-[y]es — schedule the same Brick with a jittered not-before date
-[n]o  — retire it
+What should happen next?
+[s]et a return... — configure 6 months with ±3 months variation
+[m]anual only    — keep the same Brick available only through explicit focus
+[a]rchive        — retire the standing Brick
 [?] I don't know
 ```
 
-Completion-triggered repetition reuses the same Brick and history. It does not
+The return preview resolves to one replay-stable absolute `not_before`.
+Completion-triggered repetition reuses the same Brick and history; it does not
 create a backlog of cloned tasks.
 
 ### Track a habit
@@ -396,8 +413,8 @@ Focus forecast
 ### Review concise history
 
 ```text
-ant> /history
-ant> /history --brick #rtlb
+› /history
+› /history --brick #rtlb
 ```
 
 History queries are typed, composable, bounded, and paginated. Ordinary
@@ -407,7 +424,7 @@ complete event JSON into an agent context.
 ### Search globally without losing the current screen
 
 ```text
-ant> /search milk
+› /search milk
 ```
 
 `/search` is available from every ordinary interaction. In the REPL,
@@ -481,6 +498,19 @@ reconstructible and verified first, then the exact external deletion set is
 previewed, approved, and receipted. Container deletion requires a separate
 approval.
 
+Migrating the Little Ant v0 archive itself is a separate three-step local
+protocol. The harmless default only verifies and reports:
+
+```sh
+lant migrate --from ~/archive/lant-v0/events.jsonl --into ~/.local/share/little-ant/profiles/default
+lant migrate --build <plan>
+lant migrate --cutover <candidate>
+```
+
+Build writes an isolated candidate; cutover presents a final exact consent,
+retains the previous target as a backup, preserves the v0 archive, and never
+runs legacy effects. See the [migration contract](spec/little-ant-1.0/09-migration-and-release-contract.md).
+
 See [data, integrations, and extensions](spec/little-ant-1.0/08-data-integrations-and-extension-boundary.md).
 
 ## Architecture
@@ -514,25 +544,10 @@ up with their metadata.
 
 ## Install
 
-### Nix
-
-```sh
-nix profile install github:felipelalli/little-ant
-nix run github:felipelalli/little-ant -- status
-```
-
-### Cabal
-
-GHC 9.6 or newer is required.
-
-```sh
-git clone https://github.com/felipelalli/little-ant
-cd little-ant
-cabal install exe:la exe:lant
-```
-
-Both executable names refer to the same program. `lant` avoids the common
-interactive-shell alias `la='ls -A'`.
+The `v1` branch currently contains the frozen implementation contract, not an
+installable 1.0 binary. The implementation phase will restore Nix and Cabal
+instructions only after they are executable and verified. The sole canonical
+executable name is `lant`; 1.0 will not install an `la` compatibility alias.
 
 ## Development
 

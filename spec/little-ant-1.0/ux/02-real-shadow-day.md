@@ -84,4 +84,4 @@ factory-default change, never an invisible learned policy.
 - configuration recommendations identify the fixed fixture, random stream,
   and compared values;
 - the resulting canonical session still renders almost literally across REPL,
-  web/mobile, and skill.
+  powered-up, Skill, and local web.
