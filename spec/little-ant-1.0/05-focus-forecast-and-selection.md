@@ -320,7 +320,8 @@ version.
   the ordinary typed-review skip under `FOC-026`. Selecting it never resumes
   work by itself.
 - **FOC-039 [core] — Scope closure is a review.** An active finite parent whose
-  tracked child Bricks are all `done`, or an active `finite_checklist` with no
+  tracked child Bricks have no active member under MOD-083, or an active
+  `finite_checklist` with no
   open ListEntry, contributes one typed `scope_closure_review` opportunity to
   the ordinary subject-first lottery. Its typed purpose is `child_parts` or
   `list_entries`; the two payloads remain discriminated. It is attached to the
@@ -331,8 +332,8 @@ version.
   is needed; it never completes the parent by inference. A newly active child
   or open entry invalidates the pending review. The entry payload reports
   resolved and cancelled counts separately, so cancellation is never
-  presented as completion evidence. Archived and superseded child boundaries
-  remain governed by `OPEN-TREE-001`.
+  presented as completion evidence. Child-part payloads separately report
+  done, archived, superseded, and merged outcomes under WRK-130.
 - **FOC-040 [core] — Lazy review means weighted review.** A lazy human-review
   marker immediately contributes one typed non-execution opportunity to the
   ordinary subject-first lottery with positive, initially low weight. It is

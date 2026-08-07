@@ -129,7 +129,7 @@ open release decision rather than an inferred v1 commitment.
 - **MOD-013 [core] — Independent axes.**
 
   ```text
-  status     = active | done | archived | superseded
+  status     = active | done | archived | superseded | merged
   phase?     = idea | spec | exec | validation
   work_state = idle | wip
   focus      = zero or one current Brick globally
@@ -155,9 +155,8 @@ open release decision rather than an inferred v1 commitment.
   parent; it releases a parent-scope review that may confirm completion or
   introduce more work. Standing execution, repeatable work, scheduled
   commitments with preparation children, and pending external effects retain
-  their Nature-aware focus and closure paths. Whether archived
-  or superseded children satisfy the all-children-finished boundary remains
-  part of `OPEN-TREE-001`.
+  their Nature-aware focus and closure paths. MOD-083 defines the mixed
+  terminal-child boundary.
 - **MOD-016 [core] — Removed stages.** `seed`, `committed`, and `ready` do not
   exist in v1. Backlog-like or commitment-like meaning derives from importance
   position, not lifecycle mutation.
@@ -395,6 +394,80 @@ The factory library contains:
   beyond merely renaming its root Nature. Specialized integrations and
   uncommon domain recipes may remain in Packs, but ordinary daily-use
   Templates are deliberately broad in the offline product.
+- **MOD-083 [core] — Terminal child outcomes release review, not completion.**
+  A finite parent has unfinished child scope while any direct child is
+  `active`. When none remains active, `done`, `archived`, `superseded`, and
+  `merged` children all satisfy the mechanical no-active-child boundary and
+  release one scope-closure review. The review reports the count of each
+  outcome separately. It never treats archive, replacement, or deduplication
+  as completion and never completes the parent automatically. Restoring or
+  adding an active child invalidates that review.
+- **MOD-084 [core] — Parent archive always declares its scope.** Archiving a
+  Brick without children affects that Brick only. With direct children, the
+  human must choose `this Brick only` or `entire subtree`. The first moves all
+  direct children to the archived Brick's former parent, or root, as one
+  provisional contiguous sibling run preserving their relative order and
+  complete internal subtrees. The second archives every active descendant;
+  already terminal descendants retain their exact terminal outcome. Both
+  variants preserve history and require the gate reconciliations in WRK-129.
+  No archive command silently reparents, completes, supersedes, or merges any
+  descendant.
+- **MOD-085 [core] — Merge and supersede answer different questions.** Merge
+  is valid only when two durable Bricks represent the same intention or
+  responsibility and one identity should survive. The absorbed Brick becomes
+  terminal `merged` with an explicit `merged_into` lineage edge and remains
+  inspectable under its retired handle; commands never silently redirect that
+  handle. Supersede is valid only when distinct newer Work replaces older
+  Work; the old Brick becomes terminal `superseded` with a `superseded_by`
+  lineage edge. “Mark duplicate” is not a third mutation: duplicate suspicion
+  may end in merge, supersede, or keep separate.
+- **MOD-086 [core] — Merge uses one closed transfer matrix.** The human first
+  chooses the surviving Brick. The following rules then determine every
+  category; `choose` means that a conflict must be resolved before the final
+  preview.
+
+  | Category | Merge into survivor |
+  |---|---|
+  | identity, handles, lifecycle | survivor UUID and handle remain; loser becomes `merged`; terminal-status conflict is `choose` |
+  | title, Nature, current phase | equal values coalesce; differing values are `choose`, and Nature uses MOD-077..081 |
+  | Template provenance | survivor provenance remains active; loser provenance remains attributed merge history |
+  | parent and child structure | one parent is `choose`; children union by UUID and must fit survivor capability; cycles or duplicate scope are reconciled |
+  | sibling importance | survivor keeps evidence in the chosen parent; compatible loser edges in that same sibling group retarget, self-edges vanish, and all other edges become inactive history |
+  | Domains | union direct memberships, deduplicated |
+  | RawLinks and annotations | union exact direct links, deduplicated; two descriptions are `choose` and no Raw is copied |
+  | Dependencies | union directional edges; merge-created self-edges vanish; any new cycle is `choose` edge by edge |
+  | Waits | distinct active gates remain; equivalent gates are `choose` between keeping both or closing one as duplicate, never inferred response |
+  | dates | one-sided values carry; unequal values of the same meaning are `choose`, never silently tightened |
+  | recurrence, runs, windows, occurrences | closed history unions by identity; incompatible active state uses MOD-077..081 and never combines two live opportunities |
+  | Delegations | disjoint coverage may carry; overlapping nonterminal coverage is `choose` through take-back, reassignment, or narrowing |
+  | focus and WIP | survivor retains compatible WIP; loser focus may retarget only when the same executable unit survives, otherwise explicit pause/clear is previewed |
+  | pending and dispatched effects | pending effects are cancelled or reissued explicitly; dispatched receipts remain on their originating history |
+  | SourceBindings and external provenance | union distinct bindings; equal provider identity with conflicting baselines enters ordinary source reconciliation |
+
+  Historical events never change subject UUID. Inspection of an absorbed
+  history shows both its original subject and the surviving Brick.
+- **MOD-087 [core] — Supersede transfers nothing by resemblance.** Existing
+  replacement facts remain unchanged. A newly drafted replacement may visibly
+  propose the old parent, direct Domains, and a provisional sibling position
+  near the old Brick, but acceptance is explicit. Identity, title, Template
+  provenance, importance comparisons, history, RawLinks, annotations,
+  SourceBindings, occurrence history, and dispatched-effect receipts remain
+  with the old Brick. Children are explicitly moved to the replacement when
+  it can own them, or moved one level up under MOD-084's ordering rule. Each
+  inbound or outbound Dependency, Wait, date, recurrence rule, Delegation, or
+  pending effect is individually kept with the old history, closed, retargeted,
+  or recreated through its typed manager. No category silently follows the
+  `superseded_by` edge.
+- **MOD-088 [core] — Lifecycle composition is one atomic reviewed batch.** A
+  merge, parent archive, subtree archive, or supersede preview names scope,
+  terminal outcomes, movement, transferred facts, retained facts, conflicts,
+  gates, focus/WIP, external effects, and resulting reviews before one
+  confirmation. Every unavailable reconciliation is an educational stop.
+  Acceptance revalidates the complete write set and commits all members or
+  none. Dry-run returns the same preview without mutation. Undo uses UX-198
+  `batch` compensation and is rejected after any dependent structural,
+  lifecycle, gate, source, or effect change rather than partially splitting
+  the operation.
 
 ## Content, movement, and effective metadata
 

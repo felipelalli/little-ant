@@ -861,8 +861,8 @@
   Review skip records only typed scope-review deferral and cooldown; it never
   opens served-work symptom diagnosis or makes the parent executable. The
   contextual palette may inspect or reactivate one completed child and expose
-  valid `archive` or `supersede` routes; unresolved subtree consequences remain
-  under `OPEN-TREE-001`. For the `list_entries` purpose, the same transition
+  valid `archive` or `supersede` routes. Mixed child outcomes follow WRK-130.
+  For the `list_entries` purpose, the same transition
   family reports resolved and cancelled counts separately; `add more work`
   opens the ListEntry collector, and a committed open entry invalidates the
   review. Deferral keeps the zero-open finite checklist non-executable until
@@ -1159,6 +1159,61 @@
   responsibility remain under plan; supersession remains its explicit
   lifecycle route. These screens create no generic metadata or relationship
   editor.
+- **WRK-129 [core] — Lifecycle changes reconcile live gates before scope.**
+  Archiving or superseding a focused Brick closes its focus interval and
+  clears WIP in the accepted preview. An active scheduled interval first needs
+  its truthful attended, missed, or cancelled outcome. An active habit window,
+  recurring series, or open occurrence follows MOD-080's existing settlement
+  choices. Waits owned only by retiring Work may be explicitly cancelled as
+  no longer awaited; a response is never inferred. Active Delegation coverage
+  must be taken back, reassigned, narrowed outside the retiring scope, or
+  cancelled through the same preview and any required effect approval.
+  Approved but undelivered effects are explicitly rejected or reissued;
+  dispatched receipts remain history.
+
+  An outgoing Dependency wholly inside an archived subtree becomes inactive
+  with that scope. When active Work outside the retiring scope depends on a
+  retiring Brick, every such edge must be retargeted to valid replacement
+  Work, removed with explicit disclosure that the dependent may become
+  executable, or the dependent must enter its own archive/supersede preview.
+  The core never leaves an active dependent behind an impossible terminal
+  prerequisite or rewrites importance to compensate.
+- **WRK-130 [core] — Scope closure reports how the children ended.** A
+  `scope_closure_review` released by MOD-083 renders done, archived,
+  superseded, and merged direct-child counts separately. `complete the parent`
+  is available even when some children were not done, because it is a fresh
+  human judgment about the parent outcome, but it is never preselected from
+  cancelled or non-done evidence. `review outcomes` opens the bounded child
+  list; `add more work` and typed review skip keep WRK-066 semantics. Any
+  restored or newly active child invalidates the review before acceptance.
+- **WRK-131 [core] — Merge resolves matrix conflicts before identity loss.**
+  `lant merge` or a durable duplicate review selects exactly two different
+  Bricks and one survivor, then walks only the `choose` cells in MOD-086.
+  Conflict order is lifecycle/Nature, parent/structure, description, temporal
+  and recurrence state, Dependencies and Waits, Delegation/effects, then
+  source identity. Each choice is a resumable draft. UX-LC02 renders the full
+  transfer matrix with counts and exact exceptions before the sole commit.
+  Acceptance marks the loser `merged`, records lineage, and updates only the
+  relationships declared by MOD-086. Keep separate records only the duplicate
+  review outcome, not negative global equivalence.
+- **WRK-132 [core] — Supersession starts from replacement responsibility.**
+  `lant supersede` identifies old Work and selects or drafts the replacement.
+  The old and replacement remain different identities. When the old Brick has
+  children, UX-LC03 asks whether the replacement covers those parts or the
+  parts should move one level up; an incapable replacement enters the ordinary
+  Nature reconciliation and may be rejected without side effects. The builder
+  then visits only live gates and explicit optional transfers from MOD-087.
+  The final preview leads with `Old Work becomes superseded by` and never says
+  merge, duplicate, copy everything, or done.
+- **WRK-133 [standard] — Lifecycle commands stay explicit and searchable.**
+  CLI commands are `lant archive #brick`, `lant supersede #old #replacement`,
+  and `lant merge #survivor #absorbed`, all with `--dry-run`. In the REPL,
+  `/archive`, `/supersede`, and `/merge` use typed `#` autocomplete and guided
+  missing arguments; they accept no reversed natural-language alias or hidden
+  current target. Contextual palette entries may prefill the one unambiguous
+  displayed Brick but still render the complete resolved citation. Restore is
+  the independent `/restore #brick`; merged and superseded Bricks cannot be
+  restored as active through archive restoration.
 
 ## Place context
 

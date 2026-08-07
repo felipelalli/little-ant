@@ -4996,6 +4996,239 @@ the existing Brick or scope completion and terminates the Delegation as
 completed. Archive or supersede similarly reuses the existing Work preview and
 closes the Delegation as cancelled only in the accepted combined mutation.
 
+## UX-LC00 — Archive scope
+
+```text
+Archive:
+
+#rlav "Recover Little Ant v1"
+
+It has 3 direct parts and 8 descendants.
+
+What should be archived?
+
+[t]his Brick only
+    Move its direct parts one level up and keep them active.
+
+[e]ntire subtree
+    Archive this Brick and every active descendant.
+
+[b]ack
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Projects
+. Last focused: Mon, Aug 3, 08:10
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+No row is a default. This-only preserves each child's complete subtree and
+relative order in MOD-084's provisional sibling run. Entire-subtree leaves
+done, superseded, and merged descendants in their existing terminal states.
+Either route enters UX-LC05 only when live gates require choices, then the
+complete archive preview. Reverse navigation or back restores the caller with
+no mutation.
+
+## UX-LC01 — Existing-Work relationship
+
+```text
+Similar Work exists:
+
+#rrsr "Review Rock Splitter rules"
+#crsr "Check the current Rock Splitter rules"
+
+How are these related?
+
+[m]erge
+    The same Work was recorded twice; one identity should survive.
+
+[s]upersede
+    Newer Work replaced older Work; keep both identities and lineage.
+
+[k]eep separate
+    They remain independent Work.
+
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Merge next asks which complete Brick should survive, without a dumb default.
+Supersede next asks which is old and which is replacement. Keep separate
+resolves only this suspicion. Question mark follows UX-220 and returns one
+marked suggestion for explicit selection; repeated uncertainty leaves the
+review pending.
+
+## UX-LC02 — Merge preview
+
+```text
+Merge the same Work?
+
+Survivor:
+#crsr "Check the current Rock Splitter rules"
+
+Absorbed:
+#rrsr "Review Rock Splitter rules"
+
+Will combine:
+- 2 direct Domains
+- 4 non-description Raw links
+- 1 Dependency
+- complete history and source lineage
+
+Selected during review:
+- keep the survivor's description
+- keep the survivor's parent and sibling position
+- cancel one duplicate Wait without claiming a response
+
+Will remain separate:
+- each original event subject and dispatched-effect receipt
+- both Template provenance records
+
+#rrsr becomes merged into #crsr.
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Empty matrix sections disappear. Edit returns to the nearest chosen MOD-086
+cell. No restores UX-LC01. Yes is the sole atomic mutation and renders both
+complete Brick citations in the result. A direct `--dry-run` ends on this
+content with `Dry run · no changes made` and no yes action.
+
+## UX-LC03 — Superseded-parent parts
+
+```text
+Supersede:
+
+Old Work:
+#rsr "Review the old Rock Splitter rules"
+
+Replacement:
+#crsr "Check the current Rock Splitter rules"
+
+The old Work has 3 direct parts.
+
+Where should those parts go?
+
+[r]eplacement
+    Move them under #crsr if its behavior can own them.
+
+[u]p one level
+    Keep them independent under #rs "Rock Splitter".
+
+[b]ack
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Replacement enters Nature reconciliation when needed; up-one-level uses the
+same visible provisional-run rule as archive. After live-gate choices, the
+final preview states `Old Work becomes superseded by` and lists only explicit
+transfers. Nothing is copied by title similarity.
+
+## UX-LC04 — Scope closure with mixed outcomes
+
+```text
+Review:
+
+#rlav "Recover Little Ant v1"
+
+No active direct parts remain.
+
+3 done · 1 archived · 1 superseded · 1 merged
+
+What should happen now?
+
+[c]omplete the parent
+[r]eview outcomes
+[a]dd more work
+[s]kip
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Projects
+. Last changed: Mon, Aug 3, 08:40
+           Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+There is no default. Review outcomes opens a bounded child list with filters
+for each shown state and returns here. Completion is a new assertion about the
+parent, not a roll-up. Add and skip retain WRK-066. A stale active child
+replaces this screen before any selected action can commit.
+
+## UX-LC05 — Lifecycle conflict checkpoint
+
+```text
+Archive subtree:
+
+#rlav "Recover Little Ant v1"
+
+1 of 2 decisions
+
+#dep "Publish the release" depends on this subtree but will stay active.
+
+What should happen?
+
+[r]etarget the dependency...
+[u]nblock #dep
+[a]rchive or supersede #dep...
+[b]ack
+[?] I don't know
+
+[/] more...
+
+────────────────────────────────────────
+. <root>
+  Personal › Projects
+. Last focused: Mon, Aug 3, 08:10
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+The exact rows depend on the one WRK-129 or MOD-086 conflict and always invoke
+its existing typed manager. `unblock` explicitly removes this Dependency and
+the final preview says the dependent may become executable. Back discards the
+whole pending lifecycle draft. No `ignore`, `force`, or generic transfer row
+exists.
+
 ## UX-I01 — Text input
 
 ```text

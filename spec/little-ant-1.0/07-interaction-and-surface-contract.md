@@ -983,9 +983,10 @@ no-emoji rendering remain `OPEN-UX-001`.
   appears only when the selected Brick already has direct child Bricks. It
   identifies the parent, shows active children first in current importance
   order, and then a bounded inactive summary whose visible rows carry their
-  plain `done`, `archived`, or `superseded` state without claiming a current
-  importance slot or aggregate completion. Overflow is stated by count and
-  the contextual `/show #parent` projection returns to the unchanged screen.
+  plain `done`, `archived`, `superseded`, or `merged` state without claiming a
+  current importance slot or aggregate completion. Overflow is stated by
+  count, and the contextual `/show #parent` projection returns to the
+  unchanged screen.
   Primary actions are `[a]dd parts`, `[o]rder active parts` when at least two
   active children exist, uncertainty, and the slash palette, with no default.
   Add reuses UX-B00; order reuses the ordinary continuous `/order #parent`
@@ -1486,6 +1487,44 @@ no-emoji rendering remain `OPEN-UX-001`.
   observable wording as UX-216 restricted to that submenu. An assisted mode
   may mark one row with attribution but reaches the identical typed manager
   and preview.
+- **UX-218 [core] — Parent archive begins with visible scope.** UX-LC00 appears
+  only when the selected Brick has direct children. It explains `this Brick
+  only` as moving those children one level up and `entire subtree` as
+  archiving active descendants. Neither row is a default. Selection enters
+  WRK-129 gate reconciliation and the complete MOD-088 preview; it does not
+  mutate structure while browsing.
+- **UX-219 [core] — Scope closure shows terminal counts before asking.**
+  UX-LC04 uses `Review:` and lists done, archived, superseded, and merged child
+  counts, including zero only when it clarifies the total. It offers complete
+  parent, review outcomes, add more work, lottery skip, and uncertainty.
+  Completion has no default even when every child is done.
+- **UX-220 [core] — Duplicate review distinguishes sameness from
+  replacement.** UX-LC01 asks how two existing Bricks are related and offers
+  merge as `the same Work was recorded twice`, supersede as `newer Work
+  replaced older Work`, and keep separate. The shortcut and explanation are
+  stable across direct, duplicate-review, Raw, and import origins. Question
+  mark uses one observable test: whether completing either record would have
+  fulfilled the same intention at the time both were active.
+- **UX-221 [core] — Lifecycle previews lead with human outcomes.** UX-LC02
+  leads with survivor and absorbed Work, then combined, retained, selected,
+  and stopped facts from MOD-086. Supersede leads with old and replacement
+  Work, then child disposition and each explicit MOD-087 choice. Archive leads
+  with selected scope, moved or archived child counts, live-gate outcomes, and
+  focus effect. Technical UUIDs and empty categories are omitted from ordinary
+  rendering. Every preview offers yes, edit, no, and uncertainty with no dumb
+  default; `--dry-run` renders the same content without actionable yes.
+- **UX-222 [core] — Lifecycle conflict resolution is one question at a
+  time.** UX-LC05 renders the selected operation, progress, one conflicting
+  fact, and only its valid typed resolutions. It reuses Nature, move,
+  Dependency, Wait, Delegation, effect, source, and date managers rather than
+  defining a generic conflict editor. Back discards the whole pending
+  lifecycle draft. After the final resolution it opens the complete preview.
+- **UX-223 [standard] — Assistance may explain but not broaden lifecycle.**
+  Powered-up and Skill may suggest merge versus supersede, survivor,
+  replacement, archive scope, or one existing conflict action with concise
+  attribution. A rejected proposal returns to the exact dumb screen. No mode
+  may infer external cancellation, select a terminal outcome, transfer a
+  relationship, or approve a batch silently.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

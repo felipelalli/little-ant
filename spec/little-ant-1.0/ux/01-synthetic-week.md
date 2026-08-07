@@ -1062,8 +1062,8 @@ neighborhood with one lazy importance review, update-and-restore after an
 accepted edit, and explicit supersession by newer Work. Keeping archived must
 resolve the one automatic review without creating a periodic nag. Search must
 still find the Brick throughout. Run the same transcript for an archived child
-and stop at the explicit `OPEN-TREE-001` boundary rather than inventing parent
-closure semantics.
+and apply MOD-083's mixed terminal-child scope review without inventing parent
+completion.
 
 Enter UX-S37 independently from direct `/update #brick`, active `update it`,
 and archived `update and restore`. Verify all seven semantic purposes, the
@@ -1153,8 +1153,8 @@ without silent reuse. Enter continuous ordering from UX-S55 and verify that
 only the stable UX-O03 result offers `[p]arts`; resume and next retain their
 ordinary meanings. Pair one assisted draft and one attributed action hint
 with the identical dumb confirmation and reject both without mutation. Leave
-part-batch compensation through UX-198 and archived/superseded child
-closure under `OPEN-TREE-001`.
+part-batch compensation through UX-198 and mixed child closure through
+MOD-083 and UX-LC04.
 
 For structural compatibility, mechanically replay every MOD-062 cell. Confirm
 that project and collection enter Parts directly, both checklists defer only
@@ -1254,6 +1254,39 @@ commitment with an active interval, and focused/WIP Work. Every incompatible
 fact must obtain WRK-122's explicit resolution or block confirmation without
 silent conversion; then replay undo both before and after one intervening
 conflicting action.
+
+### SCN-LC-001 — Parent lifecycle, merge, and supersession
+
+Build one finite tree containing active, done, archived, superseded, and
+merged direct children, an internal Dependency, one inbound Dependency from
+outside, an active Wait, disjoint and overlapping Delegations, pending and
+dispatched effects, two descriptions, recurrence history, and conflicting
+source baselines. Archive its parent through UX-LC00 on independent replays.
+For `this Brick only`, verify visible one-level movement of every direct child
+as one provisional run with internal subtrees and relative order preserved.
+For `entire subtree`, preserve exact terminal descendants while archiving
+active descendants. Traverse every UX-LC05 gate, reject once without partial
+mutation, then accept and verify focus/WIP, Wait, Delegation, effect, recurring,
+and cross-boundary Dependency outcomes. Dry-run must render the same preview.
+
+Remove or terminally resolve every active child in another replay. Draw
+UX-LC04 and verify separate state counts, no default, outcome inspection, add,
+skip, and explicit parent completion. Restoring one child before acceptance
+must replace the stale review. Completion must never cascade from the child
+states.
+
+Create two durable duplicate Bricks and traverse UX-LC01. Keep them separate
+once, supersede once, and merge once. For merge, choose each survivor on
+separate fixed-state replays and exercise every MOD-086 matrix row: parent and
+Nature conflict, sibling evidence, Domains, descriptions and other RawLinks,
+Dependency cycle, equal/different Waits, dates, recurrence state, overlapping
+Delegation, focus/WIP, effects, annotations, occurrences, and SourceBindings.
+Verify one `merged` loser, no silent handle redirect, original event subjects,
+one atomic result, and undo before and after an intervening conflict. For
+supersede, use both an existing and newly drafted replacement, move children
+to it and one level up, and prove MOD-087 transfers nothing by resemblance.
+Pair each dumb route with an attributed assisted suggestion and reject it back
+to the identical baseline.
 
 ### SCN-EXT-001 — Import and source deletion
 

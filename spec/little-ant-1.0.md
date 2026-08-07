@@ -52,13 +52,13 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** subtree outcomes and merge/supersede transfer.
+**Next review:** judgment assistance for impact, effort, and maturity.
 
 - Owning gate: Gate 4.
-- Owning boundaries: `OPEN-TREE-001` and `OPEN-MERGE-001`.
-- Reuse, do not reopen: composition and identity in `MOD-008..024`, Nature
-  capabilities in `MOD-025..047` and `MOD-077..082`, and all accepted
-  structure, archive, supersession, and merge routes.
+- Owning boundary: `OPEN-JUD-001`.
+- Reuse, do not reopen: importance evidence in `IMP-001..016` and
+  `IMP-030..046`, subjective EffortProfiles in `IMP-022..029`, and accepted
+  comparison/recalibration screens.
 - Preserve completed Plan and Delegation routes in `WRK-109..121`,
   `UX-166..183`, and their screen families.
 - Do not enter here: recurrence timing policy, adapter effects, source
