@@ -598,6 +598,19 @@
   reconciliation. The accepted Nature change and requested initial structure
   form one typed reversible action; rejection or reverse navigation preserves
   the original Nature and structure completely.
+- **WRK-113 [core] — Reparenting preserves Domains and exposes structural
+  divergence.** A move compares the Brick's direct Domain path set with the
+  proposed parent's direct path set using only canonical equality, Domain-tree
+  ancestry, set overlap, disjointness, and absence. If the sets differ, the
+  preview shows both complete sets and states the mechanically derived
+  relationship; it never labels them semantically similar, unrelated, close,
+  or very different. Accepting `yes, keep current Domains` moves only the
+  composition root and retains every Domain membership. `change Domains`
+  suspends the move in the canonical context editor and returns to one combined
+  preview; no relationship or membership changes before final acceptance. A
+  move to a parent with identical memberships may omit the contrast block.
+  Powered-up or Skill may mark `change Domains` and explain semantic evidence,
+  but cannot alter the dumb comparison or apply a membership silently.
 
 ## Time
 

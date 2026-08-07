@@ -2706,6 +2706,54 @@ failing generically, or converting state silently. Assistance may mark one
 existing row or precede it with a complete UX-060 proposal; rejecting either
 restores this exact screen. Escape restores UX-S48 without evidence.
 
+## UX-S51 — Move preview with Domain contrast
+
+```text
+Move this Brick?
+
+#rrsr "Review Rock Splitter rules"
+
+From:
+#rs "Rock Splitter"
+
+To:
+#hr "House renovation"
+
+Context differs:
+
+This Brick:
+Orbit › R&D › Rock Splitter
+
+New parent:
+Personal › Housekeeping
+
+These Domain paths do not overlap.
+Moving will not change the Brick's Domains.
+
+[y]es, keep current Domains
+[c]hange Domains...
+[n]o
+[?] I don't know
+
+────────────────────────────────────────
+. #rs "Rock Splitter"
+  Orbit › R&D › Rock Splitter
+. Last focused: Sun, Aug 2, 22:14
+          Now: Mon, Aug 3, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: #rrsr
+```
+
+The dumb core derives only equality, Domain-tree ancestry, set overlap,
+disjointness, or absence from explicit direct memberships. Any unequal sets
+render their complete paths; `do not overlap` is a structural fact, not a
+semantic judgment. Yes changes only composition and preserves every current
+membership. Change Domains opens canonical context editing and returns to one
+combined preview. No restores the still-uncommitted parent selector. Question
+mark follows a bounded explanation or existing action without inventing the
+human's desired context. Assistance may recommend change with an attributed
+semantic reason, but cannot alter this comparison or mutate silently.
+
 ## UX-K01 — Nature choice
 
 ```text

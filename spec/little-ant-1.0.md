@@ -187,7 +187,7 @@ discovery without claiming unseen candidates do not fit. `Group` remains
 interface language rather than a core object. Assisted modes may propose an
 attributed bounded recent-Raw batch but never delay Feed or accept routing.
 That review subsequently reached the stale-Work and semantic-maintenance
-flows. `MOD-060`, `WRK-098..112`, `UX-152..169`, and UX-S35..S50 now distinguish
+flows. `MOD-060..061`, `WRK-098..113`, `UX-152..170`, and UX-S35..S51 now distinguish
 reversible archive, restoration, stale correction, and ordinary direct
 `/update #brick`. All three update origins share one neutral semantic hub, but
 only the stale and archived origins carry their respective atomic evidence or
@@ -197,10 +197,12 @@ gates, and responsibility rather than an entity, phase, or axis; `/edit` and
 responsibility; its blocker route reuses the existing human classifier while
 omitting skip-only grammar and evidence. Structure always exposes placement,
 child parts, and list items; an incompatible choice proposes explicit Nature
-reconciliation instead of disappearing or converting silently. Resume the
-UX-first review at Structure `[w]ithin larger Work`, then exercise parts, list
-items, and responsibility before proceeding to timing, context, and source
-material.
+reconciliation instead of disappearing or converting silently. Composition
+never grants Domain membership; dumb reparenting compares only explicit path
+sets, preserves them by default, and exposes divergence without semantic
+guessing. Resume the UX-first review at the parent selector and new-sibling
+importance placement, then exercise parts, list items, and responsibility
+before proceeding to timing, context, and source material.
 
 ## Scope rings
 

@@ -955,6 +955,18 @@ convert a child Brick and ListEntry into one another. Leave each downstream
 structure manager and responsibility at its explicit `OPEN-PLAN-001` boundary
 until its screen is reviewed.
 
+For reparenting, cover identical, ancestor-related, partially overlapping,
+disjoint, and missing direct Domain path sets, including multiple memberships
+on both sides. Unequal sets must render every path and only their mechanical
+relationship; the dumb core must never infer semantic distance from titles or
+Domain names. In UX-S51, accept `yes, keep current Domains` and prove that only
+composition and the moved root's provisional sibling placement change. On a
+separate replay choose `change Domains`, reject the combined preview, and prove
+that neither movement nor membership occurred. Accept it once and verify one
+reversible combined action. Creation under a parent may visibly propose its
+paths, but acceptance must store direct memberships; later parent movement must
+not cascade a Domain change through any descendant.
+
 For Nature/behavior, first select the current Nature in UX-S46 and prove an
 event-free no-op. Traverse the full mechanical discovery route over the
 existing Brick, reject its result, and verify no classification evidence was

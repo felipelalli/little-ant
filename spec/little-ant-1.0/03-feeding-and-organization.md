@@ -205,14 +205,16 @@
   blocked Brick, and add a Dependency from the blocked Brick to the new
   prerequisite. A root Brick therefore proposes another root Brick. The
   suggestion is visible and reversible; it never silently reparents,
-  reclassifies, or equates dependency with importance. Exact direct versus
-  inherited Domain encoding remains under `OPEN-MOD-003`.
+  reclassifies, or equates dependency with importance. Accepting the shown
+  Domain path stores explicit direct memberships on the new Brick under
+  MOD-061; composition itself grants none.
 - **FED-031 [standard] — Assisted enabling exception.** Skill or powered-up
   mode may replace the dumb structural suggestion with one attributed
   canonical proposal when title, hierarchy, Domain, or relationship evidence
   supports another parent or Domain. It cannot remove or reverse the enabling
-  Dependency. The complete proposed parent, effective Domain, and Dependency
-  are shown before confirmation. With weak or conflicting evidence, it must
+  Dependency. The complete proposed parent, proposed direct Domain memberships
+  with their effective paths, and Dependency are shown before confirmation.
+  With weak or conflicting evidence, it must
   reuse the dumb baseline. Rejecting an assisted proposal records no evidence
   and enters the unchanged dumb structure route with the input preserved.
 - **FED-032 [core] — Dumb better-way scaffolds an enabling Brick.** The dumb

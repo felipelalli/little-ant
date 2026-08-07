@@ -243,6 +243,16 @@ The factory library contains:
   ListEntries are executed and shown together through their owning checklist
   Brick under MOD-003 and MOD-036. Choosing one intent never silently converts
   an existing child Brick into a ListEntry or vice versa.
+- **MOD-061 [core] — Composition never grants Domain membership.** Every Brick
+  Domain membership is explicit and direct. A parent, ancestor, child, or
+  sibling may inform a visible proposal, but accepting that proposal stores
+  ordinary direct memberships on the target Brick. Moving or decomposing Work
+  never adds, removes, or rewrites a Brick's Domains implicitly, and Domain
+  membership never reparents Work. Retrieval and focus continuity traverse the
+  declared Domain hierarchy independently of the composition tree. An
+  `effective Domain path` is therefore the ancestor path of an explicit direct
+  membership for query and display, not membership inherited from a Brick
+  parent.
 
 ## Content, movement, and effective metadata
 
@@ -259,7 +269,7 @@ The factory library contains:
   parent's sibling position and creates a locally ordered child set. Moving a
   subtree preserves its internal tree/order, reinserts only the moved root in
   its new sibling set with low confidence, and keeps old-scope comparisons as
-  inactive history.
+  inactive history. Direct Domain memberships remain unchanged under MOD-061.
 - **MOD-032 [core] — Coverage follows structure.** Adding, moving, or removing
   relevant descendant scope reopens decomposition coverage for affected finite
   parents and may create a scope review; it never rewrites unrelated evidence.
@@ -271,9 +281,9 @@ The factory library contains:
   effective_deadline = earliest value on self and ancestors
   ```
 
-- **MOD-034 [standard] — Inheritance must be explicit.** Final mode vocabulary,
-  nearest-ancestor mode behavior, direct versus inherited Domain membership,
-  and inheritance of requester, `about`, or RawLinks remain
+- **MOD-034 [standard] — Inheritance must be explicit.** Domain membership is
+  direct-only under MOD-061. Final mode vocabulary, nearest-ancestor mode
+  behavior, and inheritance of requester, `about`, or RawLinks remain
   `OPEN-MOD-003`. Implementations must not infer them from the old free-text
   `context` field.
 

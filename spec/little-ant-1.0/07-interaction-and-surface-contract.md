@@ -891,6 +891,17 @@ no-emoji rendering remain `OPEN-UX-001`.
   resolved compatible result through UX-060, but rejection returns to exact
   dumb UX-S50. The exact parent mover, child manager, ListEntry manager, and
   incompatible-Nature choice screens remain under `OPEN-PLAN-001`.
+- **UX-170 [core] — Move preview compares Domains mechanically.** When the
+  selected parent and moving Brick have unequal direct Domain path sets, the
+  move preview uses UX-S51. It renders From, To, the complete current and new
+  parent Domain paths, and one structural conclusion: paths are related by
+  ancestry, partially overlap, do not overlap, or one side has no Domain.
+  Actions are `[y]es, keep current Domains`, `[c]hange Domains...`, `[n]o`, and
+  uncertainty, without a dumb default. Yes follows WRK-113; change enters the
+  typed Domain editor and returns to a combined preview; no restores the parent
+  selector. Assistance may mark change and append one attributed semantic
+  reason, but the dumb renderer never claims semantic distance. Exact parent
+  selection and same-Domain compact preview remain under `OPEN-PLAN-001`.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

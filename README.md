@@ -317,6 +317,13 @@ cannot represent the selected structure, Little Ant previews the necessary
 Nature change and reconciliation instead of hiding the choice or converting
 state silently.
 
+Composition and Domains remain independent. Domain memberships are explicit
+and direct; a parent may inform a visible suggestion but never grants
+membership. Moving Work preserves its Domains. When the new parent has a
+different Domain path set, dumb mode shows the exact structural contrast and
+offers either to keep the current memberships or edit them before one combined
+preview. Only powered-up mode or a Skill may add a semantic recommendation.
+
 Within `meaning`, title and description are independent choices. Renaming
 preserves the Brick UUID, `#handle`, hierarchy, order, relationships,
 lifecycle, and focus; the former title remains history but does not become an
