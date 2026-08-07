@@ -97,7 +97,7 @@ exists, the v1 starting profile may use:
 | Phase | Provisional center |
 |---|---:|
 | `validation` | 12.5% |
-| `exec` | 37.5% |
+| `execution` | 37.5% |
 | `spec` | 50% |
 | `idea` | 75% |
 

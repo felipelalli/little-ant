@@ -966,7 +966,7 @@
 - **WRK-027 [calibration] — Introspection.** Repeated skips or unfulfilled
   intentions can create a review using configurable evidence thresholds.
   Possible remedies remain explicit: revise schedule, add a dependency or
-  enabling Brick, pause, retire, or gather more evidence.
+  enabling Brick, pause, archive, or gather more evidence.
 - **WRK-062 [core] — Nature-owned skip consequences.** Finalizing a typed
   skip on an ordinary-lottery execution always grants an immediate
   replay-deterministic cooldown, so the same opportunity cannot nag through

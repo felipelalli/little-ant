@@ -154,7 +154,7 @@ Domain.
   ```text
   status     = active | done | archived | superseded | merged
              | missed | cancelled
-  phase?     = idea | spec | exec | validation
+  phase?     = idea | spec | execution | validation
   work_state = idle | wip
   focus      = zero or one current Brick globally
   ```
@@ -189,10 +189,10 @@ Domain.
   or focus.
 - **MOD-018 [standard] — Descriptive phase.** Phase is not a required workflow
   and never sorts importance. Its closed human rendering is `💡 idea`,
-  `📐 spec`, `🔨 execution`, and `🧪 validation`; the stored value behind
-  `execution` is `exec`. Every icon is decorative and the adjacent English
-  label is mandatory. With emoji disabled, the exact labels remain `idea`,
-  `spec`, `execution`, and `validation`. A phase change is an ordinary
+  `📐 spec`, `🔨 execution`, and `🧪 validation`; the stored values use those
+  same complete English words. Every icon is decorative and the adjacent
+  English label is mandatory. With emoji disabled, the exact labels remain
+  `idea`, `spec`, `execution`, and `validation`. A phase change is an ordinary
   explicit update, not an automatic lifecycle transition.
 
 ## Composition and relationships
@@ -355,12 +355,12 @@ The factory library contains:
   |---|---|---|---|---|---|
   | `atomic_task` | finite | the Brick | none | none | direct `done` |
   | `project` | finite | the Brick until decomposed, then child Bricks | finite child parts | none | final child releases scope review |
-  | `collection` | standing | independently selected child Bricks | open child members | none | explicit retirement only |
+  | `collection` | standing | independently selected child Bricks | open child members | none | explicit archive only |
   | `repeatable` | standing | one run of the Brick | none | none | finish or choose one completion-relative return |
   | `living_checklist` | standing | owner and open entries together | continuing ListEntries | none | finishing a run leaves the owner active |
   | `finite_checklist` | finite | owner and entries together | finite ListEntries | none | finished entries release scope review |
-  | `recurring_obligation` | standing | independently released occurrence Bricks | generated atomic tasks or scheduled commitments, never manual parts | recurrence rule and occurrence Nature | occurrences close independently; series retires explicitly |
-  | `habit` | standing | one expiring opportunity | none | fixed-slot or quota-window schedule | window outcomes extend history; owner retires explicitly |
+  | `recurring_obligation` | standing | independently released occurrence Bricks | generated atomic tasks or scheduled commitments, never manual parts | recurrence rule and occurrence Nature | occurrences close independently; series archives explicitly |
+  | `habit` | standing | one expiring opportunity | none | fixed-slot or quota-window schedule | window outcomes extend history; owner archives explicitly |
   | `scheduled_commitment` | anchored finite | the exact commitment interval | optional preparation child Bricks | zoned interval | attended, missed, or cancelled outcome |
 
   Lazy axes such as phase and effort, ordinary relationships, and Template

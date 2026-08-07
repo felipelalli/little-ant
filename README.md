@@ -378,7 +378,7 @@ Create Work: "Read the storage design paper"
 What should happen next?
 [s]et a return... — configure 6 months with ±3 months variation
 [m]anual only    — keep the same Brick available only through explicit focus
-[a]rchive        — retire the standing Brick
+[a]rchive        — archive the standing Brick
 [?] I don't know
 ```
 
@@ -395,8 +395,8 @@ Swim twice per week
 Skipping now will end a streak of 2. Continue?
 ```
 
-Habit opportunities are recorded as `done`, `not_done`, or
-`not_applicable`. A paused or blocked habit does not fabricate failure.
+Habit opportunities are recorded as `done` or `unfulfilled`. `blocked`,
+`paused`, and `inapplicable` remain distinct and do not fabricate failure.
 Repeated friction may propose a review to discover an enabling Brick or revise
 the schedule.
 
@@ -574,7 +574,7 @@ historical evidence, not implementation guidance.
 
 | v0 | v1 |
 |---|---|
-| `seed → committed → ready → wip` mixed commitment, readiness, and execution | A Brick is simply `active`, `done`, `archived`, or `superseded`; WIP and optional phase are independent axes |
+| `seed → committed → ready → wip` mixed commitment, readiness, and execution | A Brick is simply `active`, `done`, `archived`, `superseded`, or `merged`; only scheduled commitments add `missed`/`cancelled`, while WIP and optional phase are independent axes |
 | Only frontier tasks were ordered | Every active Brick has one strict position among its siblings |
 | Ordering asked whether one task came before another | Importance ordering asks which Brick is **more important**; uncertainty is retained instead of treated as equality |
 | `next` and priority were easy to conflate | Importance order and the read-only focus forecast are explicit, separate views |
@@ -593,7 +593,7 @@ notes.
 
 ## Specification map
 
-| Area | Current specification |
+| Subject | Current specification |
 |---|---|
 | Product language and scope | [Chapter 1](spec/little-ant-1.0/01-product-language-and-scope.md) |
 | Brick, ListEntry, Nature, template, identity | [Chapter 2](spec/little-ant-1.0/02-concepts-identity-and-hierarchy.md) |

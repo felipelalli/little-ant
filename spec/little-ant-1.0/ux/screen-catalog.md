@@ -767,7 +767,7 @@ What should happen next?
     Keep it available only through explicit /focus.
 
 [a]rchive
-    Retire the standing Brick after this completed run.
+    Archive the standing Brick after this completed run.
 
 [?] I don't know
 
