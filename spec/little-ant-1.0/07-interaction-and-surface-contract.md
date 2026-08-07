@@ -907,8 +907,7 @@ no-emoji rendering remain `OPEN-UX-001`.
   resolved compatible result through UX-060, but rejection returns to exact
   dumb UX-S50. The parent mover, child manager, parts compatibility, and
   incompatible-parent screens are settled by UX-170..179; the ListEntry route
-  is settled by UX-180..181, while responsibility remains under
-  `OPEN-PLAN-001`.
+  is settled by UX-180..181, and responsibility by UX-182..183.
 - **UX-170 [core] — Move preview compares Domains mechanically.** When the
   selected parent and moving Brick have unequal direct Domain path sets, the
   move preview uses UX-S51. It renders From, To, the complete current and new
@@ -1125,6 +1124,52 @@ no-emoji rendering remain `OPEN-UX-001`.
   suggestion beside the unchanged dumb choices. They may not resolve, cancel,
   reopen, edit quantity, finish a run, complete a checklist, or invent a unit
   conversion.
+- **UX-182 [standard] — Responsibility uses one consequence-first builder.**
+  UX-D02 begins with `Who should do this work?` and `[m]e`, `[s]omeone else`,
+  and uncertainty, without a default. `someone else` reuses UX-075 and follows
+  WRK-119. A fixed factory scope appears only as a preview fact; among resolved
+  factory scopes, only `project` asks whether the target owns the Brick outcome
+  alone or its current and future scope. The policy screen uses `[o]nce`,
+  `[e]very review`, and
+  `[n]o automatic follow-up`, with consequence copy and no default. Review
+  delay uses `[o]ne day`, `[t]hree days`, `one [w]eek`, and `[c]ustom...`;
+  three days is the visible factory default accepted by `*` or Enter. Handoff
+  method lists only available adapters plus `[m]anually`; absence of an adapter
+  is a normal one-choice screen, not an error.
+
+  The final preview and proposed-state handoff screens always show the full
+  rendered Brick, target, coverage, policy, review delay, handoff method, and
+  editable message. Direct initial and take-back effect confirmations reuse
+  UX-A01 without lottery skip. Manual confirmation asks whether responsibility
+  has actually been handed off and explains that yes claims only that fact.
+  Cancellation before handoff creates no message. Assisted modes may propose
+  a target, scope, policy, delay, method, or text only as one attributed
+  complete proposal; rejection returns to the unchanged dumb builder. They
+  may not accept a field, approve an effect, record delivery or manual handoff,
+  or activate responsibility.
+- **UX-183 [standard] — Delegation reviews lead to typed reconciliation.** A
+  selected internal review uses UX-D03 and offers progress update, reported
+  complete, refused, no response, take it back, typed skip, and uncertainty.
+  It never embeds a send button: a policy-permitted no-response result may
+  transition to the separate UX-A01 effect approval. Progress and no-response
+  results visibly name the next review instant. Reported completion shows the
+  exact covered work still open before offering existing Nature closure;
+  refusal uses UX-D04. Take-back and reassignment previews expose human-
+  eligibility restoration, pending-effect rejection, new proposal facts, and
+  any optional later message separately.
+
+  The review uncertainty tree asks, in order, whether the target explicitly
+  reported completion, explicitly declined, supplied a meaningful progress
+  update, or supplied any response. Confirmed yes leaves map to the existing
+  visible outcomes; confirmed no to all four maps to no response. A second
+  uncertainty at a node shows the bounded evidence/history projection and
+  returns unresolved without guessing. Project scope uncertainty asks whether
+  current and future parts should remain the human's responsibility. Policy
+  uncertainty first asks whether Little Ant may ever suggest a follow-up
+  message, then whether it should do so at most once. Manual-handoff
+  uncertainty asks whether the message or equivalent responsibility transfer
+  was actually delivered. Every tree preserves reverse navigation and records
+  nothing before a confirmed leaf.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
   that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies

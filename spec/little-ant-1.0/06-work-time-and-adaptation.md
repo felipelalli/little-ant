@@ -646,7 +646,9 @@
   review count visible in the result. If the parent is current focus, focus
   and WIP remain unchanged; the preview and result say so rather than
   fabricating staleness or silently clearing attention. Incompatible Natures
-  continue through WRK-112 before collection or mutation.
+  continue through WRK-112 before collection or mutation. A parent covered by
+  active `whole_scope` Delegation makes the preview state that each new child
+  is covered immediately and will not enter human execution.
 - **WRK-116 [core] — Reclassifying a proposed parent is a two-subject atomic
   move.** If an otherwise eligible proposed parent lacks the child-parts
   capability in MOD-062, the finite/open distinction, target-required
@@ -681,7 +683,9 @@
   one another. The manager operates on the selected owner and its local
   entries; every contextual palette mutation must resolve and display that
   target explicitly rather than treating the multi-row surface as an implicit
-  global reference.
+  global reference. An owner covered by active `whole_scope` Delegation makes
+  the batch preview state that every new entry is covered immediately and will
+  not create human execution.
 - **WRK-118 [standard] — Checklist runs preserve honest item and owner
   outcomes.** Accepting a checklist Focus proposal starts or resumes at most
   one active run correlation for that owner. The run ends only through an
@@ -889,9 +893,12 @@
   brick_only | whole_scope | ask | disabled
   ```
 
-  `whole_scope` derivatively covers current and future descendants and
-  Nature-owned entries; `ask` stores the concrete choice; `disabled` still
-  permits separate enabling work.
+  `whole_scope` derivatively covers current and future descendants,
+  Nature-owned entries, and occurrences released by a standing recurring
+  series. `brick_only` covers every execution of the selected durable Brick
+  identity but none of those related identities. `ask` stores one concrete
+  valid choice; two mechanically identical choices must never be shown.
+  `disabled` still permits separate enabling work.
 
 - **WRK-032 [standard] — Factory delegation scopes.**
 
@@ -900,10 +907,10 @@
   | `atomic_task` | `brick_only` |
   | `project` | `ask` |
   | `collection` | `brick_only` |
-  | `repeatable` | `ask` |
-  | `living_checklist` | `ask` |
+  | `repeatable` | `brick_only` |
+  | `living_checklist` | `whole_scope` |
   | `finite_checklist` | `whole_scope` |
-  | `recurring_obligation` | `ask` |
+  | `recurring_obligation` | `whole_scope` |
   | `habit` | `disabled` |
 
   `scheduled_commitment` is intentionally absent until `OPEN-SCH-001`
@@ -980,6 +987,83 @@
   the allowance by one and never resets evidence or grants automatic sending.
   Taking back or reassigning follows Delegation reconciliation; escalation
   creates nothing before the ordinary guided Brick preview and confirmation.
+- **WRK-119 [standard] — Responsibility builds one proposed Delegation.** Plan
+  responsibility first asks whether the human or someone else should do the
+  selected Work. Human responsibility is an educational no-op when no active
+  or proposed Delegation exists, cancels a proposed one through its preview,
+  and enters take-back reconciliation for an active one. `someone else`
+  creates a new builder only without overlapping coverage; on a proposed or
+  active record it enters edit or reassignment instead. It resolves one
+  ExternalEntity through UX-075, then collects, in order: only a mechanically
+  meaningful Nature-aware scope choice; mandatory follow-up policy; positive
+  review delay; available delivery adapter or manual handoff; and editable
+  initial message. A disabled Nature stops with a concrete enabling-Work
+  route. `scheduled_commitment` remains an explicit educational stop only
+  until `OPEN-SCH-001` supplies its coverage; no other Nature is copied into
+  that gap.
+
+  The complete preview names Work, target, scope, policy, review delay,
+  handoff method, and message. Its sole yes creates one MOD-064 `proposed`
+  Delegation; everything before yes is a checkpointed InteractionEnvelope
+  draft and no Delegation identity or eligibility change exists. After yes,
+  those accepted facts and provenance belong to the Delegation and any
+  surface may resume it. Stale edits use the ordinary revision conflict. A
+  proposed Delegation may be cancelled before handoff without an outbound
+  message, because no external responsibility has yet been observed.
+- **WRK-120 [standard] — Delegation cadence begins from evidence, not draft
+  time.** Every Delegation stores one positive review delay. The factory
+  default is 72 hours and dumb alternatives are 24 hours, 72 hours, 168 hours,
+  or a positive custom integer number of hours, days, or weeks. The first
+  `review_not_before` is derived from the observed initial handoff. A delivered
+  follow-up derives it from that handoff; a progress or no-response review
+  without another handoff derives it from the review outcome. Typed review
+  skip keeps the current facts and applies the configured 24-hour Delegation
+  review cooldown without authorizing a message.
+
+  The factory message catalog has four deterministic English patterns:
+  initial `brick_only`, initial `whole_scope`, follow-up, and active take-back.
+  Each includes the complete rendered Brick reference and declared recipient
+  name, is editable and attributed under UX-077, and is never sent
+  automatically. `delegation_delivery` and optional
+  `delegation_take_back_notice` are distinct approval-bearing external-effect
+  purposes; a delivery adapter may implement them only through the ordinary
+  effect boundary. Missing contact or credential bindings are not errors and
+  leave manual handoff fully available.
+- **WRK-121 [standard] — Delegation review separates reports, effects, and
+  responsibility.** An internal status review records exactly one human-
+  attributed observation: progress, reported completion, refusal, or no
+  response; or enters explicit take-back without fabricating an observation.
+  Progress schedules the next internal review and may attach separately fed
+  Raw evidence. No response proposes a follow-up effect only when policy and
+  soft cap permit it; otherwise it schedules the next internal review or opens
+  UX-D01. The proposal still needs complete effect approval and observed
+  delivery. Refusal and reported completion leave the Delegation active until
+  their reconciliation commits, preserving truthful coverage while the human
+  decides.
+
+  Reported completion enters existing Nature-owned item, child, occurrence,
+  or Brick closure routes. The Delegation becomes `completed` only in a
+  combined preview after its exact coverage has valid closure facts; it never
+  marks descendants or a parent done by report alone. Refusal offers take
+  back, reassign, an explicit existing archive/supersede route for Work that no
+  longer matters, or typed review deferral. Take-back rejects every approved
+  but undelivered Delegation effect in the same preview, terminates the record
+  as `taken_back`, and restores human eligibility before any optional,
+  separately approved notice. Reassignment atomically terminates the old
+  record as `reassigned`, rejects its stale pending effects, and creates one
+  editable `proposed` Delegation for a new target; execution remains human-
+  eligible until the new handoff is observed. Archiving or superseding the
+  Work closes the Delegation as `cancelled` only with that separately previewed
+  Work mutation. No terminal route creates or resolves a Wait.
+
+  Proposal creation, each effect approval, observed handoff, each observation,
+  and each reconciliation or terminal transition are distinct semantic undo
+  boundaries. Exact compensation and multi-subject preconditions remain with
+  `OPEN-UNDO-001`. Adding a child or entry under active `whole_scope` coverage
+  discloses before commit that it will already be delegated and excluded from
+  human execution. A system-released recurring occurrence receives the same
+  derived coverage and names it in the release result and history rather than
+  inventing a human confirmation for scheduled generation.
 
 ## Place context
 

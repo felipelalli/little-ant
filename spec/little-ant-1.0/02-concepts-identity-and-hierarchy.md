@@ -304,6 +304,20 @@ The factory library contains:
   plural interpretation, or dimensional inference. Quantity addition is
   valid only for equal normalized units. Editing exposes label, amount, and
   unit as separate fields rather than reparsing the display form.
+- **MOD-064 [standard] — Delegation state follows observed responsibility.** A
+  durable Delegation is either `proposed` or `active`, or has exactly one
+  terminal outcome: `completed`, `cancelled`, `taken_back`, or `reassigned`.
+  Proposed means its target, coverage, follow-up policy, review delay, handoff
+  method, and initial message have been accepted internally, but no handoff is
+  known; it suppresses no human work. Active begins only with WRK-058's
+  observed handoff and suppresses human execution only for its explicit
+  coverage. A reported completion, refusal, progress update, or lack of
+  response is an attributed observation awaiting or supporting a transition,
+  never another lifecycle state. Terminal history remains attached to the
+  Delegation and never becomes a Wait or another Brick. Two nonterminal
+  Delegations may not cover the same execution responsibility; a builder that
+  would overlap current coverage must edit, take back, reassign, or narrow it
+  explicitly before confirmation. Disjoint sibling coverage remains valid.
 
 ## Content, movement, and effective metadata
 

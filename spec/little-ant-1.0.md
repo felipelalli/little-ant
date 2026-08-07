@@ -52,15 +52,18 @@ complete. Historical recovery has produced partial coverage beyond it; exact
 per-flow status lives only in the
 [UX flow inventory](little-ant-1.0/ux/flow-coverage.md).
 
-**Next review:** Plan responsibility and Delegation entry.
+**Next review:** Golden daily loop from Feed through first Focus.
 
 - Owning gate: Gate 4.
-- Owning boundary: `OPEN-PLAN-001` with `OPEN-DEL-001`.
-- Reuse, do not reopen: `MOD-050..051`, `WRK-029..034`, `WRK-056..061`, and
-  the already settled delegation screens.
-- Preserve the completed Structure routes in `WRK-111..118`, `UX-168..181`,
-  UX-S50..S59, UX-B00..B02, and UX-L00..L01.
-- Do not enter here: the full all-pairs Nature matrix or generic Wait policy.
+- Owning boundaries: the post-commit path through `OPEN-RAW-001`,
+  `OPEN-IMP-001`, `OPEN-UX-002`, and `OPEN-UX-003`.
+- Reuse, do not reopen: Raw-first Feed in `FED-001..009`, lazy triage in
+  `FED-042..048`, Nature/Template discovery, initial importance insertion,
+  and the settled Focus proposal/current-focus grammar.
+- Preserve completed Plan and Delegation routes in `WRK-109..121`,
+  `UX-166..183`, and their screen families.
+- Do not enter here: generic Raw revision schema, translation, imports, or the
+  full all-pairs Nature matrix.
 
 Current behavior lives in the subject chapters; unresolved semantics live in
 [open release decisions](little-ant-1.0/open-release-decisions.md); provenance

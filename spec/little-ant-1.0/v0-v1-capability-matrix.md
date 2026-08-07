@@ -130,7 +130,7 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Delegation draft, preview boundary, cancel-before-send, due nudge, approve/decline, and completed/refused/abandoned outcomes | `I+T`, delegation tests | **strengthened but incomplete** | follow-up policy, Nature scope, and observed handoff under `WRK-029..034`, `WRK-058`; final lifecycle in `OPEN-DEL-001` | `SCN-DEL-001` plus delivery/manual handoff and full effect routes |
+| Delegation draft, preview boundary, cancel-before-send, due nudge, approve/decline, and completed/refused/abandoned outcomes | `I+T`, delegation tests | **strengthened; generic abandon removed** | explicit proposed/active/terminal lifecycle, Nature-aware coverage, review cadence, manual/adapter handoff, attributed observations, reconciliation, soft cap, and no implicit Wait under `MOD-064`, `FOC-035..036`, `WRK-029..034`, `WRK-056..061`, and `WRK-119..121`; transport remains with `OPEN-MOD-001` and `OPEN-EFF-001` | `SCN-DEL-001` plus delivery/manual handoff and full effect routes |
 | Delegated work does not consume human focus/WIP or remain human-executable | `I+T` | **strengthened** | `WRK-029`, `WRK-057`, `FOC-035` | delegation/focus/importance interleave with exact scope |
 | Completion effects `write_back`, `notify`, and arbitrary `spawn` stop for approval | `I+T` | **replaced** | external preview retained by `PRD-009`; general effect families in `OPEN-EFF-001`; arbitrary spawn retired in favor of closed release rules | external-effect route |
 | Every later answer resolves to an explicit absolute date | `O`; implemented nudge dates | **strengthened** | `UX-018`, `WRK-016` | later/date route |

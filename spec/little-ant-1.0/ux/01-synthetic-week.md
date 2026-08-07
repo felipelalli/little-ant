@@ -781,9 +781,23 @@ ordinary skip, explicit outcome, and deterministic expiry.
 
 ### SCN-DEL-001 — Delegation contract
 
-Delegate a project-like Brick. Validate Nature-driven scope choice,
-`once | every | explicitly none`, complete English message preview, approval,
+Enter through Plan responsibility. Verify that `me` is an educational no-op
+without an active Delegation and take-back with one; distinguish responsibility
+from advice and collaboration through the bounded question tree; resolve a
+target with `@` autocomplete. Exercise every WRK-032 Nature: fixed scopes omit
+the chooser, project asks brick-only versus whole scope, habit points to
+separate enabling Work, a released recurring occurrence follows its own
+Nature, and scheduled commitment stops explicitly until its owning boundary is
+closed. Confirm that no two displayed scope rows have identical coverage.
+
+Delegate a project-like Brick. Validate the target, scope, mandatory
+`once | every | explicitly none`, 24/72/168-hour and custom review-delay
+grammar, adapter/manual method, complete English message preview, approval,
 follow-up, refusal/completion reporting, and no cascading parent completion.
+Reject and resume every builder checkpoint; crash before final yes and verify
+that only the InteractionEnvelope draft returns. Accept the preview and verify
+one durable proposed Delegation with no human-execution suppression. Check all
+four exact factory message patterns and attributed editing.
 Before activation, prove that the proposed Delegation has not suppressed
 human work. Once active, verify that its exact resolved scope remains visible
 in Importance views but contributes no ordinary human Work opportunity. Its
@@ -801,6 +815,20 @@ conversation and require explicit human confirmation before activation. In
 both routes, handoff must not claim reading, acceptance, refusal, or completion.
 Record a later refusal and require typed reconciliation before returning the
 scope to human Work eligibility.
+
+On internal review, traverse the complete question-mark tree to progress,
+reported completion, refusal, and no response. Verify that progress and a
+no-message review seed the next instant from their observation time, while a
+delivered follow-up seeds it from handoff time. Skip one review and validate
+the 24-hour cooldown without a state or effect change. Keep refusal and
+reported completion as observations on the still-active Delegation until an
+explicit reconciliation commits. Take responsibility back while an approved
+effect is undelivered; reject it atomically, restore exact-scope human
+eligibility, and require a separate approval for any take-back notice.
+Reassign atomically into one new proposed record with editable inherited facts
+and no suppression before its handoff. Validate completion only after ordinary
+Nature closure facts, and archive/supersede only through their existing
+combined previews. No path creates a generic `abandoned` outcome or Wait.
 
 Prove that activation creates no automatic Wait for the delegate: Delegation
 policy alone schedules its reviews and follow-ups. Then record that the
@@ -823,6 +851,11 @@ and render UX-D01 instead of another automatic proposal. Exercise its soft
 cap: `continue` permits exactly one more preview without resetting evidence;
 `take it back` and `reassign` require reconciliation; `escalate` enters a
 separate uncommitted Brick flow; and `skip` changes no Delegation state.
+
+Under active whole-scope project coverage, add a child and verify the preview
+warns that it will already be delegated and absent from human Work. Repeat for
+a ListEntry. Release a recurring occurrence and verify the same derived
+coverage in the result/history without a fabricated confirmation.
 
 When an effect approval wins the lottery, skip it and verify that the pending
 effect remains unchanged while only typed approval cooldown and pressure are
@@ -978,9 +1011,9 @@ from continuing ownership before proposing `finite_checklist` or
 `living_checklist`. Reject every incompatible proposal without creating a
 child, ListEntry, relationship, Nature claim, or reconciliation event; accept
 representative proposals only through the complete MOD-059 preview. Never
-convert a child Brick and ListEntry into one another. Leave the ListEntry,
-incompatible-Nature, and responsibility routes at their explicit
-`OPEN-PLAN-001` boundary until each screen is reviewed.
+convert a child Brick and ListEntry into one another. Exercise the ListEntry,
+incompatible-Nature, and responsibility routes through their exact collectors,
+combined previews, terminal results, and reverse paths.
 
 For parts, first select a compatible parent with no children and prove that
 UX-B00 opens directly without an empty manager. Reject one draft, accept two,

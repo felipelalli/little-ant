@@ -170,7 +170,14 @@ descent versus dependency resolution remain `OPEN-FOC-002`.
   opportunity variants because their actions and transitions differ. They use
   the same attention subject under FOC-006..008 and therefore never become
   duplicate top-level tickets. Follow-up policy may prevent the outbound
-  variant, but it never suppresses otherwise warranted internal review.
+  variant, but it never suppresses otherwise warranted internal review. An
+  active Delegation contributes no internal review before its WRK-120
+  `review_not_before`; at or after that instant the review has positive lottery
+  weight derived from the covered Brick's importance, elapsed review age,
+  unresolved observations, and bounded prior deferrals. It has no hard
+  precedence and no due/overdue label. A proposed Delegation instead exposes
+  only its pending handoff, cancellation, or effect-approval continuations and
+  never masquerades as an active status review.
 
 ## Continuation and precedence
 

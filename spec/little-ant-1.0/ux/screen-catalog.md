@@ -4153,7 +4153,9 @@ mutation.
 
 ## UX-A01 — External-effect confirmation
 
-When an external-effect approval is selected by the ordinary lottery:
+The question derives from the typed effect purpose, such as `Send this
+delegation?`, `Send this follow-up?`, or `Send this take-back notice?`. When a
+follow-up approval is selected by the ordinary lottery:
 
 ```text
 Send this follow-up?
@@ -4166,9 +4168,10 @@ Suggested message:
 [y]es    [e]dit    [n]o    [l]ater    [s]kip
 [?] I don't know
 
+To: @bc "Bento Camargo"
+Reason: delegation follow-up · eligible for 2 days
+
 ────────────────────────────────────────
-👤 Bento Camargo
-delegation follow-up · due 2 days ago
 . <root>
   <no Domain>
 . Workday: Mon, Aug 3
@@ -4199,9 +4202,10 @@ Edit the message:
 
 [Enter] preview    [Esc] back
 
+To: @bc "Bento Camargo"
+Reason: delegation follow-up · eligible for 2 days
+
 ────────────────────────────────────────
-👤 Bento Camargo
-delegation follow-up · due 2 days ago
 . <root>
   <no Domain>
 . Workday: Mon, Aug 3
@@ -4255,6 +4259,233 @@ back` and `reassign` enter Delegation reconciliation before responsibility or
 eligibility changes. `escalate` enters a guided Feed preview for a separate
 Brick and creates nothing silently. `skip` preserves the cap and all Delegation
 state while applying only the typed review deferral, cooldown, and pressure.
+
+## UX-D02 — Responsibility and initial handoff
+
+Plan responsibility begins without assuming that a change is needed:
+
+```text
+Responsibility:
+
+#rfr "Review the financial report"
+
+Who should do this work?
+
+[m]e
+[s]omeone else...
+[?] I don't know
+
+[/] more...
+```
+
+With no nonterminal Delegation, `me` explains that the Work is already the
+human's and returns to Plan without an event. With a proposed one it opens
+cancellation; with an active one it opens take-back reconciliation.
+`someone else` opens ordinary `@` autocomplete for new coverage, edits a
+proposed target, or enters active reassignment; it never creates overlapping
+responsibility. A project then asks the only currently resolved variable
+factory scope:
+
+```text
+Delegate what to @bc "Bento Camargo"?
+
+[b]rick only
+    Bento owns this outcome. Its parts remain yours.
+
+[w]hole scope
+    Bento owns this outcome and its current and future parts.
+
+[?] I don't know
+```
+
+Fixed Nature coverage skips this screen and appears as a fact later. A habit
+ends educationally with a route to create separate enabling Work. Until the
+scheduled-commitment boundary is closed, that Nature ends explicitly rather
+than borrowing another scope.
+
+```text
+How should Little Ant follow up?
+
+[o]nce
+    Suggest at most one follow-up message.
+
+[e]very review
+    Keep suggesting when unresolved, always asking before sending.
+
+[n]o automatic follow-up
+    Keep reviewing status without suggesting messages.
+
+[?] I don't know
+```
+
+No policy is preselected. Internal reviews continue under every row.
+
+```text
+How long after a handoff should we check again?
+
+ [o]ne day
+*[t]hree days
+ one [w]eek
+ [c]ustom...
+ [?] I don't know
+```
+
+`*` or Enter accepts three days. Custom accepts a positive integer plus
+`hours`, `days`, or `weeks`; calendar months are not guessed. The delay begins
+at observed handoff, never while this builder is still open.
+
+```text
+How will the handoff happen?
+
+[s]end using Work email
+[m]anually
+[?] I don't know
+```
+
+Only usable delivery bindings appear. With none, manual is the sole row and
+visible default. The combined preview is:
+
+```text
+Delegate this work?
+
+Work: #rfr "Review the financial report"
+To: @bc "Bento Camargo"
+Scope: brick only
+Follow-up: once
+Review after: 3 days from each handoff or status update
+Handoff: manually
+
+Suggested message:
+
+“Hi Bento Camargo, could you take care of
+#rfr "Review the financial report"?”
+
+[y]es    [e]dit    [n]o    [?] I don't know
+
+[/] more...
+```
+
+Yes creates only a proposed Delegation. An adapter route next reuses UX-A01
+without lottery skip. A manual route shows the same editable message and:
+
+```text
+After you have delivered this message or otherwise made
+the responsibility clear:
+
+[h]anded it off    [e]dit message
+[c]ancel delegation
+
+[/] more...
+```
+
+`handed it off` activates and claims no reading, acceptance, or completion.
+Cancel terminates the proposed Delegation without an external message.
+
+The complete factory pattern catalog is:
+
+```text
+initial brick
+Hi {recipient}, could you take care of {brick}?
+
+initial whole scope
+Hi {recipient}, could you take responsibility for {brick},
+including its current and future work?
+
+follow-up
+Hi {recipient}, could you share an update on {brick}?
+
+take-back
+Hi {recipient}, I am taking responsibility for {brick} back.
+No further action is needed from you.
+```
+
+`{recipient}` is the declared name and `{brick}` is the complete rendered
+reference. Line wrapping is presentation only. Every pattern remains editable
+and requires its own approval and observed delivery.
+
+## UX-D03 — Internal Delegation review
+
+```text
+Review:
+
+#rfr "Review the financial report"
+Delegated to @bc "Bento Camargo"
+
+Last handoff: Fri, Jul 31, 09:00
+
+What happened?
+
+[p]rogress update
+reported [c]omplete
+[r]efused
+[n]o response
+[t]ake it back
+[s]kip    [?] I don't know
+
+[/] more...
+```
+
+Progress and no-response results show the next review instant. Progress may
+route separately to Feed if the human wants to retain the actual message as
+Raw; the outcome itself invents no note. A policy-permitted no-response result
+records the observation and then opens UX-A01 as a distinct effect approval.
+No-automatic policy and consumed `once` schedule another internal review
+without a message. The `every` soft cap opens UX-D01.
+
+The question-mark tree asks in order whether the target explicitly reported
+completion, explicitly declined, supplied meaningful progress, or supplied
+any response. A confirmed yes selects the matching visible row; confirmed no
+to all four selects no response. Uncertainty at a node shows bounded history
+and returns unresolved.
+
+## UX-D04 — Delegation outcome reconciliation
+
+A refusal does not silently restore human execution:
+
+```text
+@bc "Bento Camargo" refused responsibility for
+#rfr "Review the financial report".
+
+What should happen?
+
+[t]ake it back
+[r]eassign...
+[a]rchive or supersede Work...
+[l]ater
+[?] I don't know
+
+[/] more...
+```
+
+`later` preserves active coverage and the attributed refusal while deferring
+only this review. Take-back previews exact scope, restored human eligibility,
+and every pending effect to reject:
+
+```text
+Take responsibility back?
+
+Work: #rfr "Review the financial report"
+From: @bc "Bento Camargo"
+Human work becomes eligible again: yes
+Approved but undelivered messages rejected: 1
+Optional take-back message: not sent
+
+[y]es    [n]o    [?] I don't know
+```
+
+After yes, an optional action may open a separately approved take-back effect.
+Reassign selects a new target and shows inherited scope, policy, and review
+delay as editable. Its final yes terminates the old record and creates one new
+proposed Delegation atomically; human execution remains eligible until the new
+handoff. Pending old effects are rejected in that same preview.
+
+Reported completion first lists every still-open fact in the exact delegated
+coverage. While anything remains open it offers review open work, keep the
+Delegation active, or take it back; it cannot mark the tree closed. Once the
+ordinary Nature-owned closure facts are valid, one combined preview applies
+the existing Brick or scope completion and terminates the Delegation as
+completed. Archive or supersede similarly reuses the existing Work preview and
+closes the Delegation as cancelled only in the accepted combined mutation.
 
 ## UX-I01 — Text input
 
