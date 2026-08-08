@@ -1,13 +1,12 @@
 # Implementation handoff
 
-Current slice and gate: **S08 — Waits, Delegation, effects, profiles, and
-credentials; implementation in progress.** S00-S07 have executable vertical
-coverage and the complete test suite remains green. Coverage labels are still
-conservative until the owning scenario rows include every specified recovery
-and assisted pair.
+Current slice and gate: **S09 — Sources, Packs, imports, and repair; implementation in progress.**
+S00-S08 are executable and mostly stable; S08 closure items remain open below.
+Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
-Last verified commit: none; changes remain uncommitted under the repository
-commit policy.
+
+Last verified commit: **8c3a07a** (`feat: implement the v1 core through source reconciliation`).
+Recent work is now progressing from there, and this file should stay editable between milestones.
 
 ## Implementation now available
 
@@ -43,7 +42,7 @@ The most recent full command was:
 All 16 S08 tests and every earlier test suite passed. The S08 tests now include
 live vault-agent behavior and public guided Wait/Delegation simulations.
 
-## Remaining S08 closure
+## Remaining S08 closure (carried forward from prior checkpoint)
 
 Before marking the slice verified, close these deliberately visible gaps:
 
@@ -65,8 +64,5 @@ Before marking the slice verified, close these deliberately visible gaps:
 
 ## Next work
 
-Finish S08 from [`slices/08-waits-delegation-and-effects.md`](slices/08-waits-delegation-and-effects.md).
-Do not advance coverage rows merely because the happy path exists. Then move
-to S09 in this order: SourceBinding/observations and translation; Pack
-verification/runner; standard import/export surfaces; Calendar/effects; command
-registry and repair.
+Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
+Current focus in this slice is: source attachment consistency, source-failure handling, Raw detail recovery copy, and command registry/adapter hooks.

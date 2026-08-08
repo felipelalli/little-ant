@@ -1049,7 +1049,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         Right candidate -> local (makeTranslationEditorEnvelope current now state (TranslationQueue (TranslationScope False True False) [candidate] 0 0 1) Nothing Nothing)
     (RawDetailOpportunity{}, action, _)
       | action `elem` ["raw.detail.revise", "raw.detail.link", "raw.detail.shelve", "raw.detail.classify", "raw.detail.archive"] ->
-          local (appendBody current "This action keeps the same one-consequence-at-a-time Raw flow; its typed builder is not available from this checkpoint yet.")
+          local (appendBody current "This Raw maintenance action is not available in this checkpoint yet. Use [o]rigin or [t]ranslate for actionable review paths.")
     (RawOriginListOpportunity rawId, "raw.origin.back", _) -> withRaw rawId $ \raw -> local (makeRawDetailEnvelope (envelopeInteractionId current) cursor precondition now state raw)
     (RawOriginListOpportunity{}, "raw.origin.add", _) -> local (appendBody current "Choose a source adapter or enter a manual URL through the SourceBinding builder; no origin has been attached yet.")
     (RawOriginListOpportunity{}, "raw.origin.unknown", _) -> local (appendBody current "An origin records where this Raw came from and how it may be checked. It never decides whether attached Work is done.")
@@ -1085,7 +1085,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (SourceFailureOpportunity observationId, "source.failure.move", _) -> withObservationBinding observationId $ \_ binding -> local (makeSourceRelocateEnvelope current now state binding (sourceBindingLocator binding))
     (SourceFailureOpportunity observationId, "source.failure.detach", _) -> withObservationBinding observationId $ \_ binding -> local (makeSourceLifecyclePreviewEnvelope current now state binding SourceBindingDetached)
     (SourceFailureOpportunity observationId, "source.failure.later", _) -> withObservationBinding observationId $ \_ binding -> withRaw (sourceBindingRaw binding) $ \raw -> local (makeRawDetailEnvelope (envelopeInteractionId current) cursor precondition now state raw)
-    (SourceFailureOpportunity{}, "source.failure.retry", _) -> local (appendBody current "Retry asks the owning SourceAdapter for a new immutable observation. This dumb surface cannot fabricate a provider result.")
+    (SourceFailureOpportunity{}, "source.failure.retry", _) -> local (appendBody current "Retry is a provider-owned action. Wait for a new adapter-originated observation to refresh this failure, or move/preview lifecycle actions to change check strategy.")
     (SourceFailureOpportunity{}, "source.failure.unknown", _) -> local (appendBody current "Missing, unreachable, unauthorized, and malformed observations prove nothing about completion, archive, or deletion. Local truth stays unchanged.")
     (SourceRelocateOpportunity bindingId _, "source.relocate.submit", Just locator)
       | not (Text.null (Text.strip locator)) -> withSourceBinding bindingId $ \binding -> local (makeSourceRelocatePreviewEnvelope current now state binding (Text.strip locator))

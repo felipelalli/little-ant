@@ -691,13 +691,8 @@ makeRawDetailEnvelope identity cursor precondition now state raw =
     ChoiceGrammar
     (RawDetailOpportunity (rawId raw))
     (EnvelopeContent "Raw:" (Just (rawCitation raw)) (rawDetailBody state raw) Nothing)
-    [ Action "raw.detail.revise" "revise" "r" False "Append one immutable Raw content revision after preview."
-    , Action "raw.detail.link" "link" "l" False "Choose one direct RawLink role and compatible target."
-    , Action "raw.detail.shelve" "shelve" "s" False "Manage direct RawShelf membership."
-    , Action "raw.detail.classify" "classify" "c" False "Manage direct Domain membership."
-    , Action "raw.detail.origin" "origin" "o" False "Inspect or reconcile external origins."
+    [ Action "raw.detail.origin" "origin" "o" False "Inspect or reconcile external origins."
     , Action "raw.detail.translate" "translate" "t" False "Review English normalization for this Raw."
-    , Action "raw.detail.archive" "archive" "a" False "Preview reversible Raw archive."
     , moreAction
     ]
     (CommandOption "translate" ("/translate " <> rawCitation raw) "Review this Raw's English normalization" : rawCommands raw)

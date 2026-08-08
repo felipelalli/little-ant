@@ -1,6 +1,6 @@
 # Little Ant 1.0 implementation plan
 
-Status: **implementation in progress; S00-S01 verified, S02-S03 implemented, S04 in progress**
+Status: **implementation in progress; S00-S08 implemented, S09 in progress**
 
 The canonical product contract remains
 [`spec/little-ant-1.0.md`](../spec/little-ant-1.0.md). This directory describes
@@ -87,16 +87,14 @@ in [`difficult-decisions.md`](difficult-decisions.md).
 
 ## Current checkpoint
 
-Current slice: **S04 — Forecast, hierarchy, and Focus.**
+Current slice: **S09 — Sources, imports, Packs, Calendar, exports, and repair.**
 
-S03 now implements the complete sibling-only human importance maintenance
-engine, confidence decay, bounded uncertainty and tie-break, explicit
-contradiction recovery, separate Impact evidence maturity, lazy Effort
-exemplars, and optional phase claims. Its pure and vertical suites pass the
-full CI gate.
+S00-S08 are implemented in core paths already covered by prior commits, with remaining
+S08 closure details visible in `implementation/HANDOFF.md`. S09 adds external-source reliability,
+adapter integration hooks, import/repair ergonomics, and source-aware command coverage.
 
 To resume in a fresh context:
 
-    Read implementation/README.md, then implementation/slices/04-forecast-and-focus.md,
-    and follow only its required canonical references. Implement S04 and nothing
+    Read implementation/README.md, then implementation/slices/09-sources-packs-and-adapters.md,
+    and follow only its required canonical references. Implement S09 and nothing
     from later slices.
