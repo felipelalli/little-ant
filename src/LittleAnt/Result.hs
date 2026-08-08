@@ -1,6 +1,8 @@
 module LittleAnt.Result (
   CommandResult (..),
   HistoryEntry (..),
+  SearchHit (..),
+  ListRow (..),
   RawProjection (..),
   UndoClass (..),
   resultCursor,
@@ -35,6 +37,21 @@ data HistoryEntry = HistoryEntry
   , historyActor :: Actor
   , historyEventCount :: Int
   , historyEventTypes :: [Text]
+  }
+  deriving stock (Eq, Show)
+
+data SearchHit = SearchHit
+  { searchHitKind :: Text
+  , searchHitHandle :: Text
+  , searchHitTitle :: Text
+  , searchHitDetails :: Text
+  }
+  deriving stock (Eq, Show)
+
+data ListRow = ListRow
+  { listEntryHandle :: Text
+  , listEntryTitle :: Text
+  , listEntryDetails :: Text
   }
   deriving stock (Eq, Show)
 
@@ -99,6 +116,18 @@ data CommandResult
       , resultHistory :: [HistoryEntry]
       , resultDryRun :: Bool
       }
+  | SearchResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultSearchQuery :: Text
+      , resultSearchHits :: [SearchHit]
+      , resultDryRun :: Bool
+      }
+  | ListResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultListName :: Text
+      , resultListEntries :: [ListRow]
+      , resultDryRun :: Bool
+      }
   deriving stock (Eq, Show)
 
 resultCursor :: CommandResult -> DatasetCursor
@@ -113,6 +142,23 @@ instance ToJSON HistoryEntry where
       , "actor" .= historyActor history
       , "event_count" .= historyEventCount history
       , "event_types" .= historyEventTypes history
+      ]
+
+instance ToJSON SearchHit where
+  toJSON hit =
+    object
+      [ "kind" .= searchHitKind hit
+      , "handle" .= searchHitHandle hit
+      , "title" .= searchHitTitle hit
+      , "details" .= searchHitDetails hit
+      ]
+
+instance ToJSON ListRow where
+  toJSON entry =
+    object
+      [ "handle" .= listEntryHandle entry
+      , "title" .= listEntryTitle entry
+      , "details" .= listEntryDetails entry
       ]
 
 instance ToJSON RawProjection where
@@ -158,6 +204,22 @@ instance ToJSON CommandResult where
         [ "schema" .= ("little-ant/history@1" :: Text)
         , "dataset_cursor" .= renderCursor cursor
         , "history" .= history
+        ]
+          <> dryRunPair dryRun
+    SearchResult cursor query hits dryRun ->
+      object $
+        [ "schema" .= ("little-ant/search@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "query" .= query
+        , "hits" .= hits
+        ]
+          <> dryRunPair dryRun
+    ListResult cursor name entries dryRun ->
+      object $
+        [ "schema" .= ("little-ant/list@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "list" .= name
+        , "entries" .= entries
         ]
           <> dryRunPair dryRun
     RespondResult cursor interaction commandId dryRun ->

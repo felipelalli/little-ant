@@ -113,6 +113,15 @@ renderCommandResult = \case
       <> rawCitation raw
       <> maybe "" ("\n\nOriginal:\n" <>) (projectedRawOriginal raw)
       <> maybe "" ("\nStatus: " <>) (projectedRawStatus raw)
+  SearchResult _ query hits dryRun ->
+    dryRunFact dryRun
+      <> "Search: "
+      <> query
+      <> "\n"
+      <> ( if null hits
+            then "No matches."
+            else Text.unlines [searchHitLine hit | hit <- hits]
+         )
   UndoResult _ _ _ raw redoToken wasRedo interaction dryRun ->
     dryRunFact dryRun
       <> (if wasRedo then "Feed restored: " else "Feed undone: ")
@@ -120,6 +129,14 @@ renderCommandResult = \case
       <> (if wasRedo then "" else maybe "" (const "\nRedo is available.") redoToken)
       <> "\n\n"
       <> renderPlain (renderEnvelope interaction)
+  ListResult _ name rows dryRun ->
+    dryRunFact dryRun
+      <> name
+      <> ":\n"
+      <> ( if null rows
+            then "  (empty)"
+            else Text.unlines ["- " <> renderListRow row | ListRow rowHandle rowTitle rowDetails <- rows]
+         )
   GrammarResult _ names dryRun ->
     dryRunFact dryRun
       <> "Screen grammars:\n"
@@ -198,6 +215,14 @@ preview :: Text -> Text
 preview = Text.take 80 . Text.unwords . Text.words
 rawCitation :: RawProjection -> Text
 rawCitation raw = renderHandle RawHandle (projectedRawHandle raw) <> " \"" <> projectedRawPreview raw <> "\""
+searchHitLine :: SearchHit -> Text
+searchHitLine hit =
+  "[" <> searchHitKind hit <> "] " <> searchHitHandle hit <> " " <> searchHitTitle hit <> " — " <> searchHitDetails hit
+
+renderListRow :: ListRow -> Text
+renderListRow row =
+  listEntryHandle row <> " " <> listEntryTitle row <> (if Text.null (listEntryDetails row) then "" else " · " <> listEntryDetails row)
+
 dryRunFact :: Bool -> Text
 dryRunFact True = "Dry run: nothing was recorded.\n\n"
 dryRunFact False = ""

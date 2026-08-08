@@ -44,6 +44,12 @@ data Options = Options
 data CliCommand
   = ReplCli
   | NextCli
+  | DoneCli (Maybe Text)
+  | ReturnToIdleCli (Maybe Text)
+  | FinishCli Text
+  | ListCli (Maybe Text)
+  | SearchCli [Text]
+  | HelpCli (Maybe Text)
   | FocusCli [Text]
   | FocusBlockerCli [Text]
   | FeedCli [Text]
@@ -104,6 +110,14 @@ run environment options = case optionCommand options of
     | optionJson options || optionDryRun options -> execute environment options NextCommand
     | otherwise -> runRepl environment
   NextCli -> execute environment options NextCommand
+  DoneCli (Just target) -> requiredBrickCommand environment options "done" DoneCommand [target]
+  DoneCli Nothing -> execute environment options (DoneCommand Nothing)
+  ReturnToIdleCli (Just target) -> requiredBrickCommand environment options "return-to-idle" ReturnToIdleCommand [target]
+  ReturnToIdleCli Nothing -> execute environment options (ReturnToIdleCommand Nothing)
+  FinishCli target -> execute environment options (FinishCommand target)
+  ListCli maybeList -> execute environment options (ListCommand maybeList)
+  SearchCli query -> execute environment options (SearchCommand (Text.unwords query))
+  HelpCli maybeTopic -> execute environment options (HelpCommand maybeTopic)
   FocusCli referenceWords -> requiredBrickCommand environment options "focus" FocusCommand referenceWords
   FocusBlockerCli referenceWords -> requiredBrickCommand environment options "focus-blocker" FocusBlockerCommand referenceWords
   FeedCli wordsInCommand -> do
@@ -600,6 +614,42 @@ commandParser :: Parser CliCommand
 commandParser =
   hsubparser
     ( command "next" (info (pure NextCli) (progDesc "Obtain or restore one useful opportunity"))
+        <> command
+          "done"
+          ( info
+              (DoneCli . fmap Text.pack <$> optional (strArgument (metavar "BRICK")))
+              (progDesc "Mark one Brick as completed")
+          )
+        <> command
+          "return-to-idle"
+          ( info
+              (ReturnToIdleCli . fmap Text.pack . optional (strArgument (metavar "BRICK")))
+              (progDesc "Return focus to idle (current Brick by default)")
+          )
+        <> command
+          "finish"
+          ( info
+              (FinishCli . Text.pack <$> strArgument (metavar "CHECKLIST"))
+              (progDesc "Finish an active checklist run for the selected checklist")
+          )
+        <> command
+          "list"
+          ( info
+              (ListCli . fmap Text.pack <$> optional (strArgument (metavar "LIST")))
+              (progDesc "List structured data (importance | forecast)")
+          )
+        <> command
+          "search"
+          ( info
+              (SearchCli . fmap Text.pack <$> some (strArgument (metavar "QUERY")))
+              (progDesc "Search Bricks and Raw material by text or handle")
+          )
+        <> command
+          "help"
+          ( info
+              (HelpCli . fmap Text.pack <$> optional (strArgument (metavar "TOPIC")))
+              (progDesc "Show concise command help")
+          )
         <> command
           "feed"
           ( info

@@ -58,6 +58,12 @@ data AppCommand
   = NextCommand
   | FocusCommand Text
   | FocusBlockerCommand Text
+  | DoneCommand (Maybe Text)
+  | ReturnToIdleCommand (Maybe Text)
+  | FinishCommand Text
+  | ListCommand (Maybe Text)
+  | SearchCommand Text
+  | HelpCommand (Maybe Text)
   | FeedCommand Text Text
   | ShowRawCommand Text ViewDepth
   | TranslateCommand (Maybe Text)
@@ -176,6 +182,12 @@ runLoadedCommand :: AppEnv -> Bool -> LoadedDataset -> TemporalTickPlan -> AppCo
 runLoadedCommand environment dryRun dataset tickPlan = \case
   NextCommand -> runNext environment dryRun dataset
   FocusCommand reference -> runFocus environment dryRun dataset reference
+  DoneCommand reference -> runDone environment dryRun dataset reference
+  ReturnToIdleCommand reference -> runReturnToIdle environment dryRun dataset reference
+  FinishCommand reference -> runFinish environment dryRun dataset reference
+  ListCommand list -> runList environment dryRun dataset list
+  SearchCommand query -> runSearch environment dryRun dataset query
+  HelpCommand topic -> runHelp environment dryRun dataset topic
   FocusBlockerCommand reference -> runFocusBlocker environment dryRun dataset reference
   FeedCommand origin material -> runFeed environment dryRun dataset origin material
   ShowRawCommand reference GuidedView -> runOpenRaw environment dryRun dataset reference
@@ -956,6 +968,313 @@ runPause environment dryRun dataset =
                       (checkpointCurrent checkpoint)
                       (Just (mutationDecisionCommandId mutation))
                       dryRun
+
+runDone :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
+runDone environment dryRun dataset maybeReference =
+  let state = loadedState dataset
+      actor = appActor environment
+   in case maybeReference of
+        Nothing ->
+          case stateCurrentFocus state of
+            Nothing -> pure . Left $
+              (appError PreconditionFailed "There is no current focus to complete.")
+                { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
+                }
+            Just identity -> runDoneByIdentity environment dryRun dataset identity
+        Just reference ->
+          case resolveAnyBrickReference state reference of
+            Left problem -> pure (Left problem)
+            Right brick -> runDoneByIdentity environment dryRun dataset (brickId brick)
+ where
+  runDoneByIdentity env dryRun' dataset identity =
+    runDirectMutation env dryRun' dataset (completionUUIDCount state identity) (decideCompleteBrick state actor identity)
+
+runReturnToIdle :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
+runReturnToIdle environment dryRun dataset maybeReference =
+  let state = loadedState dataset
+      actor = appActor environment
+   in case maybeReference of
+        Nothing ->
+          case stateCurrentFocus state of
+            Nothing -> pure . Left $
+              (appError PreconditionFailed "There is no current focus to return to idle.")
+                { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
+                }
+            Just identity -> runPauseLike environment dryRun dataset identity
+        Just reference ->
+          case resolveAnyBrickReference state reference of
+            Left problem -> pure (Left problem)
+            Right brick ->
+              if stateCurrentFocus state /= Just (brickId brick)
+                then pure (Left (appError PreconditionFailed "Only the current focus can be returned to idle with /return-to-idle."))
+                else runPauseLike environment dryRun dataset (brickId brick)
+  where
+  runPauseLike env dryRun' dataset' identity = do
+    case decidePauseFocus state actor identity of
+      Left problem -> pure (Left problem)
+      Right mutation ->
+        persistOrSimulate env dryRun' dataset' (mutationDecisionEvents mutation) >>= \case
+          Left problem -> pure (Left problem)
+          Right accepted ->
+            freshCheckpoint env accepted >>= \case
+              Left problem -> pure (Left problem)
+              Right checkpoint -> do
+                saveUnlessDry env dryRun' checkpoint
+                pure . Right $
+                  RespondResult
+                    (loadedCursor accepted)
+                    (checkpointCurrent checkpoint)
+                    (Just (mutationDecisionCommandId mutation))
+                    dryRun'
+
+runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
+runList environment dryRun dataset maybeList =
+  let listName = fmap (Text.toLower . Text.strip) maybeList
+   in case listName of
+        Nothing ->
+          pure . Left $
+            (appError InvalidInput "Choose a list: importance | forecast")
+              { appErrorRecovery =
+                  [ RecoveryAction "list" "Show the ordered work list." (Just "lant list importance")
+                  , RecoveryAction "forecast" "Show the current forecast list." (Just "lant list forecast")
+                  ]
+              }
+        Just "importance" ->
+          pure . Right . ListResult (loadedCursor dataset) "importance" (importanceListRows (loadedState dataset)) $ dryRun
+        Just "forecast" -> do
+          now <- appZonedNow environment
+          let rows = forecastListRows (loadedState dataset) (zonedTimeToUTC now)
+          pure . Right . ListResult (loadedCursor dataset) "forecast" rows $ dryRun
+        Just unsupported ->
+          pure . Left $
+            (appError InvalidInput "Unknown list name.")
+              { appErrorSubject = Just unsupported
+              , appErrorRecovery =
+                  [ RecoveryAction "list" "Show the ordered work list." (Just "lant list importance")
+                  , RecoveryAction "forecast" "Show the current forecast list." (Just "lant list forecast")
+                  ]
+              }
+
+importanceListRows :: State -> [ListRow]
+importanceListRows state = concatMap (importanceSubtree state 0) (orderedSiblings state Nothing)
+ where
+  importanceSubtree currentState depth parent =
+    concatMap
+      (\current ->
+        mkImportanceRow currentState depth current
+          : importanceSubtree currentState (depth + 1) (Just (brickId current))
+      )
+      (orderedSiblings currentState parent)
+  mkImportanceRow currentState depth brick =
+    ListRow
+      (renderHandle BrickHandle (brickHandle brick))
+      (Text.replicate (2 * depth) " " <> brickTitle brick)
+      ("position " <> showText (brickSiblingPosition brick) <> statusSuffix)
+   where
+    domains = [domainPathText currentState identity | identity <- Set.toAscList (brickDomains brick)]
+    statusSuffix
+      | null domains = ""
+      | otherwise = " · " <> Text.intercalate ", " domains
+
+forecastListRows :: State -> UTCTime -> [ListRow]
+forecastListRows state now =
+  [ mkForecastRow state ticket
+  | ticket <- World.buildForecastWorld state now
+  ]
+ where
+  mkForecastRow currentState ticket =
+    ListRow
+      (ticketHandle currentState ticket)
+      (ticketTitle currentState ticket)
+      (ticketDetails currentState ticket)
+  ticketHandle currentState ticket =
+    case ticketKind ticket of
+      BrickSubject ->
+        maybe
+          (showText (ticketIdentity ticket))
+          (renderHandle BrickHandle . brickHandle)
+          (Map.lookup (ticketIdentity ticket) (stateBricks currentState))
+      RawSubject ->
+        maybe
+          (showText (ticketIdentity ticket))
+          (renderHandle RawHandle . rawHandle)
+          (Map.lookup (ticketIdentity ticket) (stateRaws currentState))
+  ticketTitle currentState ticket =
+    case ticketKind ticket of
+      BrickSubject -> fromMaybe (showText (ticketIdentity ticket)) (brickTitle <$> Map.lookup (ticketIdentity ticket) (stateBricks currentState))
+      RawSubject -> fromMaybe "Raw item" (rawOriginal <$> Map.lookup (ticketIdentity ticket) (stateRaws currentState))
+  ticketDetails currentState ticket =
+    Text.intercalate " · " $ case ticketKind ticket of
+      BrickSubject ->
+        ("kind: brick")
+          : maybe
+            []
+            (\brick -> ["parent: " <> renderHandle BrickHandle (brickHandle brick)])
+            (ticketParent ticket >>= \parent -> Map.lookup parent (stateBricks currentState))
+          <> ["opportunities: " <> showText (length (ticketOpportunities ticket))]
+      RawSubject ->
+        ["kind: raw", "opportunities: " <> showText (length (ticketOpportunities ticket))]
+
+runSearch :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runSearch _environment dryRun dataset rawQuery =
+  let state = loadedState dataset
+      normalized = Text.toCaseFold (Text.unwords (Text.words rawQuery))
+      hits = searchEntries state normalized
+   in if Text.null normalized
+        then pure . Left $ appError InvalidInput "Search query cannot be empty."
+        else pure . Right . SearchResult (loadedCursor dataset) rawQuery hits $ dryRun
+
+runHelp :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
+runHelp _environment _dryRun dataset maybeTopic =
+  let topic = fmap (Text.toLower . Text.strip) maybeTopic
+   in pure . Right $
+      ListResult
+        (loadedCursor dataset)
+        "help"
+        (helpEntries topic)
+        False
+
+searchEntries :: State -> Text -> [SearchHit]
+searchEntries state query
+  | Text.null query = []
+  | otherwise =
+      sortOn searchHitHandle $
+        [ mkBrickHit state brick
+        | brick <- activeBricks state
+        , queryIn query (brickTitle brick)
+           || queryIn query (unHandle (brickHandle brick))
+        ]
+          <> [ mkRawHit raw
+             | raw <- Map.elems (stateRaws state)
+             , queryIn query (rawOriginal raw)
+                || queryIn query (unHandle (rawHandle raw))
+             ]
+          <> [ mkDomainHit state domain
+             | domain <- Map.elems (stateDomains state)
+             , domainActive domain
+             , queryIn query (domainName domain)
+                || queryIn query (Text.unwords (Text.splitOn "›" (domainPathText state (domainId domain))) )
+             ]
+          <> [ mkEntityHit entity
+             | entity <- Map.elems (stateExternalEntities state)
+             , externalEntityActive entity
+             , queryIn query (Text.toLower (externalEntityName entity))
+             ]
+          <> [ mkListEntryHit entry
+             | entry <- Map.elems (stateListEntries state)
+             , listEntryState entry == EntryOpen
+             , queryIn query (listEntryLabel entry)
+             ]
+
+queryIn :: Text -> Text -> Bool
+queryIn query target =
+  Text.toCaseFold (Text.unwords (Text.words query))
+    `Text.isInfixOf` Text.toCaseFold (Text.unwords (Text.words target))
+
+mkBrickHit :: State -> Brick -> SearchHit
+mkBrickHit state brick =
+  SearchHit
+    "brick"
+    (renderHandle BrickHandle (brickHandle brick))
+    (brickTitle brick)
+    ("status: " <> showText (brickStatus brick) <> maybe "" (" · " <>) domainsText)
+ where
+  domainsText =
+    case Set.toAscList (brickDomains brick) of
+      [] -> Nothing
+      values -> Just ("domains: " <> Text.intercalate ", " (fmap (domainPathText state) values))
+
+mkRawHit :: Raw -> SearchHit
+mkRawHit raw =
+  SearchHit
+    "raw"
+    (renderHandle RawHandle (rawHandle raw))
+    (Text.take 80 (Text.unwords (Text.words (rawOriginal raw))))
+    ("status: " <> showText (rawStatus raw))
+
+mkDomainHit :: State -> Domain -> SearchHit
+mkDomainHit state domain =
+  SearchHit
+    "domain"
+    (domainPathText state (domainId domain))
+    (domainName domain)
+    (if domainActive domain then "active" else "archived")
+
+mkEntityHit :: ExternalEntity -> SearchHit
+mkEntityHit entity =
+  SearchHit
+    "entity"
+    (renderHandle EntityHandle (externalEntityHandle entity))
+    (externalEntityName entity)
+    (entityKindLabel (externalEntityKind entity))
+
+mkListEntryHit :: ListEntry -> SearchHit
+mkListEntryHit entry =
+  SearchHit
+    "list_entry"
+    ("entry:" <> renderUUIDv7 (listEntryId entry))
+    (listEntryLabel entry)
+    ("quantity: " <> quantityText (listEntryQuantity entry) <> " · state: " <> listEntryStateLabel (listEntryState entry))
+
+listEntryStateLabel :: ListEntryState -> Text
+listEntryStateLabel =
+  \case
+    EntryOpen -> "open"
+    EntryResolved -> "resolved"
+    EntryCancelled -> "cancelled"
+
+helpEntries :: Maybe Text -> [ListRow]
+helpEntries Nothing =
+  [ helpEntry "help" "Show help" "Use: lant help <topic>"
+  , helpEntry "list" "List structured data" "usage: lant list <importance|forecast>"
+  , helpEntry "search" "Search text references" "usage: lant search <query>"
+  , helpEntry "next" "Get the next useful action" "alias: lant"
+  , helpEntry "focus" "Answer pending focus confirmation" "usage: lant focus <BRICK>"
+  , helpEntry "done" "Complete a Brick" "usage: lant done [BRICK]"
+  , helpEntry "return-to-idle" "Return current focus to idle" "usage: lant return-to-idle [BRICK]"
+  , helpEntry "pause" "Pause current focus" "usage: lant pause"
+  , helpEntry "translate" "Review english-normalization opportunities" "usage: lant translate [TARGET]"
+  ]
+helpEntries (Just "list") =
+  [ helpEntry "lant list importance" "Current ordered work list" "active Brick tree grouped by insertion position"
+  , helpEntry "lant list forecast" "Current forecast list" "upcoming selectable opportunities used by /next"
+  ]
+helpEntries (Just "search") =
+  [ helpEntry "lant search <term>" "Search active bricks, raws, domains, entities, and entries" "Try short terms first"
+  ]
+helpEntries (Just "commands") =
+  [ helpEntry "/done" "Mark one Brick done" "default target: current focus"
+  , helpEntry "/focus" "Run an importance comparison on demand" "target a Brick explicitly"
+  ]
+helpEntries (Just "done") =
+  [ helpEntry "done" "Complete one Brick" "usage: lant done [BRICK]"
+  , helpEntry "return-to-idle" "Move current focus to idle" "usage: lant return-to-idle [BRICK]"
+  ]
+helpEntries _ =
+  [ helpEntry "help" "Unknown help topic" "Try: lant help" ]
+ where
+  helpEntry handle title details = ListRow handle title details
+
+showText :: Show a => a -> Text
+showText = Text.pack . show
+
+entityKindLabel :: ExternalEntityKind -> Text
+entityKindLabel = \case
+  PersonEntity -> "person"
+  TeamEntity -> "team"
+  OrganizationEntity -> "organization"
+  AIAgentEntity -> "ai_agent"
+  ServiceEntity -> "service"
+runFinish :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runFinish environment dryRun dataset reference =
+  case resolveAnyBrickReference (loadedState dataset) reference of
+    Left problem -> pure (Left problem)
+    Right brick -> do
+      let state = loadedState dataset
+          actor = appActor environment
+      case Map.lookup (brickId brick) (stateChecklistRuns state) of
+        Nothing -> pure (Left (appError PreconditionFailed "That checklist has no active run. Start one first."))
+        Just _ -> runDirectMutation environment dryRun dataset (finishChecklistRunUUIDCount state (brickId brick)) (decideFinishChecklistRun state actor (brickId brick))
 
 runBreak :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runBreak environment dryRun dataset reference =
