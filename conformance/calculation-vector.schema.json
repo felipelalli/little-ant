@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://little-ant.dev/schemas/calculation-vectors-v1.json",
+  "title": "Little Ant engine-independent calculation vectors",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "profile_sha256", "vectors"],
+  "properties": {
+    "schema": { "const": "little-ant/calculation-vectors@1" },
+    "profile_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "vectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "operation", "input", "expected"],
+        "properties": {
+          "id": { "type": "string" },
+          "operation": { "type": "string" },
+          "input": { "type": "object" },
+          "expected": {}
+        }
+      }
+    }
+  }
+}

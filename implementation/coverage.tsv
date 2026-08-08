@@ -1,0 +1,66 @@
+gate	flow	owner_slice	status	evidence
+2	Shared frame and footer	S01	verified	S01-frame-surface
+2	JSONL loading splash	S01	verified	S01-loading-splash
+2	Contextual personality	S11	planned	-
+2	Honest-answer assistance	S11	planned	-
+2	Palette/command escape	S01	verified	S01-contextual-palette
+2	Revision/stale response	S01	verified	S01-stale-revalidation
+2	Reference selection	S01	verified	S01-typed-reference
+3	Restore/startup to `next`	S01	verified	S01-restore-next
+3	Pristine first start	S01	verified	S01-pristine-start
+3	Useful non-pristine empty	S04	planned	-
+3	Feed text input	S01	verified	S01-feed-input
+3	Preserve/normalize Raw	S09	planned	-
+3	Nature discovery	S02	implemented	-
+3	Template selection/proposal	S02	implemented	-
+3	Raw triage and disposition	S02	implemented	-
+3	Duplicate suspicion	S02	implemented	-
+3	Parent/owner/Domain choice	S02	implemented	-
+3	Initial importance insertion	S02	implemented	-
+3	Complete Raw-to-Work materialization	S02	implemented	-
+3	Focus proposal and active completion	S04	planned	-
+4	Ordering uncertainty, skip, and provisional placement	S03	implemented	S03-ordering-flow
+4	Contradiction/recalibration	S03	implemented	S03-judgment-contradiction
+4	Adaptive bulk ordering	S03	implemented	S03-adaptive-order
+4	Impact, maturity, and effort judgment	S03	implemented	S03-impact-effort-flow
+4	Optional phase review	S03	implemented	S03-phase-flow
+4	Served-work symptom	S05	planned	-
+4	Atomic break/reclassification and part addition	S06	planned	-
+4	Focus/WIP interruption	S05	planned	-
+4	Merge/supersede/subtree outcome	S06	planned	-
+4	Archive and relevance review	S05	planned	-
+4	Meaning, title, and attached description	S05	planned	-
+4	Behavior and Nature reclassification	S06	planned	-
+4	Direct semantic update	S05	planned	-
+4	Escape/undo/redo/recovery	S05	planned	-
+4	Global search and return	S05	planned	-
+4	Global history and recent recap	S05	planned	-
+5	Cross-Domain focus	S04	planned	-
+5	N-step/branching blockers	S04	planned	-
+5	Wait activation and review	S08	planned	-
+5	Project/collection descent	S04	planned	-
+5	Lazy claim review lottery	S04	planned	-
+5	Importance/forecast projections	S04	planned	-
+5	Required/preferred Place context	S04	planned	-
+6	Living-checklist run	S06	planned	-
+6	Finite-checklist run	S06	planned	-
+6	Nature capability matrix	S06	planned	-
+7	Date notice/later	S07	planned	-
+7	Repeatable return/jitter	S07	planned	-
+7	Recurring obligation	S07	planned	-
+7	Habit schedule/outcome	S07	planned	-
+7	Scheduled commitment	S07	planned	-
+8	Raw review/source reconcile	S09	planned	-
+8	`/translate`	S09	planned	-
+8	Delegation lifecycle	S08	planned	-
+8	Profiles, preferences, and credential vault	S08	planned	-
+8	Import/migrate/erase source	S09	planned	-
+8	Calendar observe/write	S09	planned	-
+8	Local web UIAdapter	S11	planned	-
+8	Pack trust/install/update/remove	S09	planned	-
+8	Canonical commands and safe export	S09	planned	-
+8	Typed reference/error/dry-run	S09	planned	-
+8	Corrupt history/repair	S09	planned	-
+9	v0.1 preflight/candidate/cutover	S10	planned	-
+9	Powered-up paired replay	S11	planned	-
+10	Skill and local-web mirror	S11	planned	-

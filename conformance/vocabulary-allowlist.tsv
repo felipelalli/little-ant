@@ -1,0 +1,8 @@
+path_regex	token	reason
+^README\.md$	priority	Educational explanation of the rejected overloaded field.
+^README\.md$	seed	Explicit explanation that the legacy stage does not exist.
+^skills/little-ant/SKILL\.md$	*	Frozen v0 operator evidence pending replacement in S11.
+^commands/lant\.md$	*	Frozen v0 command evidence pending replacement in S11.
+^test/conformance/test_conformance\.py$	/capture	Intentional negative fixture proving rejected commands fail.
+^test/conformance/test_conformance\.py$	/importance	Intentional token-boundary fixture for asset paths.
+^test/conformance/test_conformance\.py$	capture	Intentional negative fixture proving rejected identifiers fail.

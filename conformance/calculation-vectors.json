@@ -1,0 +1,37 @@
+{
+  "schema": "little-ant/calculation-vectors@1",
+  "profile_sha256": "ad5146dacc8edee39d5235b1fc8dabcd19f1307fb6e5b8f573374e259fec1af4",
+  "vectors": [
+    {
+      "id": "weighted-choice/neutral-siblings",
+      "operation": "weighted_choice",
+      "input": {
+        "ordered_candidates": ["A", "B", "C"],
+        "importance_factors": [1000000, 287500, 50000]
+      },
+      "expected": {
+        "weights": [1000000, 287500, 50000],
+        "total": 1337500
+      }
+    },
+    {
+      "id": "weighted-choice/signals-and-sample",
+      "operation": "weighted_choice",
+      "input": {
+        "ordered_candidates": ["A", "B", "C"],
+        "sample": 600000
+      },
+      "expected": {
+        "weights": [250000, 503125, 150000],
+        "total": 903125,
+        "selected": "B"
+      }
+    },
+    {
+      "id": "weighted-choice/singleton",
+      "operation": "weighted_choice",
+      "input": { "ordered_candidates": ["A"], "weights": [1] },
+      "expected": { "selected": "A", "blocks_consumed": 0 }
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+[
+  {
+    "evidence_id": "S01-frame-surface",
+    "rules": ["UX-025", "UX-045", "UX-048", "UX-049"],
+    "screens": ["UX-E00", "UX-R00", "UX-R01"],
+    "flow": "Shared frame and footer",
+    "kind": "golden",
+    "spec_hashes": {
+      "UX-025": "sha256:8df1d85c138dd83051273662268b7fe199105cc1568567113961ccf8659bb906",
+      "UX-045": "sha256:400a7bd31343c379e76ab85e93043af27a9e349dabb67bc458e9317e68c28dcb",
+      "UX-048": "sha256:cc1d197d873ba3d93c127fd3a10f53132ac1bb7330aaa27727de64e7abfe4a83",
+      "UX-049": "sha256:b807052b5abeefd158851d73c7b27b09d16034cb24700af834d39c85fc894d0c",
+      "UX-E00": "sha256:5815acc63ed3d6c431be877882c297855902c66a50857c40dfa68a6b667fe8e6",
+      "UX-R00": "sha256:61b411816ef9fd6ec883ee8c8918907770797fb785d7cca49f7923c318159be4",
+      "UX-R01": "sha256:43ae875865673429e759cfea27e8657305e391021af89a7ef24398a283f9394a"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-loading-splash",
+    "rules": ["DAT-044", "UX-094"],
+    "screens": ["UX-R02"],
+    "flow": "JSONL loading splash",
+    "kind": "e2e",
+    "spec_hashes": {
+      "DAT-044": "sha256:cda653b3bb08147b68848796c6353d15d81be6c78443b8329cebf0c43538c901",
+      "UX-094": "sha256:58fe3cc3e8d79cae06217b9e2b56af3907b9d5c846a904ac144f7d6680cad76b",
+      "UX-R02": "sha256:7f26dd15c383f8697246ea7d10d9823ad7444988ca77060a14af7a44d67b0515"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-contextual-palette",
+    "rules": ["UX-022", "UX-023", "UX-024", "UX-047"],
+    "screens": ["UX-M01"],
+    "flow": "Palette/command escape",
+    "kind": "protocol",
+    "spec_hashes": {
+      "UX-022": "sha256:c06a9f878a3caa792994727887ee951a7bcbd85d8ccce47778df0711d054e9a1",
+      "UX-023": "sha256:fc7ab4d2dcda498051519d32ba2babffb8e7ba77920426d6665fcf5011efc798",
+      "UX-024": "sha256:36da5914942bc7839cc15a3f0e50cd87a0b09c94d3ab0b3b0a5097450f1cb5cd",
+      "UX-047": "sha256:cb2a162757b6c7bc3f6125eca20c689e72c69c8049e7ef4196e333491ad3502d",
+      "UX-M01": "sha256:d16a1457fc00c9d2bb328d9ce3c2f28621068fc39229381ea72b4082d8b3819e"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-stale-revalidation",
+    "rules": ["UX-029", "UX-030", "UX-191", "UX-192"],
+    "screens": [],
+    "flow": "Revision/stale response",
+    "kind": "protocol",
+    "spec_hashes": {
+      "UX-029": "sha256:18a193b4800333d8e5b475bb8c7783b0d11f3abbc93cdf1defbe25f2f80326e6",
+      "UX-030": "sha256:ff06db2630ba608364aa800b8bcc6bb47f57bacbf2eeeccd47caffe2a8026bff",
+      "UX-191": "sha256:74d521efe4a1036f230d91cd323bcdecdcf9b5cf18477fc1107096b340436310",
+      "UX-192": "sha256:88281e11f4e49dded94b9113ae5c65c70041008fd11363d04550fa1c4cb7147c"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-typed-reference",
+    "rules": ["UX-075", "UX-076", "UX-201", "UX-202", "UX-203"],
+    "screens": [],
+    "flow": "Reference selection",
+    "kind": "unit",
+    "spec_hashes": {
+      "UX-075": "sha256:2709498e71d4b59a522dd3d93faadda561fab83ea7e9c7f36459f8f48745c08e",
+      "UX-076": "sha256:5df87794c3b5af3619c776a44118bbf2bac76bcaaf047a3bab640cb1bac93e7b",
+      "UX-201": "sha256:02ecbbeb397ab7adb4c2effbb79f74150aaea61209b1d5ed2f06713c209c6ca7",
+      "UX-202": "sha256:832d8264b4f6b90fe41bd4ce93108ead11ef9fb5d8df77932c41543e50463340",
+      "UX-203": "sha256:6d350a404818ee0a382cc3e0fba3e63d7cb5182b2eaad50c132698d0650eb993"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-restore-next",
+    "rules": ["UX-046"],
+    "screens": ["UX-R00"],
+    "flow": "Restore/startup to `next`",
+    "kind": "e2e",
+    "spec_hashes": {
+      "UX-046": "sha256:0e677febcd83c849a7f459d22b481642c1f7fab1e09ac3dfa612d9434c37fcd7",
+      "UX-R00": "sha256:61b411816ef9fd6ec883ee8c8918907770797fb785d7cca49f7923c318159be4"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-pristine-start",
+    "rules": ["FED-001", "FED-004"],
+    "screens": ["UX-E00"],
+    "flow": "Pristine first start",
+    "kind": "e2e",
+    "spec_hashes": {
+      "FED-001": "sha256:a0ddd169b4dd6531c08dfd95877a264b71731f8fc86ed84db76c9f62a55761c4",
+      "FED-004": "sha256:720810c35414fd06cb617dba1813ef7139c09cbbef5732b834c5e624bf33333f",
+      "UX-E00": "sha256:5815acc63ed3d6c431be877882c297855902c66a50857c40dfa68a6b667fe8e6"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-feed-input",
+    "rules": ["FED-001", "FED-003", "FED-004", "FED-049", "UX-049"],
+    "screens": ["UX-I02"],
+    "flow": "Feed text input",
+    "kind": "e2e",
+    "spec_hashes": {
+      "FED-001": "sha256:a0ddd169b4dd6531c08dfd95877a264b71731f8fc86ed84db76c9f62a55761c4",
+      "FED-003": "sha256:4fd36b608de7bfa40dfd16cffa579af21d3b2f514dc89faab1ff0d09ccd6ba18",
+      "FED-004": "sha256:720810c35414fd06cb617dba1813ef7139c09cbbef5732b834c5e624bf33333f",
+      "FED-049": "sha256:f21bc79b95046509e6549419314742082c76842369b7ab397e26a2c719daf814",
+      "UX-049": "sha256:b807052b5abeefd158851d73c7b27b09d16034cb24700af834d39c85fc894d0c",
+      "UX-I02": "sha256:56e7b0a41bb1683513fd786e2797124cd83b04957d0ab8d9bf767068a89462a7"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  }
+]

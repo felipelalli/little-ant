@@ -1,0 +1,65 @@
+# S09 — Sources, Packs, adapters, exports, and repair
+
+Status: **planned**
+
+## Outcome
+
+Complete external observation and extension boundaries: Raw source
+reconciliation, translation review, standard imports and optional cleanup,
+Google Calendar, reproducible Packs, safe exporters, local-web hosting
+infrastructure, complete command registry, and corrupt-history recovery.
+
+## Canonical flow rows owned
+
+- Preserve/normalize Raw
+- Raw review/source reconcile
+- `/translate`
+- Import/migrate/erase source
+- Calendar observe/write
+- Pack trust/install/update/remove
+- Canonical commands and safe export
+- Typed reference/error/dry-run
+- Corrupt history/repair
+
+Generate all owning-row references plus the complete data/integration chapter,
+[`standard-integration-catalog.md`](../../spec/little-ant-1.0/standard-integration-catalog.md),
+[`pack-format-and-trust.md`](../../spec/little-ant-1.0/pack-format-and-trust.md),
+the command catalog, DAT-011..023, DAT-028..043, DAT-046..050,
+DAT-068..093, and UX-RA00..RA04, UX-IMP00..IMP02,
+UX-CAL00..CAL01, UX-PACK00..PACK02, UX-EXP00.
+
+## Work
+
+1. Complete Raw revision/original/English-normalization, source binding,
+   immutable observation, divergence, schedule, detach, and damaged-blob
+   recovery.
+2. Implement `/translate` as an attributed review queue; dumb mode never
+   fabricates translation.
+3. Implement Pack manifest/archive/signature/trust/revocation/update/remove
+   protocols and the isolated HsLua runner with host-brokered IO.
+4. Ship the standard offline Pack and official connector Pack exactly from the
+   catalog, including Microsoft To Do and Notesnook paths needed for real
+   migration use; unsupported provider capabilities remain explicit.
+5. Implement Raw-first snapshot/synchronize/migrate preflight, idempotent
+   adoption, partial effects, verified cleanup queue, and source absence
+   safety.
+6. Implement observe-first Google Calendar adoption, occurrence identity,
+   reconciliation, allowlisted write-back, and minimal privacy projections.
+7. Implement standard structural exporters, TaskJuggler exporter/actuals
+   importer, safe stdout/new-file host writes, and local-web UIAdapter host
+   protocol. S11 verifies complete visual parity.
+8. Close the command/help/schema registry, contextual palette, generic
+   dry-run, typed reference/error families, doctor, and candidate-based repair.
+
+## Gate
+
+- replay works with every Pack removed and performs no provider IO;
+- archive/signature and trust fixtures are reproducible byte-for-byte;
+- every adapter capability is constrained by the shipping catalog;
+- missing source objects never imply local completion or deletion;
+- erase-after-import cannot dispatch before canonical verification and exact
+  consent;
+- export cannot overwrite, follow symlinks, or escape its one new file;
+- full command enumeration has no alias and uses only `lant`;
+- corrupt-log fixtures stop safely and repair only into a fully replayed
+  replacement dataset.

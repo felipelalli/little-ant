@@ -1,0 +1,13 @@
+catalog	prefix	owner_slice	rationale
+rule	PRD	S00	Cross-cutting product and language constraints are maintained by conformance bootstrap.
+rule	CAL	S04	Calculation and calibration profiles become executable with forecast mechanics.
+rule	MOD	S06	The closed structural and Nature model becomes complete in the structure slice.
+rule	FED	S02	Feed organization and materialization become complete in the daily-loop slice.
+rule	IMP	S03	Importance and judgment rules become complete in the judgment slice.
+rule	FOC	S04	Forecast and Focus rules become complete in the forecast slice.
+rule	WRK	S05	Ordinary work adaptation owns the cross-cutting work-rule catalog.
+rule	UX	S11	Assisted-surface closure owns the complete cross-surface interaction-rule catalog.
+rule	DAT	S09	Sources Packs adapters and canonical data boundaries become complete together.
+rule	MIG	S10	Migration and release rules become complete in the cutover slice.
+screen	UX	S11	Release surface parity owns the complete canonical screen catalog.
+scenario	SCN	S11	Release closure runs and maintains the complete scenario catalog.

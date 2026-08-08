@@ -11,6 +11,7 @@ result-*
 # Cabal / GHC build artifacts
 dist-newstyle/
 dist/
+target/
 *.hi
 *.o
 *.dyn_hi
@@ -18,3 +19,7 @@ dist/
 .ghc.environment.*
 cabal.project.local
 cabal.project.local~
+
+# Python test/tool artifacts
+__pycache__/
+*.py[cod]

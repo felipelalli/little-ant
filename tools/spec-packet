@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from lant_conformance import main
+
+raise SystemExit(main(["packet", *__import__("sys").argv[1:]]))

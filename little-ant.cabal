@@ -1,15 +1,11 @@
 cabal-version:      3.0
 name:               little-ant
-version:            0.1.0.0
-synopsis:           A personal focus engine — one brick at a time
+version:            1.0.0.0
+synopsis:           A personal focus engine, one Brick at a time
 description:
-    Little Ant is a personal focus engine: a small, deterministic CLI that
-    keeps every executable task of your life as a brick that can be stacked,
-    broken into smaller bricks, prioritized by pairwise comparison, and served
-    back one at a time when you ask: "where should I focus now?"
-    .
-    The CLI is the dumb, deterministic core. Judgment belongs to an LLM
-    operating it from outside — a generic agent skill ships with this repo.
+  Little Ant is a deterministic personal focus engine. This package is the
+  greenfield implementation of the canonical Little Ant 1.0 contract.
+
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Felipe Micaroni Lalli
@@ -18,134 +14,391 @@ homepage:           https://github.com/felipelalli/little-ant
 category:           Productivity
 build-type:         Simple
 extra-doc-files:
-    README.md
-    CHANGELOG.md
+  CHANGELOG.md
+  README.md
+
 extra-source-files:
-    spec/little-ant.allium
-    spec/little-ant/*.allium
-    spec/little-ant-1.0.md
-    spec/little-ant-1.0/*.md
-    test-v1/README.md
-    test-v1/generate-allium-artifacts.sh
-    test-v1/generated/*.json
-    test-v1/scenarios/*.json
+  conformance/*.json
+  conformance/*.tsv
+  implementation/*.md
+  implementation/coverage.tsv
+  implementation/slices/*.md
+  spec/little-ant-1.0/*.md
+  spec/little-ant-1.0/ux/*.md
+  spec/little-ant-1.0.md
 
 source-repository head
-    type:     git
-    location: https://github.com/felipelalli/little-ant
+  type:     git
+  location: https://github.com/felipelalli/little-ant
+
+common language
+  default-language:   GHC2021
+  default-extensions:
+    DeriveAnyClass
+    DeriveGeneric
+    DerivingStrategies
+    LambdaCase
+    OverloadedStrings
+    StrictData
 
 common warnings
-    ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
-                 -Wincomplete-uni-patterns -Wmissing-export-lists
-                 -Wpartial-fields -Wredundant-constraints
+  ghc-options:
+    -Wall -Wcompat -Widentities -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wmissing-export-lists -Wpartial-fields
+    -Wredundant-constraints
 
 library
-    import:           warnings
-    exposed-modules:
-        LittleAnt.Types
-        LittleAnt.Ids
-        LittleAnt.Event
-        LittleAnt.State
-        LittleAnt.Config
-        LittleAnt.Command
-        LittleAnt.Tick
-        LittleAnt.Order
-        LittleAnt.Scheduler
-        LittleAnt.Store
-        LittleAnt.Views
-        LittleAnt.Render
-        LittleAnt.Grammar
-        LittleAnt.Upcast
-    hs-source-dirs:   src
-    default-language: GHC2021
-    default-extensions:
-        LambdaCase
-        OverloadedStrings
-        RecordWildCards
-        StrictData
-    build-depends:
-        base >=4.18 && <5,
-        aeson >=2.1,
-        aeson-pretty,
-        bytestring,
-        containers,
-        directory,
-        filepath,
-        SHA,
-        text,
-        time
+  import:          language, warnings
+  exposed-modules:
+    LittleAnt.Application
+    LittleAnt.Catalog
+    LittleAnt.Conformance
+    LittleAnt.Decision
+    LittleAnt.Error
+    LittleAnt.Event
+    LittleAnt.Forecast
+    LittleAnt.ForecastWorld
+    LittleAnt.Foundation
+    LittleAnt.Id
+    LittleAnt.Interaction
+    LittleAnt.Judgment
+    LittleAnt.JudgmentDecision
+    LittleAnt.JudgmentUI
+    LittleAnt.Model
+    LittleAnt.Notice
+    LittleAnt.Profile
+    LittleAnt.Projection
+    LittleAnt.Protocol
+    LittleAnt.Reference
+    LittleAnt.REPL
+    LittleAnt.Result
+    LittleAnt.Schedule
+    LittleAnt.Store
+    LittleAnt.Surface
+    LittleAnt.Temporal
+    LittleAnt.Terminal
+    LittleAnt.Time
+    LittleAnt.Vault
+    LittleAnt.Vault.Age
+    LittleAnt.Vault.Agent
 
-common la-exe
-    import:           warnings
-    hs-source-dirs:   app
-    default-language: GHC2021
-    default-extensions:
-        LambdaCase
-        OverloadedStrings
-        RecordWildCards
-    ghc-options:      -threaded
-    build-depends:
-        base >=4.18 && <5,
-        aeson,
-        aeson-pretty,
-        bytestring,
-        containers,
-        little-ant,
-        optparse-applicative >=0.17,
-        text,
-        time
+  hs-source-dirs:  src
+  build-depends:
+    , aeson               >=2.2   && <2.3
+    , base                >=4.20  && <5
+    , base16-bytestring   >=1.0   && <1.1
+    , bytestring          >=0.12  && <0.13
+    , containers          >=0.7   && <0.8
+    , cryptohash-sha256   >=0.11  && <0.12
+    , directory           >=1.3   && <1.4
+    , entropy             >=0.4   && <0.5
+    , filelock            >=0.1   && <0.2
+    , filepath            >=1.5   && <1.6
+    , memory              >=0.18  && <0.19
+    , network             >=3.2   && <3.3
+    , text                >=2.1   && <2.2
+    , time                >=1.12  && <1.13
+    , tz                  >=0.1.3 && <0.2
+    , unicode-transforms  >=0.4   && <0.5
+    , unix                >=2.8   && <2.9
+    , vty                 >=6.4   && <6.5
+    , vty-crossplatform   >=0.4   && <0.5
+    , yaml                >=0.11  && <0.12
 
-executable la
-    import:  la-exe
-    main-is: Main.hs
+  extra-libraries:
+    lant_age_ffi
+    pthread
+    dl
+    m
 
--- The same program under an unambiguous name, for systems where `la` is
--- shadowed by an alias (ls -A) or another binary.
 executable lant
-    import:  la-exe
-    main-is: Main.hs
+  import:         language, warnings
+  main-is:        Main.hs
+  hs-source-dirs: app
+  ghc-options:    -threaded
+  build-depends:
+    , aeson                 >=2.2  && <2.3
+    , base                  >=4.20 && <5
+    , bytestring            >=0.12 && <0.13
+    , containers            >=0.7  && <0.8
+    , directory             >=1.3  && <1.4
+    , filepath              >=1.5  && <1.6
+    , little-ant
+    , optparse-applicative  >=0.18 && <0.19
+    , process               >=1.6  && <1.7
+    , text                  >=2.1  && <2.2
+    , unix                  >=2.8  && <2.9
 
-test-suite little-ant-test
-    import:           warnings
-    type:             exitcode-stdio-1.0
-    main-is:          Spec.hs
-    hs-source-dirs:   test
-    default-language: GHC2021
-    default-extensions:
-        LambdaCase
-        OverloadedStrings
-        RecordWildCards
-    build-depends:
-        base >=4.18 && <5,
-        aeson,
-        bytestring,
-        containers,
-        directory,
-        filepath,
-        little-ant,
-        tasty,
-        tasty-hunit,
-        tasty-quickcheck,
-        text,
-        time
+test-suite little-ant-unit-property-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/unit
+  build-depends:
+    , base              >=4.20 && <5
+    , little-ant
+    , QuickCheck        >=2.15 && <2.16
+    , tasty             >=1.5  && <1.6
+    , tasty-hunit       >=0.10 && <0.11
+    , tasty-quickcheck  >=0.11 && <0.12
+    , text              >=2.1  && <2.2
+    , vty               >=6.4  && <6.5
 
-test-suite little-ant-v1-contract-test
-    import:           warnings
-    type:             exitcode-stdio-1.0
-    main-is:          Spec.hs
-    hs-source-dirs:   test-v1
-    default-language: GHC2021
-    default-extensions:
-        LambdaCase
-        OverloadedStrings
-    build-depends:
-        base >=4.18 && <5,
-        aeson,
-        bytestring,
-        containers,
-        directory,
-        filepath,
-        process,
-        tasty,
-        tasty-hunit,
-        text
+test-suite little-ant-protocol-golden-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/protocol
+  build-depends:
+    , aeson        >=2.2  && <2.3
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+    , unix         >=2.8  && <2.9
+
+test-suite little-ant-s07-time-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s07
+  build-depends:
+    , base         >=4.20  && <5
+    , bytestring   >=0.12  && <0.13
+    , containers   >=0.7   && <0.8
+    , little-ant
+    , tasty        >=1.5   && <1.6
+    , tasty-hunit  >=0.10  && <0.11
+    , temporary    >=1.3   && <1.4
+    , text         >=2.1   && <2.2
+    , time         >=1.12  && <1.13
+    , tz           >=0.1.3 && <0.2
+
+test-suite little-ant-s08-responsibility-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s08
+  build-depends:
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , directory    >=1.3  && <1.4
+    , filepath     >=1.5  && <1.6
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+    , unix         >=2.8  && <2.9
+
+test-suite little-ant-s09-sources-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s09
+  build-depends:
+    , aeson        >=2.2  && <2.3
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , directory    >=1.3  && <1.4
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s04-flow-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s04-flow
+  build-depends:
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-end-to-end-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/e2e
+  build-depends:
+    , base         >=4.20 && <5
+    , directory    >=1.3  && <1.4
+    , filepath     >=1.5  && <1.6
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , text         >=2.1  && <2.2
+
+test-suite little-ant-s01-walking-skeleton-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s01
+  build-depends:
+    , aeson        >=2.2  && <2.3
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , directory    >=1.3  && <1.4
+    , filelock     >=0.1  && <0.2
+    , filepath     >=1.5  && <1.6
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s04-forecast-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s04
+  build-depends:
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s05-flow-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s05-flow
+  build-depends:
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s06-flow-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s06-flow
+  build-depends:
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s01-surface-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/surface-s01
+  build-depends:
+    , base         >=4.20 && <5
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s01-protocol-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/protocol-s01
+  build-depends:
+    , aeson        >=2.2  && <2.3
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , directory    >=1.3  && <1.4
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s02-domain-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s02
+  build-depends:
+    , aeson        >=2.2  && <2.3
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s02-daily-loop-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s02-flow
+  build-depends:
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s03-judgment-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s03
+  build-depends:
+    , base         >=4.20 && <5
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13
+
+test-suite little-ant-s03-flow-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s03-flow
+  build-depends:
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , temporary    >=1.3  && <1.4
+    , text         >=2.1  && <2.2
+    , time         >=1.12 && <1.13

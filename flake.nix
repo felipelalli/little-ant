@@ -10,29 +10,45 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        # Pinned explicitly (matches the default haskellPackages in the locked
-        # nixpkgs) so a future `nix flake update` can't silently bump the GHC
-        # major version out from under the project.
+        # Keep the compiler pinned to the release toolchain even after a flake update.
         haskellPackages = pkgs.haskell.packages.ghc9103;
         packageName = "little-ant";
-        pkg = haskellPackages.callCabal2nix packageName self { };
+        ageFfi = pkgs.rustPlatform.buildRustPackage {
+          pname = "lant-age-ffi";
+          version = "1.0.0";
+          src = ./rust/lant-age-ffi;
+          cargoHash = "sha256-8QPuAZ30aesU2b3NJnzrOTX9SiY8+VAitkytc4Bs47k=";
+          doCheck = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/lib
+            cp target/*/release/liblant_age_ffi.a $out/lib/
+            runHook postInstall
+          '';
+        };
+        pkg = haskellPackages.callCabal2nix packageName self {
+          lant_age_ffi = ageFfi;
+        };
       in {
         packages.${packageName} = pkg;
+        packages.lant-age-ffi = ageFfi;
         packages.default = pkg;
 
         apps.default = {
           type = "app";
-          program = "${pkg}/bin/la";
+          program = "${pkg}/bin/lant";
         };
 
         devShells.default = pkgs.mkShell {
-          # The stdenv puts a readline-less `bash` on PATH; tools that re-exec
-          # themselves via `env bash` (git-sh, for one) then lose `complete`.
+          # Keep interactive bash available to tools that re-exec through env.
           packages = [ pkgs.bashInteractive ];
           buildInputs = with haskellPackages; [
             ghc
             cabal-install
             haskell-language-server
+            cabal-fmt
+            fourmolu
+            hlint
           ];
           inputsFrom = [ pkg.env ];
         };
