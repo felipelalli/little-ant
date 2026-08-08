@@ -98,6 +98,26 @@ data AppCommand
   | ConfigShowCommand
   | ConfigPathsCommand
   | ConfigValidateCommand
+  | UpdateCommand Text (Maybe Text)
+  | MergeCommand Text Text
+  | SupersedeCommand Text Text
+  | ImportCommand Text Text Bool
+  | MigrateCommand Text Text Text
+  | ExportCommand Text (Maybe Text) (Maybe FilePath)
+  | WebCommand
+  | PacksListCommand
+  | PacksShowCommand Text
+  | PacksInstallCommand Text
+  | PacksUpdatesCommand
+  | PacksUpdateCommand Text
+  | PacksRemoveCommand Text
+  | PacksRefreshCommand
+  | PacksTrustCommand Text
+  | PacksUntrustCommand Text
+  | PacksGcCommand
+  | DoctorCommand
+  | RepairCommand
+  | EditorCommand
   deriving stock (Eq, Show)
 
 data AppEnv = AppEnv
@@ -245,6 +265,43 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   ConfigShowCommand -> runConfigShow environment dryRun dataset
   ConfigPathsCommand -> runConfigPaths environment dryRun dataset
   ConfigValidateCommand -> runConfigValidate environment dryRun dataset
+  UpdateCommand reference section -> pure (unsupportedCommand "update")
+  MergeCommand survivor absorbed -> pure (unsupportedCommand ("merge " <> survivor <> " " <> absorbed))
+  SupersedeCommand oldBrick newBrick -> pure (unsupportedCommand ("supersede " <> oldBrick <> " " <> newBrick))
+  ImportCommand source mode eraseAfterImport ->
+    pure $
+      unsupportedCommand
+        ("import from " <> source <> " mode=" <> mode <> (if eraseAfterImport then " --erase-after-import" else ""))
+  MigrateCommand sourcePath targetPath mode ->
+    pure $ unsupportedCommand ("migrate " <> sourcePath <> " " <> targetPath <> " mode=" <> mode)
+  ExportCommand strategy scope outputPath ->
+    let scopeHint = maybe "" (" scope=" <>) scope
+        outputHint =
+          maybe "" (\path -> " --out " <> path) outputPath
+     in pure (unsupportedCommand ("export " <> strategy <> scopeHint <> outputHint))
+  WebCommand -> pure (unsupportedCommand "web")
+  PacksListCommand -> pure (unsupportedCommand "packs list")
+  PacksShowCommand pack -> pure (unsupportedCommand ("packs show " <> pack))
+  PacksInstallCommand pack -> pure (unsupportedCommand ("packs install " <> pack))
+  PacksUpdatesCommand -> pure (unsupportedCommand "packs updates")
+  PacksUpdateCommand pack -> pure (unsupportedCommand ("packs update " <> pack))
+  PacksRemoveCommand pack -> pure (unsupportedCommand ("packs remove " <> pack))
+  PacksRefreshCommand -> pure (unsupportedCommand "packs refresh")
+  PacksTrustCommand pack -> pure (unsupportedCommand ("packs trust " <> pack))
+  PacksUntrustCommand pack -> pure (unsupportedCommand ("packs untrust " <> pack))
+  PacksGcCommand -> pure (unsupportedCommand "packs gc")
+  DoctorCommand -> pure (unsupportedCommand "doctor")
+  RepairCommand -> pure (unsupportedCommand "repair")
+  EditorCommand -> pure (unsupportedCommand "editor")
+
+unsupportedCommand :: Text -> Either AppError CommandResult
+unsupportedCommand detail =
+  Left $
+    (appError Unsupported (detail <> " is not implemented in this checkpoint."))
+      { appErrorRecovery =
+          [RecoveryAction "implementation-roadmap" "Implement this command path in a later milestone." (Just "lant help commands")]
+      , appErrorDetails = ["checkpoint: v1 command-surface alignment"]
+      }
 
 runProfileList :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runProfileList environment dryRun dataset = do
@@ -1234,6 +1291,17 @@ helpEntries Nothing =
   , helpEntry "return-to-idle" "Return current focus to idle" "usage: lant return-to-idle [BRICK]"
   , helpEntry "pause" "Pause current focus" "usage: lant pause"
   , helpEntry "translate" "Review english-normalization opportunities" "usage: lant translate [TARGET]"
+  , helpEntry "update" "Patch one Brick metadata or section" "usage: lant update <BRICK> [SECTION]"
+  , helpEntry "merge" "Merge two Bricks" "usage: lant merge <SURVIVOR> <ABSORBED>"
+  , helpEntry "supersede" "Supersede a Brick with another" "usage: lant supersede <OLD> <NEW>"
+  , helpEntry "import" "Import external source data" "usage: lant import <SOURCE> [--mode snapshot|synchronize|migrate] [--erase-after-import]"
+  , helpEntry "migrate" "Migrate state between formats" "usage: lant migrate <SOURCE> <TARGET> [--mode inspect|build|cutover]"
+  , helpEntry "export" "Export state through a strategy" "usage: lant export <STRATEGY> [SCOPE] [--out FILE]"
+  , helpEntry "packs" "Manage packs and extensions" "usage: lant packs <list|show|install|updates|update|remove|refresh|trust|untrust|gc>"
+  , helpEntry "doctor" "Run dataset consistency checks" "usage: lant doctor"
+  , helpEntry "repair" "Attempt deterministic dataset repair steps" "usage: lant repair"
+  , helpEntry "editor" "Open EDITOR workflow for raw material" "usage: lant editor"
+  , helpEntry "web" "Start or inspect web view" "usage: lant web"
   ]
 helpEntries (Just "list") =
   [ helpEntry "lant list importance" "Current ordered work list" "active Brick tree grouped by insertion position"

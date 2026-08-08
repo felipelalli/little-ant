@@ -89,6 +89,26 @@ data CliCommand
   | VaultBackupCli FilePath
   | VaultRotateCli
   | VaultDiagnoseCli
+  | UpdateCli Text (Maybe Text)
+  | MergeCli Text Text
+  | SupersedeCli Text Text
+  | ImportCli Text Text Bool
+  | MigrateCli Text Text Text
+  | ExportCli Text (Maybe Text) (Maybe FilePath)
+  | WebCli
+  | PacksListCli
+  | PacksShowCli Text
+  | PacksInstallCli Text
+  | PacksUpdatesCli
+  | PacksUpdateCli Text
+  | PacksRemoveCli Text
+  | PacksRefreshCli
+  | PacksTrustCli Text
+  | PacksUntrustCli Text
+  | PacksGcCli
+  | DoctorCli
+  | RepairCli
+  | EditorCli
 
 main :: IO ()
 main = do
@@ -176,6 +196,29 @@ run environment options = case optionCommand options of
   VaultBackupCli destination -> runVaultBackup environment options destination
   VaultRotateCli -> runVaultRotate environment options
   VaultDiagnoseCli -> runVaultDiagnose environment options
+  UpdateCli reference section -> execute environment options (UpdateCommand reference section)
+  MergeCli survivor absorbed -> execute environment options (MergeCommand survivor absorbed)
+  SupersedeCli oldBrick newBrick -> execute environment options (SupersedeCommand oldBrick newBrick)
+  ImportCli source mode eraseAfterImport ->
+    execute environment options (ImportCommand source mode eraseAfterImport)
+  MigrateCli sourcePath targetPath mode ->
+    execute environment options (MigrateCommand sourcePath targetPath mode)
+  ExportCli exporter scope outputPath ->
+    execute environment options (ExportCommand exporter scope outputPath)
+  WebCli -> execute environment options WebCommand
+  PacksListCli -> execute environment options PacksListCommand
+  PacksShowCli pack -> execute environment options (PacksShowCommand pack)
+  PacksInstallCli pack -> execute environment options (PacksInstallCommand pack)
+  PacksUpdatesCli -> execute environment options PacksUpdatesCommand
+  PacksUpdateCli pack -> execute environment options (PacksUpdateCommand pack)
+  PacksRemoveCli pack -> execute environment options (PacksRemoveCommand pack)
+  PacksRefreshCli -> execute environment options PacksRefreshCommand
+  PacksTrustCli pack -> execute environment options (PacksTrustCommand pack)
+  PacksUntrustCli pack -> execute environment options (PacksUntrustCommand pack)
+  PacksGcCli -> execute environment options PacksGcCommand
+  DoctorCli -> execute environment options DoctorCommand
+  RepairCli -> execute environment options RepairCommand
+  EditorCli -> execute environment options EditorCommand
 
 runVaultAgentCli :: AppEnv -> Options -> Int -> IO ()
 runVaultAgentCli environment options idleSeconds =
@@ -704,6 +747,84 @@ commandParser =
               (PhaseCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")))
               (progDesc "Review the optional descriptive phase of one Brick")
           )
+        <> command
+          "update"
+          ( info
+              (UpdateCli . Text.pack <$> strArgument (metavar "REFERENCE") <*> optional (Text.pack <$> strArgument (metavar "SECTION")))
+              (progDesc "Patch metadata or status of one Brick")
+          )
+        <> command
+          "merge"
+          ( info
+              (MergeCli . Text.pack <$> strArgument (metavar "SURVIVOR") <*> Text.pack <$> strArgument (metavar "ABSORBED"))
+              (progDesc "Merge two Bricks keeping the survivor identity")
+          )
+        <> command
+          "supersede"
+          ( info
+              (SupersedeCli . Text.pack <$> strArgument (metavar "OLD") <*> Text.pack <$> strArgument (metavar "NEW"))
+              (progDesc "Mark one Brick as superseded by another")
+          )
+        <> command
+          "import"
+          ( info
+              (ImportCli
+                 . Text.pack <$> strArgument (metavar "SOURCE")
+                 <*> option
+                    (strOptionMode ["snapshot", "synchronize", "migrate"])
+                    ( long "mode"
+                        <> metavar "snapshot|synchronize|migrate"
+                        <> value "synchronize"
+                        <> showDefault
+                        <> help "Import execution mode"
+                    )
+                 <*> switch (long "erase-after-import" <> help "Delete imported entries from source as a migration aid")
+              )
+              (progDesc "Import external data into your Lant dataset")
+          )
+        <> command
+          "migrate"
+          ( info
+              ( MigrateCli
+                  . Text.pack <$> strArgument (metavar "SOURCE")
+                  <*> Text.pack <$> strArgument (metavar "TARGET")
+                  <*> option
+                        (strOptionMode ["inspect", "build", "cutover"])
+                        ( long "mode"
+                            <> metavar "inspect|build|cutover"
+                            <> value "inspect"
+                            <> showDefault
+                            <> help "Migration strategy"
+                        )
+              )
+              (progDesc "Migrate state between formats or adapters")
+          )
+        <> command
+          "export"
+          ( info
+              ( ExportCli
+                  . Text.pack <$> strArgument (metavar "STRATEGY")
+                  <*> optional (Text.pack <$> strArgument (metavar "SCOPE"))
+                  <*> optional
+                    ( strOption
+                        ( long "out"
+                            <> metavar "FILE"
+                            <> help "Write output into a specific path"
+                        )
+                    )
+              )
+              (progDesc "Export data through a named strategy")
+          )
+        <> command "web" (info (pure WebCli) (progDesc "Start or inspect the web service mode"))
+        <> command
+          "packs"
+          ( info
+              (packParser <|> pure PacksListCli)
+              (progDesc "Manage packs (extensions, adapters, templates)")
+          )
+        <> command "doctor" (info (pure DoctorCli) (progDesc "Run a dataset consistency diagnostic"))
+        <> command "repair" (info (pure RepairCli) (progDesc "Apply safe deterministic repair recipes"))
+        <> command "editor" (info (pure EditorCli) (progDesc "Open a $EDITOR-assisted raw editing workflow"))
         <> command "pause" (info (pure PauseCli) (progDesc "Clear current focus while retaining WIP"))
         <> command
           "break"
@@ -755,6 +876,28 @@ commandParser =
         <> command "vault" (info vaultParser (progDesc "Manage profile-scoped encrypted credentials"))
     )
     <|> (VaultAgentCli <$> option auto (long "vault-agent-internal" <> hidden <> internal))
+
+strOptionMode :: [String] -> ReadM Text
+strOptionMode options =
+  eitherReader $ \value ->
+    if value `elem` options
+      then Right (Text.pack value)
+      else Left $ "unsupported value " <> value <> ". Supported: " <> Text.unpack (Text.intercalate ", " (map Text.pack options))
+
+packParser :: Parser CliCommand
+packParser =
+  hsubparser
+    ( command "list" (info (pure PacksListCli) (progDesc "List known packs"))
+        <> command "show" (info (PacksShowCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Show pack metadata"))
+        <> command "install" (info (PacksInstallCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Install a pack"))
+        <> command "updates" (info (pure PacksUpdatesCli) (progDesc "List available pack updates"))
+        <> command "update" (info (PacksUpdateCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Update one pack"))
+        <> command "remove" (info (PacksRemoveCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Remove an installed pack"))
+        <> command "refresh" (info (pure PacksRefreshCli) (progDesc "Refresh local pack index"))
+        <> command "trust" (info (PacksTrustCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Trust a pack"))
+        <> command "untrust" (info (PacksUntrustCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Untrust a pack"))
+        <> command "gc" (info (pure PacksGcCli) (progDesc "Collect and prune unused pack state"))
+    )
 
 profileParser :: Parser CliCommand
 profileParser =
