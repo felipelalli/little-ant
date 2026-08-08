@@ -159,16 +159,29 @@ The exact fixed-point formula and reference vectors are
 
 ### Judgment can become stale
 
-A recent human answer should outweigh an old indirect path. It should not,
-however, delete history.
+Little Ant evaluates a contrary answer against the surviving authority of the
+path it challenges:
+
+```mermaid
+flowchart LR
+    A["Earlier path<br/>A › B › C"] --> B["New direct answer<br/>C › A"]
+    B --> C{"Strength of the<br/>earlier path"}
+    C -->|"below relevance"| D["Use C › A<br/>Retain the old path in history"]
+    C -->|"still fresh"| E["Open a contradiction review"]
+    E --> F["Recalibrate the smallest<br/>affected sibling segment"]
+```
+
+The factory profile turns provenance and age into four public labels:
 
 <p align="center">
-  <img src="assets/judgment-confidence.svg" alt="Confidence decay for human, assisted, model, and provisional evidence" width="920">
+  <img src="assets/judgment-confidence.svg" alt="Judgment confidence labels by provenance and age" width="920">
 </p>
 
-Direct answers, accepted assisted proposals, model-only suggestions, and
-provisional placements keep separate provenance and confidence. Contradictory
-fresh answers trigger an explicit recalibration instead of a silent winner.
+Direct human answers start stronger and age more slowly. Assisted proposals
+and provisional placements retain their provenance. A conflict among fresh
+judgments opens recalibration; an old weak path moves into history. Exact
+values and reference vectors remain
+[normative and inspectable](spec/little-ant-1.0/deterministic-calculation-profile.md).
 
 ## The daily experience
 
@@ -364,8 +377,8 @@ bounded assistant.
 
 ## Conclusion
 
-Little Ant does not promise to know what matters better than its user. It
-preserves what arrives, asks small questions, remembers the answers, and turns
-them into one honest opportunity to move forward.
+Little Ant builds focus one small judgment at a time. It remembers what was
+fed, how it was ordered, what was skipped, and why. When it is time to choose,
+it offers one concrete next move and can explain how it got there.
 
 **Feed freely. Judge deliberately. Focus on one Brick.**

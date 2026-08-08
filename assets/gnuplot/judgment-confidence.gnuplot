@@ -3,48 +3,63 @@ reset
 set terminal svg size 1200,620 enhanced font "Sans,13" background rgb "white"
 set output "assets/judgment-confidence.svg"
 
-direct(x) = x <= 365 ? 1.00 * (365.0 - x) / 365.0 : 0
-assisted(x) = x <= 270 ? 0.80 * (270.0 - x) / 270.0 : 0
-model(x) = x <= 30 ? 0.30 * (30.0 - x) / 30.0 : 0
-provisional(x) = x <= 30 ? 0.15 * (30.0 - x) / 30.0 : 0
+# Public labels derived from the normative linear confidence profile:
+# 3 = reviewed, 2 = provisional, 1 = review due, 0 = historical only.
+$data << EOD
+0 3 3 "reviewed"
+1 3 3 "reviewed"
+2 3 3 "reviewed"
+3 3 3 "reviewed"
+4 3 2 "provisional"
+5 3 2 "provisional"
+6 3 0 "historical only"
 
-set multiplot layout 1,2 title "Judgment grows stale — history does not disappear" font ",20"
+0 2 3 "reviewed"
+1 2 3 "reviewed"
+2 2 3 "reviewed"
+3 2 2 "provisional"
+4 2 2 "provisional"
+5 2 0 "historical only"
+6 2 0 "historical only"
 
-set style line 1 lc rgb "#00875a" lw 5
-set style line 2 lc rgb "#1677b8" lw 4
-set style line 3 lc rgb "#d97706" lw 4
-set style line 4 lc rgb "#8b5cf6" lw 4
-set style line 5 lc rgb "#6b7280" lw 2 dt 3
+0 1 2 "provisional"
+1 1 2 "provisional"
+2 1 0 "historical only"
+3 1 0 "historical only"
+4 1 0 "historical only"
+5 1 0 "historical only"
+6 1 0 "historical only"
 
-set grid xtics ytics lc rgb "#d9dde3" lw 1
-set border lc rgb "#6b7280"
-set ylabel "Effective confidence"
-set yrange [0:1.05]
-set ytics 0.1
+0 0 1 "review due"
+1 0 1 "review due"
+2 0 0 "historical only"
+3 0 0 "historical only"
+4 0 0 "historical only"
+5 0 0 "historical only"
+6 0 0 "historical only"
+EOD
 
-set title "Human-reviewed evidence"
-set xlabel "Days since judgment"
-set xrange [0:365]
-set xtics 60
-set key top right box opaque spacing 1.2
-set arrow 1 from 0,0.60 to 365,0.60 nohead ls 5
-set arrow 2 from 0,0.20 to 365,0.20 nohead ls 5
-set label 1 "fresh conflict threshold" at 235,0.63 textcolor rgb "#4b5563"
-set label 2 "relevance threshold" at 252,0.23 textcolor rgb "#4b5563"
-plot direct(x) with lines ls 1 title "direct human", \
-     assisted(x) with lines ls 2 title "accepted assisted proposal"
+set title "How judgment evidence ages" font ",20" offset 0,1
+set label 1 "Factory defaults · public labels · history remains inspectable" \
+  at screen 0.5,0.91 center textcolor rgb "#4b5563" font ",12"
 
-unset label 1
-unset label 2
-unset arrow 1
-unset arrow 2
-set title "Low-authority starting evidence"
-set xlabel "Days since proposal or placement"
-set xrange [0:30]
-set xtics 5
-set key top right box opaque spacing 1.2
-plot model(x) with lines ls 3 title "model-only proposal", \
-     provisional(x) with lines ls 4 title "provisional placement"
+set xrange [-0.5:6.5]
+set yrange [-0.5:3.5]
+set xtics ("today" 0, "1 week" 1, "1 month" 2, "3 months" 3, \
+           "6 months" 4, "9 months" 5, "1 year" 6) scale 0
+set ytics ("provisional placement" 0, "model-only proposal" 1, \
+           "accepted assisted proposal" 2, "direct human answer" 3) scale 0
+set xlabel "Age of the evidence" offset 0,-0.5
+set border 0
+unset key
+unset colorbox
 
-unset multiplot
+set palette maxcolors 4
+set palette defined (0 "#e5e7eb", 1 "#f6c453", 2 "#7dd3fc", 3 "#6ee7b7")
+set cbrange [-0.5:3.5]
+set style fill solid 1.0 border lc rgb "#ffffff"
+
+plot $data using 1:2:(0.49):(0.47):3 with boxxyerror lc palette, \
+     '' using 1:2:4 with labels center font ",11" textcolor rgb "#1f2937"
+
 set output
