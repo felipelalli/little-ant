@@ -64,6 +64,7 @@ data CliCommand
   | GrammarCli
   | TickCli
   | NoticesCli
+  | HistoryCli (Maybe Int)
   | ProfileListCli
   | ProfileShowCli (Maybe Text)
   | ProfileCreateCli Text
@@ -142,6 +143,7 @@ run environment options = case optionCommand options of
   GrammarCli -> execute environment options GrammarCommand
   TickCli -> execute environment options TickCommand
   NoticesCli -> execute environment options NoticesCommand
+  HistoryCli limit -> execute environment options (HistoryCommand limit)
   ProfileListCli -> execute environment options ProfileListCommand
   ProfileShowCli name -> execute environment options (ProfileShowCommand name)
   ProfileCreateCli name -> execute environment options (ProfileCreateCommand name)
@@ -691,6 +693,9 @@ commandParser =
         <> command "grammar" (info (pure GrammarCli) (progDesc "Inspect the closed screen-grammar registry"))
         <> command "tick" (info (pure TickCli) (progDesc "Advance due recurrence and habit state explicitly"))
         <> command "notices" (info (pure NoticesCli) (progDesc "Inspect current, snoozed, and acknowledged temporal notices"))
+        <> command
+          "history"
+          (info (HistoryCli <$> optional (argument auto (metavar "LIMIT" <> help "Show only the last N command records"))) (progDesc "List recent command history"))
         <> command
           "profile"
           (info profileParser (progDesc "List, inspect, create, or select one non-merging profile"))

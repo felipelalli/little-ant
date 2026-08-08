@@ -139,6 +139,24 @@ renderCommandResult = \case
       <> " habit windows opened, "
       <> tshow settled
       <> " habit units settled."
+  HistoryResult _ history dryRun ->
+    dryRunFact dryRun
+      <> "History:"
+      <> ( if null history
+             then "\n(no events)"
+             else "\n" <> Text.unlines (fmap formatHistoryLine (zip [1 :: Int ..] history))
+         )
+   where
+    formatHistoryLine (index, entry) =
+      "  "
+        <> tshow index
+        <> ". "
+        <> renderUUIDv7 (historyCommandId entry)
+        <> " "
+        <> Text.intercalate ", " (historyEventTypes entry)
+        <> " ("
+        <> tshow (historyEventCount entry)
+        <> " events)"
 
 renderError :: AppError -> Text
 renderError problem =

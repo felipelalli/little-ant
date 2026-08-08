@@ -16,7 +16,7 @@ import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
-import Data.List (find, minimumBy, sortOn)
+import Data.List (find, minimumBy, sort, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isJust, isNothing, mapMaybe)
 import Data.Ord (Down (..), comparing)
@@ -29,7 +29,7 @@ import Data.Time.Zones (TZ, loadTZFromDB, utcToLocalTimeTZ)
 import LittleAnt.Catalog
 import LittleAnt.Decision
 import LittleAnt.Error
-import LittleAnt.Event (EventDraft (..), EventPayload (..), ForecastSelected (..), RepeatableReturnSet (..), applyEvent)
+import LittleAnt.Event (EventDraft (..), EventPayload (..), ForecastSelected (..), PersistedEvent, RepeatableReturnSet (..), applyEvent, decodeEvent, eventTypeName)
 import LittleAnt.Forecast
 import LittleAnt.ForecastWorld qualified as World
 import LittleAnt.Foundation
@@ -49,7 +49,7 @@ import LittleAnt.Time
 import System.Directory
 import System.Entropy qualified as Entropy
 import System.Environment (lookupEnv)
-import System.FilePath ((</>))
+import System.FilePath (takeExtension, (</>))
 
 data ViewDepth = SummaryView | OperationalView | RelationshipsView | HistoryView | CompleteView | GuidedView
   deriving stock (Eq, Ord, Show)
@@ -79,6 +79,7 @@ data AppCommand
   | DomainFocusCommand Text
   | TieBreakCommand
   | NoticesCommand
+  | HistoryCommand (Maybe Int)
   | TickCommand
   | SetRecurrenceScheduleCommand RecurrenceSchedule
   | SetHabitScheduleCommand HabitSchedule
@@ -198,6 +199,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   DomainFocusCommand reference -> runDomainFocus environment dryRun dataset reference
   TieBreakCommand -> runTieBreak environment dryRun dataset
   NoticesCommand -> runNotices environment dryRun dataset
+  HistoryCommand limit -> runHistory environment dryRun dataset limit
   TickCommand ->
     pure . Right $
       TickResult
@@ -375,6 +377,61 @@ runNotices environment dryRun dataset = do
       checkpoint = PresentationCheckpoint envelope [] []
   saveUnlessDry environment dryRun checkpoint
   pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+runHistory :: AppEnv -> Bool -> LoadedDataset -> Maybe Int -> IO (Either AppError CommandResult)
+runHistory environment dryRun dataset maybeLimit = do
+  let store = appStore environment
+  loadedEvents <- readHistoryEvents store
+  case loadedEvents of
+    Left problem -> pure (Left problem)
+    Right events ->
+      pure . Right $
+        HistoryResult
+          (loadedCursor dataset)
+          (selectHistoryLimit maybeLimit (toHistoryEntries events))
+          dryRun
+
+readHistoryEvents :: StoreConfig -> IO (Either AppError [PersistedEvent])
+readHistoryEvents store = do
+  let root = eventsDirectory store
+  exists <- doesDirectoryExist root
+  if not exists
+    then pure (Right [])
+    else do
+      names <- sort <$> listDirectory root
+      let segmentFiles = [root </> name | name <- names, takeExtension name == ".jsonl"]
+      fmap concat <$> traverse readSegmentEvents segmentFiles
+
+readSegmentEvents :: FilePath -> IO (Either AppError [PersistedEvent])
+readSegmentEvents path = do
+  bytes <- ByteString.readFile path
+  let linesInSegment = filter (not . ByteString.null) (ByteString.split 10 bytes)
+  traverse decodeEvent linesInSegment
+
+selectHistoryLimit :: Maybe Int -> [HistoryEntry] -> [HistoryEntry]
+selectHistoryLimit Nothing history = reverse history
+selectHistoryLimit (Just limit) history
+  | limit <= 0 = []
+  | otherwise = reverse (take limit (reverse history))
+
+chunkByCommand :: [PersistedEvent] -> [[PersistedEvent]]
+chunkByCommand [] = []
+chunkByCommand (first : rest) =
+  let (same, remaining) = span ((== persistedCommandId first) . persistedCommandId) rest
+   in (first : same) : chunkByCommand remaining
+
+toHistoryEntries :: [PersistedEvent] -> [HistoryEntry]
+toHistoryEntries = fmap toHistoryEntry . chunkByCommand
+ where
+  toHistoryEntry grouped =
+    let headEvent = head grouped
+     in HistoryEntry
+          { historyCommandId = persistedCommandId headEvent
+          , historyRecordedAt = persistedRecordedAt headEvent
+          , historyActor = persistedActor headEvent
+          , historyEventCount = length grouped
+          , historyEventTypes = fmap (eventTypeName . persistedPayload) grouped
+          }
 
 applyNoticeFrameToResult :: AppEnv -> Bool -> LoadedDataset -> Either AppError CommandResult -> IO (Either AppError CommandResult)
 applyNoticeFrameToResult _ _ _ result@(Left _) = pure result

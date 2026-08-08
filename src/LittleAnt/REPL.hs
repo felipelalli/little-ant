@@ -183,6 +183,7 @@ loop environment vty color width screen = do
       "undo" -> runSimpleCommand envelope UndoCommand
       "redo" -> runSimpleCommand envelope RedoCommand
       "pause" -> runSimpleCommand envelope PauseCommand
+      "history" -> runSimpleCommand envelope (HistoryCommand Nothing)
       "break" -> runBrickCommand envelope command BreakCommand
       "archive" -> runBrickCommand envelope command ArchiveCommand
       "restore" -> runBrickCommand envelope command RestoreCommand

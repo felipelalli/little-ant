@@ -1,5 +1,6 @@
 module LittleAnt.Result (
   CommandResult (..),
+  HistoryEntry (..),
   RawProjection (..),
   UndoClass (..),
   resultCursor,
@@ -25,6 +26,15 @@ data RawProjection = RawProjection
   , projectedRawOriginal :: Maybe Text
   , projectedRawCreatedAt :: Maybe UTCTime
   , projectedRawStatus :: Maybe Text
+  }
+  deriving stock (Eq, Show)
+
+data HistoryEntry = HistoryEntry
+  { historyCommandId :: UUIDv7
+  , historyRecordedAt :: UTCTime
+  , historyActor :: Actor
+  , historyEventCount :: Int
+  , historyEventTypes :: [Text]
   }
   deriving stock (Eq, Show)
 
@@ -84,12 +94,27 @@ data CommandResult
       , resultSettledHabitUnits :: Int
       , resultDryRun :: Bool
       }
+  | HistoryResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultHistory :: [HistoryEntry]
+      , resultDryRun :: Bool
+      }
   deriving stock (Eq, Show)
 
 resultCursor :: CommandResult -> DatasetCursor
 resultCursor = resultDatasetCursor
 
 instance ToJSON UndoClass where toJSON CreateUndo = toJSON ("create" :: Text)
+instance ToJSON HistoryEntry where
+  toJSON history =
+    object
+      [ "command_id" .= renderUUIDv7 (historyCommandId history)
+      , "recorded_at" .= historyRecordedAt history
+      , "actor" .= historyActor history
+      , "event_count" .= historyEventCount history
+      , "event_types" .= historyEventTypes history
+      ]
+
 instance ToJSON RawProjection where
   toJSON raw =
     object $
@@ -126,6 +151,13 @@ instance ToJSON CommandResult where
         , "released_occurrences" .= releases
         , "opened_habit_windows" .= windows
         , "settled_habit_units" .= outcomes
+        ]
+          <> dryRunPair dryRun
+    HistoryResult cursor history dryRun ->
+      object $
+        [ "schema" .= ("little-ant/history@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "history" .= history
         ]
           <> dryRunPair dryRun
     RespondResult cursor interaction commandId dryRun ->
