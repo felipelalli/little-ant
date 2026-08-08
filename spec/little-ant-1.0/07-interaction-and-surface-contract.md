@@ -230,6 +230,18 @@ assistance-label, and no-emoji rendering.
   declared in the rejected-vocabulary table. It leaves the pending interaction
   and random cursor unchanged. Assisted interpretation may prevent the error,
   but its receipt still names the invoked canonical command.
+- **UX-285 [core] — Raw duplicate review preserves both receipts.** UX-T10
+  implements MOD-011, MOD-067, and FED-016 after Feed durability. Yes records
+  the later Raw's `duplicate_of` link to the canonical root and its triage
+  disposition; no records revision-scoped negative evidence and returns the
+  Raw to ordinary triage; skip applies the review cooldown without settling
+  either outcome. Question mark inspects both complete representations,
+  provenance, revisions, and existing direct relationships before returning
+  to the same question. An exact compatible digest may mark yes as the
+  mechanical default. Assisted semantic evidence may mark and explain one
+  visible proposal with attribution, but the human still accepts the same
+  dumb action. Undo detaches only this link and restores the prior triage
+  disposition; redo revalidates both revisions before restoring it.
 - **UX-074 [core] — Compound slash-command grammar.** A public slash-command
   identifier is one lowercase kebab-case token. Whitespace ends the identifier
   and begins an argument or palette query; it never joins words in a command
@@ -1258,8 +1270,10 @@ assistance-label, and no-emoji rendering.
 - **UX-187 [core] — Raw revision and link previews name every consequence.**
   UX-RA01 starts text selected, supports the external editor contract, and
   shows representation, prior/current digest, provenance, and affected direct
-  consumers before commit. UX-RA02 chooses only MOD-067 roles and compatible
-  targets. Repeated uncertainty may inspect role consequences once, then
+  consumers before commit. UX-RA02 chooses compatible general MOD-067 roles
+  other than `duplicate_of`; that role uses UX-T10, while an existing relation
+  remains inspectable and detachable with preview. Repeated uncertainty may
+  inspect role consequences once, then
   leaves the decision pending. Powered-up and Skill may propose content or a
   role with attribution but cannot invent a consumer or bypass the same final
   preview.

@@ -143,6 +143,14 @@ Validate:
 - original Portuguese is preserved;
 - Enter creates exactly one Inbox Raw and asks no classification or metadata
   question;
+- feeding byte-identical compatible material again still creates another Raw;
+  a later `raw_duplicate_review` renders UX-T10 and yes links the later receipt
+  to the canonical root without deleting either identity, source, revision, or
+  history, while grouped projection shows the receipt count;
+- no records pair-specific nonduplicate evidence until either Raw changes;
+  skip leaves the review pending under cooldown; question mark is read-only;
+  undo restores the later Raw's prior Inbox disposition and redo revalidates
+  both revisions before restoring the link;
 - the suspended proposal is revalidated after that Raw commit and returns
   without a receipt screen, carrying one transient complete `Fed: +...` fact;
 - pristine Feed proceeds directly to its sole Raw-triage opportunity, while a

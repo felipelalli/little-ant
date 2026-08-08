@@ -6,7 +6,7 @@ Target release: **Little Ant 1.0**
 
 Implementation baseline: **none; 1.0 is a greenfield implementation**
 
-Last consolidated: **2026-08-06**
+Last consolidated: **2026-08-08**
 
 This is the canonical index for Little Ant 1.0. The compact chapters linked
 below define what the product must do. A normative answer must be discoverable

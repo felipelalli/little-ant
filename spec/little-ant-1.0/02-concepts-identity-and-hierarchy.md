@@ -99,10 +99,13 @@
   seeds.
 - **MOD-011 [core] — Suspicion is not equivalence.** Duplicate detection
   creates a reviewable suspicion. Only an explicit object-specific outcome may
-  reuse an existing downstream object, merge existing Bricks, or keep records
-  separate. Two independently fed Raws remain two attributable receipts even
-  when their material is equal; avoiding duplicate Work or ListEntries does
-  not rewrite Feed history.
+  group duplicate Raw receipts, reuse an existing downstream object, merge
+  existing Bricks, or keep records separate. Two independently fed Raws retain
+  their own identity, revisions, provenance, SourceBindings, and Feed history
+  even when an accepted `duplicate_of` link groups them. Duplicate grouping
+  does not assert world-object identity, copy relationships, or rewrite either
+  receipt; avoiding duplicate Work or ListEntries likewise does not rewrite
+  Feed history.
 - **MOD-012 [core] — Explicit Brick merge.** `merge` chooses a surviving Brick
   UUID, previews affected relationships and conflicts, preserves lineage and
   source provenance, and supports dry-run. It is not a title- or handle-based
@@ -686,8 +689,8 @@ The factory library contains:
 - **MOD-054 [core] — Raw Inbox is derived.** The Inbox is the view of active
   Raw material for which no triage disposition has been accepted. It is not a
   RawShelf, Domain, parent, Nature, or storage owner. Accepting a standalone,
-  shelf-membership, attachment, ListEntry, or Work disposition removes the
-  Raw from that view without deleting, transforming, or archiving it. Leaving
+  duplicate-receipt, shelf-membership, attachment, ListEntry, or Work
+  disposition removes the Raw from that view without deleting, transforming,
   triage pending keeps it in the Inbox and available to later review.
 - **MOD-065 [core] — Raw content has four representations and immutable
   revisions.** Each Raw content revision is exactly one of `text`, `uri`,
@@ -710,12 +713,22 @@ The factory library contains:
   source revision and never becomes another Raw.
 - **MOD-067 [core] — RawLink has a closed small role catalog.** The v1 roles
   are `description`, `materialization_source`, `attachment`, `evidence`, and
-  `derived_from`. Description targets one Brick and obeys MOD-057; its current
-  Raw revision must be text. Materialization source targets a Brick or
-  ListEntry. Attachment and evidence may target a Brick, ListEntry, or Raw.
-  Derived-from connects a derived Raw to one or more source Raws. Except for
-  description, roles are many-to-many ordered sets: link acceptance order is
+  `derived_from`, and `duplicate_of`. Description targets one Brick and obeys
+  MOD-057; its current Raw revision must be text. Materialization source
+  targets a Brick or ListEntry. Attachment and evidence may target a Brick,
+  ListEntry, or Raw. Derived-from connects a derived Raw to one or more source
+  Raws. Duplicate-of connects a later Raw receipt to exactly one canonical Raw
+  receipt; acceptance resolves the target to the group's root, forbids self
+  links and cycles, and leaves both Raws independently addressable. Default
+  projections may show the root once with its receipt count, while exact-handle,
+  audit, and history views expose every member. Except for description and
+  duplicate-of, roles are many-to-many ordered sets: link acceptance order is
   the default display order and explicit reordering changes only that order.
+  Duplicate-of neither inherits nor copies other RawLinks, RawShelves, Domains,
+  SourceBindings, normalization, revisions, or downstream materializations.
+  Creating or retargeting it uses FED-016's duplicate review rather than the
+  generic RawLink role selector; an existing relation remains inspectable and
+  detachable through an explicit preview.
   Note and URL are content meanings, not extra roles; import provenance is a
   SourceBinding, not a RawLink. Detach always preserves both endpoints.
 - **MOD-068 [core] — Content relationships are direct-only.** RawLinks,

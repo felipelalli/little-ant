@@ -139,6 +139,7 @@ version.
   | `external_effect_recovery` | one failed effect and receipt | retry, edit replacement, cancel / recover without claiming delivery |
   | `source_change_reconciliation` | Raw, SourceBinding, baseline and changed observation | revise same Raw, derive Raw, unrelated / reconcile content |
   | `source_failure_review` | Raw, SourceBinding and typed failure | retry, pause, relocate, detach, later / manage origin |
+  | `raw_duplicate_review` | two active Raw receipts and candidate evidence | duplicate receipt, keep separate / settle suspicion |
   | `brick_duplicate_review` | Brick candidates and transfer preview | merge, supersede, keep separate / settle suspicion |
   | `list_entry_duplicate_review` | owner-local candidate, quantity and state | reuse, add quantity, reopen, separate / settle suspicion |
   | `domain_membership_review` | Brick or Raw, current and proposed direct paths | confirm, change, clear / settle classification claim |
@@ -583,7 +584,7 @@ version.
   FOC-046 family contains `raw_triage`, `nature_review`, `phase_review`,
   `effort_comparison`, `impact_comparison`, `impact_maturity_review`, all three
   importance variants,
-  both duplicate-review variants, `domain_membership_review`,
+  all three duplicate-review variants, `domain_membership_review`,
   `skip_taxonomy_review`, `wip_review`, `scope_closure_review`, and
   `archive_relevance_review`, and `habit_introspection_review`. Wait,
   Delegation, source, external effects, and

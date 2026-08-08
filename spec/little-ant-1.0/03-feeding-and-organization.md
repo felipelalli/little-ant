@@ -81,13 +81,20 @@
   bounded duplicate candidate set.
 - **FED-016 [core] — Scope-sensitive review.** Duplicate suspicion never opens
   one generic verb menu. A newly fed Raw remains an attributable Feed receipt;
-  the review prevents it from creating duplicate Work or ListEntries rather
-  than merging Raw history. Proposed Work may use an existing Brick or remain
-  separate; two existing Bricks may enter canonical merge, supersession, or
-  remain separate; and a ListEntry uses its owner-local reuse, reopen,
-  quantity, and distinguishable-separation actions. Each route names its
-  actual consequence. Revise-versus-derive belongs only to ordinary Raw/source
-  reconciliation under MOD-066 and FED-056.
+  Raw-to-Raw review may group it under another receipt with `duplicate_of`
+  while preserving both histories. Proposed Work may use an existing Brick or
+  remain separate; two existing Bricks may enter canonical merge,
+  supersession, or remain separate; and a ListEntry uses its owner-local reuse,
+  reopen, quantity, and distinguishable-separation actions. Each route names
+  its actual consequence. Yes records the later-to-root link and triage
+  disposition, creates no downstream intention, and removes only that Raw from
+  the derived Inbox. No records pair-specific negative evidence until either
+  compared Raw receives a new revision; skip preserves the pending review and
+  applies its cooldown. An exact current digest with compatible representation
+  may default yes. Model-only semantic similarity may propose and attribute
+  yes but cannot accept it. Revise-versus-derive and changed observations of
+  one authoritative remote object enter ordinary Raw/source reconciliation
+  under MOD-066 and FED-056 instead of this route.
 
 - **FED-017 [core] — No global object catalog.** Repeated real-world labels
   such as `milk` do not create one universal object. A grocery entry belongs
@@ -416,8 +423,10 @@
 - **FED-052 [core] — Raw organization asks one consequence at a time.** The
   dumb Raw detail surface offers `revise`, `link`, `shelve`, `classify`,
   `source`, `translate`, and `archive`; it never opens a metadata form. Link
-  first chooses one MOD-067 role, then a compatible autocomplete target, then
-  previews the relationship. Shelve and classify use bounded searchable
+  first chooses one general MOD-067 role other than `duplicate_of`, then a
+  compatible autocomplete target, then previews the relationship. Duplicate
+  grouping uses FED-016; an existing relation may still be inspected or
+  detached with preview. Shelve and classify use bounded searchable
   multi-selectors. Empty selection is valid. Every accepted action is one
   reversible event family and returns to the same Raw detail.
 - **FED-053 [core] — Description editing remains ordinary Raw editing.** If a

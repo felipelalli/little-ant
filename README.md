@@ -88,26 +88,6 @@ Pressing Enter creates `+milk "milk"` and returns to the ordinary useful
 envelope without a receipt screen. No Nature, Domain, date, importance, or
 destination is required at entry time.
 
-### Same-looking records are not automatically the same identity
-
-Little Ant deliberately separates evidence of similarity from identity:
-
-| Question | Structure used |
-|---|---|
-| Are the bytes identical? | Equal cryptographic content digests |
-| Did both observations come from the same external object? | The same typed `SourceBinding` remote identity |
-| Do both Raws describe the same work or list item? | Both use `RawLink(role = materialization_source)` with the same Brick or ListEntry |
-| Were two existing Bricks really duplicate Work? | Explicit Brick `merge`, with one survivor and one `merged_into` lineage edge |
-
-For example, feeding `milk` twice creates `+milk` and `+milk2`: two honest
-receipts. Triage may route both to one “Milk” ListEntry and increase its
-quantity. Feeding the same bug manually and importing it from Microsoft To Do
-may link both Raws to one existing Brick. If two Bricks were already created,
-merge previews every transferred relationship and conflict.
-
-Similarity alone never invents a global “Milk” object or erases feed history.
-See [feeding and duplicate handling](spec/little-ant-1.0/03-feeding-and-organization.md).
-
 ### Brick: one intention, as much structure as needed
 
 A Brick is the universal unit of work. It starts active and has one position

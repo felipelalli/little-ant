@@ -6713,6 +6713,37 @@ The result performs no draw. If Raw triage was opened transactionally while
 another Brick remained current, this block appears once as a compact fact on
 the sober current-focus continuation instead of displacing that focus.
 
+## UX-T10 — Raw duplicate receipt
+
+```text
+Review raw material:
+
+Is
+
++milk2 "milk"
+
+      a duplicate receipt of
+
++milk "milk"
+?
+
+*[y]es    [n]o    [s]kip    [?] I don't know
+
+[/] more...
+```
+
+The mechanical yes default appears only for an exact current digest with a
+compatible representation and no conflicting source-reconciliation evidence;
+an attributed assisted proposal may replace that default without changing the
+actions. Yes preserves both Raws, links `+milk2` to the canonical root
+`+milk`, settles only the later receipt's triage disposition, and creates no
+Brick or ListEntry. Ordinary projections may render `+milk "milk" · 2
+receipts`; exact-handle, audit, and history views still expose both Raws. No
+records pair-specific negative evidence and continues at UX-T01. Skip leaves
+the question unresolved under review cooldown. Question mark shows a bounded
+side-by-side view of both complete representations, revisions, provenance,
+sources, and direct relationships, then returns here without mutation.
+
 ## UX-RA00 — Raw detail and actions
 
 ```text
