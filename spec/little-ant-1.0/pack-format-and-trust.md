@@ -100,11 +100,16 @@ exactly `declarative_body`, a declared JSON file relative to its root. It has no
 `permissions`. The entry point is a declared Lua file relative to its root.
 Permissions are per component; there is no Pack-wide permission union.
 
-The executable permissions object contains all five arrays below, including
-the empty ones:
+The executable permissions object contains the five base arrays below,
+including the empty ones. It additionally contains
+`oauth_device_authorization` when at least one device-authorization credential
+slot exists; the optional array is omitted when empty so Packs without that
+scheme retain their canonical identity:
 
 ```text
 credential_slots        declared credential-slot objects
+oauth_device_authorization
+                        signed device-flow authority descriptors when used
 http                    host-brokered HTTP-rule objects
 effect_purposes         closed DAT-068 purpose strings
 projections             named versioned input projections
@@ -121,6 +126,17 @@ optional `credential_slot`. Methods are a nonempty set drawn from `GET`,
 name without wildcard or port; `path_prefix` is an absolute URL path without
 query, fragment, empty, `.` or `..` component; and a credential reference must
 resolve inside the same component.
+
+Every `oauth2_device_authorization` slot has exactly one
+`oauth_device_authorization` descriptor, and no other slot may have one. The
+descriptor has only `credential_slot`, `device_authorization_endpoint`,
+`token_endpoint`, `client_id_configuration_key`, and `scopes`. Both endpoints
+are exact HTTPS URLs with a lowercase canonical host, no user information,
+port, query, or fragment, and a normalized absolute path. The client-ID key
+names one field in the component's signed configuration schema. Scopes are a
+nonempty set of bounded visible ASCII values and include `offline_access`.
+Endpoints and scopes are therefore signed Pack authority; the resolved public
+client ID remains non-secret account configuration.
 
 The effect-purpose strings are exactly `delegation_delivery`,
 `delegation_take_back_notice`, `source_cleanup_item`,

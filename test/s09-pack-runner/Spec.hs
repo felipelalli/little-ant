@@ -268,6 +268,7 @@ fixtureComponent =
     "main.lua"
     ComponentPermissions
       { permissionCredentialSlots = []
+      , permissionOAuthDeviceAuthorizations = []
       , permissionHttp = []
       , permissionEffectPurposes = []
       , permissionProjections = ["little-ant/structure@1"]
@@ -287,6 +288,7 @@ fixtureSourceComponent =
     "main.lua"
     ComponentPermissions
       { permissionCredentialSlots = []
+      , permissionOAuthDeviceAuthorizations = []
       , permissionHttp = []
       , permissionEffectPurposes = []
       , permissionProjections = []
@@ -306,6 +308,14 @@ fixtureHttpSourceComponent =
     "main.lua"
     ComponentPermissions
       { permissionCredentialSlots = [CredentialSlot "microsoft" OAuthDeviceAuthorization]
+      , permissionOAuthDeviceAuthorizations =
+          [ OAuthDeviceAuthorizationPermission
+              "microsoft"
+              "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+              "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+              "client_id"
+              (Set.fromList ["Tasks.Read", "offline_access"])
+          ]
       , permissionHttp = [HttpPermission ["GET"] "graph.microsoft.com" "/v1.0/me/todo" (Just "microsoft")]
       , permissionEffectPurposes = [SourceCleanupItemPermission, SourceCleanupContainerPermission]
       , permissionProjections = []

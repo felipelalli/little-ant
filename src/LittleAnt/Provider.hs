@@ -10,14 +10,17 @@ import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KeyMap
 import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import LittleAnt.Error
 import LittleAnt.Import
 import LittleAnt.Model (SourceMode)
+import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Transport
 import LittleAnt.Profile
+import LittleAnt.Vault qualified as Vault
 
 data ProviderSourceDefinition = ProviderSourceDefinition
   { providerDefinitionAdapterId :: Text
@@ -43,8 +46,14 @@ configuredProviderImportSources definitions integrations registry resolver trans
       unless (providerAccountProvider account == providerDefinitionNamespace definition) $
         Left (providerProblem CorruptData "A configured provider account has the wrong provider namespace." [accountName, providerAccountProvider account])
       binding <- exactBinding integrations definition accountName
+      hostOnlyKeys <- case credentialBindingScheme binding of
+        Vault.OAuthDeviceAuthorization -> do
+          oauthClient <- resolveOAuthDeviceClient registered account (credentialBindingSlot binding)
+          validateOAuthCredentialBinding oauthClient binding
+          pure (Set.singleton (oauthDeviceClientConfigurationKey oauthClient))
+        _ -> Right Set.empty
       broker <- credentialBoundPackHttpBroker registered binding resolver transport
-      configuration <- sourceConfiguration accountName account
+      configuration <- sourceConfiguration hostOnlyKeys accountName account
       let reference =
             if qualify
               then providerDefinitionAdapterId definition <> "@" <> accountName
@@ -75,18 +84,19 @@ exactBinding integrations definition accountName =
           }
     _ -> Left (providerProblem Conflict "The provider account resolves to more than one CredentialBinding." [accountName])
 
-sourceConfiguration :: Text -> ProviderAccount -> Either AppError Value
-sourceConfiguration accountName account = case providerAccountConfiguration account of
+sourceConfiguration :: Set.Set Text -> Text -> ProviderAccount -> Either AppError Value
+sourceConfiguration hostOnlyKeys accountName account = case providerAccountConfiguration account of
   Object configured -> do
     let reserved = ["provider", "account_id", "account_label"]
         collisions = filter (`KeyMap.member` configured) (Key.fromText <$> reserved)
     unless (null collisions) $
       Left (providerProblem CorruptData "Provider-account configuration attempts to replace host-owned identity fields." [accountName, Text.intercalate ", " (Key.toText <$> collisions)])
+    let adapterConfiguration = foldr (KeyMap.delete . Key.fromText) configured (Set.toList hostOnlyKeys)
     pure . Object
       $ KeyMap.insert "provider" (textValue (providerAccountProvider account))
         . KeyMap.insert "account_id" (textValue (providerAccountExternalId account))
         . KeyMap.insert "account_label" (textValue (providerAccountLabel account))
-      $ configured
+      $ adapterConfiguration
   _ -> Left (providerProblem CorruptData "Provider-account configuration is not an object." [accountName])
  where
   textValue = String

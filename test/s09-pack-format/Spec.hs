@@ -119,6 +119,21 @@ permissionIsolation = do
       invalidSource = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionHostCapabilities = [LoopbackHttpCapability]}
   assertLeft "SourceAdapter UI authority" (encodePackManifest fixtureManifest{packComponents = [invalidSource]})
 
+  let deviceSlot = CredentialSlot "account" OAuthDeviceAuthorization
+      authorization =
+        OAuthDeviceAuthorizationPermission
+          "account"
+          "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+          "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+          "client_id"
+          (Set.fromList ["Tasks.Read", "offline_access"])
+      missingAuthorization = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionCredentialSlots = [deviceSlot]}
+      unsignedScope = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionCredentialSlots = [deviceSlot], permissionOAuthDeviceAuthorizations = [authorization{oauthDeviceScopes = Set.singleton "Tasks.Read"}]}
+      insecureEndpoint = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionCredentialSlots = [deviceSlot], permissionOAuthDeviceAuthorizations = [authorization{oauthDeviceTokenEndpoint = "http://login.microsoftonline.com/token"}]}
+  assertLeft "OAuth slot without signed authorization" (encodePackManifest fixtureManifest{packComponents = [missingAuthorization]})
+  assertLeft "OAuth authorization without refresh custody" (encodePackManifest fixtureManifest{packComponents = [unsignedScope]})
+  assertLeft "OAuth authorization over insecure endpoint" (encodePackManifest fixtureManifest{packComponents = [insecureEndpoint]})
+
   let uiCommon = fixtureCommon{componentKind = UIAdapterComponent}
       invalidUi = ExecutableComponent uiCommon "main.lua" emptyPermissions{permissionEffectPurposes = [CalendarCreatePermission]}
   assertLeft "UIAdapter effect authority" (encodePackManifest fixtureManifest{packComponents = [invalidUi]})
@@ -676,7 +691,7 @@ fixtureCommon =
     }
 
 emptyPermissions :: ComponentPermissions
-emptyPermissions = ComponentPermissions [] [] [] [] []
+emptyPermissions = ComponentPermissions [] [] [] [] [] []
 
 fixturePayload :: Map Text ByteString
 fixturePayload =

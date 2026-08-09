@@ -13,6 +13,7 @@ import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Import
 import LittleAnt.Model (SourceMode (..))
+import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Http
 import LittleAnt.Pack.Registry
@@ -51,6 +52,7 @@ oauthTokenCustody = do
           , oauthRefreshToken = Just "SECRET-REFRESH-TOKEN"
           , oauthExpiresAt = addUTCTime 3600 fixtureTime
           , oauthScopes = Set.fromList ["Tasks.Read", "offline_access"]
+          , oauthAuthorizationFingerprint = fixtureAuthorizationFingerprint
           }
   encoded <- assertRight (encodeOAuthTokenSet tokenSet)
   access <- assertRight (accessTokenFromVaultSecret fixtureTime binding encoded)
@@ -90,9 +92,13 @@ credentialBoundary = do
         modifyIORef' resolverCalls (+ 1)
         pure (Right token)
       transport = graphTransport transportCalls
-      integrations = fixtureIntegrations [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)]
+      entries = [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)]
+  integrations <- assertRight (authorizedIntegrations registry entries)
   providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry resolver transport)
   (providerImportReference <$> providers) @?= ["microsoft_todo"]
+  assertBool
+    "host-only OAuth client ID escaped into Lua configuration"
+    (all (not . ("client_id" `ByteString.isInfixOf`) . LazyByteString.toStrict . encode . providerImportConfiguration) providers)
   let importPort = packRegistryImportPortWithProviders runner registry providers
   imported <- importPortPreflight importPort "microsoft_todo" SourceSnapshot >>= assertRight
   sourcePreflightAdapterId (importReadPreflight imported) @?= "microsoft_todo"
@@ -119,7 +125,8 @@ lockedCredential = do
             (appError PermissionRequired "Credentials are locked.")
               { appErrorRecovery = [RecoveryAction "unlock" "Unlock this profile's vault and return to the same import intention." (Just "lant vault unlock")]
               }
-      integrations = fixtureIntegrations [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)]
+      entries = [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)]
+  integrations <- assertRight (authorizedIntegrations registry entries)
   providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry locked (graphTransport transportCalls))
   result <- importPortPreflight (packRegistryImportPortWithProviders runner registry providers) "microsoft_todo" SourceSnapshot
   assertError PermissionRequired result
@@ -132,11 +139,11 @@ multipleAccountReferences = do
   let resolver = AccessTokenResolver (const (pure (Right token)))
       transport = PackHttpTransport (const (pure (Left (appError ExternalFailure "unused"))))
       workEntry = fixtureUuid "019fe080-4344-763f-b110-53cb7aefd0e1"
-      integrations =
-        fixtureIntegrations
-          [ ("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)
-          , ("work", fixtureAccount "account-work" "Work", fixtureBinding "work" workEntry)
-          ]
+      entries =
+        [ ("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)
+        , ("work", fixtureAccount "account-work" "Work", fixtureBinding "work" workEntry)
+        ]
+  integrations <- assertRight (authorizedIntegrations registry entries)
   providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry resolver transport)
   (providerImportReference <$> providers) @?= ["microsoft_todo@personal", "microsoft_todo@work"]
   let encodedConfigurations = LazyByteString.toStrict . encode . providerImportConfiguration <$> providers
@@ -222,6 +229,7 @@ fixtureAccount externalId label =
         object
           [ "include_completed" .= False
           , "allow_incomplete_attachments" .= False
+          , "client_id" .= ("11111111-1111-1111-1111-111111111111" :: Text)
           , "list_ids" .= ([] :: [Text])
           ]
     }
@@ -234,8 +242,22 @@ fixtureBinding account vaultEntry =
     , credentialBindingAccount = account
     , credentialBindingScheme = Vault.OAuthDeviceAuthorization
     , credentialBindingVaultEntry = vaultEntry
+    , credentialBindingAuthorizationFingerprint = Just fixtureAuthorizationFingerprint
     , credentialBindingPurposes = Set.singleton "source_read"
     }
+
+fixtureAuthorizationFingerprint :: Text
+fixtureAuthorizationFingerprint = Text.replicate 64 "0"
+
+authorizedIntegrations :: PackRegistry -> [(Text, ProviderAccount, CredentialBinding)] -> Either AppError IntegrationsConfig
+authorizedIntegrations registry entries = do
+  registered <- lookupPackComponent "microsoft_todo" registry
+  authorized <- traverse (authorize registered) entries
+  pure (fixtureIntegrations authorized)
+ where
+  authorize registered (name, account, binding) = do
+    client <- resolveOAuthDeviceClient registered account (credentialBindingSlot binding)
+    pure (name, account, binding{credentialBindingAuthorizationFingerprint = Just (oauthDeviceAuthorizationFingerprint client)})
 
 microsoftTodoDefinition :: ProviderSourceDefinition
 microsoftTodoDefinition =
@@ -313,10 +335,10 @@ connectorPin =
           { artifactPublisher = "org.littleant.project"
           , artifactName = "org.littleant.official-connectors"
           , artifactVersion = "1.0.0"
-          , artifactManifestDigest = "ee2c595318a7c0060206c7aa94c77e7f2f0ad10f8a2fc7ea9c02872c4845a065"
-          , artifactArchiveDigest = "c6f8b9f46d261710fc8ff16d3ef82071d551b810bd00f0f859ec8764b91913ac"
+          , artifactManifestDigest = "06432a6b2d59dbed3e506c1acbc203da7153f8b006bcc7417556702d8c5f97cd"
+          , artifactArchiveDigest = "db415b7bb53abafa64790dc21f56ca08ea1fdb2f9476966d4f986f47fd0dc5b1"
           }
-    , pinSignerFingerprint = "da37479b4b9929fc47ee514f90c6e7e558aef294d1c88873686d7278394090a1"
+    , pinSignerFingerprint = "b95e184ec3696f3dc91623f4120a90d2f040df45f565099707d9eb427ed3b4ca"
     , pinTrustOrigin = PinVerifiedOfficial 1
     , pinEnabledComponents = Set.singleton "microsoft_todo"
     }

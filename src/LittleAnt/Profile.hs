@@ -37,7 +37,7 @@ import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Pack.Trust (PackArtifactIdentity (artifactName), PackPin (..), TrustedCommunityPublisher (..), validatePackPin, validateTrustedCommunityPublisher)
 import LittleAnt.Store (StoreConfig (..), initializeDataset)
-import LittleAnt.Vault (CredentialScheme, credentialSchemeName, parseCredentialSchemeName)
+import LittleAnt.Vault (CredentialScheme (..), credentialSchemeName, parseCredentialSchemeName)
 import System.Directory hiding (isSymbolicLink)
 import System.Environment (lookupEnv)
 import System.FilePath
@@ -108,6 +108,7 @@ data CredentialBinding = CredentialBinding
   , credentialBindingAccount :: Text
   , credentialBindingScheme :: CredentialScheme
   , credentialBindingVaultEntry :: UUIDv7
+  , credentialBindingAuthorizationFingerprint :: Maybe Text
   , credentialBindingPurposes :: Set.Set Text
   }
   deriving stock (Eq, Show)
@@ -369,7 +370,7 @@ instance FromJSON ProviderAccount where
 
 instance ToJSON CredentialBinding where
   toJSON binding =
-    object
+    object $
       [ "component" .= credentialBindingComponent binding
       , "slot" .= credentialBindingSlot binding
       , "account" .= credentialBindingAccount binding
@@ -377,10 +378,11 @@ instance ToJSON CredentialBinding where
       , "vault_entry" .= renderUUIDv7 (credentialBindingVaultEntry binding)
       , "purposes" .= Set.toAscList (credentialBindingPurposes binding)
       ]
+        <> maybe [] (pure . ("authorization_fingerprint" .=)) (credentialBindingAuthorizationFingerprint binding)
 
 instance FromJSON CredentialBinding where
   parseJSON = withObject "CredentialBinding" $ \fields -> do
-    rejectUnknown fields ["component", "slot", "account", "scheme", "vault_entry", "purposes"]
+    rejectUnknown fields ["component", "slot", "account", "scheme", "vault_entry", "authorization_fingerprint", "purposes"]
     scheme <- fields .: "scheme" >>= either (fail . Text.unpack . appErrorMessage) pure . parseCredentialSchemeName
     vaultEntry <- fields .: "vault_entry" >>= either (fail . Text.unpack) pure . parseUUIDv7
     CredentialBinding
@@ -389,6 +391,7 @@ instance FromJSON CredentialBinding where
       <*> fields .: "account"
       <*> pure scheme
       <*> pure vaultEntry
+      <*> fields .:? "authorization_fingerprint"
       <*> (Set.fromList <$> fields .: "purposes")
 
 instance ToJSON IntegrationsConfig where
@@ -462,6 +465,13 @@ validateCredentialBinding accounts name binding = do
   unless (nonempty (credentialBindingComponent binding)) (invalid "A CredentialBinding needs a component." name)
   unless (validIntegrationName (credentialBindingSlot binding)) (invalid "A CredentialBinding slot must be a lowercase local identifier." name)
   unless (not (Set.null purposes) && all nonempty (Set.toList purposes)) (invalid "A CredentialBinding needs nonempty supported purposes." name)
+  case (credentialBindingScheme binding, credentialBindingAuthorizationFingerprint binding) of
+    (OAuthAuthorizationCodePKCE, Just fingerprint) -> validateFingerprint fingerprint
+    (OAuthDeviceAuthorization, Just fingerprint) -> validateFingerprint fingerprint
+    (OAuthAuthorizationCodePKCE, Nothing) -> invalid "An OAuth CredentialBinding needs the exact signed authorization fingerprint." name
+    (OAuthDeviceAuthorization, Nothing) -> invalid "An OAuth CredentialBinding needs the exact signed authorization fingerprint." name
+    (_, Nothing) -> Right ()
+    (_, Just _) -> invalid "A non-OAuth CredentialBinding cannot carry an authorization fingerprint." name
   account <-
     maybe
       (invalid "A CredentialBinding references an unknown provider account." (credentialBindingAccount binding))
@@ -473,6 +483,10 @@ validateCredentialBinding accounts name binding = do
  where
   purposes = credentialBindingPurposes binding
   nonempty = not . Text.null . Text.strip
+  validateFingerprint fingerprint =
+    unless
+      (Text.length fingerprint == 64 && Text.all (\character -> isDigit character || character >= 'a' && character <= 'f') fingerprint)
+      (invalid "A CredentialBinding authorization fingerprint must be lowercase SHA-256." name)
 
 rejectSensitiveConfiguration :: Text -> Object -> Either AppError ()
 rejectSensitiveConfiguration accountName configuration =

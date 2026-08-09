@@ -113,6 +113,13 @@ vaultAgentLifecycle = withSystemTempDirectory "lant-vault-agent" $ \root -> do
   fmap inventoryRedactedSuffix <$> agentReplyInventory inventory @?= Just [Just "9876"]
   resolved <- sendVaultAgentRequest socketPath (agentResolveRequest (fixtureUuid 305) "test_effect") >>= assertRight
   agentReplySecret resolved @?= Just "agent-secret-9876"
+  assertLeftIO (sendVaultAgentRequest socketPath (agentPutRequest (fixtureUuid 305) OAuthDeviceAuthorization "Wrong scheme" Map.empty "must-not-replace"))
+  unchanged <- sendVaultAgentRequest socketPath (agentResolveRequest (fixtureUuid 305) "test_effect") >>= assertRight
+  agentReplySecret unchanged @?= Just "agent-secret-9876"
+  replaced <- sendVaultAgentRequest socketPath (agentPutRequest (fixtureUuid 305) ApiKeyCredential "Test API" Map.empty "agent-secret-4321") >>= assertRight
+  assertBool "same-scheme token replacement must be one acknowledged vault mutation" (agentReplySucceeded replaced)
+  updated <- sendVaultAgentRequest socketPath (agentResolveRequest (fixtureUuid 305) "test_effect") >>= assertRight
+  agentReplySecret updated @?= Just "agent-secret-4321"
   threadDelay 1_200_000
   expired <- sendVaultAgentRequest socketPath agentStatusRequest >>= assertRight
   agentReplyUnlocked expired @?= Just False

@@ -199,7 +199,11 @@ support them honestly.
   preference requests translated wrapper text.
 - **DAT-060 [standard] — Bindings are references, not secrets.** A
   CredentialBinding maps a component-declared credential slot and provider
-  account to one opaque vault-entry UUID. A DeliveryBinding follows MOD-092.
+  account to one opaque vault-entry UUID. An OAuth binding additionally stores
+  a non-secret authorization fingerprint over the exact signed Pack artifact,
+  component, slot, endpoints, client ID, and scopes. A mismatch requires fresh
+  reviewed consent rather than silently reusing a grant. A DeliveryBinding
+  follows MOD-092.
   Config inspection and diagnostics render only binding name, scheme,
   component/account, purposes, readiness, and redacted last four characters
   when the scheme defines them. Moving or copying an integration manifest
@@ -250,7 +254,12 @@ support them honestly.
   secret after Pack output validation, never returns it to Lua, and redacts
   request headers, URLs, bodies, errors, receipts, and traces according to the
   component manifest. OAuth authorization and refresh happen in the trusted
-  host/agent boundary; refresh-token replacement is an atomic vault mutation.
+  host/agent boundary. Device authorization uses only signed Pack endpoints and
+  scopes, keeps the device code and tokens outside Lua and persisted
+  interactions, rejects returned scope escalation, and binds the token set to
+  DAT-060's authorization fingerprint. Refresh-token replacement is an atomic
+  same-scheme vault mutation; a successful refresh that omits a replacement
+  retains the previous refresh token.
   Secrets are never accepted in command arguments, environment variables,
   YAML, ordinary stdin, or InteractionEnvelopes. Dedicated no-echo unlock and
   authorization-code inputs are the only interactive secret inputs.

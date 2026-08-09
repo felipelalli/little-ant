@@ -94,11 +94,14 @@ insertVaultEntry identity scheme suppliedLabel suppliedSecret metadata vault
  where
   label = Text.strip suppliedLabel
 
-updateVaultEntry :: UUIDv7 -> Text -> Map Text Text -> Vault -> Either AppError Vault
-updateVaultEntry identity suppliedSecret metadata vault
+updateVaultEntry :: UUIDv7 -> CredentialScheme -> Text -> Map Text Text -> Vault -> Either AppError Vault
+updateVaultEntry identity suppliedScheme suppliedSecret metadata vault
   | Text.null suppliedSecret = Left (appError InvalidInput "Secret material cannot be empty.")
   | otherwise = case Map.lookup identity (vaultEntries vault) of
       Nothing -> Left (appError NotFound "No vault entry matches that identity.")
+      Just entry
+        | vaultEntryScheme entry /= suppliedScheme ->
+            Left (appError PreconditionFailed "A vault entry cannot change credential scheme during an atomic update.")
       Just entry ->
         Right
           vault

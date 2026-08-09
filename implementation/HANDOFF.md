@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **dd9691c**
-(`feat(connectors): ship Microsoft To Do source adapter`). The current
-milestone establishes the typed trusted-host boundary between configured
-provider accounts, vault bindings, authenticated HTTPS, and remote
-SourceAdapters. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **85f9394**
+(`feat(providers): bind credentials after route authorization`). The current
+milestone completes signed OAuth Device Authorization and refresh authority,
+including atomic token-set persistence through the vault agent. This file
+stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -237,11 +237,23 @@ SourceAdapters. This file stays editable between milestone commits.
   proxy, cookie jar, or automatic decompression, a fixed timeout, bounded JSON
   responses, closed response headers, and sanitized errors.
 - OAuth vault material has one closed `little-ant/oauth-token-set@1` shape with
-  bearer type, access token, optional refresh token, expiry, and scopes. The
-  profile-scoped vault agent resolves it only for `source_read`; expired
+  bearer type, access token, optional refresh token, expiry, scopes, and the
+  authorization fingerprint that binds it to the exact signed Pack authority.
+  The profile-scoped vault agent resolves it only for `source_read`; expired
   credentials return `RetryAfterRefresh` without becoming provider failure.
-  OAuth authorization and refresh are intentionally the next milestone, so no
-  public Microsoft To Do happy path is claimed yet.
+- OAuth Device Authorization is now a complete trusted-host protocol. The
+  signed component owns exact HTTPS device/token endpoints and requested
+  scopes, while the account supplies only the public client ID. The host
+  exposes the bounded verification prompt, honors pending, slowdown, decline,
+  and expiry, confines returned scopes, rotates refresh tokens, and atomically
+  persists same-scheme token sets through the vault agent. Any Pack, endpoint,
+  scope, slot, or client-ID drift requires fresh reviewed consent. Lua receives
+  neither OAuth material nor host-only client configuration.
+- The exact official connector Pack declares Microsoft To Do's device-flow
+  authority and `Tasks.Read offline_access`; its archive and signed fixture
+  identities were rebuilt reproducibly. Public discovery, connection, and
+  import are still gated on production loading of the pinned official Pack and
+  explicit CLI/REPL orchestration.
 
 ## Last green gate
 

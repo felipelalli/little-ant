@@ -11,6 +11,13 @@ never exposes a bearer token to this component. Cleanup requires
 `Tasks.ReadWrite`, verified local import, and the separate item/container
 effect approvals.
 
+The account configuration supplies one public Microsoft application
+`client_id`. The signed component fixes the Microsoft device-authorization and
+token endpoints plus the least-authority `Tasks.Read offline_access` scope set.
+The resulting grant is fingerprint-bound to that exact client ID, signed Pack
+identity, slot, endpoints, and scopes; changing any of them requires fresh
+human consent.
+
 Microsoft Graph can report `hasAttachments` without returning attachment
 bodies in the task collection. The connector records this as an explicit
 unsupported-field warning. `migrate` refuses such a partial source unless the

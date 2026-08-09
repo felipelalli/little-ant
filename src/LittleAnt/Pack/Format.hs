@@ -5,6 +5,7 @@ module LittleAnt.Pack.Format (
   componentCommon,
   CredentialScheme (..),
   CredentialSlot (..),
+  OAuthDeviceAuthorizationPermission (..),
   HttpPermission (..),
   EffectPermission (..),
   HostCapability (..),
@@ -58,6 +59,7 @@ import Data.Text.Normalize qualified as Unicode
 import Data.Word
 import LittleAnt.Error
 import LittleAnt.Store (sha256Hex)
+import Network.URI (URI (..), URIAuth (..), parseURI)
 import Numeric (showHex)
 
 data PackComponentKind
@@ -96,6 +98,15 @@ data CredentialSlot = CredentialSlot
   }
   deriving stock (Eq, Ord, Show)
 
+data OAuthDeviceAuthorizationPermission = OAuthDeviceAuthorizationPermission
+  { oauthDeviceCredentialSlot :: Text
+  , oauthDeviceAuthorizationEndpoint :: Text
+  , oauthDeviceTokenEndpoint :: Text
+  , oauthDeviceClientIdConfigurationKey :: Text
+  , oauthDeviceScopes :: Set Text
+  }
+  deriving stock (Eq, Ord, Show)
+
 data HttpPermission = HttpPermission
   { httpPermissionMethods :: [Text]
   , httpPermissionHost :: Text
@@ -122,6 +133,7 @@ data HostCapability
 
 data ComponentPermissions = ComponentPermissions
   { permissionCredentialSlots :: [CredentialSlot]
+  , permissionOAuthDeviceAuthorizations :: [OAuthDeviceAuthorizationPermission]
   , permissionHttp :: [HttpPermission]
   , permissionEffectPurposes :: [EffectPermission]
   , permissionProjections :: [Text]
@@ -236,19 +248,21 @@ instance FromJSON PackComponent where
 
 instance ToJSON ComponentPermissions where
   toJSON permissions =
-    object
+    object $
       [ "credential_slots" .= permissionCredentialSlots permissions
       , "http" .= permissionHttp permissions
       , "effect_purposes" .= fmap effectPermissionText (permissionEffectPurposes permissions)
       , "projections" .= permissionProjections permissions
       , "host_capabilities" .= fmap hostCapabilityText (permissionHostCapabilities permissions)
       ]
+        <> ["oauth_device_authorization" .= permissionOAuthDeviceAuthorizations permissions | not (null (permissionOAuthDeviceAuthorizations permissions))]
 
 instance FromJSON ComponentPermissions where
   parseJSON = withObject "ComponentPermissions" $ \fields -> do
-    rejectUnknown fields ["credential_slots", "http", "effect_purposes", "projections", "host_capabilities"]
+    rejectUnknown fields ["credential_slots", "oauth_device_authorization", "http", "effect_purposes", "projections", "host_capabilities"]
     ComponentPermissions
       <$> fields .: "credential_slots"
+      <*> fields .:? "oauth_device_authorization" .!= []
       <*> fields .: "http"
       <*> (fields .: "effect_purposes" >>= traverse parseEffectPermission)
       <*> fields .: "projections"
@@ -261,6 +275,26 @@ instance FromJSON CredentialSlot where
   parseJSON = withObject "CredentialSlot" $ \fields -> do
     rejectUnknown fields ["id", "scheme"]
     CredentialSlot <$> fields .: "id" <*> (fields .: "scheme" >>= parseCredentialScheme)
+
+instance ToJSON OAuthDeviceAuthorizationPermission where
+  toJSON permission =
+    object
+      [ "credential_slot" .= oauthDeviceCredentialSlot permission
+      , "device_authorization_endpoint" .= oauthDeviceAuthorizationEndpoint permission
+      , "token_endpoint" .= oauthDeviceTokenEndpoint permission
+      , "client_id_configuration_key" .= oauthDeviceClientIdConfigurationKey permission
+      , "scopes" .= Set.toAscList (oauthDeviceScopes permission)
+      ]
+
+instance FromJSON OAuthDeviceAuthorizationPermission where
+  parseJSON = withObject "OAuthDeviceAuthorizationPermission" $ \fields -> do
+    rejectUnknown fields ["credential_slot", "device_authorization_endpoint", "token_endpoint", "client_id_configuration_key", "scopes"]
+    OAuthDeviceAuthorizationPermission
+      <$> fields .: "credential_slot"
+      <*> fields .: "device_authorization_endpoint"
+      <*> fields .: "token_endpoint"
+      <*> fields .: "client_id_configuration_key"
+      <*> (Set.fromList <$> fields .: "scopes")
 
 instance ToJSON HttpPermission where
   toJSON permission =
@@ -427,11 +461,16 @@ validateComponent component = do
 validatePermissions :: PackComponentKind -> ComponentPermissions -> Either AppError ()
 validatePermissions kind permissions = do
   unique "credential slot" (credentialSlotId <$> permissionCredentialSlots permissions)
+  unique "OAuth device-authorization credential slot" (oauthDeviceCredentialSlot <$> permissionOAuthDeviceAuthorizations permissions)
   unique "HTTP permission" (permissionHttp permissions)
   unique "effect purpose" (permissionEffectPurposes permissions)
   unique "projection" (permissionProjections permissions)
   unique "host capability" (permissionHostCapabilities permissions)
   traverse_ validateCredentialSlot (permissionCredentialSlots permissions)
+  traverse_ (validateOAuthDeviceAuthorization slots) (permissionOAuthDeviceAuthorizations permissions)
+  let deviceSlots = Set.fromList [credentialSlotId slot | slot <- slots, credentialSlotScheme slot == OAuthDeviceAuthorization]
+      authorizedDeviceSlots = Set.fromList (oauthDeviceCredentialSlot <$> permissionOAuthDeviceAuthorizations permissions)
+  unless (deviceSlots == authorizedDeviceSlots) (invalid "Every OAuth device-authorization slot must have exactly one signed authorization permission.")
   traverse_ (validateHttpPermission slots) (permissionHttp permissions)
   unless (httpPermissionsNonoverlapping (permissionHttp permissions)) (invalid "HTTP permissions cannot overlap for one method, host, and path.")
   traverse_ validateProjection (permissionProjections permissions)
@@ -466,6 +505,44 @@ httpPermissionsNonoverlapping (permission : rest) = not (any (overlaps permissio
 
 validateCredentialSlot :: CredentialSlot -> Either AppError ()
 validateCredentialSlot slot = unless (validLocalId (credentialSlotId slot)) (Left (packProblem "A credential slot ID is invalid." []))
+
+validateOAuthDeviceAuthorization :: [CredentialSlot] -> OAuthDeviceAuthorizationPermission -> Either AppError ()
+validateOAuthDeviceAuthorization slots permission = do
+  case filter ((== oauthDeviceCredentialSlot permission) . credentialSlotId) slots of
+    [slot] ->
+      unless
+        (credentialSlotScheme slot == OAuthDeviceAuthorization)
+        (invalid "An OAuth device-authorization permission must reference a slot with the matching scheme.")
+    _ -> invalid "An OAuth device-authorization permission references an unknown credential slot."
+  validateOAuthEndpoint "device authorization" (oauthDeviceAuthorizationEndpoint permission)
+  validateOAuthEndpoint "token" (oauthDeviceTokenEndpoint permission)
+  unless (validLocalId (oauthDeviceClientIdConfigurationKey permission)) $
+    invalid "An OAuth client-id configuration key is invalid."
+  let scopes = oauthDeviceScopes permission
+  unless (not (Set.null scopes) && Set.size scopes <= 32 && all validOAuthScope (Set.toList scopes)) $
+    invalid "OAuth scopes must be a nonempty bounded set of visible ASCII scope tokens."
+  unless ("offline_access" `Set.member` scopes) $
+    invalid "An OAuth device-authorization permission must request offline_access for refresh custody."
+ where
+  invalid message = Left (packProblem message [])
+
+validateOAuthEndpoint :: Text -> Text -> Either AppError ()
+validateOAuthEndpoint label endpoint = do
+  uri <- maybe (invalid "is not an absolute URI") Right (parseURI (Text.unpack endpoint))
+  unless (uriScheme uri == "https:") (invalid "must use HTTPS")
+  authority <- maybe (invalid "has no authority") Right (uriAuthority uri)
+  unless (null (uriUserInfo authority) && null (uriPort authority)) (invalid "cannot contain user information or an explicit port")
+  unless (validDnsHost (Text.pack (uriRegName authority))) (invalid "has a noncanonical host")
+  unless (null (uriQuery uri) && null (uriFragment uri)) (invalid "cannot contain a query or fragment")
+  unless (validAbsolutePathPrefix (Text.pack (uriPath uri))) (invalid "has an invalid absolute path")
+ where
+  invalid detail = Left (packProblem ("The OAuth " <> label <> " endpoint " <> detail <> ".") [endpoint])
+
+validOAuthScope :: Text -> Bool
+validOAuthScope scope =
+  not (Text.null scope)
+    && Text.length scope <= 512
+    && Text.all (\character -> isAscii character && ord character >= 0x21 && ord character <= 0x7e) scope
 
 validateHttpPermission :: [CredentialSlot] -> HttpPermission -> Either AppError ()
 validateHttpPermission slots permission = do

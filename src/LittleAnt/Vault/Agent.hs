@@ -211,7 +211,7 @@ handleRequest vaultPath idleSeconds memory = \case
       Right secret ->
         withUnlockedMutation vaultPath idleSeconds memory $ \vault ->
           case resolveVaultEntrySecret identity vault of
-            Right _ -> updateVaultEntry identity secret metadata vault
+            Right _ -> updateVaultEntry identity scheme secret metadata vault
             Left _ -> insertVaultEntry identity scheme label secret metadata vault
     wipeBytes suppliedSecret
     pure (reply, False)

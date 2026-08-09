@@ -67,6 +67,7 @@ data OAuthTokenSet = OAuthTokenSet
   , oauthRefreshToken :: Maybe Text
   , oauthExpiresAt :: UTCTime
   , oauthScopes :: Set.Set Text
+  , oauthAuthorizationFingerprint :: Text
   }
   deriving stock (Eq)
 
@@ -87,6 +88,14 @@ accessTokenFromVaultSecret now binding secret = case credentialBindingScheme bin
         Right
         (eitherDecodeStrict' secret)
     validateOAuthTokenSet tokenSet
+    unless
+      (credentialBindingAuthorizationFingerprint binding == Just (oauthAuthorizationFingerprint tokenSet))
+      ( Left
+          ( (appError PermissionRequired "The stored OAuth grant belongs to a different signed authorization.")
+              { appErrorRecovery = [RecoveryAction "reconnect" "Review the provider authorization and reconnect this account." Nothing]
+              }
+          )
+      )
     whenExpired tokenSet
     accessTokenFromBytes (TextEncoding.encodeUtf8 (oauthAccessToken tokenSet))
   whenExpired tokenSet =
@@ -256,12 +265,13 @@ instance ToJSON OAuthTokenSet where
       , "access_token" .= oauthAccessToken tokenSet
       , "expires_at" .= oauthExpiresAt tokenSet
       , "scopes" .= Set.toAscList (oauthScopes tokenSet)
+      , "authorization_fingerprint" .= oauthAuthorizationFingerprint tokenSet
       ]
         <> maybe [] (pure . ("refresh_token" .=)) (oauthRefreshToken tokenSet)
 
 instance FromJSON OAuthTokenSet where
   parseJSON = withObject "OAuthTokenSet" $ \fields -> do
-    rejectUnknown fields ["schema", "token_type", "access_token", "refresh_token", "expires_at", "scopes"]
+    rejectUnknown fields ["schema", "token_type", "access_token", "refresh_token", "expires_at", "scopes", "authorization_fingerprint"]
     schema <- fields .: "schema"
     unless (schema == ("little-ant/oauth-token-set@1" :: Text)) (fail "unsupported OAuth token-set schema")
     tokenType <- fields .: "token_type"
@@ -271,6 +281,7 @@ instance FromJSON OAuthTokenSet where
       <*> fields .:? "refresh_token"
       <*> fields .: "expires_at"
       <*> (Set.fromList <$> fields .: "scopes")
+      <*> fields .: "authorization_fingerprint"
 
 validateOAuthTokenSet :: OAuthTokenSet -> Either AppError ()
 validateOAuthTokenSet tokenSet = do
@@ -280,6 +291,11 @@ validateOAuthTokenSet tokenSet = do
   case oauthRefreshToken tokenSet of
     Just refresh | Text.null refresh -> Left (bindingProblem "The OAuth credential contains an empty refresh token." [])
     _ -> Right ()
+  unless
+    (Text.length fingerprint == 64 && Text.all (\character -> character >= '0' && character <= '9' || character >= 'a' && character <= 'f') fingerprint)
+    (Left (bindingProblem "The OAuth credential authorization fingerprint is not lowercase SHA-256." []))
+ where
+  fingerprint = oauthAuthorizationFingerprint tokenSet
 
 rejectUnknown :: KeyMap.KeyMap value -> [Text] -> Parser ()
 rejectUnknown fields allowed =
