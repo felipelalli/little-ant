@@ -5,9 +5,9 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last verified baseline commit: **c99bc83** (`feat(recovery): diagnose corrupt history safely`).
-The current milestone adds the isolated candidate-building half of
-corrupt-history recovery; this file stays editable between milestone commits.
+Last verified baseline commit: **da821b8** (`feat(recovery): build verified repair candidates`).
+The current milestone completes the separately consented public repair and
+atomic cutover path; this file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -42,6 +42,11 @@ corrupt-history recovery; this file stays editable between milestone commits.
   a durable verification receipt, and reuse that candidate idempotently;
   unsupported corruption and stale plans fail before creating a candidate, and
   the live authority remains byte-for-byte unchanged.
+- `lant repair` exposes separate preview, candidate-build, and cutover
+  checkpoints with no default consent; cutover durably records its exact plan,
+  uses an atomic same-filesystem directory exchange, resumes forward from
+  pre- or post-exchange interruption, and retains the former authority as a
+  read-only backup. Dry-run writes no repair artifact.
 
 ## Last green gate
 
@@ -51,8 +56,10 @@ The most recent full commands were:
     nix develop -c make python-test spec-audit vocabulary
 
 Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, the
-public-vocabulary guard, and explicit formatting checks pass. S09 now has 17
-passing source/translation/diagnostic/repair-foundation tests.
+public-vocabulary guard, and explicit formatting checks passed at the prior
+full gate. The targeted S09 suite now has 22 passing
+source/translation/diagnostic/repair tests, including both cutover crash phases
+and the public no-default consent flow.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -77,9 +84,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Current focus in this slice is: expose candidate-based `lant repair` through an
-explicit preview, then implement separately consented atomic cutover. Safe
-export hosting, Pack protocols, and Raw-first import/adapter paths follow. The
-combined `Corrupt history/repair` coverage row remains `planned` until the
-public repair flow previews the verified replacement and cutover preserves a
-recoverable backup.
+Next, implement the safe exporter host boundary and the standard structural
+exporters, then proceed to Pack protocols and Raw-first import/adapters. The
+`Corrupt history/repair` row is implemented; formal evidence registration and
+the complete S09 gate still precede `verified`.

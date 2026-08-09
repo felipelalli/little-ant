@@ -60,7 +60,7 @@ gate	flow	owner_slice	status	evidence
 8	Pack trust/install/update/remove	S09	planned	-
 8	Canonical commands and safe export	S09	planned	-
 8	Typed reference/error/dry-run	S09	planned	-
-8	Corrupt history/repair	S09	planned	-
+8	Corrupt history/repair	S09	implemented	S09-corrupt-repair
 9	v0.1 preflight/candidate/cutover	S10	planned	-
 9	Powered-up paired replay	S11	planned	-
 10	Skill and local-web mirror	S11	planned	-

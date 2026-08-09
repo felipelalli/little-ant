@@ -145,6 +145,7 @@ renderCommandResult = \case
       <> Text.pack (show validated)
       <> "\n"
       <> Text.unlines (renderDiagnosticCheck <$> checks)
+  RepairResult _ _ interaction dryRun -> dryRunFact dryRun <> renderPlain (renderEnvelope interaction)
   GrammarResult _ names dryRun ->
     dryRunFact dryRun
       <> "Screen grammars:\n"

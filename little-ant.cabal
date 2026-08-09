@@ -216,6 +216,7 @@ test-suite little-ant-s09-sources-test
     , temporary    >=1.3  && <1.4
     , text         >=2.1  && <2.2
     , time         >=1.12 && <1.13
+    , unix         >=2.8  && <2.9
 
 test-suite little-ant-s04-flow-test
   import:         language, warnings

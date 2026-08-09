@@ -1,7 +1,9 @@
 module Main (main) where
 
+import Control.Exception (finally)
 import Control.Monad (foldM)
 import Data.Aeson (eitherDecode, encode)
+import Data.Bits ((.&.))
 import Data.ByteString qualified as ByteString
 import Data.IORef
 import Data.Map.Strict qualified as Map
@@ -20,9 +22,10 @@ import LittleAnt.Model
 import LittleAnt.Repair
 import LittleAnt.Result
 import LittleAnt.Store
-import System.Directory (doesDirectoryExist, doesFileExist, listDirectory, renameFile)
+import System.Directory (doesDirectoryExist, doesFileExist, listDirectory, renameDirectory, renameFile)
 import System.FilePath (takeDirectory, (</>))
 import System.IO.Temp (withSystemTempDirectory)
+import System.Posix.Files (FileStatus, fileMode, getFileStatus, isDirectory, setFileMode)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -48,6 +51,11 @@ main =
       , testCase "repair builds and reuses a fully replayed candidate without touching authority" losslessRepairCandidate
       , testCase "repair refuses malformed history without creating a candidate" unsupportedRepair
       , testCase "repair rejects a stale plan before creating its candidate" staleRepairPlan
+      , testCase "repair cutover atomically promotes the candidate and retains a read-only backup" atomicRepairCutover
+      , testCase "repair resumes forward from a durable pre-exchange intent" recoverPreparedCutover
+      , testCase "repair resumes forward after the namespace exchange" recoverExchangedCutover
+      , testCase "repair dry-run previews without writing repair artifacts" repairDryRun
+      , testCase "public repair requires separate build and cutover consent" publicRepairFlow
       ]
 
 initialRevision :: Assertion
@@ -316,6 +324,187 @@ staleRepairPlan = withRepairHarness $ \_ environment -> do
   authorityAfterRejection <- eventFiles store
   authorityAfterRejection @?= before
 
+atomicRepairCutover :: Assertion
+atomicRepairCutover = withRepairHarness $ \_ environment -> do
+  (repairPlan, candidate, corruptAuthority) <- preparedRepair environment
+  cutover <- assertRight =<< planRepairCutover (appStore environment) repairPlan candidate
+  let backup = cutoverBackupRoot cutover
+  ( do
+      result <- assertRight =<< executeRepairCutover (appStore environment) cutover
+      cutoverResultRecovered result @?= False
+      cutoverResultBackupRoot result @?= backup
+      receiptExists <- doesFileExist (cutoverResultReceiptPath result)
+      assertBool "completed cutover has a durable receipt" receiptExists
+      journalExists <- doesFileExist (cutoverJournalPath cutover)
+      assertBool "completed cutover removes its pending intent" (not journalExists)
+      candidateExists <- doesDirectoryExist (cutoverCandidateRoot cutover)
+      assertBool "the candidate name is consumed by cutover" (not candidateExists)
+      live <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+      loadedCursor live @?= cutoverCandidateCursor cutover
+      loadedEventCount live @?= cutoverCandidateEventCount cutover
+      retained <- eventFiles (appStore environment){storeRoot = backup}
+      retained @?= corruptAuthority
+      assertTreeReadOnly backup
+    )
+    `finally` makeTreeWritableIfPresent backup
+
+recoverPreparedCutover :: Assertion
+recoverPreparedCutover = withRepairHarness $ \_ environment -> do
+  (repairPlan, candidate, corruptAuthority) <- preparedRepair environment
+  cutover <- assertRight =<< planRepairCutover (appStore environment) repairPlan candidate
+  let backup = cutoverBackupRoot cutover
+  ( do
+      assertRight =<< prepareRepairCutoverIntent (appStore environment) cutover
+      before <- eventFiles (appStore environment)
+      before @?= corruptAuthority
+      journalExists <- doesFileExist (cutoverJournalPath cutover)
+      assertBool "consent is durable before namespace exchange" journalExists
+      recovered <- assertRight =<< recoverRepairCutover (appStore environment)
+      result <- maybe (assertFailure "pending cutover was not recovered") pure recovered
+      cutoverResultRecovered result @?= True
+      live <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+      loadedCursor live @?= cutoverCandidateCursor cutover
+      retained <- eventFiles (appStore environment){storeRoot = backup}
+      retained @?= corruptAuthority
+      pending <- recoverRepairCutover (appStore environment)
+      pending @?= Right Nothing
+    )
+    `finally` makeTreeWritableIfPresent backup
+
+recoverExchangedCutover :: Assertion
+recoverExchangedCutover = withRepairHarness $ \outer environment -> do
+  (repairPlan, candidate, corruptAuthority) <- preparedRepair environment
+  cutover <- assertRight =<< planRepairCutover (appStore environment) repairPlan candidate
+  let source = cutoverSourceRoot cutover
+      candidateRoot = cutoverCandidateRoot cutover
+      backup = cutoverBackupRoot cutover
+      transition = outer </> "interrupted-exchange"
+  ( do
+      assertRight =<< prepareRepairCutoverIntent (appStore environment) cutover
+      renameDirectory source transition
+      renameDirectory candidateRoot source
+      renameDirectory transition candidateRoot
+
+      recovered <- assertRight =<< recoverRepairCutover (appStore environment)
+      result <- maybe (assertFailure "post-exchange cutover was not recovered") pure recovered
+      cutoverResultRecovered result @?= True
+      live <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+      loadedCursor live @?= cutoverCandidateCursor cutover
+      retained <- eventFiles (appStore environment){storeRoot = backup}
+      retained @?= corruptAuthority
+      oldCandidateNameExists <- doesDirectoryExist candidateRoot
+      assertBool "recovery consumed the old candidate name" (not oldCandidateNameExists)
+    )
+    `finally` makeTreeWritableIfPresent backup
+
+repairDryRun :: Assertion
+repairDryRun = withRepairHarness $ \outer environment -> do
+  corruptAuthority <- corruptOneSegment environment "dry-run repair evidence"
+  siblingsBefore <- listDirectory outer
+  result <- assertRight =<< runAppCommand environment True (const (pure ())) RepairCommand
+  envelope <- interactionOf result
+  case envelopeOpportunity envelope of
+    RepairPreviewOpportunity _ _ _ _ candidate _ -> do
+      candidateExists <- doesDirectoryExist candidate
+      assertBool "dry-run does not build a repair candidate" (not candidateExists)
+    other -> assertFailure ("expected dry-run repair preview, got " <> show other)
+  siblingsAfter <- listDirectory outer
+  siblingsAfter @?= siblingsBefore
+  authorityAfter <- eventFiles (appStore environment)
+  authorityAfter @?= corruptAuthority
+
+publicRepairFlow :: Assertion
+publicRepairFlow = withRepairHarness $ \_ environment -> do
+  corruptAuthority <- corruptOneSegment environment "public repair evidence"
+  previewResult <- run environment RepairCommand
+  preview <- interactionOf previewResult
+  planHash <- case envelopeOpportunity preview of
+    RepairPreviewOpportunity hash source _ _ candidate validEvents -> do
+      source @?= storeRoot (appStore environment)
+      validEvents @?= 0
+      exists <- doesDirectoryExist candidate
+      assertBool "preview does not build the candidate" (not exists)
+      pure hash
+    other -> assertFailure ("expected repair preview, got " <> show other) >> fail "unreachable"
+  assertBool "repair preview has no default action" (not (any actionDefault (envelopeActions preview)))
+
+  candidateEnvelope <- answer environment preview "repair.build"
+  (cutoverHash, backup) <- case envelopeOpportunity candidateEnvelope of
+    RepairCandidateOpportunity repairHash candidateCutoverHash source candidatePath backupPath _ eventCount -> do
+      repairHash @?= planHash
+      source @?= storeRoot (appStore environment)
+      eventCount @?= 1
+      exists <- doesDirectoryExist candidatePath
+      assertBool "explicit build creates the separate candidate" exists
+      liveAfterBuild <- eventFiles (appStore environment)
+      liveAfterBuild @?= corruptAuthority
+      pure (candidateCutoverHash, backupPath)
+    other -> assertFailure ("expected validated repair candidate, got " <> show other) >> fail "unreachable"
+  assertBool "cutover consent has no default action" (not (any actionDefault (envelopeActions candidateEnvelope)))
+
+  ( do
+      completed <- run environment (RespondCommand (response candidateEnvelope "repair.cutover"))
+      completion <- interactionOf completed
+      case envelopeOpportunity completion of
+        RepairCompleteOpportunity completedHash retainedBackup recovered -> do
+          completedHash @?= cutoverHash
+          retainedBackup @?= backup
+          recovered @?= False
+        other -> assertFailure ("expected repair completion, got " <> show other)
+      live <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+      loadedEventCount live @?= 1
+      next <- run environment NextCommand
+      case next of
+        NextResult{} -> pure ()
+        other -> assertFailure ("ordinary commands did not resume after repair: " <> show other)
+    )
+    `finally` makeTreeWritableIfPresent backup
+
+preparedRepair :: AppEnv -> IO (RepairPlan, RepairCandidate, [(FilePath, ByteString.ByteString)])
+preparedRepair environment = do
+  corruptAuthority <- corruptOneSegment environment "preserve through atomic cutover"
+  let store = appStore environment
+  repairPlan <- assertRight =<< planDatasetRepair store
+  candidate <- assertRight =<< buildRepairCandidate store repairPlan
+  pure (repairPlan, candidate, corruptAuthority)
+
+corruptOneSegment :: AppEnv -> Text -> IO [(FilePath, ByteString.ByteString)]
+corruptOneSegment environment material = do
+  _ <- run environment (FeedCommand "test" material)
+  let store = appStore environment
+      events = storeRoot store </> "events"
+  originalName <- only "canonical segment" <$> listDirectory events
+  let wrongName = segmentFileName 1 (Text.replicate 64 "0")
+  renameFile (events </> originalName) (events </> wrongName)
+  eventFiles store
+
+assertTreeReadOnly :: FilePath -> Assertion
+assertTreeReadOnly path = do
+  status <- getFileStatus path
+  assertBool ("write bits remain on " <> path) (fileMode status .&. 0o222 == 0)
+  whenDirectory status $ do
+    names <- listDirectory path
+    mapM_ (assertTreeReadOnly . (path </>)) names
+
+makeTreeWritableIfPresent :: FilePath -> IO ()
+makeTreeWritableIfPresent path = do
+  exists <- doesDirectoryExist path
+  if not exists
+    then pure ()
+    else do
+      setFileMode path 0o700
+      names <- listDirectory path
+      mapM_ restore (fmap (path </>) names)
+ where
+  restore child = do
+    status <- getFileStatus child
+    if isDirectory status
+      then makeTreeWritableIfPresent child
+      else setFileMode child 0o600
+
+whenDirectory :: FileStatus -> IO () -> IO ()
+whenDirectory status action = if isDirectory status then action else pure ()
+
 eventFiles :: StoreConfig -> IO [(FilePath, ByteString.ByteString)]
 eventFiles store = do
   let events = storeRoot store </> "events"
@@ -386,6 +575,7 @@ interactionOf = \case
   NextResult{resultInteraction} -> pure resultInteraction
   FeedResult{resultInteraction} -> pure resultInteraction
   RespondResult{resultInteraction} -> pure resultInteraction
+  RepairResult{resultInteraction} -> pure resultInteraction
   other -> assertFailure ("result has no guided interaction: " <> show other) >> fail "unreachable"
 
 answer :: AppEnv -> InteractionEnvelope -> Text -> IO InteractionEnvelope

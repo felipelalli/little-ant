@@ -43,6 +43,7 @@ import LittleAnt.Model
 import LittleAnt.Notice
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
+import LittleAnt.Repair
 import LittleAnt.Result
 import LittleAnt.Store
 import LittleAnt.Temporal
@@ -190,9 +191,12 @@ resolveProfileName explicit = do
 
 runAppCommand :: AppEnv -> Bool -> (Integer -> IO ()) -> AppCommand -> IO (Either AppError CommandResult)
 runAppCommand environment dryRun progress DoctorCommand = runDoctor environment dryRun progress
+runAppCommand environment dryRun progress RepairCommand = runRepair environment dryRun progress
 runAppCommand environment dryRun progress command =
   loadDataset (appStore environment) progress >>= \case
-    Left problem -> pure (Left problem)
+    Left problem -> case command of
+      RespondCommand response -> runCorruptDatasetResponse environment dryRun response problem
+      _ -> pure (Left problem)
     Right loaded ->
       advanceDueTemporal environment dryRun loaded >>= \case
         Left problem -> pure (Left problem)
@@ -293,7 +297,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   PacksUntrustCommand pack -> pure (unsupportedCommand ("packs untrust " <> pack))
   PacksGcCommand -> pure (unsupportedCommand "packs gc")
   DoctorCommand -> runDoctor environment dryRun (const (pure ()))
-  RepairCommand -> pure (unsupportedCommand "repair")
+  RepairCommand -> runRepair environment dryRun (const (pure ()))
   EditorCommand -> pure (unsupportedCommand "editor")
 
 unsupportedCommand :: Text -> Either AppError CommandResult
@@ -332,6 +336,207 @@ runDoctor environment dryRun progress =
               (loadedEventCount dataset)
               [DiagnosticCheck "canonical_history" healthy summary issue]
               dryRun
+
+runRepair :: AppEnv -> Bool -> (Integer -> IO ()) -> IO (Either AppError CommandResult)
+runRepair environment dryRun progress = do
+  recovered <- if dryRun then pure (Right Nothing) else recoverRepairCutover (appStore environment)
+  case recovered of
+    Left problem -> pure (Left problem)
+    Right (Just result) -> repairCompletionResult environment dryRun Nothing result
+    Right Nothing ->
+      planDatasetRepair (appStore environment) >>= \case
+        Left problem -> pure (Left problem)
+        Right plan -> do
+          diagnosis <- diagnoseDataset (appStore environment) progress
+          case diagnosis of
+            Left problem -> pure (Left problem)
+            Right report -> do
+              let dataset = diagnosedDataset report
+                  state = loadedState dataset
+              identity <- appAllocateUUID environment
+              now <- appZonedNow environment
+              candidateExists <- doesDirectoryExist (repairPlanCandidateRoot plan)
+              if candidateExists
+                then
+                  buildRepairCandidate (appStore environment) plan >>= \case
+                    Left problem -> pure (Left problem)
+                    Right candidate ->
+                      planRepairCutover (appStore environment) plan candidate >>= \case
+                        Left problem -> pure (Left problem)
+                        Right cutover -> do
+                          let preview = repairPreviewEnvelope identity now state plan
+                              envelope = repairCandidateEnvelope preview now state plan candidate cutover
+                              checkpoint = PresentationCheckpoint envelope [] []
+                          saveUnlessDry environment dryRun checkpoint
+                          pure (Right (RepairResult (loadedCursor dataset) "candidate" envelope dryRun))
+                else do
+                  let envelope = repairPreviewEnvelope identity now state plan
+                      checkpoint = PresentationCheckpoint envelope [] []
+                  saveUnlessDry environment dryRun checkpoint
+                  pure (Right (RepairResult (loadedCursor dataset) "preview" envelope dryRun))
+
+runCorruptDatasetResponse :: AppEnv -> Bool -> InteractionResponse -> AppError -> IO (Either AppError CommandResult)
+runCorruptDatasetResponse environment dryRun response originalProblem =
+  loadPendingCheckpoint environment >>= \case
+    Left problem -> pure (Left problem)
+    Right Nothing -> pure (Left originalProblem)
+    Right (Just checkpoint) -> do
+      let current = checkpointCurrent checkpoint
+      if not (isRepairOpportunity (envelopeOpportunity current))
+        then pure (Left originalProblem)
+        else case validateResponse current current response of
+          Left problem -> pure (Left problem)
+          Right ResponseStale{} -> pure (Left (appError Conflict "The repair question changed before this answer was applied."))
+          Right ResponseAccepted{} -> runRepairResponse environment dryRun checkpoint response
+
+runRepairResponse :: AppEnv -> Bool -> PresentationCheckpoint -> InteractionResponse -> IO (Either AppError CommandResult)
+runRepairResponse environment dryRun checkpoint response =
+  case envelopeOpportunity current of
+    opportunity@RepairPreviewOpportunity{} -> respondToRepairPreview opportunity
+    opportunity@RepairCandidateOpportunity{} -> respondToRepairCandidate opportunity
+    _ -> pure (Left (appError PreconditionFailed "The pending interaction is not a repair checkpoint."))
+ where
+  current = checkpointCurrent checkpoint
+  action = responseActionId response
+  respondToRepairPreview (RepairPreviewOpportunity planHash source original replacement candidatePath validEvents)
+    | action == "repair.assistance" = explain "A candidate is a complete separate dataset. Little Ant copies canonical material, applies only the displayed filename correction, then replays every event before offering cutover."
+    | action == "repair.build" =
+        planDatasetRepair (appStore environment) >>= \case
+          Left problem -> pure (Left problem)
+          Right plan
+            | not (repairPreviewMatches plan planHash source original replacement candidatePath validEvents) -> pure (Left staleRepairQuestion)
+            | dryRun -> explain "Dry run validated this repair plan. No candidate was created and cutover is unavailable until a real build succeeds."
+            | otherwise ->
+                buildRepairCandidate (appStore environment) plan >>= \case
+                  Left problem -> pure (Left problem)
+                  Right candidate ->
+                    planRepairCutover (appStore environment) plan candidate >>= \case
+                      Left problem -> pure (Left problem)
+                      Right cutover -> do
+                        diagnosis <- diagnoseDataset (appStore environment) (const (pure ()))
+                        case diagnosis of
+                          Left problem -> pure (Left problem)
+                          Right report -> do
+                            now <- appZonedNow environment
+                            let state = loadedState (diagnosedDataset report)
+                                envelope = repairCandidateEnvelope current now state plan candidate cutover
+                                nextCheckpoint = PresentationCheckpoint envelope (current : checkpointBack checkpoint) []
+                            savePendingCheckpoint environment nextCheckpoint
+                            pure (Right (RespondResult (envelopeDatasetCursor envelope) envelope Nothing False))
+    | otherwise = pure (Left unavailableRepairAction)
+  respondToRepairPreview _ = pure (Left unavailableRepairAction)
+
+  respondToRepairCandidate (RepairCandidateOpportunity repairHash cutoverHash source candidatePath backupPath candidateCursor candidateEvents)
+    | action == "repair.assistance" = explain "Cutover first records this exact consent outside both datasets. It atomically exchanges their names, keeps the old live dataset as a read-only backup, and resumes only forward after interruption."
+    | action == "repair.cutover" =
+        planDatasetRepair (appStore environment) >>= \case
+          Left problem -> pure (Left problem)
+          Right plan
+            | repairPlanHash plan /= repairHash || repairPlanSourceRoot plan /= source -> pure (Left staleRepairQuestion)
+            | otherwise ->
+                buildRepairCandidate (appStore environment) plan >>= \case
+                  Left problem -> pure (Left problem)
+                  Right candidate
+                    | repairCandidateRoot candidate /= candidatePath
+                        || repairCandidateCursor candidate /= candidateCursor
+                        || repairCandidateEventCount candidate /= candidateEvents ->
+                        pure (Left staleRepairQuestion)
+                    | dryRun -> explain "Dry run revalidated the candidate and exact cutover inputs. No intent, exchange, or backup was written."
+                    | otherwise ->
+                        planRepairCutover (appStore environment) plan candidate >>= \case
+                          Left problem -> pure (Left problem)
+                          Right cutover
+                            | cutoverPlanHash cutover /= cutoverHash || cutoverBackupRoot cutover /= backupPath -> pure (Left staleRepairQuestion)
+                            | otherwise ->
+                                executeRepairCutover (appStore environment) cutover >>= \case
+                                  Left problem -> pure (Left problem)
+                                  Right result -> repairCompletionResult environment False (Just current) result
+    | otherwise = pure (Left unavailableRepairAction)
+  respondToRepairCandidate _ = pure (Left unavailableRepairAction)
+
+  explain message = do
+    let envelope = appendBody current message
+        nextCheckpoint = checkpoint{checkpointCurrent = envelope, checkpointBack = current : checkpointBack checkpoint, checkpointForward = []}
+    saveUnlessDry environment dryRun nextCheckpoint
+    pure (Right (RespondResult (envelopeDatasetCursor envelope) envelope Nothing dryRun))
+
+repairCompletionResult :: AppEnv -> Bool -> Maybe InteractionEnvelope -> RepairCutoverResult -> IO (Either AppError CommandResult)
+repairCompletionResult environment dryRun previous result =
+  loadDataset (appStore environment) (const (pure ())) >>= \case
+    Left problem -> pure (Left problem)
+    Right dataset -> do
+      identity <- appAllocateUUID environment
+      now <- appZonedNow environment
+      let state = loadedState dataset
+          base = fromMaybe (makeSafeEmptyEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now) previous
+          envelope =
+            makeRepairCompleteEnvelope
+              base
+              (loadedCursor dataset)
+              (statePreconditionHash state)
+              now
+              state
+              (cutoverResultPlanHash result)
+              (cutoverResultBackupRoot result)
+              (cutoverResultRecovered result)
+          checkpoint = PresentationCheckpoint envelope [] []
+      saveUnlessDry environment dryRun checkpoint
+      pure (Right (RepairResult (loadedCursor dataset) "complete" envelope dryRun))
+
+repairPreviewEnvelope :: UUIDv7 -> ZonedTime -> State -> RepairPlan -> InteractionEnvelope
+repairPreviewEnvelope identity now state plan =
+  makeRepairPreviewEnvelope
+    identity
+    (repairPlanSourceCursor plan)
+    (repairPlanHash plan)
+    now
+    state
+    (repairPlanSourceRoot plan)
+    (repairPlanOriginalSegment plan)
+    (repairPlanReplacementSegment plan)
+    (repairPlanCandidateRoot plan)
+    (repairPlanValidEventCount plan)
+
+repairCandidateEnvelope :: InteractionEnvelope -> ZonedTime -> State -> RepairPlan -> RepairCandidate -> RepairCutoverPlan -> InteractionEnvelope
+repairCandidateEnvelope previous now state plan candidate cutover =
+  makeRepairCandidateEnvelope
+    previous
+    now
+    state
+    (repairPlanHash plan)
+    (cutoverPlanHash cutover)
+    (repairPlanSourceRoot plan)
+    (repairCandidateRoot candidate)
+    (cutoverBackupRoot cutover)
+    (repairCandidateCursor candidate)
+    (repairCandidateEventCount candidate)
+
+repairPreviewMatches :: RepairPlan -> Text -> FilePath -> FilePath -> FilePath -> FilePath -> Integer -> Bool
+repairPreviewMatches plan planHash source original replacement candidate validEvents =
+  and
+    [ repairPlanHash plan == planHash
+    , repairPlanSourceRoot plan == source
+    , repairPlanOriginalSegment plan == original
+    , repairPlanReplacementSegment plan == replacement
+    , repairPlanCandidateRoot plan == candidate
+    , repairPlanValidEventCount plan == validEvents
+    ]
+
+isRepairOpportunity :: Opportunity -> Bool
+isRepairOpportunity = \case RepairPreviewOpportunity{} -> True; RepairCandidateOpportunity{} -> True; RepairCompleteOpportunity{} -> True; _ -> False
+
+staleRepairQuestion :: AppError
+staleRepairQuestion =
+  (appError Conflict "The repair inputs changed after this question was rendered.")
+    { appErrorRetrySafety = RetryAfterRefresh
+    , appErrorRecovery = [RecoveryAction "repair" "Generate and review a fresh repair plan." (Just "lant repair")]
+    }
+
+unavailableRepairAction :: AppError
+unavailableRepairAction =
+  (appError InvalidInput "That action is not available at this repair checkpoint.")
+    { appErrorRecovery = [RecoveryAction "continue" "Choose one action shown by the current repair envelope." Nothing]
+    }
 
 runProfileList :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runProfileList environment dryRun dataset = do

@@ -1,4 +1,4 @@
-module LittleAnt.REPL (filteredCommands, paletteModel, progressModel, runRepl) where
+module LittleAnt.REPL (filteredCommands, paletteModel, progressModel, runRepl, runReplWithCommand) where
 
 import Control.Exception (bracket)
 import Control.Monad (void)
@@ -28,7 +28,10 @@ data ReplScreen
   | ReadOnlyScreen InteractionEnvelope Text
 
 runRepl :: AppEnv -> IO ()
-runRepl environment = do
+runRepl environment = runReplWithCommand environment NextCommand
+
+runReplWithCommand :: AppEnv -> AppCommand -> IO ()
+runReplWithCommand environment initialCommand = do
   interactive <- (&&) <$> hIsTerminalDevice stdin <*> hIsTerminalDevice stdout
   term <- lookupEnv "TERM"
   if not interactive || term == Just "dumb"
@@ -36,15 +39,16 @@ runRepl environment = do
     else bracket (CrossPlatform.mkVty defaultConfig) shutdown runInteractive
  where
   runInline =
-    runAppCommand environment False (const (pure ())) NextCommand >>= \case
+    runAppCommand environment False (const (pure ())) initialCommand >>= \case
       Left problem -> Text.putStrLn (renderError problem)
       Right result -> Text.putStrLn (renderCommandResult result)
   runInteractive vty = do
     color <- terminalColorMode
-    result <- runAppCommand environment False (showProgress vty color) NextCommand
+    result <- runAppCommand environment False (showProgress vty color) initialCommand
     case result of
       Left problem -> paint vty color (errorModel problem) >> waitForExit vty
       Right NextResult{resultInteraction} -> loop environment vty color 80 (screenForEnvelope resultInteraction)
+      Right RepairResult{resultInteraction} -> loop environment vty color 80 (screenForEnvelope resultInteraction)
       Right other -> paint vty color (textModel (renderCommandResult other)) >> waitForExit vty
 
 loop :: AppEnv -> Vty -> ColorMode -> Int -> ReplScreen -> IO ()
@@ -72,8 +76,11 @@ loop environment vty color width screen = do
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable character [] -> dispatchShortcut envelope (Text.singleton character)
     Enter [] -> dispatchShortcut envelope "*"
+    Escape _ | isRepairScreen envelope -> pure Nothing
     Escape _ -> navigate envelope True
+    Backspace _ | isRepairScreen envelope -> pure Nothing
     Backspace _ -> navigate envelope True
+    ArrowLeft _ | isRepairScreen envelope -> pure Nothing
     ArrowLeft _ -> navigate envelope True
     ArrowRight _ -> navigate envelope False
     _ -> pure (Just screen)
@@ -171,6 +178,7 @@ loop environment vty color width screen = do
     RespondResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     NextResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     FeedResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
+    RepairResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
 
   runPaletteCommand envelope query selected = case safeIndex selected (filteredCommands envelope query) of
@@ -184,6 +192,7 @@ loop environment vty color width screen = do
       "redo" -> runSimpleCommand envelope RedoCommand
       "pause" -> runSimpleCommand envelope PauseCommand
       "history" -> runSimpleCommand envelope (HistoryCommand Nothing)
+      "doctor" -> runSimpleCommand envelope DoctorCommand
       "break" -> runBrickCommand envelope command BreakCommand
       "archive" -> runBrickCommand envelope command ArchiveCommand
       "restore" -> runBrickCommand envelope command RestoreCommand
@@ -206,6 +215,12 @@ loop environment vty color width screen = do
     case Text.words (commandOptionCommand command) of
       _ : reference : _ -> runSimpleCommand envelope (constructor reference)
       _ -> pure (Just (EnvelopeScreen envelope (Just "Choose a Brick reference for this command.")))
+
+isRepairScreen :: InteractionEnvelope -> Bool
+isRepairScreen envelope = case envelopeOpportunity envelope of
+  RepairPreviewOpportunity{} -> True
+  RepairCandidateOpportunity{} -> True
+  _ -> False
 
 screenForEnvelope :: InteractionEnvelope -> ReplScreen
 screenForEnvelope envelope = case envelopeOpportunity envelope of

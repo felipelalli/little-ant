@@ -217,7 +217,9 @@ run environment options = case optionCommand options of
   PacksUntrustCli pack -> execute environment options (PacksUntrustCommand pack)
   PacksGcCli -> execute environment options PacksGcCommand
   DoctorCli -> execute environment options DoctorCommand
-  RepairCli -> execute environment options RepairCommand
+  RepairCli
+    | optionJson options || optionDryRun options -> execute environment options RepairCommand
+    | otherwise -> runReplWithCommand environment RepairCommand
   EditorCli -> execute environment options EditorCommand
 
 runVaultAgentCli :: AppEnv -> Options -> Int -> IO ()

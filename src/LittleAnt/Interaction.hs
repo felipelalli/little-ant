@@ -117,6 +117,9 @@ module LittleAnt.Interaction (
   makeRawAttachmentResultEnvelope,
   makeRawUnderBrickEnvelope,
   makeRawTriageEnvelope,
+  makeRepairCandidateEnvelope,
+  makeRepairCompleteEnvelope,
+  makeRepairPreviewEnvelope,
   makeSafeEmptyEnvelope,
   makeSkipAcknowledgedEnvelope,
   makeWorkSkipConfirmationEnvelope,
@@ -434,6 +437,9 @@ data Opportunity
   | RestoreResultOpportunity UUIDv7
   | ArchiveReviewOpportunity UUIDv7 UUIDv7
   | CompletionResultOpportunity UUIDv7
+  | RepairPreviewOpportunity Text FilePath FilePath FilePath FilePath Integer
+  | RepairCandidateOpportunity Text Text FilePath FilePath FilePath DatasetCursor Integer
+  | RepairCompleteOpportunity Text FilePath Bool
   deriving stock (Eq, Show)
 
 data EnvelopeContent = EnvelopeContent
@@ -2927,6 +2933,92 @@ makeArchiveReviewEnvelope identity cursor precondition now state brick review =
     (Just "review_archived_work")
     (brickFooter now state brick)
 
+makeRepairPreviewEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> FilePath -> FilePath -> FilePath -> FilePath -> Integer -> InteractionEnvelope
+makeRepairPreviewEnvelope identity cursor planHash now state source original replacement candidate validEvents =
+  sealed
+    identity
+    1
+    cursor
+    planHash
+    ConfirmationGrammar
+    (RepairPreviewOpportunity planHash source original replacement candidate validEvents)
+    ( EnvelopeContent
+        "Repair available."
+        Nothing
+        [ "Problem: one canonical segment has a filename that does not match its content hash."
+        , "Validated prefix: " <> Text.pack (show validEvents) <> " events"
+        , "Rename in candidate: " <> Text.pack original <> " → " <> Text.pack replacement
+        , "Live dataset: " <> Text.pack source
+        , "Separate candidate: " <> Text.pack candidate
+        , "The live dataset will not be changed while the candidate is built and replayed."
+        ]
+        (Just "Build and fully replay this separate candidate?")
+    )
+    [ Action "repair.build" "build candidate" "b" False "Copy the dataset, apply only this typed repair, and replay it from zero."
+    , Action "repair.assistance" "I don't know" "?" False "Explain the candidate boundary without changing either dataset."
+    , moreAction
+    ]
+    repairCommands
+    (Just "confirm_repair_candidate_build")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+
+makeRepairCandidateEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Text -> Text -> FilePath -> FilePath -> FilePath -> DatasetCursor -> Integer -> InteractionEnvelope
+makeRepairCandidateEnvelope previous now state repairHash cutoverHash source candidate backup candidateCursor candidateEvents =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      repairHash
+      ConfirmationGrammar
+      (RepairCandidateOpportunity repairHash cutoverHash source candidate backup candidateCursor candidateEvents)
+      ( EnvelopeContent
+          "Repair candidate ready."
+          Nothing
+          [ "Live dataset: " <> Text.pack source
+          , "Current live repair plan: " <> repairHash
+          , "Candidate: " <> Text.pack candidate
+          , "Validated events: " <> Text.pack (show candidateEvents)
+          , "Validated cursor: " <> renderCursor candidateCursor
+          , "Retained backup: " <> Text.pack backup
+          , "Cutover uses an atomic filesystem exchange and keeps the old live dataset read-only."
+          ]
+          (Just "Replace the live dataset with this validated candidate?")
+      )
+      [ Action "repair.cutover" "cut over" "c" False "Durably record consent, atomically exchange datasets, and retain the old authority."
+      , Action "repair.assistance" "I don't know" "?" False "Explain atomic cutover, recovery, and the retained backup."
+      , moreAction
+      ]
+      repairCommands
+      (Just "confirm_repair_cutover")
+      (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+
+makeRepairCompleteEnvelope :: InteractionEnvelope -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> FilePath -> Bool -> InteractionEnvelope
+makeRepairCompleteEnvelope previous cursor precondition now state cutoverHash backup recovered =
+  resealEnvelope $
+    ( resultEnvelope
+        (envelopeInteractionId previous)
+        cursor
+        precondition
+        now
+        state
+        (RepairCompleteOpportunity cutoverHash backup recovered)
+        (if recovered then "Repair recovered and completed." else "Repair completed.")
+        [ "The validated candidate is now live."
+        , "Read-only backup: " <> Text.pack backup
+        , "The canonical event history was never edited in place."
+        ]
+    )
+      { envelopeRevision = envelopeRevision previous + 1
+      }
+
+repairCommands :: [CommandOption]
+repairCommands =
+  [ CommandOption "doctor" "/doctor" "Inspect the exact dataset boundary"
+  , helpCommand
+  , exitCommand
+  ]
+
 resultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Opportunity -> Text -> [Text] -> InteractionEnvelope
 makeListEntryPreviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> Brick -> Text -> Quantity -> InteractionEnvelope
 makeListEntryPreviewEnvelope previous now state raw owner label quantity =
@@ -3783,6 +3875,29 @@ opportunityValue = \case
   RestoreResultOpportunity identity -> typed "restore_result" ["brick_id" .= renderUUIDv7 identity]
   ArchiveReviewOpportunity identity review -> typed "archive_review" ["brick_id" .= renderUUIDv7 identity, "review_id" .= renderUUIDv7 review]
   CompletionResultOpportunity identity -> typed "completion_result" ["brick_id" .= renderUUIDv7 identity]
+  RepairPreviewOpportunity planHash source original replacement candidate validEvents ->
+    typed
+      "repair_preview"
+      [ "plan_hash" .= planHash
+      , "source_root" .= source
+      , "original_segment" .= original
+      , "replacement_segment" .= replacement
+      , "candidate_root" .= candidate
+      , "valid_event_count" .= validEvents
+      ]
+  RepairCandidateOpportunity repairHash cutoverHash source candidate backup cursor eventCount ->
+    typed
+      "repair_candidate"
+      [ "repair_plan_hash" .= repairHash
+      , "cutover_plan_hash" .= cutoverHash
+      , "source_root" .= source
+      , "candidate_root" .= candidate
+      , "backup_root" .= backup
+      , "candidate_cursor" .= cursor
+      , "candidate_event_count" .= eventCount
+      ]
+  RepairCompleteOpportunity cutoverHash backup recovered ->
+    typed "repair_complete" ["cutover_plan_hash" .= cutoverHash, "backup_root" .= backup, "recovered" .= recovered]
  where
   typed typeName fields = object ("type" .= (typeName :: Text) : fields)
   selectionFields identity selection =
@@ -3935,6 +4050,9 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "restore_result" -> RestoreResultOpportunity <$> uuidField value "brick_id"
     "archive_review" -> ArchiveReviewOpportunity <$> uuidField value "brick_id" <*> uuidField value "review_id"
     "completion_result" -> CompletionResultOpportunity <$> uuidField value "brick_id"
+    "repair_preview" -> RepairPreviewOpportunity <$> value .: "plan_hash" <*> value .: "source_root" <*> value .: "original_segment" <*> value .: "replacement_segment" <*> value .: "candidate_root" <*> value .: "valid_event_count"
+    "repair_candidate" -> RepairCandidateOpportunity <$> value .: "repair_plan_hash" <*> value .: "cutover_plan_hash" <*> value .: "source_root" <*> value .: "candidate_root" <*> value .: "backup_root" <*> value .: "candidate_cursor" <*> value .: "candidate_event_count"
+    "repair_complete" -> RepairCompleteOpportunity <$> value .: "cutover_plan_hash" <*> value .: "backup_root" <*> value .: "recovered"
     _ -> fail "unknown opportunity type"
  where
   selectionId value = value .:? "selection_id" >>= traverse parseUuid

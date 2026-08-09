@@ -145,6 +145,12 @@ data CommandResult
       , resultDiagnosticChecks :: [DiagnosticCheck]
       , resultDryRun :: Bool
       }
+  | RepairResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultRepairStage :: Text
+      , resultInteraction :: InteractionEnvelope
+      , resultDryRun :: Bool
+      }
   deriving stock (Eq, Show)
 
 resultCursor :: CommandResult -> DatasetCursor
@@ -255,6 +261,14 @@ instance ToJSON CommandResult where
         , "healthy" .= healthy
         , "validated_events" .= validated
         , "checks" .= checks
+        ]
+          <> dryRunPair dryRun
+    RepairResult cursor stage interaction dryRun ->
+      object $
+        [ "schema" .= ("little-ant/repair@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "stage" .= stage
+        , "interaction" .= interaction
         ]
           <> dryRunPair dryRun
     RespondResult cursor interaction commandId dryRun ->
