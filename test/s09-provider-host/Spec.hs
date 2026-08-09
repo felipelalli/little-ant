@@ -3,16 +3,19 @@ module Main (main) where
 import Data.Aeson (Value, encode, object, toJSON, (.=))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
-import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
+import Data.IORef (IORef, atomicModifyIORef', modifyIORef', newIORef, readIORef)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Time (UTCTime, addUTCTime)
+import Data.Time (UTCTime, addUTCTime, utc, utcToZonedTime)
+import LittleAnt.Application
 import LittleAnt.Error
+import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Id
 import LittleAnt.Import
-import LittleAnt.Model (SourceMode (..))
+import LittleAnt.Interaction
+import LittleAnt.Model
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Http
@@ -22,7 +25,9 @@ import LittleAnt.Pack.Transport
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile
 import LittleAnt.Provider
+import LittleAnt.Result
 import LittleAnt.Source
+import LittleAnt.Store
 import LittleAnt.Vault qualified as Vault
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -37,6 +42,7 @@ main =
       [ testCase "integrations YAML round-trips typed accounts and bindings without secret-shaped configuration" typedIntegrationState
       , testCase "OAuth token sets are closed, expiring vault payloads rather than configuration secrets" oauthTokenCustody
       , testCase "configured provider import injects credentials only after Pack route authorization" credentialBoundary
+      , testCase "verified provider materialization is accepted as canonical Raw truth" remoteAcceptance
       , testCase "locked credentials stop before provider transport and retain a typed non-provider failure" lockedCredential
       , testCase "multiple accounts receive explicit unambiguous import references" multipleAccountReferences
       , testCase "binding scheme and component must match the signed SourceAdapter" bindingAuthority
@@ -96,11 +102,13 @@ credentialBoundary = do
   integrations <- assertRight (authorizedIntegrations registry entries)
   providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry resolver transport)
   (providerImportReference <$> providers) @?= ["microsoft_todo"]
+  (providerImportCanonicalReference <$> providers) @?= ["microsoft_todo@personal"]
   assertBool
     "host-only OAuth client ID escaped into Lua configuration"
     (all (not . ("client_id" `ByteString.isInfixOf`) . LazyByteString.toStrict . encode . providerImportConfiguration) providers)
   let importPort = packRegistryImportPortWithProviders runner registry providers
   imported <- importPortPreflight importPort "microsoft_todo" SourceSnapshot >>= assertRight
+  importReadSourceReference imported @?= "microsoft_todo@personal"
   sourcePreflightAdapterId (importReadPreflight imported) @?= "microsoft_todo"
   sourceInputMediaType (importReadInput imported) @?= "application/vnd.little-ant.http-transcript+json"
   assertBool "the access token escaped into source custody" (not (secretToken `ByteString.isInfixOf` sourceInputBytes (importReadInput imported)))
@@ -114,6 +122,78 @@ credentialBoundary = do
   assertBool
     "the access token escaped into materialization custody"
     (not (secretToken `ByteString.isInfixOf` sourceInputBytes (importReadInput (importMaterializationRead materialized))))
+
+remoteAcceptance :: Assertion
+remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  token <- assertRight (accessTokenFromBytes secretToken)
+  transportCalls <- newIORef []
+  integrations <-
+    assertRight (authorizedIntegrations registry [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)])
+  providers <-
+    assertRight
+      ( configuredProviderImportSources
+          [microsoftTodoDefinition]
+          integrations
+          registry
+          (AccessTokenResolver (const (pure (Right token))))
+          (graphTransport transportCalls)
+      )
+  counter <- newIORef (9000 :: Int)
+  let importPort = packRegistryImportPortWithProviders runner registry providers
+      environment =
+        AppEnv
+          (StoreConfig (root </> "dataset") 2_000_000 20_000)
+          (Actor "human" "test")
+          (pure fixtureTime)
+          (pure (utcToZonedTime utc fixtureTime))
+          (allocateFixtureUUID counter)
+          emptyExportPort
+          importPort
+          Nothing
+          Nothing
+          Nothing
+          Nothing
+  previewResult <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate True) >>= assertRight
+  preview <- interactionOf previewResult
+  case envelopeOpportunity preview of
+    ImportPreflightOpportunity "microsoft_todo@personal" preflight True -> do
+      sourcePreflightAdapterId preflight @?= "microsoft_todo"
+      observedCleanupSupported (sourcePreflightObservation preflight) @?= True
+    other -> assertFailure ("unexpected provider import preview: " <> show other)
+  acceptedResult <- runAppCommand environment False silentProgress (RespondCommand (response preview "import.accept")) >>= assertRight
+  accepted <- interactionOf acceptedResult
+  importedRaw <- case envelopeOpportunity accepted of
+    ImportResultOpportunity [identity] [] True -> pure identity
+    other -> assertFailure ("unexpected provider import result: " <> show other) >> fail "unreachable"
+  dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let state = loadedState dataset
+      profile = only "ImportProfile" (Map.elems (stateImportProfiles state))
+      invocation = only "ImportInvocation" (Map.elems (stateImportInvocations state))
+      binding = only "SourceBinding" (Map.elems (stateSourceBindings state))
+      revisionId = stateCurrentRawRevisions state Map.! importedRaw
+      revision = stateRawContentRevisions state Map.! revisionId
+  importProfileInputReference profile @?= "microsoft_todo@personal"
+  importProfileMode profile @?= SourceMigrate
+  importInvocationComponentId invocation @?= "microsoft_todo"
+  importObjectExternalIdentity (only "ImportObjectMapping" (importInvocationMappings invocation)) @?= "task:list-1:task-1"
+  sourceBindingExternalIdentity binding @?= Just "task:list-1:task-1"
+  sourceBindingLocator binding @?= "microsoft-todo://account-personal/lists/list-1/tasks/task-1"
+  case rawContentRevisionContent revision of
+    RawStructuredContent "microsoft-graph/todo-task@1" body -> do
+      assertBool "the accepted Raw omitted provider identity" ("account-personal" `Text.isInfixOf` body)
+      assertBool "the accepted Raw omitted the complete task body" ("Keep the token private" `Text.isInfixOf` body)
+    other -> assertFailure ("provider material was not preserved as structured Raw truth: " <> show other)
+  let acceptedEventCount = loadedEventCount dataset
+  repeatedPreview <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate True) >>= assertRight >>= interactionOf
+  repeatedResult <- runAppCommand environment False silentProgress (RespondCommand (response repeatedPreview "import.accept")) >>= assertRight
+  repeated <- interactionOf repeatedResult
+  case envelopeOpportunity repeated of
+    ImportResultOpportunity [] [identity] True -> identity @?= importedRaw
+    other -> assertFailure ("provider retry was not idempotent: " <> show other)
+  resultMutationCommandId repeatedResult @?= Nothing
+  repeatedDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  loadedEventCount repeatedDataset @?= acceptedEventCount
 
 lockedCredential :: Assertion
 lockedCredential = do
@@ -146,6 +226,7 @@ multipleAccountReferences = do
   integrations <- assertRight (authorizedIntegrations registry entries)
   providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry resolver transport)
   (providerImportReference <$> providers) @?= ["microsoft_todo@personal", "microsoft_todo@work"]
+  (providerImportCanonicalReference <$> providers) @?= ["microsoft_todo@personal", "microsoft_todo@work"]
   let catalog = importPortCatalog (packRegistryImportPortWithProviders runner registry providers)
       providerCatalog = filter (null . importSourceExtensions) catalog
   (importSourceId <$> providerCatalog) @?= ["microsoft_todo@personal", "microsoft_todo@work"]
@@ -315,6 +396,39 @@ assertError expected = \case
 
 assertRight :: (Show problem) => Either problem value -> IO value
 assertRight = either (assertFailure . show) pure
+
+interactionOf :: CommandResult -> IO InteractionEnvelope
+interactionOf = \case
+  NextResult{resultInteraction} -> pure resultInteraction
+  RespondResult{resultInteraction} -> pure resultInteraction
+  other -> assertFailure ("result has no interaction: " <> show other) >> fail "unreachable"
+
+response :: InteractionEnvelope -> Text -> InteractionResponse
+response envelope action =
+  InteractionResponse
+    (envelopeInteractionId envelope)
+    (envelopeRevision envelope)
+    action
+    (envelopeIntegrityToken envelope)
+    (envelopeDatasetCursor envelope)
+
+allocateFixtureUUID :: IORef Int -> IO UUIDv7
+allocateFixtureUUID counter =
+  atomicModifyIORef' counter $ \seed -> (seed + 1, generated seed)
+ where
+  generated seed =
+    either (error . show) id $
+      uuidV7FromEntropy
+        (0x019f98760000 + fromIntegral seed)
+        (ByteString.replicate 10 (fromIntegral (seed `mod` 251 + 1)))
+
+only :: String -> [value] -> value
+only label = \case
+  [value] -> value
+  values -> error ("expected one " <> label <> ", got " <> show (length values))
+
+silentProgress :: Integer -> IO ()
+silentProgress _ = pure ()
 
 fixtureUuid :: Text -> UUIDv7
 fixtureUuid = either (error . Text.unpack) id . parseUUIDv7

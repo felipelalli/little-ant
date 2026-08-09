@@ -54,6 +54,7 @@ data ImportMaterialization = ImportMaterialization
 
 data ProviderImportSource = ProviderImportSource
   { providerImportReference :: Text
+  , providerImportCanonicalReference :: Text
   , providerImportAdapterId :: Text
   , providerImportDisplayName :: Text
   , providerImportInputLabel :: Text
@@ -119,7 +120,7 @@ packRegistryImportPortWithProviders runner registry providers =
     Right component ->
       invokePackSourcePreflightHttp runner (providerImportBroker provider) component mode (providerImportInputLabel provider) (providerImportConfiguration provider) >>= \case
         Left problem -> pure (Left problem)
-        Right (input, preview) -> pure (Right (ImportRead (providerImportReference provider) input preview))
+        Right (input, preview) -> pure (Right (ImportRead (providerImportCanonicalReference provider) input preview))
   materializeProvider provider mode = case validateProviderMode provider mode >> lookupPackComponent (providerImportAdapterId provider) registry of
     Left problem -> pure (Left problem)
     Right component ->
@@ -129,7 +130,7 @@ packRegistryImportPortWithProviders runner registry providers =
           validateSourceAdapterMaterialization materialization
           Right
             ( ImportMaterialization
-                (ImportRead (providerImportReference provider) input preview)
+                (ImportRead (providerImportCanonicalReference provider) input preview)
                 (materializedObjects materialization)
             )
   readFileWith source mode continue = do
@@ -160,7 +161,9 @@ packRegistryImportPortWithProviders runner registry providers =
                     ]
                 , appErrorRecovery = [RecoveryAction "choose-source" "Choose a source whose format identifies one enabled SourceAdapter." Nothing]
                 }
-  providersFor source = filter ((== Text.strip source) . providerImportReference) providers
+  providersFor source = filter (matchesProviderReference (Text.strip source)) providers
+  matchesProviderReference source provider =
+    source == providerImportReference provider || source == providerImportCanonicalReference provider
   providerDescriptors =
     [ ImportSourceDescriptor
         (providerImportReference provider)

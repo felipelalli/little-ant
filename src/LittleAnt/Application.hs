@@ -3458,7 +3458,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                       Left problem -> pure (Left problem)
                       Right count -> do
                         facts <- runtimeFacts environment count cursor
-                        case decideAcceptFileImport state actor source (importReadInput reread) expected (importMaterializationObjects materialization) facts of
+                        case decideAcceptImport state actor source (importReadInput reread) expected (importMaterializationObjects materialization) facts of
                           Left problem -> pure (Left problem)
                           Right decision -> do
                             acceptedResult <-

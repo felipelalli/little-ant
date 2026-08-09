@@ -5,12 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **a44a954**
-(`feat(providers): connect Microsoft To Do accounts`). The current milestone
-adds the dumb `/import` route from ordinary interactions through searchable
-source discovery, optional provider connection, exact account selection, and
-an explicit no-default import mode. This file stays editable between milestone
-commits.
+Baseline at the start of the current milestone: **f62326d**
+(`feat(repl): guide Raw-first imports`). The current milestone closes the
+missing canonical-acceptance path for signed provider material and normalizes
+durable provider custody to an exact account reference before source cleanup
+is introduced. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -336,6 +335,16 @@ commits.
   provider connection envelope. Success rebuilds the production environment
   and returns to that exact account's no-default mode screen. It transfers no
   consent and runs neither preflight nor import automatically.
+- canonical import acceptance now consumes the common signed SourceAdapter
+  materialization contract rather than an adapter-name whitelist. The real
+  Microsoft To Do Pack and broker can therefore preserve its complete
+  structured task response as Raw truth through the ordinary application
+  consent, with stable SourceBinding and ImportInvocation custody. Exact retry
+  remains event-free.
+- provider preflight normalizes even a convenient single-account selector to
+  the durable `adapter@account` reference. An account added later cannot
+  reinterpret an existing ImportProfile; TaskJuggler actuals retain their
+  independent semantic validation on top of the generic material contract.
 
 ## Last green gate
 
@@ -403,13 +412,15 @@ adaptive Microsoft Graph list/task pagination, canonical provider identity and
 URL encoding, sparse-preview privacy, complete structured-Raw materialization,
 completed-task opt-in, guarded partial attachment migration, and denial of a
 provider-controlled `nextLink` before a second broker call.
-The dedicated provider-host suite has 7 cases covering typed integration-state
+The dedicated provider-host suite has 8 cases covering typed integration-state
 round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
 defense-in-depth route checks before credential resolution. It also verifies
 that multiple configured accounts remain separate, human-labeled catalog rows
-with exact source references.
+with exact source references. Its full application path accepts one verified
+Microsoft To Do task as structured Raw truth and proves an exact retry is
+event-free.
 The dedicated Pack-administration suite has 17 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,

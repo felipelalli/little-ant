@@ -72,9 +72,11 @@ configuredProviderImportSources definitions integrations registry resolver trans
                 if qualify
                   then providerDefinitionAdapterId definition <> "@" <> accountName
                   else providerDefinitionAdapterId definition
+              canonicalReference = providerDefinitionAdapterId definition <> "@" <> accountName
           pure
             ProviderImportSource
               { providerImportReference = reference
+              , providerImportCanonicalReference = canonicalReference
               , providerImportAdapterId = providerDefinitionAdapterId definition
               , providerImportDisplayName = providerDefinitionDisplayName definition
               , providerImportInputLabel = providerDefinitionDisplayName definition <> " · " <> providerAccountLabel account

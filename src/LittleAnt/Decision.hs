@@ -27,7 +27,7 @@ module LittleAnt.Decision (
   decideAcceptEnglishNormalization,
   decideAcceptBrickTitleNormalization,
   decideAttachSourceBinding,
-  decideAcceptFileImport,
+  decideAcceptImport,
   importAcceptanceUUIDCount,
   decideChangeSourceBinding,
   decideRecordSourceObservation,
@@ -383,7 +383,7 @@ decideAttachSourceBinding state actor rawId kind importProfile externalIdentity 
 
 importAcceptanceUUIDCount :: State -> Text -> SourcePreflight -> Either AppError Int
 importAcceptanceUUIDCount state sourceReference preflight = do
-  (sourceObjects, _) <- validateFileAcceptance sourceReference preflight
+  (sourceObjects, _) <- validateImportAcceptance sourceReference preflight
   evidenceCount <- preflightActualEvidenceCount preflight
   profile <- uniqueMatchingProfile state sourceReference preflight
   case profile of
@@ -396,9 +396,9 @@ importAcceptanceUUIDCount state sourceReference preflight = do
           existing <- traverse (existingImportedRaw state (Just (importProfileId existingProfile)) preflight) sourceObjects
           pure (3 + 4 * length (filter (not . isJust) existing) + evidenceCount)
 
-decideAcceptFileImport :: State -> Actor -> Text -> SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
-decideAcceptFileImport state actor sourceReference input preflight materials facts = do
-  (sourceObjects, identity) <- validateFileAcceptance sourceReference preflight
+decideAcceptImport :: State -> Actor -> Text -> SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
+decideAcceptImport state actor sourceReference input preflight materials facts = do
+  (sourceObjects, identity) <- validateImportAcceptance sourceReference preflight
   contents <- validateInputCustody input preflight materials
   actuals <- acceptedTaskJugglerActuals input preflight
   profileMatch <- uniqueMatchingProfile state sourceReference preflight
@@ -550,28 +550,12 @@ decideAcceptFileImport state actor sourceReference input preflight materials fac
         eventIds
         (actualsRecords actuals)
 
-validateFileAcceptance :: Text -> SourcePreflight -> Either AppError ([SourceObject], PackArtifactIdentity)
-validateFileAcceptance sourceReference preflight = do
+validateImportAcceptance :: Text -> SourcePreflight -> Either AppError ([SourceObject], PackArtifactIdentity)
+validateImportAcceptance sourceReference preflight = do
   unless (not (Text.null (Text.strip sourceReference))) $ Left (appError InvalidInput "An import source reference cannot be empty.")
-  unless (sourcePreflightAdapterId preflight `elem` ["plain_text", "taskjuggler_actuals", "notesnook_export"]) $
-    Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
   let sourceObjects = observedObjects (sourcePreflightObservation preflight)
   unless (not (null sourceObjects)) $ Left (appError PreconditionFailed "The selected source contains no importable objects.")
-  case sourcePreflightAdapterId preflight of
-    "plain_text" -> validateOne SourceNoteShape sourceObjects
-    "taskjuggler_actuals" -> validateOne SourceOtherShape sourceObjects
-    "notesnook_export" -> traverse_ (validateShape SourceNoteShape) sourceObjects
-    _ -> Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
-  traverse_ validateText sourceObjects
   pure (sourceObjects, sourcePreflightPackIdentity preflight)
- where
-  validateOne expected = \case
-    [sourceObject] -> validateShape expected sourceObject
-    _ -> Left (appError CorruptData "This SourceAdapter must describe exactly one source object.")
-  validateShape expected sourceObject =
-    unless (sourceObjectShape sourceObject == expected) $ Left (appError CorruptData "A file SourceAdapter returned an unexpected source-object shape.")
-  validateText sourceObject =
-    unless (sourceMaterialKind (sourceObjectMaterial sourceObject) == SourceTextKind) $ Left (appError CorruptData "A file SourceAdapter returned non-text material.")
 
 validateInputCustody :: SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> Either AppError (Map.Map Text RawContent)
 validateInputCustody input preflight materials = do
@@ -600,12 +584,11 @@ sourceMaterialToRawContent = \case
 
 preflightActualEvidenceCount :: SourcePreflight -> Either AppError Int
 preflightActualEvidenceCount preflight
-  | sourcePreflightAdapterId preflight `elem` ["plain_text", "notesnook_export"] = Right 0
   | sourcePreflightAdapterId preflight == "taskjuggler_actuals" =
       case Map.lookup "actual_record_count" (observedIdentity (sourcePreflightObservation preflight)) >>= readCanonicalPositive of
         Just count -> Right count
         Nothing -> Left (appError CorruptData "The TaskJuggler actuals preflight has no canonical positive record count.")
-  | otherwise = Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
+  | otherwise = Right 0
  where
   readCanonicalPositive value = case reads (Text.unpack value) of
     [(count, "")] | count > (0 :: Int), Text.pack (show count) == value -> Just count
@@ -613,7 +596,6 @@ preflightActualEvidenceCount preflight
 
 acceptedTaskJugglerActuals :: SourceInput -> SourcePreflight -> Either AppError (Maybe TaskJugglerActuals)
 acceptedTaskJugglerActuals input preflight
-  | sourcePreflightAdapterId preflight `elem` ["plain_text", "notesnook_export"] = Right Nothing
   | sourcePreflightAdapterId preflight == "taskjuggler_actuals" = do
       actuals <- parseTaskJugglerActuals (sourceInputBytes input)
       let identity = observedIdentity (sourcePreflightObservation preflight)
@@ -625,7 +607,7 @@ acceptedTaskJugglerActuals input preflight
       unless (Map.lookup "actual_record_count" identity == Just (Text.pack (show (length (actualsRecords actuals))))) $
         Left (appError Conflict "The TaskJuggler actual-record count changed after preflight.")
       pure (Just actuals)
-  | otherwise = Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
+  | otherwise = Right Nothing
 
 validateNewActuals :: State -> TaskJugglerActuals -> Either AppError ()
 validateNewActuals state actuals = do
@@ -719,15 +701,15 @@ uniqueMatchingInvocation state profileId preflight =
 validateExistingInvocation :: State -> [SourceObject] -> ImportInvocation -> Either AppError [Raw]
 validateExistingInvocation state sourceObjects invocation = do
   unless (length (importInvocationMappings invocation) == Map.size mappings) $
-    Left (appError CorruptData "An exact file ImportInvocation contains duplicate external object mappings.")
+    Left (appError CorruptData "An exact ImportInvocation contains duplicate external object mappings.")
   unless (Map.keysSet mappings == Map.keysSet expected) $
-    Left (appError CorruptData "An exact file ImportInvocation has an inconsistent object mapping.")
+    Left (appError CorruptData "An exact ImportInvocation has an inconsistent object mapping.")
   traverse resolve sourceObjects
  where
   mappings = Map.fromList [(importObjectExternalIdentity mapping, mapping) | mapping <- importInvocationMappings invocation]
   expected = Map.fromList [(sourceObjectExternalId sourceObject, sourceObject) | sourceObject <- sourceObjects]
   resolve sourceObject = do
-    mapping <- maybe (Left (appError CorruptData "An exact file ImportInvocation omits a source object.")) Right (Map.lookup (sourceObjectExternalId sourceObject) mappings)
+    mapping <- maybe (Left (appError CorruptData "An exact ImportInvocation omits a source object.")) Right (Map.lookup (sourceObjectExternalId sourceObject) mappings)
     raw <- maybe (Left (appError CorruptData "An ImportInvocation maps to a missing Raw.")) Right (Map.lookup (importObjectRawId mapping) (stateRaws state))
     validateImportedMaterial state sourceObject raw
     pure raw

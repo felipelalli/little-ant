@@ -78,9 +78,9 @@ task JSON as structured Raw. Sparse preflight contains no private provider
 body. Reported attachments whose bytes are absent from Graph remain explicit
 limitations, and migrate requires an explicit incomplete-attachment
 acknowledgment. The public configuration connection, provider-aware CLI import
-paths, and dumb REPL source selector are implemented; separately consented
-cleanup effects, remaining standard importers, Calendar, and local-web
-UIAdapter remain in this slice.
+paths, generic canonical acceptance, and dumb REPL source selector are
+implemented; separately consented cleanup effects, remaining standard
+importers, Calendar, and local-web UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
@@ -127,8 +127,8 @@ digest/count plus the sparse observation; materialization refetches and must
 match. The Microsoft To Do component is built on this kernel as an exact
 official artifact. Typed credential binding, transport, acquisition, refresh,
 installed-Pack loading, public account connection, production provider import
-routing, and contextual REPL orchestration are built. Cleanup-effect dispatch
-remains to be built.
+routing, contextual REPL orchestration, and canonical provider-material
+acceptance are built. Cleanup-effect dispatch remains to be built.
 
 ## Gate
 
