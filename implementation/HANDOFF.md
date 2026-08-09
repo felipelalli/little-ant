@@ -5,9 +5,9 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last committed baseline: **8377707** (`feat(recovery): complete atomic repair cutover`).
-The current milestone establishes the host-owned export boundary. This file
-stays editable between milestone commits.
+Last committed baseline: **a292e0f** (`feat(export): establish host-owned publication boundary`).
+The current milestone establishes canonical structural Pack verification. This
+file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -56,12 +56,20 @@ stays editable between milestone commits.
   invocation, and dry-run writes nothing. The production registry remains
   empty until the Pack runtime is implemented: the standard serializers belong
   to the standard Pack rather than to the Haskell core.
+- `little-ant/pack@1` has one closed concrete manifest shape with permissions
+  owned by individual executable components. The canonical `.lantpack` writer
+  emits one reproducible ZIP32/store encoding, and the structural verifier
+  reconstructs the complete archive byte-for-byte before decoding strict JCS
+  control documents or validating payload ownership, limits, lengths, and
+  SHA-256 digests. It extracts nothing and produces a structural type that the
+  executable registry cannot consume. Signature authentication and trust
+  classification remain the next authority boundary.
 
 ## Last green gate
 
 The most recent full commands were:
 
-    nix develop -c make test
+    nix develop -c make build test cli-test
     nix develop -c make python-test spec-audit vocabulary
 
 Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, the
@@ -71,8 +79,14 @@ source/translation/diagnostic/repair tests, including both cutover crash phases
 and the public no-default consent flow. The new S09 export suite has 7 passing
 tests for deterministic projections, stdout, dry-run, exclusive publication,
 pre-invocation target rejection, exporter failure, and registry compatibility.
-Lint, build, and CLI gates should still be rerun before S09 is declared
-verified.
+The structural Pack suite has 8 passing tests for reproducible archives, JCS,
+closed schemas, component permission isolation, path ownership, payload
+integrity, canonical ZIP mutation rejection, and Unicode path safety. The full
+build, every Haskell suite, the isolated CLI end-to-end test, formatting, and
+targeted lint for the new Pack code pass. The CLI test now isolates all four
+XDG roots, so a developer's real profile cannot contaminate it. The aggregate
+`make ci` gate remains red only at the repository-wide HLint baseline; those
+pre-existing hints are outside this milestone and S09 remains in progress.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -97,9 +111,11 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the minimal Pack archive, manifest, trust, and runtime registry;
-then ship the standard Lua tree, table, RFC 4180 CSV, Org, self-contained HTML,
-and TaskJuggler exporters through that boundary. Continue afterward with the
-Raw-first import/adapters. The `Corrupt history/repair` row is implemented;
-formal evidence registration and the complete S09 gate still precede
-`verified`.
+Next, authenticate the exact manifest bytes with Ed25519, classify built-in,
+official, community, untrusted, and revoked signers, and implement the
+content-addressed store, exact profile pins, and read-only component registry.
+Then implement the fresh-process HsLua runner and ship the standard Lua tree,
+table, RFC 4180 CSV, Org, self-contained HTML, and TaskJuggler exporters through
+that boundary. Continue afterward with the Raw-first import/adapters. The
+`Corrupt history/repair` row is implemented; formal evidence registration and
+the complete S09 gate still precede `verified`.

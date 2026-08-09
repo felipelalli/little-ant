@@ -56,6 +56,95 @@ Its schema is `little-ant/pack@1`. It contains:
 Unknown manifest keys or permissions are errors. Informational text and links
 are untrusted display data and never grant authority.
 
+### Closed `little-ant/pack@1` object shape
+
+The top-level object contains exactly these required keys:
+
+```text
+schema                  literal "little-ant/pack@1"
+name                    reverse-DNS Pack name
+version                 complete SemVer 2.0.0 string
+display_name            nonempty human label
+publisher               reverse-DNS publisher ID
+little_ant_major        positive integer
+components              nonempty array of component objects
+files                   array of payload-file objects
+```
+
+It may additionally contain `links`, an object whose only keys are `homepage`,
+`source`, and `changelog` and whose values are absolute `https` URLs. No link
+grants network authority. Names and IDs use lowercase ASCII. A reverse-DNS ID
+has at least two dot-separated labels; each label begins and ends with an ASCII
+letter or digit and may contain internal hyphens.
+
+Every component object has exactly these common keys:
+
+```text
+id                      Pack-local [a-z][a-z0-9._-]{0,63} identifier
+kind                    one exact DAT-019 component kind
+contract_major          positive integer
+root                    Pack-relative payload directory owned by the component
+configuration_schema    file path relative to root
+```
+
+Component IDs and roots are unique. Roots cannot overlap: no component root is
+another component root or its ancestor. Every declared payload file belongs to
+exactly one component root. `configuration_schema` names a declared file under
+that root; a component with no settings uses a signed schema that accepts only
+an empty object rather than omitting this field.
+
+A declarative `BrickNature`, `BrickTemplate`, or `ImportProfilePreset` adds
+exactly `declarative_body`, a declared JSON file relative to its root. It has no
+`entry_point` or `permissions` key. An executable `SourceAdapter`,
+`ReadOnlyExporter`, or `UIAdapter` instead adds exactly `entry_point` and
+`permissions`. The entry point is a declared Lua file relative to its root.
+Permissions are per component; there is no Pack-wide permission union.
+
+The executable permissions object contains all five arrays below, including
+the empty ones:
+
+```text
+credential_slots        declared credential-slot objects
+http                    host-brokered HTTP-rule objects
+effect_purposes         closed DAT-068 purpose strings
+projections             named versioned input projections
+host_capabilities       closed host-capability strings
+```
+
+A credential-slot object has only `id` and `scheme`. Its ID follows the
+component-ID grammar. The schemes are
+`oauth2_authorization_code_pkce`, `oauth2_device_authorization`,
+`bearer_token`, and `api_key`; a component needing no authentication declares
+no slot. An HTTP rule has only `methods`, `host`, `path_prefix`, and the
+optional `credential_slot`. Methods are a nonempty set drawn from `GET`,
+`POST`, `PUT`, `PATCH`, and `DELETE`; `host` is one exact lowercase ASCII DNS
+name without wildcard or port; `path_prefix` is an absolute URL path without
+query, fragment, empty, `.` or `..` component; and a credential reference must
+resolve inside the same component.
+
+The effect-purpose strings are exactly `delegation_delivery`,
+`delegation_take_back_notice`, `source_cleanup_item`,
+`source_cleanup_container`, `calendar_create`, `calendar_update`, and
+`calendar_cancel`. The 1.0 host capabilities are `input_bytes`,
+`loopback_http`, and `static_assets`. A projection is a nonempty named schema
+with an explicit positive major version. Duplicate permission entries are
+invalid.
+
+Declarative components cannot request authority. `ReadOnlyExporter` requires
+at least one projection and requires all other permission arrays to be empty.
+A `SourceAdapter` cannot request UI host capabilities. A `UIAdapter` cannot
+request an effect purpose. These kind checks supplement the invocation
+contract: the host exposes only both declared and kind-valid capabilities.
+
+A payload-file object contains exactly `path`, `length`, `media_type`, and
+`sha256`. The path is relative to `payload/` and follows the archive path
+rules, length is a nonnegative integer, media type is nonempty ASCII, and the
+digest is 64 lowercase hexadecimal characters. `files` is sorted by unsigned
+UTF-8 path bytes and corresponds one-for-one with the archive payload entries.
+Signed Pack control documents use only integers in the interoperable JSON
+integer range; arbitrary declarative and configuration-schema JSON lives in
+payload files and remains covered byte-for-byte by this list.
+
 `signature.json` is JCS JSON with schema `little-ant/pack-signature@1`,
 algorithm literal `Ed25519`, the publisher public key, its full SHA-256 key
 fingerprint, and a base64url signature over the exact `pack.json` bytes.
@@ -63,6 +152,12 @@ Ed25519 follows [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032). The host
 then verifies every declared payload size and digest. Reusing the same
 publisher/name/version with different archive or manifest digest is an
 equivocation error, not an update.
+
+The signature object contains exactly `schema`, `algorithm`, `public_key`,
+`key_fingerprint`, and `signature`. Public key and signature are unpadded
+base64url encodings of respectively 32 and 64 bytes. The fingerprint is the
+64-character lowercase SHA-256 of the decoded public key. No display label in
+either control document participates in signer authorization.
 
 ## Trust classes
 

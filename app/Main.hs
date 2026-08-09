@@ -21,6 +21,7 @@ import LittleAnt.Model (actorProfile)
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.REPL
+import LittleAnt.Result (CommandResult (ExportResult, resultExportBytes, resultExportDestination))
 import LittleAnt.Vault
 import LittleAnt.Vault.Age (makePassphraseBytes)
 import LittleAnt.Vault.Agent

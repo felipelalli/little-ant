@@ -5,25 +5,36 @@ test_root="$(mktemp -d /tmp/lant-s01-cli.XXXXXX)"
 trap 'rm -rf -- "$test_root"' EXIT
 
 lant_executable="$(cabal list-bin exe:lant)"
-state_home="$test_root/state"
+profile_root="$test_root/profile"
+state_home="$profile_root/state"
 
-next_json="$(XDG_STATE_HOME="$state_home" "$lant_executable" --json next)"
+lant_at() {
+  local root="$1"
+  shift
+  XDG_CONFIG_HOME="$root/config" \
+    XDG_DATA_HOME="$root/data" \
+    XDG_STATE_HOME="$root/state" \
+    XDG_RUNTIME_DIR="$root/runtime" \
+    "$lant_executable" "$@"
+}
+
+next_json="$(lant_at "$profile_root" --json next)"
 python3 -c 'import json,sys; value=json.load(sys.stdin); assert value["schema"] == "little-ant/next@1"; assert value["interaction"]["opportunity"]["type"] == "pristine"' <<<"$next_json"
 
-feed_json="$(XDG_STATE_HOME="$state_home" "$lant_executable" --json feed comprar leite)"
+feed_json="$(lant_at "$profile_root" --json feed comprar leite)"
 raw_id="$(python3 -c 'import json,sys; value=json.load(sys.stdin); assert value["schema"] == "little-ant/feed@1"; assert value["raw"]["handle"] == "+cl"; print(value["raw"]["id"])' <<<"$feed_json")"
 
-show_json="$(XDG_STATE_HOME="$state_home" "$lant_executable" --json show +cl)"
+show_json="$(lant_at "$profile_root" --json show +cl)"
 python3 -c 'import json,sys; expected=sys.argv[1]; value=json.load(sys.stdin); assert value["schema"] == "little-ant/show-raw@1"; assert value["raw"]["id"] == expected' "$raw_id" <<<"$show_json"
 
-restored_json="$(XDG_STATE_HOME="$state_home" "$lant_executable" --json next)"
+restored_json="$(lant_at "$profile_root" --json next)"
 python3 -c 'import json,sys; first=json.loads(sys.argv[1]); restored=json.load(sys.stdin); assert restored["interaction"]["interaction_id"] == first["interaction"]["interaction_id"]' "$feed_json" <<<"$restored_json"
 
-dry_home="$test_root/dry"
-XDG_STATE_HOME="$dry_home" "$lant_executable" --json --dry-run feed milk >/dev/null
-test ! -e "$dry_home/lant/profiles/default/dataset"
+dry_root="$test_root/dry"
+lant_at "$dry_root" --json --dry-run feed milk >/dev/null
+test -z "$(find "$dry_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
 
-plain_output="$(TERM=dumb XDG_STATE_HOME="$state_home" "$lant_executable" next)"
+plain_output="$(TERM=dumb lant_at "$profile_root" next)"
 case "$plain_output" in
   *$'\033['*) echo "TERM=dumb output contained ANSI bytes" >&2; exit 1 ;;
 esac
@@ -32,7 +43,7 @@ case "$plain_output" in
 esac
 
 before_count="$(find "$state_home/lant/profiles/default/dataset/events" -name '*.jsonl' -type f | wc -l)"
-if XDG_STATE_HOME="$state_home" "$lant_executable" --json --schema 2 feed forbidden >"$test_root/schema.out" 2>"$test_root/schema.err"; then
+if lant_at "$profile_root" --json --schema 2 feed forbidden >"$test_root/schema.out" 2>"$test_root/schema.err"; then
   echo "unsupported schema unexpectedly succeeded" >&2
   exit 1
 fi

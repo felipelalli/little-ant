@@ -67,6 +67,7 @@ library
     LittleAnt.JudgmentUI
     LittleAnt.Model
     LittleAnt.Notice
+    LittleAnt.Pack.Format
     LittleAnt.Profile
     LittleAnt.Projection
     LittleAnt.Protocol
@@ -89,15 +90,18 @@ library
     , aeson               >=2.2   && <2.3
     , base                >=4.20  && <5
     , base16-bytestring   >=1.0   && <1.1
+    , binary              >=0.8   && <0.9
     , bytestring          >=0.12  && <0.13
     , containers          >=0.7   && <0.8
     , cryptohash-sha256   >=0.11  && <0.12
+    , digest              >=0.0.2 && <0.1
     , directory           >=1.3   && <1.4
     , entropy             >=0.4   && <0.5
     , filelock            >=0.1   && <0.2
     , filepath            >=1.5   && <1.6
     , memory              >=0.18  && <0.19
     , network             >=3.2   && <3.3
+    , scientific          >=0.3   && <0.4
     , text                >=2.1   && <2.2
     , time                >=1.12  && <1.13
     , tz                  >=0.1.3 && <0.2
@@ -238,6 +242,21 @@ test-suite little-ant-s09-export-test
     , text         >=2.1  && <2.2
     , time         >=1.12 && <1.13
     , unix         >=2.8  && <2.9
+
+test-suite little-ant-s09-pack-format-test
+  import:         language, warnings
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test/s09-pack-format
+  build-depends:
+    , aeson        >=2.2  && <2.3
+    , base         >=4.20 && <5
+    , bytestring   >=0.12 && <0.13
+    , containers   >=0.7  && <0.8
+    , little-ant
+    , tasty        >=1.5  && <1.6
+    , tasty-hunit  >=0.10 && <0.11
+    , text         >=2.1  && <2.2
 
 test-suite little-ant-s04-flow-test
   import:         language, warnings
