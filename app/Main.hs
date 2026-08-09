@@ -768,9 +768,10 @@ commandParser =
         <> command
           "import"
           ( info
-              (ImportCli
-                 . Text.pack <$> strArgument (metavar "SOURCE")
-                 <*> option
+              ( ImportCli
+                  . Text.pack
+                  <$> strArgument (metavar "SOURCE")
+                  <*> option
                     (strOptionMode ["snapshot", "synchronize", "migrate"])
                     ( long "mode"
                         <> metavar "snapshot|synchronize|migrate"
@@ -778,7 +779,7 @@ commandParser =
                         <> showDefault
                         <> help "Import execution mode"
                     )
-                 <*> switch (long "erase-after-import" <> help "Delete imported entries from source as a migration aid")
+                  <*> switch (long "erase-after-import" <> help "Delete imported entries from source as a migration aid")
               )
               (progDesc "Import external data into your Lant dataset")
           )
@@ -789,13 +790,13 @@ commandParser =
                   <$> (Text.pack <$> strArgument (metavar "SOURCE"))
                   <*> (Text.pack <$> strArgument (metavar "TARGET"))
                   <*> option
-                        (strOptionMode ["inspect", "build", "cutover"])
-                        ( long "mode"
-                            <> metavar "inspect|build|cutover"
-                            <> value "inspect"
-                            <> showDefault
-                            <> help "Migration strategy"
-                        )
+                    (strOptionMode ["inspect", "build", "cutover"])
+                    ( long "mode"
+                        <> metavar "inspect|build|cutover"
+                        <> value "inspect"
+                        <> showDefault
+                        <> help "Migration strategy"
+                    )
               )
               (progDesc "Migrate state between formats or adapters")
           )
@@ -803,7 +804,8 @@ commandParser =
           "export"
           ( info
               ( ExportCli
-                  . Text.pack <$> strArgument (metavar "STRATEGY")
+                  . Text.pack
+                  <$> strArgument (metavar "STRATEGY")
                   <*> optional (Text.pack <$> strArgument (metavar "SCOPE"))
                   <*> optional
                     ( strOption

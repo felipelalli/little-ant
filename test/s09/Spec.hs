@@ -17,9 +17,11 @@ import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Interaction
 import LittleAnt.Model
+import LittleAnt.Repair
 import LittleAnt.Result
 import LittleAnt.Store
-import System.FilePath ((</>))
+import System.Directory (doesDirectoryExist, doesFileExist, listDirectory, renameFile)
+import System.FilePath (takeDirectory, (</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -43,6 +45,9 @@ main =
       , testCase "translation queue opportunities round-trip in persisted checkpoints" translationOpportunityRoundTrip
       , testCase "doctor validates a pristine dataset without clock or randomness" pristineDoctor
       , testCase "doctor reports the exact corrupt boundary while ordinary replay stays closed" corruptDoctor
+      , testCase "repair builds and reuses a fully replayed candidate without touching authority" losslessRepairCandidate
+      , testCase "repair refuses malformed history without creating a candidate" unsupportedRepair
+      , testCase "repair rejects a stale plan before creating its candidate" staleRepairPlan
       ]
 
 initialRevision :: Assertion
@@ -245,6 +250,78 @@ corruptDoctor = withHarness $ \environment -> do
     Left problem -> appErrorCode problem @?= CorruptData
     Right accepted -> assertFailure ("ordinary replay crossed corruption: " <> show accepted)
 
+losslessRepairCandidate :: Assertion
+losslessRepairCandidate = withRepairHarness $ \outer environment -> do
+  _ <- run environment (FeedCommand "test" "preserve this event")
+  let store = appStore environment
+      events = storeRoot store </> "events"
+  originalName <- only "canonical segment" <$> listDirectory events
+  originalBytes <- ByteString.readFile (events </> originalName)
+  let wrongName = segmentFileName 1 (Text.replicate 64 "0")
+  renameFile (events </> originalName) (events </> wrongName)
+  before <- eventFiles store
+
+  plan <- assertRight =<< planDatasetRepair store
+  repairPlanOriginalSegment plan @?= wrongName
+  repairPlanReplacementSegment plan @?= originalName
+  repairPlanSegmentDigest plan @?= sha256Hex originalBytes
+  takeDirectory (repairPlanCandidateRoot plan) @?= outer
+
+  candidate <- assertRight =<< buildRepairCandidate store plan
+  repairCandidateReused candidate @?= False
+  assertBool "candidate is separate from authority" (repairCandidateRoot candidate /= storeRoot store)
+  receiptExists <- doesFileExist (repairCandidateReceipt candidate)
+  assertBool "verified candidate has a durable receipt" receiptExists
+  replayed <- assertRight =<< loadDataset store{storeRoot = repairCandidateRoot candidate} (const (pure ()))
+  loadedCursor replayed @?= repairCandidateCursor candidate
+  loadedEventCount replayed @?= repairCandidateEventCount candidate
+  loadedEventCount replayed @?= 1
+  authorityAfterBuild <- eventFiles store
+  authorityAfterBuild @?= before
+
+  reused <- assertRight =<< buildRepairCandidate store plan
+  repairCandidateReused reused @?= True
+  repairCandidateRoot reused @?= repairCandidateRoot candidate
+
+unsupportedRepair :: Assertion
+unsupportedRepair = withRepairHarness $ \outer environment -> do
+  _ <- run environment (FeedCommand "test" "valid prefix")
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let corruptBytes = "{not-json}\n"
+      corruptName = segmentFileName 2 (sha256Hex corruptBytes)
+      corruptPath = storeRoot (appStore environment) </> "events" </> corruptName
+  ByteString.writeFile corruptPath corruptBytes
+  problem <- assertLeft =<< planDatasetRepair (appStore environment)
+  appErrorCode problem @?= PreconditionFailed
+  appErrorCursor problem @?= Just (renderCursor (loadedCursor loaded))
+  siblings <- listDirectory outer
+  siblings @?= ["live"]
+
+staleRepairPlan :: Assertion
+staleRepairPlan = withRepairHarness $ \_ environment -> do
+  _ <- run environment (FeedCommand "test" "stable before preview")
+  let store = appStore environment
+      events = storeRoot store </> "events"
+  originalName <- only "canonical segment" <$> listDirectory events
+  let wrongName = segmentFileName 1 (Text.replicate 64 "0")
+      wrongPath = events </> wrongName
+  renameFile (events </> originalName) wrongPath
+  plan <- assertRight =<< planDatasetRepair store
+  ByteString.appendFile wrongPath " "
+  before <- eventFiles store
+  problem <- assertLeft =<< buildRepairCandidate store plan
+  appErrorCode problem @?= Conflict
+  candidateExists <- doesDirectoryExist (repairPlanCandidateRoot plan)
+  assertBool "stale preview did not create its candidate" (not candidateExists)
+  authorityAfterRejection <- eventFiles store
+  authorityAfterRejection @?= before
+
+eventFiles :: StoreConfig -> IO [(FilePath, ByteString.ByteString)]
+eventFiles store = do
+  let events = storeRoot store </> "events"
+  names <- listDirectory events
+  traverse (\name -> (name,) <$> ByteString.readFile (events </> name)) names
+
 fedState :: Text -> IO (State, Raw)
 fedState text = do
   decision <- assertRight (decideFeed emptyState actor "test" text (facts 1 3))
@@ -277,6 +354,9 @@ fixtureUuid number = either (error . show) id $ uuidV7FromEntropy (0x019f1234000
 assertRight :: (Show left) => Either left right -> IO right
 assertRight = either (assertFailure . show) pure
 
+assertLeft :: (Show right) => Either left right -> IO left
+assertLeft = either pure (assertFailure . show)
+
 only :: String -> [value] -> value
 only label = \case
   [value] -> value
@@ -284,10 +364,19 @@ only label = \case
 
 withHarness :: (AppEnv -> IO a) -> IO a
 withHarness action = withSystemTempDirectory "little-ant-s09" $ \root -> do
+  environment <- harnessEnvironment root
+  action environment
+
+withRepairHarness :: (FilePath -> AppEnv -> IO a) -> IO a
+withRepairHarness action = withSystemTempDirectory "little-ant-s09-repair" $ \outer -> do
+  environment <- harnessEnvironment (outer </> "live")
+  action outer environment
+
+harnessEnvironment :: FilePath -> IO AppEnv
+harnessEnvironment root = do
   counter <- newIORef (1000 :: Int)
   let allocate = atomicModifyIORef' counter $ \seed -> (seed + 1, fixtureUuid seed)
-      environment = AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate
-  action environment
+  pure (AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate)
 
 run :: AppEnv -> AppCommand -> IO CommandResult
 run environment command = assertRight =<< runAppCommand environment False (const (pure ())) command

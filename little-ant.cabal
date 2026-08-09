@@ -70,6 +70,7 @@ library
     LittleAnt.Projection
     LittleAnt.Protocol
     LittleAnt.Reference
+    LittleAnt.Repair
     LittleAnt.REPL
     LittleAnt.Result
     LittleAnt.Schedule

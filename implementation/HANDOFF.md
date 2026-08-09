@@ -5,9 +5,9 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last verified baseline commit: **3b4e975** (`fix(cli): restore a green command surface`).
-The current milestone adds the read-only half of corrupt-history recovery; this
-file stays editable between milestone commits.
+Last verified baseline commit: **c99bc83** (`feat(recovery): diagnose corrupt history safely`).
+The current milestone adds the isolated candidate-building half of
+corrupt-history recovery; this file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -37,6 +37,11 @@ file stays editable between milestone commits.
   valid cursor and event count, and identifies the first malformed event by
   canonical segment, physical JSONL line, and byte offset without mutating the
   dataset.
+- a content-addressed repair plan can correct a provable segment-filename hash
+  mismatch in a separate sibling dataset, replay the complete candidate, write
+  a durable verification receipt, and reuse that candidate idempotently;
+  unsupported corruption and stale plans fail before creating a candidate, and
+  the live authority remains byte-for-byte unchanged.
 
 ## Last green gate
 
@@ -45,9 +50,9 @@ The most recent full commands were:
     nix develop -c make test
     nix develop -c make python-test spec-audit vocabulary
 
-Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, and
-the public-vocabulary guard passed. S09 now has 14 passing source/translation/
-diagnostic tests.
+Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, the
+public-vocabulary guard, and explicit formatting checks pass. S09 now has 17
+passing source/translation/diagnostic/repair-foundation tests.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -72,7 +77,9 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Current focus in this slice is: candidate-based `lant repair`, followed by safe
-export hosting, Pack protocols, and Raw-first import/adapter paths. The combined
-`Corrupt history/repair` coverage row remains `planned` until repair constructs,
-fully replays, and previews a separate replacement dataset.
+Current focus in this slice is: expose candidate-based `lant repair` through an
+explicit preview, then implement separately consented atomic cutover. Safe
+export hosting, Pack protocols, and Raw-first import/adapter paths follow. The
+combined `Corrupt history/repair` coverage row remains `planned` until the
+public repair flow previews the verified replacement and cutover preserves a
+recoverable backup.
