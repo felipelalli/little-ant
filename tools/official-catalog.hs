@@ -4,6 +4,7 @@
 
 module Main (main) where
 
+import Control.Exception (bracketOnError)
 import Control.Monad (unless, when)
 import Crypto.Error (CryptoFailable (..))
 import Crypto.PubKey.Ed25519 qualified as Ed25519
@@ -22,11 +23,13 @@ import LittleAnt.Pack.Catalog
 import LittleAnt.Pack.Format (canonicalJsonBytes, validatePackArchive)
 import LittleAnt.Pack.Trust
 import LittleAnt.Store (sha256Hex)
-import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, getCurrentDirectory)
+import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, getCurrentDirectory, removeFile)
+import System.Entropy (getEntropy)
 import System.Environment (getArgs)
-import System.FilePath (isAbsolute, makeRelative, normalise, splitDirectories, (</>))
-import System.IO (hPutStrLn, stderr)
-import System.Posix.Files (fileMode, fileSize, getSymbolicLinkStatus, isRegularFile, isSymbolicLink)
+import System.FilePath (isAbsolute, makeRelative, normalise, splitDirectories, takeDirectory, takeFileName, (</>))
+import System.IO (hClose, hFlush, hPutStrLn, stderr)
+import System.Posix.Files (fileMode, fileSize, getSymbolicLinkStatus, isRegularFile, isSymbolicLink, setFileMode)
+import System.Posix.IO (OpenFileFlags (..), OpenMode (WriteOnly), defaultFileFlags, fdToHandle, openFd)
 import Text.Read (readMaybe)
 
 data PublicRootDocument = PublicRootDocument
@@ -61,8 +64,10 @@ main :: IO ()
 main =
   getArgs >>= \case
     ["sign", secretPath, sequenceText, expiresAt] -> signCatalog secretPath sequenceText expiresAt
+    ["new-root-seed", secretPath] -> createRootSeed secretPath
+    ["re-genesis", secretPath, expectedOldFingerprint, expiresAt] -> reGenesisCatalog secretPath expectedOldFingerprint expiresAt
     ["verify"] -> verifyCatalog
-    _ -> die "usage: cabal exec runghc -- -isrc tools/official-catalog.hs sign SECRET-FILE SEQUENCE EXPIRES-AT|verify"
+    _ -> die "usage: cabal exec runghc -- -isrc tools/official-catalog.hs new-root-seed SECRET-FILE|re-genesis SECRET-FILE OLD-ROOT-FINGERPRINT EXPIRES-AT|sign SECRET-FILE SEQUENCE EXPIRES-AT|verify"
 
 signCatalog :: FilePath -> String -> String -> IO ()
 signCatalog secretPath sequenceText expiresAtText = do
@@ -71,19 +76,51 @@ signCatalog secretPath sequenceText expiresAtText = do
   secret <- cryptoOrDie (Ed25519.secretKey secretBytes)
   sequenceNumber <- maybe (die "SEQUENCE must be a positive integer") pure (readMaybe sequenceText)
   when (sequenceNumber < 1) (die "SEQUENCE must be a positive integer")
-  expiresAt <-
-    maybe
-      (die "EXPIRES-AT must be UTC RFC 3339 such as 2028-08-09T00:00:00Z")
-      pure
-      (parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" expiresAtText :: Maybe UTCTime)
-  now <- getCurrentTime
-  when (expiresAt <= now) (die "EXPIRES-AT must be in the future at publication time")
+  expiresAt <- parseFutureExpiry expiresAtText
   previous <- readPreviousCatalog
   case previous of
     Nothing -> unless (sequenceNumber == 1) (die "the first official catalog must use sequence 1")
     Just catalog -> do
       verifyCatalog
       unless (sequenceNumber > officialCatalogSequence catalog) (die "a replacement catalog must strictly increase the published sequence")
+  writeCatalogPublication False secret sequenceNumber expiresAt previous
+
+createRootSeed :: FilePath -> IO ()
+createRootSeed secretPath = do
+  ensureNewSecretOutsideCheckout secretPath
+  secretBytes <- getEntropy 32
+  bracketOnError
+    (openFd secretPath WriteOnly defaultFileFlags{exclusive = True, creat = Just 0o600, cloexec = True, nofollow = True} >>= fdToHandle)
+    (\handle -> hClose handle >> removeFile secretPath)
+    ( \handle -> do
+        ByteString.hPut handle secretBytes
+        hFlush handle
+        hClose handle
+    )
+  secret <- cryptoOrDie (Ed25519.secretKey secretBytes)
+  let publicBytes = convert (Ed25519.toPublic secret)
+  putStrLn ("created private catalog root seed: " <> secretPath)
+  putStrLn ("catalog root fingerprint: " <> Text.unpack (sha256Hex publicBytes))
+
+reGenesisCatalog :: FilePath -> String -> String -> IO ()
+reGenesisCatalog secretPath expectedOldFingerprint expiresAtText = do
+  ensureSecretOutsideCheckout secretPath
+  verifyCatalog
+  oldRootBytes <- ByteString.readFile (catalogDirectory </> "catalog-root.json")
+  oldRoot <- either die pure (eitherDecodeStrict' oldRootBytes)
+  unless (publicRootFingerprint oldRoot == Text.pack expectedOldFingerprint) $
+    die "OLD-ROOT-FINGERPRINT does not match the currently published development root"
+  secretBytes <- readPrivateSeed secretPath
+  secret <- cryptoOrDie (Ed25519.secretKey secretBytes)
+  let newFingerprint = sha256Hex (convert (Ed25519.toPublic secret) :: ByteString)
+  when (newFingerprint == publicRootFingerprint oldRoot) $
+    die "re-genesis requires a distinct replacement root"
+  expiresAt <- parseFutureExpiry expiresAtText
+  writeCatalogPublication True secret 1 expiresAt Nothing
+  putStrLn ("abandoned development catalog root: " <> Text.unpack (publicRootFingerprint oldRoot))
+
+writeCatalogPublication :: Bool -> Ed25519.SecretKey -> Integer -> UTCTime -> Maybe OfficialPackCatalog -> IO ()
+writeCatalogPublication replaceRoot secret sequenceNumber expiresAt previous = do
   authenticated <- readConnector
   let public = Ed25519.toPublic secret
       publicBytes = convert public
@@ -124,7 +161,7 @@ signCatalog secretPath sequenceText expiresAtText = do
         }
   rootBytes <- rightOrDie (canonicalJsonBytes (toJSON rootDocument))
   archiveBytes <- ByteString.readFile connectorArchive
-  validateExistingRoot rootDocument
+  unless replaceRoot (validateExistingRoot rootDocument)
   createDirectoryIfMissing True (catalogDirectory </> "releases")
   ByteString.writeFile (catalogDirectory </> "catalog-root.json") rootBytes
   ByteString.writeFile (catalogDirectory </> "catalog.json") catalogBytes
@@ -134,6 +171,17 @@ signCatalog secretPath sequenceText expiresAtText = do
   putStrLn ("catalog root fingerprint: " <> Text.unpack fingerprint)
   putStrLn ("catalog sequence: " <> show sequenceNumber)
   putStrLn ("release archive: " <> Text.unpack (artifactArchiveDigest identity))
+
+parseFutureExpiry :: String -> IO UTCTime
+parseFutureExpiry expiresAtText = do
+  expiresAt <-
+    maybe
+      (die "EXPIRES-AT must be UTC RFC 3339 such as 2028-08-09T00:00:00Z")
+      pure
+      (parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" expiresAtText :: Maybe UTCTime)
+  now <- getCurrentTime
+  when (expiresAt <= now) (die "EXPIRES-AT must be in the future at publication time")
+  pure expiresAt
 
 verifyCatalog :: IO ()
 verifyCatalog = do
@@ -180,6 +228,23 @@ ensureSecretOutsideCheckout requested = do
           ".." : _ -> False
           _ -> True
   when inside (die "the catalog signing secret must live outside the repository checkout")
+
+ensureNewSecretOutsideCheckout :: FilePath -> IO ()
+ensureNewSecretOutsideCheckout requested = do
+  let parent = takeDirectory requested
+  createDirectoryIfMissing True parent
+  setFileMode parent 0o700
+  checkout <- canonicalizePath =<< getCurrentDirectory
+  canonicalParent <- canonicalizePath parent
+  let candidate = canonicalParent </> takeFileName requested
+      relative = normalise (makeRelative checkout candidate)
+      inside =
+        not (isAbsolute relative) && case splitDirectories relative of
+          ".." : _ -> False
+          _ -> True
+  when inside (die "the catalog signing secret must live outside the repository checkout")
+  exists <- doesFileExist requested
+  when exists (die "the catalog signing secret destination already exists")
 
 readPrivateSeed :: FilePath -> IO ByteString
 readPrivateSeed path = do
