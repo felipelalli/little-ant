@@ -758,6 +758,17 @@ installPayloadApi entry payload inputBytes httpEnabled replay = do
       Right decoded -> Lua.pushByteString decoded >> pure 1
   Lua.setglobal "__lant_base64url_decode"
   Lua.pushHaskellFunction $ do
+    value <- Lua.forcePeek (Lua.peekValue (Lua.nthBottom 1))
+    case canonicalJsonBytes value of
+      Left problem -> Lua.failLua (Text.unpack (appErrorMessage problem))
+      Right encoded -> Lua.pushText (TextEncoding.decodeUtf8 encoded) >> pure 1
+  Lua.setglobal "__lant_json_encode"
+  Lua.pushHaskellFunction $ do
+    segment <- Lua.forcePeek (Lua.peekText (Lua.nthBottom 1))
+    Lua.pushText (encodeUrlPathSegment segment)
+    pure 1
+  Lua.setglobal "__lant_url_encode_path_segment"
+  Lua.pushHaskellFunction $ do
     case inputBytes of
       Nothing -> Lua.failLua "input ZIP entries are unavailable for this invocation"
       Just bytes ->
@@ -939,6 +950,8 @@ trustedBootstrap =
     , "local input_bytes = __lant_input_bytes"
     , "local sha256 = __lant_sha256"
     , "local base64url_decode = __lant_base64url_decode"
+    , "local json_encode = __lant_json_encode"
+    , "local url_encode_path_segment = __lant_url_encode_path_segment"
     , "local input_zip_entries = __lant_input_zip_entries"
     , "local http_enabled = __lant_http_enabled"
     , "local http_request = __lant_http_request"
@@ -947,6 +960,8 @@ trustedBootstrap =
     , "__lant_input_bytes = nil"
     , "__lant_sha256 = nil"
     , "__lant_base64url_decode = nil"
+    , "__lant_json_encode = nil"
+    , "__lant_url_encode_path_segment = nil"
     , "__lant_input_zip_entries = nil"
     , "__lant_http_enabled = nil"
     , "__lant_http_request = nil"
@@ -989,7 +1004,16 @@ trustedBootstrap =
     , "      entries[index].bytes = base64url_decode(entries[index].bytes)"
     , "    end"
     , "    return entries"
-    , "  end"
+    , "  end,"
+    , "  json = {"
+    , "    encode = function(value) return json_encode(value) end"
+    , "  },"
+    , "  url = {"
+    , "    encode_path_segment = function(value)"
+    , "      if type(value) ~= 'string' then error('URL path segment must be a string', 2) end"
+    , "      return url_encode_path_segment(value)"
+    , "    end"
+    , "  }"
     , "}"
     , "if http_enabled then"
     , "  lant.http = {"
@@ -1045,6 +1069,22 @@ maximumInputZipEntryBytes = 8 * 1024 * 1024
 
 maximumExpandedZipBytes :: Int
 maximumExpandedZipBytes = 16 * 1024 * 1024
+
+encodeUrlPathSegment :: Text -> Text
+encodeUrlPathSegment =
+  TextEncoding.decodeUtf8
+    . ByteString.concatMap encodeByte
+    . TextEncoding.encodeUtf8
+ where
+  encodeByte byte
+    | unreserved byte = ByteString.singleton byte
+    | otherwise = ByteString.pack [37, hexadecimal (byte `div` 16), hexadecimal (byte `mod` 16)]
+  unreserved byte =
+    (byte >= 65 && byte <= 90)
+      || (byte >= 97 && byte <= 122)
+      || (byte >= 48 && byte <= 57)
+      || byte `elem` [45, 46, 95, 126]
+  hexadecimal nibble = ByteString.index "0123456789ABCDEF" (fromIntegral nibble)
 
 moduleName :: Text -> Maybe Text
 moduleName path = do

@@ -70,9 +70,16 @@ suggestions, and unsupported-entry diagnostics. TaskJuggler actuals have
 independent core/Lua manifest verification, explicit observation time, partial
 actual semantics, real `tj3` coverage, a public snapshot preview, atomic
 immutable evidence acceptance, monotonic observation custody, and conservative
-explicit-remaining projection without estimate mutation. The Microsoft To Do
-connector, remaining standard importers, Calendar, and local-web UIAdapter
-remain in this slice.
+explicit-remaining projection without estimate mutation. The separately signed
+official connector Pack now contains a `microsoft_todo` SourceAdapter. It
+performs bounded paginated list/task reads, preserves stable account/list/task
+identities, keeps completed tasks opt-in, and materializes complete returned
+task JSON as structured Raw. Sparse preflight contains no private provider
+body. Reported attachments whose bytes are absent from Graph remain explicit
+limitations, and migrate requires an explicit incomplete-attachment
+acknowledgment. Production OAuth account binding, the public import command,
+separately consented cleanup effects, remaining standard importers, Calendar,
+and local-web UIAdapter remain in this slice.
 
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or
@@ -80,8 +87,9 @@ credential authority. Each exchange is authorized against one unambiguous
 signed component route, executed by the trusted host, sanitized, and replayed
 through a fresh private process and VM. Remote preflight persists only custody
 digest/count plus the sparse observation; materialization refetches and must
-match. The official Microsoft To Do component, production credential binding,
-and cleanup effects remain to be built on this kernel.
+match. The Microsoft To Do component is built on this kernel as an exact
+official artifact. Production credential binding, public command
+orchestration, and cleanup-effect dispatch remain to be built.
 
 ## Gate
 

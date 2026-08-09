@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **579d8ce**
-(`feat(import): materialize Notesnook exports safely`). The current milestone
-adds the bounded host-brokered HTTP foundation required by provider-backed
-SourceAdapters. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **c4709be**
+(`feat(packs): broker HTTP through replayed transcripts`). The current
+milestone ships the first provider component in the separately signed official
+connector Pack. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -194,6 +194,26 @@ SourceAdapters. This file stays editable between milestone commits.
   provider bodies. A fake adaptive provider proves sequential list/child
   requests, fresh-VM replay, exact materialization, and denial before broker
   invocation.
+- `org.littleant.official-connectors` is a separate canonical, reproducible,
+  Ed25519-signed Pack rather than privileged provider code in the core. Its
+  first SourceAdapter, `microsoft_todo`, declares only the Microsoft Graph To
+  Do GET route, one OAuth device-authorization credential slot, and separate
+  item/container cleanup effect purposes. Lua never receives the OAuth token
+  or DELETE authority.
+- the Microsoft To Do adapter supports snapshot, synchronization, and
+  migration observations over paginated list and task collections. It keeps
+  stable account/list/task provider identities, treats completed tasks as an
+  explicit opt-in, encodes provider identifiers as canonical URL path
+  segments, and preserves each complete task response as one structured Raw
+  document after consent. Provider bodies remain absent from the sparse
+  preflight.
+- attachment custody stays truthful at the current JSON boundary. When Graph
+  reports attachments without returning their bodies, snapshot and
+  synchronization expose the limitation as a warning; migration fails unless
+  the user explicitly acknowledges an incomplete attachment transfer. The
+  adapter does not misreport metadata as imported bytes. Pure canonical JSON
+  encoding and UTF-8 path-segment encoding are available to isolated Packs
+  without adding IO authority.
 
 ## Last green gate
 
@@ -207,6 +227,7 @@ The most recent full commands were:
     python3 tools/lant_conformance.py audit
     python3 tools/lant_conformance.py vocabulary
     cabal exec runghc -- -XGHC2021 -XDerivingStrategies -XLambdaCase -XOverloadedStrings -isrc tools/rebuild-standard-pack.hs verify
+    cabal exec runghc -- -XGHC2021 -XDerivingStrategies -XLambdaCase -XOverloadedStrings -isrc tools/rebuild-official-connectors-pack.hs verify
     nix build path:.#little-ant
 
 Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, the
@@ -253,6 +274,12 @@ unsupported authority, dry-run, atomic multiobject preservation, and
 materialization drift before mutation. The CLI E2E also rejects omitted modes
 and the removed `--mode` form while proving explicit snapshot previews record
 no events, including for a compressed Notesnook-shaped ZIP.
+The dedicated official-connectors suite has 5 cases covering exact archive
+reconstruction and official trust, least-authority manifest permissions,
+adaptive Microsoft Graph list/task pagination, canonical provider identity and
+URL encoding, sparse-preview privacy, complete structured-Raw materialization,
+completed-task opt-in, guarded partial attachment migration, and denial of a
+provider-controlled `nextLink` before a second broker call.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -277,9 +304,11 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, use the broker foundation to implement the separately signed official
-Microsoft To Do connector Pack and bind its account/credential preflight in the
-trusted host. Google Calendar,
-the remaining standard importers, and the local-web UIAdapter remain. The
+Next, bind the official Microsoft To Do component to production account and
+credential resolution in the trusted host, then expose its snapshot,
+synchronize, and migrate flows through the public import surface. Cleanup must
+remain a separately previewed and consented effect, with item deletion and
+empty-container deletion independently selectable. Google Calendar, the
+remaining standard importers, and the local-web UIAdapter remain. The
 `Corrupt history/repair` row and formal TaskJuggler evidence registration are
 implemented; the complete S09 gate still precedes `verified`.
