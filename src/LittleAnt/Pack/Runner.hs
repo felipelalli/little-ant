@@ -1079,6 +1079,14 @@ installPayloadApi entry payload inputBytes httpEnabled replay = do
       Right encoded -> Lua.pushText (TextEncoding.decodeUtf8 encoded) >> pure 1
   Lua.setglobal "__lant_json_encode"
   Lua.pushHaskellFunction $ do
+    encoded <- Lua.forcePeek (Lua.peekByteString (Lua.nthBottom 1))
+    case eitherDecodeStrict' encoded :: Either String Value of
+      Left problem -> Lua.failLua ("invalid JSON input: " <> problem)
+      Right value
+        | jsonContainsNull value -> Lua.failLua "JSON null is unsupported; omit an optional field instead"
+        | otherwise -> Lua.pushValue value >> pure 1
+  Lua.setglobal "__lant_json_decode"
+  Lua.pushHaskellFunction $ do
     segment <- Lua.forcePeek (Lua.peekText (Lua.nthBottom 1))
     Lua.pushText (encodeUrlPathSegment segment)
     pure 1
@@ -1120,6 +1128,13 @@ installPayloadApi entry payload inputBytes httpEnabled replay = do
       loadChunk source ("@" <> path)
       Lua.rawset (Lua.nth 3)
     _ -> pure ()
+
+jsonContainsNull :: Value -> Bool
+jsonContainsNull = \case
+  Null -> True
+  Array values -> any jsonContainsNull values
+  Object fields -> any jsonContainsNull (KeyMap.elems fields)
+  _ -> False
 
 consumeHttpExchange :: BrokerHttpRequest -> HttpReplayState -> (HttpReplayState, Either Text (Maybe BrokerHttpResponse))
 consumeHttpExchange request state = case replayPending state of
@@ -1310,6 +1325,7 @@ trustedBootstrap =
     , "local sha256 = __lant_sha256"
     , "local base64url_decode = __lant_base64url_decode"
     , "local json_encode = __lant_json_encode"
+    , "local json_decode = __lant_json_decode"
     , "local url_encode_path_segment = __lant_url_encode_path_segment"
     , "local input_zip_entries = __lant_input_zip_entries"
     , "local http_enabled = __lant_http_enabled"
@@ -1320,6 +1336,7 @@ trustedBootstrap =
     , "__lant_sha256 = nil"
     , "__lant_base64url_decode = nil"
     , "__lant_json_encode = nil"
+    , "__lant_json_decode = nil"
     , "__lant_url_encode_path_segment = nil"
     , "__lant_input_zip_entries = nil"
     , "__lant_http_enabled = nil"
@@ -1365,7 +1382,11 @@ trustedBootstrap =
     , "    return entries"
     , "  end,"
     , "  json = {"
-    , "    encode = function(value) return json_encode(value) end"
+    , "    encode = function(value) return json_encode(value) end,"
+    , "    decode = function(bytes)"
+    , "      if type(bytes) ~= 'string' then error('JSON input must be bytes', 2) end"
+    , "      return json_decode(bytes)"
+    , "    end"
     , "  },"
     , "  url = {"
     , "    encode_path_segment = function(value)"

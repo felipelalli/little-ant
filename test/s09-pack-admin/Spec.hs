@@ -75,7 +75,7 @@ listBuiltIn = withHarness $ \environment -> do
       projectedPackName pack @?= "org.littleant.standard"
       projectedPackDisplayName pack @?= "Little Ant Standard Pack"
       projectedPackTrustClass pack @?= "built in"
-      length (projectedPackComponents pack) @?= 11
+      length (projectedPackComponents pack) @?= 12
       assertBool "all bundled components are enabled" (all projectedPackComponentEnabled (projectedPackComponents pack))
     other -> assertFailure ("unexpected list result: " <> show other)
 
@@ -88,7 +88,7 @@ showBuiltIn = withHarness $ \environment -> do
       assertBool "archive digest is complete" (Text.length (projectedPackArchiveDigest pack) == 64)
       assertBool "signer fingerprint is complete" (Text.length (projectedPackSignerFingerprint pack) == 64)
       let sourceAdapters = filter ((== "SourceAdapter") . projectedPackComponentKind) (projectedPackComponents pack)
-      fmap projectedPackComponentId sourceAdapters @?= ["document_file", "evernote_enex", "notesnook_export", "plain_text", "taskjuggler_actuals"]
+      fmap projectedPackComponentId sourceAdapters @?= ["apple_reminders_export", "document_file", "evernote_enex", "notesnook_export", "plain_text", "taskjuggler_actuals"]
     other -> assertFailure ("unexpected show result: " <> show other)
 
 rejectUnknown :: Assertion

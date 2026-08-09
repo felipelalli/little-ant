@@ -1,0 +1,19 @@
+{
+  "schema": "little-ant/apple-reminders-export@1",
+  "exported_at": "2026-08-09T12:00:00Z",
+  "identity_strategy": "apple_identifier",
+  "device_name": "Example Mac",
+  "reminders": [
+    {
+      "id": "example-reminder-id",
+      "list_id": "example-list-id",
+      "list_title": "Personal",
+      "title": "Buy milk",
+      "completed": false,
+      "notes": "Choose the usual kind",
+      "priority": 0,
+      "tags": ["groceries"],
+      "flagged": false
+    }
+  ]
+}

@@ -2,7 +2,7 @@ module Main (main) where
 
 import Codec.Archive.Zip qualified as Zip
 import Control.Monad (forM_)
-import Data.Aeson (Value, eitherDecodeStrict', toJSON)
+import Data.Aeson (Value (..), eitherDecodeStrict', encode, object, toJSON, (.=))
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Char8 qualified as ByteString8
@@ -42,11 +42,12 @@ main =
     testGroup
       "S09 offline standard Pack"
       [ testCase "the committed source tree reconstructs the exact signed archive" canonicalArchive
-      , testCase "the exact compiled identity grants six exporters and five SourceAdapters" builtInRegistry
+      , testCase "the exact compiled identity grants six exporters and six SourceAdapters" builtInRegistry
       , testCase "tree, Org, and self-contained HTML match reviewed fixtures" reviewedFixtures
       , testCase "aligned table and RFC 4180 CSV preserve structural data" structuredTextFormats
       , testCase "the core planning cut produces valid TaskJuggler syntax" taskJugglerPlanningCut
       , testCase "the plain-text SourceAdapter summarizes one whole file for Raw preservation" plainTextSourceAdapter
+      , testCase "the Apple Reminders kit preserves stable task-shaped structured Raw" appleRemindersSourceAdapter
       , testCase "the document SourceAdapter preserves Markdown, HTML, JSON, CSV, and Org without conversion" documentFileSourceAdapter
       , testCase "the Evernote SourceAdapter preserves complete ENEX notes and embedded resources" evernoteEnexSourceAdapter
       , testCase "the Notesnook SourceAdapter preserves every supported ZIP note lazily" notesnookSourceAdapter
@@ -105,6 +106,96 @@ plainTextSourceAdapter = do
       sourceObjectShape sourceObject @?= SourceNoteShape
       sourceObjectMaterial sourceObject @?= summarizeSourceMaterial (SourceTextMaterial "First line\nSecond line\n")
     other -> assertFailure ("unexpected plain-text objects: " <> show other)
+
+appleRemindersSourceAdapter :: Assertion
+appleRemindersSourceAdapter = do
+  client <- fixtureClient
+  scope <- assertRight (mkProfileScope "default")
+  registry <- loadStandardPackRegistry fixtureTime scope >>= assertRight
+  registered <- assertRight (lookupPackComponent "apple_reminders_export" registry)
+  let secondReminder =
+        object
+          [ "id" .= ("reminder-b" :: Text)
+          , "list_id" .= ("work" :: Text)
+          , "list_title" .= ("Work" :: Text)
+          , "title" .= ("Submit report" :: Text)
+          , "completed" .= True
+          , "completed_at" .= ("2026-08-08T18:30:00-03:00" :: Text)
+          , "priority" .= (5 :: Int)
+          ]
+      firstReminder =
+        object
+          [ "id" .= ("reminder-a" :: Text)
+          , "list_id" .= ("personal" :: Text)
+          , "list_title" .= ("Personal" :: Text)
+          , "title" .= ("Buy milk" :: Text)
+          , "completed" .= False
+          , "notes" .= (Text.replicate 220 "n" <> "::PRIVATE_REMINDER_NOTES::")
+          , "due_kind" .= ("date" :: Text)
+          , "due_value" .= ("2026-08-10" :: Text)
+          , "priority" .= (0 :: Int)
+          , "tags" .= (["groceries"] :: [Text])
+          , "flagged" .= False
+          ]
+      exportValue =
+        object
+          [ "schema" .= ("little-ant/apple-reminders-export@1" :: Text)
+          , "exported_at" .= ("2026-08-09T12:00:00Z" :: Text)
+          , "identity_strategy" .= ("apple_identifier" :: Text)
+          , "device_name" .= ("Fixture Mac" :: Text)
+          , "reminders" .= [secondReminder, firstReminder]
+          ]
+      bytes = LazyByteString.toStrict (encode exportValue)
+      input = SourceInput "fixture.apple-reminders.json" "application/vnd.little-ant.apple-reminders+json" bytes
+  firstCanonical <- TextEncoding.decodeUtf8 <$> assertRight (canonicalJsonBytes firstReminder)
+  secondCanonical <- TextEncoding.decodeUtf8 <$> assertRight (canonicalJsonBytes secondReminder)
+  preflight <- invokePackSourcePreflight client registered SourceMigrate input >>= assertRight
+  let observation = sourcePreflightObservation preflight
+      objects = observedObjects observation
+  observedSourceLabel observation @?= "Apple Reminders Shortcut export"
+  observedIdentity observation
+    @?= Map.fromList
+      [ ("device_name", "Fixture Mac")
+      , ("export_sha256", sha256Hex bytes)
+      , ("exported_at", "2026-08-09T12:00:00Z")
+      , ("identity_strategy", "apple_identifier")
+      , ("list_count", "2")
+      , ("reminder_count", "2")
+      ]
+  fmap sourceContainerExternalId (observedContainers observation) @?= ["list:personal", "list:work"]
+  fmap sourceObjectExternalId objects @?= ["reminder:reminder-a", "reminder:reminder-b"]
+  fmap sourceObjectShape objects @?= [SourceTaskShape, SourceTaskShape]
+  fmap sourceObjectCompleted objects @?= [False, True]
+  observedCleanupSupported observation @?= False
+  observedUnsupportedFields observation @?= ["recurrence rules, subtasks, attachments, and location alarms are not exported by this kit"]
+  encodedPreflight <- assertRight (canonicalJsonBytes (toJSON preflight))
+  assertBool "Apple preflight leaked complete private notes" (not ("::PRIVATE_REMINDER_NOTES::" `ByteString.isInfixOf` encodedPreflight))
+  (acceptedPreflight, materialization) <- invokePackSourceMaterialize client registered SourceMigrate input >>= assertRight
+  acceptedPreflight @?= preflight
+  materializedObjects materialization
+    @?= Map.fromList
+      [ ("reminder:reminder-a", SourceStructuredMaterial "little-ant/apple-reminder@1" firstCanonical)
+      , ("reminder:reminder-b", SourceStructuredMaterial "little-ant/apple-reminder@1" secondCanonical)
+      ]
+
+  let invalidBytes = LazyByteString.toStrict (encode (object ["schema" .= ("little-ant/apple-reminders-export@1" :: Text), "unexpected" .= True]))
+      invalidInput = SourceInput "invalid.apple-reminders.json" "application/vnd.little-ant.apple-reminders+json" invalidBytes
+  invokePackSourcePreflight client registered SourceSnapshot invalidInput >>= \case
+    Left _ -> pure ()
+    Right value -> assertFailure ("invalid Apple export unexpectedly passed: " <> show value)
+  let nullBytes =
+        LazyByteString.toStrict . encode $
+          object
+            [ "schema" .= ("little-ant/apple-reminders-export@1" :: Text)
+            , "exported_at" .= ("2026-08-09T12:00:00Z" :: Text)
+            , "identity_strategy" .= ("apple_identifier" :: Text)
+            , "reminders" .= ([] :: [Value])
+            , "unexpected" .= Null
+            ]
+      nullInput = SourceInput "null.apple-reminders.json" "application/vnd.little-ant.apple-reminders+json" nullBytes
+  invokePackSourcePreflight client registered SourceSnapshot nullInput >>= \case
+    Left _ -> pure ()
+    Right value -> assertFailure ("JSON null unexpectedly disappeared across the runner boundary: " <> show value)
 
 documentFileSourceAdapter :: Assertion
 documentFileSourceAdapter = do

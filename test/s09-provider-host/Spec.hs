@@ -554,15 +554,20 @@ nextAfterRawTriage environment = do
     | remaining <= 0 = assertFailure "source cleanup recovery did not surface after every Raw triage was settled" >> fail "unreachable"
     | otherwise = do
         next <- runAppCommand environment False silentProgress NextCommand >>= assertRight >>= interactionOf
-        case envelopeOpportunity next of
-          RawTriageOpportunity{} -> do
-            destination <- runAppCommand environment False silentProgress (RespondCommand (response next "raw.choose-destination")) >>= assertRight >>= interactionOf
-            case envelopeOpportunity destination of
-              RawDestinationOpportunity{} -> pure ()
-              other -> assertFailure ("unexpected Raw destination screen: " <> show other)
-            _ <- runAppCommand environment False silentProgress (RespondCommand (response destination "raw.keep-standalone")) >>= assertRight
-            seek (remaining - 1)
-          _ -> pure next
+        inspect remaining next
+  inspect remaining next =
+    case envelopeOpportunity next of
+      RawTriageOpportunity{} -> do
+        destination <- runAppCommand environment False silentProgress (RespondCommand (response next "raw.choose-destination")) >>= assertRight >>= interactionOf
+        case envelopeOpportunity destination of
+          RawDestinationOpportunity{} -> pure ()
+          other -> assertFailure ("unexpected Raw destination screen: " <> show other)
+        settled <- runAppCommand environment False silentProgress (RespondCommand (response destination "raw.keep-standalone")) >>= assertRight >>= interactionOf
+        inspect (remaining - 1) settled
+      StandaloneResultOpportunity{} -> do
+        advanced <- runAppCommand environment False silentProgress (RespondCommand (response next "next")) >>= assertRight >>= interactionOf
+        inspect remaining advanced
+      _ -> pure next
 
 factsFor :: AppEnv -> DatasetCursor -> Int -> IO RuntimeFacts
 factsFor environment cursor count = do

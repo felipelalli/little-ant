@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://little-ant.dev/schema/apple-reminders-export-1.json",
+  "title": "Little Ant Apple Reminders export",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "exported_at", "identity_strategy", "reminders"],
+  "properties": {
+    "schema": {"const": "little-ant/apple-reminders-export@1"},
+    "exported_at": {"type": "string", "minLength": 1, "maxLength": 128},
+    "identity_strategy": {"const": "apple_identifier"},
+    "device_name": {"type": "string", "minLength": 1, "maxLength": 256},
+    "reminders": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/reminder"}
+    }
+  },
+  "$defs": {
+    "reminder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "list_id", "list_title", "title", "completed"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "list_id": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "list_title": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "title": {"type": "string", "maxLength": 2048},
+        "completed": {"type": "boolean"},
+        "notes": {"type": "string"},
+        "due_kind": {"enum": ["date", "instant"]},
+        "due_value": {"type": "string", "minLength": 1, "maxLength": 128},
+        "completed_at": {"type": "string", "minLength": 1, "maxLength": 128},
+        "priority": {"enum": [0, 1, 5, 9]},
+        "url": {"type": "string", "maxLength": 8192},
+        "tags": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        },
+        "flagged": {"type": "boolean"}
+      },
+      "dependentRequired": {
+        "due_kind": ["due_value"],
+        "due_value": ["due_kind"]
+      }
+    }
+  }
+}

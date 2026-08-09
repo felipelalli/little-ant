@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **c6ab3ad**
-(`docs(import): record container cleanup boundary`). The current milestone adds
-the missing single-document and Evernote ENEX offline import paths to the
-signed standard Pack without adding format-specific domain semantics to core.
-This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **6f21b1b**
+(`feat(import): ship offline document adapters`). The current milestone adds
+the Apple Reminders offline Shortcut export kit and its strict Raw-first file
+adapter to the signed standard Pack. This file stays editable between
+milestone commits.
 
 ## Implementation now available
 
@@ -110,8 +110,9 @@ This file stays editable between milestone commits.
 - the signed, reproducible `org.littleant.standard` archive is verified against
   its compiled exact identity at startup and grants built-in execution
   authority only to the `tree`, `table`, `csv`, `org`, `html`, and
-  `taskjuggler` exporters plus the `document_file`, `evernote_enex`,
-  `notesnook_export`, `plain_text`, and `taskjuggler_actuals` SourceAdapters.
+  `taskjuggler` exporters plus the `apple_reminders_export`, `document_file`,
+  `evernote_enex`, `notesnook_export`, `plain_text`, and `taskjuggler_actuals`
+  SourceAdapters.
   The structural exporters' reviewed fixtures cover hierarchy, quoting, UTF-8
   alignment, RFC 4180 framing, and a script-free/offline HTML document. The CLI
   production environment uses this registry, so `lant export csv` works
@@ -162,6 +163,14 @@ This file stays editable between milestone commits.
   element independently, retains embedded resources in the Raw XML, counts
   attachments, and uses GUID or element-digest identity. Both support only
   snapshot/migrate and declare no cleanup or live-presence inference.
+- the standard Pack's Apple Reminders kit contains a closed JSON Schema,
+  reviewed example, and human-auditable Shortcut recipe rather than a fake
+  unsigned Apple workflow. Its `.apple-reminders.json` adapter wins over the
+  generic JSON suffix, requires opaque Apple list/reminder identifiers,
+  preserves each reminder as canonical structured Raw, keeps source completion
+  observational, and declares recurrence, subtasks, attachments, and location
+  alarms unsupported. Pure bounded JSON decoding lives in the isolated runner;
+  null cannot disappear into Lua `nil`.
 - `lant import <source> (--snapshot|--synchronize|--migrate)` now has a
   persisted read-only preflight with no default consent. Acceptance reacquires
   the file through `O_NOFOLLOW`, reruns the signed adapter, refreshes stale
@@ -495,7 +504,6 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, complete the Apple Reminders offline export kit and importer, then the
-remaining official connector adapters. Explicit Pack update/remove/GC, Google
-Calendar write-back, and the local web UIAdapter also remain. The complete S09
-gate still precedes `verified`.
+Next, complete the remaining official connector adapters. Explicit Pack
+update/remove/GC, Google Calendar write-back, and the local web UIAdapter also
+remain. The complete S09 gate still precedes `verified`.

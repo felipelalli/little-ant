@@ -51,7 +51,7 @@ pack=value["packs"][0]
 assert pack["name"] == "org.littleant.standard"
 assert pack["trust"] == "built in"
 assert pack["status"] == "enabled"
-assert len(pack["components"]) == 11
+assert len(pack["components"]) == 12
 ' <<<"$packs_json"
 
 pack_show_json="$(lant_at "$profile_root" --json packs show org.littleant.standard)"
@@ -165,6 +165,43 @@ assert observation["source_label"] == "Evernote ENEX export"
 assert len(observation["objects"]) == 2
 assert [item["title"] for item in observation["objects"]] == ["First", "Second"]
 ' <<<"$enex_json"
+test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
+
+apple_source="$test_root/reminders.apple-reminders.json"
+python3 - "$apple_source" <<'PY'
+import json, pathlib, sys
+
+pathlib.Path(sys.argv[1]).write_text(json.dumps({
+    "schema": "little-ant/apple-reminders-export@1",
+    "exported_at": "2026-08-09T12:00:00Z",
+    "identity_strategy": "apple_identifier",
+    "device_name": "Fixture Mac",
+    "reminders": [
+        {
+            "id": "reminder-1",
+            "list_id": "personal",
+            "list_title": "Personal",
+            "title": "Buy milk",
+            "completed": False,
+            "due_kind": "date",
+            "due_value": "2026-08-10"
+        }
+    ]
+}, ensure_ascii=False), encoding="utf-8")
+PY
+apple_json="$(lant_at "$import_root" --json import "$apple_source" --migrate)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+preflight=value["interaction"]["opportunity"]["preflight"]
+observation=preflight["observation"]
+assert preflight["adapter_id"] == "apple_reminders_export"
+assert preflight["input_media_type"] == "application/vnd.little-ant.apple-reminders+json"
+assert observation["source_label"] == "Apple Reminders Shortcut export"
+assert observation["cleanup_supported"] is False
+assert [item["external_id"] for item in observation["objects"]] == ["reminder:reminder-1"]
+assert [item["external_id"] for item in observation["containers"]] == ["list:personal"]
+' <<<"$apple_json"
 test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
 
 actuals_source="$test_root/actuals.tjp"

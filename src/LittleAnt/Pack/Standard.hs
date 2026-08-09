@@ -29,14 +29,15 @@ standardPackIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.standard"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "6f7038ba8a9efe7846923271f11afd2034e4b936f3b333d7de902f8ba88e3b8a"
-    , artifactArchiveDigest = "eee9c120e860af20a00b0157f7d09f0d563c9821558585ad69155bd8ac809d99"
+    , artifactManifestDigest = "9cb38686872b0880f3f12f7e111a8c2c8c9d0e5ed7e57c0befe7d6cd22fdc761"
+    , artifactArchiveDigest = "1c5881822b33b23b353731b9ac26b2c20b31e467091aac8acecb883d5b545380"
     }
 
 standardPackComponentIds :: Set Text
 standardPackComponentIds =
   Set.fromList
-    [ "csv"
+    [ "apple_reminders_export"
+    , "csv"
     , "document_file"
     , "evernote_enex"
     , "html"

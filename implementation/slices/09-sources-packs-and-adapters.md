@@ -69,7 +69,10 @@ archive helper while retaining relative-path identities, source-container
 suggestions, and unsupported-entry diagnostics. The same signed Pack now
 preserves individual Markdown, HTML, JSON, CSV, and Org files without
 conversion and imports complete Evernote ENEX note elements with stable GUID or
-digest identity and embedded-resource custody. TaskJuggler actuals have
+digest identity and embedded-resource custody. The Apple Reminders offline kit
+ships a closed JSON Schema, reviewed example, and inspectable Shortcut recipe;
+its strict adapter requires Apple identifiers, preserves task-shaped structured
+Raw, and reports fields the portable workflow cannot export. TaskJuggler actuals have
 independent core/Lua manifest verification, explicit observation time, partial
 actual semantics, real `tj3` coverage, a public snapshot preview, atomic
 immutable evidence acceptance, monotonic observation custody, and conservative
@@ -86,7 +89,7 @@ implemented. Microsoft To Do item cleanup is now separately proposed only
 after local Raw verification, approved as one exact finite set, and dispatched
 item by item with durable intent and receipts. Empty source containers now have
 a separate fresh inspection, approval, pre-delete recheck, and unknown-outcome
-reconciliation path. Remaining standard importers, Calendar, and local-web
+reconciliation path. The remaining connector adapters, Calendar, and local-web
 UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding

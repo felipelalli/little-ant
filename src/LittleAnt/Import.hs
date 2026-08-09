@@ -300,6 +300,7 @@ packRegistryImportPortWithProviders runner registry providers =
     ]
   fileDescriptors =
     [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]
+    , ImportSourceDescriptor "apple_reminders_export" "Apple Reminders Shortcut export" [".apple-reminders.json"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "document_file" "Markdown, HTML, JSON, CSV, or Org file" [".markdown", ".html", ".json", ".csv", ".org", ".md", ".htm"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "evernote_enex" "Evernote ENEX export" [".enex"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
@@ -397,6 +398,7 @@ mediaTypeFor descriptor source = case importSourceId descriptor of
   "taskjuggler_actuals" -> "text/x-taskjuggler; charset=utf-8"
   "notesnook_export" -> "application/zip"
   "evernote_enex" -> "application/vnd.evernote.enex+xml"
+  "apple_reminders_export" -> "application/vnd.little-ant.apple-reminders+json"
   "document_file"
     | ".markdown" `Text.isSuffixOf` lower || ".md" `Text.isSuffixOf` lower -> "text/markdown; charset=utf-8"
     | ".html" `Text.isSuffixOf` lower || ".htm" `Text.isSuffixOf` lower -> "text/html; charset=utf-8"
