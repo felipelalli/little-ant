@@ -42,7 +42,7 @@ local function validate_source(source)
   return selected
 end
 
-local function cleanup_item(source, target)
+local function cleanup_target(source, target)
   validate_source(source)
   if type(target) ~= "table" then error("cleanup target must be an object") end
   local expected = {external_identity = true, locator = true, container_identity = true}
@@ -62,6 +62,11 @@ local function cleanup_item(source, target)
 
   local url = graph_root .. "/lists/" .. lant.url.encode_path_segment(list_id)
     .. "/tasks/" .. lant.url.encode_path_segment(task_id)
+  return url, task_id
+end
+
+local function cleanup_item(source, target)
+  local url, task_id = cleanup_target(source, target)
   local response = lant.http.request({method = "DELETE", url = url, headers = {accept = "application/json"}})
   local provider_reference = "Microsoft To Do task " .. task_id
   if response.status == 204 then
@@ -74,6 +79,19 @@ local function cleanup_item(source, target)
     return {outcome = "failed_retryable", provider_reference = provider_reference, redacted_detail = "Microsoft Graph returned HTTP " .. tostring(response.status) .. "."}
   end
   return {outcome = "failed_terminal", provider_reference = provider_reference, redacted_detail = "Microsoft Graph returned HTTP " .. tostring(response.status) .. "."}
+end
+
+local function verify_cleanup_item(source, target)
+  local url, task_id = cleanup_target(source, target)
+  local response = lant.http.request({method = "GET", url = url, headers = {accept = "application/json"}})
+  local provider_reference = "Microsoft To Do task " .. task_id
+  if response.status == 404 then
+    return {outcome = "succeeded", provider_reference = provider_reference, redacted_detail = "Verified absent from Microsoft To Do."}
+  end
+  if response.status == 200 then
+    return {outcome = "failed_retryable", provider_reference = provider_reference, redacted_detail = "Verified still present in Microsoft To Do."}
+  end
+  return {outcome = "outcome_unknown", provider_reference = provider_reference, redacted_detail = "Microsoft Graph verification returned HTTP " .. tostring(response.status) .. "."}
 end
 
 local function collection(url, label)
@@ -166,6 +184,9 @@ end
 return function(request)
   if request.schema == "little-ant/source-cleanup-item-request@1" then
     return cleanup_item(request.source, request.target)
+  end
+  if request.schema == "little-ant/source-cleanup-item-verify-request@1" then
+    return verify_cleanup_item(request.source, request.target)
   end
   if request.schema ~= "little-ant/source-provider-request@1" then
     error("unsupported source provider request schema")

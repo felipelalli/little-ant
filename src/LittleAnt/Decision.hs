@@ -81,7 +81,9 @@ module LittleAnt.Decision (
   decideApproveExternalEffects,
   decideRejectExternalEffect,
   decideRejectExternalEffects,
+  externalEffectRejectionUUIDCount,
   decideWithdrawExternalEffect,
+  withdrawExternalEffectUUIDCount,
   decideRetryExternalEffect,
   decideDeferExternalEffect,
   decideStartExternalEffectDispatch,
@@ -1351,29 +1353,44 @@ decideRejectExternalEffects state actor identities facts = do
   effects <- traverse (requireExternalEffect state) exactIds
   unless (all ((`elem` [EffectProposed, EffectApproved]) . externalEffectStatus) effects) $
     Left (appError PreconditionFailed "Only proposed or approved external effects can be rejected together.")
-  allocated <- requireUUIDs (1 + length effects) facts
+  let changedEffects = fmap reject effects
+      retirements = sourceCleanupRetirements state (Map.fromList [(externalEffectId effect, externalEffectStatus effect) | effect <- changedEffects])
+  allocated <- requireUUIDs (1 + length effects + length retirements) facts
   case allocated of
     commandId : eventIds -> do
-      unless (length eventIds == length effects) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
-      let changed effect =
-            effect
-              { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
-              , externalEffectStatus = EffectRejected
-              , externalEffectReviewNotBefore = Nothing
-              , externalEffectApprovalGrant = Nothing
-              , externalEffectApprovedDigest = Nothing
-              }
-          events = zipWith (\eventId effect -> makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged (changed effect)))) eventIds effects
-      pure (MutationDecision commandId Nothing Nothing events)
+      let (effectEventIds, profileEventIds) = splitAt (length changedEffects) eventIds
+      unless (length effectEventIds == length changedEffects && length profileEventIds == length retirements) $
+        Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      let effectEvents = zipWith (\eventId effect -> makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged effect))) effectEventIds changedEffects
+          profileEvents = zipWith (\eventId profile -> makeDraft facts actor state allocated eventId commandId (ImportProfileChangedV1 (ImportProfileChanged profile))) profileEventIds retirements
+      pure (MutationDecision commandId Nothing Nothing (effectEvents <> profileEvents))
     [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+ where
+  reject effect =
+    effect
+      { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
+      , externalEffectStatus = EffectRejected
+      , externalEffectReviewNotBefore = Nothing
+      , externalEffectApprovalGrant = Nothing
+      , externalEffectApprovedDigest = Nothing
+      }
+
+externalEffectRejectionUUIDCount :: State -> [UUIDv7] -> Either AppError Int
+externalEffectRejectionUUIDCount state identities = do
+  let exactIds = sortOn id identities
+  unless (not (null exactIds) && Set.size (Set.fromList exactIds) == length exactIds) $
+    Left (appError InvalidInput "An external-effect rejection needs one nonempty finite set without duplicates.")
+  effects <- traverse (requireExternalEffect state) exactIds
+  unless (all ((`elem` [EffectProposed, EffectApproved]) . externalEffectStatus) effects) $
+    Left (appError PreconditionFailed "Only proposed or approved external effects can be rejected together.")
+  let overrides = Map.fromList [(externalEffectId effect, EffectRejected) | effect <- effects]
+  pure (1 + length effects + length (sourceCleanupRetirements state overrides))
 
 decideWithdrawExternalEffect :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
 decideWithdrawExternalEffect state actor identity facts = do
   effect <- requireExternalEffect state identity
   unless (externalEffectStatus effect `elem` [EffectProposed, EffectApproved, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $
     Left (appError PreconditionFailed "Only an effect that has not succeeded or begun a new dispatch can be withdrawn.")
-  allocated <- requireUUIDs 2 facts
-  (commandId, eventId) <- exactlyTwo allocated
   let changed =
         effect
           { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
@@ -1382,8 +1399,19 @@ decideWithdrawExternalEffect state actor identity facts = do
           , externalEffectApprovalGrant = Nothing
           , externalEffectApprovedDigest = Nothing
           }
-      event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
-  pure (MutationDecision commandId Nothing Nothing [event])
+      retirements = sourceCleanupRetirements state (Map.singleton identity EffectWithdrawn)
+  allocated <- requireUUIDs (2 + length retirements) facts
+  case allocated of
+    commandId : eventId : profileEventIds -> do
+      unless (length profileEventIds == length retirements) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      let event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
+          profileEvents = zipWith (\profileEventId profile -> makeDraft facts actor state allocated profileEventId commandId (ImportProfileChangedV1 (ImportProfileChanged profile))) profileEventIds retirements
+      pure (MutationDecision commandId Nothing Nothing (event : profileEvents))
+    _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+
+withdrawExternalEffectUUIDCount :: State -> UUIDv7 -> Int
+withdrawExternalEffectUUIDCount state identity =
+  2 + length (sourceCleanupRetirements state (Map.singleton identity EffectWithdrawn))
 
 decideRetryExternalEffect :: State -> Actor -> UUIDv7 -> Bool -> RuntimeFacts -> Either AppError MutationDecision
 decideRetryExternalEffect state actor identity duplicateRiskAccepted facts = do
@@ -2519,19 +2547,17 @@ decideProposeSourceCleanupItems state actor invocationId custody facts = do
     [] -> do
       unless (null identities) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
       pure ([], [])
-    request : rest -> case identities of
-      effectId : eventId : remaining -> do
-        let target = case request of
-              SourceCleanupItemRequest _ value -> value
-              _ -> error "sourceCleanupRequests returned a non-item request"
-            raw = stateRaws state Map.! cleanupItemRaw target
-            preview = "Delete \"" <> rawOriginal raw <> "\" from " <> effectAdapterProviderAccount custody <> "."
+    request : rest -> case (request, identities) of
+      (SourceCleanupItemRequest _ target, effectId : eventId : remaining) -> do
+        raw <- maybe (Left (appError CorruptData "A cleanup request references a missing canonical Raw.")) Right (Map.lookup (cleanupItemRaw target) (stateRaws state))
+        let preview = "Delete \"" <> rawOriginal raw <> "\" from " <> effectAdapterProviderAccount custody <> "."
             idempotencyKey = "source-cleanup-item:" <> externalEffectRequestDigest request
             effect = makeProposedExternalEffect effectId commandId facts request preview (Just idempotencyKey)
             event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged effect))
         (ids, events) <- buildEffects allocated commandId remaining rest
         pure (effectId : ids, event : events)
-      _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      (SourceCleanupItemRequest{}, _) -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      _ -> Left (appError CorruptData "The source-cleanup request builder returned a non-item effect.")
 
 sourceCleanupRequests :: State -> UUIDv7 -> EffectAdapterCustody -> Either AppError [ExternalEffectRequest]
 sourceCleanupRequests state invocationId custody = do
@@ -2556,10 +2582,10 @@ sourceCleanupRequests state invocationId custody = do
         && importProfileInputReference profile == effectAdapterProviderAccount custody
     )
     $ Left (appError Conflict "The current cleanup authority does not match the verified ImportInvocation.")
-  traverse makeRequest (sortOn importObjectExternalIdentity (importInvocationMappings invocation))
+  traverse (makeRequest (importInvocationProfileId invocation)) (sortOn importObjectExternalIdentity (importInvocationMappings invocation))
  where
-  makeRequest mapping = do
-    binding <- uniqueCleanupBinding mapping
+  makeRequest profileId mapping = do
+    binding <- uniqueCleanupBinding profileId mapping
     let target =
           SourceCleanupItemTarget
             invocationId
@@ -2569,15 +2595,14 @@ sourceCleanupRequests state invocationId custody = do
             (sourceBindingLocator binding)
             (sourceBindingContainerIdentity binding)
     pure (SourceCleanupItemRequest custody target)
-  uniqueCleanupBinding mapping =
-    case
-      [ binding
-      | binding <- Map.elems (stateSourceBindings state)
-      , sourceBindingImportProfile binding == Just (importInvocationProfileId (stateImportInvocations state Map.! invocationId))
-      , sourceBindingRaw binding == importObjectRawId mapping
-      , sourceBindingExternalIdentity binding == Just (importObjectExternalIdentity mapping)
-      , sourceBindingMode binding == SourceMigrate
-      ] of
+  uniqueCleanupBinding profileId mapping =
+    case [ binding
+         | binding <- Map.elems (stateSourceBindings state)
+         , sourceBindingImportProfile binding == Just profileId
+         , sourceBindingRaw binding == importObjectRawId mapping
+         , sourceBindingExternalIdentity binding == Just (importObjectExternalIdentity mapping)
+         , sourceBindingMode binding == SourceMigrate
+         ] of
       [binding] -> Right binding
       [] -> Left (appError CorruptData "A cleanup item has no unique migration SourceBinding.")
       _ -> Left (appError CorruptData "Several SourceBindings claim one cleanup item.")
@@ -2587,12 +2612,11 @@ hasReusableEffect state request = isJust <$> reusableEffect state request
 
 reusableEffect :: State -> ExternalEffectRequest -> Either AppError (Maybe ExternalEffect)
 reusableEffect state request =
-  case
-    [ effect
-    | effect <- Map.elems (stateExternalEffects state)
-    , externalEffectRequest effect == request
-    , externalEffectStatus effect `notElem` [EffectRejected, EffectWithdrawn]
-    ] of
+  case [ effect
+       | effect <- Map.elems (stateExternalEffects state)
+       , externalEffectRequest effect == request
+       , externalEffectStatus effect `notElem` [EffectRejected, EffectWithdrawn]
+       ] of
     [] -> Right Nothing
     [effect] -> Right (Just effect)
     _ -> Left (appError CorruptData "Several live ExternalEffects claim one exact source cleanup item.")
@@ -2626,8 +2650,14 @@ decideStartExternalEffectDispatch state actor identity facts = do
 decideRecordExternalEffectReceipt :: State -> Actor -> UUIDv7 -> ExternalEffectStatus -> Maybe Text -> Maybe Text -> RuntimeFacts -> Either AppError MutationDecision
 decideRecordExternalEffectReceipt state actor identity outcome providerReference redactedDetail facts = do
   effect <- requireExternalEffect state identity
-  unless (externalEffectStatus effect == EffectDispatching) $ Left (appError PreconditionFailed "A receipt can follow only a durably dispatching effect.")
-  unless (outcome `elem` [EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $ Left (appError InvalidInput "Choose succeeded, retryable failure, terminal failure, or outcome unknown.")
+  unless (externalEffectStatus effect `elem` [EffectDispatching, EffectOutcomeUnknown]) $
+    Left (appError PreconditionFailed "A receipt can follow only a durably dispatching or outcome-unknown effect.")
+  let allowedOutcomes = case externalEffectStatus effect of
+        EffectDispatching -> [EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]
+        EffectOutcomeUnknown -> [EffectSucceeded, EffectFailedRetryable, EffectOutcomeUnknown]
+        _ -> []
+  unless (outcome `elem` allowedOutcomes) $
+    Left (appError InvalidInput "The provider outcome is invalid for this effect state.")
   let maybeDelegation = externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state))
       reconciliation = maybeDelegation >>= successfulEffectReconciliation state facts effect
       profileRetirement = successfulSourceCleanupRetirement state effect outcome
@@ -2656,28 +2686,34 @@ externalEffectReceiptUUIDCount state identity outcome =
     Nothing -> 3
     Just effect ->
       3
-        + if outcome == EffectSucceeded && isJust (externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state)) >>= successfulEffectReconciliationAt effect) then 1 else 0
-        + if isJust (successfulSourceCleanupRetirement state effect outcome) then 1 else 0
+        + if outcome == EffectSucceeded && isJust (externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state)) >>= successfulEffectReconciliationAt effect)
+          then 1
+          else
+            0
+              + if isJust (successfulSourceCleanupRetirement state effect outcome) then 1 else 0
 
 successfulSourceCleanupRetirement :: State -> ExternalEffect -> ExternalEffectStatus -> Maybe ImportProfile
-successfulSourceCleanupRetirement state current outcome = do
-  target <- case externalEffectRequest current of
-    SourceCleanupItemRequest _ value -> Just value
-    _ -> Nothing
-  guardTerminal outcome
-  invocation <- Map.lookup (cleanupItemImportInvocation target) (stateImportInvocations state)
-  profile <- Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state)
-  if importProfileLifecycle profile /= ImportProfileActive || not (all (mappingTerminal invocation) (importInvocationMappings invocation))
-    then Nothing
-    else Just profile{importProfileLifecycle = ImportProfileRetired, importProfileRevision = importProfileRevision profile + 1}
+successfulSourceCleanupRetirement state current outcome =
+  listToMaybe (sourceCleanupRetirements state (Map.singleton (externalEffectId current) outcome))
+
+sourceCleanupRetirements :: State -> Map.Map UUIDv7 ExternalEffectStatus -> [ImportProfile]
+sourceCleanupRetirements state overrides =
+  Map.elems . Map.fromList $
+    [ (importProfileId profile, profile{importProfileLifecycle = ImportProfileRetired, importProfileRevision = importProfileRevision profile + 1})
+    | effect <- Map.elems (stateExternalEffects state)
+    , SourceCleanupItemRequest _ target <- [externalEffectRequest effect]
+    , externalEffectId effect `Map.member` overrides
+    , Just invocation <- [Map.lookup (cleanupItemImportInvocation target) (stateImportInvocations state)]
+    , Just profile <- [Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state)]
+    , importProfileLifecycle profile == ImportProfileActive
+    , all (mappingTerminal invocation) (importInvocationMappings invocation)
+    ]
  where
   mappingTerminal invocation mapping =
     any
-      (\effect -> effectTerminal effect && belongsTo invocation mapping effect)
+      (\effect -> terminalStatus (effectiveStatus effect) && belongsTo invocation mapping effect)
       (Map.elems (stateExternalEffects state))
-  effectTerminal effect
-    | externalEffectId effect == externalEffectId current = terminalStatus outcome
-    | otherwise = terminalStatus (externalEffectStatus effect)
+  effectiveStatus effect = Map.findWithDefault (externalEffectStatus effect) (externalEffectId effect) overrides
   belongsTo invocation mapping effect = case externalEffectRequest effect of
     SourceCleanupItemRequest _ target ->
       cleanupItemImportInvocation target == importInvocationId invocation
@@ -2685,7 +2721,6 @@ successfulSourceCleanupRetirement state current outcome = do
         && cleanupItemRaw target == importObjectRawId mapping
     _ -> False
   terminalStatus status = status `elem` [EffectSucceeded, EffectFailedTerminal, EffectRejected, EffectWithdrawn]
-  guardTerminal status = if terminalStatus status then Just () else Nothing
 
 successfulEffectReconciliation :: State -> RuntimeFacts -> ExternalEffect -> Delegation -> Maybe Delegation
 successfulEffectReconciliation state facts effect delegation = do

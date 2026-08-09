@@ -1,5 +1,6 @@
 module Main (main) where
 
+import Control.Monad (replicateM)
 import Data.Aeson (Value, encode, object, toJSON, (.=))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
@@ -10,8 +11,10 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (UTCTime, addUTCTime, utc, utcToZonedTime)
 import LittleAnt.Application
+import LittleAnt.Decision
 import LittleAnt.Error
 import LittleAnt.Export (emptyExportPort)
+import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Import
 import LittleAnt.Interaction
@@ -43,6 +46,12 @@ main =
       , testCase "OAuth token sets are closed, expiring vault payloads rather than configuration secrets" oauthTokenCustody
       , testCase "configured provider import injects credentials only after Pack route authorization" credentialBoundary
       , testCase "verified provider materialization is accepted as canonical Raw truth" remoteAcceptance
+      , testCase "partial cleanup retries only the unchanged failed item" partialCleanupRecovery
+      , testCase "an unknown cleanup outcome is verified read-only before completion" unknownCleanupVerification
+      , testCase "a restarted dispatch is surfaced and verified without another delete" interruptedCleanupRecovery
+      , testCase "cleanup authority drift fails before provider deletion" cleanupAuthorityDrift
+      , testCase "rejecting the exact cleanup set retires the migration without deletion" cleanupRejection
+      , testCase "unknowable provider truth requires risk consent and a new exact approval" unknownCleanupRiskConsent
       , testCase "locked credentials stop before provider transport and retain a typed non-provider failure" lockedCredential
       , testCase "multiple accounts receive explicit unambiguous import references" multipleAccountReferences
       , testCase "binding scheme and component must match the signed SourceAdapter" bindingAuthority
@@ -229,6 +238,329 @@ remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root ->
   case deleteCalls of
     [request] -> brokerHttpUrl request @?= "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1"
     other -> assertFailure ("unexpected cleanup DELETE calls: " <> show other)
+
+partialCleanupRecovery :: Assertion
+partialCleanupRecovery = withSystemTempDirectory "lant-provider-partial-cleanup" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  secondAttempts <- newIORef (0 :: Int)
+  environment <- providerEnvironment root 11000 runner registry (partialCleanupTransport calls secondAttempts)
+  cleanupPreview <- prepareCleanup environment
+  cleanupEffects <- case envelopeOpportunity cleanupPreview of
+    ExternalEffectApprovalScreenOpportunity identities -> do
+      length identities @?= 2
+      pure identities
+    other -> assertFailure ("unexpected partial-cleanup approval: " <> show other) >> fail "unreachable"
+
+  partialResult <- runAppCommand environment False silentProgress (RespondCommand (response cleanupPreview "effect.approve")) >>= assertRight >>= interactionOf
+  envelopeOpportunity partialResult @?= SourceCleanupResultOpportunity cleanupEffects
+  assertBool "the partial result omitted safe retry" (any ((== "effect.cleanup.retry") . actionId) (envelopeActions partialResult))
+  partialDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let partialState = loadedState partialDataset
+      partialStatuses = externalEffectStatus <$> Map.elems (stateExternalEffects partialState)
+      profile = only "active partial-cleanup profile" (Map.elems (stateImportProfiles partialState))
+  length (filter (== EffectSucceeded) partialStatuses) @?= 1
+  length (filter (== EffectFailedRetryable) partialStatuses) @?= 1
+  importProfileLifecycle profile @?= ImportProfileActive
+
+  completedResult <- runAppCommand environment False silentProgress (RespondCommand (response partialResult "effect.cleanup.retry")) >>= assertRight >>= interactionOf
+  envelopeOpportunity completedResult @?= SourceCleanupResultOpportunity cleanupEffects
+  completedDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let completedState = loadedState completedDataset
+  assertBool "a cleanup effect did not complete after its safe retry" (all ((== EffectSucceeded) . externalEffectStatus) (Map.elems (stateExternalEffects completedState)))
+  importProfileLifecycle (only "retired partial-cleanup profile" (Map.elems (stateImportProfiles completedState))) @?= ImportProfileRetired
+  requests <- readIORef calls
+  let deletesFor taskId =
+        length
+          [ ()
+          | request <- requests
+          , brokerHttpMethod request == "DELETE"
+          , ("/tasks/" <> taskId) `Text.isSuffixOf` brokerHttpUrl request
+          ]
+  deletesFor "task-1" @?= 1
+  deletesFor "task-2" @?= 2
+
+unknownCleanupVerification :: Assertion
+unknownCleanupVerification = withSystemTempDirectory "lant-provider-unknown-cleanup" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  environment <- providerEnvironment root 12000 runner registry (unknownCleanupTransport calls)
+  cleanupPreview <- prepareCleanup environment
+  [cleanupEffect] <- case envelopeOpportunity cleanupPreview of
+    ExternalEffectApprovalScreenOpportunity identities -> pure identities
+    other -> assertFailure ("unexpected unknown-cleanup approval: " <> show other) >> fail "unreachable"
+  unknownResult <- runAppCommand environment False silentProgress (RespondCommand (response cleanupPreview "effect.approve")) >>= assertRight >>= interactionOf
+  envelopeOpportunity unknownResult @?= SourceCleanupResultOpportunity [cleanupEffect]
+  unknownDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState unknownDataset) Map.! cleanupEffect) @?= EffectOutcomeUnknown
+  assertBool "the unknown result omitted read-only verification" (any ((== "effect.cleanup.verify") . actionId) (envelopeActions unknownResult))
+
+  verifiedResult <- runAppCommand environment False silentProgress (RespondCommand (response unknownResult "effect.cleanup.verify")) >>= assertRight >>= interactionOf
+  envelopeOpportunity verifiedResult @?= SourceCleanupResultOpportunity [cleanupEffect]
+  verifiedDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let verifiedState = loadedState verifiedDataset
+  externalEffectStatus (stateExternalEffects verifiedState Map.! cleanupEffect) @?= EffectSucceeded
+  importProfileLifecycle (only "retired verified profile" (Map.elems (stateImportProfiles verifiedState))) @?= ImportProfileRetired
+  Map.size (stateExternalEffectReceipts verifiedState) @?= 2
+  requests <- readIORef calls
+  length (filter ((== "DELETE") . brokerHttpMethod) requests) @?= 1
+  length
+    [ ()
+    | request <- requests
+    , brokerHttpMethod request == "GET"
+    , "/tasks/task-1" `Text.isSuffixOf` brokerHttpUrl request
+    ]
+    @?= 1
+
+interruptedCleanupRecovery :: Assertion
+interruptedCleanupRecovery = withSystemTempDirectory "lant-provider-interrupted-cleanup" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  environment <- providerEnvironment root 13000 runner registry (unknownCleanupTransport calls)
+  cleanupPreview <- prepareCleanup environment
+  cleanupEffect <- case envelopeOpportunity cleanupPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected interrupted-cleanup approval: " <> show other) >> fail "unreachable"
+  proposed <- loadDataset (appStore environment) silentProgress >>= assertRight
+  approvalFacts <- factsFor environment (loadedCursor proposed) 3
+  approval <- assertRight (decideApproveExternalEffects (loadedState proposed) (appActor environment) [cleanupEffect] approvalFacts)
+  approved <- appendCommand (appStore environment) (loadedCursor proposed) (mutationDecisionEvents approval) >>= assertRight
+  dispatchFacts <- factsFor environment (loadedCursor approved) 2
+  dispatch <- assertRight (decideStartExternalEffectDispatch (loadedState approved) (appActor environment) cleanupEffect dispatchFacts)
+  dispatching <- appendCommand (appStore environment) (loadedCursor approved) (mutationDecisionEvents dispatch) >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState dispatching) Map.! cleanupEffect) @?= EffectDispatching
+
+  recovery <- nextAfterRawTriage environment
+  envelopeOpportunity recovery @?= SourceCleanupResultOpportunity [cleanupEffect]
+  assertBool "the interrupted result omitted its explicit check" (any ((== "effect.cleanup.check") . actionId) (envelopeActions recovery))
+  resolved <- runAppCommand environment False silentProgress (RespondCommand (response recovery "effect.cleanup.check")) >>= assertRight >>= interactionOf
+  envelopeOpportunity resolved @?= SourceCleanupResultOpportunity [cleanupEffect]
+  finalDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let finalState = loadedState finalDataset
+  externalEffectStatus (stateExternalEffects finalState Map.! cleanupEffect) @?= EffectSucceeded
+  Map.size (stateExternalEffectReceipts finalState) @?= 2
+  requests <- readIORef calls
+  filter ((== "DELETE") . brokerHttpMethod) requests @?= []
+  length
+    [ ()
+    | request <- requests
+    , brokerHttpMethod request == "GET"
+    , "/tasks/task-1" `Text.isSuffixOf` brokerHttpUrl request
+    ]
+    @?= 1
+
+cleanupAuthorityDrift :: Assertion
+cleanupAuthorityDrift = withSystemTempDirectory "lant-provider-cleanup-drift" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  originalCalls <- newIORef []
+  original <- providerEnvironment root 14000 runner registry (graphTransport originalCalls)
+  cleanupPreview <- prepareCleanup original
+  cleanupEffect <- case envelopeOpportunity cleanupPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected authority-drift approval: " <> show other) >> fail "unreachable"
+
+  token <- assertRight (accessTokenFromBytes secretToken)
+  integrations <-
+    assertRight (authorizedIntegrations registry [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)])
+  let currentBinding = credentialBindings integrations Map.! "personal-credential"
+      renamedIntegrations = integrations{credentialBindings = Map.singleton "replacement-credential" currentBinding}
+  reboundProviders <-
+    assertRight
+      ( configuredProviderImportSources
+          [microsoftTodoDefinition]
+          renamedIntegrations
+          registry
+          (AccessTokenResolver (const (pure (Right token))))
+          (graphTransport originalCalls)
+      )
+  let rebound = original{appImportPort = packRegistryImportPortWithProviders runner registry reboundProviders}
+  deleteCountBefore <- length . filter ((== "DELETE") . brokerHttpMethod) <$> readIORef originalCalls
+  result <- runAppCommand rebound False silentProgress (RespondCommand (response cleanupPreview "effect.approve")) >>= assertRight >>= interactionOf
+  envelopeOpportunity result @?= SourceCleanupResultOpportunity [cleanupEffect]
+  finalDataset <- loadDataset (appStore rebound) silentProgress >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState finalDataset) Map.! cleanupEffect) @?= EffectFailedTerminal
+  deleteCountAfter <- length . filter ((== "DELETE") . brokerHttpMethod) <$> readIORef originalCalls
+  deleteCountAfter @?= deleteCountBefore
+
+cleanupRejection :: Assertion
+cleanupRejection = withSystemTempDirectory "lant-provider-cleanup-rejection" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  environment <- providerEnvironment root 15000 runner registry (graphTransport calls)
+  cleanupPreview <- prepareCleanup environment
+  result <- runAppCommand environment False silentProgress (RespondCommand (response cleanupPreview "effect.reject")) >>= assertRight >>= interactionOf
+  case envelopeOpportunity result of
+    SourceCleanupResultOpportunity [_] -> pure ()
+    other -> assertFailure ("unexpected cleanup rejection result: " <> show other)
+  dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let currentState = loadedState dataset
+  assertBool "a rejected cleanup effect remained nonterminal" (all ((== EffectRejected) . externalEffectStatus) (Map.elems (stateExternalEffects currentState)))
+  importProfileLifecycle (only "retired rejected migration" (Map.elems (stateImportProfiles currentState))) @?= ImportProfileRetired
+  requests <- readIORef calls
+  filter ((== "DELETE") . brokerHttpMethod) requests @?= []
+
+unknownCleanupRiskConsent :: Assertion
+unknownCleanupRiskConsent = withSystemTempDirectory "lant-provider-cleanup-risk" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  deleteAttempts <- newIORef (0 :: Int)
+  environment <- providerEnvironment root 16000 runner registry (unknownThenRetryTransport calls deleteAttempts)
+  cleanupPreview <- prepareCleanup environment
+  cleanupEffect <- case envelopeOpportunity cleanupPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected cleanup-risk approval: " <> show other) >> fail "unreachable"
+  unknown <- runAppCommand environment False silentProgress (RespondCommand (response cleanupPreview "effect.approve")) >>= assertRight >>= interactionOf
+  checked <- runAppCommand environment False silentProgress (RespondCommand (response unknown "effect.cleanup.verify")) >>= assertRight >>= interactionOf
+  checkedDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState checkedDataset) Map.! cleanupEffect) @?= EffectOutcomeUnknown
+
+  risk <- runAppCommand environment False silentProgress (RespondCommand (response checked "effect.cleanup.retry-risk")) >>= assertRight >>= interactionOf
+  envelopeOpportunity risk @?= SourceCleanupRiskOpportunity [cleanupEffect]
+  revisedApproval <- runAppCommand environment False silentProgress (RespondCommand (response risk "effect.cleanup.risk.accept")) >>= assertRight >>= interactionOf
+  envelopeOpportunity revisedApproval @?= ExternalEffectApprovalScreenOpportunity [cleanupEffect]
+  revisedDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let revisedEffect = stateExternalEffects (loadedState revisedDataset) Map.! cleanupEffect
+  externalEffectRevision revisedEffect @?= 2
+  externalEffectStatus revisedEffect @?= EffectProposed
+  externalEffectApprovalGrant revisedEffect @?= Nothing
+
+  completed <- runAppCommand environment False silentProgress (RespondCommand (response revisedApproval "effect.approve")) >>= assertRight >>= interactionOf
+  envelopeOpportunity completed @?= SourceCleanupResultOpportunity [cleanupEffect]
+  finalDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let finalState = loadedState finalDataset
+  externalEffectStatus (stateExternalEffects finalState Map.! cleanupEffect) @?= EffectSucceeded
+  Map.size (stateExternalEffectApprovalGrants finalState) @?= 2
+  requests <- readIORef calls
+  length (filter ((== "DELETE") . brokerHttpMethod) requests) @?= 2
+
+nextAfterRawTriage :: AppEnv -> IO InteractionEnvelope
+nextAfterRawTriage environment = seek (16 :: Int)
+ where
+  seek remaining
+    | remaining <= 0 = assertFailure "source cleanup recovery did not surface after bounded Raw triage deferrals" >> fail "unreachable"
+    | otherwise = do
+        next <- runAppCommand environment False silentProgress NextCommand >>= assertRight >>= interactionOf
+        case envelopeOpportunity next of
+          RawTriageOpportunity{} -> do
+            _ <- runAppCommand environment False silentProgress (RespondCommand (response next "raw.defer-triage")) >>= assertRight
+            seek (remaining - 1)
+          _ -> pure next
+
+factsFor :: AppEnv -> DatasetCursor -> Int -> IO RuntimeFacts
+factsFor environment cursor count = do
+  identities <- replicateM count (appAllocateUUID environment)
+  pure
+    RuntimeFacts
+      { runtimeNow = fixtureTime
+      , runtimeUUIDs = UUIDAllocation . renderUUIDv7 <$> identities
+      , runtimeRandomBlocks = Map.empty
+      , runtimeFilesystem = FilesystemFacts True True (Just (renderCursor cursor))
+      , runtimeTerminal = TerminalCapabilities False False False 80 24 False
+      , runtimeExternalFacts = []
+      }
+
+providerEnvironment :: FilePath -> Int -> PackRunnerClient -> PackRegistry -> PackHttpTransport -> IO AppEnv
+providerEnvironment root seed runner registry transport = do
+  token <- assertRight (accessTokenFromBytes secretToken)
+  integrations <-
+    assertRight (authorizedIntegrations registry [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)])
+  providers <-
+    assertRight
+      ( configuredProviderImportSources
+          [microsoftTodoDefinition]
+          integrations
+          registry
+          (AccessTokenResolver (const (pure (Right token))))
+          transport
+      )
+  counter <- newIORef seed
+  pure
+    AppEnv
+      { appStore = StoreConfig (root </> "dataset") 2_000_000 20_000
+      , appActor = Actor "human" "test"
+      , appNow = pure fixtureTime
+      , appZonedNow = pure (utcToZonedTime utc fixtureTime)
+      , appAllocateUUID = allocateFixtureUUID counter
+      , appExportPort = emptyExportPort
+      , appImportPort = packRegistryImportPortWithProviders runner registry providers
+      , appImportPortProblem = Nothing
+      , appPackRegistryProblem = Nothing
+      , appOfficialPackRemote = Nothing
+      , appProviderConnectionRuntime = Nothing
+      }
+
+prepareCleanup :: AppEnv -> IO InteractionEnvelope
+prepareCleanup environment = do
+  preview <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate True) >>= assertRight >>= interactionOf
+  imported <- runAppCommand environment False silentProgress (RespondCommand (response preview "import.accept")) >>= assertRight >>= interactionOf
+  runAppCommand environment False silentProgress (RespondCommand (response imported "import.cleanup")) >>= assertRight >>= interactionOf
+
+partialCleanupTransport :: IORef [BrokerHttpRequest] -> IORef Int -> PackHttpTransport
+partialCleanupTransport calls secondAttempts = PackHttpTransport $ \credentialed -> do
+  accessTokenBytes (credentialedAccessToken credentialed) @?= secretToken
+  let request = credentialedRequest credentialed
+  modifyIORef' calls (<> [request])
+  case (brokerHttpMethod request, brokerHttpUrl request) of
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists") -> pure (Right oneListResponse)
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks") -> pure (Right twoTaskResponse)
+    ("DELETE", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1") -> pure (Right (BrokerHttpResponse 204 Map.empty (object [])))
+    ("DELETE", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-2") -> do
+      attempt <- atomicModifyIORef' secondAttempts (\count -> (count + 1, count))
+      pure . Right $ if attempt == 0 then BrokerHttpResponse 503 Map.empty (object []) else BrokerHttpResponse 204 Map.empty (object [])
+    _ -> pure (Right (BrokerHttpResponse 404 Map.empty (object [])))
+
+unknownCleanupTransport :: IORef [BrokerHttpRequest] -> PackHttpTransport
+unknownCleanupTransport calls = PackHttpTransport $ \credentialed -> do
+  accessTokenBytes (credentialedAccessToken credentialed) @?= secretToken
+  let request = credentialedRequest credentialed
+  modifyIORef' calls (<> [request])
+  case (brokerHttpMethod request, brokerHttpUrl request) of
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists") -> pure (Right oneListResponse)
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks") -> pure (Right oneTaskResponse)
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1") -> pure (Right (BrokerHttpResponse 404 Map.empty (object [])))
+    ("DELETE", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1") -> pure (Left (appError ExternalFailure "The provider response was lost."))
+    _ -> pure (Right (BrokerHttpResponse 404 Map.empty (object [])))
+
+unknownThenRetryTransport :: IORef [BrokerHttpRequest] -> IORef Int -> PackHttpTransport
+unknownThenRetryTransport calls deleteAttempts = PackHttpTransport $ \credentialed -> do
+  accessTokenBytes (credentialedAccessToken credentialed) @?= secretToken
+  let request = credentialedRequest credentialed
+  modifyIORef' calls (<> [request])
+  case (brokerHttpMethod request, brokerHttpUrl request) of
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists") -> pure (Right oneListResponse)
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks") -> pure (Right oneTaskResponse)
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1") -> pure (Right (BrokerHttpResponse 503 Map.empty (object [])))
+    ("DELETE", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1") -> do
+      attempt <- atomicModifyIORef' deleteAttempts (\count -> (count + 1, count))
+      if attempt == 0
+        then pure (Left (appError ExternalFailure "The provider response was lost."))
+        else pure (Right (BrokerHttpResponse 204 Map.empty (object [])))
+    _ -> pure (Right (BrokerHttpResponse 404 Map.empty (object [])))
+
+oneListResponse :: BrokerHttpResponse
+oneListResponse = jsonResponse (object ["value" .= [object ["id" .= ("list-1" :: Text), "displayName" .= ("Tasks" :: Text)]]])
+
+oneTaskResponse :: BrokerHttpResponse
+oneTaskResponse = taskCollection ["task-1"]
+
+twoTaskResponse :: BrokerHttpResponse
+twoTaskResponse = taskCollection ["task-1", "task-2"]
+
+taskCollection :: [Text] -> BrokerHttpResponse
+taskCollection identities =
+  jsonResponse
+    ( object
+        [ "value"
+            .= [ object
+                   [ "id" .= identity
+                   , "title" .= ("Imported " <> identity)
+                   , "status" .= ("notStarted" :: Text)
+                   , "hasAttachments" .= False
+                   ]
+               | identity <- identities
+               ]
+        ]
+    )
 
 lockedCredential :: Assertion
 lockedCredential = do
@@ -494,10 +826,10 @@ connectorPin =
           { artifactPublisher = "org.littleant.project"
           , artifactName = "org.littleant.official-connectors"
           , artifactVersion = "1.0.0"
-          , artifactManifestDigest = "27bf699a7df346613b31132675aca5f6e510e2bb9e16436ac679cbb11702a4d7"
-          , artifactArchiveDigest = "3e708db5a1861dfda1f008588257faa7339cc8e11b885d29855457a7330fd192"
+          , artifactManifestDigest = "b41e96168276ca7b920178d05f0fd29c12851b9487dcce9152e489307144ddf9"
+          , artifactArchiveDigest = "7ac501769a4592a75fec1fed4a54a8e6b2af5bed057553879374e7d0db6d50a0"
           }
-    , pinSignerFingerprint = "b4be8b7bd0a60ee3d19c70e26ba5b40fd982cd857241b278f7e26cd91d933c51"
-    , pinTrustOrigin = PinVerifiedOfficial 2
+    , pinSignerFingerprint = "0c6e4b153e8f45caf172785dabb493e3694ea14d5573f9f7ae49509002615fbb"
+    , pinTrustOrigin = PinVerifiedOfficial 3
     , pinEnabledComponents = Set.singleton "microsoft_todo"
     }

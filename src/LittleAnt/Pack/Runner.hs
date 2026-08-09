@@ -10,6 +10,7 @@ module LittleAnt.Pack.Runner (
   invokePackSourcePreflightHttp,
   invokePackSourceMaterializeHttp,
   invokePackSourceCleanupItemHttp,
+  invokePackSourceCleanupItemVerifyHttp,
   runPackRunnerMain,
 )
 where
@@ -100,7 +101,12 @@ data RunnerRequest = RunnerRequest
   }
   deriving stock (Eq, Show)
 
-data RunnerOperation = RunnerExport | RunnerSourcePreflight | RunnerSourceMaterialize | RunnerSourceCleanupItem
+data RunnerOperation
+  = RunnerExport
+  | RunnerSourcePreflight
+  | RunnerSourceMaterialize
+  | RunnerSourceCleanupItem
+  | RunnerSourceCleanupItemVerify
   deriving stock (Eq, Show)
 
 data RunnerFailure = RunnerFailure
@@ -187,6 +193,7 @@ runnerOperationName = \case
   RunnerSourcePreflight -> "source_preflight"
   RunnerSourceMaterialize -> "source_materialize"
   RunnerSourceCleanupItem -> "source_cleanup_item"
+  RunnerSourceCleanupItemVerify -> "source_cleanup_item_verify"
 
 parseRunnerOperation :: Text -> Parser RunnerOperation
 parseRunnerOperation = \case
@@ -194,6 +201,7 @@ parseRunnerOperation = \case
   "source_preflight" -> pure RunnerSourcePreflight
   "source_materialize" -> pure RunnerSourceMaterialize
   "source_cleanup_item" -> pure RunnerSourceCleanupItem
+  "source_cleanup_item_verify" -> pure RunnerSourceCleanupItemVerify
   value -> fail ("unknown runner operation: " <> Text.unpack value)
 
 instance ToJSON RunnerExportArtifact where
@@ -410,6 +418,33 @@ invokePackSourceCleanupItemHttp client broker registered source externalIdentity
             )
       ]
 
+invokePackSourceCleanupItemVerifyHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> Value -> Text -> Text -> Maybe Text -> IO (Either AppError SourceCleanupReceipt)
+invokePackSourceCleanupItemVerifyHttp client broker registered source externalIdentity locator containerIdentity =
+  case prepareRequest client registered RunnerSourceCleanupItemVerify Nothing projection of
+    Left problem -> pure (Left problem)
+    Right request -> case sourceInvocationDetails registered of
+      Left problem -> pure (Left problem)
+      Right (_, _, permissions)
+        | SourceCleanupItemPermission `notElem` permissionEffectPurposes permissions ->
+            pure . Left $ runnerProblem PermissionRequired "The SourceAdapter did not declare source_cleanup_item authority." []
+        | otherwise ->
+            invokeRunnerProcessHttp client permissions broker request >>= \case
+              Left problem -> pure (Left problem)
+              Right (artifact, _) -> pure $ decodeSourceCleanupReceipt (runnerArtifactBytes artifact)
+ where
+  projection =
+    object
+      [ "schema" .= ("little-ant/source-cleanup-item-verify-request@1" :: Text)
+      , "source" .= source
+      , "target"
+          .= object
+            ( [ "external_identity" .= externalIdentity
+              , "locator" .= locator
+              ]
+                <> maybe [] (pure . ("container_identity" .=)) containerIdentity
+            )
+      ]
+
 transcriptSourceInput :: Text -> [BrokerHttpExchange] -> Either AppError SourceInput
 transcriptSourceInput label transcript = do
   validateBrokerHttpTranscript transcript
@@ -438,7 +473,7 @@ prepareRequest client registered operation input projection = do
       | operation == RunnerExport && null (permissionProjections permissions) -> Left (runnerProblem CorruptData "The selected exporter declares no input projection." [])
       | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && isJust input && InputBytesCapability `notElem` permissionHostCapabilities permissions -> Left (runnerProblem PermissionRequired "The selected SourceAdapter did not declare the input_bytes host capability." [])
       | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && isNothing input && null (permissionHttp permissions) -> Left (runnerProblem PreconditionFailed "A SourceAdapter invocation requires host-custodied input bytes or signed HTTP permissions." [])
-      | operation == RunnerSourceCleanupItem && (isJust input || null (permissionHttp permissions)) -> Left (runnerProblem PreconditionFailed "A source cleanup invocation requires signed brokered HTTP and no input bytes." [])
+      | operation `elem` [RunnerSourceCleanupItem, RunnerSourceCleanupItemVerify] && (isJust input || null (permissionHttp permissions)) -> Left (runnerProblem PreconditionFailed "A source cleanup invocation requires signed brokered HTTP and no input bytes." [])
       | otherwise -> do
           let payload = registeredComponentPayload registered
           entryBytes <- maybe (Left (runnerProblem CorruptData "The component entry point is absent from its authorized payload." [entry])) Right (Map.lookup entry payload)
@@ -467,11 +502,13 @@ prepareRequest client registered operation input projection = do
     RunnerSourcePreflight -> SourceAdapterComponent
     RunnerSourceMaterialize -> SourceAdapterComponent
     RunnerSourceCleanupItem -> SourceAdapterComponent
+    RunnerSourceCleanupItemVerify -> SourceAdapterComponent
   wrongKindMessage = case operation of
     RunnerExport -> "The selected Pack component is not a read-only exporter."
     RunnerSourcePreflight -> "The selected Pack component is not a SourceAdapter."
     RunnerSourceMaterialize -> "The selected Pack component is not a SourceAdapter."
     RunnerSourceCleanupItem -> "The selected Pack component is not a SourceAdapter."
+    RunnerSourceCleanupItemVerify -> "The selected Pack component is not a SourceAdapter."
 
 validatePayloadSource :: Text -> ByteString -> Either AppError ()
 validatePayloadSource path bytes
@@ -735,6 +772,8 @@ validateRunnerRequest request = do
     (RunnerSourceMaterialize, Nothing) -> unless (requestHttpEnabled request) (Left (runnerProblem CorruptData "A SourceAdapter materialization request has neither input bytes nor brokered HTTP." []))
     (RunnerSourceCleanupItem, Nothing) -> unless (requestHttpEnabled request) (Left (runnerProblem CorruptData "A source cleanup request has no brokered HTTP authority." []))
     (RunnerSourceCleanupItem, Just _) -> Left (runnerProblem CorruptData "A source cleanup request cannot contain source input bytes." [])
+    (RunnerSourceCleanupItemVerify, Nothing) -> unless (requestHttpEnabled request) (Left (runnerProblem CorruptData "A source cleanup verification has no brokered HTTP authority." []))
+    (RunnerSourceCleanupItemVerify, Just _) -> Left (runnerProblem CorruptData "A source cleanup verification cannot contain source input bytes." [])
  where
   validatePayloadPathAndSource (path, payload) = do
     unless (safeRelativePath path) (Left (runnerProblem CorruptData "The runner payload contains an unsafe path." [path]))
@@ -792,6 +831,19 @@ executeLuaRequest request = do
                 { runnerArtifactBytes = bytes
                 , runnerArtifactMediaType = "application/vnd.little-ant.source-cleanup-receipt+json"
                 , runnerArtifactSuggestedFilename = "source-cleanup-receipt.json"
+                , runnerArtifactWarnings = []
+                , runnerArtifactMetadata = Map.singleton "schema" "little-ant/source-cleanup-receipt@1"
+                }
+      RunnerSourceCleanupItemVerify -> do
+        receipt <- Lua.forcePeek (peekSourceCleanupReceipt Lua.top)
+        case canonicalJsonBytes (sourceCleanupReceiptValue receipt) of
+          Left problem -> Lua.failLua (Text.unpack (appErrorMessage problem))
+          Right bytes ->
+            pure
+              RunnerExportArtifact
+                { runnerArtifactBytes = bytes
+                , runnerArtifactMediaType = "application/vnd.little-ant.source-cleanup-receipt+json"
+                , runnerArtifactSuggestedFilename = "source-cleanup-verification.json"
                 , runnerArtifactWarnings = []
                 , runnerArtifactMetadata = Map.singleton "schema" "little-ant/source-cleanup-receipt@1"
                 }
@@ -964,12 +1016,13 @@ peekSourceContainer index = do
 peekSourceCleanupReceipt :: Lua.Peeker Lua.Exception SourceCleanupReceipt
 peekSourceCleanupReceipt index = do
   exactLuaKeys "source cleanup receipt" ["outcome", "provider_reference", "redacted_detail"] index
-  outcome <- Lua.peekFieldRaw Lua.peekText "outcome" index >>= \case
-    "succeeded" -> pure SourceCleanupSucceeded
-    "failed_retryable" -> pure SourceCleanupFailedRetryable
-    "failed_terminal" -> pure SourceCleanupFailedTerminal
-    "outcome_unknown" -> pure SourceCleanupOutcomeUnknown
-    value -> Lua.failPeek (TextEncoding.encodeUtf8 ("unknown source cleanup outcome: " <> value))
+  outcome <-
+    Lua.peekFieldRaw Lua.peekText "outcome" index >>= \case
+      "succeeded" -> pure SourceCleanupSucceeded
+      "failed_retryable" -> pure SourceCleanupFailedRetryable
+      "failed_terminal" -> pure SourceCleanupFailedTerminal
+      "outcome_unknown" -> pure SourceCleanupOutcomeUnknown
+      value -> Lua.failPeek (TextEncoding.encodeUtf8 ("unknown source cleanup outcome: " <> value))
   receipt <-
     SourceCleanupReceipt
       outcome

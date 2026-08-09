@@ -79,8 +79,10 @@ body. Reported attachments whose bytes are absent from Graph remain explicit
 limitations, and migrate requires an explicit incomplete-attachment
 acknowledgment. The public configuration connection, provider-aware CLI import
 paths, generic canonical acceptance, and dumb REPL source selector are
-implemented; separately consented cleanup effects, remaining standard
-importers, Calendar, and local-web UIAdapter remain in this slice.
+implemented. Microsoft To Do item cleanup is now separately proposed only
+after local Raw verification, approved as one exact finite set, and dispatched
+item by item with durable intent and receipts. Remaining standard importers,
+container cleanup, Calendar, and local-web UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
@@ -94,8 +96,8 @@ rotation persists atomically through the vault agent. Production now combines
 the exact standard Pack with all trusted profile pins from the
 content-addressed store and fails the whole registry on unsafe or unavailable
 configured behavior. Official pins additionally require exact replayed catalog
-history. The production generation-zero root and sequence-1 catalog are now
-published, and explicit refresh plus official-name installation expose the
+history. The production generation-zero root and current monotonic catalog are
+now published, and explicit refresh plus official-name installation expose the
 ordinary no-default consent path. `config connect` now binds one reviewed
 account through transient Device Authorization and the encrypted vault; a
 restarted production CLI exposes that account through the same
@@ -128,14 +130,26 @@ match. The Microsoft To Do component is built on this kernel as an exact
 official artifact. Typed credential binding, transport, acquisition, refresh,
 installed-Pack loading, public account connection, production provider import
 routing, contextual REPL orchestration, and canonical provider-material
-acceptance are built. Cleanup-effect dispatch remains to be built.
+acceptance are built. Item cleanup now revalidates the exact signed Pack,
+account, credential binding, import invocation, and target before every
+provider request. A durable `dispatching` state precedes DELETE; interrupted
+or lost responses become `outcome_unknown` and are checked with a read-only
+provider request before any retry. Retryable unchanged idempotent items can
+reuse the original exact approval, while an unknowable result requires a new
+revision, explicit duplicate-risk consent, and ordinary approval again.
+Successful, terminal, rejected, and withdrawn item dispositions retire the
+ImportProfile only when every selected item is terminal. Local imported Raw is
+never removed.
 
 The shared ExternalEffect aggregate is no longer Delegation-shaped. Closed
 typed requests, exact signed-adapter custody, separate payload and record
 versions, the full lifecycle vocabulary, and durable finite-set approval
 grants now provide the common consent boundary for source cleanup and later
-Calendar effects. Cleanup proposal and itemwise dispatch remain the next
-checkpoint.
+Calendar effects. Source cleanup proposal, exact-set approval, itemwise
+dispatch, restart recovery, read-only reconciliation, safe retry, explicit
+duplicate-risk revision, rejection, withdrawal, and terminal profile closure
+are implemented for Microsoft To Do items. Source-container cleanup remains a
+separate later approval boundary.
 
 ## Gate
 

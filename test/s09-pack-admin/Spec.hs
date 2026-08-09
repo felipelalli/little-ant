@@ -345,7 +345,7 @@ officialCatalogRefresh = withHarness $ \base -> do
   refreshed <- run environment False PacksRefreshCommand
   case refreshed of
     ConfigurationResult Genesis "packs_refresh" Nothing [] facts False -> do
-      Map.lookup "catalog_sequence" facts @?= Just "2"
+      Map.lookup "catalog_sequence" facts @?= Just "3"
       Map.lookup "status" facts @?= Just "updated"
     other -> assertFailure ("unexpected catalog refresh result: " <> show other)
   paths <- currentProfilePaths
@@ -391,7 +391,7 @@ officialCatalogInstall = withHarness $ \base -> do
     other -> assertFailure ("expected official install result, got: " <> show other)
   integrations <- loadCurrentIntegrations
   case Map.lookup connectorPackName (Profile.installedComponents integrations) of
-    Just pin -> pinTrustOrigin pin @?= PinVerifiedOfficial 2
+    Just pin -> pinTrustOrigin pin @?= PinVerifiedOfficial 3
     Nothing -> assertFailure "the official release was not pinned"
   assertBool "official install did not add community trust" (Set.null (Profile.trustedPublishers integrations))
   restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
@@ -627,9 +627,9 @@ connectorPublisher = TrustedCommunityPublisher "org.littleant.project" connector
 
 connectorPackName, connectorArchiveDigest, connectorPublicKey, connectorSignerFingerprint :: Text
 connectorPackName = "org.littleant.official-connectors"
-connectorArchiveDigest = "3e708db5a1861dfda1f008588257faa7339cc8e11b885d29855457a7330fd192"
-connectorPublicKey = "T4bADXpORaJjwQT-imlnCn3RNFEX2rbzTvmWIHpKh4Y"
-connectorSignerFingerprint = "b4be8b7bd0a60ee3d19c70e26ba5b40fd982cd857241b278f7e26cd91d933c51"
+connectorArchiveDigest = "7ac501769a4592a75fec1fed4a54a8e6b2af5bed057553879374e7d0db6d50a0"
+connectorPublicKey = "ZXvn2JDsIU11eO31rQO98bMFUBhjNQFORNxt4Jo1jPc"
+connectorSignerFingerprint = "0c6e4b153e8f45caf172785dabb493e3694ea14d5573f9f7ae49509002615fbb"
 
 connectorArchive :: FilePath
 connectorArchive = "packs" </> "official-connectors" </> "official-connectors.lantpack"
@@ -644,7 +644,7 @@ connectorIdentity =
     "org.littleant.project"
     connectorPackName
     "1.0.0"
-    "27bf699a7df346613b31132675aca5f6e510e2bb9e16436ac679cbb11702a4d7"
+    "b41e96168276ca7b920178d05f0fd29c12851b9487dcce9152e489307144ddf9"
     connectorArchiveDigest
 
 withHarness :: (AppEnv -> IO a) -> IO a

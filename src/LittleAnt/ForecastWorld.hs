@@ -71,7 +71,7 @@ data SelectableOpportunity = SelectableOpportunity
   }
   deriving stock (Eq, Show)
 
-data ForecastSubjectKind = BrickSubject | RawSubject
+data ForecastSubjectKind = BrickSubject | RawSubject | ExternalEffectSubject
   deriving stock (Eq, Ord, Show)
 
 data NonBrickEndpoint
@@ -123,10 +123,20 @@ data ForecastSelection
 
 buildForecastWorld :: State -> UTCTime -> [SubjectTicket]
 buildForecastWorld state now =
-  fmap brickTicket active <> fmap archivedReviewTicket reviewableArchived <> fmap rawTicket eligibleRaws
+  fmap brickTicket active
+    <> fmap archivedReviewTicket reviewableArchived
+    <> fmap rawTicket eligibleRaws
+    <> fmap sourceEffectTicket reviewableSourceEffects
  where
   active = sortOn brickId (filter (\brick -> not (coolingDown brick) && temporalGateOpen state now brick) (activeBricks state))
   eligibleRaws = sortOn rawId (inboxRaws state)
+  reviewableSourceEffects =
+    sortOn
+      externalEffectId
+      [ effect
+      | effect <- Map.elems (stateExternalEffects state)
+      , sourceCleanupNeedsReview effect
+      ]
   reviewableArchived =
     sortOn (brickId . fst) $
       mapMaybe
@@ -190,6 +200,33 @@ buildForecastWorld state now =
               [ForecastSignal AvailabilitySignal (Fixed 150_000) "new Inbox Raw triage"]
           ]
       }
+  sourceEffectTicket effect =
+    SubjectTicket
+      { ticketIdentity = externalEffectId effect
+      , ticketKind = ExternalEffectSubject
+      , ticketParent = Nothing
+      , ticketSiblingPosition = Nothing
+      , ticketImportanceConfidence = Fixed 0
+      , ticketNegativeSignals = []
+      , ticketDomainPaths = []
+      , ticketChildren = []
+      , ticketDependencies = []
+      , ticketOpportunities =
+          [ SelectableOpportunity
+              (renderUUIDv7 (externalEffectId effect) <> ":" <> kindName kind)
+              kind
+              [ForecastSignal ReviewConsequenceSignal strength explanation]
+          ]
+      }
+   where
+    (kind, strength, explanation) = case externalEffectStatus effect of
+      EffectProposed -> (ExternalEffectApprovalOpportunity, Fixed 400_000, "Source cleanup awaits exact approval")
+      EffectApproved -> (ExternalEffectRecoveryOpportunity, Fixed 700_000, "Approved source cleanup is pending dispatch")
+      EffectDispatching -> (ExternalEffectRecoveryOpportunity, Fixed 900_000, "Source cleanup dispatch was interrupted")
+      EffectFailedRetryable -> (ExternalEffectRecoveryOpportunity, Fixed 650_000, "Source cleanup can be retried safely")
+      EffectFailedTerminal -> (ExternalEffectRecoveryOpportunity, Fixed 250_000, "Source cleanup failed terminally")
+      EffectOutcomeUnknown -> (ExternalEffectRecoveryOpportunity, Fixed 850_000, "Source cleanup outcome needs verification")
+      _ -> (ExternalEffectRecoveryOpportunity, Fixed 0, "Source cleanup is not actionable")
   archivedReviewTicket (brick, claims) =
     SubjectTicket
       { ticketIdentity = brickId brick
@@ -217,6 +254,17 @@ buildForecastWorld state now =
     any
       (\deferral -> workDeferralBrick deferral == brickId brick && maybe False (> now) (workDeferralCooldownUntil deferral))
       (Map.elems (stateWorkDeferrals state))
+  sourceCleanupNeedsReview effect = case externalEffectRequest effect of
+    SourceCleanupItemRequest _ target ->
+      profileActive target
+        && case externalEffectStatus effect of
+          EffectProposed -> maybe True ((<= now) . zonedInstantUtc) (externalEffectReviewNotBefore effect)
+          status -> status `elem` [EffectApproved, EffectDispatching, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]
+    _ -> False
+  profileActive target =
+    case Map.lookup (cleanupItemImportInvocation target) (stateImportInvocations state) >>= (\invocation -> Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state)) of
+      Just profile -> importProfileLifecycle profile == ImportProfileActive
+      Nothing -> False
   deferralSignals brick =
     case length [() | deferral <- Map.elems (stateWorkDeferrals state), workDeferralBrick deferral == brickId brick] of
       0 -> []

@@ -69,6 +69,7 @@ module LittleAnt.Interaction (
   makeExternalEffectApprovalEnvelope,
   makeSourceCleanupApprovalEnvelope,
   makeSourceCleanupResultEnvelope,
+  makeSourceCleanupRiskEnvelope,
   makeExternalEffectRecoveryEnvelope,
   makeExternalEffectDuplicateRiskEnvelope,
   makeExternalEffectEditEnvelope,
@@ -438,6 +439,7 @@ data Opportunity
   | DelegationResultOpportunity UUIDv7 Text
   | ExternalEffectApprovalScreenOpportunity [UUIDv7]
   | SourceCleanupResultOpportunity [UUIDv7]
+  | SourceCleanupRiskOpportunity [UUIDv7]
   | ExternalEffectRecoveryScreenOpportunity UUIDv7
   | ExternalEffectDuplicateRiskOpportunity UUIDv7
   | ExternalEffectEditOpportunity UUIDv7 Text
@@ -3149,18 +3151,63 @@ makeSourceCleanupResultEnvelope identity cursor precondition now state effects =
         [ "Deleted: " <> count EffectSucceeded
         , "Retryable failures: " <> count EffectFailedRetryable
         , "Terminal failures: " <> count EffectFailedTerminal
+        , "Interrupted attempts: " <> count EffectDispatching
         , "Unknown outcomes: " <> count EffectOutcomeUnknown
         , "Approved and still pending: " <> count EffectApproved
         , "Verified local Raws remain preserved."
         ]
         Nothing
     )
-    [Action "next" "next" "n" False "Return to the ordinary opportunity forecast.", Action "effect.inspect" "inspect items" "i" False "Show every item outcome and redacted receipt.", moreAction]
+    actions
     [helpCommand, exitCommand]
     Nothing
     (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
  where
   count status = Text.pack . show . length $ filter ((== status) . externalEffectStatus) effects
+  has status = any ((== status) . externalEffectStatus) effects
+  actions =
+    [Action "effect.cleanup.proceed" "proceed with approved items" "p" False "Continue only the already approved item effects." | has EffectApproved]
+      <> [Action "effect.cleanup.check" "check interrupted attempts" "c" False "Record interrupted dispatches as unknown, then verify them read-only." | has EffectDispatching]
+      <> [Action "effect.cleanup.retry" "retry safe failures" "r" False "Retry only unchanged idempotent item effects under their existing approval." | has EffectFailedRetryable]
+      <> [Action "effect.cleanup.verify" "verify unknown outcomes" "v" False "Ask the adapter to inspect provider truth without mutating it." | has EffectOutcomeUnknown]
+      <> [Action "effect.cleanup.retry-risk" "attempt again with risk" "a" False "Review a new revision when provider truth remains unknowable." | has EffectOutcomeUnknown]
+      <> [Action "effect.cleanup.stop" "stop unknown recovery" "s" False "Withdraw unknown item effects without claiming success." | has EffectOutcomeUnknown]
+      <> [ Action "next" "next" "n" False "Return to the ordinary opportunity forecast."
+         , Action "effect.inspect" "inspect items" "i" False "Show every item outcome and redacted receipt."
+         , moreAction
+         ]
+
+makeSourceCleanupRiskEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> EffectAdapterCustody -> [ExternalEffect] -> InteractionEnvelope
+makeSourceCleanupRiskEnvelope identity cursor precondition now state custody effects =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (SourceCleanupRiskOpportunity (sortOn id (externalEffectId <$> effects)))
+    ( EnvelopeContent
+        question
+        Nothing
+        [ "Source: " <> effectAdapterProviderAccount custody
+        , "Items with unknown outcomes: " <> count
+        , "Provider truth could not be established. Repeating a deletion may repeat an outside action."
+        , "Yes creates new effect revisions; the exact cleanup set still needs ordinary approval before dispatch."
+        , "Nothing has been retried yet."
+        ]
+        Nothing
+    )
+    [ Action "effect.cleanup.risk.accept" "yes" "y" False "Create new proposed revisions with explicit duplicate-risk custody."
+    , Action "effect.cleanup.risk.reject" "no" "n" False "Keep every outcome unknown and perform no provider I/O."
+    , Action "effect.cleanup.risk.unknown" "I don't know" "?" False "Explain why unknown provider truth needs separate consent."
+    , moreAction
+    ]
+    [helpCommand, exitCommand]
+    (Just "understand_source_cleanup_unknown_outcome")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  count = Text.pack (show (length effects))
+  question = if length effects == 1 then "Attempt this cleanup again despite the unknown outcome?" else "Attempt these " <> count <> " cleanups again despite unknown outcomes?"
 
 makeExternalEffectResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ExternalEffect -> Text -> InteractionEnvelope
 makeExternalEffectResultEnvelope identity cursor precondition now state brick effect message =
@@ -4239,6 +4286,7 @@ opportunityValue = \case
   DelegationResultOpportunity identity result -> typed "delegation_result" ["delegation_id" .= renderUUIDv7 identity, "result" .= result]
   ExternalEffectApprovalScreenOpportunity identities -> typed "external_effect_approval" ["effect_ids" .= fmap renderUUIDv7 identities]
   SourceCleanupResultOpportunity identities -> typed "source_cleanup_result" ["effect_ids" .= fmap renderUUIDv7 identities]
+  SourceCleanupRiskOpportunity identities -> typed "source_cleanup_risk" ["effect_ids" .= fmap renderUUIDv7 identities]
   ExternalEffectRecoveryScreenOpportunity identity -> typed "external_effect_recovery" ["effect_id" .= renderUUIDv7 identity]
   ExternalEffectDuplicateRiskOpportunity identity -> typed "external_effect_duplicate_risk" ["effect_id" .= renderUUIDv7 identity]
   ExternalEffectEditOpportunity identity draft -> typed "external_effect_edit" ["effect_id" .= renderUUIDv7 identity, "draft" .= draft]
@@ -4437,6 +4485,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "delegation_result" -> DelegationResultOpportunity <$> uuidField value "delegation_id" <*> value .: "result"
     "external_effect_approval" -> ExternalEffectApprovalScreenOpportunity <$> (value .: "effect_ids" >>= traverse parseUuid)
     "source_cleanup_result" -> SourceCleanupResultOpportunity <$> (value .: "effect_ids" >>= traverse parseUuid)
+    "source_cleanup_risk" -> SourceCleanupRiskOpportunity <$> (value .: "effect_ids" >>= traverse parseUuid)
     "external_effect_recovery" -> ExternalEffectRecoveryScreenOpportunity <$> uuidField value "effect_id"
     "external_effect_duplicate_risk" -> ExternalEffectDuplicateRiskOpportunity <$> uuidField value "effect_id"
     "external_effect_edit" -> ExternalEffectEditOpportunity <$> uuidField value "effect_id" <*> value .: "draft"

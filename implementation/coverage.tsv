@@ -54,7 +54,7 @@ gate	flow	owner_slice	status	evidence
 8	`/translate`	S09	planned	-
 8	Delegation lifecycle	S08	planned	-
 8	Profiles, preferences, and credential vault	S08	planned	-
-8	Import/migrate/erase source	S09	implemented	S09-plain-text-import,S09-taskjuggler-actuals-preflight
+8	Import/migrate/erase source	S09	implemented	S09-plain-text-import,S09-taskjuggler-actuals-preflight,S09-microsoft-todo-item-cleanup
 8	Calendar observe/write	S09	planned	-
 8	Local web UIAdapter	S11	planned	-
 8	Pack trust/install/update/remove	S09	planned	-

@@ -323,6 +323,6 @@ connectorIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.official-connectors"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "27bf699a7df346613b31132675aca5f6e510e2bb9e16436ac679cbb11702a4d7"
-    , artifactArchiveDigest = "3e708db5a1861dfda1f008588257faa7339cc8e11b885d29855457a7330fd192"
+    , artifactManifestDigest = "b41e96168276ca7b920178d05f0fd29c12851b9487dcce9152e489307144ddf9"
+    , artifactArchiveDigest = "7ac501769a4592a75fec1fed4a54a8e6b2af5bed057553879374e7d0db6d50a0"
     }

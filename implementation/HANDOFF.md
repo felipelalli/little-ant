@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **df25bec**
-(`feat(import): accept verified provider material`). The current milestone
-generalizes the external-effect protocol and makes finite-set approval durable
-before source cleanup is introduced. This file stays editable between
-milestone commits.
+Baseline at the start of the current milestone: **cc978ec**
+(`feat(import): checkpoint verified source cleanup`). The current milestone
+makes source cleanup resumable item by item, reconciles unknown outcomes before
+retry, and closes the ImportProfile only after every selected item has a
+terminal disposition. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -36,6 +36,12 @@ milestone commits.
   Delegation from skip diagnosis through observed handoff;
 - effect edit, defer, reject, approval, durable dispatch intent, and receipt
   transitions, with deferred effects excluded from the forecast.
+- Microsoft To Do item cleanup after verified migration, with one effect per
+  exact selected object, finite-set approval, durable intent before DELETE,
+  partial-progress preservation, restart recovery, read-only reconciliation,
+  safe unchanged retries, explicit duplicate-risk revisions, and terminal
+  profile closure. Every dispatch rechecks signed Pack, account, credential,
+  invocation, and target custody; local imported Raw is always retained.
 - `lant doctor` runs before ordinary replay and auto-tick, reports the last
   valid cursor and event count, and identifies the first malformed event by
   canonical segment, physical JSONL line, and byte offset without mutating the
@@ -414,11 +420,15 @@ adaptive Microsoft Graph list/task pagination, canonical provider identity and
 URL encoding, sparse-preview privacy, complete structured-Raw materialization,
 completed-task opt-in, guarded partial attachment migration, and denial of a
 provider-controlled `nextLink` before a second broker call.
-The dedicated provider-host suite has 8 cases covering typed integration-state
+The dedicated provider-host suite has 14 cases covering typed integration-state
 round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
-defense-in-depth route checks before credential resolution. It also verifies
+defense-in-depth route checks before credential resolution. Cleanup simulations
+cover partial item failure and safe retry, lost responses reconciled as absent,
+restart from durable dispatch intent, authority drift before DELETE, exact-set
+rejection, and an unknowable result requiring a new duplicate-risk revision and
+approval. The suite also verifies
 that multiple configured accounts remain separate, human-labeled catalog rows
 with exact source references. Its full application path accepts one verified
 Microsoft To Do task as structured Raw truth and proves an exact retry is
@@ -466,7 +476,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement separately previewed cleanup effects so migration cannot turn
-verified local custody into implicit provider deletion. Explicit Pack
-update/remove/GC remain, as do Google Calendar, remaining standard importers,
-and the local web UIAdapter. The complete S09 gate still precedes `verified`.
+Next, keep source-container cleanup as its own later destructive approval and
+complete the remaining standard importers. Explicit Pack update/remove/GC,
+Google Calendar, and the local web UIAdapter also remain. The complete S09 gate
+still precedes `verified`.

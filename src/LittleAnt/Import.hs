@@ -20,7 +20,7 @@ import Data.Text qualified as Text
 import Data.Time (defaultTimeLocale, formatTime)
 import LittleAnt.Error
 import LittleAnt.Model (EffectAdapterCustody (..), SourceCleanupItemTarget (..), SourceMode (..))
-import LittleAnt.Pack.Format (EffectPermission (SourceCleanupItemPermission), PackComponent (..), componentCommon, componentContractMajor, componentId, permissionEffectPurposes)
+import LittleAnt.Pack.Format (EffectPermission (SourceCleanupItemPermission), PackComponent (..), componentContractMajor, componentId, permissionEffectPurposes)
 import LittleAnt.Pack.Http (PackHttpBroker)
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
@@ -72,6 +72,7 @@ data ImportPort = ImportPort
   , importPortMaterialize :: Text -> SourceMode -> IO (Either AppError ImportMaterialization)
   , importPortCleanupCustody :: Text -> Either AppError EffectAdapterCustody
   , importPortCleanupItem :: EffectAdapterCustody -> SourceCleanupItemTarget -> IO (Either AppError SourceCleanupReceipt)
+  , importPortVerifyCleanupItem :: EffectAdapterCustody -> SourceCleanupItemTarget -> IO (Either AppError SourceCleanupReceipt)
   }
 
 emptyImportPort :: ImportPort
@@ -81,6 +82,7 @@ emptyImportPort =
     (\source _ -> pure . Left $ unavailable source)
     (\source _ -> pure . Left $ unavailable source)
     (Left . unavailable)
+    (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
     (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
  where
   unavailable source =
@@ -100,6 +102,7 @@ packRegistryImportPortWithProviders runner registry providers =
     materialize
     cleanupCustody
     cleanupItem
+    verifyCleanupItem
  where
   preflight source mode = case providersFor source of
     [provider] -> preflightProvider provider mode
@@ -154,6 +157,23 @@ packRegistryImportPortWithProviders runner registry providers =
           | currentCustody /= suppliedCustody -> pure . Left $ cleanupAuthorityChanged suppliedCustody
           | otherwise ->
               invokePackSourceCleanupItemHttp
+                runner
+                (providerImportBroker provider)
+                component
+                (providerImportConfiguration provider)
+                (cleanupItemExternalIdentity target)
+                (cleanupItemLocator target)
+                (cleanupItemContainerIdentity target)
+    [] -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+    _ -> pure . Left $ sourceProblem CorruptData "Several current provider bindings claim one cleanup authority."
+  verifyCleanupItem suppliedCustody target = case matchingCleanupProviders suppliedCustody of
+    [(provider, component)] ->
+      case makeCleanupCustody provider component of
+        Left problem -> pure (Left problem)
+        Right currentCustody
+          | currentCustody /= suppliedCustody -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+          | otherwise ->
+              invokePackSourceCleanupItemVerifyHttp
                 runner
                 (providerImportBroker provider)
                 component

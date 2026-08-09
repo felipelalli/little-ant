@@ -1013,9 +1013,14 @@ applyExternalEffectReceiptRecorded state receipt = do
   when (Map.member (externalEffectReceiptId receipt) (stateExternalEffectReceipts state)) $
     corrupt "An ExternalEffect receipt UUID is repeated in canonical history."
   effect <- maybe (corrupt "An ExternalEffect receipt references a missing effect.") Right (Map.lookup (externalEffectReceiptEffect receipt) (stateExternalEffects state))
-  unless (externalEffectStatus effect == EffectDispatching) $ corrupt "A provider receipt requires a durably dispatching ExternalEffect."
-  unless (externalEffectReceiptOutcome receipt `elem` [EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $
-    corrupt "An ExternalEffect receipt has an invalid provider outcome."
+  unless (externalEffectStatus effect `elem` [EffectDispatching, EffectOutcomeUnknown]) $
+    corrupt "A provider receipt requires a durably dispatching or outcome-unknown ExternalEffect."
+  let allowedOutcomes = case externalEffectStatus effect of
+        EffectDispatching -> [EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]
+        EffectOutcomeUnknown -> [EffectSucceeded, EffectFailedRetryable, EffectOutcomeUnknown]
+        _ -> []
+  unless (externalEffectReceiptOutcome receipt `elem` allowedOutcomes) $
+    corrupt "An ExternalEffect receipt has an invalid provider outcome for its current state."
   let resolved = effect{externalEffectRecordVersion = externalEffectRecordVersion effect + 1, externalEffectStatus = externalEffectReceiptOutcome receipt}
   pure . bump $
     state
