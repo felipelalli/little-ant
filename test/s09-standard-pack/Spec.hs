@@ -21,6 +21,7 @@ import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
 import LittleAnt.Pack.Standard
 import LittleAnt.Pack.Trust
+import LittleAnt.Source
 import LittleAnt.Store
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.Exit (ExitCode (..))
@@ -36,10 +37,11 @@ main =
     testGroup
       "S09 offline standard Pack"
       [ testCase "the committed source tree reconstructs the exact signed archive" canonicalArchive
-      , testCase "the exact compiled identity grants only the six built-in exporters" builtInRegistry
+      , testCase "the exact compiled identity grants the six exporters and plain-text SourceAdapter" builtInRegistry
       , testCase "tree, Org, and self-contained HTML match reviewed fixtures" reviewedFixtures
       , testCase "aligned table and RFC 4180 CSV preserve structural data" structuredTextFormats
       , testCase "the core planning cut produces valid TaskJuggler syntax" taskJugglerPlanningCut
+      , testCase "the plain-text SourceAdapter summarizes one whole file for Raw preservation" plainTextSourceAdapter
       ]
 
 canonicalArchive :: Assertion
@@ -62,8 +64,8 @@ builtInRegistry = do
   let registered = registryComponents registry
   Set.fromList (componentId . componentCommon . registeredComponent <$> registered) @?= standardPackComponentIds
   assertBool
-    "the standard structural components must all be read-only exporters"
-    (all ((== ReadOnlyExporterComponent) . componentKind . componentCommon . registeredComponent) registered)
+    "the standard Pack exposed an unexpected executable component kind"
+    (all ((`elem` [ReadOnlyExporterComponent, SourceAdapterComponent]) . componentKind . componentCommon . registeredComponent) registered)
   client <- fixtureClient
   exportPortCatalog (packRegistryExportPort client registry)
     @?= [ ExportDescriptor "csv" "Csv" "csv" "little-ant/structure@1"
@@ -73,6 +75,25 @@ builtInRegistry = do
         , ExportDescriptor "taskjuggler" "TaskJuggler" "taskjuggler" "little-ant/taskjuggler@1"
         , ExportDescriptor "tree" "Tree" "tree" "little-ant/structure@1"
         ]
+
+plainTextSourceAdapter :: Assertion
+plainTextSourceAdapter = do
+  client <- fixtureClient
+  scope <- assertRight (mkProfileScope "default")
+  registry <- loadStandardPackRegistry fixtureTime scope >>= assertRight
+  registered <- assertRight (lookupPackComponent "plain_text" registry)
+  let bytes = "First line\nSecond line\n"
+      input = SourceInput "ideas.txt" "text/plain; charset=utf-8" bytes
+  preflight <- invokePackSourcePreflight client registered SourceMigrate input >>= assertRight
+  sourcePreflightInputDigest preflight @?= sha256Hex bytes
+  observedSourceLabel (sourcePreflightObservation preflight) @?= "Plain text file"
+  observedCleanupSupported (sourcePreflightObservation preflight) @?= False
+  case observedObjects (sourcePreflightObservation preflight) of
+    [sourceObject] -> do
+      sourceObjectTitle sourceObject @?= "ideas.txt"
+      sourceObjectShape sourceObject @?= SourceNoteShape
+      sourceObjectMaterial sourceObject @?= summarizeSourceMaterial (SourceTextMaterial "First line\nSecond line\n")
+    other -> assertFailure ("unexpected plain-text objects: " <> show other)
 
 reviewedFixtures :: Assertion
 reviewedFixtures = do

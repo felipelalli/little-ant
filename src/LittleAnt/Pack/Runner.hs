@@ -5,6 +5,7 @@ module LittleAnt.Pack.Runner (
   defaultPackRunnerClient,
   RunnerExportArtifact (..),
   invokePackExporter,
+  invokePackSourcePreflight,
   runPackRunnerMain,
 )
 where
@@ -24,6 +25,7 @@ import Data.Char (isAscii, isAsciiLower, isAsciiUpper, isDigit)
 import Data.List (find)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -33,9 +35,12 @@ import Data.Text.IO qualified as TextIO
 import GHC.Clock (getMonotonicTimeNSec)
 import HsLua qualified as Lua
 import LittleAnt.Error
+import LittleAnt.Model (SourceMode (..))
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Trust
+import LittleAnt.Source
+import LittleAnt.Store (sha256Hex)
 import System.Directory (doesFileExist, executable, findExecutable, getPermissions)
 import System.Environment (getExecutablePath)
 import System.Exit (ExitCode (..))
@@ -76,8 +81,13 @@ data RunnerRequest = RunnerRequest
   , requestEntryPoint :: Text
   , requestPayload :: Map Text ByteString
   , requestProjection :: Value
+  , requestOperation :: RunnerOperation
+  , requestInputBytes :: Maybe ByteString
   , requestMaximumArtifactBytes :: Int
   }
+  deriving stock (Eq, Show)
+
+data RunnerOperation = RunnerExport | RunnerSourcePreflight
   deriving stock (Eq, Show)
 
 data RunnerFailure = RunnerFailure
@@ -121,7 +131,7 @@ defaultPackRunnerClient = do
 
 instance ToJSON RunnerRequest where
   toJSON request =
-    object
+    object $
       [ "schema" .= ("little-ant/pack-runner-request@1" :: Text)
       , "artifact" .= requestArtifact request
       , "signer_fingerprint" .= requestSignerFingerprint request
@@ -130,12 +140,14 @@ instance ToJSON RunnerRequest where
       , "entry_point" .= requestEntryPoint request
       , "payload" .= fmap encodeBytes (requestPayload request)
       , "projection" .= requestProjection request
+      , "operation" .= runnerOperationName (requestOperation request)
       , "maximum_artifact_bytes" .= requestMaximumArtifactBytes request
       ]
+        <> maybe [] (pure . ("input_bytes" .=) . encodeBytes) (requestInputBytes request)
 
 instance FromJSON RunnerRequest where
   parseJSON = withObject "RunnerRequest" $ \fields -> do
-    rejectUnknown fields ["schema", "artifact", "signer_fingerprint", "component_id", "contract_major", "entry_point", "payload", "projection", "maximum_artifact_bytes"]
+    rejectUnknown fields ["schema", "artifact", "signer_fingerprint", "component_id", "contract_major", "entry_point", "payload", "projection", "operation", "input_bytes", "maximum_artifact_bytes"]
     requireSchema fields "little-ant/pack-runner-request@1"
     encodedPayload <- fields .: "payload"
     payload <- traverse (either fail pure . decodeBytes) encodedPayload
@@ -147,7 +159,20 @@ instance FromJSON RunnerRequest where
       <*> fields .: "entry_point"
       <*> pure payload
       <*> fields .: "projection"
+      <*> (fields .: "operation" >>= parseRunnerOperation)
+      <*> (fields .:? "input_bytes" >>= traverse (either fail pure . decodeBytes))
       <*> fields .: "maximum_artifact_bytes"
+
+runnerOperationName :: RunnerOperation -> Text
+runnerOperationName = \case
+  RunnerExport -> "export"
+  RunnerSourcePreflight -> "source_preflight"
+
+parseRunnerOperation :: Text -> Parser RunnerOperation
+parseRunnerOperation = \case
+  "export" -> pure RunnerExport
+  "source_preflight" -> pure RunnerSourcePreflight
+  value -> fail ("unknown runner operation: " <> Text.unpack value)
 
 instance ToJSON RunnerExportArtifact where
   toJSON artifact =
@@ -203,23 +228,57 @@ instance FromJSON RunnerResponse where
 
 invokePackExporter :: PackRunnerClient -> RegisteredPackComponent -> Value -> IO (Either AppError RunnerExportArtifact)
 invokePackExporter client registered projection =
-  case prepareRequest client registered projection of
+  case prepareRequest client registered RunnerExport Nothing projection of
     Left problem -> pure (Left problem)
     Right request -> case canonicalJsonBytes (toJSON request) of
       Left problem -> pure (Left problem)
       Right requestBytes -> invokeRunnerProcess client requestBytes
 
-prepareRequest :: PackRunnerClient -> RegisteredPackComponent -> Value -> Either AppError RunnerRequest
-prepareRequest client registered projection = do
+invokePackSourcePreflight :: PackRunnerClient -> RegisteredPackComponent -> SourceMode -> SourceInput -> IO (Either AppError SourcePreflight)
+invokePackSourcePreflight client registered mode input =
+  case prepareRequest client registered RunnerSourcePreflight (Just (sourceInputBytes input)) projection of
+    Left problem -> pure (Left problem)
+    Right request -> case canonicalJsonBytes (toJSON request) of
+      Left problem -> pure (Left problem)
+      Right requestBytes ->
+        invokeRunnerProcess client requestBytes >>= \case
+          Left problem -> pure (Left problem)
+          Right artifact -> pure $ do
+            observation <- decodeSourceObservation (runnerArtifactBytes artifact)
+            makeSourcePreflight
+              (componentId (componentCommon (registeredComponent registered)))
+              (registeredPackIdentity registered)
+              (registeredSignerFingerprint registered)
+              mode
+              input
+              observation
+ where
+  projection =
+    object
+      [ "schema" .= ("little-ant/source-preflight-request@1" :: Text)
+      , "mode" .= sourceModeName mode
+      , "input"
+          .= object
+            [ "label" .= sourceInputLabel input
+            , "media_type" .= sourceInputMediaType input
+            , "digest" .= sha256Hex (sourceInputBytes input)
+            , "byte_count" .= ByteString.length (sourceInputBytes input)
+            ]
+      ]
+
+prepareRequest :: PackRunnerClient -> RegisteredPackComponent -> RunnerOperation -> Maybe ByteString -> Value -> Either AppError RunnerRequest
+prepareRequest client registered operation input projection = do
   validateClientLimits (packRunnerLimits client)
   case registeredComponent registered of
     ExecutableComponent common entry permissions
-      | componentKind common /= ReadOnlyExporterComponent -> Left (runnerProblem Unsupported "The selected Pack component is not a read-only exporter." [])
-      | componentContractMajor common /= 1 -> Left (runnerProblem Unsupported "The selected exporter uses an unsupported host contract major." [Text.pack (show (componentContractMajor common))])
-      | null (permissionProjections permissions) -> Left (runnerProblem CorruptData "The selected exporter declares no input projection." [])
+      | componentKind common /= expectedKind -> Left (runnerProblem Unsupported wrongKindMessage [])
+      | componentContractMajor common /= 1 -> Left (runnerProblem Unsupported "The selected component uses an unsupported host contract major." [Text.pack (show (componentContractMajor common))])
+      | operation == RunnerExport && null (permissionProjections permissions) -> Left (runnerProblem CorruptData "The selected exporter declares no input projection." [])
+      | operation == RunnerSourcePreflight && InputBytesCapability `notElem` permissionHostCapabilities permissions -> Left (runnerProblem PermissionRequired "The selected SourceAdapter did not declare the input_bytes host capability." [])
+      | operation == RunnerSourcePreflight && isNothing input -> Left (runnerProblem PreconditionFailed "A file SourceAdapter preflight requires host-custodied input bytes." [])
       | otherwise -> do
           let payload = registeredComponentPayload registered
-          entryBytes <- maybe (Left (runnerProblem CorruptData "The exporter entry point is absent from its authorized payload." [entry])) Right (Map.lookup entry payload)
+          entryBytes <- maybe (Left (runnerProblem CorruptData "The component entry point is absent from its authorized payload." [entry])) Right (Map.lookup entry payload)
           validateLuaSource entry entryBytes
           mapM_ (uncurry validatePayloadSource) (Map.toAscList payload)
           let limits = packRunnerLimits client
@@ -232,9 +291,14 @@ prepareRequest client registered projection = do
               , requestEntryPoint = entry
               , requestPayload = payload
               , requestProjection = projection
+              , requestOperation = operation
+              , requestInputBytes = input
               , requestMaximumArtifactBytes = runnerMaximumArtifactBytes limits
               }
     _ -> Left (runnerProblem Unsupported "Declarative Pack components cannot execute in the Lua runner." [])
+ where
+  expectedKind = case operation of RunnerExport -> ReadOnlyExporterComponent; RunnerSourcePreflight -> SourceAdapterComponent
+  wrongKindMessage = case operation of RunnerExport -> "The selected Pack component is not a read-only exporter."; RunnerSourcePreflight -> "The selected Pack component is not a SourceAdapter."
 
 validatePayloadSource :: Text -> ByteString -> Either AppError ()
 validatePayloadSource path bytes
@@ -322,7 +386,7 @@ decodeProcessOutcome maximumArtifactBytes (exitCode, stdoutResult, stderrResult)
   response <- decodeCanonicalResponse output
   case response of
     RunnerSucceeded artifact -> validateRunnerArtifact maximumArtifactBytes artifact >> Right artifact
-    RunnerFailed failure -> Left (runnerProblem ExternalFailure "The Pack exporter failed in the isolated runner." [runnerFailureKind failure, runnerFailureMessage failure])
+    RunnerFailed failure -> Left (runnerProblem ExternalFailure "The Pack component failed in the isolated runner." [runnerFailureKind failure, runnerFailureMessage failure])
 
 flattenRead :: Text -> Either SomeException (Either () ByteString) -> Either AppError ByteString
 flattenRead label = \case
@@ -342,6 +406,13 @@ decodeCanonicalResponse bytes = do
   unless (canonical == bytes) (Left (runnerProblem CorruptData "The Pack runner response is not canonical JSON." []))
   either (\problem -> Left (runnerProblem CorruptData "The Pack runner response violates its closed schema." [Text.pack problem])) Right (parseEither parseJSON value)
 
+decodeSourceObservation :: ByteString -> Either AppError SourceAdapterObservation
+decodeSourceObservation bytes = do
+  value <- either (\problem -> Left (runnerProblem CorruptData "The SourceAdapter returned invalid JSON." [Text.pack problem])) Right (eitherDecodeStrict' bytes)
+  canonical <- canonicalJsonBytes value
+  unless (canonical == bytes) (Left (runnerProblem CorruptData "The SourceAdapter observation is not canonical JSON." []))
+  either (\problem -> Left (runnerProblem CorruptData "The SourceAdapter observation violates its closed schema." [Text.pack problem])) Right (parseEither parseJSON value)
+
 runPackRunnerMain :: IO ()
 runPackRunnerMain = do
   mapM_ (`hSetBinaryMode` True) [stdin, stdout, stderr]
@@ -359,7 +430,7 @@ executeEncodedRequest :: ByteString -> IO RunnerResponse
 executeEncodedRequest bytes = case decodeCanonicalRequest bytes of
   Left problem -> pure (RunnerFailed (failureFromError "invalid_request" problem))
   Right request -> do
-    result <- try (executeLuaExporter request)
+    result <- try (executeLuaRequest request)
     pure $ case result of
       Left problem -> RunnerFailed (RunnerFailure "lua_failure" (boundedException (problem :: SomeException)))
       Right (Left problem) -> RunnerFailed (failureFromError "invalid_result" problem)
@@ -377,31 +448,50 @@ decodeCanonicalRequest bytes = do
 validateRunnerRequest :: RunnerRequest -> Either AppError ()
 validateRunnerRequest request = do
   validateDigest "The request signer fingerprint" (requestSignerFingerprint request)
-  unless (requestContractMajor request == 1) (Left (runnerProblem Unsupported "The runner supports only exporter contract major 1." []))
+  unless (requestContractMajor request == 1) (Left (runnerProblem Unsupported "The runner supports only component contract major 1." []))
   unless (validComponentId (requestComponentId request)) (Left (runnerProblem CorruptData "The runner component ID is invalid." []))
   unless (safeRelativePath (requestEntryPoint request) && ".lua" `Text.isSuffixOf` requestEntryPoint request) (Left (runnerProblem CorruptData "The runner entry point is unsafe or is not Lua source." []))
   unless (requestMaximumArtifactBytes request > 0 && requestMaximumArtifactBytes request <= runnerMaximumArtifactBytes factoryPackRunnerLimits) (Left (runnerProblem CorruptData "The runner artifact limit exceeds its factory ceiling." []))
   entry <- maybe (Left (runnerProblem CorruptData "The runner entry point is missing from the payload." [])) Right (Map.lookup (requestEntryPoint request) (requestPayload request))
   validateLuaSource (requestEntryPoint request) entry
   mapM_ validatePayloadPathAndSource (Map.toAscList (requestPayload request))
+  case (requestOperation request, requestInputBytes request) of
+    (RunnerExport, Nothing) -> pure ()
+    (RunnerExport, Just _) -> Left (runnerProblem CorruptData "An exporter request cannot contain source input bytes." [])
+    (RunnerSourcePreflight, Just _) -> pure ()
+    (RunnerSourcePreflight, Nothing) -> Left (runnerProblem CorruptData "A SourceAdapter preflight request is missing its input bytes." [])
  where
   validatePayloadPathAndSource (path, payload) = do
     unless (safeRelativePath path) (Left (runnerProblem CorruptData "The runner payload contains an unsafe path." [path]))
     validatePayloadSource path payload
 
-executeLuaExporter :: RunnerRequest -> IO (Either AppError RunnerExportArtifact)
-executeLuaExporter request = do
+executeLuaRequest :: RunnerRequest -> IO (Either AppError RunnerExportArtifact)
+executeLuaRequest request = do
   result <- Lua.runEither $ do
     openSafeLibraries
-    installPayloadApi (requestEntryPoint request) (requestPayload request)
+    installPayloadApi (requestEntryPoint request) (requestPayload request) (requestInputBytes request)
     let source = requestPayload request Map.! requestEntryPoint request
     loadChunk source ("@" <> requestEntryPoint request)
     Lua.callTrace 0 1
     valueType <- Lua.ltype Lua.top
-    unless (valueType == Lua.TypeFunction) (Lua.failLua "the exporter entry chunk must return one function")
+    unless (valueType == Lua.TypeFunction) (Lua.failLua "the component entry chunk must return one function")
     Lua.pushValue (requestProjection request)
     Lua.callTrace 1 1
-    artifact <- Lua.forcePeek (peekRunnerArtifact Lua.top)
+    artifact <- case requestOperation request of
+      RunnerExport -> Lua.forcePeek (peekRunnerArtifact Lua.top)
+      RunnerSourcePreflight -> do
+        observation <- Lua.forcePeek (peekSourceObservation Lua.top)
+        case canonicalJsonBytes (toJSON observation) of
+          Left problem -> Lua.failLua (Text.unpack (appErrorMessage problem))
+          Right bytes ->
+            pure
+              RunnerExportArtifact
+                { runnerArtifactBytes = bytes
+                , runnerArtifactMediaType = "application/vnd.little-ant.source-observation+json"
+                , runnerArtifactSuggestedFilename = "source-preflight.json"
+                , runnerArtifactWarnings = observedWarnings observation
+                , runnerArtifactMetadata = Map.singleton "schema" "little-ant/source-adapter-observation@1"
+                }
     Lua.pop 1
     pure artifact
   pure $ case result of
@@ -429,13 +519,15 @@ openSafeLibraries = do
     when (valueType == Lua.TypeTable) (Lua.pushnil >> Lua.setfield (Lua.nth 2) field)
     Lua.pop 1
 
-installPayloadApi :: Text -> Map Text ByteString -> Lua.Lua ()
-installPayloadApi entry payload = do
+installPayloadApi :: Text -> Map Text ByteString -> Maybe ByteString -> Lua.Lua ()
+installPayloadApi entry payload inputBytes = do
   Lua.newtable
   mapM_ pushModule (Map.toAscList payload)
   Lua.setglobal "__lant_preload"
   Lua.pushMap Lua.pushText Lua.pushByteString payload
   Lua.setglobal "__lant_assets"
+  maybe Lua.pushnil Lua.pushByteString inputBytes
+  Lua.setglobal "__lant_input_bytes"
   loadChunk trustedBootstrap "@little-ant/bootstrap"
   Lua.callTrace 0 0
  where
@@ -463,23 +555,119 @@ peekRunnerArtifact index = do
     <*> Lua.peekFieldRaw (Lua.peekList Lua.peekText) "warnings" index
     <*> Lua.peekFieldRaw (Lua.peekMap Lua.peekText Lua.peekText) "metadata" index
 
+peekSourceObservation :: Lua.Peeker Lua.Exception SourceAdapterObservation
+peekSourceObservation index = do
+  exactLuaKeys "SourceAdapter observation" ["source_label", "account_label", "supported_modes", "cleanup_supported", "containers", "objects", "unsupported_fields", "warnings"] index
+  account <- emptyMeansNothing <$> Lua.peekFieldRaw Lua.peekText "account_label" index
+  observation <-
+    SourceAdapterObservation
+      <$> Lua.peekFieldRaw Lua.peekText "source_label" index
+      <*> pure account
+      <*> Lua.peekFieldRaw (Lua.peekList peekSourceMode) "supported_modes" index
+      <*> Lua.peekFieldRaw Lua.peekBool "cleanup_supported" index
+      <*> Lua.peekFieldRaw (Lua.peekList peekSourceContainer) "containers" index
+      <*> Lua.peekFieldRaw (Lua.peekList peekSourceObject) "objects" index
+      <*> Lua.peekFieldRaw (Lua.peekList Lua.peekText) "unsupported_fields" index
+      <*> Lua.peekFieldRaw (Lua.peekList Lua.peekText) "warnings" index
+  case validateSourceAdapterObservation observation of
+    Left problem -> Lua.failPeek (TextEncoding.encodeUtf8 (appErrorMessage problem))
+    Right () -> pure observation
+
+peekSourceMode :: Lua.Peeker Lua.Exception SourceMode
+peekSourceMode index =
+  Lua.peekText index >>= \case
+    "snapshot" -> pure SourceSnapshot
+    "synchronize" -> pure SourceSynchronize
+    "migrate" -> pure SourceMigrate
+    value -> Lua.failPeek (TextEncoding.encodeUtf8 ("unknown source mode: " <> value))
+
+peekSourceContainer :: Lua.Peeker Lua.Exception SourceContainer
+peekSourceContainer index = do
+  exactLuaKeys "source container" ["external_id", "label"] index
+  SourceContainer
+    <$> Lua.peekFieldRaw Lua.peekText "external_id" index
+    <*> Lua.peekFieldRaw Lua.peekText "label" index
+
+peekSourceObject :: Lua.Peeker Lua.Exception SourceObject
+peekSourceObject index = do
+  exactLuaKeys "source object" ["external_id", "locator", "container_id", "title", "shape", "completed", "attachment_count", "content", "duplicate_keys"] index
+  externalIdentity <- Lua.peekFieldRaw Lua.peekText "external_id" index
+  locator <- Lua.peekFieldRaw Lua.peekText "locator" index
+  container <- emptyMeansNothing <$> Lua.peekFieldRaw Lua.peekText "container_id" index
+  title <- Lua.peekFieldRaw Lua.peekText "title" index
+  shape <- Lua.peekFieldRaw peekSourceShape "shape" index
+  completed <- Lua.peekFieldRaw Lua.peekBool "completed" index
+  attachmentCount <- Lua.peekFieldRaw Lua.peekIntegral "attachment_count" index
+  sourceMaterial <- Lua.peekFieldRaw peekSourceMaterial "content" index
+  case validateSourceMaterial sourceMaterial of
+    Left problem -> Lua.failPeek (TextEncoding.encodeUtf8 (appErrorMessage problem))
+    Right () -> pure ()
+  let material = summarizeSourceMaterial sourceMaterial
+  duplicateKeys <- Lua.peekFieldRaw (Lua.peekList Lua.peekText) "duplicate_keys" index
+  pure (SourceObject externalIdentity locator container title shape completed attachmentCount material duplicateKeys)
+
+peekSourceShape :: Lua.Peeker Lua.Exception SourceObjectShape
+peekSourceShape index =
+  Lua.peekText index >>= \case
+    "task" -> pure SourceTaskShape
+    "note" -> pure SourceNoteShape
+    "other" -> pure SourceOtherShape
+    value -> Lua.failPeek (TextEncoding.encodeUtf8 ("unknown source object shape: " <> value))
+
+peekSourceMaterial :: Lua.Peeker Lua.Exception SourceMaterial
+peekSourceMaterial index = do
+  kind <- Lua.peekFieldRaw Lua.peekText "kind" index
+  case kind of
+    "text" -> do
+      exactLuaKeys "text source material" ["kind", "text"] index
+      SourceTextMaterial <$> Lua.peekFieldRaw Lua.peekText "text" index
+    "uri" -> do
+      exactLuaKeys "URI source material" ["kind", "uri", "label"] index
+      SourceUriMaterial
+        <$> Lua.peekFieldRaw Lua.peekText "uri" index
+        <*> (emptyMeansNothing <$> Lua.peekFieldRaw Lua.peekText "label" index)
+    "blob" -> do
+      exactLuaKeys "blob source material" ["kind", "bytes", "media_type", "filename"] index
+      SourceBlobMaterial
+        <$> Lua.peekFieldRaw Lua.peekByteString "bytes" index
+        <*> Lua.peekFieldRaw Lua.peekText "media_type" index
+        <*> (emptyMeansNothing <$> Lua.peekFieldRaw Lua.peekText "filename" index)
+    "structured" -> do
+      exactLuaKeys "structured source material" ["kind", "schema", "json"] index
+      SourceStructuredMaterial
+        <$> Lua.peekFieldRaw Lua.peekText "schema" index
+        <*> Lua.peekFieldRaw Lua.peekText "json" index
+    value -> Lua.failPeek (TextEncoding.encodeUtf8 ("unknown source material kind: " <> value))
+
+exactLuaKeys :: Text -> [Text] -> Lua.StackIndex -> Lua.Peek Lua.Exception ()
+exactLuaKeys label expected index = do
+  keys <- fmap fst <$> Lua.peekKeyValuePairs Lua.peekText (const (pure ())) index
+  let expectedSet = Set.fromList expected
+  unless (Set.fromList keys == expectedSet && length keys == Set.size expectedSet) $
+    Lua.failPeek (TextEncoding.encodeUtf8 (label <> " fields do not match the closed contract"))
+
+emptyMeansNothing :: Text -> Maybe Text
+emptyMeansNothing value = if Text.null value then Nothing else Just value
+
 validateRunnerArtifact :: Int -> RunnerExportArtifact -> Either AppError ()
 validateRunnerArtifact maximumBytes artifact = do
-  when (ByteString.length (runnerArtifactBytes artifact) > maximumBytes) (Left (runnerProblem PreconditionFailed "The exporter artifact exceeds its declared byte limit." []))
+  when (ByteString.length (runnerArtifactBytes artifact) > maximumBytes) (Left (runnerProblem PreconditionFailed "The runner artifact exceeds its declared byte limit." []))
   when (Text.length (runnerArtifactMediaType artifact) > 256) invalid
   when (length (runnerArtifactSuggestedFilename artifact) > 255) invalid
   when (length (runnerArtifactWarnings artifact) > 128 || any ((> 2048) . Text.length) (runnerArtifactWarnings artifact)) invalid
   when (Map.size (runnerArtifactMetadata artifact) > 128 || any ((> 2048) . Text.length) (Map.keys (runnerArtifactMetadata artifact) <> Map.elems (runnerArtifactMetadata artifact))) invalid
  where
-  invalid = Left (runnerProblem CorruptData "The exporter artifact metadata exceeds the bounded contract." [])
+  invalid = Left (runnerProblem CorruptData "The runner artifact metadata exceeds the bounded contract." [])
 
 trustedBootstrap :: ByteString
 trustedBootstrap =
   TextEncoding.encodeUtf8 . Text.unlines $
     [ "local preload = __lant_preload"
     , "local assets = __lant_assets"
+    , "local input_bytes = __lant_input_bytes"
     , "__lant_preload = nil"
     , "__lant_assets = nil"
+    , "__lant_input_bytes = nil"
     , "local loaded = {}"
     , "function require(name)"
     , "  if type(name) ~= 'string' then"
@@ -500,6 +688,10 @@ trustedBootstrap =
     , "    local value = assets[path]"
     , "    if value == nil then error('asset not present in signed component payload: ' .. path, 2) end"
     , "    return value"
+    , "  end,"
+    , "  input_bytes = function()"
+    , "    if input_bytes == nil then error('input bytes are unavailable for this invocation', 2) end"
+    , "    return input_bytes"
     , "  end"
     , "}"
     ]
@@ -652,7 +844,7 @@ runnerIoProblem problem = runnerProblem ExternalFailure "Little Ant could not co
 
 runnerTimeoutProblem :: AppError
 runnerTimeoutProblem =
-  (runnerProblem ExternalFailure "The Pack exporter exceeded its wall-time limit and was terminated." [])
+  (runnerProblem ExternalFailure "The Pack component exceeded its wall-time limit and was terminated." [])
     { appErrorRetrySafety = RetrySafe
     }
 

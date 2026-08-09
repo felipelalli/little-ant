@@ -2,6 +2,7 @@ module Main (main) where
 
 import Crypto.Error (CryptoFailable (..))
 import Crypto.PubKey.Ed25519 qualified as Ed25519
+import Data.Aeson (toJSON)
 import Data.ByteArray (convert)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
@@ -16,11 +17,12 @@ import Data.Time (UTCTime)
 import GHC.Clock (getMonotonicTimeNSec)
 import LittleAnt.Error
 import LittleAnt.Export
-import LittleAnt.Model (emptyState)
+import LittleAnt.Model (SourceMode (..), emptyState)
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
 import LittleAnt.Pack.Trust
+import LittleAnt.Source
 import LittleAnt.Store (genesisCursor, sha256Hex)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -37,7 +39,33 @@ main =
       , testCase "binary Lua strings survive the bounded protocol exactly" binaryArtifact
       , testCase "wall timeout terminates a non-returning exporter" wallTimeout
       , testCase "closed result shape and artifact limit fail without an artifact" invalidResults
+      , testCase "a file SourceAdapter sees only host-custodied bytes and returns a closed preflight" authorizedSourceAdapter
       ]
+
+authorizedSourceAdapter :: Assertion
+authorizedSourceAdapter = do
+  client <- fixtureClient factoryPackRunnerLimits
+  registry <- fixtureSourceRegistry validSourceAdapter
+  registered <- assertRight (lookupPackComponent fixtureSourceId registry)
+  let bytes = "Remember the milk " <> ByteString.replicate 200 120 <> "::PRIVATE_TAIL::"
+      textMaterial = SourceTextMaterial (TextEncoding.decodeUtf8 bytes)
+      input = SourceInput "notes.txt" "text/plain; charset=utf-8" bytes
+  preflight <- invokePackSourcePreflight client registered SourceSnapshot input >>= assertRight
+  sourcePreflightAdapterId preflight @?= fixtureSourceId
+  sourcePreflightInputDigest preflight @?= sha256Hex bytes
+  sourcePreflightInputByteCount preflight @?= ByteString.length bytes
+  observedSupportedModes (sourcePreflightObservation preflight) @?= [SourceSnapshot, SourceMigrate]
+  observedCleanupSupported (sourcePreflightObservation preflight) @?= False
+  case observedObjects (sourcePreflightObservation preflight) of
+    [sourceObject] -> do
+      sourceObjectExternalId sourceObject @?= sha256Hex bytes
+      sourceObjectTitle sourceObject @?= "notes.txt"
+      sourceObjectShape sourceObject @?= SourceNoteShape
+      sourceObjectMaterial sourceObject @?= summarizeSourceMaterial textMaterial
+    other -> assertFailure ("unexpected source objects: " <> show other)
+  encodedPreflight <- assertRight (canonicalJsonBytes (toJSON preflight))
+  assertBool "preflight echoed source bytes beyond the bounded preview" (not ("::PRIVATE_TAIL::" `ByteString.isInfixOf` encodedPreflight))
+  invokePackSourcePreflight client registered SourceSynchronize input >>= assertError Unsupported
 
 authorizedExporterProcess :: Assertion
 authorizedExporterProcess = do
@@ -107,7 +135,13 @@ fixtureClient limits = do
   pure client{packRunnerLimits = limits}
 
 fixtureRegistry :: ByteString -> Map Text ByteString -> IO PackRegistry
-fixtureRegistry entrySource support = do
+fixtureRegistry = fixtureRegistryFor fixtureComponent "exporters/fixture"
+
+fixtureSourceRegistry :: ByteString -> IO PackRegistry
+fixtureSourceRegistry entrySource = fixtureRegistryFor fixtureSourceComponent "sources/fixture" entrySource Map.empty
+
+fixtureRegistryFor :: PackComponent -> Text -> ByteString -> Map Text ByteString -> IO PackRegistry
+fixtureRegistryFor component root entrySource support = do
   let payload =
         Map.unions
           [ Map.fromList
@@ -116,8 +150,8 @@ fixtureRegistry entrySource support = do
               ]
           , support
           ]
-      rootedPayload = Map.mapKeys ("exporters/fixture/" <>) payload
-      manifest = fixtureManifest rootedPayload
+      rootedPayload = Map.mapKeys ((root <> "/") <>) payload
+      manifest = fixtureManifest component rootedPayload
   manifestBytes <- assertRight (encodePackManifest manifest)
   signatureBytes <- assertRight (encodePackSignature (signedDocument manifestBytes))
   archive <- assertRight (buildCanonicalPackArchive manifestBytes signatureBytes rootedPayload)
@@ -135,19 +169,20 @@ fixtureRegistry entrySource support = do
           , trustRevokedKeyFingerprints = Set.empty
           , trustRevokedArchiveDigests = Set.empty
           }
-  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.singleton fixtureComponentId) authenticated)
+  let selectedId = componentId (componentCommon component)
+  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.singleton selectedId) authenticated)
   execution <- assertRight (authorizePinnedPackExecution fixtureTime scope policy (installAuthorizedPin install) authenticated)
   assertRight (buildPackRegistry scope [execution])
 
-fixtureManifest :: Map Text ByteString -> PackManifest
-fixtureManifest payload =
+fixtureManifest :: PackComponent -> Map Text ByteString -> PackManifest
+fixtureManifest component payload =
   PackManifest
     { packName = "org.example.runner-fixture"
     , packVersion = "1.0.0"
     , packDisplayName = "Runner Fixture"
     , packPublisher = "org.example.publisher"
     , packLittleAntMajor = 1
-    , packComponents = [fixtureComponent]
+    , packComponents = [component]
     , packFiles = payloadRecord <$> Map.toAscList payload
     , packLinks = Nothing
     }
@@ -169,6 +204,25 @@ fixtureComponent =
       , permissionEffectPurposes = []
       , permissionProjections = ["little-ant/structure@1"]
       , permissionHostCapabilities = []
+      }
+
+fixtureSourceComponent :: PackComponent
+fixtureSourceComponent =
+  ExecutableComponent
+    ComponentCommon
+      { componentId = fixtureSourceId
+      , componentKind = SourceAdapterComponent
+      , componentContractMajor = 1
+      , componentRoot = "sources/fixture"
+      , componentConfigurationSchema = "config.schema.json"
+      }
+    "main.lua"
+    ComponentPermissions
+      { permissionCredentialSlots = []
+      , permissionHttp = []
+      , permissionEffectPurposes = []
+      , permissionProjections = []
+      , permissionHostCapabilities = [InputBytesCapability]
       }
 
 payloadRecord :: (Text, ByteString) -> PayloadFile
@@ -207,6 +261,9 @@ fixturePublicKeyBytes = convert fixturePublicKey
 
 fixtureComponentId :: Text
 fixtureComponentId = "fixture_export"
+
+fixtureSourceId :: Text
+fixtureSourceId = "fixture_source"
 
 fixtureTime :: UTCTime
 fixtureTime = read "2026-08-08 12:00:00 UTC"
@@ -255,6 +312,13 @@ unknownFieldSource = "return function(_) return {bytes='ok', media_type='text/pl
 
 oversizedSource :: ByteString
 oversizedSource = "return function(_) return {bytes='123456789', media_type='text/plain', suggested_filename='x.txt', warnings={}, metadata={}} end\n"
+
+validSourceAdapter :: ByteString
+validSourceAdapter =
+  "return function(request)\n"
+    <> "  local bytes = lant.input_bytes()\n"
+    <> "  return {source_label='Fixture source', account_label='', supported_modes={'snapshot','migrate'}, cleanup_supported=false, containers={}, objects={{external_id=request.input.digest, locator='sha256:' .. request.input.digest, container_id='', title=request.input.label, shape='note', completed=false, attachment_count=0, content={kind='text', text=bytes}, duplicate_keys={request.input.digest}}}, unsupported_fields={}, warnings={}}\n"
+    <> "end\n"
 
 assertRight :: (Show left) => Either left right -> IO right
 assertRight = either (assertFailure . show) pure

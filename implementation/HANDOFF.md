@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **05ca2a4**
-(`feat(packs): bundle standard structural exporters`). The current milestone
-adds the core-owned planning cut and the standard TaskJuggler exporter. This
-file stays editable between milestone commits.
+Baseline at the start of the current milestone: **0be8f65**
+(`feat(planning): export reproducible TaskJuggler cuts`). The current milestone
+adds the isolated file-SourceAdapter preflight boundary and the first standard
+plain-text importer. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -95,8 +95,9 @@ file stays editable between milestone commits.
   and relocates the helper under `libexec/little-ant`.
 - the signed, reproducible `org.littleant.standard` archive is verified against
   its compiled exact identity at startup and grants built-in execution
-  authority only to `tree`, `table`, `csv`, `org`, `html`, and `taskjuggler`.
-  The structural exporters' reviewed
+  authority only to the `tree`, `table`, `csv`, `org`, `html`, and
+  `taskjuggler` exporters plus the `plain_text` SourceAdapter. The structural
+  exporters' reviewed
   fixtures cover hierarchy, quoting, UTF-8 alignment, RFC 4180 framing, and a
   script-free/offline HTML document. The CLI production environment uses this
   registry, so `lant export csv` works without installing a provider Pack.
@@ -117,6 +118,23 @@ file stays editable between milestone commits.
   inspectable factory UTC resource. Reviewed fragments and the real `tj3`
   parser cover the generated file, and the installed CLI exports a valid
   `.tjp` from an empty isolated profile.
+- the same private runner now has an operation-typed SourceAdapter preflight.
+  The trusted host supplies only bytes, a display label, media type, digest,
+  count, and explicit mode; Lua receives no path or general IO authority.
+  Export invocations cannot carry source bytes, and a SourceAdapter must hold
+  the component-local `input_bytes` capability. The closed observation records
+  supported modes, cleanup strength, containers, typed objects/material,
+  source completion observations, attachment counts, duplicate-suspicion
+  keys, unsupported fields, and warnings before the host adds immutable Pack,
+  signer, and input-custody facts. Material crosses back only as a bounded
+  kind/digest/count/preview summary; acceptance will reacquire it under the
+  same custody facts.
+- the exact signed standard Pack now also authorizes `plain_text`. It describes
+  one complete UTF-8 file as one note-shaped source object through a bounded
+  custody summary, supports snapshot and migration, and truthfully declares
+  no synchronization or cleanup. Both
+  the generic runner fixture and the exact bundled component execute through
+  the real private process.
 
 ## Last green gate
 
@@ -150,8 +168,9 @@ targeted lint for the new Pack code pass. The CLI test now isolates all four
 XDG roots, so a developer's real profile cannot contaminate it. The aggregate
 `make ci` gate remains red only at the repository-wide HLint baseline; those
 pre-existing hints are outside this milestone and S09 remains in progress.
-The isolated-runner suite adds 7 process-boundary cases. The standard-Pack
-suite now has 5 archive/authority/golden-format/TaskJuggler cases, the pure
+The isolated-runner suite now has 8 process-boundary cases, including closed
+host-custodied source preflight and unsupported-mode rejection. The standard-Pack
+suite now has 6 archive/authority/golden-format/TaskJuggler/source cases, the pure
 planning suite has 2 cut/custody/profile cases, and the CLI test exercises both
 CSV and TaskJuggler through the production environment. A clean
 `nix build path:.#little-ant` passes all Cabal suites, installs the private
@@ -185,7 +204,10 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, continue with the Raw-first import/adapters, including the separate
-TaskJuggler actuals SourceAdapter that verifies embedded manifest custody. The
+Next, connect the frozen `/import` grammar and dumb preflight screen to this
+boundary, rerun preflight on acceptance, and atomically preserve verified
+objects as idempotent Raw truth with ImportProfile/SourceBinding custody.
+Then expand the standard file adapters, including the separate TaskJuggler
+actuals SourceAdapter that verifies embedded manifest custody. The
 `Corrupt history/repair` row is implemented; formal evidence registration and
 the complete S09 gate still precede `verified`.

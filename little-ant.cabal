@@ -28,6 +28,8 @@ extra-source-files:
   packs/standard/payload/exporters/**/*.json
   packs/standard/payload/exporters/**/*.lua
   packs/standard/payload/exporters/**/*.md
+  packs/standard/payload/sources/**/*.json
+  packs/standard/payload/sources/**/*.lua
   packs/standard/signature.json
   spec/little-ant-1.0/*.md
   spec/little-ant-1.0/ux/*.md
@@ -96,6 +98,7 @@ library
     LittleAnt.REPL
     LittleAnt.Result
     LittleAnt.Schedule
+    LittleAnt.Source
     LittleAnt.Store
     LittleAnt.Surface
     LittleAnt.Temporal
@@ -306,6 +309,7 @@ test-suite little-ant-s09-pack-runner-test
   hs-source-dirs:     test/s09-pack-runner
   build-tool-depends: little-ant:lant-pack-runner
   build-depends:
+    , aeson              >=2.2  && <2.3
     , base               >=4.20 && <5
     , base64-bytestring  >=1.2  && <1.3
     , bytestring         >=0.12 && <0.13
