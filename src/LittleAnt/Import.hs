@@ -15,7 +15,6 @@ import Control.Monad (void)
 import Data.Aeson (Value)
 import Data.ByteString qualified as ByteString
 import Data.Map.Strict qualified as Map
-import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (defaultTimeLocale, formatTime)
@@ -162,17 +161,14 @@ packRegistryImportPortWithProviders runner registry providers =
                 , appErrorRecovery = [RecoveryAction "choose-source" "Choose a source whose format identifies one enabled SourceAdapter." Nothing]
                 }
   providersFor source = filter ((== Text.strip source) . providerImportReference) providers
-  providerDescriptors = uniqueDescriptors Set.empty providers
-  uniqueDescriptors _ [] = []
-  uniqueDescriptors seen (provider : remaining)
-    | providerImportAdapterId provider `Set.member` seen = uniqueDescriptors seen remaining
-    | otherwise =
-        ImportSourceDescriptor
-          (providerImportAdapterId provider)
-          (providerImportDisplayName provider)
-          []
-          (providerImportModes provider)
-          : uniqueDescriptors (Set.insert (providerImportAdapterId provider) seen) remaining
+  providerDescriptors =
+    [ ImportSourceDescriptor
+        (providerImportReference provider)
+        (providerImportInputLabel provider)
+        []
+        (providerImportModes provider)
+    | provider <- providers
+    ]
   fileDescriptors =
     [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]

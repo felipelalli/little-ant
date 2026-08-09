@@ -1,6 +1,12 @@
 module LittleAnt.REPL (
+  ImportCatalogChoice (..),
+  ImportSelection (..),
   PackPathPurpose (..),
+  connectedProviderImportSelection,
   filteredCommands,
+  importModeModel,
+  importSourceChoices,
+  importSourceModel,
   packManagerModel,
   packPathEditorModel,
   paletteModel,
@@ -9,9 +15,11 @@ module LittleAnt.REPL (
   runReplWithCommand,
 ) where
 
+import Control.Applicative ((<|>))
 import Control.Exception (bracket)
 import Control.Monad (void)
 import Data.IORef
+import Data.List (find, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Text (Text)
@@ -22,10 +30,13 @@ import Graphics.Vty.Config (defaultConfig)
 import Graphics.Vty.CrossPlatform qualified as CrossPlatform
 import LittleAnt.Application
 import LittleAnt.Error
+import LittleAnt.Import
 import LittleAnt.Interaction
-import LittleAnt.Model (Actor (actorProfile))
+import LittleAnt.Model (Actor (actorProfile), SourceMode (..))
+import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Protocol
+import LittleAnt.Provider
 import LittleAnt.Result
 import LittleAnt.Surface
 import LittleAnt.Terminal
@@ -40,7 +51,28 @@ data ReplScreen
   | PackManagerScreen InteractionEnvelope [PackProjection] (Maybe AppError) Int (Maybe Text)
   | PackPathEditor InteractionEnvelope PackPathPurpose EditorState (Maybe Text)
   | PackDetailScreen InteractionEnvelope [PackProjection] (Maybe AppError) Int Text
+  | ImportSourceScreen InteractionEnvelope [ImportCatalogChoice] Text Int (Maybe Text)
+  | ImportPathEditor InteractionEnvelope ImportSourceDescriptor EditorState (Maybe Text)
+  | ImportModeScreen InteractionEnvelope ImportSelection (Maybe Text)
+  | ProviderConnectionEditor InteractionEnvelope ProviderSourceDefinition ProviderConnectionInput EditorState (Maybe Text)
   | ReadOnlyScreen InteractionEnvelope Text
+
+data ImportCatalogChoice
+  = ReadyImportSource ImportSourceDescriptor
+  | ConnectImportSource ProviderSourceDefinition
+  deriving stock (Eq, Show)
+
+data ImportSelection = ImportSelection
+  { importSelectionDescriptor :: ImportSourceDescriptor
+  , importSelectionReference :: Text
+  }
+  deriving stock (Eq, Show)
+
+data ProviderConnectionInput
+  = ProviderAccountKey
+  | ProviderAccountLabel Text
+  | ProviderClientId Text Text
+  deriving stock (Eq, Show)
 
 data PackPathPurpose
   = InstallPackArchive
@@ -50,6 +82,7 @@ data PackPathPurpose
 data PaletteReturn
   = ReturnToEnvelope
   | ReturnToPackManager [PackProjection] (Maybe AppError) Int
+  | ReturnToImportMode ImportSelection
 
 runRepl :: AppEnv -> IO ()
 runRepl environment = runReplWithCommand environment NextCommand
@@ -95,6 +128,10 @@ loop environmentRef vty color width screen = do
     PackDetailScreen envelope packs problem selected _ -> case input of
       Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
       _ -> pure (Just (PackManagerScreen envelope packs problem selected Nothing))
+    ImportSourceScreen envelope choices query selected message -> importSourceInput envelope choices query selected message input
+    ImportPathEditor envelope descriptor editor message -> importPathInput envelope descriptor editor message input
+    ImportModeScreen envelope selection message -> importModeInput envelope selection message input
+    ProviderConnectionEditor envelope definition stage editor message -> providerConnectionInput envelope definition stage editor message input
     ReadOnlyScreen envelope _ -> case input of
       Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
       Escape _ -> pure (Just (screenForEnvelope envelope))
@@ -107,10 +144,13 @@ loop environmentRef vty color width screen = do
     Printable character [] -> dispatchShortcut envelope (Text.singleton character)
     Enter [] -> dispatchShortcut envelope "*"
     Escape _ | isRepairScreen envelope -> pure Nothing
+    Escape _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
     Escape _ -> navigate envelope True
     Backspace _ | isRepairScreen envelope -> pure Nothing
+    Backspace _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
     Backspace _ -> navigate envelope True
     ArrowLeft _ | isRepairScreen envelope -> pure Nothing
+    ArrowLeft _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
     ArrowLeft _ -> navigate envelope True
     ArrowRight _ -> navigate envelope False
     _ -> pure (Just screen)
@@ -129,6 +169,8 @@ loop environmentRef vty color width screen = do
   invokeAction envelope action =
     runCurrent (RespondCommand (interactionResponse envelope action)) >>= \case
       Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
+      Right RespondResult{resultInteraction}
+        | action == "provider.connect.back" -> openImportSourceSelector resultInteraction Nothing
       Right result -> screenFromResult envelope result
 
   navigate envelope backward =
@@ -211,17 +253,22 @@ loop environmentRef vty color width screen = do
     RepairResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
 
-  refreshAndShow envelope
-    | refreshesPackRegistry (envelopeOpportunity envelope) =
-        readIORef environmentRef >>= \current ->
-          productionAppEnv (Just (actorProfile (appActor current))) >>= \case
-            Left problem ->
-              pure . Just $
-                EnvelopeScreen
-                  envelope
-                  (Just ("Pack state changed, but this REPL could not reload its component registry: " <> appErrorMessage problem))
-            Right refreshed -> writeIORef environmentRef refreshed >> pure (Just (screenForEnvelope envelope))
-    | otherwise = pure (Just (screenForEnvelope envelope))
+  refreshAndShow envelope = case envelopeOpportunity envelope of
+    ProviderConnectionResultOpportunity source accountName _ ->
+      reloadCurrentEnvironment >>= \case
+        Left problem -> pure . Just $ EnvelopeScreen envelope (Just ("The provider connected, but this REPL could not reload its import catalog: " <> appErrorMessage problem))
+        Right () -> openConnectedProviderMode envelope source accountName
+    opportunity
+      | refreshesPackRegistry opportunity ->
+          readIORef environmentRef >>= \current ->
+            productionAppEnv (Just (actorProfile (appActor current))) >>= \case
+              Left problem ->
+                pure . Just $
+                  EnvelopeScreen
+                    envelope
+                    (Just ("Pack state changed, but this REPL could not reload its component registry: " <> appErrorMessage problem))
+              Right refreshed -> writeIORef environmentRef refreshed >> pure (Just (screenForEnvelope envelope))
+      | otherwise -> pure (Just (screenForEnvelope envelope))
 
   runPaletteCommand envelope query selected target = case safeIndex selected (filteredCommands envelope query) of
     Nothing -> pure (Just (PaletteScreen envelope query selected target))
@@ -236,12 +283,142 @@ loop environmentRef vty color width screen = do
       "history" -> runSimpleCommand envelope (HistoryCommand Nothing)
       "doctor" -> runSimpleCommand envelope DoctorCommand
       "packs" -> openPackManager envelope
+      "import" -> openImportSourceSelector envelope Nothing
       "break" -> runBrickCommand envelope command BreakCommand
       "archive" -> runBrickCommand envelope command ArchiveCommand
       "restore" -> runBrickCommand envelope command RestoreCommand
       "translate" -> runSimpleCommand envelope (TranslateCommand Nothing)
       "tie-break" -> runSimpleCommand envelope TieBreakCommand
       _ -> pure (Just (EnvelopeScreen envelope (Just "That command is not implemented yet.")))
+
+  openImportSourceSelector envelope message = do
+    current <- readIORef environmentRef
+    let choices = importSourceChoices current
+        emptyMessage =
+          if null choices
+            then Just "No import source is available. Install or repair a SourceAdapter through /packs."
+            else message
+    pure (Just (ImportSourceScreen envelope choices "" 0 emptyMessage))
+
+  openConnectedProviderMode envelope source accountName = do
+    current <- readIORef environmentRef
+    pure . Just $ case connectedProviderImportSelection current source accountName of
+      Just selection ->
+        ImportModeScreen
+          envelope
+          selection
+          (Just "Provider connected. No source data was imported.")
+      Nothing -> EnvelopeScreen envelope (Just "The provider connected, but its exact import account is not available. Inspect /config and /packs.")
+
+  importSourceInput envelope choices query selected _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable character [] -> pure . Just $ ImportSourceScreen envelope choices (query <> Text.singleton character) 0 Nothing
+    Backspace _
+      | Text.null query -> pure (Just (screenForEnvelope envelope))
+      | otherwise -> pure . Just $ ImportSourceScreen envelope choices (Text.dropEnd 1 query) 0 Nothing
+    Escape _ -> pure (Just (screenForEnvelope envelope))
+    ArrowLeft _ -> pure (Just (screenForEnvelope envelope))
+    ArrowUp _ -> pure . Just $ ImportSourceScreen envelope choices query (max 0 (selected - 1)) Nothing
+    ArrowDown _ ->
+      pure . Just $
+        ImportSourceScreen
+          envelope
+          choices
+          query
+          (min (max 0 (length (filteredImportSources choices query) - 1)) (selected + 1))
+          Nothing
+    Enter _ -> case safeIndex selected (filteredImportSources choices query) of
+      Nothing -> pure (Just (ImportSourceScreen envelope choices query selected (Just "No import source matches this filter.")))
+      Just choice -> chooseImportSource envelope choice
+    _ -> pure (Just screen)
+
+  chooseImportSource envelope = \case
+    ReadyImportSource descriptor
+      | null (importSourceExtensions descriptor) ->
+          pure . Just $ ImportModeScreen envelope (ImportSelection descriptor (importSourceId descriptor)) Nothing
+      | otherwise ->
+          pure . Just $ ImportPathEditor envelope descriptor (EditorState "" "" Nothing) Nothing
+    ConnectImportSource definition ->
+      pure . Just $ ProviderConnectionEditor envelope definition ProviderAccountKey (EditorState "" "" Nothing) Nothing
+
+  importPathInput envelope descriptor editor _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable character [] -> pure . Just $ ImportPathEditor envelope descriptor (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Enter [] ->
+      let reference = Text.strip (editorText editor)
+       in if Text.null reference
+            then pure . Just $ ImportPathEditor envelope descriptor editor (Just "Choose one local source file.")
+            else pure . Just $ ImportModeScreen envelope (ImportSelection descriptor reference) Nothing
+    Escape _ -> openImportSourceSelector envelope Nothing
+    Backspace _
+      | Text.null (editorText editor) -> openImportSourceSelector envelope Nothing
+      | otherwise -> pure . Just $ ImportPathEditor envelope descriptor (applyEditorCommand DeleteBackward editor) Nothing
+    Delete _ -> pure . Just $ ImportPathEditor envelope descriptor (applyEditorCommand DeleteForward editor) Nothing
+    ArrowLeft _
+      | Text.null (editorText editor) -> openImportSourceSelector envelope Nothing
+      | otherwise -> pure . Just $ ImportPathEditor envelope descriptor (applyEditorCommand MoveEditorLeft editor) Nothing
+    ArrowRight _ -> pure . Just $ ImportPathEditor envelope descriptor (applyEditorCommand MoveEditorRight editor) Nothing
+    _ -> pure (Just screen)
+
+  importModeInput envelope selection _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable 's' [] -> chooseImportMode envelope selection SourceSnapshot
+    Printable 'k' [] -> chooseImportMode envelope selection SourceSynchronize
+    Printable 'm' [] -> chooseImportMode envelope selection SourceMigrate
+    Printable '?' [] -> pure . Just $ ImportModeScreen envelope selection (Just "Snapshot copies what exists now. Keep synchronizing observes later changes. Migrate prepares a verified move away from the source; cleanup is always a later separate decision.")
+    Printable '/' [] -> pure . Just $ PaletteScreen envelope "/" 0 (ReturnToImportMode selection)
+    Enter _ -> pure . Just $ ImportModeScreen envelope selection (Just "Choose one explicit mode; this screen has no default.")
+    Escape _ -> openImportSourceSelector envelope Nothing
+    Backspace _ -> openImportSourceSelector envelope Nothing
+    ArrowLeft _ -> openImportSourceSelector envelope Nothing
+    _ -> pure (Just screen)
+
+  chooseImportMode envelope selection mode
+    | mode `notElem` importSourceModes (importSelectionDescriptor selection) =
+        pure . Just $ ImportModeScreen envelope selection (Just "That mode is not declared by this SourceAdapter.")
+    | otherwise =
+        runCurrent (ImportCommand (importSelectionReference selection) mode False) >>= \case
+          Left problem -> pure . Just $ ImportModeScreen envelope selection (Just (appErrorMessage problem))
+          Right result -> screenFromResult envelope result
+
+  providerConnectionInput envelope definition stage editor _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable character [] -> pure . Just $ ProviderConnectionEditor envelope definition stage (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Enter [] -> submitProviderConnectionField envelope definition stage editor
+    Escape _ -> backFromProviderConnectionField envelope definition stage
+    Backspace _
+      | Text.null (editorText editor) -> backFromProviderConnectionField envelope definition stage
+      | otherwise -> pure . Just $ ProviderConnectionEditor envelope definition stage (applyEditorCommand DeleteBackward editor) Nothing
+    Delete _ -> pure . Just $ ProviderConnectionEditor envelope definition stage (applyEditorCommand DeleteForward editor) Nothing
+    ArrowLeft _
+      | Text.null (editorText editor) -> backFromProviderConnectionField envelope definition stage
+      | otherwise -> pure . Just $ ProviderConnectionEditor envelope definition stage (applyEditorCommand MoveEditorLeft editor) Nothing
+    ArrowRight _ -> pure . Just $ ProviderConnectionEditor envelope definition stage (applyEditorCommand MoveEditorRight editor) Nothing
+    _ -> pure (Just screen)
+
+  submitProviderConnectionField envelope definition stage editor = case stage of
+    ProviderAccountKey ->
+      let account = Text.strip (editorText editor)
+       in if Profile.validIntegrationName account
+            then pure . Just $ ProviderConnectionEditor envelope definition (ProviderAccountLabel account) (EditorState "" "" Nothing) Nothing
+            else pure . Just $ ProviderConnectionEditor envelope definition stage editor (Just "Use a lowercase local key with letters, digits, hyphens, or underscores.")
+    ProviderAccountLabel account ->
+      let entered = Text.strip (editorText editor)
+          label = if Text.null entered then account else entered
+       in pure . Just $ ProviderConnectionEditor envelope definition (ProviderClientId account label) (EditorState "" "" Nothing) Nothing
+    ProviderClientId account label ->
+      let clientId = Text.strip (editorText editor)
+       in if Text.null clientId
+            then pure . Just $ ProviderConnectionEditor envelope definition stage editor (Just "The public OAuth client ID is required by this signed connector.")
+            else
+              runCurrent (ConfigConnectCommand (providerDefinitionAdapterId definition) account label clientId) >>= \case
+                Left problem -> pure . Just $ ProviderConnectionEditor envelope definition stage editor (Just (appErrorMessage problem))
+                Right result -> screenFromResult envelope result
+
+  backFromProviderConnectionField envelope definition = \case
+    ProviderAccountKey -> openImportSourceSelector envelope Nothing
+    ProviderAccountLabel account -> pure . Just $ ProviderConnectionEditor envelope definition ProviderAccountKey (selectedEditor account) Nothing
+    ProviderClientId account label -> pure . Just $ ProviderConnectionEditor envelope definition (ProviderAccountLabel account) (selectedEditor label) Nothing
 
   openPackManager envelope =
     runCurrent PacksListCommand >>= \case
@@ -369,11 +546,13 @@ paletteReturnScreen :: InteractionEnvelope -> PaletteReturn -> ReplScreen
 paletteReturnScreen envelope = \case
   ReturnToEnvelope -> screenForEnvelope envelope
   ReturnToPackManager packs problem selected -> PackManagerScreen envelope packs problem selected Nothing
+  ReturnToImportMode selection -> ImportModeScreen envelope selection Nothing
 
 paletteReadOnlyScreen :: InteractionEnvelope -> PaletteReturn -> Text -> ReplScreen
 paletteReadOnlyScreen envelope target text = case target of
   ReturnToEnvelope -> ReadOnlyScreen envelope text
   ReturnToPackManager packs problem selected -> PackDetailScreen envelope packs problem selected text
+  ReturnToImportMode selection -> ImportModeScreen envelope selection (Just text)
 
 interactionResponse :: InteractionEnvelope -> Text -> InteractionResponse
 interactionResponse envelope action =
@@ -394,6 +573,10 @@ modelFor width = \case
   PackPathEditor envelope purpose editor message -> packPathEditorModelAtWidth width envelope purpose editor message
   PackDetailScreen envelope _ _ _ text ->
     ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return to Packs."], []] <> footerFrom width envelope) Nothing
+  ImportSourceScreen envelope choices query selected message -> importSourceModelAtWidth width envelope choices query selected message
+  ImportPathEditor envelope descriptor editor message -> importPathEditorModelAtWidth width envelope descriptor editor message
+  ImportModeScreen envelope selection message -> importModeModelAtWidth width envelope selection message
+  ProviderConnectionEditor envelope definition stage editor message -> providerConnectionEditorModelAtWidth width envelope definition stage editor message
   ReadOnlyScreen envelope text ->
     ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return."], []] <> footerFrom width envelope) Nothing
 
@@ -448,6 +631,143 @@ packManagerModelAtWidth requestedWidth envelope packs problem selected message =
     | Text.length (plainLine joinedActions) <= width = [joinedActions, actionSpans "/" "more..."]
     | otherwise = [actionSpans "s" "show", actionSpans "i" "install...", actionSpans "r" "refresh catalog", actionSpans "t" "trust publisher...", actionSpans "/" "more..."]
   warningRows warning = [] : fmap (pure . Span Warning) (wrapWords width warning)
+
+importSourceChoices :: AppEnv -> [ImportCatalogChoice]
+importSourceChoices environment = sortOn importChoiceLabel (ready <> connectable)
+ where
+  ready = ReadyImportSource <$> importPortCatalog (appImportPort environment)
+  installed = maybe [] providerConnectionInstalledDefinitions (appProviderConnectionRuntime environment)
+  connectable =
+    [ ConnectImportSource definition
+    | definition <- installed
+    , not (any (descriptorBelongsTo definition) (importPortCatalog (appImportPort environment)))
+    ]
+  descriptorBelongsTo definition descriptor =
+    let source = providerDefinitionAdapterId definition
+        reference = importSourceId descriptor
+     in reference == source || (source <> "@") `Text.isPrefixOf` reference
+
+connectedProviderImportSelection :: AppEnv -> Text -> Text -> Maybe ImportSelection
+connectedProviderImportSelection environment source accountName = do
+  let exactReference = source <> "@" <> accountName
+      descriptors = importPortCatalog (appImportPort environment)
+  descriptor <-
+    find ((== exactReference) . importSourceId) descriptors
+      <|> find ((== source) . importSourceId) descriptors
+  pure (ImportSelection descriptor (importSourceId descriptor))
+
+importChoiceLabel :: ImportCatalogChoice -> Text
+importChoiceLabel = \case
+  ReadyImportSource descriptor -> importSourceDisplayName descriptor
+  ConnectImportSource definition -> providerDefinitionDisplayName definition <> " · connect..."
+
+filteredImportSources :: [ImportCatalogChoice] -> Text -> [ImportCatalogChoice]
+filteredImportSources choices query = filter matches choices
+ where
+  needle = Text.toLower (Text.strip query)
+  matches choice = Text.null needle || needle `Text.isInfixOf` Text.toLower (importChoiceLabel choice <> " " <> importChoiceIdentity choice)
+  importChoiceIdentity = \case
+    ReadyImportSource descriptor -> importSourceId descriptor
+    ConnectImportSource definition -> providerDefinitionAdapterId definition
+
+importSourceModel :: InteractionEnvelope -> [ImportCatalogChoice] -> Text -> Int -> Maybe Text -> ScreenModel
+importSourceModel = importSourceModelAtWidth 80
+
+importSourceModelAtWidth :: Int -> InteractionEnvelope -> [ImportCatalogChoice] -> Text -> Int -> Maybe Text -> ScreenModel
+importSourceModelAtWidth width envelope choices query selected message =
+  ScreenModel
+    ( [[Span Normal "Import from:"], [], [Span Normal "› ", Span Normal query], []]
+        <> concat (zipWith renderChoice [0 ..] visible)
+        <> maybe [] (\problem -> [] : fmap (pure . Span Warning) (wrapWords width problem)) message
+        <> [[], [Span Dim "Type to filter available sources."], [Span Dim "↑/↓ select · Enter choose · Esc back"], []]
+        <> footerFrom width envelope
+    )
+    Nothing
+ where
+  visible = filteredImportSources choices query
+  renderChoice index choice =
+    let selectedRole = if index == selected then Selected else Normal
+        marker = if index == selected then "> " else "  "
+        detail = case choice of
+          ReadyImportSource descriptor
+            | null (importSourceExtensions descriptor) -> "configured account · " <> modeSummary descriptor
+            | otherwise -> Text.intercalate ", " (importSourceExtensions descriptor) <> " · " <> modeSummary descriptor
+          ConnectImportSource _ -> "installed connector · account required"
+     in [Span Normal marker, Span selectedRole (importChoiceLabel choice)] : [[Span Dim "    ", Span Dim detail]]
+  modeSummary descriptor = Text.intercalate ", " (sourceModeName <$> importSourceModes descriptor)
+
+importPathEditorModelAtWidth :: Int -> InteractionEnvelope -> ImportSourceDescriptor -> EditorState -> Maybe Text -> ScreenModel
+importPathEditorModelAtWidth width envelope descriptor =
+  editorModel
+    width
+    envelope
+    ("Choose " <> importSourceDisplayName descriptor)
+    ("Enter one local " <> Text.intercalate " or " (importSourceExtensions descriptor) <> " file. Little Ant opens it read-only and follows no symlink.")
+
+importModeModel :: InteractionEnvelope -> ImportSelection -> Maybe Text -> ScreenModel
+importModeModel = importModeModelAtWidth 80
+
+importModeModelAtWidth :: Int -> InteractionEnvelope -> ImportSelection -> Maybe Text -> ScreenModel
+importModeModelAtWidth width envelope selection message =
+  ScreenModel
+    ( [[Span Normal ("Import " <> importSourceDisplayName descriptor <> ":")], []]
+        <> concatMap renderMode supported
+        <> [actionSpans "?" "I don't know"]
+        <> maybe [] (\note -> [] : fmap (pure . Span Normal) (wrapWords width note)) message
+        <> [[], actionSpans "/" "more...", []]
+        <> footerFrom width envelope
+    )
+    Nothing
+ where
+  descriptor = importSelectionDescriptor selection
+  supported = importSourceModes descriptor
+  renderMode mode =
+    [ actionSpans (sourceModeShortcut mode) (sourceModeAction mode)
+    , [Span Dim "     ", Span Dim (sourceModeExplanation mode)]
+    ]
+
+providerConnectionEditorModelAtWidth :: Int -> InteractionEnvelope -> ProviderSourceDefinition -> ProviderConnectionInput -> EditorState -> Maybe Text -> ScreenModel
+providerConnectionEditorModelAtWidth width envelope definition stage =
+  editorModel width envelope heading hint
+ where
+  provider = providerDefinitionDisplayName definition
+  (heading, hint) = case stage of
+    ProviderAccountKey ->
+      ( "Connect " <> provider <> " — account key"
+      , "Choose a short lowercase local key, such as personal or work. This is not sent to the provider."
+      )
+    ProviderAccountLabel _ ->
+      ( "Connect " <> provider <> " — account label"
+      , "Optional. Use a recognizable English label; press Enter to reuse the account key."
+      )
+    ProviderClientId _ _ ->
+      ( "Connect " <> provider <> " — public client ID"
+      , "Enter the public OAuth client ID for this connector. It is configuration, not a secret; the next screen previews exact authority."
+      )
+
+sourceModeName :: SourceMode -> Text
+sourceModeName = \case
+  SourceSnapshot -> "snapshot"
+  SourceSynchronize -> "synchronize"
+  SourceMigrate -> "migrate"
+
+sourceModeShortcut :: SourceMode -> Text
+sourceModeShortcut = \case
+  SourceSnapshot -> "s"
+  SourceSynchronize -> "k"
+  SourceMigrate -> "m"
+
+sourceModeAction :: SourceMode -> Text
+sourceModeAction = \case
+  SourceSnapshot -> "snapshot once"
+  SourceSynchronize -> "keep synchronizing"
+  SourceMigrate -> "migrate"
+
+sourceModeExplanation :: SourceMode -> Text
+sourceModeExplanation = \case
+  SourceSnapshot -> "Preserve what exists now without checking again."
+  SourceSynchronize -> "Observe later source changes for review."
+  SourceMigrate -> "Verify a local cutover and stop relying on the source."
 
 packPathEditorModel :: InteractionEnvelope -> PackPathPurpose -> EditorState -> Maybe Text -> ScreenModel
 packPathEditorModel = packPathEditorModelAtWidth 80

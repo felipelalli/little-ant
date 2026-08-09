@@ -19,6 +19,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
+import Data.Either (isRight)
 import Data.List (find, minimumBy, sort, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isJust, isNothing, mapMaybe)
@@ -162,6 +163,7 @@ data AppEnv = AppEnv
 
 data ProviderConnectionRuntime = ProviderConnectionRuntime
   { providerConnectionDefinitions :: [ProviderSourceDefinition]
+  , providerConnectionInstalledDefinitions :: [ProviderSourceDefinition]
   , providerConnectionOAuthTransport :: OAuthFormTransport
   , providerConnectionPresentPrompt :: DeviceAuthorizationPrompt -> IO ()
   , providerConnectionWaitSeconds :: Int -> IO ()
@@ -226,6 +228,10 @@ productionAppEnv explicitProfile = do
                                   providerHttp
                             registryProblem = either Just (const Nothing) registry
                             importProblem = either Just (const Nothing) (registry >> providerSources)
+                            installedProviderDefinitions =
+                              case registry of
+                                Left _ -> []
+                                Right available -> filter (\definition -> isRight (lookupPackComponent (providerDefinitionAdapterId definition) available)) standardProviderSourceDefinitions
                         pure . Right $
                           AppEnv
                             { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
@@ -246,6 +252,7 @@ productionAppEnv explicitProfile = do
                                 Just
                                   ProviderConnectionRuntime
                                     { providerConnectionDefinitions = standardProviderSourceDefinitions
+                                    , providerConnectionInstalledDefinitions = installedProviderDefinitions
                                     , providerConnectionOAuthTransport = oauthTransport
                                     , providerConnectionPresentPrompt = presentDeviceAuthorizationPrompt
                                     , providerConnectionWaitSeconds = \seconds -> threadDelay (seconds * 1_000_000)
@@ -3420,6 +3427,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             now
             state
             (providerConnectionSource draft)
+            (providerConnectionAccountName draft)
             (Profile.providerAccountLabel (providerConnectionAccount draft))
     local (advanceEnvelope current result)
 

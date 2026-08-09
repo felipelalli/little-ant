@@ -77,10 +77,10 @@ identities, keeps completed tasks opt-in, and materializes complete returned
 task JSON as structured Raw. Sparse preflight contains no private provider
 body. Reported attachments whose bytes are absent from Graph remain explicit
 limitations, and migrate requires an explicit incomplete-attachment
-acknowledgment. The public configuration connection and provider-aware CLI
-import paths are implemented; the dumb REPL source selector, separately
-consented cleanup effects, remaining standard importers, Calendar, and
-local-web UIAdapter remain in this slice.
+acknowledgment. The public configuration connection, provider-aware CLI import
+paths, and dumb REPL source selector are implemented; separately consented
+cleanup effects, remaining standard importers, Calendar, and local-web
+UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
@@ -100,7 +100,8 @@ ordinary no-default consent path. `config connect` now binds one reviewed
 account through transient Device Authorization and the encrypted vault; a
 restarted production CLI exposes that account through the same
 snapshot/synchronize/migrate ImportPort as offline sources. Contextual REPL
-discovery and connection remain open.
+discovery, exact multi-account choices, and connection return to a
+still-unapproved import mode are implemented.
 
 The public read-only Pack manager now exposes `lant packs list` and exact-name
 `lant packs show` through one sparse `little-ant/packs@1` projection. It shows
@@ -125,9 +126,9 @@ through a fresh private process and VM. Remote preflight persists only custody
 digest/count plus the sparse observation; materialization refetches and must
 match. The Microsoft To Do component is built on this kernel as an exact
 official artifact. Typed credential binding, transport, acquisition, refresh,
-installed-Pack loading, public account connection, and production provider
-import routing are built. Contextual REPL orchestration and cleanup-effect
-dispatch remain to be built.
+installed-Pack loading, public account connection, production provider import
+routing, and contextual REPL orchestration are built. Cleanup-effect dispatch
+remains to be built.
 
 ## Gate
 

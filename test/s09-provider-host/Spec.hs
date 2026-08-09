@@ -134,7 +134,7 @@ lockedCredential = do
 
 multipleAccountReferences :: Assertion
 multipleAccountReferences = do
-  (_, registry) <- connectorRuntime
+  (runner, registry) <- connectorRuntime
   token <- assertRight (accessTokenFromBytes secretToken)
   let resolver = AccessTokenResolver (const (pure (Right token)))
       transport = PackHttpTransport (const (pure (Left (appError ExternalFailure "unused"))))
@@ -146,6 +146,10 @@ multipleAccountReferences = do
   integrations <- assertRight (authorizedIntegrations registry entries)
   providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry resolver transport)
   (providerImportReference <$> providers) @?= ["microsoft_todo@personal", "microsoft_todo@work"]
+  let catalog = importPortCatalog (packRegistryImportPortWithProviders runner registry providers)
+      providerCatalog = filter (null . importSourceExtensions) catalog
+  (importSourceId <$> providerCatalog) @?= ["microsoft_todo@personal", "microsoft_todo@work"]
+  (importSourceDisplayName <$> providerCatalog) @?= ["Microsoft To Do · Personal", "Microsoft To Do · Work"]
   let encodedConfigurations = LazyByteString.toStrict . encode . providerImportConfiguration <$> providers
   assertBool "personal account identity was omitted" (any ("account-personal" `ByteString.isInfixOf`) encodedConfigurations)
   assertBool "work account identity was omitted" (any ("account-work" `ByteString.isInfixOf`) encodedConfigurations)

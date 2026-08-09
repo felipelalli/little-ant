@@ -26,6 +26,7 @@ import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Protocol
+import LittleAnt.Provider
 import LittleAnt.Provider.Connection
 import LittleAnt.REPL
 import LittleAnt.Result
@@ -432,6 +433,14 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   _ <- respond catalogEnvironment False installPreview "pack.install.accept"
 
   connectedBase <- productionAppEnv Nothing >>= either (assertFailure . show) pure
+  owner <- run connectedBase False NextCommand >>= expectNextInteraction
+  let connectableChoices = importSourceChoices connectedBase
+      connectableScreen = renderPlain (importSourceModel owner connectableChoices "micro" 0 Nothing)
+  case [definition | ConnectImportSource definition <- connectableChoices] of
+    [definition] -> providerDefinitionAdapterId definition @?= "microsoft_todo"
+    other -> assertFailure ("expected one installed provider ready to connect, got: " <> show other)
+  assertBool "the searchable source selector omitted the unconfigured connector" ("Microsoft To Do · connect..." `Text.isInfixOf` connectableScreen)
+  assertBool "the ordinary palette omitted /import" (not (null (filteredCommands owner "/import")))
   paths <- currentProfilePaths
   passphrase <- either (assertFailure . show) pure (makePassphrase "provider connection fixture")
   vaultIdentity <- appAllocateUUID connectedBase
@@ -483,7 +492,7 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   sendVaultAgentRequest (Profile.vaultSocket paths) (agentUnlockRequest "provider connection fixture") >>= either (assertFailure . show) assertAgentSuccess
   accepted <- respond environment False preview "provider.connect.accept" >>= expectRespondInteraction
   case envelopeOpportunity accepted of
-    ProviderConnectionResultOpportunity "microsoft_todo" "Personal account" -> pure ()
+    ProviderConnectionResultOpportunity "microsoft_todo" "personal" "Personal account" -> pure ()
     other -> assertFailure ("expected provider connection result, got: " <> show other)
   observedPrompts <- readIORef prompts
   fmap devicePromptUserCode observedPrompts @?= ["ABCD-EFGH"]
@@ -493,9 +502,19 @@ providerConnectionEnablesImport = withHarness $ \base -> do
 
   restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
   assertBool "connected provider made the production adapter registry unavailable" (isNothing (appPackRegistryProblem restarted))
-  assertBool
-    "Microsoft To Do was not exposed through the production ImportPort"
-    (any ((== "microsoft_todo") . importSourceId) (importPortCatalog (appImportPort restarted)))
+  let restartedChoices = importSourceChoices restarted
+      providerDescriptors = [descriptor | ReadyImportSource descriptor <- restartedChoices, importSourceId descriptor == "microsoft_todo"]
+  assertBool "the connected provider remained incorrectly connectable" (null [() | ConnectImportSource definition <- restartedChoices, providerDefinitionAdapterId definition == "microsoft_todo"])
+  case providerDescriptors of
+    [descriptor] -> do
+      connectedProviderImportSelection restarted "microsoft_todo" "personal" @?= Just (ImportSelection descriptor "microsoft_todo")
+      importSourceDisplayName descriptor @?= "Microsoft To Do · Personal account"
+      let modeScreen = renderPlain (importModeModel accepted (ImportSelection descriptor "microsoft_todo") Nothing)
+      assertBool "snapshot was omitted from the dumb mode selector" ("[s]napshot once" `Text.isInfixOf` modeScreen)
+      assertBool "synchronization was omitted from the dumb mode selector" ("[k]eep synchronizing" `Text.isInfixOf` modeScreen)
+      assertBool "migration was omitted from the dumb mode selector" ("[m]igrate" `Text.isInfixOf` modeScreen)
+      assertBool "the dumb mode selector introduced an Enter default" (not ("Enter" `Text.isInfixOf` modeScreen))
+    other -> assertFailure ("expected one exact connected import target, got: " <> show other)
 
   sendVaultAgentRequest (Profile.vaultSocket paths) agentShutdownRequest >>= either (assertFailure . show) assertAgentSuccess
   takeMVar stopped >>= either (assertFailure . show) pure

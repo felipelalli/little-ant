@@ -335,7 +335,7 @@ data Opportunity
   | ImportPreflightOpportunity Text SourcePreflight Bool
   | ImportResultOpportunity [UUIDv7] [UUIDv7] Bool
   | ProviderConnectionOpportunity ProviderConnectionDraft
-  | ProviderConnectionResultOpportunity Text Text
+  | ProviderConnectionResultOpportunity Text Text Text
   | PackInstallOpportunity PackInstallDraft
   | PackTrustOpportunity PackTrustDraft
   | PackInstallResultOpportunity PackArtifactIdentity
@@ -1018,15 +1018,15 @@ makeProviderConnectionEnvelope identity cursor precondition now state draft =
     (Just "binary_consent")
     (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
 
-makeProviderConnectionResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> Text -> InteractionEnvelope
-makeProviderConnectionResultEnvelope identity cursor precondition now state source label =
+makeProviderConnectionResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> Text -> Text -> InteractionEnvelope
+makeProviderConnectionResultEnvelope identity cursor precondition now state source accountName label =
   sealed
     identity
     1
     cursor
     precondition
     ChoiceGrammar
-    (ProviderConnectionResultOpportunity source label)
+    (ProviderConnectionResultOpportunity source accountName label)
     ( EnvelopeContent
         "Provider connected."
         (Just label)
@@ -3449,7 +3449,12 @@ envelopeIntegrityIsValid envelope = envelopeIntegrityToken envelope == integrity
 
 sealed :: UUIDv7 -> Int -> DatasetCursor -> Text -> ScreenGrammar -> Opportunity -> EnvelopeContent -> [Action] -> [CommandOption] -> Maybe Text -> Footer -> InteractionEnvelope
 sealed identity revision cursor precondition grammar opportunity content actions commands uncertainty footer =
-  sealEnvelope $ InteractionEnvelope identity revision cursor precondition grammar opportunity content actions commands uncertainty footer 0 "core" ""
+  sealEnvelope $ InteractionEnvelope identity revision cursor precondition grammar opportunity content actions (ensureCommand importCommand commands) uncertainty footer 0 "core" ""
+
+ensureCommand :: CommandOption -> [CommandOption] -> [CommandOption]
+ensureCommand command available
+  | commandOptionId command `elem` fmap commandOptionId available = available
+  | otherwise = available <> [command]
 
 sealEnvelope :: InteractionEnvelope -> InteractionEnvelope
 sealEnvelope envelope = envelope{envelopeIntegrityToken = integrityFor envelope}
@@ -3651,6 +3656,9 @@ rawCommands raw =
 
 feedCommand :: CommandOption
 feedCommand = CommandOption "feed" "/feed" "Feed Little Ant"
+
+importCommand :: CommandOption
+importCommand = CommandOption "import" "/import" "Choose a source and import mode"
 
 packsCommand :: CommandOption
 packsCommand = CommandOption "packs" "/packs" "Inspect Packs and installation state"
@@ -4031,7 +4039,7 @@ opportunityValue = \case
   ImportPreflightOpportunity source preflight eraseAfterImport -> typed "import_preflight" ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
   ImportResultOpportunity imported reused cleanupReady -> typed "import_result" ["imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
   ProviderConnectionOpportunity draft -> typed "provider_connection" ["draft" .= draft]
-  ProviderConnectionResultOpportunity source label -> typed "provider_connection_result" ["source" .= source, "label" .= label]
+  ProviderConnectionResultOpportunity source accountName label -> typed "provider_connection_result" ["source" .= source, "account_name" .= accountName, "label" .= label]
   PackInstallOpportunity draft -> typed "pack_install" ["draft" .= draft]
   PackTrustOpportunity draft -> typed "pack_trust" ["draft" .= draft]
   PackInstallResultOpportunity artifact -> typed "pack_install_result" ["artifact" .= artifact]
@@ -4235,7 +4243,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "import_preflight" -> ImportPreflightOpportunity <$> value .: "source" <*> value .: "preflight" <*> value .: "erase_after_import"
     "import_result" -> ImportResultOpportunity <$> (value .: "imported_raw_ids" >>= traverse parseUuid) <*> (value .: "reused_raw_ids" >>= traverse parseUuid) <*> value .: "cleanup_ready"
     "provider_connection" -> ProviderConnectionOpportunity <$> value .: "draft"
-    "provider_connection_result" -> ProviderConnectionResultOpportunity <$> value .: "source" <*> value .: "label"
+    "provider_connection_result" -> ProviderConnectionResultOpportunity <$> value .: "source" <*> value .: "account_name" <*> value .: "label"
     "pack_install" -> PackInstallOpportunity <$> value .: "draft"
     "pack_trust" -> PackTrustOpportunity <$> value .: "draft"
     "pack_install_result" -> PackInstallResultOpportunity <$> value .: "artifact"
