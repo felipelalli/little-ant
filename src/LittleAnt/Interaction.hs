@@ -113,6 +113,8 @@ module LittleAnt.Interaction (
   makeSourceRelocatePreviewEnvelope,
   makeSourceLifecyclePreviewEnvelope,
   makeSourceResultEnvelope,
+  makeImportPreflightEnvelope,
+  makeImportResultEnvelope,
   makeRawAttachmentEnvelope,
   makeRawAttachmentResultEnvelope,
   makeRawUnderBrickEnvelope,
@@ -170,6 +172,7 @@ import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.Source
 import LittleAnt.Store
 
 data ScreenGrammar
@@ -318,6 +321,8 @@ data Opportunity
   | SourceRelocatePreviewOpportunity UUIDv7 Text
   | SourceLifecyclePreviewOpportunity UUIDv7 SourceBindingLifecycle
   | SourceResultOpportunity UUIDv7 Text
+  | ImportPreflightOpportunity Text SourcePreflight Bool
+  | ImportResultOpportunity [UUIDv7] [UUIDv7] Bool
   | RawDestinationOpportunity UUIDv7 Int
   | RawGroupDiscoveryOpportunity UUIDv7
   | RawShelfNameOpportunity UUIDv7 Text
@@ -871,6 +876,87 @@ makeSourceLifecyclePreviewEnvelope previous now state binding lifecycle =
 makeSourceResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Raw -> Text -> InteractionEnvelope
 makeSourceResultEnvelope identity cursor precondition now state raw result =
   sealed identity 1 cursor precondition ChoiceGrammar (SourceResultOpportunity (rawId raw) result) (EnvelopeContent "Origin updated." (Just (rawCitation raw)) [result] Nothing) [Action "source.result.back" "back to Raw" "enter" True "Return to Raw detail.", Action "next" "next" "n" False "Return to the ordinary opportunity forecast.", moreAction] (rawCommands raw) Nothing (rawFooter now state raw)
+
+makeImportPreflightEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> Text -> Bool -> SourcePreflight -> InteractionEnvelope
+makeImportPreflightEnvelope identity cursor precondition now state profileName sourceReference eraseAfterImport preflight =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (ImportPreflightOpportunity sourceReference preflight eraseAfterImport)
+    ( EnvelopeContent
+        "Import preview:"
+        Nothing
+        ( [ observedSourceLabel observation <> accountSuffix
+          , "Mode: " <> sourceModeName (sourcePreflightMode preflight)
+          , ""
+          , "Containers: " <> count containers
+          , "Items: " <> count openObjects <> " open · " <> count completedObjects <> " completed"
+          , "Attachments: " <> Text.pack (show attachments)
+          , "Will preserve: " <> count objects <> " Raws with source identity"
+          , "Destination profile: " <> profileName
+          , "Possible duplicates: " <> Text.pack (show duplicateSuspicions)
+          ]
+            <> unsupportedLine
+            <> warningLines
+            <> ["", "Nothing will be deleted from the source."]
+        )
+        Nothing
+    )
+    [ Action "import.accept" "import" "i" False "Rerun this preflight and atomically preserve verified Raw truth."
+    , Action "import.back" "back" "b" False "Leave this preview without importing."
+    , Action "import.unknown" "I don't know" "?" False "Explain Raw-first import and source cleanup."
+    , moreAction
+    ]
+    [CommandOption "import" "/import" "Choose another import source", helpCommand, exitCommand]
+    Nothing
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  observation = sourcePreflightObservation preflight
+  containers = observedContainers observation
+  objects = observedObjects observation
+  openObjects = filter (not . sourceObjectCompleted) objects
+  completedObjects = filter sourceObjectCompleted objects
+  attachments = sum (sourceObjectAttachmentCount <$> objects)
+  duplicateSuspicions = length (filter (not . null . sourceObjectDuplicateKeys) objects)
+  accountSuffix = maybe "" (" · " <>) (observedAccountLabel observation)
+  unsupportedLine = case observedUnsupportedFields observation of
+    [] -> []
+    unsupported -> ["Unsupported fields: " <> Text.intercalate "; " unsupported]
+  warningLines = ("Warning: " <>) <$> observedWarnings observation
+  count = Text.pack . show . length
+
+makeImportResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> [UUIDv7] -> [UUIDv7] -> Bool -> InteractionEnvelope
+makeImportResultEnvelope identity cursor precondition now state imported reused cleanupReady =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ChoiceGrammar
+    (ImportResultOpportunity imported reused cleanupReady)
+    ( EnvelopeContent
+        "Import verified."
+        Nothing
+        [ count imported <> " new Raws preserved · " <> count reused <> " already preserved"
+        , "0 source items changed"
+        ]
+        Nothing
+    )
+    ( triageAction
+        <> [Action "next" "next" "n" False "Return to the ordinary opportunity forecast."]
+        <> cleanupAction
+        <> [moreAction]
+    )
+    [CommandOption "import" "/import" "Import another source", helpCommand, exitCommand]
+    Nothing
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  triageAction = [Action "import.triage" "triage imported material" "t" False "Open ordinary lazy Raw triage." | not (null (imported <> reused))]
+  cleanupAction = [Action "import.cleanup" "clean up the source..." "c" False "Open a separate exact cleanup approval." | cleanupReady]
+  count = Text.pack . show . length
 
 rawDetailBody :: State -> Raw -> [Text]
 rawDetailBody state raw =
@@ -3731,6 +3817,8 @@ opportunityValue = \case
   SourceRelocatePreviewOpportunity identity locator -> typed "source_relocate_preview" ["binding_id" .= renderUUIDv7 identity, "locator" .= locator]
   SourceLifecyclePreviewOpportunity identity lifecycle -> typed "source_lifecycle_preview" ["binding_id" .= renderUUIDv7 identity, "lifecycle" .= sourceLifecycleLabel lifecycle]
   SourceResultOpportunity identity result -> typed "source_result" ["raw_id" .= renderUUIDv7 identity, "result" .= result]
+  ImportPreflightOpportunity source preflight eraseAfterImport -> typed "import_preflight" ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
+  ImportResultOpportunity imported reused cleanupReady -> typed "import_result" ["imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
   RawDestinationOpportunity identity page -> typed "raw_destination" ["raw_id" .= renderUUIDv7 identity, "page" .= page]
   RawGroupDiscoveryOpportunity rawId -> typed "raw_group_discovery" ["raw_id" .= renderUUIDv7 rawId]
   RawShelfNameOpportunity rawId name -> typed "raw_shelf_name" ["raw_id" .= renderUUIDv7 rawId, "name" .= name]
@@ -3927,6 +4015,8 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "source_relocate_preview" -> SourceRelocatePreviewOpportunity <$> uuidField value "binding_id" <*> value .: "locator"
     "source_lifecycle_preview" -> SourceLifecyclePreviewOpportunity <$> uuidField value "binding_id" <*> (value .: "lifecycle" >>= parseSourceLifecycleLabel)
     "source_result" -> SourceResultOpportunity <$> uuidField value "raw_id" <*> value .: "result"
+    "import_preflight" -> ImportPreflightOpportunity <$> value .: "source" <*> value .: "preflight" <*> value .: "erase_after_import"
+    "import_result" -> ImportResultOpportunity <$> (value .: "imported_raw_ids" >>= traverse parseUuid) <*> (value .: "reused_raw_ids" >>= traverse parseUuid) <*> value .: "cleanup_ready"
     "raw_destination" -> RawDestinationOpportunity <$> uuidField value "raw_id" <*> value .: "page"
     "raw_group_discovery" -> RawGroupDiscoveryOpportunity <$> uuidField value "raw_id"
     "raw_shelf_name" -> RawShelfNameOpportunity <$> uuidField value "raw_id" <*> value .: "name"

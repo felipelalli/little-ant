@@ -17,7 +17,7 @@ import Data.Text.IO qualified as Text
 import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Id (parseUUIDv7, renderUUIDv7)
-import LittleAnt.Model (actorProfile)
+import LittleAnt.Model (SourceMode (..), actorProfile)
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.REPL
@@ -93,7 +93,7 @@ data CliCommand
   | UpdateCli Text (Maybe Text)
   | MergeCli Text Text
   | SupersedeCli Text Text
-  | ImportCli Text Text Bool
+  | ImportCli Text SourceMode Bool
   | MigrateCli Text Text Text
   | ExportCli Text (Maybe Text) (Maybe FilePath)
   | WebCli
@@ -776,14 +776,7 @@ commandParser =
               ( ImportCli
                   . Text.pack
                   <$> strArgument (metavar "SOURCE")
-                  <*> option
-                    (strOptionMode ["snapshot", "synchronize", "migrate"])
-                    ( long "mode"
-                        <> metavar "snapshot|synchronize|migrate"
-                        <> value "synchronize"
-                        <> showDefault
-                        <> help "Import execution mode"
-                    )
+                  <*> importModeParser
                   <*> switch (long "erase-after-import" <> help "Delete imported entries from source as a migration aid")
               )
               (progDesc "Import external data into your Lant dataset")
@@ -897,6 +890,12 @@ strOptionMode options =
     if value `elem` options
       then Right (Text.pack value)
       else Left $ "unsupported value " <> value <> ". Supported: " <> Text.unpack (Text.intercalate ", " (map Text.pack options))
+
+importModeParser :: Parser SourceMode
+importModeParser =
+  flag' SourceSnapshot (long "snapshot" <> help "Preserve one verified snapshot without later source checks")
+    <|> flag' SourceSynchronize (long "synchronize" <> help "Preserve now and keep observing supported source changes")
+    <|> flag' SourceMigrate (long "migrate" <> help "Verify a local cutover before any separate source-cleanup review")
 
 packParser :: Parser CliCommand
 packParser =

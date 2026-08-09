@@ -18,6 +18,7 @@ import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Foundation
 import LittleAnt.Id
+import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
 import LittleAnt.Repair
@@ -94,7 +95,7 @@ obsoleteRevisionRejected = do
 sourceReconciliation :: Assertion
 sourceReconciliation = do
   (state1, raw) <- fedState "old source text"
-  bindingDecision <- assertRight (decideAttachSourceBinding state1 actor (rawId raw) "notesnook" Nothing (Just "note-42") "notesnook://note-42" SourceSynchronize SourceManualCheck (facts 30 3))
+  bindingDecision <- assertRight (decideAttachSourceBinding state1 actor (rawId raw) "notesnook" Nothing (Just "note-42") Nothing "notesnook://note-42" SourceSynchronize SourceManualCheck (facts 30 3))
   state2 <- applyMutation state1 bindingDecision
   let binding = head (Map.elems (stateSourceBindings state2))
       changedText = "new source text"
@@ -152,7 +153,7 @@ unrelatedSourceReconciliation = do
 changedSourceState :: Text -> IO (State, Raw, SourceBinding, SourceObservation)
 changedSourceState changedText = do
   (state1, raw) <- fedState "old source text"
-  bindingDecision <- assertRight (decideAttachSourceBinding state1 actor (rawId raw) "notesnook" Nothing (Just "note-42") "notesnook://note-42" SourceSynchronize SourceManualCheck (facts 220 3))
+  bindingDecision <- assertRight (decideAttachSourceBinding state1 actor (rawId raw) "notesnook" Nothing (Just "note-42") Nothing "notesnook://note-42" SourceSynchronize SourceManualCheck (facts 220 3))
   state2 <- applyMutation state1 bindingDecision
   let binding = only "SourceBinding" (Map.elems (stateSourceBindings state2))
       content = RawTextContent changedText
@@ -163,7 +164,7 @@ changedSourceState changedText = do
 sourceEventRoundTrip :: Assertion
 sourceEventRoundTrip = do
   (state1, raw) <- fedState "source"
-  decision <- assertRight (decideAttachSourceBinding state1 actor (rawId raw) "microsoft_todo" Nothing (Just "task-1") "mstodo://task-1" SourceMigrate (SourceIntervalCheck 3600) (facts 70 3))
+  decision <- assertRight (decideAttachSourceBinding state1 actor (rawId raw) "microsoft_todo" Nothing (Just "task-1") Nothing "mstodo://task-1" SourceMigrate (SourceIntervalCheck 3600) (facts 70 3))
   let event = persist 99 (head (mutationDecisionEvents decision))
   decodeEvent (encodeEvent event) @?= Right event
 
@@ -566,7 +567,7 @@ harnessEnvironment :: FilePath -> IO AppEnv
 harnessEnvironment root = do
   counter <- newIORef (1000 :: Int)
   let allocate = atomicModifyIORef' counter $ \seed -> (seed + 1, fixtureUuid seed)
-  pure (AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate emptyExportPort)
+  pure (AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate emptyExportPort emptyImportPort)
 
 run :: AppEnv -> AppCommand -> IO CommandResult
 run environment command = assertRight =<< runAppCommand environment False (const (pure ())) command

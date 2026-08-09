@@ -18,6 +18,7 @@ import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Foundation
 import LittleAnt.Id
+import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
 import LittleAnt.Projection
@@ -247,6 +248,7 @@ deterministicEnv root seed = do
           identity : rest -> (rest, identity)
           [] -> error "deterministic UUID fixture exhausted"
       , appExportPort = emptyExportPort
+      , appImportPort = emptyImportPort
       }
 
 testUuid :: Int -> IO UUIDv7

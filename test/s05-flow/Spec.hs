@@ -11,6 +11,7 @@ import LittleAnt.Decision (statePreconditionHash)
 import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Id
+import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
 import LittleAnt.Result
@@ -205,6 +206,7 @@ withHarness action = withSystemTempDirectory "little-ant-s05" $ \root -> do
           (pure (utcToZonedTime utc fixedTime))
           allocate
           emptyExportPort
+          emptyImportPort
   action environment
 
 run :: AppEnv -> AppCommand -> IO CommandResult

@@ -330,6 +330,30 @@ instance ToJSON SourcePreflight where
       , "observation" .= sourcePreflightObservation preflight
       ]
 
+instance FromJSON SourcePreflight where
+  parseJSON = withObject "SourcePreflight" $ \fields -> do
+    rejectUnknown fields ["schema", "adapter_id", "pack", "signer_fingerprint", "mode", "input_label", "input_media_type", "input_digest", "input_byte_count", "observation"]
+    schema <- fields .: "schema"
+    unless (schema == ("little-ant/source-preflight@1" :: Text)) $ fail "unsupported SourcePreflight schema"
+    preflight <-
+      SourcePreflight
+        <$> fields .: "adapter_id"
+        <*> fields .: "pack"
+        <*> fields .: "signer_fingerprint"
+        <*> (fields .: "mode" >>= parseSourceMode)
+        <*> fields .: "input_label"
+        <*> fields .: "input_media_type"
+        <*> fields .: "input_digest"
+        <*> fields .: "input_byte_count"
+        <*> fields .: "observation"
+    when (any (Text.null . Text.strip) [sourcePreflightAdapterId preflight, sourcePreflightSignerFingerprint preflight, sourcePreflightInputLabel preflight, sourcePreflightInputMediaType preflight]) $ fail "SourcePreflight contains an empty custody field"
+    unless (Text.length (sourcePreflightInputDigest preflight) == 64 && Text.all hexadecimal (sourcePreflightInputDigest preflight)) $ fail "SourcePreflight contains an invalid input digest"
+    when (sourcePreflightInputByteCount preflight < 0) $ fail "SourcePreflight contains a negative input byte count"
+    unless (sourcePreflightMode preflight `elem` observedSupportedModes (sourcePreflightObservation preflight)) $ fail "SourcePreflight mode is not supported by its observation"
+    pure preflight
+   where
+    hexadecimal character = isAscii character && (isDigit character || character >= 'a' && character <= 'f')
+
 sourceObjectShapeName :: SourceObjectShape -> Text
 sourceObjectShapeName = \case
   SourceTaskShape -> "task"

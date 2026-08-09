@@ -39,6 +39,8 @@ module LittleAnt.Model (
   NormalizationSource (..),
   EnglishNormalization (..),
   BrickTitleNormalization (..),
+  ImportProfileLifecycle (..),
+  ImportProfile (..),
   SourceMode (..),
   SourceCheckPolicy (..),
   SourceBindingLifecycle (..),
@@ -185,6 +187,29 @@ data EnglishNormalization = EnglishNormalization
 data SourceMode = SourceSnapshot | SourceSynchronize | SourceMigrate
   deriving stock (Bounded, Enum, Eq, Ord, Show)
 
+data ImportProfileLifecycle = ImportProfileActive | ImportProfileRetired
+  deriving stock (Bounded, Enum, Eq, Ord, Show)
+
+data ImportProfile = ImportProfile
+  { importProfileId :: UUIDv7
+  , importProfileAdapterId :: Text
+  , importProfileSourceLabel :: Text
+  , importProfileAccountLabel :: Maybe Text
+  , importProfileInputReference :: Text
+  , importProfileInputDigest :: Text
+  , importProfileInputByteCount :: Int
+  , importProfileMode :: SourceMode
+  , importProfileCleanupSupported :: Bool
+  , importProfilePackName :: Text
+  , importProfilePackVersion :: Text
+  , importProfilePackManifestDigest :: Text
+  , importProfilePackArchiveDigest :: Text
+  , importProfileSignerFingerprint :: Text
+  , importProfileLifecycle :: ImportProfileLifecycle
+  , importProfileRevision :: Int
+  }
+  deriving stock (Eq, Show)
+
 data SourceCheckPolicy = SourceManualCheck | SourceIntervalCheck Integer
   deriving stock (Eq, Ord, Show)
 
@@ -197,6 +222,7 @@ data SourceBinding = SourceBinding
   , sourceBindingKind :: Text
   , sourceBindingImportProfile :: Maybe UUIDv7
   , sourceBindingExternalIdentity :: Maybe Text
+  , sourceBindingContainerIdentity :: Maybe Text
   , sourceBindingLocator :: Text
   , sourceBindingMode :: SourceMode
   , sourceBindingCheckPolicy :: SourceCheckPolicy
@@ -1015,6 +1041,7 @@ data State = State
   , stateCurrentEnglishNormalizations :: Map UUIDv7 UUIDv7
   , stateBrickTitleNormalizations :: Map UUIDv7 BrickTitleNormalization
   , stateCurrentBrickTitleNormalizations :: Map UUIDv7 UUIDv7
+  , stateImportProfiles :: Map UUIDv7 ImportProfile
   , stateSourceBindings :: Map UUIDv7 SourceBinding
   , stateSourceObservations :: Map UUIDv7 SourceObservation
   , stateSourceReconciliations :: Map UUIDv7 SourceReconciliation
@@ -1084,6 +1111,7 @@ emptyState =
     , stateCurrentEnglishNormalizations = Map.empty
     , stateBrickTitleNormalizations = Map.empty
     , stateCurrentBrickTitleNormalizations = Map.empty
+    , stateImportProfiles = Map.empty
     , stateSourceBindings = Map.empty
     , stateSourceObservations = Map.empty
     , stateSourceReconciliations = Map.empty

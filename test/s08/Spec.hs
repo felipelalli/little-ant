@@ -17,6 +17,7 @@ import LittleAnt.Export (emptyExportPort)
 import LittleAnt.ForecastWorld
 import LittleAnt.Foundation
 import LittleAnt.Id
+import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
 import LittleAnt.Profile
@@ -447,6 +448,7 @@ withAppHarness action = withSystemTempDirectory "little-ant-s08-flow" $ \root ->
           (pure (utcToZonedTime utc now))
           allocate
           emptyExportPort
+          emptyImportPort
   action environment
 
 seedGuidedBrick :: AppEnv -> IO ()

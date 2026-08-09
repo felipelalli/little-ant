@@ -33,6 +33,7 @@ module LittleAnt.Event (
   RawContentRevisionAppended (..),
   EnglishNormalizationAccepted (..),
   BrickTitleNormalizationAccepted (..),
+  ImportProfileChanged (..),
   SourceBindingChanged (..),
   SourceObservationRecorded (..),
   SourceObservationReconciled (..),
@@ -133,6 +134,11 @@ data EnglishNormalizationAccepted = EnglishNormalizationAccepted
 
 newtype SourceBindingChanged = SourceBindingChanged
   { changedSourceBinding :: SourceBinding
+  }
+  deriving stock (Eq, Show)
+
+newtype ImportProfileChanged = ImportProfileChanged
+  { changedImportProfile :: ImportProfile
   }
   deriving stock (Eq, Show)
 
@@ -534,6 +540,7 @@ data EventPayload
   | RawContentRevisionAppendedV1 RawContentRevisionAppended
   | EnglishNormalizationAcceptedV1 EnglishNormalizationAccepted
   | BrickTitleNormalizationAcceptedV1 BrickTitleNormalizationAccepted
+  | ImportProfileChangedV1 ImportProfileChanged
   | SourceBindingChangedV1 SourceBindingChanged
   | SourceObservationRecordedV1 SourceObservationRecorded
   | SourceObservationReconciledV1 SourceObservationReconciled
@@ -623,6 +630,7 @@ eventTypeName = \case
   RawContentRevisionAppendedV1 _ -> "raw_content_revision_appended"
   EnglishNormalizationAcceptedV1 _ -> "english_normalization_accepted"
   BrickTitleNormalizationAcceptedV1 _ -> "brick_title_normalization_accepted"
+  ImportProfileChangedV1 _ -> "import_profile_changed"
   SourceBindingChangedV1 _ -> "source_binding_changed"
   SourceObservationRecordedV1 _ -> "source_observation_recorded"
   SourceObservationReconciledV1 _ -> "source_observation_reconciled"
@@ -726,6 +734,7 @@ applyEvent state event = case persistedPayload event of
   RawContentRevisionAppendedV1 payload -> applyRawContentRevisionAppended state event payload
   EnglishNormalizationAcceptedV1 payload -> applyEnglishNormalizationAccepted state event payload
   BrickTitleNormalizationAcceptedV1 payload -> applyBrickTitleNormalizationAccepted state event payload
+  ImportProfileChangedV1 payload -> applyImportProfileChanged state (changedImportProfile payload)
   SourceBindingChangedV1 payload -> applySourceBindingChanged state (changedSourceBinding payload)
   SourceObservationRecordedV1 payload -> applySourceObservationRecorded state event payload
   SourceObservationReconciledV1 payload -> applySourceObservationReconciled state event payload
@@ -1680,9 +1689,39 @@ applyBrickTitleNormalizationAccepted state event payload = do
       , stateCurrentBrickTitleNormalizations = Map.insert (brickId brick) (persistedEventId event) (stateCurrentBrickTitleNormalizations state)
       }
 
+applyImportProfileChanged :: State -> ImportProfile -> Either AppError State
+applyImportProfileChanged state profile = do
+  when (any (Text.null . Text.strip) requiredText) $ corrupt "An ImportProfile contains an empty custody field."
+  when (importProfileInputByteCount profile < 0) $ corrupt "An ImportProfile input byte count cannot be negative."
+  case Map.lookup (importProfileId profile) (stateImportProfiles state) of
+    Nothing -> unless (importProfileRevision profile == 1) $ corrupt "A new ImportProfile must start at revision one."
+    Just previous -> do
+      unless (importProfileRevision profile == importProfileRevision previous + 1) $ corrupt "An ImportProfile revision is not contiguous."
+      unless
+        ( importProfileAdapterId profile == importProfileAdapterId previous
+            && importProfileInputReference profile == importProfileInputReference previous
+        )
+        $ corrupt "An ImportProfile update changed immutable source scope."
+  pure . bump $ state{stateImportProfiles = Map.insert (importProfileId profile) profile (stateImportProfiles state)}
+ where
+  requiredText =
+    [ importProfileAdapterId profile
+    , importProfileSourceLabel profile
+    , importProfileInputReference profile
+    , importProfileInputDigest profile
+    , importProfilePackName profile
+    , importProfilePackVersion profile
+    , importProfilePackManifestDigest profile
+    , importProfilePackArchiveDigest profile
+    , importProfileSignerFingerprint profile
+    ]
+
 applySourceBindingChanged :: State -> SourceBinding -> Either AppError State
 applySourceBindingChanged state binding = do
   _ <- requireRaw state (sourceBindingRaw binding)
+  traverse_
+    (\profileId -> unless (Map.member profileId (stateImportProfiles state)) $ corrupt "A SourceBinding ImportProfile is missing.")
+    (sourceBindingImportProfile binding)
   when (Text.null (Text.strip (sourceBindingKind binding)) || Text.null (Text.strip (sourceBindingLocator binding))) $ corrupt "A SourceBinding needs a kind and locator."
   case sourceBindingCheckPolicy binding of
     SourceIntervalCheck seconds | seconds <= 0 -> corrupt "A SourceBinding interval must be positive."
@@ -1692,7 +1731,14 @@ applySourceBindingChanged state binding = do
     Nothing -> unless (sourceBindingRevision binding == 1) $ corrupt "A new SourceBinding must start at revision one."
     Just previous -> do
       unless (sourceBindingRevision binding == sourceBindingRevision previous + 1) $ corrupt "A SourceBinding revision is not contiguous."
-      unless (sourceBindingRaw binding == sourceBindingRaw previous && sourceBindingKind binding == sourceBindingKind previous) $ corrupt "A SourceBinding update changed immutable identity facts."
+      unless
+        ( sourceBindingRaw binding == sourceBindingRaw previous
+            && sourceBindingKind binding == sourceBindingKind previous
+            && sourceBindingImportProfile binding == sourceBindingImportProfile previous
+            && sourceBindingExternalIdentity binding == sourceBindingExternalIdentity previous
+            && sourceBindingContainerIdentity binding == sourceBindingContainerIdentity previous
+        )
+        $ corrupt "A SourceBinding update changed immutable identity facts."
   pure . bump $ state{stateSourceBindings = Map.insert (sourceBindingId binding) binding (stateSourceBindings state)}
  where
   validateBaseline observationId = do
@@ -2426,6 +2472,7 @@ payloadValue = \case
     object $ ["revision_id" .= uuid (acceptedNormalizationRevision payload), "text" .= acceptedNormalizationText payload, "source" .= normalizationSourceText (acceptedNormalizationSource payload)] <> maybe [] (pure . ("producer" .=)) (acceptedNormalizationProducer payload) <> maybe [] (pure . ("confidence" .=) . unFixed) (acceptedNormalizationConfidence payload)
   BrickTitleNormalizationAcceptedV1 payload ->
     object $ ["brick_id" .= uuid (acceptedTitleNormalizationBrick payload), "previous" .= acceptedTitleNormalizationPrevious payload, "current" .= acceptedTitleNormalizationCurrent payload, "source" .= normalizationSourceText (acceptedTitleNormalizationSource payload)] <> maybe [] (pure . ("producer" .=)) (acceptedTitleNormalizationProducer payload) <> maybe [] (pure . ("confidence" .=) . unFixed) (acceptedTitleNormalizationConfidence payload)
+  ImportProfileChangedV1 payload -> importProfileValue (changedImportProfile payload)
   SourceBindingChangedV1 payload -> sourceBindingValue (changedSourceBinding payload)
   SourceObservationRecordedV1 payload ->
     object $ ["binding_id" .= uuid (recordedSourceObservationBinding payload), "locator" .= recordedSourceObservationLocator payload, "outcome" .= sourceObservationOutcomeText (recordedSourceObservationOutcome payload)] <> maybe [] (pure . ("provider_version" .=)) (recordedSourceObservationProviderVersion payload) <> maybe [] (pure . ("fingerprint" .=)) (recordedSourceObservationFingerprint payload) <> maybe [] (pure . ("snapshot_digest" .=)) (recordedSourceObservationSnapshotDigest payload) <> maybe [] (pure . ("snapshot" .=) . rawContentValue) (recordedSourceObservationSnapshot payload)
@@ -2728,6 +2775,7 @@ parsePayload eventType version payload = case (eventType, version) of
   ("raw_content_revision_appended", 1) -> RawContentRevisionAppendedV1 <$> parseRawContentRevisionAppended payload
   ("english_normalization_accepted", 1) -> EnglishNormalizationAcceptedV1 <$> parseEnglishNormalizationAccepted payload
   ("brick_title_normalization_accepted", 1) -> BrickTitleNormalizationAcceptedV1 <$> parseBrickTitleNormalizationAccepted payload
+  ("import_profile_changed", 1) -> ImportProfileChangedV1 . ImportProfileChanged <$> parseImportProfile payload
   ("source_binding_changed", 1) -> SourceBindingChangedV1 . SourceBindingChanged <$> parseSourceBinding payload
   ("source_observation_recorded", 1) -> SourceObservationRecordedV1 <$> parseSourceObservationRecorded payload
   ("source_observation_reconciled", 1) -> SourceObservationReconciledV1 <$> parseSourceObservationReconciled payload
@@ -3013,6 +3061,29 @@ parsePayload eventType version payload = case (eventType, version) of
   parseSourceMode :: Text -> Parser SourceMode
   parseSourceMode = \case "snapshot" -> pure SourceSnapshot; "synchronize" -> pure SourceSynchronize; "migrate" -> pure SourceMigrate; _ -> fail "unknown source mode"
 
+  parseImportProfileLifecycle :: Text -> Parser ImportProfileLifecycle
+  parseImportProfileLifecycle = \case "active" -> pure ImportProfileActive; "retired" -> pure ImportProfileRetired; _ -> fail "unknown import profile lifecycle"
+
+  parseImportProfile :: Value -> Parser ImportProfile
+  parseImportProfile = withObject "ImportProfile" $ \value ->
+    ImportProfile
+      <$> (value .: "import_profile_id" >>= parseId)
+      <*> value .: "adapter_id"
+      <*> value .: "source_label"
+      <*> value .:? "account_label"
+      <*> value .: "input_reference"
+      <*> value .: "input_digest"
+      <*> value .: "input_byte_count"
+      <*> (value .: "mode" >>= parseSourceMode)
+      <*> value .: "cleanup_supported"
+      <*> value .: "pack_name"
+      <*> value .: "pack_version"
+      <*> value .: "pack_manifest_digest"
+      <*> value .: "pack_archive_digest"
+      <*> value .: "signer_fingerprint"
+      <*> (value .: "lifecycle" >>= parseImportProfileLifecycle)
+      <*> value .: "revision"
+
   parseSourceLifecycle :: Text -> Parser SourceBindingLifecycle
   parseSourceLifecycle = \case "active" -> pure SourceBindingActive; "paused" -> pure SourceBindingPaused; "detached" -> pure SourceBindingDetached; _ -> fail "unknown source lifecycle"
 
@@ -3029,6 +3100,7 @@ parsePayload eventType version payload = case (eventType, version) of
       <*> value .: "source_kind"
       <*> (value .:? "import_profile_id" >>= traverse parseId)
       <*> value .:? "external_identity"
+      <*> value .:? "container_identity"
       <*> value .: "locator"
       <*> (value .: "mode" >>= parseSourceMode)
       <*> (value .: "check_policy" >>= parseSourceCheckPolicy)
@@ -3123,6 +3195,30 @@ normalizationSourceText = \case
 sourceModeText :: SourceMode -> Text
 sourceModeText = \case SourceSnapshot -> "snapshot"; SourceSynchronize -> "synchronize"; SourceMigrate -> "migrate"
 
+importProfileLifecycleText :: ImportProfileLifecycle -> Text
+importProfileLifecycleText = \case ImportProfileActive -> "active"; ImportProfileRetired -> "retired"
+
+importProfileValue :: ImportProfile -> Value
+importProfileValue profile =
+  object $
+    [ "import_profile_id" .= renderUUIDv7 (importProfileId profile)
+    , "adapter_id" .= importProfileAdapterId profile
+    , "source_label" .= importProfileSourceLabel profile
+    , "input_reference" .= importProfileInputReference profile
+    , "input_digest" .= importProfileInputDigest profile
+    , "input_byte_count" .= importProfileInputByteCount profile
+    , "mode" .= sourceModeText (importProfileMode profile)
+    , "cleanup_supported" .= importProfileCleanupSupported profile
+    , "pack_name" .= importProfilePackName profile
+    , "pack_version" .= importProfilePackVersion profile
+    , "pack_manifest_digest" .= importProfilePackManifestDigest profile
+    , "pack_archive_digest" .= importProfilePackArchiveDigest profile
+    , "signer_fingerprint" .= importProfileSignerFingerprint profile
+    , "lifecycle" .= importProfileLifecycleText (importProfileLifecycle profile)
+    , "revision" .= importProfileRevision profile
+    ]
+      <> maybe [] (pure . ("account_label" .=)) (importProfileAccountLabel profile)
+
 sourceLifecycleText :: SourceBindingLifecycle -> Text
 sourceLifecycleText = \case SourceBindingActive -> "active"; SourceBindingPaused -> "paused"; SourceBindingDetached -> "detached"
 
@@ -3145,6 +3241,7 @@ sourceBindingValue binding =
     ]
       <> maybe [] (pure . ("import_profile_id" .=) . renderUUIDv7) (sourceBindingImportProfile binding)
       <> maybe [] (pure . ("external_identity" .=)) (sourceBindingExternalIdentity binding)
+      <> maybe [] (pure . ("container_identity" .=)) (sourceBindingContainerIdentity binding)
       <> maybe [] (pure . ("accepted_observation_id" .=) . renderUUIDv7) (sourceBindingAcceptedObservation binding)
 
 sourceObservationOutcomeText :: SourceObservationOutcome -> Text

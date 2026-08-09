@@ -36,6 +36,7 @@ import LittleAnt.Forecast
 import LittleAnt.ForecastWorld qualified as World
 import LittleAnt.Foundation
 import LittleAnt.Id
+import LittleAnt.Import
 import LittleAnt.Interaction
 import LittleAnt.Judgment
 import LittleAnt.JudgmentDecision
@@ -49,6 +50,7 @@ import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Repair
 import LittleAnt.Result
+import LittleAnt.Source
 import LittleAnt.Store
 import LittleAnt.Temporal
 import LittleAnt.Time
@@ -107,7 +109,7 @@ data AppCommand
   | UpdateCommand Text (Maybe Text)
   | MergeCommand Text Text
   | SupersedeCommand Text Text
-  | ImportCommand Text Text Bool
+  | ImportCommand Text SourceMode Bool
   | MigrateCommand Text Text Text
   | ExportCommand Text (Maybe Text) (Maybe FilePath)
   | WebCommand
@@ -133,6 +135,7 @@ data AppEnv = AppEnv
   , appZonedNow :: IO ZonedTime
   , appAllocateUUID :: IO UUIDv7
   , appExportPort :: ExportPort
+  , appImportPort :: ImportPort
   }
 
 data PresentationCheckpoint = PresentationCheckpoint
@@ -182,12 +185,14 @@ productionAppEnv explicitProfile = do
                         runner <- defaultPackRunnerClient
                         pure . Right $
                           AppEnv
-                            (StoreConfig (Profile.configuredDataset config) 2000000 20000)
-                            (Actor "human" profile)
-                            getCurrentTime
-                            getZonedTime
-                            generateUUIDv7
-                            (packRegistryExportPort runner registry)
+                            { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
+                            , appActor = Actor "human" profile
+                            , appNow = getCurrentTime
+                            , appZonedNow = getZonedTime
+                            , appAllocateUUID = generateUUIDv7
+                            , appExportPort = packRegistryExportPort runner registry
+                            , appImportPort = packRegistryImportPort runner registry
+                            }
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
 resolveProfileName explicit = do
@@ -288,9 +293,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   MergeCommand survivor absorbed -> pure (unsupportedCommand ("merge " <> survivor <> " " <> absorbed))
   SupersedeCommand oldBrick newBrick -> pure (unsupportedCommand ("supersede " <> oldBrick <> " " <> newBrick))
   ImportCommand source mode eraseAfterImport ->
-    pure $
-      unsupportedCommand
-        ("import from " <> source <> " mode=" <> mode <> (if eraseAfterImport then " --erase-after-import" else ""))
+    runImport environment dryRun dataset source mode eraseAfterImport
   MigrateCommand sourcePath targetPath mode ->
     pure $ unsupportedCommand ("migrate " <> sourcePath <> " " <> targetPath <> " mode=" <> mode)
   ExportCommand exporter scope outputPath -> runExport environment dryRun dataset exporter scope outputPath
@@ -1318,6 +1321,44 @@ runReturnToIdle environment dryRun dataset maybeReference =
   runPauseLike state actor env dryRun' dataset' identity =
     runDirectMutation env dryRun' dataset' 2 (decidePauseFocus state actor identity)
 
+runImport :: AppEnv -> Bool -> LoadedDataset -> Text -> SourceMode -> Bool -> IO (Either AppError CommandResult)
+runImport environment dryRun dataset source mode eraseAfterImport =
+  importPortPreflight (appImportPort environment) source mode >>= \case
+    Left problem -> pure (Left problem)
+    Right imported
+      | eraseAfterImport && mode /= SourceMigrate ->
+          pure . Left $
+            (appError Unsupported "--erase-after-import is valid only with --migrate.")
+              { appErrorRecovery = [RecoveryAction "migrate" "Use --migrate or omit source cleanup." Nothing]
+              }
+      | eraseAfterImport && not (observedCleanupSupported observation) ->
+          pure . Left $
+            (appError Unsupported "The selected SourceAdapter does not support source cleanup.")
+              { appErrorSubject = Just (sourcePreflightAdapterId preflight)
+              , appErrorRecovery = [RecoveryAction "ordinary-migration" "Run a verified migration without --erase-after-import." Nothing]
+              }
+      | otherwise -> do
+          identity <- appAllocateUUID environment
+          now <- appZonedNow environment
+          let state = loadedState dataset
+              cursor = loadedCursor dataset
+              envelope =
+                makeImportPreflightEnvelope
+                  identity
+                  cursor
+                  (statePreconditionHash state)
+                  now
+                  state
+                  (actorProfile (appActor environment))
+                  (importReadSourceReference imported)
+                  eraseAfterImport
+                  preflight
+          saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+          pure (Right (NextResult cursor envelope dryRun))
+     where
+      preflight = importReadPreflight imported
+      observation = sourcePreflightObservation preflight
+
 runExport :: AppEnv -> Bool -> LoadedDataset -> Text -> Maybe Text -> Maybe FilePath -> IO (Either AppError CommandResult)
 runExport environment dryRun dataset exporter requestedScope outputPath =
   case resolveExportScope (loadedState dataset) requestedScope of
@@ -1593,7 +1634,7 @@ helpEntries Nothing =
   , helpEntry "update" "Patch one Brick metadata or section" "usage: lant update <BRICK> [SECTION]"
   , helpEntry "merge" "Merge two Bricks" "usage: lant merge <SURVIVOR> <ABSORBED>"
   , helpEntry "supersede" "Supersede a Brick with another" "usage: lant supersede <OLD> <NEW>"
-  , helpEntry "import" "Import external source data" "usage: lant import <SOURCE> [--mode snapshot|synchronize|migrate] [--erase-after-import]"
+  , helpEntry "import" "Import external source data" "usage: lant import <SOURCE> (--snapshot|--synchronize|--migrate) [--erase-after-import]"
   , helpEntry "migrate" "Migrate state between formats" "usage: lant migrate <SOURCE> <TARGET> [--mode inspect|build|cutover]"
   , helpEntry "export" "Export a named versioned projection" "usage: lant export <EXPORTER> [--scope REFERENCE] [--output NEW_FILE]"
   , helpEntry "packs" "Manage packs and extensions" "usage: lant packs <list|show|install|updates|update|remove|refresh|trust|untrust|gc>"
@@ -1786,6 +1827,16 @@ dispatchResponseAt :: ZonedTime -> AppEnv -> Bool -> LoadedDataset -> Presentati
 dispatchResponseAt now environment dryRun dataset checkpoint response submitted =
   case (envelopeOpportunity current, responseActionId response, submitted) of
     (_, "next", _) -> replaceWithRecordedForecast
+    (ImportPreflightOpportunity source expected eraseAfterImport, "import.accept", _) -> acceptImport source expected eraseAfterImport
+    (ImportPreflightOpportunity{}, "import.back", _) -> replaceWithRecordedForecast
+    (ImportPreflightOpportunity{}, "import.unknown", _) ->
+      local (appendBody current "Import preserves each selected object as Raw material before any Work adoption. Acceptance reruns this read-only preview; source cleanup, when supported, always needs a later separate approval.")
+    (ImportResultOpportunity imported reused _, "import.triage", _) ->
+      case imported <> reused of
+        rawId : _ -> withRaw rawId $ \raw -> local (advanceEnvelope current (makeRawTriageEnvelope (envelopeInteractionId current) cursor precondition now state raw))
+        [] -> pure (Left (appError PreconditionFailed "This import result contains no Raw material to triage."))
+    (ImportResultOpportunity _ _ True, "import.cleanup", _) ->
+      local (appendBody current "Verified source cleanup requires the separate effect approval flow; no source item has changed.")
     (RawDetailOpportunity rawId, "raw.detail.origin", _) -> withRaw rawId $ \raw -> local (makeRawOriginListEnvelope current now state raw)
     (RawDetailOpportunity rawId, "raw.detail.translate", _) -> withRaw rawId $ \raw ->
       case resolveTranslationTarget state (rawCitationText raw) of
@@ -2628,6 +2679,66 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   cursor = loadedCursor dataset
   precondition = statePreconditionHash state
   actor = appActor environment
+
+  acceptImport source expected eraseAfterImport =
+    importPortPreflight (appImportPort environment) source (sourcePreflightMode expected) >>= \case
+      Left problem -> pure (Left problem)
+      Right reread
+        | importReadSourceReference reread /= source || importReadPreflight reread /= expected -> do
+            let refreshed =
+                  makeImportPreflightEnvelope
+                    (envelopeInteractionId current)
+                    cursor
+                    precondition
+                    now
+                    state
+                    (actorProfile actor)
+                    (importReadSourceReference reread)
+                    eraseAfterImport
+                    (importReadPreflight reread)
+                staleEnvelope = appendBody (advanceEnvelope current refreshed) "The source or its signed adapter changed after the prior preview. Review this refreshed preflight before importing."
+            local staleEnvelope
+        | otherwise ->
+            case importAcceptanceUUIDCount state source expected of
+              Left problem -> pure (Left problem)
+              Right count -> do
+                facts <- runtimeFacts environment count cursor
+                case decideAcceptFileImport state actor source (importReadInput reread) expected facts of
+                  Left problem -> pure (Left problem)
+                  Right decision -> do
+                    acceptedResult <-
+                      if null (importAcceptanceEvents decision)
+                        then pure (Right dataset)
+                        else persistOrSimulate environment dryRun dataset (importAcceptanceEvents decision)
+                    case acceptedResult of
+                      Left problem -> pure (Left problem)
+                      Right accepted -> do
+                        identity <- appAllocateUUID environment
+                        currentNow <- appZonedNow environment
+                        let acceptedState = loadedState accepted
+                            cleanupReady =
+                              eraseAfterImport
+                                && sourcePreflightMode expected == SourceMigrate
+                                && observedCleanupSupported (sourcePreflightObservation expected)
+                            resultEnvelope =
+                              makeImportResultEnvelope
+                                identity
+                                (loadedCursor accepted)
+                                (statePreconditionHash acceptedState)
+                                currentNow
+                                acceptedState
+                                (importAcceptanceImportedRaws decision)
+                                (importAcceptanceReusedRaws decision)
+                                cleanupReady
+                            nextCheckpoint = PresentationCheckpoint resultEnvelope [] []
+                        saveUnlessDry environment dryRun nextCheckpoint
+                        pure . Right $
+                          RespondResult
+                            (loadedCursor accepted)
+                            resultEnvelope
+                            (importAcceptanceCommandId decision)
+                            dryRun
+
   replaceWithFresh = do
     fresh <- freshCheckpoint environment dataset
     case fresh of

@@ -14,6 +14,7 @@ import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Export
 import LittleAnt.Id
+import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Model
 import LittleAnt.Result
 import LittleAnt.Store
@@ -203,6 +204,7 @@ harness root port = do
       (pure (utcToZonedTime utc fixedTime))
       allocate
       port
+      emptyImportPort
 
 run :: AppEnv -> Bool -> AppCommand -> IO CommandResult
 run environment dryRun command = assertRight =<< runAppCommand environment dryRun (const (pure ())) command
