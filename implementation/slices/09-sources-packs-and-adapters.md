@@ -108,8 +108,11 @@ adapter ports fail closed with the retained typed error, while the manager can
 still inspect a missing or invalid pin as unavailable. Local community trust
 and archive installation now implement UX-PACK00 as two independent
 no-default consents with exact file/profile custody, dry-run, content-addressed
-publication, and atomic profile pinning. Updates, refresh, removal/GC, and the
-contextual `/packs` REPL manager remain open.
+publication, and atomic profile pinning. The contextual dumb `/packs` REPL
+manager now keeps list/detail/path collection non-consequential, hands trust
+and installation to those same canonical envelopes, and refreshes its runtime
+registry after accepted profile changes. Updates, refresh, and removal/GC
+remain open.
 
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or

@@ -1,7 +1,17 @@
-module LittleAnt.REPL (filteredCommands, paletteModel, progressModel, runRepl, runReplWithCommand) where
+module LittleAnt.REPL (
+  PackPathPurpose (..),
+  filteredCommands,
+  packManagerModel,
+  packPathEditorModel,
+  paletteModel,
+  progressModel,
+  runRepl,
+  runReplWithCommand,
+) where
 
 import Control.Exception (bracket)
 import Control.Monad (void)
+import Data.IORef
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -12,6 +22,7 @@ import Graphics.Vty.CrossPlatform qualified as CrossPlatform
 import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Interaction
+import LittleAnt.Model (Actor (actorProfile))
 import LittleAnt.Projection
 import LittleAnt.Protocol
 import LittleAnt.Result
@@ -24,8 +35,20 @@ data ReplScreen
   = EnvelopeScreen InteractionEnvelope (Maybe Text)
   | FeedEditor InteractionEnvelope EditorState (Maybe Text)
   | InteractionEditor InteractionEnvelope Text EditorState (Maybe Text)
-  | PaletteScreen InteractionEnvelope Text Int
+  | PaletteScreen InteractionEnvelope Text Int PaletteReturn
+  | PackManagerScreen InteractionEnvelope [PackProjection] (Maybe AppError) Int (Maybe Text)
+  | PackPathEditor InteractionEnvelope PackPathPurpose EditorState (Maybe Text)
+  | PackDetailScreen InteractionEnvelope [PackProjection] (Maybe AppError) Int Text
   | ReadOnlyScreen InteractionEnvelope Text
+
+data PackPathPurpose
+  = InstallPackArchive
+  | TrustPublisherKey
+  deriving stock (Eq, Show)
+
+data PaletteReturn
+  = ReturnToEnvelope
+  | ReturnToPackManager [PackProjection] (Maybe AppError) Int
 
 runRepl :: AppEnv -> IO ()
 runRepl environment = runReplWithCommand environment NextCommand
@@ -44,27 +67,33 @@ runReplWithCommand environment initialCommand = do
       Right result -> Text.putStrLn (renderCommandResult result)
   runInteractive vty = do
     color <- terminalColorMode
+    environmentRef <- newIORef environment
     result <- runAppCommand environment False (showProgress vty color) initialCommand
     case result of
       Left problem -> paint vty color (errorModel problem) >> waitForExit vty
-      Right NextResult{resultInteraction} -> loop environment vty color 80 (screenForEnvelope resultInteraction)
-      Right RepairResult{resultInteraction} -> loop environment vty color 80 (screenForEnvelope resultInteraction)
+      Right NextResult{resultInteraction} -> loop environmentRef vty color 80 (screenForEnvelope resultInteraction)
+      Right RepairResult{resultInteraction} -> loop environmentRef vty color 80 (screenForEnvelope resultInteraction)
       Right other -> paint vty color (textModel (renderCommandResult other)) >> waitForExit vty
 
-loop :: AppEnv -> Vty -> ColorMode -> Int -> ReplScreen -> IO ()
-loop environment vty color width screen = do
+loop :: IORef AppEnv -> Vty -> ColorMode -> Int -> ReplScreen -> IO ()
+loop environmentRef vty color width screen = do
   paint vty color (modelFor width screen)
   event <- nextEvent vty
   case eventToInput event of
-    Nothing -> loop environment vty color width screen
-    Just (Resized nextWidth _) -> loop environment vty color nextWidth screen
-    Just input -> transition input >>= maybe (pure ()) (loop environment vty color width)
+    Nothing -> loop environmentRef vty color width screen
+    Just (Resized nextWidth _) -> loop environmentRef vty color nextWidth screen
+    Just input -> transition input >>= maybe (pure ()) (loop environmentRef vty color width)
  where
   transition input = case screen of
     EnvelopeScreen envelope _ -> envelopeInput envelope input
     FeedEditor envelope editor message -> feedEditorInput envelope editor message input
     InteractionEditor envelope action editor message -> interactionEditorInput envelope action editor message input
-    PaletteScreen envelope query selected -> paletteInput envelope query selected input
+    PaletteScreen envelope query selected target -> paletteInput envelope query selected target input
+    PackManagerScreen envelope packs problem selected message -> packManagerInput envelope packs problem selected message input
+    PackPathEditor envelope purpose editor message -> packPathInput envelope purpose editor message input
+    PackDetailScreen envelope packs problem selected _ -> case input of
+      Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+      _ -> pure (Just (PackManagerScreen envelope packs problem selected Nothing))
     ReadOnlyScreen envelope _ -> case input of
       Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
       Escape _ -> pure (Just (screenForEnvelope envelope))
@@ -89,22 +118,22 @@ loop environment vty color width screen = do
     case dispatchGuidedShortcut envelope envelope shortcut of
       Left problem -> pure . Just $ EnvelopeScreen envelope (Just (appErrorMessage problem))
       Right (GuidedStale replacement) -> pure (Just (screenForEnvelope replacement))
-      Right GuidedAccepted{guidedActionId, guidedOutcome = OpenFeedInput} ->
+      Right GuidedAccepted{guidedOutcome = OpenFeedInput} ->
         pure (Just (FeedEditor envelope (EditorState "" "" Nothing) Nothing))
       Right GuidedAccepted{guidedOutcome = OpenCommandPalette} ->
-        pure (Just (PaletteScreen envelope "/" 0))
+        pure (Just (PaletteScreen envelope "/" 0 ReturnToEnvelope))
       Right GuidedAccepted{guidedOutcome = InvokeNext} -> runNextFrom envelope
       Right GuidedAccepted{guidedActionId} -> invokeAction envelope guidedActionId
 
   invokeAction envelope action =
-    runAppCommand environment False (const (pure ())) (RespondCommand (interactionResponse envelope action)) >>= \case
+    runCurrent (RespondCommand (interactionResponse envelope action)) >>= \case
       Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
       Right result -> screenFromResult envelope result
 
   navigate envelope backward =
     let response = interactionResponse envelope (if backward then "navigation.back" else "navigation.forward")
         command = if backward then NavigateBackCommand response else NavigateForwardCommand response
-     in runAppCommand environment False (const (pure ())) command >>= \case
+     in runCurrent command >>= \case
           Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
           Right result -> screenFromResult envelope result
 
@@ -134,22 +163,22 @@ loop environment vty color width screen = do
     ArrowRight _ -> pure . Just $ InteractionEditor envelope action (applyEditorCommand MoveEditorRight editor) Nothing
     _ -> pure (Just screen)
 
-  paletteInput envelope query selected = \case
+  paletteInput envelope query selected target = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
-    Escape _ -> pure (Just (screenForEnvelope envelope))
+    Escape _ -> pure (Just (paletteReturnScreen envelope target))
     Backspace _
-      | Text.length query <= 1 -> pure (Just (screenForEnvelope envelope))
-      | otherwise -> pure . Just $ PaletteScreen envelope (Text.dropEnd 1 query) 0
-    Printable character [] -> pure . Just $ PaletteScreen envelope (query <> Text.singleton character) 0
-    ArrowUp _ -> pure . Just $ PaletteScreen envelope query (max 0 (selected - 1))
-    ArrowDown _ -> pure . Just $ PaletteScreen envelope query (min (max 0 (length (filteredCommands envelope query) - 1)) (selected + 1))
-    Enter _ -> runPaletteCommand envelope query selected
+      | Text.length query <= 1 -> pure (Just (paletteReturnScreen envelope target))
+      | otherwise -> pure . Just $ PaletteScreen envelope (Text.dropEnd 1 query) 0 target
+    Printable character [] -> pure . Just $ PaletteScreen envelope (query <> Text.singleton character) 0 target
+    ArrowUp _ -> pure . Just $ PaletteScreen envelope query (max 0 (selected - 1)) target
+    ArrowDown _ -> pure . Just $ PaletteScreen envelope query (min (max 0 (length (filteredCommands envelope query) - 1)) (selected + 1)) target
+    Enter _ -> runPaletteCommand envelope query selected target
     _ -> pure (Just screen)
 
   submitFeed envelope editor
     | Text.null (Text.strip material) = pure . Just $ FeedEditor envelope editor (Just "Feed material cannot be empty.")
     | otherwise =
-        runAppCommand environment False (const (pure ())) (FeedCommand "repl" material) >>= \case
+        runCurrent (FeedCommand "repl" material) >>= \case
           Left problem -> pure . Just $ FeedEditor envelope editor (Just (appErrorMessage problem))
           Right FeedResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
           Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
@@ -162,37 +191,50 @@ loop environment vty color width screen = do
   submitInteractionText envelope action editor
     | Text.null (Text.strip material) && not (allowsEmptySubmission (envelopeOpportunity envelope)) = pure . Just $ InteractionEditor envelope action editor (Just "This value cannot be empty.")
     | otherwise =
-        runAppCommand environment False (const (pure ())) (SubmitInteractionTextCommand (interactionResponse envelope action) material) >>= \case
+        runCurrent (SubmitInteractionTextCommand (interactionResponse envelope action) material) >>= \case
           Left problem -> pure . Just $ InteractionEditor envelope action editor (Just (appErrorMessage problem))
           Right result -> screenFromResult envelope result
    where
     material = editorText editor
 
   runNextFrom envelope =
-    runAppCommand environment False (const (pure ())) NextCommand >>= \case
+    runCurrent NextCommand >>= \case
       Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
       Right NextResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
       Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
 
   screenFromResult envelope = \case
-    RespondResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
+    RespondResult{resultInteraction} -> refreshAndShow resultInteraction
     NextResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     FeedResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     RepairResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
 
-  runPaletteCommand envelope query selected = case safeIndex selected (filteredCommands envelope query) of
-    Nothing -> pure (Just (PaletteScreen envelope query selected))
+  refreshAndShow envelope
+    | refreshesPackRegistry (envelopeOpportunity envelope) =
+        readIORef environmentRef >>= \current ->
+          productionAppEnv (Just (actorProfile (appActor current))) >>= \case
+            Left problem ->
+              pure . Just $
+                EnvelopeScreen
+                  envelope
+                  (Just ("Pack state changed, but this REPL could not reload its component registry: " <> appErrorMessage problem))
+            Right refreshed -> writeIORef environmentRef refreshed >> pure (Just (screenForEnvelope envelope))
+    | otherwise = pure (Just (screenForEnvelope envelope))
+
+  runPaletteCommand envelope query selected target = case safeIndex selected (filteredCommands envelope query) of
+    Nothing -> pure (Just (PaletteScreen envelope query selected target))
     Just command -> case commandOptionId command of
       "feed" -> pure (Just (FeedEditor envelope (EditorState "" "" Nothing) Nothing))
       "exit" -> pure Nothing
       "show" -> runShowCommand envelope command
-      "help" -> pure (Just (ReadOnlyScreen envelope helpText))
+      "help" -> pure (Just (paletteReadOnlyScreen envelope target helpText))
       "undo" -> runSimpleCommand envelope UndoCommand
       "redo" -> runSimpleCommand envelope RedoCommand
       "pause" -> runSimpleCommand envelope PauseCommand
       "history" -> runSimpleCommand envelope (HistoryCommand Nothing)
       "doctor" -> runSimpleCommand envelope DoctorCommand
+      "packs" -> openPackManager envelope
       "break" -> runBrickCommand envelope command BreakCommand
       "archive" -> runBrickCommand envelope command ArchiveCommand
       "restore" -> runBrickCommand envelope command RestoreCommand
@@ -200,14 +242,67 @@ loop environment vty color width screen = do
       "tie-break" -> runSimpleCommand envelope TieBreakCommand
       _ -> pure (Just (EnvelopeScreen envelope (Just "That command is not implemented yet.")))
 
+  openPackManager envelope =
+    runCurrent PacksListCommand >>= \case
+      Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
+      Right PacksResult{resultPacks, resultPacksProblem} ->
+        pure (Just (PackManagerScreen envelope resultPacks resultPacksProblem 0 Nothing))
+      Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
+
+  packManagerInput envelope packs problem selected _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable 's' [] -> showSelectedPack envelope packs problem selected
+    Printable 'i' [] -> pure (Just (PackPathEditor envelope InstallPackArchive (EditorState "" "" Nothing) Nothing))
+    Printable 't' [] -> pure (Just (PackPathEditor envelope TrustPublisherKey (EditorState "" "" Nothing) Nothing))
+    Printable '/' [] -> pure (Just (PaletteScreen envelope "/" 0 (ReturnToPackManager packs problem selected)))
+    Enter [] -> showSelectedPack envelope packs problem selected
+    Escape _ -> pure (Just (screenForEnvelope envelope))
+    Backspace _ -> pure (Just (screenForEnvelope envelope))
+    ArrowLeft _ -> pure (Just (screenForEnvelope envelope))
+    ArrowUp _ -> pure . Just $ PackManagerScreen envelope packs problem (max 0 (selected - 1)) Nothing
+    ArrowDown _ -> pure . Just $ PackManagerScreen envelope packs problem (min (max 0 (length packs - 1)) (selected + 1)) Nothing
+    _ -> pure (Just screen)
+
+  showSelectedPack envelope packs problem selected = case safeIndex selected packs of
+    Nothing -> pure (Just (PackManagerScreen envelope packs problem selected (Just "No Pack is selected.")))
+    Just pack ->
+      runCurrent (PacksShowCommand (projectedPackName pack)) >>= \case
+        Left failure -> pure (Just (PackManagerScreen envelope packs problem selected (Just (appErrorMessage failure))))
+        Right result -> pure (Just (PackDetailScreen envelope packs problem selected (renderCommandResult result)))
+
+  packPathInput envelope purpose editor _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable character [] -> pure . Just $ PackPathEditor envelope purpose (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Enter [] -> submitPackPath envelope purpose editor
+    Escape _ -> openPackManager envelope
+    Backspace _
+      | Text.null (editorText editor) -> openPackManager envelope
+      | otherwise -> pure . Just $ PackPathEditor envelope purpose (applyEditorCommand DeleteBackward editor) Nothing
+    Delete _ -> pure . Just $ PackPathEditor envelope purpose (applyEditorCommand DeleteForward editor) Nothing
+    ArrowLeft _ -> pure . Just $ PackPathEditor envelope purpose (applyEditorCommand MoveEditorLeft editor) Nothing
+    ArrowRight _ -> pure . Just $ PackPathEditor envelope purpose (applyEditorCommand MoveEditorRight editor) Nothing
+    _ -> pure (Just screen)
+
+  submitPackPath envelope purpose editor
+    | Text.null path = pure . Just $ PackPathEditor envelope purpose editor (Just "A local file path is required.")
+    | otherwise =
+        runCurrent command >>= \case
+          Left problem -> pure . Just $ PackPathEditor envelope purpose editor (Just (appErrorMessage problem))
+          Right result -> screenFromResult envelope result
+   where
+    path = Text.strip (editorText editor)
+    command = case purpose of
+      InstallPackArchive -> PacksInstallCommand path
+      TrustPublisherKey -> PacksTrustCommand path
+
   runSimpleCommand envelope command =
-    runAppCommand environment False (const (pure ())) command >>= \case
+    runCurrent command >>= \case
       Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
       Right result -> screenFromResult envelope result
 
   runShowCommand envelope command =
     let reference = Text.drop 6 (commandOptionCommand command)
-     in runAppCommand environment False (const (pure ())) (ShowRawCommand reference GuidedView) >>= \case
+     in runCurrent (ShowRawCommand reference GuidedView) >>= \case
           Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
           Right result -> pure (Just (ReadOnlyScreen envelope (renderCommandResult result)))
 
@@ -216,10 +311,20 @@ loop environment vty color width screen = do
       _ : reference : _ -> runSimpleCommand envelope (constructor reference)
       _ -> pure (Just (EnvelopeScreen envelope (Just "Choose a Brick reference for this command.")))
 
+  runCurrent command =
+    readIORef environmentRef >>= \current -> runAppCommand current False (const (pure ())) command
+
 isRepairScreen :: InteractionEnvelope -> Bool
 isRepairScreen envelope = case envelopeOpportunity envelope of
   RepairPreviewOpportunity{} -> True
   RepairCandidateOpportunity{} -> True
+  _ -> False
+
+refreshesPackRegistry :: Opportunity -> Bool
+refreshesPackRegistry = \case
+  PackInstallOpportunity{} -> True
+  PackInstallResultOpportunity{} -> True
+  PackTrustResultOpportunity{} -> True
   _ -> False
 
 screenForEnvelope :: InteractionEnvelope -> ReplScreen
@@ -229,11 +334,21 @@ screenForEnvelope envelope = case envelopeOpportunity envelope of
   SourceRelocateOpportunity _ draft -> InteractionEditor envelope "source.relocate.submit" (selectedEditor draft) Nothing
   RawShelfNameOpportunity _ name -> InteractionEditor envelope "raw-shelf.name.submit" (selectedEditor name) Nothing
   WorkOtherExplanationOpportunity _ _ draft -> InteractionEditor envelope "work.other.submit" (selectedEditor draft) Nothing
-  WorkBreakDraftOpportunity _ _ _ _ _ -> InteractionEditor envelope "work.break.submit" (EditorState "" "" Nothing) Nothing
+  WorkBreakDraftOpportunity{} -> InteractionEditor envelope "work.break.submit" (EditorState "" "" Nothing) Nothing
   RepeatableReturnCenterOpportunity _ _ draft -> InteractionEditor envelope "return.center.submit" (selectedEditor draft) Nothing
   RepeatableReturnVariationOpportunity _ _ _ _ draft -> InteractionEditor envelope "return.variation.submit" (selectedEditor draft) Nothing
   RepeatableReturnZoneOpportunity _ _ _ _ _ draft -> InteractionEditor envelope "return.zone.submit" (selectedEditor draft) Nothing
   _ -> EnvelopeScreen envelope Nothing
+
+paletteReturnScreen :: InteractionEnvelope -> PaletteReturn -> ReplScreen
+paletteReturnScreen envelope = \case
+  ReturnToEnvelope -> screenForEnvelope envelope
+  ReturnToPackManager packs problem selected -> PackManagerScreen envelope packs problem selected Nothing
+
+paletteReadOnlyScreen :: InteractionEnvelope -> PaletteReturn -> Text -> ReplScreen
+paletteReadOnlyScreen envelope target text = case target of
+  ReturnToEnvelope -> ReadOnlyScreen envelope text
+  ReturnToPackManager packs problem selected -> PackDetailScreen envelope packs problem selected text
 
 interactionResponse :: InteractionEnvelope -> Text -> InteractionResponse
 interactionResponse envelope action =
@@ -249,20 +364,94 @@ modelFor width = \case
   EnvelopeScreen envelope message -> prependMessage message (renderEnvelopeAtWidth width envelope)
   FeedEditor envelope editor message -> editorModel width envelope "Feed Little Ant" "Tip: prefer English for consistent titles and search." editor message
   InteractionEditor envelope _ editor message -> editorModel width envelope (contentHeading (envelopeContent envelope)) "Tip: write Brick titles in English." editor message
-  PaletteScreen envelope query selected -> paletteModelAtWidth width envelope query selected
+  PaletteScreen envelope query selected _ -> paletteModelAtWidth width envelope query selected
+  PackManagerScreen envelope packs problem selected message -> packManagerModelAtWidth width envelope packs problem selected message
+  PackPathEditor envelope purpose editor message -> packPathEditorModelAtWidth width envelope purpose editor message
+  PackDetailScreen envelope _ _ _ text ->
+    ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return to Packs."], []] <> footerFrom width envelope) Nothing
   ReadOnlyScreen envelope text ->
     ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return."], []] <> footerFrom width envelope) Nothing
+
+packManagerModel :: InteractionEnvelope -> [PackProjection] -> Maybe AppError -> Int -> Maybe Text -> ScreenModel
+packManagerModel = packManagerModelAtWidth 80
+
+packManagerModelAtWidth :: Int -> InteractionEnvelope -> [PackProjection] -> Maybe AppError -> Int -> Maybe Text -> ScreenModel
+packManagerModelAtWidth requestedWidth envelope packs problem selected message =
+  ScreenModel
+    ( [[Span Normal "Packs"]]
+        <> (if null packs then [[], [Span Dim "No Packs are available."]] else [])
+        <> concat (zipWith packRows [0 ..] packs)
+        <> maybe [] (warningRows . ("Pack registry unavailable: " <>) . appErrorMessage) problem
+        <> maybe [] warningRows message
+        <> [[]]
+        <> actionRows
+        <> [[Span Dim "↑/↓ select · Enter show · Esc back"], []]
+        <> footerFrom width envelope
+    )
+    Nothing
+ where
+  width = max 20 requestedWidth
+  packRows index pack =
+    let cursor = if index == selected then "> " else "  "
+        title = projectedPackDisplayName pack <> " " <> projectedPackVersion pack
+        details =
+          projectedPackName pack
+            <> " · "
+            <> projectedPackTrustClass pack
+            <> " · "
+            <> projectedPackStatus pack
+            <> " · "
+            <> Text.pack (show (length (filter projectedPackComponentEnabled (projectedPackComponents pack))))
+            <> " components"
+        titleLines = wrapWords (max 1 (width - 2)) title
+        detailLines = wrapWords (max 1 (width - 4)) details
+        selectedRole = if index == selected then Selected else Normal
+     in [ [Span Normal cursor, Span selectedRole first]
+        | first <- take 1 titleLines
+        ]
+          <> [[Span Normal "  ", Span selectedRole continuation] | continuation <- drop 1 titleLines]
+          <> [[Span Dim "    ", Span Dim detail] | detail <- detailLines]
+  joinedActions =
+    actionSpans "s" "show"
+      <> [Span Normal "   "]
+      <> actionSpans "i" "install archive..."
+      <> [Span Normal "   "]
+      <> actionSpans "t" "trust publisher..."
+  actionRows
+    | Text.length (plainLine joinedActions) <= width = [joinedActions, actionSpans "/" "more..."]
+    | otherwise = [actionSpans "s" "show", actionSpans "i" "install archive...", actionSpans "t" "trust publisher...", actionSpans "/" "more..."]
+  warningRows warning = [] : fmap (pure . Span Warning) (wrapWords width warning)
+
+packPathEditorModel :: InteractionEnvelope -> PackPathPurpose -> EditorState -> Maybe Text -> ScreenModel
+packPathEditorModel = packPathEditorModelAtWidth 80
+
+packPathEditorModelAtWidth :: Int -> InteractionEnvelope -> PackPathPurpose -> EditorState -> Maybe Text -> ScreenModel
+packPathEditorModelAtWidth width envelope purpose =
+  editorModel width envelope heading hint
+ where
+  (heading, hint) = case purpose of
+    InstallPackArchive ->
+      ( "Install a local Pack"
+      , "Enter the path to one signed .lantpack archive. Nothing changes before the separate preview is accepted."
+      )
+    TrustPublisherKey ->
+      ( "Trust a Pack publisher"
+      , "Enter the path to one canonical publisher-key JSON file. Trust is profile-local and installs nothing."
+      )
+
+actionSpans :: Text -> Text -> ScreenLine
+actionSpans shortcut label = case Text.breakOn shortcut label of
+  (before, after)
+    | Text.null after -> [Span Dim "[", Span Accent shortcut, Span Dim "]", Span Normal (" " <> label)]
+    | otherwise -> [Span Normal before, Span Dim "[", Span Accent shortcut, Span Dim "]", Span Normal (Text.drop 1 after)]
 
 editorModel :: Int -> InteractionEnvelope -> Text -> Text -> EditorState -> Maybe Text -> ScreenModel
 editorModel width envelope heading hint editor message =
   ScreenModel
-    ( [ [Span Normal heading]
-      , []
-      , [Span Dim hint]
-      , []
-      , [Span Normal "› ", Span Normal (editorBefore editor), Span Selected (fromMaybe " " (editorSelection editor)), Span Normal (editorAfter editor)]
-      ]
-        <> maybe [] (\problem -> [[], [Span Warning problem]]) message
+    ( [[Span Normal heading], []]
+        <> fmap (pure . Span Dim) (wrapWords (max 20 width) hint)
+        <> [[], [Span Normal "› ", Span Normal (editorBefore editor), Span Selected (fromMaybe " " (editorSelection editor)), Span Normal (editorAfter editor)]]
+        <> maybe [] (\problem -> [] : fmap (pure . Span Warning) (wrapWords (max 20 width) problem)) message
         <> [[], [Span Dim "[Enter] continue · [Esc] back"], []]
         <> footerFrom width envelope
     )
@@ -336,6 +525,17 @@ editorText editor = editorBefore editor <> fromMaybe "" (editorSelection editor)
 safeIndex :: Int -> [value] -> Maybe value
 safeIndex index _ | index < 0 = Nothing
 safeIndex index values = case drop index values of value : _ -> Just value; [] -> Nothing
+
+wrapWords :: Int -> Text -> [Text]
+wrapWords width text
+  | Text.length text <= width = [text]
+  | otherwise = go [] "" (Text.words text)
+ where
+  go result current [] = result <> [current | not (Text.null current)]
+  go result current (word : rest)
+    | Text.null current = go result word rest
+    | Text.length current + 1 + Text.length word <= width = go result (current <> " " <> word) rest
+    | otherwise = go (result <> [current]) word rest
 
 textModel :: Text -> ScreenModel
 textModel text = ScreenModel (fmap (pure . Span Normal) (Text.lines text)) Nothing

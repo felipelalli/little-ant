@@ -543,7 +543,7 @@ makePristineEnvelope identity cursor precondition now =
     [ Action "feed.open" "feed" "f" False "Open the Feed text editor."
     , moreAction
     ]
-    [feedCommand, helpCommand, exitCommand]
+    [feedCommand, packsCommand, helpCommand, exitCommand]
     Nothing
     (commonFooter now 0 0 0)
 
@@ -558,7 +558,7 @@ makeSafeEmptyEnvelope identity cursor precondition now =
     SafeEmptyOpportunity
     (EnvelopeContent "Nothing needs attention right now." Nothing ["Feed new raw material or come back later."] Nothing)
     [Action "next" "next" "n" False "Run the focus forecast again.", moreAction]
-    [feedCommand, helpCommand, exitCommand]
+    [feedCommand, packsCommand, helpCommand, exitCommand]
     Nothing
     (commonFooter now 0 0 0)
 
@@ -1697,7 +1697,7 @@ focusProposalEnvelope identity cursor precondition now state brick evidence =
     , Action "focus.assistance" "I don't know" "?" False "Clarify this Focus decision."
     , moreAction
     ]
-    [CommandOption "done" ("/done " <> brickCitation brick) "Complete this finite Work directly", feedCommand, showBrickCommand brick, helpCommand, exitCommand]
+    [CommandOption "done" ("/done " <> brickCitation brick) "Complete this finite Work directly", feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
     (Just "understand_focus")
     (brickFooter now state brick)
 
@@ -1780,7 +1780,7 @@ makeChecklistRunEnvelope identity cursor precondition now state owner selected =
     (ChecklistRunOpportunity (brickId owner) selected)
     (EnvelopeContent "Checklist:" (Just (brickCitation owner)) (fmap entryLine visibleEntries) (Just question))
     (selectionActions <> mutationActions <> finishActions <> [Action "checklist.skip" "skip" "s" False "Explain why this checklist run is getting in the way.", moreAction])
-    [feedCommand, showBrickCommand owner, helpCommand, exitCommand]
+    [feedCommand, packsCommand, showBrickCommand owner, helpCommand, exitCommand]
     (Just "work_checklist_run")
     (brickFooter now state owner)
  where
@@ -2309,7 +2309,7 @@ makeCurrentFocusEnvelope identity cursor precondition now state brick =
     , Action "focus.skip" "skip" "s" False "Explain what is getting in the way."
     , moreAction
     ]
-    [CommandOption "pause" "/pause" "Clear current focus while retaining WIP", feedCommand, showBrickCommand brick, helpCommand, exitCommand]
+    [CommandOption "pause" "/pause" "Clear current focus while retaining WIP", feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
     Nothing
     (brickFooter now state brick)
 
@@ -3345,7 +3345,7 @@ resultEnvelope identity cursor precondition now state opportunity heading body =
     opportunity
     (EnvelopeContent heading Nothing body Nothing)
     [Action "next" "next" "n" False "Obtain the next useful opportunity.", moreAction]
-    [feedCommand, helpCommand, exitCommand]
+    [feedCommand, packsCommand, helpCommand, exitCommand]
     Nothing
     (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
 
@@ -3579,6 +3579,7 @@ natureProbeExplanation = \case
 rawCommands :: Raw -> [CommandOption]
 rawCommands raw =
   [ feedCommand
+  , packsCommand
   , CommandOption "show" ("/show " <> rawCitation raw) ("Inspect " <> rawCitation raw)
   , CommandOption "history" "/history" "Open interaction history"
   , helpCommand
@@ -3587,6 +3588,9 @@ rawCommands raw =
 
 feedCommand :: CommandOption
 feedCommand = CommandOption "feed" "/feed" "Feed Little Ant"
+
+packsCommand :: CommandOption
+packsCommand = CommandOption "packs" "/packs" "Inspect Packs and installation state"
 
 helpCommand :: CommandOption
 helpCommand = CommandOption "help" "/help" "Open Little Ant help"

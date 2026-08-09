@@ -7,6 +7,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LazyByteString
 import Data.List (isInfixOf)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (isJust)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -18,8 +19,11 @@ import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
+import LittleAnt.Protocol
+import LittleAnt.REPL
 import LittleAnt.Result
 import LittleAnt.Store (DatasetCursor (Genesis))
+import LittleAnt.Surface
 import System.Directory (doesFileExist)
 import System.Environment (lookupEnv, setEnv, unsetEnv)
 import System.FilePath ((</>))
@@ -44,6 +48,7 @@ main =
       , testCase "archive drift invalidates and discards the pending consent" archiveDriftInvalidates
       , testCase "profile compare-and-swap never clobbers a newer integration revision" profileCompareAndSwap
       , testCase "publisher-key transport requires its closed canonical schema" strictPublisherKeyDocument
+      , testCase "the dumb REPL Pack manager stays navigational and keyboard-first" replPackManager
       ]
 
 listBuiltIn :: Assertion
@@ -104,14 +109,14 @@ inspectBrokenRegistry = withSystemTempDirectory "little-ant-pack-admin-broken" $
         changed = integrations{Profile.installedComponents = Map.singleton "org.example.missing" pin}
     Profile.writeIntegrationsConfig paths changed >>= either (assertFailure . show) pure
     restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
-    assertBool "startup retains the Pack registry failure" (maybe False (const True) (appPackRegistryProblem restarted))
+    assertBool "startup retains the Pack registry failure" (isJust (appPackRegistryProblem restarted))
     listed <- run restarted False PacksListCommand
     case listed of
       PacksResult Genesis "list" packs (Just _) False ->
         case filter ((== "org.example.missing") . projectedPackName) packs of
           [missing] -> do
             projectedPackStatus missing @?= "unavailable"
-            assertBool "the exact inspection problem is retained" (maybe False (const True) (projectedPackProblem missing))
+            assertBool "the exact inspection problem is retained" (isJust (projectedPackProblem missing))
           other -> assertFailure ("expected one unavailable Pack, got: " <> show other)
       other -> assertFailure ("unexpected degraded list result: " <> show other)
     ordinary <- run restarted False NextCommand
@@ -129,6 +134,7 @@ communityTrustThenInstall = withHarness $ \environment -> do
       fmap actionId (envelopeActions installEnvelope) @?= ["pack.install.trust", "pack.install.back", "pack.install.unknown", "palette.open"]
       assertBool "the untrusted preview has no default" (not (any actionDefault (envelopeActions installEnvelope)))
     other -> assertFailure ("expected untrusted install preview, got: " <> show other)
+  guidedAction "t" installEnvelope @?= "pack.install.trust"
   let previewBody = contentBody (envelopeContent installEnvelope)
   assertBool "the preview names the signed HTTP host" (any (Text.isInfixOf "graph.microsoft.com") previewBody)
   assertBool "the preview names credential authority" (any (Text.isInfixOf "oauth2_device_authorization") previewBody)
@@ -144,12 +150,14 @@ communityTrustThenInstall = withHarness $ \environment -> do
       assertBool "the full fingerprint is rendered" (connectorSignerFingerprint `elem` contentBody (envelopeContent trustEnvelope))
       assertBool "trust has no default" (not (any actionDefault (envelopeActions trustEnvelope)))
     other -> assertFailure ("expected trust preview, got: " <> show other)
+  guidedAction "t" trustEnvelope @?= "pack.trust.accept"
 
   installAgain <- respond environment False trustEnvelope "pack.trust.accept"
   trustedInstallEnvelope <- expectRespondInteraction installAgain
   case envelopeOpportunity trustedInstallEnvelope of
     PackInstallOpportunity draft -> packInstallTrustClass draft @?= "trusted publisher"
     other -> assertFailure ("expected still-unapproved install preview, got: " <> show other)
+  guidedAction "i" trustedInstallEnvelope @?= "pack.install.accept"
   profileAfterTrust <- loadCurrentIntegrations
   assertBool "publisher trust is stored" (any ((== connectorSignerFingerprint) . communityKeyFingerprint) (Profile.trustedPublishers profileAfterTrust))
   assertBool "trust alone does not pin the Pack" (Map.notMember connectorPackName (Profile.installedComponents profileAfterTrust))
@@ -293,6 +301,37 @@ strictPublisherKeyDocument = withHarness $ \environment ->
       Left problem -> appErrorCode problem @?= CorruptData
       Right result -> assertFailure ("expected canonical-key rejection, got: " <> show result)
 
+replPackManager :: Assertion
+replPackManager = withHarness $ \environment -> do
+  owner <- run environment False NextCommand >>= expectNextInteraction
+  listed <- run environment False PacksListCommand
+  case listed of
+    PacksResult _ "list" packs problem False -> do
+      fmap commandOptionId (filteredCommands owner "/packs") @?= ["packs"]
+      let manager = renderPlain (packManagerModel owner packs problem 0 Nothing)
+          installEditor = renderPlain (packPathEditorModel owner InstallPackArchive (EditorState "" "" Nothing) Nothing)
+          trustEditor = renderPlain (packPathEditorModel owner TrustPublisherKey (EditorState "" "" Nothing) Nothing)
+      assertBool "the selected Pack is visible" ("> Little Ant Standard Pack 1.0.0" `Text.isInfixOf` manager)
+      assertBool "the manager exposes only navigational verbs" ("[s]how   [i]nstall archive...   [t]rust publisher..." `Text.isInfixOf` manager)
+      assertBool "the ordinary palette remains reachable" ("[/] more..." `Text.isInfixOf` manager)
+      assertBool "install explains the separate preview" ("Nothing changes before the" `Text.isInfixOf` installEditor && "preview is accepted." `Text.isInfixOf` installEditor)
+      assertBool "trust explains profile-local custody" ("Trust is profile-local" `Text.isInfixOf` trustEditor && "installs nothing." `Text.isInfixOf` trustEditor)
+      mapM_ (assertWidth 80) [packManagerModel owner packs problem 0 Nothing, packPathEditorModel owner InstallPackArchive (EditorState "" "" Nothing) Nothing, packPathEditorModel owner TrustPublisherKey (EditorState "" "" Nothing) Nothing]
+    other -> assertFailure ("expected Pack list, got: " <> show other)
+
+guidedAction :: Text -> InteractionEnvelope -> Text
+guidedAction shortcut envelope = case dispatchGuidedShortcut envelope envelope shortcut of
+  Right GuidedAccepted{guidedActionId} -> guidedActionId
+  other -> error ("expected guided action for " <> Text.unpack shortcut <> ", got: " <> show other)
+
+assertWidth :: Int -> ScreenModel -> Assertion
+assertWidth width model =
+  assertBool
+    ("screen exceeds " <> show width <> " columns: " <> show oversized)
+    (null oversized)
+ where
+  oversized = filter ((> width) . Text.length) (plainLine <$> screenLines model)
+
 expectNextInteraction :: CommandResult -> IO InteractionEnvelope
 expectNextInteraction = \case
   NextResult _ envelope _ -> pure envelope
@@ -365,7 +404,7 @@ withEnvironment :: [(String, String)] -> IO a -> IO a
 withEnvironment assignments action = bracket save restore (const (setAll >> action))
  where
   save = traverse (\(name, _) -> (name,) <$> lookupEnv name) assignments
-  restore previous = mapM_ restoreOne previous
+  restore = mapM_ restoreOne
   restoreOne (name, Just value) = setEnv name value
   restoreOne (name, Nothing) = unsetEnv name
   setAll = mapM_ (uncurry setEnv) assignments

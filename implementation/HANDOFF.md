@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **6c16646**
-(`feat(packs): expose recoverable Pack inspection`). The current milestone
-adds separate, recoverable community-publisher trust and local Pack-install
-consent, binding each acceptance to exact source bytes and profile revision.
-This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **a7de5ba**
+(`feat(packs): require separate trust and install consent`). The current
+milestone exposes that canonical consent path through the dumb REPL's
+non-consequential `/packs` manager and refreshes its runtime Pack registry after
+accepted profile changes. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -292,6 +292,12 @@ This file stays editable between milestone commits.
   an exclusive lock. Archive publication precedes the exact pin, so a lost
   race leaves only collectable content-addressed bytes. Dry-run persists none
   of the checkpoint, trust, archive, or pin.
+- `/packs` is now reachable from ordinary idle, Focus, Raw-review, checklist,
+  and result palettes. Its dumb REPL manager lists and inspects the sparse core
+  projection, collects local archive/key paths, and then hands off unchanged to
+  the canonical trust/install envelopes. Enter only inspects; trust and install
+  retain separate no-default shortcuts. Accepted profile changes rebuild the
+  long-running REPL environment before another adapter can run.
 
 ## Last green gate
 
@@ -364,13 +370,15 @@ round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
 defense-in-depth route checks before credential resolution.
-The dedicated Pack-administration suite has 12 focused cases for exact
+The dedicated Pack-administration suite has 13 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,
 no-default previews, dry-run custody, closed canonical key transport,
 archive-byte invalidation, profile-drift regeneration, and locked profile
-compare-and-swap. Full milestone gates are recorded immediately before each
-signed milestone commit.
+compare-and-swap. It also proves the dumb `/packs` manager's bounded rendering,
+ordinary-palette reachability, local path editors, and the exact `t → t → i`
+keyboard consent sequence. Full milestone gates are recorded immediately
+before each signed milestone commit.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -395,9 +403,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, expose the implemented UX-PACK00 Interaction through the contextual
-`/packs` REPL manager and prove restored keyboard-only consent. Then publish
-the real official root/catalog, implement explicit
+Next, publish the real official root/catalog and implement explicit
 refresh/update/remove/GC, and expose Microsoft account connection plus
 snapshot/synchronize/migrate orchestration. Cleanup remains a separately
 previewed effect. Google Calendar, remaining standard importers, and the local

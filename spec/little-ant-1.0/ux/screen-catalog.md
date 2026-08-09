@@ -5104,6 +5104,31 @@ preview. None records attended, missed, or done.
 
 ## UX-PACK00 — Pack installation and publisher trust
 
+`/packs` first opens a non-consequential manager over the core's sparse Pack
+list projection. It is surface-local navigation, not a new Opportunity: it may
+select an installed Pack for read-only inspection or collect one local archive
+or publisher-key path, but it cannot invent, prefill, reorder, or accept a
+consent action. The dumb REPL renders:
+
+```text
+Packs
+
+> Little Ant Standard Pack 1.0.0
+    org.littleant.standard · built in · available · 9 components
+
+[s]how   [i]nstall archive...   [t]rust publisher...
+[/] more...
+
+↑/↓ select · Enter show · Esc back
+```
+
+Enter is only a read-only `show` convenience; it never means install or trust.
+Install and trust each open a local path editor, then invoke the corresponding
+canonical CLI command. A valid path hands control to the revisioned screens
+below. Escape, empty Backspace, or Left returns without changing Pack state.
+After accepted trust or installation, a long-running surface reloads its
+profile Pack registry before another integration command can run.
+
 An already verified official candidate renders:
 
 ```text
