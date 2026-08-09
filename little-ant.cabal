@@ -67,6 +67,7 @@ library
     LittleAnt.JudgmentUI
     LittleAnt.Model
     LittleAnt.Notice
+    LittleAnt.Pack.Catalog
     LittleAnt.Pack.Format
     LittleAnt.Pack.Registry
     LittleAnt.Pack.Store

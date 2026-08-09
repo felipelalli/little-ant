@@ -60,6 +60,7 @@ data ProfilePaths = ProfilePaths
   , integrationsFile :: FilePath
   , vaultFile :: FilePath
   , packStoreDirectory :: FilePath
+  , officialCatalogStateFile :: FilePath
   , profileStateDirectory :: FilePath
   , datasetDirectory :: FilePath
   , vaultSocket :: FilePath
@@ -143,6 +144,7 @@ profilePaths roots name
               , integrationsFile = configDirectory </> "integrations.yaml"
               , vaultFile = xdgDataRoot roots </> "lant" </> "vaults" </> component <.> "age"
               , packStoreDirectory = xdgDataRoot roots </> "lant" </> "packs" </> "sha256"
+              , officialCatalogStateFile = stateDirectory </> "official-pack-catalog.json"
               , profileStateDirectory = stateDirectory
               , datasetDirectory = stateDirectory </> "dataset"
               , vaultSocket = xdgRuntimeRoot roots </> "lant" </> component </> "vault.sock"

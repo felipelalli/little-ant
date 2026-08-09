@@ -198,6 +198,41 @@ Sequence must strictly increase. A root transition uses
 `little-ant/catalog-root@1` and is accepted only when the exact same transition
 bytes carry valid signatures from both roots.
 
+The catalog object contains exactly `schema`, `sequence`, `expires_at`,
+`delegations`, `releases`, and `revocations`. A delegation contains exactly
+`publisher`, `public_key`, `key_fingerprint`, and nonempty `name_prefixes`.
+There is at most one delegation for a publisher. A release contains exactly
+`publisher`, `name`, `version`, `manifest_sha256`, and `archive_sha256`; its
+publisher must exist and its name must match at least one delegated prefix.
+A revocation contains exactly `target`, `sha256`, `reason`, and
+`effective_at`, where `target` is `publisher_key` or `archive`. Duplicate
+release identities, publisher delegations, prefixes, or revocation targets
+are invalid rather than resolved by array order.
+
+The detached catalog signature contains exactly `schema`, `algorithm`,
+`root_fingerprint`, and `signature`; it never carries a self-authorizing root
+key. A root-transition document contains exactly `schema`, `generation`, both
+the previous and replacement root public keys, and their fingerprints. Its
+detached `little-ant/catalog-root-proof@1` contains exactly `schema`,
+`algorithm`, `previous_signature`, and `next_signature`. Generations are
+contiguous and both signatures cover the same exact transition bytes. Keeping
+both keys in that cross-signed document lets a later binary whose compiled
+anchor is either side verify the same history without silently trusting a key
+read from local state.
+
+Accepted catalogs and root transitions are appended to one ordered,
+cryptographically replayable history at
+`$XDG_STATE_HOME/lant/profiles/<name>/official-pack-catalog.json`. The closed
+`little-ant/pack-catalog-state@1` document contains only `schema` and
+`history`; each history row contains exact base64url `document` and `proof`
+bytes plus kind `catalog` or `root_transition`. It is a private regular file
+replaced atomically while holding the profile catalog lock. Every read replays
+the signatures, root chain, and increasing catalog sequences from a compiled
+root anchor. Refresh accepts only an unexpired, strictly newer catalog.
+Previously accepted revocations are unioned across the verified history and
+become effective at their declared instants, so omission from a later catalog
+cannot resurrect a key or archive.
+
 ## Dependencies, activation, and updates
 
 Packs have no dependencies on other Packs and no install scripts. A component

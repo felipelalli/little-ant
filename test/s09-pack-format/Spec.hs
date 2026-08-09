@@ -18,7 +18,9 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
 import Data.Word (Word8)
+import LittleAnt.Error (AppError)
 import LittleAnt.Id (UUIDv7, parseUUIDv7)
+import LittleAnt.Pack.Catalog
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Store
@@ -55,6 +57,10 @@ main =
       , testCase "stored Pack tampering and path substitution fail closed" packStoreTampering
       , testCase "registry accepts only authorized enabled components without collisions" packRegistryConfinement
       , testCase "integrations YAML round-trips exact typed pins and publisher keys" typedIntegrationsRoundTrip
+      , testCase "official catalogs grant exact releases and reject stale or invalid candidates" officialCatalogAcceptance
+      , testCase "catalog revocations remain effective when later catalogs omit them" officialCatalogRevocationMemory
+      , testCase "dual-signed root rotation survives binaries anchored at either root" officialCatalogRootRotation
+      , testCase "accepted catalog history is private, atomic, and reverified from disk" officialCatalogPersistence
       ]
 
 canonicalRoundTrip :: Assertion
@@ -367,10 +373,176 @@ typedIntegrationsRoundTrip = withSystemTempDirectory "lant-pack-profile" $ \root
   (_, _, _, _, loaded) <- loadProfile roots "default" >>= assertRight
   loaded @?= integrations
   packStoreDirectory paths @?= root </> "data" </> "lant" </> "packs" </> "sha256"
+  officialCatalogStateFile paths @?= root </> "state" </> "lant" </> "profiles" </> "default" </> "official-pack-catalog.json"
   let invalid = integrations{installedComponents = Map.singleton "org.example.wrong" (installAuthorizedPin install)}
   writeIntegrationsConfig paths invalid >>= assertLeft "invalid pin key"
   (_, _, _, _, unchanged) <- loadProfile roots "default" >>= assertRight
   unchanged @?= integrations
+
+officialCatalogAcceptance :: Assertion
+officialCatalogAcceptance = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  root <- assertRight fixtureCatalogRoot
+  let catalog = fixtureCatalog authenticated 4 (addUTCTime 3600 fixtureNow) []
+  (catalogBytes, signatureBytes) <- signedCatalog fixtureCatalogSecretKey root catalog
+  accepted <- assertRight (acceptOfficialPackCatalog fixtureNow (emptyAcceptedCatalogState root) catalogBytes signatureBytes)
+  officialCatalogSequence <$> acceptedCatalogCurrent accepted @?= Just 4
+  acceptedCatalogHistoryLength accepted @?= 1
+  let policy = catalogTrustPolicy fixtureNow 1 Set.empty Set.empty accepted
+  assessed <- assertRight (assessPackTrust fixtureNow policy authenticated)
+  assessedTrustClass assessed @?= VerifiedOfficialTrust
+  scope <- assertRight (mkProfileScope "default")
+  _ <- assertRight (authorizePackInstall fixtureNow scope policy (Set.singleton "tree") authenticated)
+
+  assertLeft "same sequence" (acceptOfficialPackCatalog fixtureNow accepted catalogBytes signatureBytes)
+  assertLeft "noncanonical catalog" (acceptOfficialPackCatalog fixtureNow (emptyAcceptedCatalogState root) (" " <> catalogBytes) signatureBytes)
+  let badSignature = ByteString.init signatureBytes <> ByteString.singleton (ByteString.last signatureBytes `xor` 1)
+  assertLeft "invalid detached signature" (acceptOfficialPackCatalog fixtureNow (emptyAcceptedCatalogState root) catalogBytes badSignature)
+  let expired = fixtureCatalog authenticated 5 (addUTCTime (-1) fixtureNow) []
+  (expiredBytes, expiredSignature) <- signedCatalog fixtureCatalogSecretKey root expired
+  assertLeft "expired candidate" (acceptOfficialPackCatalog fixtureNow accepted expiredBytes expiredSignature)
+
+officialCatalogRevocationMemory :: Assertion
+officialCatalogRevocationMemory = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  root <- assertRight fixtureCatalogRoot
+  let identity = authenticatedPackIdentity authenticated
+      revocation = CatalogRevocation RevokeArchive (artifactArchiveDigest identity) "release withdrawn" fixtureNow
+      first = fixtureCatalog authenticated 1 (addUTCTime 3600 fixtureNow) [revocation]
+      second = fixtureCatalog authenticated 2 (addUTCTime 7200 fixtureNow) []
+  (firstBytes, firstSignature) <- signedCatalog fixtureCatalogSecretKey root first
+  (secondBytes, secondSignature) <- signedCatalog fixtureCatalogSecretKey root second
+  acceptedFirst <- assertRight (acceptOfficialPackCatalog fixtureNow (emptyAcceptedCatalogState root) firstBytes firstSignature)
+  acceptedSecond <- assertRight (acceptOfficialPackCatalog fixtureNow acceptedFirst secondBytes secondSignature)
+  let policy = catalogTrustPolicy fixtureNow 1 Set.empty Set.empty acceptedSecond
+  trustRevokedArchiveDigests policy @?= Set.singleton (artifactArchiveDigest identity)
+  assessedTrustClass <$> assessPackTrust fixtureNow policy authenticated @?= Right RevokedPack
+
+  let futureRevocation = CatalogRevocation RevokePublisherKey (authenticatedSignerFingerprint authenticated) "scheduled key retirement" (addUTCTime 600 fixtureNow)
+      third = fixtureCatalog authenticated 3 (addUTCTime 7200 fixtureNow) [futureRevocation]
+  (thirdBytes, thirdSignature) <- signedCatalog fixtureCatalogSecretKey root third
+  acceptedThird <- assertRight (acceptOfficialPackCatalog fixtureNow acceptedSecond thirdBytes thirdSignature)
+  trustRevokedKeyFingerprints (catalogTrustPolicy fixtureNow 1 Set.empty Set.empty acceptedThird) @?= Set.empty
+  trustRevokedKeyFingerprints (catalogTrustPolicy (addUTCTime 600 fixtureNow) 1 Set.empty Set.empty acceptedThird)
+    @?= Set.singleton (authenticatedSignerFingerprint authenticated)
+
+officialCatalogRootRotation :: Assertion
+officialCatalogRootRotation = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  oldRoot <- assertRight fixtureCatalogRoot
+  newRoot <- assertRight fixtureNextCatalogRoot
+  (transitionBytes, proofBytes) <- signedRootTransition oldRoot fixtureCatalogSecretKey newRoot fixtureNextCatalogSecretKey
+  rotated <- assertRight (acceptCatalogRootTransition (emptyAcceptedCatalogState oldRoot) transitionBytes proofBytes)
+  acceptedCatalogActiveRoot rotated @?= newRoot
+
+  let catalog = fixtureCatalog authenticated 1 (addUTCTime 3600 fixtureNow) []
+  (oldCatalogBytes, oldCatalogSignature) <- signedCatalog fixtureCatalogSecretKey oldRoot catalog
+  assertLeft "retired root catalog" (acceptOfficialPackCatalog fixtureNow rotated oldCatalogBytes oldCatalogSignature)
+  (newCatalogBytes, newCatalogSignature) <- signedCatalog fixtureNextCatalogSecretKey newRoot catalog
+  accepted <- assertRight (acceptOfficialPackCatalog fixtureNow rotated newCatalogBytes newCatalogSignature)
+  officialCatalogSequence <$> acceptedCatalogCurrent accepted @?= Just 1
+
+  let invalidProof = ByteString.init proofBytes <> ByteString.singleton (ByteString.last proofBytes `xor` 1)
+  assertLeft "invalid root proof" (acceptCatalogRootTransition (emptyAcceptedCatalogState oldRoot) transitionBytes invalidProof)
+
+officialCatalogPersistence :: Assertion
+officialCatalogPersistence = withSystemTempDirectory "lant-pack-catalog" $ \directory -> do
+  (_, authenticated) <- signedFixture fixtureManifest
+  oldRoot <- assertRight fixtureCatalogRoot
+  newRoot <- assertRight fixtureNextCatalogRoot
+  let config = CatalogStateConfig (directory </> "profile" </> "official-pack-catalog.json")
+      first = fixtureCatalog authenticated 7 (addUTCTime 3600 fixtureNow) []
+      second = fixtureCatalog authenticated 8 (addUTCTime 7200 fixtureNow) []
+  (firstBytes, firstSignature) <- signedCatalog fixtureCatalogSecretKey oldRoot first
+  refreshed <- refreshOfficialPackCatalog config oldRoot fixtureNow firstBytes firstSignature >>= assertRight
+  acceptedCatalogHistoryLength refreshed @?= 1
+  status <- getFileStatus (catalogStatePath config)
+  fileMode status .&. 0o077 @?= 0
+
+  (transitionBytes, proofBytes) <- signedRootTransition oldRoot fixtureCatalogSecretKey newRoot fixtureNextCatalogSecretKey
+  _ <- rotateOfficialCatalogRoot config oldRoot transitionBytes proofBytes >>= assertRight
+  (secondBytes, secondSignature) <- signedCatalog fixtureNextCatalogSecretKey newRoot second
+  final <- refreshOfficialPackCatalog config oldRoot fixtureNow secondBytes secondSignature >>= assertRight
+  acceptedCatalogHistoryLength final @?= 3
+
+  loadedFromOld <- readAcceptedCatalogState config oldRoot >>= assertRight
+  loadedFromNew <- readAcceptedCatalogState config newRoot >>= assertRight
+  acceptedCatalogCurrent loadedFromOld @?= acceptedCatalogCurrent final
+  acceptedCatalogCurrent loadedFromNew @?= acceptedCatalogCurrent final
+  acceptedCatalogActiveRoot loadedFromNew @?= newRoot
+
+  original <- ByteString.readFile (catalogStatePath config)
+  ByteString.writeFile (catalogStatePath config) (original <> "\n")
+  setFileMode (catalogStatePath config) 0o600
+  readAcceptedCatalogState config newRoot >>= assertLeft "noncanonical persisted state"
+
+fixtureCatalog :: AuthenticatedPack -> Integer -> UTCTime -> [CatalogRevocation] -> OfficialPackCatalog
+fixtureCatalog authenticated sequenceNumber expiry revocations =
+  let identity = authenticatedPackIdentity authenticated
+      delegation =
+        CatalogPublisherDelegation
+          { catalogPublisherId = artifactPublisher identity
+          , catalogPublisherPublicKey = authenticatedSignerPublicKey authenticated
+          , catalogPublisherKeyFingerprint = authenticatedSignerFingerprint authenticated
+          , catalogPublisherNamePrefixes = ["org.littleant."]
+          }
+      release =
+        CatalogRelease
+          { catalogReleasePublisher = artifactPublisher identity
+          , catalogReleaseName = artifactName identity
+          , catalogReleaseVersion = artifactVersion identity
+          , catalogReleaseManifestDigest = artifactManifestDigest identity
+          , catalogReleaseArchiveDigest = artifactArchiveDigest identity
+          }
+   in OfficialPackCatalog sequenceNumber expiry [delegation] [release] revocations
+
+signedCatalog :: Ed25519.SecretKey -> CatalogRoot -> OfficialPackCatalog -> IO (ByteString, ByteString)
+signedCatalog secret root catalog = do
+  catalogBytes <- assertRight (encodeOfficialPackCatalog catalog)
+  signatureBytes <-
+    assertRight . encodeCatalogSignature $
+      CatalogSignatureDocument
+        (catalogRootFingerprint root)
+        (encodedSignature secret catalogBytes)
+  pure (catalogBytes, signatureBytes)
+
+signedRootTransition :: CatalogRoot -> Ed25519.SecretKey -> CatalogRoot -> Ed25519.SecretKey -> IO (ByteString, ByteString)
+signedRootTransition previous previousSecret next nextSecret = do
+  let transition =
+        CatalogRootTransition
+          { rootTransitionGeneration = catalogRootGeneration next
+          , rootTransitionPreviousPublicKey = catalogRootPublicKey previous
+          , rootTransitionPreviousFingerprint = catalogRootFingerprint previous
+          , rootTransitionNextPublicKey = catalogRootPublicKey next
+          , rootTransitionNextFingerprint = catalogRootFingerprint next
+          }
+  transitionBytes <- assertRight (encodeCatalogRootTransition transition)
+  proofBytes <-
+    assertRight . encodeCatalogRootProof $
+      CatalogRootProof
+        (encodedSignature previousSecret transitionBytes)
+        (encodedSignature nextSecret transitionBytes)
+  pure (transitionBytes, proofBytes)
+
+encodedSignature :: Ed25519.SecretKey -> ByteString -> Text
+encodedSignature secret bytes =
+  let public = Ed25519.toPublic secret
+   in TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded (convert (Ed25519.sign secret public bytes)))
+
+fixtureCatalogRoot :: Either AppError CatalogRoot
+fixtureCatalogRoot = catalogRootFromPublicKey 0 (encodedPublicKey fixtureCatalogSecretKey)
+
+fixtureNextCatalogRoot :: Either AppError CatalogRoot
+fixtureNextCatalogRoot = catalogRootFromPublicKey 1 (encodedPublicKey fixtureNextCatalogSecretKey)
+
+encodedPublicKey :: Ed25519.SecretKey -> Text
+encodedPublicKey = TextEncoding.decodeUtf8 . Base64Url.encodeUnpadded . convert . Ed25519.toPublic
+
+fixtureCatalogSecretKey :: Ed25519.SecretKey
+fixtureCatalogSecretKey = cryptoPassed (Ed25519.secretKey (ByteString.pack [32 .. 63]))
+
+fixtureNextCatalogSecretKey :: Ed25519.SecretKey
+fixtureNextCatalogSecretKey = cryptoPassed (Ed25519.secretKey (ByteString.pack [64 .. 95]))
 
 signedFixture :: PackManifest -> IO (ByteString, AuthenticatedPack)
 signedFixture manifest = do

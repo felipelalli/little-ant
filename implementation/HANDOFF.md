@@ -82,6 +82,12 @@ editable between milestone commits.
   registry accepts only execution-authorized Packs, restricts payload bytes to
   each enabled component root, rejects cross-profile authority, and fails on
   component-ID collisions.
+- official catalog refresh now verifies exact canonical bytes against the
+  active compiled-root chain, accepts only an unexpired strictly newer
+  sequence, and persists the signed history atomically per profile. Dual-signed
+  contiguous root transitions remain verifiable from either compiled root,
+  while effective key/archive revocations accumulate across all accepted
+  catalogs and cannot disappear by omission.
 
 ## Last green gate
 
@@ -97,14 +103,15 @@ source/translation/diagnostic/repair tests, including both cutover crash phases
 and the public no-default consent flow. The new S09 export suite has 7 passing
 tests for deterministic projections, stdout, dry-run, exclusive publication,
 pre-invocation target rejection, exporter failure, and registry compatibility.
-The structural, authority, store, and registry Pack suite has 18 passing tests
+The structural, authority, store, registry, and catalog Pack suite has 22 passing tests
 for reproducible archives, JCS, closed schemas, component permission
 isolation, path ownership, payload integrity, canonical ZIP mutation
 rejection, Unicode path safety,
 exact Ed25519 authentication, trust precedence, official-catalog expiry,
 community untrust, pin confinement, release equivocation, private/idempotent
-publication, tamper and symlink rejection, registry confinement, and typed
-profile round-trips. The full
+publication, tamper and symlink rejection, registry confinement, typed profile
+round-trips, catalog sequence/expiry, monotonic revocation, dual-signed root
+rotation, and private replayable catalog state. The full
 build, every Haskell suite, the isolated CLI end-to-end test, formatting, and
 targeted lint for the new Pack code pass. The CLI test now isolates all four
 XDG roots, so a developer's real profile cannot contaminate it. The aggregate
@@ -134,9 +141,8 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the accepted official-catalog persistence/revocation refresh
-boundary and the fresh-process HsLua runner, then wire the execution-authorized
-registry into the export port. Ship the standard Lua tree,
+Next, implement the fresh-process HsLua runner and wire the
+execution-authorized registry into the export port. Ship the standard Lua tree,
 table, RFC 4180 CSV, Org, self-contained HTML, and TaskJuggler exporters through
 that boundary. Continue afterward with the Raw-first import/adapters. The
 `Corrupt history/repair` row is implemented; formal evidence registration and
