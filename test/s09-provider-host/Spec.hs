@@ -1000,10 +1000,10 @@ connectorPin =
           { artifactPublisher = "org.littleant.project"
           , artifactName = "org.littleant.official-connectors"
           , artifactVersion = "1.0.0"
-          , artifactManifestDigest = "7ef1a9e6e5dfd487865783d8d278ff5cbd6f6e30e5f9fa52d5144fcbe8a4fe27"
-          , artifactArchiveDigest = "86fd16259a6579a537df3a1007844da55e752ab55166a494b3f486bc6cf0b7d8"
+          , artifactManifestDigest = "23ec374a45ccf8ac839db91ec1b590b86ef042c832275b8e9025aeda95747cd6"
+          , artifactArchiveDigest = "8722c8879e6534523d1b8fcb15aecd8f667f750096e28c9c28339b80ddd5b24d"
           }
-    , pinSignerFingerprint = "7bc8da187ab5426a5aa9a881b6aa54302ea9b5b4c4714ac831bafc513560ac48"
-    , pinTrustOrigin = PinVerifiedOfficial 4
+    , pinSignerFingerprint = "77d0e2f201ee265179a942d0af762b9485afb7ec59ae3f47a26c5926264d1c8d"
+    , pinTrustOrigin = PinVerifiedOfficial 5
     , pinEnabledComponents = Set.singleton "microsoft_todo"
     }

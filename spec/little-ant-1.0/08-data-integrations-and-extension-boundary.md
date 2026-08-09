@@ -266,7 +266,12 @@ support them honestly.
   fingerprint. PKCE uses `S256`, an external browser, and one ephemeral
   loopback-only callback. Refresh-token replacement is an atomic same-scheme
   vault mutation; a successful refresh that omits a replacement or an
-  unchanged scope field retains the previously verified value.
+  unchanged scope field retains the previously verified value. Before a
+  credentialed provider request, a locally expired grant is refreshed at most
+  once from the exact installed signed component and binding. The complete
+  replacement token set must be persisted through the same vault agent before
+  its access token may be injected; failed refresh or persistence performs no
+  provider request and returns explicit reconnect recovery.
   Secrets are never accepted in command arguments, environment variables,
   YAML, ordinary stdin, or InteractionEnvelopes. Dedicated no-echo unlock and
   authorization-code inputs are the only interactive secret inputs.

@@ -44,9 +44,9 @@ mutation.
 - Version 1 deliberately uses deterministic IPv4 loopback rather than racing
   IPv4 and IPv6 listeners. A failed or intercepted one-shot callback requires
   the human to retry the unchanged connection preview.
-- Automatic access-token refresh during a later provider request remains a
-  separate broker milestone; this decision supplies and persists the refresh
-  operation without hiding provider work inside replay.
+- Automatic access-token refresh during later provider requests is specified
+  separately by ADR 0033; this decision supplies the signed authority and
+  closed refresh operation it consumes.
 
 ## Evidence
 

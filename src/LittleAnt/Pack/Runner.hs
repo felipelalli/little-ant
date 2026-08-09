@@ -1092,6 +1092,11 @@ installPayloadApi entry payload inputBytes httpEnabled replay = do
     pure 1
   Lua.setglobal "__lant_url_encode_path_segment"
   Lua.pushHaskellFunction $ do
+    component <- Lua.forcePeek (Lua.peekText (Lua.nthBottom 1))
+    Lua.pushText (encodeUrlPathSegment component)
+    pure 1
+  Lua.setglobal "__lant_url_encode_query_component"
+  Lua.pushHaskellFunction $ do
     case inputBytes of
       Nothing -> Lua.failLua "input ZIP entries are unavailable for this invocation"
       Just bytes ->
@@ -1327,6 +1332,7 @@ trustedBootstrap =
     , "local json_encode = __lant_json_encode"
     , "local json_decode = __lant_json_decode"
     , "local url_encode_path_segment = __lant_url_encode_path_segment"
+    , "local url_encode_query_component = __lant_url_encode_query_component"
     , "local input_zip_entries = __lant_input_zip_entries"
     , "local http_enabled = __lant_http_enabled"
     , "local http_request = __lant_http_request"
@@ -1338,6 +1344,7 @@ trustedBootstrap =
     , "__lant_json_encode = nil"
     , "__lant_json_decode = nil"
     , "__lant_url_encode_path_segment = nil"
+    , "__lant_url_encode_query_component = nil"
     , "__lant_input_zip_entries = nil"
     , "__lant_http_enabled = nil"
     , "__lant_http_request = nil"
@@ -1392,6 +1399,10 @@ trustedBootstrap =
     , "    encode_path_segment = function(value)"
     , "      if type(value) ~= 'string' then error('URL path segment must be a string', 2) end"
     , "      return url_encode_path_segment(value)"
+    , "    end,"
+    , "    encode_query_component = function(value)"
+    , "      if type(value) ~= 'string' then error('URL query component must be a string', 2) end"
+    , "      return url_encode_query_component(value)"
     , "    end"
     , "  }"
     , "}"

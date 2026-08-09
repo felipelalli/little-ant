@@ -21,6 +21,7 @@ import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Transport
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile
+import LittleAnt.Provider
 import LittleAnt.Vault qualified as Vault
 import LittleAnt.Vault.Age (makePassphrase)
 import LittleAnt.Vault.Agent
@@ -48,6 +49,7 @@ main =
       , testCase "authorization code PKCE keeps state and verifier transient through loopback exchange" pkceAuthorizationLifecycle
       , testCase "authorization code PKCE rejects state mismatch and missing refresh custody" pkceResponseConfinement
       , testCase "the production PKCE receiver accepts one exact IPv4 loopback callback" pkceLoopbackRoundTrip
+      , testCase "an expired provider grant refreshes once and persists before broker use" providerAutomaticRefresh
       ]
 
 pkceLoopbackRoundTrip :: Assertion
@@ -331,6 +333,95 @@ oauthVaultPersistence = withSystemTempDirectory "lant-oauth-vault" $ \root -> do
   resolveSecret socketPath identity = do
     reply <- sendVaultAgentRequest socketPath (agentResolveRequest identity "source_read") >>= assertRight
     maybe (assertFailure "vault agent omitted OAuth secret" >> pure ByteString.empty) pure (agentReplySecret reply)
+
+providerAutomaticRefresh :: Assertion
+providerAutomaticRefresh = withSystemTempDirectory "lant-provider-refresh" $ \root -> do
+  passphrase <- assertRight (makePassphrase "provider refresh fixture passphrase")
+  let vaultPath = root </> "vaults" </> "default.age"
+      socketPath = root </> "runtime" </> "default" </> "vault.sock"
+      bindingId = fixtureUuid "019fe080-4344-763f-b110-53cb7aefd0e2"
+  Vault.writeVault vaultPath passphrase (Vault.emptyVault (fixtureUuid "019fe080-4344-763f-b110-53cb7aefd0e1")) >>= assertRight
+  finished <- newEmptyMVar
+  _ <- forkIO (runVaultAgent socketPath vaultPath 60 >>= putMVar finished)
+  waitForPath socketPath 100
+  sendVaultAgentRequest socketPath (agentUnlockRequest "provider refresh fixture passphrase") >>= assertRight >>= assertSucceeded
+
+  registry <- googleConnectorRegistry
+  registered <- assertRight (lookupPackComponent "google_tasks" registry)
+  client <- assertRight (resolveOAuthPkceClient registered fixturePkceAccount "google")
+  let binding =
+        CredentialBinding
+          { credentialBindingComponent = "google_tasks"
+          , credentialBindingSlot = "google"
+          , credentialBindingAccount = "personal"
+          , credentialBindingScheme = Vault.OAuthAuthorizationCodePKCE
+          , credentialBindingVaultEntry = bindingId
+          , credentialBindingAuthorizationFingerprint = Just (oauthPkceAuthorizationFingerprint client)
+          , credentialBindingPurposes = Set.singleton "source_read"
+          }
+      expired =
+        OAuthTokenSet
+          { oauthAccessToken = "EXPIRED-GOOGLE-ACCESS"
+          , oauthRefreshToken = Just "GOOGLE-REFRESH"
+          , oauthExpiresAt = fixtureTime
+          , oauthScopes = Set.singleton googleTasksScope
+          , oauthAuthorizationFingerprint = oauthPkceAuthorizationFingerprint client
+          }
+      integrations =
+        IntegrationsConfig
+          { installedComponents = Map.empty
+          , providerAccounts = Map.singleton "personal" fixturePkceAccount
+          , credentialBindings = Map.singleton "google_tasks-personal" binding
+          , deliveryBindings = Map.empty
+          , trustedPublishers = Set.empty
+          }
+  persistOAuthPkceTokenSet socketPath client binding "Google Tasks · Personal" expired >>= assertRight
+  (transport, requests) <- scriptedTransport [pkceRefreshResponseWithoutScope]
+  let resolver = providerAccessTokenResolver standardProviderSourceDefinitions registry integrations socketPath (pure fixtureTime) transport
+  first <- resolveAccessToken resolver binding >>= assertRight
+  accessTokenBytes first @?= "GOOGLE-REFRESHED-ACCESS"
+  second <- resolveAccessToken resolver binding >>= assertRight
+  accessTokenBytes second @?= "GOOGLE-REFRESHED-ACCESS"
+  readIORef requests >>= \observed -> length observed @?= 1
+
+  sendVaultAgentRequest socketPath agentShutdownRequest >>= assertRight >>= assertSucceeded
+  takeMVar finished >>= assertRight
+ where
+  assertSucceeded reply = assertBool "vault agent did not acknowledge provider refresh" (agentReplySucceeded reply)
+
+googleConnectorRegistry :: IO PackRegistry
+googleConnectorRegistry = do
+  archive <- ByteString.readFile ("packs" </> "official-connectors" </> "official-connectors.lantpack")
+  structural <- assertRight (validatePackArchive archive)
+  authenticated <- assertRight (authenticatePack structural)
+  scope <- assertRight (mkProfileScope "default")
+  let identity = authenticatedPackIdentity authenticated
+      grant =
+        OfficialReleaseGrant
+          { officialGrantPublisher = artifactPublisher identity
+          , officialGrantNamePrefix = "org.littleant."
+          , officialGrantPublicKey = authenticatedSignerPublicKey authenticated
+          , officialGrantKeyFingerprint = authenticatedSignerFingerprint authenticated
+          , officialGrantName = artifactName identity
+          , officialGrantVersion = artifactVersion identity
+          , officialGrantManifestDigest = artifactManifestDigest identity
+          , officialGrantArchiveDigest = artifactArchiveDigest identity
+          }
+      policy =
+        PackTrustPolicy
+          { trustSupportedLittleAntMajor = 1
+          , trustBuiltInArtifacts = Set.empty
+          , trustOfficialCatalogSequence = Just 1
+          , trustOfficialCatalogExpiresAt = Just (read "2027-01-01 00:00:00 UTC")
+          , trustOfficialReleaseGrants = Set.singleton grant
+          , trustOfficialPinAuthorizations = Set.singleton (officialPinAuthorizationFromGrant 1 grant)
+          , trustCommunityPublishers = Set.empty
+          , trustRevokedKeyFingerprints = Set.empty
+          , trustRevokedArchiveDigests = Set.empty
+          }
+  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.singleton "google_tasks") authenticated)
+  execution <- assertRight (authorizePinnedPackExecution fixtureTime scope policy (installAuthorizedPin install) authenticated)
+  assertRight (buildPackRegistry scope [execution])
 
 waitForPath :: FilePath -> Int -> Assertion
 waitForPath path attempts

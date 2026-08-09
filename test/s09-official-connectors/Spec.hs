@@ -39,6 +39,9 @@ main =
       , testCase "completed tasks remain an explicit import choice" completedTaskChoice
       , testCase "migration refuses unmaterialized attachment bodies without explicit acknowledgment" attachmentMigrationGuard
       , testCase "a provider-controlled nextLink cannot leave the signed Graph route" nextLinkConfinement
+      , testCase "Google Tasks paginates opaque tokens into sparse structured Raw previews" googleTasksSnapshot
+      , testCase "Google Tasks completed and hidden tasks remain an explicit import choice" googleCompletedTaskChoice
+      , testCase "Google Tasks cleanup verifies exact items and protects the default list" googleCleanupSafety
       ]
 
 canonicalArchive :: Assertion
@@ -55,24 +58,40 @@ canonicalArchive = do
   identity @?= connectorIdentity
   registry <- officialRegistry authenticated
   let registered = registryComponents registry
-  Set.fromList (componentId . componentCommon . registeredComponent <$> registered) @?= Set.singleton microsoftTodoComponentId
-  case registered of
-    [registeredComponent'] -> case registeredComponent registeredComponent' of
-      ExecutableComponent common _ permissions -> do
-        componentKind common @?= SourceAdapterComponent
-        permissionCredentialSlots permissions @?= [CredentialSlot "microsoft" OAuthDeviceAuthorization]
-        permissionOAuthDeviceAuthorizations permissions
-          @?= [ OAuthDeviceAuthorizationPermission
-                  "microsoft"
-                  "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
-                  "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-                  "client_id"
-                  (Set.fromList ["Tasks.ReadWrite", "offline_access"])
-              ]
-        permissionHttp permissions @?= [HttpPermission ["GET", "DELETE"] "graph.microsoft.com" "/v1.0/me/todo" (Just "microsoft")]
-        permissionEffectPurposes permissions @?= [SourceCleanupItemPermission, SourceCleanupContainerPermission]
-      component -> assertFailure ("unexpected connector component: " <> show component)
-    components -> assertFailure ("unexpected connector component count: " <> show (length components))
+  Set.fromList (componentId . componentCommon . registeredComponent <$> registered) @?= Set.fromList [googleTasksComponentId, microsoftTodoComponentId]
+  microsoft <- assertRight (lookupPackComponent microsoftTodoComponentId registry)
+  case registeredComponent microsoft of
+    ExecutableComponent common _ permissions -> do
+      componentKind common @?= SourceAdapterComponent
+      permissionCredentialSlots permissions @?= [CredentialSlot "microsoft" OAuthDeviceAuthorization]
+      permissionOAuthDeviceAuthorizations permissions
+        @?= [ OAuthDeviceAuthorizationPermission
+                "microsoft"
+                "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+                "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                "client_id"
+                (Set.fromList ["Tasks.ReadWrite", "offline_access"])
+            ]
+      permissionHttp permissions @?= [HttpPermission ["GET", "DELETE"] "graph.microsoft.com" "/v1.0/me/todo" (Just "microsoft")]
+      permissionEffectPurposes permissions @?= [SourceCleanupItemPermission, SourceCleanupContainerPermission]
+    component -> assertFailure ("unexpected Microsoft To Do component: " <> show component)
+  google <- assertRight (lookupPackComponent googleTasksComponentId registry)
+  case registeredComponent google of
+    ExecutableComponent common _ permissions -> do
+      componentKind common @?= SourceAdapterComponent
+      permissionCredentialSlots permissions @?= [CredentialSlot "google" OAuthAuthorizationCodePkce]
+      permissionOAuthAuthorizationCodePkce permissions
+        @?= [ OAuthAuthorizationCodePkcePermission
+                "google"
+                "https://accounts.google.com/o/oauth2/v2/auth"
+                "https://oauth2.googleapis.com/token"
+                "client_id"
+                (Set.singleton googleTasksScope)
+                (Map.fromList [("access_type", "offline"), ("prompt", "consent")])
+            ]
+      permissionHttp permissions @?= [HttpPermission ["GET", "DELETE"] "tasks.googleapis.com" "/tasks/v1" (Just "google")]
+      permissionEffectPurposes permissions @?= [SourceCleanupItemPermission, SourceCleanupContainerPermission]
+    component -> assertFailure ("unexpected Google Tasks component: " <> show component)
 
 microsoftTodoSnapshot :: Assertion
 microsoftTodoSnapshot = do
@@ -161,14 +180,100 @@ nextLinkConfinement = do
   assertError PermissionRequired result
   readIORef calls >>= \observed -> length observed @?= 1
 
+googleTasksSnapshot :: Assertion
+googleTasksSnapshot = do
+  (client, registered) <- connectorRuntimeFor googleTasksComponentId
+  calls <- newIORef []
+  (input, preflight) <- invokePackSourcePreflightHttp client (googleBroker False calls) registered SourceSnapshot googleSourceLabel googleSourceWithoutCompleted >>= assertRight
+  sourcePreflightAdapterId preflight @?= googleTasksComponentId
+  sourcePreflightInputDigest preflight @?= sha256Hex (sourceInputBytes input)
+  let observation = sourcePreflightObservation preflight
+  observedSourceLabel observation @?= "Google Tasks"
+  observedAccountLabel observation @?= Just "Personal Google account"
+  observedSupportedModes observation @?= [SourceSnapshot, SourceSynchronize, SourceMigrate]
+  observedCleanupSupported observation @?= True
+  observedIdentity observation
+    @?= Map.fromList
+      [ ("account_id", "google-account-42")
+      , ("completed_item_count", "1")
+      , ("included_item_count", "2")
+      , ("list_count", "2")
+      , ("open_item_count", "2")
+      , ("provider", "google_tasks")
+      ]
+  (sourceContainerExternalId <$> observedContainers observation) @?= ["list:list+one=", "list:list-two"]
+  (sourceObjectExternalId <$> observedObjects observation)
+    @?= ["task:8:list-twotask-3", "task:9:list+one=task-1"]
+  case observedObjects observation of
+    firstObject : _ -> do
+      sourceObjectShape firstObject @?= SourceTaskShape
+      sourceObjectCompleted firstObject @?= False
+      case sourceObjectMaterial firstObject of
+        SourceMaterialSummary SourceStructuredKind _ _ preview -> assertBool "Google structured preview omitted its schema" ("google-tasks" `Text.isInfixOf` preview)
+        material -> assertFailure ("unexpected Google task material: " <> show material)
+    [] -> assertFailure "Google Tasks returned no source objects"
+  preflightBytes <- assertRight (canonicalJsonBytes (toJSON preflight))
+  assertBool "private Google task notes escaped sparse preflight" (not ("::PRIVATE_GOOGLE_BODY::" `ByteString.isInfixOf` preflightBytes))
+  observedCalls <- readIORef calls
+  length observedCalls @?= 4
+  assertBool "Google page token was not encoded as one query component" (any ((== googleListsPageTwoUrl) . brokerHttpUrl) observedCalls)
+  assertBool "Google task path segment was not encoded canonically" (any ((== googleTasksListOneOpenUrl) . brokerHttpUrl) observedCalls)
+
+  materialCalls <- newIORef []
+  (_, materializedPreflight, materialization) <- invokePackSourceMaterializeHttp client (googleBroker False materialCalls) registered SourceSnapshot googleSourceLabel googleSourceWithoutCompleted >>= assertRight
+  materializedPreflight @?= preflight
+  case Map.lookup "task:9:list+one=task-1" (materializedObjects materialization) of
+    Just (SourceStructuredMaterial schema encoded) -> do
+      schema @?= "google-tasks/task@1"
+      assertBool "structured Google Raw omitted the complete task body" ("::PRIVATE_GOOGLE_BODY::" `Text.isInfixOf` encoded)
+    material -> assertFailure ("unexpected materialized Google task: " <> show material)
+
+googleCompletedTaskChoice :: Assertion
+googleCompletedTaskChoice = do
+  (client, registered) <- connectorRuntimeFor googleTasksComponentId
+  calls <- newIORef []
+  (_, preflight) <- invokePackSourcePreflightHttp client (googleBroker True calls) registered SourceSynchronize googleSourceLabel googleSourceWithCompleted >>= assertRight
+  let objects = observedObjects (sourcePreflightObservation preflight)
+  (sourceObjectExternalId <$> objects)
+    @?= ["task:8:list-twotask-3", "task:9:list+one=task-1", "task:9:list+one=task-2"]
+  (sourceObjectCompleted <$> objects) @?= [False, False, True]
+  readIORef calls >>= \observed -> assertBool "completed Google Tasks were requested without showHidden" (any ((== googleTasksListOneCompleteUrl) . brokerHttpUrl) observed)
+
+googleCleanupSafety :: Assertion
+googleCleanupSafety = do
+  (client, registered) <- connectorRuntimeFor googleTasksComponentId
+  itemCalls <- newIORef []
+  let itemBroker = PackHttpBroker $ \permission request -> do
+        httpPermissionCredentialSlot permission @?= Just "google"
+        modifyIORef' itemCalls (<> [request])
+        if brokerHttpMethod request == "DELETE" && brokerHttpUrl request == googleTaskOneUrl
+          then pure (Right (BrokerHttpResponse 204 Map.empty Null))
+          else pure (Left ((appError ExternalFailure "Unexpected Google item-cleanup request."){appErrorDetails = [brokerHttpMethod request, brokerHttpUrl request]}))
+  receipt <- invokePackSourceCleanupItemHttp client itemBroker registered googleSourceWithoutCompleted "task:9:list+one=task-1" googleTaskOneLocator (Just "list:list+one=") >>= assertRight
+  sourceCleanupOutcome receipt @?= SourceCleanupSucceeded
+  readIORef itemCalls >>= \calls -> fmap brokerHttpUrl calls @?= [googleTaskOneUrl]
+
+  protectedCalls <- newIORef []
+  protected <- invokePackSourceCleanupContainerInspectHttp client (googleContainerBroker True protectedCalls) registered googleSourceWithoutCompleted "list:list+one=" >>= assertRight
+  inspectedContainerOutcome protected @?= SourceContainerProtected
+  assertBool "default-list inspection unexpectedly enumerated or deleted tasks" . all ((/= "DELETE") . brokerHttpMethod) =<< readIORef protectedCalls
+
+  emptyCalls <- newIORef []
+  deleted <- invokePackSourceCleanupContainerHttp client (googleContainerBroker False emptyCalls) registered googleSourceWithoutCompleted "list:list+one=" >>= assertRight
+  sourceCleanupOutcome deleted @?= SourceCleanupSucceeded
+  readIORef emptyCalls >>= \calls -> assertBool "verified empty Google list was not deleted" (any (\request -> brokerHttpMethod request == "DELETE" && brokerHttpUrl request == googleListOneUrl) calls)
+
 connectorRuntime :: IO (PackRunnerClient, RegisteredPackComponent)
-connectorRuntime = do
+connectorRuntime = connectorRuntimeFor microsoftTodoComponentId
+
+connectorRuntimeFor :: Text -> IO (PackRunnerClient, RegisteredPackComponent)
+connectorRuntimeFor componentId' = do
   client <- defaultPackRunnerClient
   archive <- ByteString.readFile (connectorRoot </> "official-connectors.lantpack")
   structural <- assertRight (validatePackArchive archive)
   authenticated <- assertRight (authenticatePack structural)
   registry <- officialRegistry authenticated
-  registered <- assertRight (lookupPackComponent microsoftTodoComponentId registry)
+  registered <- assertRight (lookupPackComponent componentId' registry)
   pure (client, registered)
 
 officialRegistry :: AuthenticatedPack -> IO PackRegistry
@@ -198,7 +303,7 @@ officialRegistry authenticated = do
           , trustRevokedKeyFingerprints = Set.empty
           , trustRevokedArchiveDigests = Set.empty
           }
-  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.singleton microsoftTodoComponentId) authenticated)
+  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.fromList [googleTasksComponentId, microsoftTodoComponentId]) authenticated)
   assessedTrustClass (installAuthorizedAssessment install) @?= VerifiedOfficialTrust
   execution <- assertRight (authorizePinnedPackExecution fixtureTime scope policy (installAuthorizedPin install) authenticated)
   assertRight (buildPackRegistry scope [execution])
@@ -227,6 +332,44 @@ graphBroker maliciousNextLink calls = PackHttpBroker $ \permission request -> do
       | url == tasksListTwoUrl -> Right (jsonResponse (object ["value" .= [taskObject "task-3" "Review contract" "inProgress" False "Read every clause"]]))
       | otherwise -> Left ((appError ExternalFailure "The fake Graph provider received an unexpected URL."){appErrorDetails = [url]})
 
+googleBroker :: Bool -> IORef [BrokerHttpRequest] -> PackHttpBroker
+googleBroker includeCompleted calls = PackHttpBroker $ \permission request -> do
+  httpPermissionCredentialSlot permission @?= Just "google"
+  modifyIORef' calls (<> [request])
+  pure $ case brokerHttpUrl request of
+    url
+      | url == googleListsUrl ->
+          Right . jsonResponse $
+            object
+              [ "items" .= [googleListObject "list-two" "Work"]
+              , "nextPageToken" .= ("next &=" :: Text)
+              ]
+      | url == googleListsPageTwoUrl -> Right (jsonResponse (object ["items" .= [googleListObject "list+one=" "Personal"]]))
+      | url == expectedListOne ->
+          Right . jsonResponse $
+            object
+              [ "items"
+                  .= [ googleTaskObject "task-1" "Buy milk" "needsAction" "::PRIVATE_GOOGLE_BODY::"
+                     , googleTaskObject "task-2" "File taxes" "completed" "Already done"
+                     ]
+              ]
+      | url == expectedListTwo -> Right (jsonResponse (object ["items" .= [googleTaskObject "task-3" "Review contract" "needsAction" "Read every clause"]]))
+      | otherwise -> Left ((appError ExternalFailure "The fake Google Tasks provider received an unexpected URL."){appErrorDetails = [url]})
+ where
+  expectedListOne = if includeCompleted then googleTasksListOneCompleteUrl else googleTasksListOneOpenUrl
+  expectedListTwo = if includeCompleted then googleTasksListTwoCompleteUrl else googleTasksListTwoOpenUrl
+
+googleContainerBroker :: Bool -> IORef [BrokerHttpRequest] -> PackHttpBroker
+googleContainerBroker targetIsDefault calls = PackHttpBroker $ \permission request -> do
+  httpPermissionCredentialSlot permission @?= Just "google"
+  modifyIORef' calls (<> [request])
+  pure $ case (brokerHttpMethod request, brokerHttpUrl request) of
+    ("GET", url) | url == googleListOneUrl -> Right (jsonResponse (googleListObject "list+one=" "Personal"))
+    ("GET", url) | url == googleDefaultListUrl -> Right (jsonResponse (googleListObject (if targetIsDefault then "list+one=" else "default-list") "My Tasks"))
+    ("GET", url) | url == googleContainerTasksUrl -> Right (jsonResponse (object ["items" .= ([] :: [Value])]))
+    ("DELETE", url) | url == googleListOneUrl -> Right (BrokerHttpResponse 204 Map.empty Null)
+    _ -> Left ((appError ExternalFailure "The fake Google container provider received an unexpected request."){appErrorDetails = [brokerHttpMethod request, brokerHttpUrl request]})
+
 jsonResponse :: Value -> BrokerHttpResponse
 jsonResponse = BrokerHttpResponse 200 (Map.singleton "content-type" "application/json")
 
@@ -251,6 +394,29 @@ taskObject identifier title status hasAttachments body =
     , "body" .= object ["contentType" .= ("text" :: Text), "content" .= body]
     ]
 
+googleListObject :: Text -> Text -> Value
+googleListObject identifier title =
+  object
+    [ "kind" .= ("tasks#taskList" :: Text)
+    , "id" .= identifier
+    , "etag" .= ("etag-" <> identifier)
+    , "title" .= title
+    , "updated" .= ("2026-08-09T12:00:00.000Z" :: Text)
+    ]
+
+googleTaskObject :: Text -> Text -> Text -> Text -> Value
+googleTaskObject identifier title status notes =
+  object
+    [ "kind" .= ("tasks#task" :: Text)
+    , "id" .= identifier
+    , "etag" .= ("etag-" <> identifier)
+    , "title" .= title
+    , "status" .= status
+    , "notes" .= notes
+    , "updated" .= ("2026-08-09T12:00:00.000Z" :: Text)
+    , "position" .= ("00000000000000000000" :: Text)
+    ]
+
 sourceWithoutCompleted, sourceWithCompleted, sourceAllowingIncompleteAttachments :: Value
 sourceWithoutCompleted = sourceValue False False
 sourceWithCompleted = sourceValue True False
@@ -264,6 +430,20 @@ sourceValue includeCompleted allowIncompleteAttachments =
     , "account_label" .= ("Personal account" :: Text)
     , "include_completed" .= includeCompleted
     , "allow_incomplete_attachments" .= allowIncompleteAttachments
+    , "list_ids" .= ([] :: [Text])
+    ]
+
+googleSourceWithoutCompleted, googleSourceWithCompleted :: Value
+googleSourceWithoutCompleted = googleSourceValue False
+googleSourceWithCompleted = googleSourceValue True
+
+googleSourceValue :: Bool -> Value
+googleSourceValue includeCompleted =
+  object
+    [ "provider" .= ("google_tasks" :: Text)
+    , "account_id" .= ("google-account-42" :: Text)
+    , "account_label" .= ("Personal Google account" :: Text)
+    , "include_completed" .= includeCompleted
     , "list_ids" .= ([] :: [Text])
     ]
 
@@ -314,6 +494,22 @@ listsPageTwoUrl = listsUrl <> "?page=2"
 tasksListOneUrl = "https://graph.microsoft.com/v1.0/me/todo/lists/list%2Bone%3D/tasks"
 tasksListTwoUrl = "https://graph.microsoft.com/v1.0/me/todo/lists/list-two/tasks"
 
+googleSourceLabel, googleTasksComponentId, googleTasksScope, googleListsUrl, googleListsPageTwoUrl, googleTasksListOneOpenUrl, googleTasksListTwoOpenUrl, googleTasksListOneCompleteUrl, googleTasksListTwoCompleteUrl, googleTaskOneUrl, googleTaskOneLocator, googleListOneUrl, googleDefaultListUrl, googleContainerTasksUrl :: Text
+googleSourceLabel = "Google Tasks · Personal Google account"
+googleTasksComponentId = "google_tasks"
+googleTasksScope = "https://www.googleapis.com/auth/tasks"
+googleListsUrl = "https://tasks.googleapis.com/tasks/v1/users/@me/lists?maxResults=1000"
+googleListsPageTwoUrl = googleListsUrl <> "&pageToken=next%20%26%3D"
+googleTasksListOneOpenUrl = "https://tasks.googleapis.com/tasks/v1/lists/list%2Bone%3D/tasks?maxResults=100&showAssigned=false&showCompleted=false&showDeleted=false&showHidden=false"
+googleTasksListTwoOpenUrl = "https://tasks.googleapis.com/tasks/v1/lists/list-two/tasks?maxResults=100&showAssigned=false&showCompleted=false&showDeleted=false&showHidden=false"
+googleTasksListOneCompleteUrl = "https://tasks.googleapis.com/tasks/v1/lists/list%2Bone%3D/tasks?maxResults=100&showAssigned=false&showCompleted=true&showDeleted=false&showHidden=true"
+googleTasksListTwoCompleteUrl = "https://tasks.googleapis.com/tasks/v1/lists/list-two/tasks?maxResults=100&showAssigned=false&showCompleted=true&showDeleted=false&showHidden=true"
+googleTaskOneUrl = "https://tasks.googleapis.com/tasks/v1/lists/list%2Bone%3D/tasks/task-1"
+googleTaskOneLocator = "google-tasks://google-account-42/lists/list%2Bone%3D/tasks/task-1"
+googleListOneUrl = "https://tasks.googleapis.com/tasks/v1/users/@me/lists/list%2Bone%3D"
+googleDefaultListUrl = "https://tasks.googleapis.com/tasks/v1/users/@me/lists/@default"
+googleContainerTasksUrl = "https://tasks.googleapis.com/tasks/v1/lists/list%2Bone%3D/tasks?maxResults=100&showAssigned=true&showCompleted=true&showDeleted=false&showHidden=true"
+
 fixtureTime :: UTCTime
 fixtureTime = read "2026-08-09 09:00:00 UTC"
 
@@ -323,6 +519,6 @@ connectorIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.official-connectors"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "7ef1a9e6e5dfd487865783d8d278ff5cbd6f6e30e5f9fa52d5144fcbe8a4fe27"
-    , artifactArchiveDigest = "86fd16259a6579a537df3a1007844da55e752ab55166a494b3f486bc6cf0b7d8"
+    , artifactManifestDigest = "23ec374a45ccf8ac839db91ec1b590b86ef042c832275b8e9025aeda95747cd6"
+    , artifactArchiveDigest = "8722c8879e6534523d1b8fcb15aecd8f667f750096e28c9c28339b80ddd5b24d"
     }

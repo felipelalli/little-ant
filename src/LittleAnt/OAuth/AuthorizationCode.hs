@@ -136,7 +136,15 @@ refreshOAuthPkceTokenSet transport now client previous
                     , ("refresh_token", refreshToken)
                     ]
                 )
-        runOAuthFormTransport transport request >>= pure . (>>= parseTokenResponse now client (Just previous) False)
+        runOAuthFormTransport transport request >>= \case
+          Left problem -> pure (Left problem)
+          Right response
+            | oauthFormStatus response >= 200 && oauthFormStatus response < 300 -> pure (parseTokenResponse now client (Just previous) False response)
+            | otherwise ->
+                pure . Left $
+                  (oauthProblem PermissionRequired "The OAuth refresh grant is no longer usable; reconnect this account." [oauthResponseErrorCode response])
+                    { appErrorRecovery = [RecoveryAction "reconnect" "Start a new reviewed authorization without changing canonical data." Nothing]
+                    }
 
 persistOAuthPkceTokenSet :: FilePath -> OAuthPkceClient -> CredentialBinding -> Text -> OAuthTokenSet -> IO (Either AppError ())
 persistOAuthPkceTokenSet socketPath client binding label tokenSet = case validateTokenForClient client binding tokenSet of
@@ -417,10 +425,12 @@ boundedSeconds key limit fields = do
 
 oauthEndpointError :: OAuthFormResponse -> AppError
 oauthEndpointError response =
-  let code = case parseEither (withObject "OAuthError" (boundedText "error" 128)) (oauthFormJson response) of
-        Left _ -> Text.pack (show (oauthFormStatus response))
-        Right value -> value
-   in oauthProblem ExternalFailure "The OAuth token endpoint rejected the authorization." [code]
+  oauthProblem ExternalFailure "The OAuth token endpoint rejected the authorization." [oauthResponseErrorCode response]
+
+oauthResponseErrorCode :: OAuthFormResponse -> Text
+oauthResponseErrorCode response = case parseEither (withObject "OAuthError" (boundedText "error" 128)) (oauthFormJson response) of
+  Left _ -> Text.pack (show (oauthFormStatus response))
+  Right value -> value
 
 isLoopbackPeer :: SockAddr -> Bool
 isLoopbackPeer = \case

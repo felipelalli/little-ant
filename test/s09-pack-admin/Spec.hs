@@ -192,7 +192,7 @@ communityTrustThenInstall = withHarness $ \environment -> do
     Nothing -> assertFailure "the Pack pin was not written"
     Just pin -> do
       pinTrustOrigin pin @?= PinTrustedPublisher
-      pinEnabledComponents pin @?= Set.singleton "microsoft_todo"
+      pinEnabledComponents pin @?= Set.fromList ["google_tasks", "microsoft_todo"]
   storedAfterInstall <- doesFileExist storedPath
   assertBool "the exact archive is present in the content-addressed store" storedAfterInstall
 
@@ -345,7 +345,7 @@ officialCatalogRefresh = withHarness $ \base -> do
   refreshed <- run environment False PacksRefreshCommand
   case refreshed of
     ConfigurationResult Genesis "packs_refresh" Nothing [] facts False -> do
-      Map.lookup "catalog_sequence" facts @?= Just "4"
+      Map.lookup "catalog_sequence" facts @?= Just "5"
       Map.lookup "status" facts @?= Just "updated"
     other -> assertFailure ("unexpected catalog refresh result: " <> show other)
   paths <- currentProfilePaths
@@ -391,7 +391,7 @@ officialCatalogInstall = withHarness $ \base -> do
     other -> assertFailure ("expected official install result, got: " <> show other)
   integrations <- loadCurrentIntegrations
   case Map.lookup connectorPackName (Profile.installedComponents integrations) of
-    Just pin -> pinTrustOrigin pin @?= PinVerifiedOfficial 4
+    Just pin -> pinTrustOrigin pin @?= PinVerifiedOfficial 5
     Nothing -> assertFailure "the official release was not pinned"
   assertBool "official install did not add community trust" (Set.null (Profile.trustedPublishers integrations))
   restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
@@ -436,9 +436,8 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   owner <- run connectedBase False NextCommand >>= expectNextInteraction
   let connectableChoices = importSourceChoices connectedBase
       connectableScreen = renderPlain (importSourceModel owner connectableChoices "micro" 0 Nothing)
-  case [definition | ConnectImportSource definition <- connectableChoices] of
-    [definition] -> providerDefinitionAdapterId definition @?= "microsoft_todo"
-    other -> assertFailure ("expected one installed provider ready to connect, got: " <> show other)
+  fmap providerDefinitionAdapterId [definition | ConnectImportSource definition <- connectableChoices]
+    @?= ["google_tasks", "microsoft_todo"]
   assertBool "the searchable source selector omitted the unconfigured connector" ("Microsoft To Do · connect..." `Text.isInfixOf` connectableScreen)
   assertBool "the ordinary palette omitted /import" (not (null (filteredCommands owner "/import")))
   paths <- currentProfilePaths
@@ -627,9 +626,9 @@ connectorPublisher = TrustedCommunityPublisher "org.littleant.project" connector
 
 connectorPackName, connectorArchiveDigest, connectorPublicKey, connectorSignerFingerprint :: Text
 connectorPackName = "org.littleant.official-connectors"
-connectorArchiveDigest = "86fd16259a6579a537df3a1007844da55e752ab55166a494b3f486bc6cf0b7d8"
-connectorPublicKey = "6ZwIqw5LGGuVmLIP--cQRY7Uk2sRcv0BKRBYaxu8UME"
-connectorSignerFingerprint = "7bc8da187ab5426a5aa9a881b6aa54302ea9b5b4c4714ac831bafc513560ac48"
+connectorArchiveDigest = "8722c8879e6534523d1b8fcb15aecd8f667f750096e28c9c28339b80ddd5b24d"
+connectorPublicKey = "3anjqriaxp1MHCOoz6YwqW8drmv1_1JNOk2kYH9Zlc4"
+connectorSignerFingerprint = "77d0e2f201ee265179a942d0af762b9485afb7ec59ae3f47a26c5926264d1c8d"
 
 connectorArchive :: FilePath
 connectorArchive = "packs" </> "official-connectors" </> "official-connectors.lantpack"
@@ -644,7 +643,7 @@ connectorIdentity =
     "org.littleant.project"
     connectorPackName
     "1.0.0"
-    "7ef1a9e6e5dfd487865783d8d278ff5cbd6f6e30e5f9fa52d5144fcbe8a4fe27"
+    "23ec374a45ccf8ac839db91ec1b590b86ef042c832275b8e9025aeda95747cd6"
     connectorArchiveDigest
 
 withHarness :: (AppEnv -> IO a) -> IO a

@@ -227,7 +227,14 @@ productionAppEnv explicitProfile = do
                                   standardProviderSourceDefinitions
                                   integrations
                                   available
-                                  (vaultAgentAccessTokenResolver (Profile.vaultSocket loadedPaths) getCurrentTime)
+                                  ( providerAccessTokenResolver
+                                      standardProviderSourceDefinitions
+                                      available
+                                      integrations
+                                      (Profile.vaultSocket loadedPaths)
+                                      getCurrentTime
+                                      oauthTransport
+                                  )
                                   providerHttp
                             registryProblem = either Just (const Nothing) registry
                             importProblem = either Just (const Nothing) (registry >> providerSources)

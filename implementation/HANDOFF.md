@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **e935ecd**
-(`feat(import): ship Apple Reminders export kit`). The current milestone adds
-the generic signed authorization-code-with-PKCE authority and trusted desktop
-loopback flow required by provider connectors such as Google Tasks. This file
-stays editable between milestone commits.
+Baseline at the start of the current milestone: **2a6215a**
+(`feat(oauth): authorize desktop providers with PKCE`). The current milestone
+ships Google Tasks through the generic signed provider boundary and refreshes
+expired OAuth grants before credentialed provider transport. This file stays
+editable between milestone commits.
 
 ## Implementation now available
 
@@ -291,10 +291,21 @@ stays editable between milestone commits.
   never enter Pack, profile, event, or interaction state. Initial exchange
   requires refresh custody; refresh preserves an omitted replacement token or
   unchanged scope set.
-- The exact official connector Pack declares Microsoft To Do's device-flow
-  authority and `Tasks.ReadWrite offline_access`; its archive and signed fixture
-  identities were rebuilt reproducibly. Public connection and import still
-  require explicit CLI/REPL orchestration.
+- expired provider grants are now refreshed by the trusted host before broker
+  transport. Refresh authority is resolved from the exact installed signed
+  component and credential binding, the new closed token set must be persisted
+  through the same vault agent before use, and an invalid or unavailable grant
+  stops with explicit reconnect recovery. Pack Lua and provider transcripts
+  never receive either old or new credential material.
+- The exact official connector Pack now declares both Microsoft To Do's
+  device-flow authority and Google Tasks' authorization-code-with-PKCE
+  authority. Google Tasks performs bounded task-list/task pagination, keeps
+  completed and hidden tasks opt-in, preserves complete provider JSON as
+  structured Raw after consent, and uses stable account/list/task identities.
+  Item cleanup rechecks the exact target; container cleanup proves a nondefault
+  list empty immediately before deletion and never deletes Google's default
+  task list. The archive and official catalog identities were rebuilt and
+  signed reproducibly.
 - production now builds one registry from the exact standard Pack plus every
   selected-profile pin loaded in deterministic Pack-name order from the
   content-addressed store. Missing, unsafe, untrusted, revoked, mismatched, or
@@ -450,12 +461,15 @@ and the removed `--mode` form while proving explicit snapshot previews record
 no events, including for a compressed Notesnook-shaped ZIP. It also selects
 Markdown and Evernote ENEX by file suffix, exposes the exact media type, and
 keeps both preflights read-only.
-The dedicated official-connectors suite has 5 cases covering exact archive
+The dedicated official-connectors suite has 8 cases covering exact archive
 reconstruction and official trust, least-authority manifest permissions,
 adaptive Microsoft Graph list/task pagination, canonical provider identity and
 URL encoding, sparse-preview privacy, complete structured-Raw materialization,
 completed-task opt-in, guarded partial attachment migration, and denial of a
-provider-controlled `nextLink` before a second broker call.
+provider-controlled `nextLink` before a second broker call. It additionally
+covers Google Tasks pagination with encoded opaque tokens, explicit
+completed/hidden inclusion, complete structured Raw, exact item cleanup,
+default-list protection, and verified empty custom-list cleanup.
 The dedicated provider-host suite has 18 cases covering typed integration-state
 round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
