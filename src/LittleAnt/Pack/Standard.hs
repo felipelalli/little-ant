@@ -28,12 +28,12 @@ standardPackIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.standard"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "abe91ffc8a6d9253eac7b5f304eab39ad65b4b0fbf8bf95007e76ef7c797e35f"
-    , artifactArchiveDigest = "3abbf0c3877c8fcde96ec351376aa800abc71402f40b6f51f441e74d7d5ec4d8"
+    , artifactManifestDigest = "12b8e83a57f3515cddcc8550a0fe433a2fdfa8bf9ef524494a6c57863e330d45"
+    , artifactArchiveDigest = "8dc0442739899a792cfa26a58e1548c7429fa12f4226d5fe8929aa1c3269201d"
     }
 
 standardPackComponentIds :: Set Text
-standardPackComponentIds = Set.fromList ["csv", "html", "org", "table", "tree"]
+standardPackComponentIds = Set.fromList ["csv", "html", "org", "table", "taskjuggler", "tree"]
 
 loadStandardPackRegistry :: UTCTime -> ProfileScope -> IO (Either AppError PackRegistry)
 loadStandardPackRegistry now scope = do

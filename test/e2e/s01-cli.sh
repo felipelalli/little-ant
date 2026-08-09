@@ -39,6 +39,11 @@ case "$csv_output" in
   *) echo "the built-in CSV exporter was not available through the production environment" >&2; exit 1 ;;
 esac
 
+taskjuggler_output="$test_root/little-ant.tjp"
+lant_at "$profile_root" export taskjuggler --output "$taskjuggler_output" >/dev/null
+grep -q '^# LANT-MANIFEST-SHA256: ' "$taskjuggler_output"
+tj3 --check-syntax --no-reports "$taskjuggler_output" >/dev/null
+
 dry_root="$test_root/dry"
 lant_at "$dry_root" --json --dry-run feed milk >/dev/null
 test -z "$(find "$dry_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"

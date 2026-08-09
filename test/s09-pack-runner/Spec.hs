@@ -45,7 +45,7 @@ authorizedExporterProcess = do
   registry <- fixtureRegistry validSource fixtureSupportPayload
   let port = packRegistryExportPort client registry
   exportPortCatalog port @?= [ExportDescriptor fixtureComponentId "Fixture Export" fixtureComponentId "little-ant/structure@1"]
-  result <- runExportHost port False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
+  result <- runExportHost port False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
   exportArtifactBytes (exportHostArtifact result) @?= "little-ant/structure@1\nsigned asset\n"
   exportArtifactMediaType (exportHostArtifact result) @?= "text/plain; charset=utf-8"
   exportArtifactWarnings (exportHostArtifact result) @?= ["fixture warning"]
@@ -56,8 +56,8 @@ freshVmPerInvocation = do
   client <- fixtureClient factoryPackRunnerLimits
   registry <- fixtureRegistry freshVmSource Map.empty
   let port = packRegistryExportPort client registry
-  first <- runExportHost port False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
-  second <- runExportHost port False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
+  first <- runExportHost port False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
+  second <- runExportHost port False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
   exportArtifactBytes (exportHostArtifact first) @?= "1"
   exportArtifactBytes (exportHostArtifact second) @?= "1"
 
@@ -65,21 +65,21 @@ unsafeLibrariesAbsent :: Assertion
 unsafeLibrariesAbsent = do
   client <- fixtureClient factoryPackRunnerLimits
   registry <- fixtureRegistry sandboxProbeSource Map.empty
-  result <- runExportHost (packRegistryExportPort client registry) False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
+  result <- runExportHost (packRegistryExportPort client registry) False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
   exportArtifactBytes (exportHostArtifact result) @?= "sandboxed"
 
 payloadConfinement :: Assertion
 payloadConfinement = do
   client <- fixtureClient factoryPackRunnerLimits
   registry <- fixtureRegistry missingModuleSource Map.empty
-  failed <- runExportHost (packRegistryExportPort client registry) False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing
+  failed <- runExportHost (packRegistryExportPort client registry) False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing
   assertError ExternalFailure failed
 
 binaryArtifact :: Assertion
 binaryArtifact = do
   client <- fixtureClient factoryPackRunnerLimits
   registry <- fixtureRegistry binarySource Map.empty
-  result <- runExportHost (packRegistryExportPort client registry) False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
+  result <- runExportHost (packRegistryExportPort client registry) False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertRight
   exportArtifactBytes (exportHostArtifact result) @?= ByteString.pack [0, 1, 127, 128, 255]
 
 wallTimeout :: Assertion
@@ -88,7 +88,7 @@ wallTimeout = do
   client <- fixtureClient shortLimits
   registry <- fixtureRegistry infiniteSource Map.empty
   started <- getMonotonicTimeNSec
-  failed <- runExportHost (packRegistryExportPort client registry) False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing
+  failed <- runExportHost (packRegistryExportPort client registry) False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing
   finished <- getMonotonicTimeNSec
   assertError ExternalFailure failed
   assertBool "timeout did not terminate the private process promptly" (finished - started < 3_000_000_000)
@@ -97,9 +97,9 @@ invalidResults :: Assertion
 invalidResults = do
   client <- fixtureClient factoryPackRunnerLimits{runnerMaximumArtifactBytes = 8}
   unknownFieldRegistry <- fixtureRegistry unknownFieldSource Map.empty
-  runExportHost (packRegistryExportPort client unknownFieldRegistry) False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertError ExternalFailure
+  runExportHost (packRegistryExportPort client unknownFieldRegistry) False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertError ExternalFailure
   oversizedRegistry <- fixtureRegistry oversizedSource Map.empty
-  runExportHost (packRegistryExportPort client oversizedRegistry) False genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertError ExternalFailure
+  runExportHost (packRegistryExportPort client oversizedRegistry) False fixtureTime genesisCursor emptyState fixtureComponentId ExportWholeDataset Nothing >>= assertError ExternalFailure
 
 fixtureClient :: PackRunnerLimits -> IO PackRunnerClient
 fixtureClient limits = do

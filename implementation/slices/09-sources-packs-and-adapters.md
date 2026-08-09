@@ -1,6 +1,6 @@
 # S09 — Sources, Packs, adapters, exports, and repair
 
-Status: **planned**
+Status: **in progress**
 
 ## Outcome
 
@@ -50,6 +50,11 @@ UX-CAL00..CAL01, UX-PACK00..PACK02, UX-EXP00.
    protocol. S11 verifies complete visual parity.
 8. Close the command/help/schema registry, contextual palette, generic
    dry-run, typed reference/error families, doctor, and candidate-based repair.
+
+Current checkpoint: structural exporters and the core-owned TaskJuggler
+planning cut/exporter are implemented through the exact signed standard Pack.
+The TaskJuggler actuals SourceAdapter, standard importers/connectors, Calendar,
+and local-web UIAdapter remain in this slice.
 
 ## Gate
 

@@ -150,12 +150,12 @@ invalidExporterRegistry = withSystemTempDirectory "lant-export-registry" $ \root
   missingEnvironment <- harness root (fixturePort invoked validArtifact)
   runAppCommand missingEnvironment False (const (pure ())) (ExportCommand "missing" Nothing Nothing) >>= assertError NotFound
 
-  let duplicate = ExportPort [fixtureDescriptor, fixtureDescriptor] (invokeFixture invoked (Right validArtifact))
+  let duplicate = ExportPort [fixtureDescriptor, fixtureDescriptor] prepareStructural (invokeFixture invoked (Right validArtifact))
   duplicateEnvironment <- harness root duplicate
   runAppCommand duplicateEnvironment False (const (pure ())) (ExportCommand fixtureExporterId Nothing Nothing) >>= assertError Conflict
 
   let incompatibleDescriptor = fixtureDescriptor{exportDescriptorProjection = "little-ant/unknown@9"}
-      incompatible = ExportPort [incompatibleDescriptor] (invokeFixture invoked (Right validArtifact))
+      incompatible = ExportPort [incompatibleDescriptor] prepareStructural (invokeFixture invoked (Right validArtifact))
   incompatibleEnvironment <- harness root incompatible
   runAppCommand incompatibleEnvironment False (const (pure ())) (ExportCommand fixtureExporterId Nothing Nothing) >>= assertError Unsupported
   readIORef invoked >>= (\calls -> length calls @?= 0)
@@ -169,7 +169,12 @@ fixturePort :: IORef [ExportProjection] -> ExportArtifact -> ExportPort
 fixturePort invoked artifact = fixturePortResult invoked (Right artifact)
 
 fixturePortResult :: IORef [ExportProjection] -> Either AppError ExportArtifact -> ExportPort
-fixturePortResult invoked result = ExportPort [fixtureDescriptor] (invokeFixture invoked result)
+fixturePortResult invoked result = ExportPort [fixtureDescriptor] prepareStructural (invokeFixture invoked result)
+
+prepareStructural :: ExportDescriptor -> UTCTime -> DatasetCursor -> State -> ExportScope -> Either AppError ExportProjection
+prepareStructural descriptor _ cursor state scope
+  | exportDescriptorProjection descriptor == "little-ant/structure@1" = Right (buildStructuralProjection cursor state scope)
+  | otherwise = Left (appError Unsupported "unsupported fixture projection")
 
 invokeFixture :: IORef [ExportProjection] -> Either AppError ExportArtifact -> ExportDescriptor -> ExportProjection -> IO (Either AppError ExportArtifact)
 invokeFixture invoked result _ projection = modifyIORef' invoked (<> [projection]) >> pure result

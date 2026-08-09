@@ -33,7 +33,8 @@ Version 1.0's first standard-Pack milestone enables `tree`, `table`, `csv`,
 retain composition, table accounts for UTF-8 terminal width, CSV emits RFC
 4180 record framing, and HTML is self-contained with no script or external
 request. `taskjuggler` follows in a separate milestone because its projection
-requires a core-owned planning cut and immutable planning manifest.
+requires a core-owned planning cut and immutable planning manifest. ADR 0011
+records that completed follow-up boundary.
 
 ## Consequences
 

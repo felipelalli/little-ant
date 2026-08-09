@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **b824c8b**
-(`feat(packs): isolate Lua exporter execution`). The current milestone bundles
-and production-wires the first five standard structural exporters. This file
-stays editable between milestone commits.
+Baseline at the start of the current milestone: **05ca2a4**
+(`feat(packs): bundle standard structural exporters`). The current milestone
+adds the core-owned planning cut and the standard TaskJuggler exporter. This
+file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -95,17 +95,39 @@ stays editable between milestone commits.
   and relocates the helper under `libexec/little-ant`.
 - the signed, reproducible `org.littleant.standard` archive is verified against
   its compiled exact identity at startup and grants built-in execution
-  authority only to `tree`, `table`, `csv`, `org`, and `html`. Their reviewed
+  authority only to `tree`, `table`, `csv`, `org`, `html`, and `taskjuggler`.
+  The structural exporters' reviewed
   fixtures cover hierarchy, quoting, UTF-8 alignment, RFC 4180 framing, and a
   script-free/offline HTML document. The CLI production environment uses this
   registry, so `lant export csv` works without installing a provider Pack.
+- `little-ant/taskjuggler@1` is built by the core from the explicit scope,
+  current human-reviewed effort claims, dependencies, and temporal facts. Its
+  deterministic cut never overlaps an effort-bearing ancestor and descendant,
+  never substitutes a default for missing effort, fails closed on an unknown
+  EffortProfile revision, and retains WIP total-effort, standing-owner,
+  best-before, fixed-interval, dependency, and factory-resource assumptions as
+  visible warnings. The canonical immutable manifest records its source
+  cursor/hash, roots, cut, complete eight-macro profile, resources/calendar,
+  projection, and exact exporter identity; the `.tjp` embeds the complete
+  manifest plus its own digest, distinct from the artifact digest.
+- the signed Lua TaskJuggler component only serializes that projection. It
+  emits optimistic/realistic/pessimistic scenarios, stable UUID-derived task
+  IDs, dependencies, order as a TaskJuggler scheduler tie-breaker, exact
+  intervals, release milestones, deadlines, explicit effort gaps, and one
+  inspectable factory UTC resource. Reviewed fragments and the real `tj3`
+  parser cover the generated file, and the installed CLI exports a valid
+  `.tjp` from an empty isolated profile.
 
 ## Last green gate
 
 The most recent full commands were:
 
-    nix develop -c make build test cli-test
-    nix develop -c make python-test spec-audit vocabulary
+    cabal test all --test-show-details=direct
+    ./test/e2e/s01-cli.sh
+    python3 -m unittest discover -s test/conformance -t .
+    python3 tools/lant_conformance.py audit
+    python3 tools/lant_conformance.py vocabulary
+    nix build path:.#little-ant
 
 Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, the
 public-vocabulary guard, and explicit formatting checks pass at this
@@ -129,11 +151,14 @@ XDG roots, so a developer's real profile cannot contaminate it. The aggregate
 `make ci` gate remains red only at the repository-wide HLint baseline; those
 pre-existing hints are outside this milestone and S09 remains in progress.
 The isolated-runner suite adds 7 process-boundary cases. The standard-Pack
-suite adds 4 archive/authority/golden-format cases, and the CLI test exercises
-the built-in CSV exporter through the production environment. A clean
-`nix build path:.#little-ant` passes all 21 Cabal suites, installs the private
+suite now has 5 archive/authority/golden-format/TaskJuggler cases, the pure
+planning suite has 2 cut/custody/profile cases, and the CLI test exercises both
+CSV and TaskJuggler through the production environment. A clean
+`nix build path:.#little-ant` passes all Cabal suites, installs the private
 runner under `libexec/little-ant`, carries the signed archive in the Cabal data
-output, and runs the installed `lant export csv` from an empty XDG profile.
+output, and supplies `tj3` to its isolated contract test. The installed
+`lant export taskjuggler` output from an empty XDG profile also passes
+`tj3 --check-syntax --no-reports`.
 The final source distribution metadata also passes `cabal check` without
 warnings.
 
@@ -160,9 +185,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the core-owned planning cut, immutable planning manifest, and
-`little-ant/taskjuggler@1` projection, then ship the standard Lua TaskJuggler
-exporter and its failure fixtures/authoring guide through the existing runner.
-Continue afterward with the Raw-first import/adapters. The
+Next, continue with the Raw-first import/adapters, including the separate
+TaskJuggler actuals SourceAdapter that verifies embedded manifest custody. The
 `Corrupt history/repair` row is implemented; formal evidence registration and
 the complete S09 gate still precede `verified`.

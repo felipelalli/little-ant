@@ -30,6 +30,7 @@
           lant_age_ffi = ageFfi;
         };
         pkg = pkgBase.overrideAttrs (old: {
+          nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ pkgs.taskjuggler ];
           postInstall = (old.postInstall or "") + ''
             mkdir -p $out/libexec/little-ant
             mv $out/bin/lant-pack-runner $out/libexec/little-ant/lant-pack-runner
@@ -47,7 +48,7 @@
 
         devShells.default = pkgs.mkShell {
           # Keep interactive bash available to tools that re-exec through env.
-          packages = [ pkgs.bashInteractive ];
+          packages = [ pkgs.bashInteractive pkgs.taskjuggler ];
           buildInputs = with haskellPackages; [
             ghc
             cabal-install

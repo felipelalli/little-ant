@@ -129,6 +129,7 @@ mediaType :: Text -> Text
 mediaType path
   | ".lua" `Text.isSuffixOf` path = "text/x-lua; charset=utf-8"
   | ".json" `Text.isSuffixOf` path = "application/json"
+  | ".md" `Text.isSuffixOf` path = "text/markdown; charset=utf-8"
   | otherwise = "application/octet-stream"
 
 readTyped :: FilePath -> IO PackManifest

@@ -23,6 +23,7 @@ import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Time (UTCTime)
 import LittleAnt.Catalog (natureIdentifier)
 import LittleAnt.Error
 import LittleAnt.Id
@@ -30,6 +31,8 @@ import LittleAnt.Model
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
+import LittleAnt.Pack.Trust
+import LittleAnt.Planning
 import LittleAnt.Store
 import System.Directory hiding (isSymbolicLink)
 import System.FilePath (isAbsolute, normalise, takeDirectory, takeFileName)
@@ -72,6 +75,7 @@ data ExportArtifact = ExportArtifact
 
 data ExportPort = ExportPort
   { exportPortCatalog :: [ExportDescriptor]
+  , exportPortPrepare :: ExportDescriptor -> UTCTime -> DatasetCursor -> State -> ExportScope -> Either AppError ExportProjection
   , exportPortInvoke :: ExportDescriptor -> ExportProjection -> IO (Either AppError ExportArtifact)
   }
 
@@ -111,17 +115,31 @@ instance ToJSON ExportProjection where
 
 emptyExportPort :: ExportPort
 emptyExportPort =
-  ExportPort [] $ \descriptor _ ->
-    pure . Left $
-      (appError NotFound "The requested exporter is not installed.")
-        { appErrorSubject = Just (exportDescriptorId descriptor)
-        , appErrorRecovery = [RecoveryAction "packs" "Inspect installed exporter components." (Just "lant packs list")]
-        }
+  ExportPort
+    []
+    (\descriptor _ _ _ _ -> Left (missingPortExporter descriptor))
+    (\descriptor _ -> pure (Left (missingPortExporter descriptor)))
+ where
+  missingPortExporter descriptor =
+    (appError NotFound "The requested exporter is not installed.")
+      { appErrorSubject = Just (exportDescriptorId descriptor)
+      , appErrorRecovery = [RecoveryAction "packs" "Inspect installed exporter components." (Just "lant packs list")]
+      }
 
 packRegistryExportPort :: PackRunnerClient -> PackRegistry -> ExportPort
-packRegistryExportPort client registry = ExportPort descriptors invoke
+packRegistryExportPort client registry = ExportPort descriptors prepare invoke
  where
   descriptors = mapMaybeExporterDescriptor (componentsOfKind ReadOnlyExporterComponent registry)
+  prepare descriptor plannedAt cursor state scope = do
+    registered <- lookupPackComponent (exportDescriptorId descriptor) registry
+    case exportDescriptorProjection descriptor of
+      projection
+        | projection == structuralProjectionSchema -> Right (buildStructuralProjection cursor state scope)
+        | projection == taskJugglerProjectionSchema -> do
+            identity <- planningIdentity registered
+            payload <- buildTaskJugglerPayload identity plannedAt cursor state (toJSON scope) (orderedSelectedBricks state scope)
+            Right (ExportProjection taskJugglerProjectionSchema cursor scope payload)
+        | otherwise -> Left (unsupportedProjection descriptor)
   invoke descriptor projection = case lookupPackComponent (exportDescriptorId descriptor) registry of
     Left problem -> pure (Left problem)
     Right registered ->
@@ -136,6 +154,33 @@ packRegistryExportPort client registry = ExportPort descriptors invoke
               , exportArtifactWarnings = runnerArtifactWarnings artifact
               , exportArtifactMetadata = runnerArtifactMetadata artifact
               }
+
+planningIdentity :: RegisteredPackComponent -> Either AppError PlanningExporterIdentity
+planningIdentity registered = case registeredComponent registered of
+  ExecutableComponent common entryPoint _ -> do
+    entrypointBytes <-
+      maybe
+        ( Left
+            ( (appError CorruptData "The planning exporter entry point is absent from its authorized payload.")
+                { appErrorSubject = Just (componentId common)
+                }
+            )
+        )
+        Right
+        (Map.lookup entryPoint (registeredComponentPayload registered))
+    let identity = registeredPackIdentity registered
+    Right
+      PlanningExporterIdentity
+        { planningPublisher = artifactPublisher identity
+        , planningPackName = artifactName identity
+        , planningPackVersion = artifactVersion identity
+        , planningManifestDigest = artifactManifestDigest identity
+        , planningArchiveDigest = artifactArchiveDigest identity
+        , planningComponentId = componentId common
+        , planningEntrypointDigest = sha256Hex entrypointBytes
+        , planningSignerFingerprint = registeredSignerFingerprint registered
+        }
+  _ -> Left (appError CorruptData "The planning exporter is not an executable Pack component.")
 
 mapMaybeExporterDescriptor :: [RegisteredPackComponent] -> [ExportDescriptor]
 mapMaybeExporterDescriptor = mapMaybe exporterDescriptor
@@ -159,6 +204,7 @@ exporterDescriptor registered = case registeredComponent registered of
   _ -> Nothing
 
 humanizeComponentId :: Text -> Text
+humanizeComponentId "taskjuggler" = "TaskJuggler"
 humanizeComponentId identifier =
   Text.unwords (capitalize <$> Text.words (Text.map separator identifier))
  where
@@ -169,26 +215,25 @@ humanizeComponentId identifier =
     Nothing -> value
     Just (first, rest) -> Text.cons (toUpper first) rest
 
-runExportHost :: ExportPort -> Bool -> DatasetCursor -> State -> Text -> ExportScope -> Maybe FilePath -> IO (Either AppError ExportHostResult)
-runExportHost port dryRun cursor state requestedExporter scope outputPath =
+runExportHost :: ExportPort -> Bool -> UTCTime -> DatasetCursor -> State -> Text -> ExportScope -> Maybe FilePath -> IO (Either AppError ExportHostResult)
+runExportHost port dryRun plannedAt cursor state requestedExporter scope outputPath =
   case filter ((== requestedExporter) . exportDescriptorId) (exportPortCatalog port) of
     [] -> pure (Left missingExporter)
-    [descriptor]
-      | exportDescriptorProjection descriptor /= structuralProjectionSchema -> pure (Left (incompatibleProjection descriptor))
-      | otherwise -> do
-          preparedDestination <- traverse preflightDestination outputPath
-          case sequence preparedDestination of
-            Left problem -> pure (Left problem)
-            Right destination -> do
-              let projection = buildStructuralProjection cursor state scope
-              invoked <- try (exportPortInvoke port descriptor projection)
-              case invoked of
-                Left problem -> pure (Left (exporterException problem))
-                Right (Left problem) -> pure (Left problem)
-                Right (Right artifact) ->
-                  case validateArtifact artifact of
-                    Left problem -> pure (Left problem)
-                    Right () -> finish descriptor destination artifact
+    [descriptor] -> do
+      preparedDestination <- traverse preflightDestination outputPath
+      case sequence preparedDestination of
+        Left problem -> pure (Left problem)
+        Right destination -> case exportPortPrepare port descriptor plannedAt cursor state scope of
+          Left problem -> pure (Left problem)
+          Right projection -> do
+            invoked <- try (exportPortInvoke port descriptor projection)
+            case invoked of
+              Left problem -> pure (Left (exporterException problem))
+              Right (Left problem) -> pure (Left problem)
+              Right (Right artifact) ->
+                case validateArtifact artifact of
+                  Left problem -> pure (Left problem)
+                  Right () -> finish descriptor destination artifact
     _ -> pure (Left duplicateExporter)
  where
   missingExporter =
@@ -201,21 +246,15 @@ runExportHost port dryRun cursor state requestedExporter scope outputPath =
       { appErrorSubject = Just requestedExporter
       , appErrorRecovery = [RecoveryAction "packs" "Inspect Pack pins before exporting." (Just "lant packs list")]
       }
-  incompatibleProjection descriptor =
-    (appError Unsupported "The exporter requires an unsupported projection contract.")
-      { appErrorSubject = Just requestedExporter
-      , appErrorDetails = ["required: " <> exportDescriptorProjection descriptor, "available: " <> structuralProjectionSchema]
-      }
   finish descriptor destination artifact = do
     let digest = sha256Hex (exportArtifactBytes artifact)
-        result wrote =
+        result =
           ExportHostResult
             descriptor
             (scopeLabel state scope)
             artifact
             (destinationPath <$> destination)
             digest
-            wrote
     if dryRun
       then pure (Right (result False))
       else case destination of
@@ -281,6 +320,11 @@ selectBricks state = \case
   belongsToSubtree root brick
     | brickId brick == root = True
     | otherwise = maybe False (belongsToSubtree root) (brickParent brick >>= (`Map.lookup` stateBricks state))
+
+orderedSelectedBricks :: State -> ExportScope -> [Brick]
+orderedSelectedBricks state scope =
+  let selectedIds = Set.fromList (brickId <$> selectBricks state scope)
+   in orderedBricks state selectedIds
 
 orderedBricks :: State -> Set.Set UUIDv7 -> [Brick]
 orderedBricks state included = concatMap visit roots
@@ -456,3 +500,10 @@ snakeCase = Text.pack . go True
   go first (character : rest)
     | isUpper character = (if first then [] else "_") <> [toLower character] <> go False rest
     | otherwise = character : go False rest
+
+unsupportedProjection :: ExportDescriptor -> AppError
+unsupportedProjection descriptor =
+  (appError Unsupported "The exporter requires an unsupported projection contract.")
+    { appErrorSubject = Just (exportDescriptorId descriptor)
+    , appErrorDetails = ["required: " <> exportDescriptorProjection descriptor, "available: " <> Text.intercalate ", " [structuralProjectionSchema, taskJugglerProjectionSchema]]
+    }

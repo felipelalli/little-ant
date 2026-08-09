@@ -1322,10 +1322,12 @@ runExport :: AppEnv -> Bool -> LoadedDataset -> Text -> Maybe Text -> Maybe File
 runExport environment dryRun dataset exporter requestedScope outputPath =
   case resolveExportScope (loadedState dataset) requestedScope of
     Left problem -> pure (Left problem)
-    Right scope ->
+    Right scope -> do
+      now <- appNow environment
       runExportHost
         (appExportPort environment)
         dryRun
+        now
         (loadedCursor dataset)
         (loadedState dataset)
         exporter

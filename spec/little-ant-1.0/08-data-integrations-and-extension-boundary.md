@@ -398,7 +398,13 @@ that cryptographic format.
 - **DAT-036 [standard] — Immutable manifest.** Every confirmed planning run
   records source cursor/hash, roots, cut, EffortProfile, macros and warnings,
   resources/calendars, projection version, and exporter identity/hash required
-  for reproduction.
+  for reproduction. `lant export` remains read-only: the explicit CLI scope or
+  the accepted interactive export preview confirms the run, while the core
+  places the complete canonical manifest and its own digest inside the
+  artifact. The final artifact has a separate digest. An actuals adapter must
+  verify the embedded manifest digest and fail closed when custody data is
+  absent or changed; it must not require an export event or identify the run by
+  the mutable artifact digest.
 - **DAT-037 [standard] — WIP warning.** Planning uses derived remaining effort
   only when conservative evidence supports it; otherwise it exports total
   effort with an explicit warning rather than inferring progress from time.

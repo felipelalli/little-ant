@@ -3,6 +3,7 @@ module Main (main) where
 import Data.Aeson (Value, eitherDecodeStrict')
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Char8 qualified as ByteString8
 import Data.List (sort)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -12,13 +13,20 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
 import LittleAnt.Export
+import LittleAnt.Id
+import LittleAnt.Judgment (factoryJudgmentProfileHash)
+import LittleAnt.Model
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
 import LittleAnt.Pack.Standard
 import LittleAnt.Pack.Trust
+import LittleAnt.Store
 import System.Directory (doesDirectoryExist, listDirectory)
+import System.Exit (ExitCode (..))
 import System.FilePath (makeRelative, splitDirectories, (</>))
+import System.IO.Temp (withSystemTempDirectory)
+import System.Process (readProcessWithExitCode)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -28,9 +36,10 @@ main =
     testGroup
       "S09 offline standard Pack"
       [ testCase "the committed source tree reconstructs the exact signed archive" canonicalArchive
-      , testCase "the exact compiled identity grants only the five built-in exporters" builtInRegistry
+      , testCase "the exact compiled identity grants only the six built-in exporters" builtInRegistry
       , testCase "tree, Org, and self-contained HTML match reviewed fixtures" reviewedFixtures
       , testCase "aligned table and RFC 4180 CSV preserve structural data" structuredTextFormats
+      , testCase "the core planning cut produces valid TaskJuggler syntax" taskJugglerPlanningCut
       ]
 
 canonicalArchive :: Assertion
@@ -61,6 +70,7 @@ builtInRegistry = do
         , ExportDescriptor "html" "Html" "html" "little-ant/structure@1"
         , ExportDescriptor "org" "Org" "org" "little-ant/structure@1"
         , ExportDescriptor "table" "Table" "table" "little-ant/structure@1"
+        , ExportDescriptor "taskjuggler" "TaskJuggler" "taskjuggler" "little-ant/taskjuggler@1"
         , ExportDescriptor "tree" "Tree" "tree" "little-ant/structure@1"
         ]
 
@@ -93,6 +103,78 @@ structuredTextFormats = do
  where
   header :: ByteString
   header = "id,handle,title,nature,parent_id,domains,sibling_position,status,work_state,phase,effort,impact_class,impact_maturity"
+
+taskJugglerPlanningCut :: Assertion
+taskJugglerPlanningCut = do
+  client <- fixtureClient
+  scope <- assertRight (mkProfileScope "default")
+  registry <- loadStandardPackRegistry fixtureTime scope >>= assertRight
+  result <- runExportHost (packRegistryExportPort client registry) False fixtureTime genesisCursor planningState "taskjuggler" ExportWholeDataset Nothing >>= assertRight
+  let artifact = exportHostArtifact result
+      bytes = exportArtifactBytes artifact
+  expectedFragments <- ByteString8.lines <$> ByteString.readFile (fixtureRoot </> "expected-taskjuggler-fragments.txt")
+  mapM_ (\fragment -> assertBool ("TaskJuggler fixture fragment was omitted: " <> show fragment) (fragment `ByteString.isInfixOf` bytes)) expectedFragments
+  exportArtifactMediaType artifact @?= "text/x-taskjuggler; charset=utf-8"
+  Map.lookup "projection" (exportArtifactMetadata artifact) @?= Just "little-ant/taskjuggler@1"
+  assertBool "the visible effort gap did not reach host warnings" (any ("missing-effort:" `Text.isPrefixOf`) (exportArtifactWarnings artifact))
+  withSystemTempDirectory "little-ant-taskjuggler" $ \directory -> do
+    let path = directory </> "little-ant.tjp"
+    ByteString.writeFile path bytes
+    (exitCode, stdoutText, stderrText) <- readProcessWithExitCode "tj3" ["--check-syntax", "--no-reports", path] ""
+    case exitCode of
+      ExitSuccess -> pure ()
+      ExitFailure code -> assertFailure ("tj3 rejected the standard exporter (" <> show code <> "):\n" <> stdoutText <> stderrText)
+
+planningState :: State
+planningState =
+  emptyState
+    { stateBricks = Map.fromList [(brickId first, first), (brickId second, second), (brickId scheduled, scheduled)]
+    , stateEffortClaims =
+        Map.fromList
+          [ (brickId first, EffortClaim (brickId first) EasyEffort fixtureTime DirectHuman factoryJudgmentProfileHash)
+          , (brickId scheduled, EffortClaim (brickId scheduled) NormalEffort fixtureTime DirectHuman factoryJudgmentProfileHash)
+          ]
+    , stateDependencies = Map.singleton (dependencyId dependency) dependency
+    , stateTemporalConstraints =
+        Map.singleton
+          (brickId first)
+          ( TemporalConstraints
+              (Just (at 1 9))
+              (Just (at 5 9))
+              (Just (at 10 18))
+              1
+          )
+    , stateScheduledIntervals = Map.singleton (brickId scheduled) (ScheduledInterval (brickId scheduled) (at 2 15) (at 2 16) 1)
+    }
+ where
+  first = planningBrick "0198f000-0000-7000-8000-000000000011" "first" "Prepare the planning cut" 0 Wip
+  second = planningBrick "0198f000-0000-7000-8000-000000000012" "second" "Review the visible effort gap" 1 Idle
+  scheduled = (planningBrick "0198f000-0000-7000-8000-000000000013" "meeting" "Planning review" 2 Idle){brickNature = ScheduledCommitment}
+  dependency = Dependency (planningUuid "0198f000-0000-7000-8000-000000000090") (brickId second) (brickId first) DependencyActive "fixture" fixtureTime
+  at daysFromNow hour = ZonedInstant (UTCTime (addDays daysFromNow (utctDay fixtureTime)) (secondsToDiffTime (hour * 3600))) "UTC"
+
+planningBrick :: Text -> Text -> Text -> Int -> WorkState -> Brick
+planningBrick identity handle title position workState =
+  Brick
+    (planningUuid identity)
+    (Handle handle)
+    title
+    AtomicTask
+    "factory@1"
+    "fixture"
+    Nothing
+    Nothing
+    Set.empty
+    position
+    (DeterministicPosition "fixture")
+    BrickActive
+    workState
+    fixtureTime
+    (Actor "human" "test")
+    (planningUuid "0198f000-0000-7000-8000-000000000099")
+
+planningUuid :: Text -> UUIDv7
+planningUuid value = either (error . Text.unpack) id (parseUUIDv7 value)
 
 assertGolden :: PackRunnerClient -> PackRegistry -> Value -> (Text, FilePath) -> Assertion
 assertGolden client registry projection (componentId, goldenName) = do
