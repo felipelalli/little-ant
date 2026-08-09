@@ -5,6 +5,7 @@ module LittleAnt.Pack.Admin (
   PackArchiveCandidate (..),
   PackPublisherKeyDocument (..),
   readPackArchiveCandidate,
+  packArchiveCandidateFromBytes,
   readPackPublisherKeyDocument,
   encodePackPublisherKeyDocument,
 )
@@ -74,14 +75,18 @@ readPackArchiveCandidate requested = do
   loaded <- readBoundedRegularFile "Pack archive" maximumPackInputBytes requested
   pure $ do
     (canonicalPath, bytes) <- loaded
-    structural <- validatePackArchive bytes
-    authenticated <- authenticatePack structural
-    pure
-      PackArchiveCandidate
-        { packCandidateCanonicalPath = canonicalPath
-        , packCandidateSourceSha256 = sha256Hex bytes
-        , packCandidateAuthenticated = authenticated
-        }
+    packArchiveCandidateFromBytes canonicalPath bytes
+
+packArchiveCandidateFromBytes :: FilePath -> ByteString -> Either AppError PackArchiveCandidate
+packArchiveCandidateFromBytes sourcePath bytes = do
+  structural <- validatePackArchive bytes
+  authenticated <- authenticatePack structural
+  pure
+    PackArchiveCandidate
+      { packCandidateCanonicalPath = sourcePath
+      , packCandidateSourceSha256 = sha256Hex bytes
+      , packCandidateAuthenticated = authenticated
+      }
 
 readPackPublisherKeyDocument :: FilePath -> IO (Either AppError (FilePath, Text, PackPublisherKeyDocument))
 readPackPublisherKeyDocument requested = do

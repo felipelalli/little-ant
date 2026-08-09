@@ -44,8 +44,10 @@ import LittleAnt.JudgmentUI
 import LittleAnt.Model
 import LittleAnt.Notice
 import LittleAnt.Pack.Admin
+import LittleAnt.Pack.Catalog
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Installed
+import LittleAnt.Pack.Official
 import LittleAnt.Pack.Runner (defaultPackRunnerClient)
 import LittleAnt.Pack.Standard (loadStandardPackAuthorization, standardPackIdentity)
 import LittleAnt.Pack.Store (PackStoreConfig (..), inspectStoredPack, storeAuthorizedPack)
@@ -142,6 +144,7 @@ data AppEnv = AppEnv
   , appExportPort :: ExportPort
   , appImportPort :: ImportPort
   , appPackRegistryProblem :: Maybe AppError
+  , appOfficialPackRemote :: Maybe OfficialPackRemote
   }
 
 data PresentationCheckpoint = PresentationCheckpoint
@@ -185,19 +188,24 @@ productionAppEnv explicitProfile = do
                   Left problem -> pure (Left problem)
                   Right scope -> do
                     now <- getCurrentTime
-                    registry <- loadProfilePackRegistry now scope loadedPaths integrations OfficialCatalogUnavailable
-                    runner <- defaultPackRunnerClient
-                    pure . Right $
-                      AppEnv
-                        { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
-                        , appActor = Actor "human" profile
-                        , appNow = getCurrentTime
-                        , appZonedNow = getZonedTime
-                        , appAllocateUUID = generateUUIDv7
-                        , appExportPort = either (const emptyExportPort) (packRegistryExportPort runner) registry
-                        , appImportPort = either (const emptyImportPort) (packRegistryImportPort runner) registry
-                        , appPackRegistryProblem = either Just (const Nothing) registry
-                        }
+                    case compiledOfficialCatalogRoot of
+                      Left problem -> pure (Left problem)
+                      Right root -> do
+                        registry <- loadProfilePackRegistry now scope loadedPaths integrations (OfficialCatalogCompiledRoot root)
+                        runner <- defaultPackRunnerClient
+                        remote <- newOfficialPackRemote
+                        pure . Right $
+                          AppEnv
+                            { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
+                            , appActor = Actor "human" profile
+                            , appNow = getCurrentTime
+                            , appZonedNow = getZonedTime
+                            , appAllocateUUID = generateUUIDv7
+                            , appExportPort = either (const emptyExportPort) (packRegistryExportPort runner) registry
+                            , appImportPort = either (const emptyImportPort) (packRegistryImportPort runner) registry
+                            , appPackRegistryProblem = either Just (const Nothing) registry
+                            , appOfficialPackRemote = Just remote
+                            }
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
 resolveProfileName explicit = do
@@ -309,7 +317,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   PacksUpdatesCommand -> pure (unsupportedCommand "packs updates")
   PacksUpdateCommand pack -> pure (unsupportedCommand ("packs update " <> pack))
   PacksRemoveCommand pack -> pure (unsupportedCommand ("packs remove " <> pack))
-  PacksRefreshCommand -> pure (unsupportedCommand "packs refresh")
+  PacksRefreshCommand -> runPacksRefresh environment dryRun dataset
   PacksTrustCommand keyFile -> runPacksTrust environment dryRun dataset keyFile
   PacksUntrustCommand pack -> pure (unsupportedCommand ("packs untrust " <> pack))
   PacksGcCommand -> pure (unsupportedCommand "packs gc")
@@ -336,22 +344,189 @@ data PackProfileSnapshot = PackProfileSnapshot
   }
 
 runPacksInstall :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
-runPacksInstall environment dryRun dataset requested =
-  readPackArchiveCandidate (Text.unpack (Text.strip requested)) >>= \case
+runPacksInstall environment dryRun dataset requested = do
+  let normalized = Text.strip requested
+  pathExists <- doesPathExist (Text.unpack normalized)
+  if pathExists || looksLikePackPath normalized
+    then runLocalPackInstall environment dryRun dataset normalized
+    else runOfficialPackInstall environment dryRun dataset normalized
+
+runLocalPackInstall :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runLocalPackInstall environment dryRun dataset requested =
+  readPackArchiveCandidate (Text.unpack requested) >>= \case
     Left problem -> pure (Left problem)
     Right candidate ->
       loadPackProfileSnapshot environment >>= \case
         Left problem -> pure (Left problem)
-        Right profile ->
-          case preparePackInstallDraft profile candidate of
-            Left problem -> pure (Left problem)
-            Right draft -> do
-              identity <- appAllocateUUID environment
-              now <- appZonedNow environment
-              let state = loadedState dataset
-                  envelope = makePackInstallEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state draft (packCandidateAuthenticated candidate)
-              saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
-              pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+        Right profile -> makePackInstallPreview environment dryRun dataset profile candidate
+
+runOfficialPackInstall :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runOfficialPackInstall environment dryRun dataset requested =
+  case appOfficialPackRemote environment of
+    Nothing -> pure . Left $ officialRemoteUnavailable "install"
+    Just remote ->
+      loadPackProfileSnapshot environment >>= \case
+        Left problem -> pure (Left problem)
+        Right profile -> case selectOfficialRelease requested (packProfileTrustPolicy profile) of
+          Left problem -> pure (Left problem)
+          Right grant ->
+            fetchOfficialPackArchive remote (officialGrantArchiveDigest grant) >>= \case
+              Left problem -> pure (Left problem)
+              Right bytes -> do
+                let dryRunSource = "official:" <> Text.unpack (officialGrantName grant) <> "@" <> Text.unpack (officialGrantVersion grant)
+                cached <-
+                  if dryRun
+                    then pure (Right dryRunSource)
+                    else cacheOfficialPackArchive (Profile.profileStateDirectory (packProfilePaths profile)) (officialGrantArchiveDigest grant) bytes
+                case cached of
+                  Left problem -> pure (Left problem)
+                  Right sourcePath -> case packArchiveCandidateFromBytes sourcePath bytes of
+                    Left problem -> pure (Left problem)
+                    Right candidate
+                      | authenticatedPackIdentity (packCandidateAuthenticated candidate) /= officialGrantIdentity grant ->
+                          pure . Left $
+                            (appError CorruptData "The downloaded official Pack does not match the signed catalog release.")
+                              { appErrorSubject = Just (officialGrantName grant)
+                              , appErrorDetails = [officialGrantArchiveDigest grant, artifactArchiveDigest (authenticatedPackIdentity (packCandidateAuthenticated candidate))]
+                              }
+                      | otherwise -> makePackInstallPreview environment dryRun dataset profile candidate
+
+makePackInstallPreview :: AppEnv -> Bool -> LoadedDataset -> PackProfileSnapshot -> PackArchiveCandidate -> IO (Either AppError CommandResult)
+makePackInstallPreview environment dryRun dataset profile candidate =
+  case preparePackInstallDraft profile candidate of
+    Left problem -> pure (Left problem)
+    Right draft -> do
+      identity <- appAllocateUUID environment
+      now <- appZonedNow environment
+      let state = loadedState dataset
+          envelope = makePackInstallEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state draft (packCandidateAuthenticated candidate)
+      saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+      pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+runPacksRefresh :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
+runPacksRefresh environment dryRun dataset = case (compiledOfficialCatalogRoot, appOfficialPackRemote environment) of
+  (Left problem, _) -> pure (Left problem)
+  (_, Nothing) -> pure . Left $ officialRemoteUnavailable "refresh"
+  (Right compiledRoot, Just remote) ->
+    fetchOfficialCatalog remote >>= \case
+      Left problem -> pure (Left problem)
+      Right payload ->
+        loadPackProfileSnapshot environment >>= \case
+          Left problem -> pure (Left problem)
+          Right profile -> do
+            let config = CatalogStateConfig (Profile.officialCatalogStateFile (packProfilePaths profile))
+            readAcceptedCatalogState config compiledRoot >>= \case
+              Left problem -> pure (Left problem)
+              Right accepted -> do
+                now <- appNow environment
+                let candidate =
+                      acceptOfficialPackCatalog
+                        now
+                        (emptyAcceptedCatalogState (acceptedCatalogActiveRoot accepted))
+                        (officialCatalogDocumentBytes payload)
+                        (officialCatalogSignatureBytes payload)
+                case candidate >>= maybe (Left (appError CorruptData "The verified catalog produced no current document.")) Right . acceptedCatalogCurrent of
+                  Left problem -> pure (Left problem)
+                  Right catalog -> refreshFromCandidate payload config compiledRoot accepted catalog now
+ where
+  refreshFromCandidate payload config compiledRoot accepted catalog now = case acceptedCatalogCurrent accepted of
+    Just current
+      | officialCatalogSequence catalog < officialCatalogSequence current -> pure . Left $ catalogSequenceProblem "The downloaded official catalog is older than the accepted catalog." current catalog
+      | officialCatalogSequence catalog == officialCatalogSequence current && catalog /= current -> pure . Left $ catalogSequenceProblem "The downloaded official catalog equivocates at an accepted sequence." current catalog
+      | catalog == current -> pure (Right (catalogRefreshResult dataset dryRun compiledRoot catalog False))
+    _
+      | dryRun -> pure (Right (catalogRefreshResult dataset True compiledRoot catalog True))
+      | otherwise -> do
+          refreshed <-
+            refreshOfficialPackCatalog
+              config
+              compiledRoot
+              now
+              (officialCatalogDocumentBytes payload)
+              (officialCatalogSignatureBytes payload)
+          pure (fmap (const (catalogRefreshResult dataset False compiledRoot catalog True)) refreshed)
+
+looksLikePackPath :: Text -> Bool
+looksLikePackPath requested =
+  Text.isSuffixOf ".lantpack" requested
+    || Text.any (`elem` ['/', '\\']) requested
+    || Text.isPrefixOf "." requested
+
+selectOfficialRelease :: Text -> PackTrustPolicy -> Either AppError OfficialReleaseGrant
+selectOfficialRelease requested policy =
+  let (name, version) = splitOfficialReference requested
+      candidates =
+        [ grant
+        | grant <- Set.toAscList (trustOfficialReleaseGrants policy)
+        , officialGrantName grant == name
+        , maybe True (== officialGrantVersion grant) version
+        ]
+   in case candidates of
+        [] ->
+          Left
+            ( (appError NotFound "The accepted official catalog has no matching Pack release.")
+                { appErrorSubject = Just requested
+                , appErrorRecovery = [RecoveryAction "refresh-catalog" "Refresh the signed official catalog, then use an exact Pack name or name@version." (Just "lant packs refresh")]
+                }
+            )
+        [grant] -> Right grant
+        _ ->
+          Left
+            ( (appError AmbiguousReference "More than one official Pack release matches this name.")
+                { appErrorSubject = Just requested
+                , appErrorDetails = [officialGrantName grant <> "@" <> officialGrantVersion grant | grant <- candidates]
+                , appErrorRecovery = [RecoveryAction "select-version" "Choose one exact name@version from the signed catalog." Nothing]
+                }
+            )
+
+splitOfficialReference :: Text -> (Text, Maybe Text)
+splitOfficialReference requested = case Text.breakOnEnd "@" requested of
+  (prefix, suffix)
+    | not (Text.null prefix) && not (Text.null suffix) -> (Text.dropEnd 1 prefix, Just suffix)
+  _ -> (requested, Nothing)
+
+officialGrantIdentity :: OfficialReleaseGrant -> PackArtifactIdentity
+officialGrantIdentity grant =
+  PackArtifactIdentity
+    { artifactPublisher = officialGrantPublisher grant
+    , artifactName = officialGrantName grant
+    , artifactVersion = officialGrantVersion grant
+    , artifactManifestDigest = officialGrantManifestDigest grant
+    , artifactArchiveDigest = officialGrantArchiveDigest grant
+    }
+
+catalogRefreshResult :: LoadedDataset -> Bool -> CatalogRoot -> OfficialPackCatalog -> Bool -> CommandResult
+catalogRefreshResult dataset dryRun root catalog changed =
+  ConfigurationResult
+    (loadedCursor dataset)
+    "packs_refresh"
+    Nothing
+    []
+    ( Map.fromList
+        [ ("catalog_sequence", Text.pack (show (officialCatalogSequence catalog)))
+        , ("expires_at", Text.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" (officialCatalogExpiresAt catalog)))
+        , ("root_fingerprint", catalogRootFingerprint root)
+        , ("status", if changed then if dryRun then "would update" else "updated" else "already current")
+        ]
+    )
+    dryRun
+
+catalogSequenceProblem :: Text -> OfficialPackCatalog -> OfficialPackCatalog -> AppError
+catalogSequenceProblem message current candidate =
+  (appError Conflict message)
+    { appErrorSubject = Just "official Pack catalog"
+    , appErrorDetails =
+        [ "accepted sequence: " <> Text.pack (show (officialCatalogSequence current))
+        , "downloaded sequence: " <> Text.pack (show (officialCatalogSequence candidate))
+        ]
+    , appErrorRecovery = [RecoveryAction "retain-current" "Keep the accepted signed history and investigate the publication source; do not replace it manually." Nothing]
+    }
+
+officialRemoteUnavailable :: Text -> AppError
+officialRemoteUnavailable action =
+  (appError Unsupported ("Official Pack " <> action <> " is unavailable in this host."))
+    { appErrorRecovery = [RecoveryAction "use-production-host" "Use a Little Ant host configured with the official HTTPS Pack transport." Nothing]
+    }
 
 runPacksTrust :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runPacksTrust environment dryRun dataset requested =
@@ -405,18 +580,21 @@ loadPackProfileSnapshot environment = do
                       Left problem -> pure (Left problem)
                       Right scope -> do
                         now <- appNow environment
-                        loadProfileTrustPolicy now paths integrations OfficialCatalogUnavailable >>= \case
+                        case compiledOfficialCatalogRoot of
                           Left problem -> pure (Left problem)
-                          Right policy ->
-                            pure . Right $
-                              PackProfileSnapshot
-                                { packProfilePaths = paths
-                                , packProfileScope = scope
-                                , packProfileIntegrations = integrations
-                                , packProfileTrustPolicy = policy
-                                , packProfileRevision = afterRevision
-                                , packProfileObservedAt = now
-                                }
+                          Right root ->
+                            loadProfileTrustPolicy now paths integrations (OfficialCatalogCompiledRoot root) >>= \case
+                              Left problem -> pure (Left problem)
+                              Right policy ->
+                                pure . Right $
+                                  PackProfileSnapshot
+                                    { packProfilePaths = paths
+                                    , packProfileScope = scope
+                                    , packProfileIntegrations = integrations
+                                    , packProfileTrustPolicy = policy
+                                    , packProfileRevision = afterRevision
+                                    , packProfileObservedAt = now
+                                    }
 
 preparePackInstallDraft :: PackProfileSnapshot -> PackArchiveCandidate -> Either AppError PackInstallDraft
 preparePackInstallDraft profile candidate = do

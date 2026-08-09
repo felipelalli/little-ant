@@ -212,6 +212,14 @@ built in | verified official | trusted publisher | untrusted | revoked
   only a newer valid catalog, and never installs or updates a Pack. Expired
   catalog metadata blocks a new official install/update but does not stop an
   already pinned archive unless a locally known revocation covers it.
+- V1 publishes generation-zero root fingerprint
+  `1d2688f6b05bf1af1134a2774dc075090fe2ce16ebe9805b721a0cbac85fc410`.
+  The initial canonical catalog is sequence `1`, expires at
+  `2028-08-09T00:00:00Z`, and delegates the exact
+  `org.littleant.official-connectors@1.0.0` release. Public metadata and
+  digest-named archives are served below the fixed HTTPS `packs/official/`
+  publication path; no URL from a Pack or profile can replace that
+  distribution authority.
 - A community key becomes trusted only through `lant packs trust <key-file>`
   or the trust action inside `/packs`, after displaying its full fingerprint
   and publisher label. Trust is local to the
@@ -289,6 +297,14 @@ Previously accepted revocations are unioned across the verified history and
 become effective at their declared instants, so omission from a later catalog
 cannot resurrect a key or archive.
 
+An explicit refresh of the exact already accepted catalog is an idempotent
+`already current` result. A different document at the same sequence is
+equivocation, not an update. Dry-run downloads and verifies the same bounded
+bytes but writes no accepted history. Catalog signing reads a private root only
+from a protected file outside the source checkout, requires a strictly higher
+sequence and future expiry, and carries earlier revocations into the new
+published catalog. The private root is never a repository artifact.
+
 ## Dependencies, activation, and updates
 
 Packs have no dependencies on other Packs and no install scripts. A component
@@ -310,6 +326,15 @@ without granting that installer the execution-only authority retained by an
 already accepted pin. No generic `trusted Pack` token crosses these
 operations, and every capability is rechecked against locally known key and
 archive revocations before use.
+
+An official installation may name `pack` or exact `pack@version`; an
+unversioned name must resolve to one current signed release. The downloaded
+archive is first cached privately by its catalog SHA-256 under selected-profile
+state so the preview can reacquire immutable bytes. This cache is not an
+installation or execution grant. Only acceptance of the ordinary no-default
+installation preview publishes those reverified bytes to the global Pack store
+and writes `PinVerifiedOfficial(sequence)`. Dry-run writes neither cache,
+checkpoint, archive, nor pin.
 
 `PinVerifiedOfficial(sequence)` records which accepted decision installed the
 artifact; it is not an independent trust root. On every execution, the host

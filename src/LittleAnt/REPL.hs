@@ -12,6 +12,7 @@ module LittleAnt.REPL (
 import Control.Exception (bracket)
 import Control.Monad (void)
 import Data.IORef
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -253,6 +254,7 @@ loop environmentRef vty color width screen = do
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable 's' [] -> showSelectedPack envelope packs problem selected
     Printable 'i' [] -> pure (Just (PackPathEditor envelope InstallPackArchive (EditorState "" "" Nothing) Nothing))
+    Printable 'r' [] -> refreshPackCatalog envelope packs problem selected
     Printable 't' [] -> pure (Just (PackPathEditor envelope TrustPublisherKey (EditorState "" "" Nothing) Nothing))
     Printable '/' [] -> pure (Just (PaletteScreen envelope "/" 0 (ReturnToPackManager packs problem selected)))
     Enter [] -> showSelectedPack envelope packs problem selected
@@ -262,6 +264,19 @@ loop environmentRef vty color width screen = do
     ArrowUp _ -> pure . Just $ PackManagerScreen envelope packs problem (max 0 (selected - 1)) Nothing
     ArrowDown _ -> pure . Just $ PackManagerScreen envelope packs problem (min (max 0 (length packs - 1)) (selected + 1)) Nothing
     _ -> pure (Just screen)
+
+  refreshPackCatalog envelope packs registryProblem selected =
+    runCurrent PacksRefreshCommand >>= \case
+      Left failure -> pure (Just (PackManagerScreen envelope packs registryProblem selected (Just (appErrorMessage failure))))
+      Right result ->
+        reloadCurrentEnvironment >>= \case
+          Left failure -> pure (Just (PackManagerScreen envelope packs (Just failure) selected (Just "The catalog was accepted, but the Pack registry could not be reloaded.")))
+          Right () ->
+            runCurrent PacksListCommand >>= \case
+              Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
+              Right PacksResult{resultPacks, resultPacksProblem} ->
+                pure (Just (PackManagerScreen envelope resultPacks resultPacksProblem 0 (Just (catalogRefreshMessage result))))
+              Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
 
   showSelectedPack envelope packs problem selected = case safeIndex selected packs of
     Nothing -> pure (Just (PackManagerScreen envelope packs problem selected (Just "No Pack is selected.")))
@@ -284,7 +299,7 @@ loop environmentRef vty color width screen = do
     _ -> pure (Just screen)
 
   submitPackPath envelope purpose editor
-    | Text.null path = pure . Just $ PackPathEditor envelope purpose editor (Just "A local file path is required.")
+    | Text.null path = pure . Just $ PackPathEditor envelope purpose editor (Just requiredInput)
     | otherwise =
         runCurrent command >>= \case
           Left problem -> pure . Just $ PackPathEditor envelope purpose editor (Just (appErrorMessage problem))
@@ -294,6 +309,9 @@ loop environmentRef vty color width screen = do
     command = case purpose of
       InstallPackArchive -> PacksInstallCommand path
       TrustPublisherKey -> PacksTrustCommand path
+    requiredInput = case purpose of
+      InstallPackArchive -> "An official Pack name or local archive path is required."
+      TrustPublisherKey -> "A local publisher-key path is required."
 
   runSimpleCommand envelope command =
     runCurrent command >>= \case
@@ -313,6 +331,12 @@ loop environmentRef vty color width screen = do
 
   runCurrent command =
     readIORef environmentRef >>= \current -> runAppCommand current False (const (pure ())) command
+
+  reloadCurrentEnvironment =
+    readIORef environmentRef >>= \current ->
+      productionAppEnv (Just (actorProfile (appActor current))) >>= \case
+        Left problem -> pure (Left problem)
+        Right refreshed -> writeIORef environmentRef refreshed >> pure (Right ())
 
 isRepairScreen :: InteractionEnvelope -> Bool
 isRepairScreen envelope = case envelopeOpportunity envelope of
@@ -414,12 +438,14 @@ packManagerModelAtWidth requestedWidth envelope packs problem selected message =
   joinedActions =
     actionSpans "s" "show"
       <> [Span Normal "   "]
-      <> actionSpans "i" "install archive..."
+      <> actionSpans "i" "install..."
+      <> [Span Normal "   "]
+      <> actionSpans "r" "refresh catalog"
       <> [Span Normal "   "]
       <> actionSpans "t" "trust publisher..."
   actionRows
     | Text.length (plainLine joinedActions) <= width = [joinedActions, actionSpans "/" "more..."]
-    | otherwise = [actionSpans "s" "show", actionSpans "i" "install archive...", actionSpans "t" "trust publisher...", actionSpans "/" "more..."]
+    | otherwise = [actionSpans "s" "show", actionSpans "i" "install...", actionSpans "r" "refresh catalog", actionSpans "t" "trust publisher...", actionSpans "/" "more..."]
   warningRows warning = [] : fmap (pure . Span Warning) (wrapWords width warning)
 
 packPathEditorModel :: InteractionEnvelope -> PackPathPurpose -> EditorState -> Maybe Text -> ScreenModel
@@ -431,13 +457,21 @@ packPathEditorModelAtWidth width envelope purpose =
  where
   (heading, hint) = case purpose of
     InstallPackArchive ->
-      ( "Install a local Pack"
-      , "Enter the path to one signed .lantpack archive. Nothing changes before the separate preview is accepted."
+      ( "Install a Pack"
+      , "Enter an official Pack name or the path to one local signed .lantpack archive. Nothing changes before the separate preview is accepted."
       )
     TrustPublisherKey ->
       ( "Trust a Pack publisher"
       , "Enter the path to one canonical publisher-key JSON file. Trust is profile-local and installs nothing."
       )
+
+catalogRefreshMessage :: CommandResult -> Text
+catalogRefreshMessage = \case
+  ConfigurationResult{resultAdministrationAction = "packs_refresh", resultConfigurationFacts} ->
+    let status = Map.findWithDefault "verified" "status" resultConfigurationFacts
+        sequenceNumber = Map.findWithDefault "?" "catalog_sequence" resultConfigurationFacts
+     in "Official catalog " <> status <> " · sequence " <> sequenceNumber <> "."
+  other -> renderCommandResult other
 
 actionSpans :: Text -> Text -> ScreenLine
 actionSpans shortcut label = case Text.breakOn shortcut label of

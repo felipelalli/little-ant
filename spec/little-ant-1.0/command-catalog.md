@@ -134,6 +134,12 @@ precondition error. Version 1.0 has no exporter overwrite flag, publisher,
 automatic opener, or arbitrary Pack filesystem permission. The human may
 rename or remove an old export outside Little Ant.
 
+`lant packs install` accepts one official `name[@version]` from the currently
+accepted signed catalog or one local `.lantpack` path. `lant packs refresh` is
+the only catalog-network operation; it verifies the fixed official publication
+and never installs or updates code. Both forms preserve the no-default consent,
+dry-run, profile revision, and immutable-byte custody defined by UX-PACK00.
+
 ## CLI-only administration
 
 These operations are intentionally absent from the ordinary slash palette:

@@ -902,11 +902,11 @@ packParser =
   hsubparser
     ( command "list" (info (pure PacksListCli) (progDesc "List known packs"))
         <> command "show" (info (PacksShowCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Show pack metadata"))
-        <> command "install" (info (PacksInstallCli . Text.pack <$> strArgument (metavar "ARCHIVE")) (progDesc "Preview and install one local signed .lantpack archive"))
+        <> command "install" (info (PacksInstallCli . Text.pack <$> strArgument (metavar "PACK|ARCHIVE")) (progDesc "Preview and install an official Pack name or local signed .lantpack archive"))
         <> command "updates" (info (pure PacksUpdatesCli) (progDesc "List available pack updates"))
         <> command "update" (info (PacksUpdateCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Update one pack"))
         <> command "remove" (info (PacksRemoveCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Remove an installed pack"))
-        <> command "refresh" (info (pure PacksRefreshCli) (progDesc "Refresh local pack index"))
+        <> command "refresh" (info (pure PacksRefreshCli) (progDesc "Verify and refresh the signed official Pack catalog"))
         <> command "trust" (info (PacksTrustCli . Text.pack <$> strArgument (metavar "KEY-FILE")) (progDesc "Preview and trust one canonical Pack publisher-key document"))
         <> command "untrust" (info (PacksUntrustCli . Text.pack <$> strArgument (metavar "PACK")) (progDesc "Untrust a pack"))
         <> command "gc" (info (pure PacksGcCli) (progDesc "Collect and prune unused pack state"))

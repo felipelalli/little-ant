@@ -5,11 +5,12 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **a7de5ba**
-(`feat(packs): require separate trust and install consent`). The current
-milestone exposes that canonical consent path through the dumb REPL's
-non-consequential `/packs` manager and refreshes its runtime Pack registry after
-accepted profile changes. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **925ca01**
+(`feat(repl): add the contextual Pack manager`). The current milestone
+publishes and compiles the production official-catalog root, exposes explicit
+signed refresh, and lets the CLI/REPL resolve one official name into the same
+canonical no-default installation consent used by local archives. This file
+stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -251,9 +252,8 @@ accepted profile changes. This file stays editable between milestone commits.
   neither OAuth material nor host-only client configuration.
 - The exact official connector Pack declares Microsoft To Do's device-flow
   authority and `Tasks.Read offline_access`; its archive and signed fixture
-  identities were rebuilt reproducibly. Public discovery, connection, and
-  import are still gated on publication of the production catalog root,
-  official install/refresh, and explicit CLI/REPL orchestration.
+  identities were rebuilt reproducibly. Public connection and import still
+  require explicit CLI/REPL orchestration.
 - production now builds one registry from the exact standard Pack plus every
   selected-profile pin loaded in deterministic Pack-name order from the
   content-addressed store. Missing, unsafe, untrusted, revoked, mismatched, or
@@ -266,10 +266,20 @@ accepted profile changes. This file stays editable between milestone commits.
   build without a compiled official root treats official authority as
   unavailable and refuses both official pins and pre-existing catalog state;
   it never treats absence as an empty revocation set.
-- no production catalog root is published yet. The official Microsoft To Do
-  Pack remains a separately shipped, fully verifiable artifact rather than a
-  built-in; public official installation/refresh must publish the real root
-  before connection/import orchestration can expose it honestly.
+- production now compiles the published generation-zero Ed25519 catalog root,
+  and the repository ships canonical sequence-1 metadata plus its detached
+  signature and digest-named official connector archive. The private root is
+  held outside Git; the maintainer tool rejects unsafe custody, stale sequence,
+  expired publication, root mismatch, and revocation loss.
+- `lant packs refresh` fetches only fixed bounded HTTPS catalog/signature
+  locations, verifies them against the active compiled-root chain, treats the
+  exact accepted sequence idempotently, rejects rollback/equivocation/tamper,
+  and writes no history in dry-run. Refresh never installs or updates code.
+- `lant packs install <name[@version]>` resolves an exact current official
+  grant, downloads only its digest-named archive, caches immutable preview
+  custody privately, and enters the existing no-default installation
+  Interaction. Acceptance reopens and reauthorizes those bytes, then records
+  `PinVerifiedOfficial(sequence)` without adding community publisher trust.
 - `lant packs list` and exact-name `lant packs show` now expose one sparse,
   typed `little-ant/packs@1` projection. It includes display and signed
   identities, trust/status, full signer and archive digests, enabled component
@@ -294,10 +304,11 @@ accepted profile changes. This file stays editable between milestone commits.
   of the checkpoint, trust, archive, or pin.
 - `/packs` is now reachable from ordinary idle, Focus, Raw-review, checklist,
   and result palettes. Its dumb REPL manager lists and inspects the sparse core
-  projection, collects local archive/key paths, and then hands off unchanged to
-  the canonical trust/install envelopes. Enter only inspects; trust and install
-  retain separate no-default shortcuts. Accepted profile changes rebuild the
-  long-running REPL environment before another adapter can run.
+  projection, accepts an official name or local archive/key path, and then
+  hands off unchanged to the canonical trust/install envelopes. Enter only
+  inspects; explicit `[r]efresh catalog`, trust, and install retain distinct
+  shortcuts. Accepted catalog/profile changes rebuild the long-running REPL
+  environment before another adapter can run.
 
 ## Last green gate
 
@@ -370,15 +381,16 @@ round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
 defense-in-depth route checks before credential resolution.
-The dedicated Pack-administration suite has 13 focused cases for exact
+The dedicated Pack-administration suite has 16 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,
 no-default previews, dry-run custody, closed canonical key transport,
 archive-byte invalidation, profile-drift regeneration, and locked profile
 compare-and-swap. It also proves the dumb `/packs` manager's bounded rendering,
-ordinary-palette reachability, local path editors, and the exact `t → t → i`
-keyboard consent sequence. Full milestone gates are recorded immediately
-before each signed milestone commit.
+ordinary-palette reachability, official-name/local-path input, explicit catalog
+refresh, published-root tamper rejection, dry-run isolation, exact official
+pinning, and the `t → t → i` community keyboard consent sequence. Full
+milestone gates are recorded immediately before each signed milestone commit.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -403,8 +415,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, publish the real official root/catalog and implement explicit
-refresh/update/remove/GC, and expose Microsoft account connection plus
-snapshot/synchronize/migrate orchestration. Cleanup remains a separately
+Next, implement explicit update/remove/GC and expose Microsoft account
+connection plus snapshot/synchronize/migrate orchestration. Cleanup remains a separately
 previewed effect. Google Calendar, remaining standard importers, and the local
 web UIAdapter remain. The complete S09 gate still precedes `verified`.

@@ -457,6 +457,7 @@ withAppHarness action = withSystemTempDirectory "little-ant-s08-flow" $ \root ->
           emptyExportPort
           emptyImportPort
           Nothing
+          Nothing
   action environment
 
 seedGuidedBrick :: AppEnv -> IO ()

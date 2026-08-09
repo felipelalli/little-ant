@@ -273,6 +273,7 @@ withHarness action = withSystemTempDirectory "little-ant-s03" $ \root -> do
           emptyExportPort
           emptyImportPort
           Nothing
+          Nothing
   action environment
 
 run :: AppEnv -> AppCommand -> IO CommandResult

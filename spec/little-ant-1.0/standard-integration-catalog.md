@@ -23,6 +23,13 @@ for Microsoft To Do, Google Tasks, Google Calendar, and GitHub Issues. Its
 manifest is inspectable before installation and requests credentials only when
 one of its components is configured.
 
+V1 publishes that Pack as `org.littleant.official-connectors@1.0.0`. After an
+explicit `lant packs refresh`, `lant packs install
+org.littleant.official-connectors` resolves its exact catalog digest and opens
+the ordinary no-default authority preview. Refresh does not install it, and
+the Pack receives no provider credential until a separately reviewed account
+connection binds one declared slot.
+
 Apple Reminders support is an offline import kit in the standard Pack: an
 inspectable Apple Shortcut exports reminder lists as versioned JSON, and the
 file SourceAdapter consumes those bytes. It is snapshot/migration support, not

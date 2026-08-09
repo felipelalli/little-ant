@@ -250,6 +250,7 @@ deterministicEnv root seed = do
       , appExportPort = emptyExportPort
       , appImportPort = emptyImportPort
       , appPackRegistryProblem = Nothing
+      , appOfficialPackRemote = Nothing
       }
 
 testUuid :: Int -> IO UUIDv7

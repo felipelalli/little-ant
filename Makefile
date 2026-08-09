@@ -1,7 +1,8 @@
 PYTHON := python3
-HASKELL_SOURCES := $(shell find src app test -name '*.hs' -type f | sort)
+HASKELL_SOURCES := $(shell find src app test tools -name '*.hs' -type f | sort)
+PACK_TOOL_FLAGS := -XGHC2021 -XDerivingStrategies -XLambdaCase -XOverloadedStrings -isrc
 
-.PHONY: build test cli-test python-test spec-audit coverage vocabulary format-check lint check ci
+.PHONY: build test cli-test python-test spec-audit coverage vocabulary pack-verify format-check lint check ci
 
 build:
 	cabal build all
@@ -24,6 +25,11 @@ coverage:
 vocabulary:
 	$(PYTHON) tools/lant_conformance.py vocabulary
 
+pack-verify:
+	cabal exec runghc -- $(PACK_TOOL_FLAGS) tools/rebuild-standard-pack.hs verify
+	cabal exec runghc -- $(PACK_TOOL_FLAGS) tools/rebuild-official-connectors-pack.hs verify
+	cabal exec runghc -- $(PACK_TOOL_FLAGS) tools/official-catalog.hs verify
+
 format-check:
 	cabal-fmt --check little-ant.cabal
 	@for source in $(HASKELL_SOURCES); do fourmolu --mode check "$$source"; done
@@ -32,6 +38,6 @@ lint:
 	hlint src app test
 	cabal check
 
-check: python-test spec-audit coverage vocabulary format-check lint build test cli-test
+check: python-test spec-audit coverage vocabulary pack-verify format-check lint build test cli-test
 
 ci: check

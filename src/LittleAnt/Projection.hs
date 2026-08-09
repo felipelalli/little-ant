@@ -333,6 +333,7 @@ administrationHeading action = case action of
   "config_show" -> "Configuration"
   "config_paths" -> "Resolved paths"
   "config_validate" -> "Configuration is valid."
+  "packs_refresh" -> "Official Pack catalog"
   _ -> action
 normal :: Text -> Span
 normal = Span Normal

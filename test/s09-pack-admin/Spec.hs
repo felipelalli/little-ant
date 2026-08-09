@@ -3,11 +3,12 @@ module Main (main) where
 import Control.Exception (bracket)
 import Data.Aeson (Value (Object), encode, toJSON)
 import Data.Aeson.KeyMap qualified as KeyMap
+import Data.Bits ((.&.))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LazyByteString
 import Data.List (isInfixOf)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -16,6 +17,7 @@ import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Interaction
 import LittleAnt.Pack.Admin
+import LittleAnt.Pack.Official
 import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
@@ -28,6 +30,7 @@ import System.Directory (doesFileExist)
 import System.Environment (lookupEnv, setEnv, unsetEnv)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
+import System.Posix.Files (fileMode, getFileStatus)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -49,6 +52,9 @@ main =
       , testCase "profile compare-and-swap never clobbers a newer integration revision" profileCompareAndSwap
       , testCase "publisher-key transport requires its closed canonical schema" strictPublisherKeyDocument
       , testCase "the dumb REPL Pack manager stays navigational and keyboard-first" replPackManager
+      , testCase "the published root refreshes once and rejects catalog equivocation" officialCatalogRefresh
+      , testCase "an official name installs the exact catalog release without publisher trust" officialCatalogInstall
+      , testCase "official refresh dry-run persists no accepted authority" officialCatalogRefreshDryRun
       ]
 
 listBuiltIn :: Assertion
@@ -312,12 +318,116 @@ replPackManager = withHarness $ \environment -> do
           installEditor = renderPlain (packPathEditorModel owner InstallPackArchive (EditorState "" "" Nothing) Nothing)
           trustEditor = renderPlain (packPathEditorModel owner TrustPublisherKey (EditorState "" "" Nothing) Nothing)
       assertBool "the selected Pack is visible" ("> Little Ant Standard Pack 1.0.0" `Text.isInfixOf` manager)
-      assertBool "the manager exposes only navigational verbs" ("[s]how   [i]nstall archive...   [t]rust publisher..." `Text.isInfixOf` manager)
+      assertBool "the manager exposes Pack navigation" ("[s]how" `Text.isInfixOf` manager && "[i]nstall..." `Text.isInfixOf` manager)
+      assertBool "the manager exposes explicit catalog refresh" ("[r]efresh catalog" `Text.isInfixOf` manager)
+      assertBool "the manager keeps publisher trust separate" ("[t]rust publisher..." `Text.isInfixOf` manager)
       assertBool "the ordinary palette remains reachable" ("[/] more..." `Text.isInfixOf` manager)
+      assertBool "install accepts an official name or local archive" ("official Pack name" `Text.isInfixOf` installEditor && "local signed .lantpack" `Text.isInfixOf` installEditor)
       assertBool "install explains the separate preview" ("Nothing changes before the" `Text.isInfixOf` installEditor && "preview is accepted." `Text.isInfixOf` installEditor)
       assertBool "trust explains profile-local custody" ("Trust is profile-local" `Text.isInfixOf` trustEditor && "installs nothing." `Text.isInfixOf` trustEditor)
       mapM_ (assertWidth 80) [packManagerModel owner packs problem 0 Nothing, packPathEditorModel owner InstallPackArchive (EditorState "" "" Nothing) Nothing, packPathEditorModel owner TrustPublisherKey (EditorState "" "" Nothing) Nothing]
     other -> assertFailure ("expected Pack list, got: " <> show other)
+
+officialCatalogRefresh :: Assertion
+officialCatalogRefresh = withHarness $ \base -> do
+  remote <- publishedRemote
+  let environment = base{appOfficialPackRemote = Just remote}
+  refreshed <- run environment False PacksRefreshCommand
+  case refreshed of
+    ConfigurationResult Genesis "packs_refresh" Nothing [] facts False -> do
+      Map.lookup "catalog_sequence" facts @?= Just "1"
+      Map.lookup "status" facts @?= Just "updated"
+    other -> assertFailure ("unexpected catalog refresh result: " <> show other)
+  paths <- currentProfilePaths
+  stateExists <- doesFileExist (Profile.officialCatalogStateFile paths)
+  assertBool "the accepted signed history was persisted" stateExists
+  current <- run environment False PacksRefreshCommand
+  case current of
+    ConfigurationResult _ "packs_refresh" _ _ facts False -> Map.lookup "status" facts @?= Just "already current"
+    other -> assertFailure ("unexpected current-catalog result: " <> show other)
+
+  valid <- ByteString.readFile officialCatalogDocument
+  signature <- ByteString.readFile officialCatalogSignature
+  let tampered = remote{fetchOfficialCatalog = pure (Right (OfficialCatalogPayload (valid <> " ") signature))}
+  rejected <- runAppCommand (environment{appOfficialPackRemote = Just tampered}) False silentProgress PacksRefreshCommand
+  case rejected of
+    Left problem -> appErrorCode problem @?= CorruptData
+    Right value -> assertFailure ("tampered catalog was accepted: " <> show value)
+  retained <- run environment False PacksRefreshCommand
+  case retained of
+    ConfigurationResult _ "packs_refresh" _ _ facts False -> Map.lookup "status" facts @?= Just "already current"
+    other -> assertFailure ("accepted catalog was not retained after rejection: " <> show other)
+
+officialCatalogInstall :: Assertion
+officialCatalogInstall = withHarness $ \base -> do
+  remote <- publishedRemote
+  let environment = base{appOfficialPackRemote = Just remote}
+  _ <- run environment False PacksRefreshCommand
+  preview <- run environment False (PacksInstallCommand connectorPackName)
+  envelope <- expectNextInteraction preview
+  case envelopeOpportunity envelope of
+    PackInstallOpportunity draft -> do
+      packInstallTrustClass draft @?= "verified official"
+      packInstallArtifact draft @?= connectorIdentity
+      fmap actionId (envelopeActions envelope) @?= ["pack.install.accept", "pack.install.back", "pack.install.unknown", "palette.open"]
+      assertBool "official installation still has no default" (not (any actionDefault (envelopeActions envelope)))
+      status <- getFileStatus (packInstallSourcePath draft)
+      fileMode status .&. 0o077 @?= 0
+    other -> assertFailure ("expected official installation preview, got: " <> show other)
+  accepted <- respond environment False envelope "pack.install.accept"
+  resultEnvelope <- expectRespondInteraction accepted
+  case envelopeOpportunity resultEnvelope of
+    PackInstallResultOpportunity artifact -> artifact @?= connectorIdentity
+    other -> assertFailure ("expected official install result, got: " <> show other)
+  integrations <- loadCurrentIntegrations
+  case Map.lookup connectorPackName (Profile.installedComponents integrations) of
+    Just pin -> pinTrustOrigin pin @?= PinVerifiedOfficial 1
+    Nothing -> assertFailure "the official release was not pinned"
+  assertBool "official install did not add community trust" (Set.null (Profile.trustedPublishers integrations))
+  restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
+  assertBool "the accepted official pin loads through the compiled root" (isNothing (appPackRegistryProblem restarted))
+  listed <- run restarted False PacksListCommand
+  case listed of
+    PacksResult _ "list" packs Nothing False ->
+      case filter ((== connectorPackName) . projectedPackName) packs of
+        [pack] -> do
+          projectedPackTrustClass pack @?= "verified official"
+          projectedPackStatus pack @?= "enabled"
+        other -> assertFailure ("expected one enabled official Pack, got: " <> show other)
+    other -> assertFailure ("unexpected restarted Pack list: " <> show other)
+
+officialCatalogRefreshDryRun :: Assertion
+officialCatalogRefreshDryRun = withHarness $ \base -> do
+  remote <- publishedRemote
+  let environment = base{appOfficialPackRemote = Just remote}
+  result <- run environment True PacksRefreshCommand
+  case result of
+    ConfigurationResult _ "packs_refresh" _ _ facts True -> Map.lookup "status" facts @?= Just "would update"
+    other -> assertFailure ("unexpected dry refresh result: " <> show other)
+  paths <- currentProfilePaths
+  stateExists <- doesFileExist (Profile.officialCatalogStateFile paths)
+  assertBool "dry-run wrote no accepted catalog history" (not stateExists)
+  unavailable <- runAppCommand environment False silentProgress (PacksInstallCommand connectorPackName)
+  case unavailable of
+    Left problem -> do
+      appErrorCode problem @?= NotFound
+      fmap recoveryActionCommand (appErrorRecovery problem) @?= [Just "lant packs refresh"]
+    Right value -> assertFailure ("official install unexpectedly bypassed catalog acceptance: " <> show value)
+
+publishedRemote :: IO OfficialPackRemote
+publishedRemote = do
+  catalog <- ByteString.readFile officialCatalogDocument
+  signature <- ByteString.readFile officialCatalogSignature
+  archive <- ByteString.readFile connectorArchive
+  pure
+    OfficialPackRemote
+      { fetchOfficialCatalog = pure (Right (OfficialCatalogPayload catalog signature))
+      , fetchOfficialPackArchive = \digest ->
+          pure $
+            if digest == connectorArchiveDigest
+              then Right archive
+              else Left (appError NotFound "fixture archive missing")
+      }
 
 guidedAction :: Text -> InteractionEnvelope -> Text
 guidedAction shortcut envelope = case dispatchGuidedShortcut envelope envelope shortcut of
@@ -382,6 +492,19 @@ connectorSignerFingerprint = "b95e184ec3696f3dc91623f4120a90d2f040df45f565099707
 
 connectorArchive :: FilePath
 connectorArchive = "packs" </> "official-connectors" </> "official-connectors.lantpack"
+
+officialCatalogDocument, officialCatalogSignature :: FilePath
+officialCatalogDocument = "packs" </> "official" </> "catalog.json"
+officialCatalogSignature = "packs" </> "official" </> "catalog-signature.json"
+
+connectorIdentity :: PackArtifactIdentity
+connectorIdentity =
+  PackArtifactIdentity
+    "org.littleant.project"
+    connectorPackName
+    "1.0.0"
+    "06432a6b2d59dbed3e506c1acbc203da7153f8b006bcc7417556702d8c5f97cd"
+    connectorArchiveDigest
 
 withHarness :: (AppEnv -> IO a) -> IO a
 withHarness action = withSystemTempDirectory "little-ant-pack-admin" $ \root ->

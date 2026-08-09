@@ -5106,9 +5106,10 @@ preview. None records attended, missed, or done.
 
 `/packs` first opens a non-consequential manager over the core's sparse Pack
 list projection. It is surface-local navigation, not a new Opportunity: it may
-select an installed Pack for read-only inspection or collect one local archive
-or publisher-key path, but it cannot invent, prefill, reorder, or accept a
-consent action. The dumb REPL renders:
+select an installed Pack for read-only inspection, explicitly refresh the
+official catalog, or collect one official Pack name, local archive path, or
+publisher-key path, but it cannot invent, prefill, reorder, or accept a consent
+action. The dumb REPL renders:
 
 ```text
 Packs
@@ -5116,18 +5117,21 @@ Packs
 > Little Ant Standard Pack 1.0.0
     org.littleant.standard · built in · available · 9 components
 
-[s]how   [i]nstall archive...   [t]rust publisher...
+[s]how   [i]nstall...   [r]efresh catalog   [t]rust publisher...
 [/] more...
 
 ↑/↓ select · Enter show · Esc back
 ```
 
 Enter is only a read-only `show` convenience; it never means install or trust.
-Install and trust each open a local path editor, then invoke the corresponding
-canonical CLI command. A valid path hands control to the revisioned screens
-below. Escape, empty Backspace, or Left returns without changing Pack state.
-After accepted trust or installation, a long-running surface reloads its
-profile Pack registry before another integration command can run.
+Install opens one editor accepting an official Pack name or local `.lantpack`
+path; trust accepts only a local canonical publisher-key path. Each then
+invokes the corresponding canonical CLI command. A valid candidate hands
+control to the revisioned screens below. Refresh verifies and records only a
+newer signed catalog and never installs code. Escape, empty Backspace, or Left
+returns without changing Pack state. After catalog refresh, accepted trust, or
+installation, a long-running surface reloads its profile Pack registry before
+another integration command can run.
 
 An already verified official candidate renders:
 
