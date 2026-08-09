@@ -5,11 +5,12 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **cc978ec**
-(`feat(import): checkpoint verified source cleanup`). The current milestone
-makes source cleanup resumable item by item, reconciles unknown outcomes before
-retry, and closes the ImportProfile only after every selected item has a
-terminal disposition. This file stays editable between milestone commits.
+Current implementation baseline: **d7cef5d**
+(`feat(import): verify empty source containers`). Source-item cleanup is
+resumable and reconciles unknown outcomes before retry. Source-container
+cleanup now has its own eligibility check, fresh complete inspection, exact
+approval, pre-delete recheck, durable dispatch, and read-only unknown-outcome
+recovery. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -42,6 +43,12 @@ terminal disposition. This file stays editable between milestone commits.
   safe unchanged retries, explicit duplicate-risk revisions, and terminal
   profile closure. Every dispatch rechecks signed Pack, account, credential,
   invocation, and target custody; local imported Raw is always retained.
+- Microsoft To Do source-container cleanup after item success, with a separate
+  no-default approval. The signed adapter verifies that a custom owned list is
+  empty before proposal and repeats the paginated check immediately before
+  deletion. New items, built-in/shared/non-owned lists, and authority drift
+  fail closed; lost DELETE responses are reconciled read-only without a blind
+  retry, and local Raw remains untouched.
 - `lant doctor` runs before ordinary replay and auto-tick, reports the last
   valid cursor and event count, and identifies the first malformed event by
   canonical segment, physical JSONL line, and byte offset without mutating the
@@ -420,7 +427,7 @@ adaptive Microsoft Graph list/task pagination, canonical provider identity and
 URL encoding, sparse-preview privacy, complete structured-Raw materialization,
 completed-task opt-in, guarded partial attachment migration, and denial of a
 provider-controlled `nextLink` before a second broker call.
-The dedicated provider-host suite has 14 cases covering typed integration-state
+The dedicated provider-host suite has 18 cases covering typed integration-state
 round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
@@ -429,7 +436,10 @@ cover partial item failure and safe retry, lost responses reconciled as absent,
 restart from durable dispatch intent, authority drift before DELETE, exact-set
 rejection, and an unknowable result requiring a new duplicate-risk revision and
 approval. The suite also verifies
-that multiple configured accounts remain separate, human-labeled catalog rows
+Container simulations additionally cover separate empty-list approval,
+nonempty refusal, a list gaining an item before dispatch, and a lost list
+DELETE reconciled without repeating deletion. The suite also verifies that
+multiple configured accounts remain separate, human-labeled catalog rows
 with exact source references. Its full application path accepts one verified
 Microsoft To Do task as structured Raw truth and proves an exact retry is
 event-free.
@@ -476,7 +486,6 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, keep source-container cleanup as its own later destructive approval and
-complete the remaining standard importers. Explicit Pack update/remove/GC,
-Google Calendar, and the local web UIAdapter also remain. The complete S09 gate
-still precedes `verified`.
+Next, complete the remaining standard importers. Explicit Pack
+update/remove/GC, Google Calendar, and the local web UIAdapter also remain. The
+complete S09 gate still precedes `verified`.

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted.
+Accepted. The temporary deferral of source-container cleanup is superseded by
+[ADR 0029](0029-recheck-empty-source-containers-before-deletion.md); the item
+cleanup and recovery decisions remain current.
 
 ## Context
 
@@ -63,5 +65,5 @@ Raw.
 - The official Microsoft To Do Pack exposes a read-only item-verification
   operation in addition to its cleanup operation; both remain constrained by
   the same signed brokered HTTP authority.
-- Cleanup of source containers and other providers remains a later milestone,
-  not an implicit generalization of this item protocol.
+- Cleanup of source containers is still not an implicit generalization of this
+  item protocol; ADR 0029 defines its separate eligibility and consent boundary.

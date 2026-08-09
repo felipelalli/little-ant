@@ -81,8 +81,10 @@ acknowledgment. The public configuration connection, provider-aware CLI import
 paths, generic canonical acceptance, and dumb REPL source selector are
 implemented. Microsoft To Do item cleanup is now separately proposed only
 after local Raw verification, approved as one exact finite set, and dispatched
-item by item with durable intent and receipts. Remaining standard importers,
-container cleanup, Calendar, and local-web UIAdapter remain in this slice.
+item by item with durable intent and receipts. Empty source containers now have
+a separate fresh inspection, approval, pre-delete recheck, and unknown-outcome
+reconciliation path. Remaining standard importers, Calendar, and local-web
+UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
@@ -148,8 +150,11 @@ grants now provide the common consent boundary for source cleanup and later
 Calendar effects. Source cleanup proposal, exact-set approval, itemwise
 dispatch, restart recovery, read-only reconciliation, safe retry, explicit
 duplicate-risk revision, rejection, withdrawal, and terminal profile closure
-are implemented for Microsoft To Do items. Source-container cleanup remains a
-separate later approval boundary.
+are implemented for Microsoft To Do items. Source-container cleanup is also
+implemented as a separate later approval boundary: only an empty custom owned
+list whose item effects all succeeded can be proposed; the Pack repeats the
+complete paginated emptiness check immediately before DELETE, and a lost result
+is reconciled read-only rather than retried blindly.
 
 ## Gate
 
