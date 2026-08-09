@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **00ce844**
-(`feat(oauth): bind device grants to signed Pack authority`). The current
-milestone joins profile pins, the content-addressed store, catalog history, and
-the built-in standard Pack into one production registry without widening
-official trust. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **fc714cc**
+(`feat(packs): load profile pins with anchored trust`). The current milestone
+exposes safe read-only Pack administration while preserving recovery when the
+executable registry fails closed. This file stays editable between milestone
+commits.
 
 ## Implementation now available
 
@@ -270,6 +270,17 @@ official trust. This file stays editable between milestone commits.
   Pack remains a separately shipped, fully verifiable artifact rather than a
   built-in; public official installation/refresh must publish the real root
   before connection/import orchestration can expose it honestly.
+- `lant packs list` and exact-name `lant packs show` now expose one sparse,
+  typed `little-ant/packs@1` projection. It includes display and signed
+  identities, trust/status, full signer and archive digests, enabled component
+  state, and declared HTTP/credential/effect/host authority without Pack
+  payload bytes.
+- a configured Pack failure no longer prevents the recovery command that must
+  explain it. Production retains the exact registry problem, denies every
+  import/export adapter before invocation, and keeps Pack-free canonical work
+  available. The read-only manager structurally inspects each pin and renders
+  missing, corrupt, revoked, untrusted, or colliding registry state as
+  unavailable rather than granting partial execution.
 
 ## Last green gate
 
@@ -341,6 +352,11 @@ round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
 defense-in-depth route checks before credential resolution.
+The dedicated Pack-administration suite has 5 passing cases for the exact
+built-in list/detail projection, sparse read-only dry-run JSON, exact-name
+recovery, and a missing profile pin whose complete executable registry fails
+closed while `packs list` and ordinary Pack-free work remain available. The
+full Nix package build passes at this checkpoint.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -365,12 +381,11 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement Microsoft OAuth 2 Device Authorization and refresh in the
-trusted host/agent boundary, install/load the exact official connector pin from
-the profile Pack store and accepted catalog, and then expose snapshot,
-synchronize, and migrate through the public import selector. Cleanup must
-remain a separately previewed and consented effect, with item deletion and
-empty-container deletion independently selectable. Google Calendar, the
-remaining standard importers, and the local-web UIAdapter remain. The
-`Corrupt history/repair` row and formal TaskJuggler evidence registration are
-implemented; the complete S09 gate still precedes `verified`.
+Next, implement UX-PACK00 as the shared dumb-first CLI/REPL trust and local
+archive-install flow: full community-key fingerprint consent remains separate
+from the no-default Pack preview, and dry-run writes neither trust nor archive
+nor pin. Then publish the real official root/catalog, implement explicit
+refresh/update/remove/GC, and expose Microsoft account connection plus
+snapshot/synchronize/migrate orchestration. Cleanup remains a separately
+previewed effect. Google Calendar, remaining standard importers, and the local
+web UIAdapter remain. The complete S09 gate still precedes `verified`.

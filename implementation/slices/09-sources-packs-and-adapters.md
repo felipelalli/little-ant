@@ -99,6 +99,15 @@ unavailable. Root publication, public Pack install/refresh, and
 connection/import orchestration remain prerequisites for exposing the live
 Microsoft To Do route in the CLI/REPL.
 
+The public read-only Pack manager now exposes `lant packs list` and exact-name
+`lant packs show` through one sparse `little-ant/packs@1` projection. It shows
+the built-in and profile-pinned identities, trust class, status, exact signer
+and archive digests, enabled components, and signed permission summaries.
+Registry failure no longer prevents Pack recovery or Pack-free canonical work:
+adapter ports fail closed with the retained typed error, while the manager can
+still inspect a missing or invalid pin as unavailable. Trust/install consent,
+updates, refresh, removal/GC, and the `/packs` REPL flow remain open.
+
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or
 credential authority. Each exchange is authorized against one unambiguous

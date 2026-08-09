@@ -164,6 +164,8 @@ renderCommandResult = \case
       <> "\nSHA-256: "
       <> digest
       <> (if null warnings then "" else "\nWarnings:\n" <> Text.unlines ["- " <> warning | warning <- warnings])
+  PacksResult _ action packs problem dryRun ->
+    dryRunFact dryRun <> renderPacks action packs <> maybe "" ("\nPack registry unavailable: " <>) (appErrorMessage <$> problem)
   GrammarResult _ names dryRun ->
     dryRunFact dryRun
       <> "Screen grammars:\n"
@@ -249,6 +251,65 @@ searchHitLine hit =
 renderListRow :: ListRow -> Text
 renderListRow row =
   listEntryHandle row <> " " <> listEntryTitle row <> (if Text.null (listEntryDetails row) then "" else " · " <> listEntryDetails row)
+
+renderPacks :: Text -> [PackProjection] -> Text
+renderPacks "show" [pack] =
+  projectedPackDisplayName pack
+    <> " "
+    <> projectedPackVersion pack
+    <> "\nName: "
+    <> projectedPackName pack
+    <> "\nPublisher: "
+    <> projectedPackPublisher pack
+    <> " · "
+    <> projectedPackTrustClass pack
+    <> "\nStatus: "
+    <> projectedPackStatus pack
+    <> "\nArchive SHA-256: "
+    <> projectedPackArchiveDigest pack
+    <> "\nSigner: "
+    <> projectedPackSignerFingerprint pack
+    <> "\nComponents:\n"
+    <> Text.unlines (renderPackComponent <$> projectedPackComponents pack)
+    <> maybe "" ("Problem: " <>) (appErrorMessage <$> projectedPackProblem pack)
+renderPacks _ packs =
+  "Packs:"
+    <> if null packs
+      then "\n  (none)"
+      else "\n" <> Text.unlines (renderPackSummary <$> packs)
+
+renderPackSummary :: PackProjection -> Text
+renderPackSummary pack =
+  "- "
+    <> projectedPackDisplayName pack
+    <> " "
+    <> projectedPackVersion pack
+    <> " · "
+    <> projectedPackTrustClass pack
+    <> " · "
+    <> projectedPackStatus pack
+    <> " · "
+    <> tshow (length (filter projectedPackComponentEnabled (projectedPackComponents pack)))
+    <> " components"
+
+renderPackComponent :: PackComponentProjection -> Text
+renderPackComponent component =
+  "- "
+    <> projectedPackComponentId component
+    <> " · "
+    <> projectedPackComponentKind component
+    <> if projectedPackComponentEnabled component
+      then " · enabled"
+      else
+        " · disabled"
+          <> packComponentDetail "HTTP" (projectedPackComponentHttpHosts component)
+          <> packComponentDetail "Credentials" (projectedPackComponentCredentialSchemes component)
+          <> packComponentDetail "External effects" (projectedPackComponentEffectPurposes component)
+          <> packComponentDetail "Host access" (projectedPackComponentHostCapabilities component)
+
+packComponentDetail :: Text -> [Text] -> Text
+packComponentDetail _ [] = ""
+packComponentDetail label values = "\n  " <> label <> ": " <> Text.intercalate ", " values
 
 dryRunFact :: Bool -> Text
 dryRunFact True = "Dry run: nothing was recorded.\n\n"

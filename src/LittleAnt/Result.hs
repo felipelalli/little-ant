@@ -4,6 +4,8 @@ module LittleAnt.Result (
   HistoryEntry (..),
   SearchHit (..),
   ListRow (..),
+  PackComponentProjection (..),
+  PackProjection (..),
   RawProjection (..),
   UndoClass (..),
   resultCursor,
@@ -65,6 +67,31 @@ data DiagnosticCheck = DiagnosticCheck
   , diagnosticCheckPassed :: Bool
   , diagnosticCheckSummary :: Text
   , diagnosticCheckProblem :: Maybe AppError
+  }
+  deriving stock (Eq, Show)
+
+data PackComponentProjection = PackComponentProjection
+  { projectedPackComponentId :: Text
+  , projectedPackComponentKind :: Text
+  , projectedPackComponentEnabled :: Bool
+  , projectedPackComponentHttpHosts :: [Text]
+  , projectedPackComponentCredentialSchemes :: [Text]
+  , projectedPackComponentEffectPurposes :: [Text]
+  , projectedPackComponentHostCapabilities :: [Text]
+  }
+  deriving stock (Eq, Show)
+
+data PackProjection = PackProjection
+  { projectedPackName :: Text
+  , projectedPackDisplayName :: Text
+  , projectedPackPublisher :: Text
+  , projectedPackVersion :: Text
+  , projectedPackTrustClass :: Text
+  , projectedPackStatus :: Text
+  , projectedPackArchiveDigest :: Text
+  , projectedPackSignerFingerprint :: Text
+  , projectedPackComponents :: [PackComponentProjection]
+  , projectedPackProblem :: Maybe AppError
   }
   deriving stock (Eq, Show)
 
@@ -168,6 +195,13 @@ data CommandResult
       , resultExportBytes :: Maybe ByteString
       , resultDryRun :: Bool
       }
+  | PacksResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultPacksAction :: Text
+      , resultPacks :: [PackProjection]
+      , resultPacksProblem :: Maybe AppError
+      , resultDryRun :: Bool
+      }
   deriving stock (Eq, Show)
 
 resultCursor :: CommandResult -> DatasetCursor
@@ -209,6 +243,33 @@ instance ToJSON DiagnosticCheck where
       , "summary" .= diagnosticCheckSummary check
       ]
         <> maybe [] (pure . ("problem" .=)) (diagnosticCheckProblem check)
+
+instance ToJSON PackComponentProjection where
+  toJSON component =
+    object $
+      [ "id" .= projectedPackComponentId component
+      , "kind" .= projectedPackComponentKind component
+      , "enabled" .= projectedPackComponentEnabled component
+      ]
+        <> ["http_hosts" .= projectedPackComponentHttpHosts component | not (null (projectedPackComponentHttpHosts component))]
+        <> ["credential_schemes" .= projectedPackComponentCredentialSchemes component | not (null (projectedPackComponentCredentialSchemes component))]
+        <> ["effect_purposes" .= projectedPackComponentEffectPurposes component | not (null (projectedPackComponentEffectPurposes component))]
+        <> ["host_capabilities" .= projectedPackComponentHostCapabilities component | not (null (projectedPackComponentHostCapabilities component))]
+
+instance ToJSON PackProjection where
+  toJSON pack =
+    object $
+      [ "name" .= projectedPackName pack
+      , "display_name" .= projectedPackDisplayName pack
+      , "publisher" .= projectedPackPublisher pack
+      , "version" .= projectedPackVersion pack
+      , "trust" .= projectedPackTrustClass pack
+      , "status" .= projectedPackStatus pack
+      , "archive_sha256" .= projectedPackArchiveDigest pack
+      , "signer_fingerprint" .= projectedPackSignerFingerprint pack
+      ]
+        <> ["components" .= projectedPackComponents pack | not (null (projectedPackComponents pack))]
+        <> maybe [] (pure . ("problem" .=)) (projectedPackProblem pack)
 
 instance ToJSON RawProjection where
   toJSON raw =
@@ -302,6 +363,15 @@ instance ToJSON CommandResult where
           <> maybe [] (pure . ("created_path" .=)) destination
           <> ["warnings" .= warnings | not (null warnings)]
           <> ["metadata" .= metadata | not (Map.null metadata)]
+          <> dryRunPair dryRun
+    PacksResult cursor action packs problem dryRun ->
+      object $
+        [ "schema" .= ("little-ant/packs@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "action" .= action
+        , "packs" .= packs
+        ]
+          <> maybe [] (pure . ("problem" .=)) problem
           <> dryRunPair dryRun
     RespondResult cursor interaction commandId dryRun ->
       object $

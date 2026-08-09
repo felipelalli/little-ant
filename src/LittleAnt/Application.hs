@@ -43,9 +43,12 @@ import LittleAnt.JudgmentDecision
 import LittleAnt.JudgmentUI
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.Pack.Format
 import LittleAnt.Pack.Installed
 import LittleAnt.Pack.Runner (defaultPackRunnerClient)
-import LittleAnt.Pack.Trust (mkProfileScope)
+import LittleAnt.Pack.Standard (loadStandardPackAuthorization)
+import LittleAnt.Pack.Store (PackStoreConfig (..), inspectStoredPack)
+import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Repair
@@ -136,6 +139,7 @@ data AppEnv = AppEnv
   , appAllocateUUID :: IO UUIDv7
   , appExportPort :: ExportPort
   , appImportPort :: ImportPort
+  , appPackRegistryProblem :: Maybe AppError
   }
 
 data PresentationCheckpoint = PresentationCheckpoint
@@ -179,20 +183,19 @@ productionAppEnv explicitProfile = do
                   Left problem -> pure (Left problem)
                   Right scope -> do
                     now <- getCurrentTime
-                    loadProfilePackRegistry now scope loadedPaths integrations OfficialCatalogUnavailable >>= \case
-                      Left problem -> pure (Left problem)
-                      Right registry -> do
-                        runner <- defaultPackRunnerClient
-                        pure . Right $
-                          AppEnv
-                            { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
-                            , appActor = Actor "human" profile
-                            , appNow = getCurrentTime
-                            , appZonedNow = getZonedTime
-                            , appAllocateUUID = generateUUIDv7
-                            , appExportPort = packRegistryExportPort runner registry
-                            , appImportPort = packRegistryImportPort runner registry
-                            }
+                    registry <- loadProfilePackRegistry now scope loadedPaths integrations OfficialCatalogUnavailable
+                    runner <- defaultPackRunnerClient
+                    pure . Right $
+                      AppEnv
+                        { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
+                        , appActor = Actor "human" profile
+                        , appNow = getCurrentTime
+                        , appZonedNow = getZonedTime
+                        , appAllocateUUID = generateUUIDv7
+                        , appExportPort = either (const emptyExportPort) (packRegistryExportPort runner) registry
+                        , appImportPort = either (const emptyImportPort) (packRegistryImportPort runner) registry
+                        , appPackRegistryProblem = either Just (const Nothing) registry
+                        }
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
 resolveProfileName explicit = do
@@ -298,8 +301,8 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
     pure $ unsupportedCommand ("migrate " <> sourcePath <> " " <> targetPath <> " mode=" <> mode)
   ExportCommand exporter scope outputPath -> runExport environment dryRun dataset exporter scope outputPath
   WebCommand -> pure (unsupportedCommand "web")
-  PacksListCommand -> pure (unsupportedCommand "packs list")
-  PacksShowCommand pack -> pure (unsupportedCommand ("packs show " <> pack))
+  PacksListCommand -> runPacksList environment dryRun dataset
+  PacksShowCommand pack -> runPacksShow environment dryRun dataset pack
   PacksInstallCommand pack -> pure (unsupportedCommand ("packs install " <> pack))
   PacksUpdatesCommand -> pure (unsupportedCommand "packs updates")
   PacksUpdateCommand pack -> pure (unsupportedCommand ("packs update " <> pack))
@@ -320,6 +323,129 @@ unsupportedCommand detail =
           [RecoveryAction "implementation-roadmap" "Implement this command path in a later milestone." (Just "lant help commands")]
       , appErrorDetails = ["checkpoint: v1 command-surface alignment"]
       }
+
+runPacksList :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
+runPacksList environment dryRun dataset =
+  loadProfilePackProjections environment >>= \case
+    Left problem -> pure (Left problem)
+    Right packs ->
+      pure . Right $
+        PacksResult
+          (loadedCursor dataset)
+          "list"
+          packs
+          (appPackRegistryProblem environment)
+          dryRun
+
+runPacksShow :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runPacksShow environment dryRun dataset requested =
+  loadProfilePackProjections environment >>= \case
+    Left problem -> pure (Left problem)
+    Right packs -> case filter ((== Text.strip requested) . projectedPackName) packs of
+      [] ->
+        pure . Left $
+          (appError NotFound "The requested Pack is not installed in this profile.")
+            { appErrorSubject = Just (Text.strip requested)
+            , appErrorRecovery = [RecoveryAction "list-packs" "Inspect exact installed Pack names." (Just "lant packs list")]
+            }
+      [pack] -> pure . Right $ PacksResult (loadedCursor dataset) "show" [pack] (appPackRegistryProblem environment) dryRun
+      _ ->
+        pure . Left $
+          (appError Conflict "Installed Pack names are not unique.")
+            { appErrorSubject = Just (Text.strip requested)
+            , appErrorRecovery = [RecoveryAction "diagnose" "Inspect the profile configuration before using Pack components." (Just "lant doctor")]
+            }
+
+loadProfilePackProjections :: AppEnv -> IO (Either AppError [PackProjection])
+loadProfilePackProjections environment = do
+  roots <- Profile.resolveXdgRoots
+  let profile = actorProfile (appActor environment)
+  Profile.loadProfile roots profile >>= \case
+    Left problem -> pure (Left problem)
+    Right (paths, _, _, _, integrations) -> case mkProfileScope profile of
+      Left problem -> pure (Left problem)
+      Right scope -> do
+        now <- appNow environment
+        loadStandardPackAuthorization now scope >>= \case
+          Left problem -> pure (Left problem)
+          Right standard -> do
+            installed <- traverse (inspectConfiguredPack paths (appPackRegistryProblem environment)) (Map.elems (Profile.installedComponents integrations))
+            pure (Right (packProjection (appPackRegistryProblem environment) standard : installed))
+
+inspectConfiguredPack :: Profile.ProfilePaths -> Maybe AppError -> PackPin -> IO PackProjection
+inspectConfiguredPack paths registryProblem pin = do
+  let identity = pinArtifact pin
+      fallback problem =
+        PackProjection
+          { projectedPackName = artifactName identity
+          , projectedPackDisplayName = artifactName identity
+          , projectedPackPublisher = artifactPublisher identity
+          , projectedPackVersion = artifactVersion identity
+          , projectedPackTrustClass = pinTrustText (pinTrustOrigin pin)
+          , projectedPackStatus = "unavailable"
+          , projectedPackArchiveDigest = artifactArchiveDigest identity
+          , projectedPackSignerFingerprint = pinSignerFingerprint pin
+          , projectedPackComponents =
+              [ PackComponentProjection component "unknown" True [] [] [] []
+              | component <- Set.toAscList (pinEnabledComponents pin)
+              ]
+          , projectedPackProblem = Just problem
+          }
+  inspectStoredPack (PackStoreConfig (Profile.packStoreDirectory paths)) (artifactArchiveDigest identity) >>= \case
+    Left problem -> pure (fallback problem)
+    Right authenticated
+      | authenticatedPackIdentity authenticated /= identity || authenticatedSignerFingerprint authenticated /= pinSignerFingerprint pin ->
+          pure (fallback (appError CorruptData "The configured Pack pin does not match the stored signed archive."))
+      | otherwise -> pure (authenticatedPackProjection registryProblem pin authenticated)
+
+packProjection :: Maybe AppError -> ExecutionAuthorizedPack -> PackProjection
+packProjection registryProblem authorized =
+  let authenticated = executionAuthorizedPack authorized
+      pin = executionAuthorizedPin authorized
+   in authenticatedPackProjection registryProblem pin authenticated
+
+authenticatedPackProjection :: Maybe AppError -> PackPin -> AuthenticatedPack -> PackProjection
+authenticatedPackProjection registryProblem pin authenticated =
+  let manifest = structurallyValidManifest (authenticatedStructuralPack authenticated)
+      enabled = pinEnabledComponents pin
+   in PackProjection
+        { projectedPackName = packName manifest
+        , projectedPackDisplayName = packDisplayName manifest
+        , projectedPackPublisher = packPublisher manifest
+        , projectedPackVersion = packVersion manifest
+        , projectedPackTrustClass = pinTrustText (pinTrustOrigin pin)
+        , projectedPackStatus = maybe "enabled" (const "unavailable") registryProblem
+        , projectedPackArchiveDigest = artifactArchiveDigest (authenticatedPackIdentity authenticated)
+        , projectedPackSignerFingerprint = authenticatedSignerFingerprint authenticated
+        , projectedPackComponents = componentProjection enabled <$> packComponents manifest
+        , projectedPackProblem = Nothing
+        }
+
+componentProjection :: Set.Set Text -> PackComponent -> PackComponentProjection
+componentProjection enabled component =
+  let common = componentCommon component
+      permissions = case component of
+        DeclarativeComponent _ _ -> Nothing
+        ExecutableComponent _ _ declared -> Just declared
+   in PackComponentProjection
+        { projectedPackComponentId = componentId common
+        , projectedPackComponentKind = componentKindText (componentKind common)
+        , projectedPackComponentEnabled = componentId common `Set.member` enabled
+        , projectedPackComponentHttpHosts =
+            maybe [] (Set.toAscList . Set.fromList . fmap httpPermissionHost . permissionHttp) permissions
+        , projectedPackComponentCredentialSchemes =
+            maybe [] (Set.toAscList . Set.fromList . fmap (credentialSchemeText . credentialSlotScheme) . permissionCredentialSlots) permissions
+        , projectedPackComponentEffectPurposes =
+            maybe [] (fmap effectPermissionText . permissionEffectPurposes) permissions
+        , projectedPackComponentHostCapabilities =
+            maybe [] (fmap hostCapabilityText . permissionHostCapabilities) permissions
+        }
+
+pinTrustText :: PinTrustOrigin -> Text
+pinTrustText = \case
+  PinBuiltIn -> "built in"
+  PinVerifiedOfficial _ -> "verified official"
+  PinTrustedPublisher -> "trusted publisher"
 
 runDoctor :: AppEnv -> Bool -> (Integer -> IO ()) -> IO (Either AppError CommandResult)
 runDoctor environment dryRun progress =
@@ -1323,31 +1449,34 @@ runReturnToIdle environment dryRun dataset maybeReference =
 
 runImport :: AppEnv -> Bool -> LoadedDataset -> Text -> SourceMode -> Bool -> IO (Either AppError CommandResult)
 runImport environment dryRun dataset source mode eraseAfterImport =
-  importPortPreflight (appImportPort environment) source mode >>= \case
-    Left problem -> pure (Left problem)
-    Right imported ->
-      case validateImportCleanupRequest mode eraseAfterImport preflight of
+  case appPackRegistryProblem environment of
+    Just problem -> pure (Left problem)
+    Nothing ->
+      importPortPreflight (appImportPort environment) source mode >>= \case
         Left problem -> pure (Left problem)
-        Right () -> do
-          identity <- appAllocateUUID environment
-          now <- appZonedNow environment
-          let state = loadedState dataset
-              cursor = loadedCursor dataset
-              envelope =
-                makeImportPreflightEnvelope
-                  identity
-                  cursor
-                  (statePreconditionHash state)
-                  now
-                  state
-                  (actorProfile (appActor environment))
-                  (importReadSourceReference imported)
-                  eraseAfterImport
-                  preflight
-          saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
-          pure (Right (NextResult cursor envelope dryRun))
-     where
-      preflight = importReadPreflight imported
+        Right imported ->
+          case validateImportCleanupRequest mode eraseAfterImport preflight of
+            Left problem -> pure (Left problem)
+            Right () -> do
+              identity <- appAllocateUUID environment
+              now <- appZonedNow environment
+              let state = loadedState dataset
+                  cursor = loadedCursor dataset
+                  envelope =
+                    makeImportPreflightEnvelope
+                      identity
+                      cursor
+                      (statePreconditionHash state)
+                      now
+                      state
+                      (actorProfile (appActor environment))
+                      (importReadSourceReference imported)
+                      eraseAfterImport
+                      preflight
+              saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+              pure (Right (NextResult cursor envelope dryRun))
+         where
+          preflight = importReadPreflight imported
 
 validateImportCleanupRequest :: SourceMode -> Bool -> SourcePreflight -> Either AppError ()
 validateImportCleanupRequest mode eraseAfterImport preflight
@@ -1367,41 +1496,44 @@ validateImportCleanupRequest mode eraseAfterImport preflight
 
 runExport :: AppEnv -> Bool -> LoadedDataset -> Text -> Maybe Text -> Maybe FilePath -> IO (Either AppError CommandResult)
 runExport environment dryRun dataset exporter requestedScope outputPath =
-  case resolveExportScope (loadedState dataset) requestedScope of
-    Left problem -> pure (Left problem)
-    Right scope -> do
-      now <- appNow environment
-      runExportHost
-        (appExportPort environment)
-        dryRun
-        now
-        (loadedCursor dataset)
-        (loadedState dataset)
-        exporter
-        scope
-        outputPath
-        >>= \case
-          Left problem -> pure (Left problem)
-          Right result -> do
-            let artifact = exportHostArtifact result
-                stdoutBytes =
-                  if isNothing (exportHostDestination result) && not dryRun
-                    then Just (exportArtifactBytes artifact)
-                    else Nothing
-            pure . Right $
-              ExportResult
-                (loadedCursor dataset)
-                (exportHostDescriptor result)
-                (exportHostScopeLabel result)
-                (exportArtifactMediaType artifact)
-                (exportArtifactSuggestedFilename artifact)
-                (exportHostDestination result)
-                (ByteString.length (exportArtifactBytes artifact))
-                (exportHostDigest result)
-                (exportArtifactWarnings artifact)
-                (exportArtifactMetadata artifact)
-                stdoutBytes
-                dryRun
+  case appPackRegistryProblem environment of
+    Just problem -> pure (Left problem)
+    Nothing ->
+      case resolveExportScope (loadedState dataset) requestedScope of
+        Left problem -> pure (Left problem)
+        Right scope -> do
+          now <- appNow environment
+          runExportHost
+            (appExportPort environment)
+            dryRun
+            now
+            (loadedCursor dataset)
+            (loadedState dataset)
+            exporter
+            scope
+            outputPath
+            >>= \case
+              Left problem -> pure (Left problem)
+              Right result -> do
+                let artifact = exportHostArtifact result
+                    stdoutBytes =
+                      if isNothing (exportHostDestination result) && not dryRun
+                        then Just (exportArtifactBytes artifact)
+                        else Nothing
+                pure . Right $
+                  ExportResult
+                    (loadedCursor dataset)
+                    (exportHostDescriptor result)
+                    (exportHostScopeLabel result)
+                    (exportArtifactMediaType artifact)
+                    (exportArtifactSuggestedFilename artifact)
+                    (exportHostDestination result)
+                    (ByteString.length (exportArtifactBytes artifact))
+                    (exportHostDigest result)
+                    (exportArtifactWarnings artifact)
+                    (exportArtifactMetadata artifact)
+                    stdoutBytes
+                    dryRun
 
 resolveExportScope :: State -> Maybe Text -> Either AppError ExportScope
 resolveExportScope _ Nothing = Right ExportWholeDataset

@@ -2,6 +2,7 @@ module LittleAnt.Pack.Store (
   PackStoreConfig (..),
   StoredPackArtifact (..),
   packArchivePath,
+  inspectStoredPack,
   storeAuthorizedPack,
   loadPinnedPack,
 )
@@ -104,6 +105,13 @@ loadPinnedPack config now scope policy pin = handlePackStoreIo $ do
           structural <- validatePackArchive bytes
           authenticated <- authenticatePack structural
           authorizePinnedPackExecution now scope policy pin authenticated
+
+inspectStoredPack :: PackStoreConfig -> Text -> IO (Either AppError AuthenticatedPack)
+inspectStoredPack config digest = handlePackStoreIo $ do
+  let path = packArchivePath config digest
+  tryPackStore $ do
+    bytes <- verifyStoredFile path digest
+    pure (validatePackArchive bytes >>= authenticatePack)
 
 ensurePackStore :: PackStoreConfig -> IO ()
 ensurePackStore config = do

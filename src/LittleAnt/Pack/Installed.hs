@@ -1,5 +1,6 @@
 module LittleAnt.Pack.Installed (
   OfficialCatalogAuthority (..),
+  loadProfileAuthorizedPacks,
   loadProfilePackRegistry,
 )
 where
@@ -25,6 +26,11 @@ data OfficialCatalogAuthority
 
 loadProfilePackRegistry :: UTCTime -> ProfileScope -> ProfilePaths -> IntegrationsConfig -> OfficialCatalogAuthority -> IO (Either AppError PackRegistry)
 loadProfilePackRegistry now scope paths integrations authority = do
+  loadProfileAuthorizedPacks now scope paths integrations authority
+    >>= pure . (>>= buildPackRegistry scope)
+
+loadProfileAuthorizedPacks :: UTCTime -> ProfileScope -> ProfilePaths -> IntegrationsConfig -> OfficialCatalogAuthority -> IO (Either AppError [ExecutionAuthorizedPack])
+loadProfileAuthorizedPacks now scope paths integrations authority = do
   standard <- loadStandardPackAuthorization now scope
   policy <- loadProfileTrustPolicy now paths integrations authority
   case (standard, policy) of
@@ -32,9 +38,7 @@ loadProfilePackRegistry now scope paths integrations authority = do
     (_, Left problem) -> pure (Left problem)
     (Right builtIn, Right trusted) -> do
       configured <- loadConfiguredPacks now scope paths trusted (Map.toAscList (installedComponents integrations))
-      pure $ do
-        installed <- configured
-        buildPackRegistry scope (builtIn : installed)
+      pure ((builtIn :) <$> configured)
 
 loadProfileTrustPolicy :: UTCTime -> ProfilePaths -> IntegrationsConfig -> OfficialCatalogAuthority -> IO (Either AppError PackTrustPolicy)
 loadProfileTrustPolicy now paths integrations = \case

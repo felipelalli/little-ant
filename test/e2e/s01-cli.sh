@@ -39,6 +39,32 @@ case "$csv_output" in
   *) echo "the built-in CSV exporter was not available through the production environment" >&2; exit 1 ;;
 esac
 
+packs_json="$(lant_at "$profile_root" --json packs list)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+assert value["schema"] == "little-ant/packs@1"
+assert value["action"] == "list"
+assert "dry_run" not in value
+assert len(value["packs"]) == 1
+pack=value["packs"][0]
+assert pack["name"] == "org.littleant.standard"
+assert pack["trust"] == "built in"
+assert pack["status"] == "enabled"
+assert len(pack["components"]) == 9
+' <<<"$packs_json"
+
+pack_show_json="$(lant_at "$profile_root" --json packs show org.littleant.standard)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+assert value["action"] == "show"
+pack=value["packs"][0]
+assert len(pack["archive_sha256"]) == 64
+assert len(pack["signer_fingerprint"]) == 64
+assert all(component["enabled"] for component in pack["components"])
+' <<<"$pack_show_json"
+
 taskjuggler_output="$test_root/little-ant.tjp"
 lant_at "$profile_root" export taskjuggler --output "$taskjuggler_output" >/dev/null
 grep -q '^# LANT-MANIFEST-SHA256: ' "$taskjuggler_output"
