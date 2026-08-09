@@ -161,6 +161,7 @@ support them honestly.
   $XDG_CONFIG_HOME/lant/profiles/<name>/calibration.yaml
   $XDG_CONFIG_HOME/lant/profiles/<name>/integrations.yaml
   $XDG_DATA_HOME/lant/vaults/<name>.age
+  $XDG_DATA_HOME/lant/packs/sha256/<archive-sha256>.lantpack
   $XDG_STATE_HOME/lant/profiles/<name>/
   $XDG_RUNTIME_DIR/lant/<name>/vault.sock
   ```

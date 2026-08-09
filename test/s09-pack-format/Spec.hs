@@ -5,7 +5,7 @@ import Crypto.PubKey.Ed25519 qualified as Ed25519
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KeyMap
-import Data.Bits (xor)
+import Data.Bits (xor, (.&.))
 import Data.ByteArray (convert)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
@@ -18,9 +18,17 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
 import Data.Word (Word8)
+import LittleAnt.Id (UUIDv7, parseUUIDv7)
 import LittleAnt.Pack.Format
+import LittleAnt.Pack.Registry
+import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
+import LittleAnt.Profile
 import LittleAnt.Store (sha256Hex)
+import System.Directory hiding (emptyPermissions)
+import System.FilePath ((</>))
+import System.IO.Temp (withSystemTempDirectory)
+import System.Posix.Files
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -43,6 +51,10 @@ main =
       , testCase "untrusting a community publisher disables its existing pin" communityUntrust
       , testCase "pins cannot authorize another artifact or undeclared component" pinConfinement
       , testCase "trust policy rejects release equivocation" trustPolicyEquivocation
+      , testCase "content-addressed store is private, idempotent, and reverified on load" packStoreLifecycle
+      , testCase "stored Pack tampering and path substitution fail closed" packStoreTampering
+      , testCase "registry accepts only authorized enabled components without collisions" packRegistryConfinement
+      , testCase "integrations YAML round-trips exact typed pins and publisher keys" typedIntegrationsRoundTrip
       ]
 
 canonicalRoundTrip :: Assertion
@@ -272,6 +284,94 @@ trustPolicyEquivocation = do
   assertLeft "official equivocation" (assessPackTrust fixtureNow officialPolicy authenticated)
   assertLeft "built-in equivocation" (assessPackTrust fixtureNow builtInPolicy authenticated)
 
+packStoreLifecycle :: Assertion
+packStoreLifecycle = withSystemTempDirectory "lant-pack-store" $ \root -> do
+  (_, authenticated) <- signedFixture fixtureManifest
+  scope <- assertRight (mkProfileScope "default")
+  let policy = emptyTrustPolicy{trustCommunityPublishers = Set.singleton (communityTrust authenticated)}
+      config = PackStoreConfig (root </> "packs" </> "sha256")
+  install <- assertRight (authorizePackInstall fixtureNow scope policy (Set.singleton "tree") authenticated)
+  first <- storeAuthorizedPack config install >>= assertRight
+  second <- storeAuthorizedPack config install >>= assertRight
+  first @?= second
+  storedPackArchiveDigest first @?= artifactArchiveDigest (authenticatedPackIdentity authenticated)
+  status <- getFileStatus (storedPackPath first)
+  fileMode status .&. 0o077 @?= 0
+  execution <- loadPinnedPack config fixtureNow scope policy (installAuthorizedPin install) >>= assertRight
+  registry <- assertRight (buildPackRegistry scope [execution])
+  component <- assertRight (lookupPackComponent "tree" registry)
+  Map.keys (registeredComponentPayload component) @?= ["config.schema.json", "main.lua"]
+
+packStoreTampering :: Assertion
+packStoreTampering = withSystemTempDirectory "lant-pack-tamper" $ \root -> do
+  (archive, authenticated) <- signedFixture fixtureManifest
+  scope <- assertRight (mkProfileScope "default")
+  let policy = emptyTrustPolicy{trustCommunityPublishers = Set.singleton (communityTrust authenticated)}
+      config = PackStoreConfig (root </> "packs" </> "sha256")
+  install <- assertRight (authorizePackInstall fixtureNow scope policy (Set.singleton "tree") authenticated)
+  stored <- storeAuthorizedPack config install >>= assertRight
+  ByteString.writeFile (storedPackPath stored) (archive <> "x")
+  setFileMode (storedPackPath stored) 0o600
+  tampered <- loadPinnedPack config fixtureNow scope policy (installAuthorizedPin install)
+  assertLeft "tampered store" tampered
+
+  removeFile (storedPackPath stored)
+  let target = root </> "elsewhere.lantpack"
+  ByteString.writeFile target archive
+  setFileMode target 0o600
+  createSymbolicLink target (storedPackPath stored)
+  substituted <- loadPinnedPack config fixtureNow scope policy (installAuthorizedPin install)
+  assertLeft "symlink substitution" substituted
+
+  let collisionConfig = PackStoreConfig (root </> "collision" </> "sha256")
+      collisionPath = packArchivePath collisionConfig (artifactArchiveDigest (authenticatedPackIdentity authenticated))
+  createDirectoryIfMissing True (packStoreRoot collisionConfig)
+  setFileMode (packStoreRoot collisionConfig) 0o700
+  ByteString.writeFile collisionPath "not the authorized archive"
+  setFileMode collisionPath 0o600
+  collision <- storeAuthorizedPack collisionConfig install
+  assertLeft "preexisting digest collision" collision
+  ByteString.readFile collisionPath >>= (@?= "not the authorized archive")
+
+packRegistryConfinement :: Assertion
+packRegistryConfinement = do
+  (_, firstPack) <- signedFixture fixtureManifest
+  (_, secondPack) <- signedFixture fixtureManifest{packName = "org.example.other", packDisplayName = "Other Pack"}
+  scope <- assertRight (mkProfileScope "default")
+  let policy = emptyTrustPolicy{trustCommunityPublishers = Set.singleton (communityTrust firstPack)}
+  firstInstall <- assertRight (authorizePackInstall fixtureNow scope policy (Set.singleton "tree") firstPack)
+  secondInstall <- assertRight (authorizePackInstall fixtureNow scope policy (Set.singleton "tree") secondPack)
+  firstExecution <- assertRight (authorizePinnedPackExecution fixtureNow scope policy (installAuthorizedPin firstInstall) firstPack)
+  secondExecution <- assertRight (authorizePinnedPackExecution fixtureNow scope policy (installAuthorizedPin secondInstall) secondPack)
+  assertLeft "component collision" (buildPackRegistry scope [firstExecution, secondExecution])
+  otherScope <- assertRight (mkProfileScope "work")
+  assertLeft "profile authority" (buildPackRegistry otherScope [firstExecution])
+
+typedIntegrationsRoundTrip :: Assertion
+typedIntegrationsRoundTrip = withSystemTempDirectory "lant-pack-profile" $ \root -> do
+  (_, authenticated) <- signedFixture fixtureManifest
+  scope <- assertRight (mkProfileScope "default")
+  let policy = emptyTrustPolicy{trustCommunityPublishers = Set.singleton (communityTrust authenticated)}
+  install <- assertRight (authorizePackInstall fixtureNow scope policy (Set.singleton "tree") authenticated)
+  let roots = XdgRoots (root </> "config") (root </> "data") (root </> "state") (root </> "runtime")
+  paths <- createProfile roots "default" fixtureProfileUuid >>= assertRight
+  let integrations =
+        IntegrationsConfig
+          { installedComponents = Map.singleton (artifactName (authenticatedPackIdentity authenticated)) (installAuthorizedPin install)
+          , providerAccounts = Map.empty
+          , credentialBindings = Map.empty
+          , deliveryBindings = Map.empty
+          , trustedPublishers = Set.singleton (communityTrust authenticated)
+          }
+  writeIntegrationsConfig paths integrations >>= assertRight
+  (_, _, _, _, loaded) <- loadProfile roots "default" >>= assertRight
+  loaded @?= integrations
+  packStoreDirectory paths @?= root </> "data" </> "lant" </> "packs" </> "sha256"
+  let invalid = integrations{installedComponents = Map.singleton "org.example.wrong" (installAuthorizedPin install)}
+  writeIntegrationsConfig paths invalid >>= assertLeft "invalid pin key"
+  (_, _, _, _, unchanged) <- loadProfile roots "default" >>= assertRight
+  unchanged @?= integrations
+
 signedFixture :: PackManifest -> IO (ByteString, AuthenticatedPack)
 signedFixture manifest = do
   manifestBytes <- assertRight (encodePackManifest manifest)
@@ -338,6 +438,9 @@ officialGrant authenticated =
 
 fixtureNow :: UTCTime
 fixtureNow = UTCTime (fromGregorian 2026 8 8) (secondsToDiffTime (12 * 60 * 60))
+
+fixtureProfileUuid :: UUIDv7
+fixtureProfileUuid = either (error . Text.unpack) id (parseUUIDv7 "019fe436-5e25-7ee2-9eaf-eff23cfb54fc")
 
 cryptoPassed :: CryptoFailable value -> value
 cryptoPassed = \case

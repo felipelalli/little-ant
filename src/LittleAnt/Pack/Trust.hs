@@ -11,6 +11,7 @@ module LittleAnt.Pack.Trust (
   OfficialCatalogFreshness (..),
   OfficialReleaseGrant (..),
   TrustedCommunityPublisher (..),
+  validateTrustedCommunityPublisher,
   PackTrustPolicy (..),
   PackTrustAssessment (..),
   assessPackTrust,
@@ -19,6 +20,7 @@ module LittleAnt.Pack.Trust (
   mkProfileScope,
   PinTrustOrigin (..),
   PackPin (..),
+  validatePackPin,
   InstallAuthorizedPack,
   installAuthorizedPack,
   installAuthorizedScope,
@@ -36,6 +38,10 @@ where
 import Control.Monad (unless, when)
 import Crypto.Error (CryptoFailable (..))
 import Crypto.PubKey.Ed25519 qualified as Ed25519
+import Data.Aeson
+import Data.Aeson.Key qualified as Key
+import Data.Aeson.KeyMap qualified as KeyMap
+import Data.Aeson.Types (Parser)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Base64.URL qualified as Base64Url
@@ -162,6 +168,81 @@ data ExecutionAuthorizedPack = ExecutionAuthorizedPack
   , executionAuthorizedPin :: PackPin
   }
   deriving stock (Eq, Show)
+
+instance ToJSON PackArtifactIdentity where
+  toJSON identity =
+    object
+      [ "publisher" .= artifactPublisher identity
+      , "name" .= artifactName identity
+      , "version" .= artifactVersion identity
+      , "manifest_sha256" .= artifactManifestDigest identity
+      , "archive_sha256" .= artifactArchiveDigest identity
+      ]
+
+instance FromJSON PackArtifactIdentity where
+  parseJSON = withObject "PackArtifactIdentity" $ \fields -> do
+    rejectUnknown fields ["publisher", "name", "version", "manifest_sha256", "archive_sha256"]
+    PackArtifactIdentity
+      <$> fields .: "publisher"
+      <*> fields .: "name"
+      <*> fields .: "version"
+      <*> fields .: "manifest_sha256"
+      <*> fields .: "archive_sha256"
+
+instance ToJSON TrustedCommunityPublisher where
+  toJSON publisher =
+    object
+      [ "publisher" .= communityPublisher publisher
+      , "public_key" .= communityPublicKey publisher
+      , "fingerprint" .= communityKeyFingerprint publisher
+      ]
+
+instance FromJSON TrustedCommunityPublisher where
+  parseJSON = withObject "TrustedCommunityPublisher" $ \fields -> do
+    rejectUnknown fields ["publisher", "public_key", "fingerprint"]
+    publisher <-
+      TrustedCommunityPublisher
+        <$> fields .: "publisher"
+        <*> fields .: "public_key"
+        <*> fields .: "fingerprint"
+    either (fail . Text.unpack . appErrorMessage) (const (pure publisher)) (validateTrustedCommunityPublisher publisher)
+
+instance ToJSON PinTrustOrigin where
+  toJSON = \case
+    PinBuiltIn -> object ["class" .= ("built_in" :: Text)]
+    PinVerifiedOfficial sequenceNumber -> object ["class" .= ("verified_official" :: Text), "catalog_sequence" .= sequenceNumber]
+    PinTrustedPublisher -> object ["class" .= ("trusted_publisher" :: Text)]
+
+instance FromJSON PinTrustOrigin where
+  parseJSON = withObject "PinTrustOrigin" $ \fields -> do
+    trustClass <- fields .: "class"
+    case (trustClass :: Text) of
+      "built_in" -> rejectUnknown fields ["class"] >> pure PinBuiltIn
+      "verified_official" -> do
+        rejectUnknown fields ["class", "catalog_sequence"]
+        PinVerifiedOfficial <$> fields .: "catalog_sequence"
+      "trusted_publisher" -> rejectUnknown fields ["class"] >> pure PinTrustedPublisher
+      _ -> fail "unknown Pack pin trust class"
+
+instance ToJSON PackPin where
+  toJSON pin =
+    object
+      [ "artifact" .= pinArtifact pin
+      , "signer_fingerprint" .= pinSignerFingerprint pin
+      , "trust" .= pinTrustOrigin pin
+      , "enabled_components" .= Set.toAscList (pinEnabledComponents pin)
+      ]
+
+instance FromJSON PackPin where
+  parseJSON = withObject "PackPin" $ \fields -> do
+    rejectUnknown fields ["artifact", "signer_fingerprint", "trust", "enabled_components"]
+    pin <-
+      PackPin
+        <$> fields .: "artifact"
+        <*> fields .: "signer_fingerprint"
+        <*> fields .: "trust"
+        <*> (Set.fromList <$> fields .: "enabled_components")
+    either (fail . Text.unpack . appErrorMessage) (const (pure pin)) (validatePackPin pin)
 
 authenticatePack :: StructurallyValidPack -> Either AppError AuthenticatedPack
 authenticatePack structural = do
@@ -324,7 +405,7 @@ validateTrustPolicy policy = do
     (Just sequenceNumber, Just _) -> when (sequenceNumber < 0) (Left (invalid "The official catalog sequence cannot be negative." []))
     _ -> Left (invalid "Official catalog sequence and expiry must be present together." [])
   mapM_ validateArtifactIdentity builtInArtifacts
-  mapM_ validateCommunityPublisher (trustCommunityPublishers policy)
+  mapM_ validateTrustedCommunityPublisher (trustCommunityPublishers policy)
   mapM_ validateOfficialGrant officialGrants
   unless
     (uniqueOn artifactReleaseKey builtInArtifacts)
@@ -347,13 +428,25 @@ validateArtifactIdentity identity = do
   validateDigest "A trusted Pack manifest digest" (artifactManifestDigest identity)
   validateDigest "A trusted Pack archive digest" (artifactArchiveDigest identity)
 
-validateCommunityPublisher :: TrustedCommunityPublisher -> Either AppError ()
-validateCommunityPublisher publisher = do
+validateTrustedCommunityPublisher :: TrustedCommunityPublisher -> Either AppError ()
+validateTrustedCommunityPublisher publisher = do
   validatePublisherBinding
     (communityPublisher publisher)
     (communityPublicKey publisher)
     (communityKeyFingerprint publisher)
   unless (validReverseDns (communityPublisher publisher)) (Left (trustDataProblem "A trusted community publisher ID is invalid." []))
+
+validatePackPin :: PackPin -> Either AppError ()
+validatePackPin pin = do
+  validateArtifactIdentity (pinArtifact pin)
+  validateDigest "A Pack pin signer fingerprint" (pinSignerFingerprint pin)
+  when (Set.null (pinEnabledComponents pin)) (Left (trustDataProblem "A Pack pin must enable at least one component." []))
+  mapM_
+    (\component -> unless (validComponentId component) (Left (trustDataProblem "A Pack pin contains an invalid component ID." [component])))
+    (pinEnabledComponents pin)
+  case pinTrustOrigin pin of
+    PinVerifiedOfficial sequenceNumber -> when (sequenceNumber < 0) (Left (trustDataProblem "A Pack pin has a negative official catalog sequence." []))
+    _ -> pure ()
 
 validateOfficialGrant :: OfficialReleaseGrant -> Either AppError ()
 validateOfficialGrant grant = do
@@ -460,6 +553,14 @@ validDnsLabel label =
  where
   isAlphaNumeric character = isAsciiLower character || isDigit character
 
+validComponentId :: Text -> Bool
+validComponentId value = case Text.uncons value of
+  Nothing -> False
+  Just (first, rest) ->
+    Text.length value <= 64
+      && isAsciiLower first
+      && Text.all (\character -> isAsciiLower character || isDigit character || character `elem` ("._-" :: String)) rest
+
 artifactReleaseKey :: PackArtifactIdentity -> (Text, Text, Text)
 artifactReleaseKey identity = (artifactPublisher identity, artifactName identity, artifactVersion identity)
 
@@ -488,3 +589,9 @@ catalogExpiredProblem assessment =
         maybe [] (pure . ("accepted catalog sequence " <>) . Text.pack . show) (assessedOfficialCatalogSequence assessment)
     , appErrorRecovery = [RecoveryAction "packs.refresh" "Refresh the official Pack catalog" (Just "lant packs refresh")]
     }
+
+rejectUnknown :: Object -> [Text] -> Parser ()
+rejectUnknown fields allowed =
+  let accepted = Set.fromList allowed
+      unknown = filter (`Set.notMember` accepted) (Key.toText <$> KeyMap.keys fields)
+   in unless (null unknown) (fail ("unknown keys: " <> Text.unpack (Text.intercalate ", " unknown)))

@@ -220,6 +220,23 @@ already accepted pin. No generic `trusted Pack` token crosses these
 operations, and every capability is rechecked against locally known key and
 archive revocations before use.
 
+The content-addressed store path is
+`$XDG_DATA_HOME/lant/packs/sha256/<archive-sha256>.lantpack`. Store files are
+private regular files and are never replaced in place. Every load checks the
+filename digest, reconstructs the canonical archive, authenticates its exact
+manifest, and re-evaluates the selected profile pin before a component enters
+the registry. A symlink, non-private file, digest mismatch, malformed archive,
+invalid signature, revoked signer/archive, or mismatched pin fails closed.
+
+Within `little-ant/integrations@1`, `installed_components` is an object keyed
+by exact Pack name. Each value contains exactly `artifact`,
+`signer_fingerprint`, `trust`, and `enabled_components`. `artifact` contains
+exactly `publisher`, `name`, `version`, `manifest_sha256`, and
+`archive_sha256`; `trust` contains `class` and, only for `verified_official`,
+`catalog_sequence`. `trusted_publishers` is an array of objects containing
+exactly `publisher`, `public_key`, and `fingerprint`. Pins and approved keys
+are validated while reading and before an atomic configuration write.
+
 There is no background or automatic update. `lant packs updates` is read-only.
 `lant packs update` downloads and verifies one candidate, then shows signer,
 version/digests, component additions/removals, permission and host-allowlist

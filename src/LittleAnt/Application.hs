@@ -666,6 +666,7 @@ pathFacts paths =
     , ("calibration", Text.pack (Profile.calibrationFile paths))
     , ("integrations", Text.pack (Profile.integrationsFile paths))
     , ("vault", Text.pack (Profile.vaultFile paths))
+    , ("pack_store", Text.pack (Profile.packStoreDirectory paths))
     , ("state", Text.pack (Profile.profileStateDirectory paths))
     , ("dataset", Text.pack (Profile.datasetDirectory paths))
     , ("vault_socket", Text.pack (Profile.vaultSocket paths))

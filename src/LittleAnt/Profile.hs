@@ -11,18 +11,20 @@ module LittleAnt.Profile (
   createProfile,
   listProfiles,
   loadProfile,
+  writeIntegrationsConfig,
   readSelectedProfile,
   writeSelectedProfile,
 )
 where
 
-import Control.Exception (IOException, bracketOnError, catch, onException)
+import Control.Exception (IOException, bracketOnError, catch)
 import Control.Monad (unless, when)
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Aeson.Types (Parser)
 import Data.ByteString qualified as ByteString
+import Data.Char (isAsciiLower, isDigit)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
@@ -31,6 +33,7 @@ import Data.Text qualified as Text
 import Data.Yaml qualified as Yaml
 import LittleAnt.Error
 import LittleAnt.Id
+import LittleAnt.Pack.Trust (PackArtifactIdentity (artifactName), PackPin (..), TrustedCommunityPublisher (..), validatePackPin, validateTrustedCommunityPublisher)
 import LittleAnt.Store (StoreConfig (..), initializeDataset)
 import System.Directory hiding (isSymbolicLink)
 import System.Environment (lookupEnv)
@@ -56,6 +59,7 @@ data ProfilePaths = ProfilePaths
   , calibrationFile :: FilePath
   , integrationsFile :: FilePath
   , vaultFile :: FilePath
+  , packStoreDirectory :: FilePath
   , profileStateDirectory :: FilePath
   , datasetDirectory :: FilePath
   , vaultSocket :: FilePath
@@ -86,11 +90,11 @@ newtype CalibrationConfig = CalibrationConfig
   deriving stock (Eq, Show)
 
 data IntegrationsConfig = IntegrationsConfig
-  { installedComponents :: Map Text Text
+  { installedComponents :: Map Text PackPin
   , providerAccounts :: Map Text Text
   , credentialBindings :: Map Text Text
   , deliveryBindings :: Map Text Text
-  , trustedPublishers :: Map Text Text
+  , trustedPublishers :: Set.Set TrustedCommunityPublisher
   }
   deriving stock (Eq, Show)
 
@@ -109,14 +113,14 @@ resolveXdgRoots = do
       _ -> pure fallback
 
 validProfileName :: Text -> Bool
-validProfileName name =
-  let characters = Text.unpack name
-   in not (null characters)
-        && length characters <= 32
-        && isLowerDigit (head characters)
-        && all (\character -> isLowerDigit character || character == '-') characters
+validProfileName name = case Text.uncons name of
+  Nothing -> False
+  Just (first, rest) ->
+    Text.length name <= 32
+      && isLowerDigit first
+      && Text.all (\character -> isLowerDigit character || character == '-') rest
  where
-  isLowerDigit character = character >= 'a' && character <= 'z' || character >= '0' && character <= '9'
+  isLowerDigit character = isAsciiLower character || isDigit character
 
 profilePaths :: XdgRoots -> Text -> Either AppError ProfilePaths
 profilePaths roots name
@@ -138,6 +142,7 @@ profilePaths roots name
               , calibrationFile = configDirectory </> "calibration.yaml"
               , integrationsFile = configDirectory </> "integrations.yaml"
               , vaultFile = xdgDataRoot roots </> "lant" </> "vaults" </> component <.> "age"
+              , packStoreDirectory = xdgDataRoot roots </> "lant" </> "packs" </> "sha256"
               , profileStateDirectory = stateDirectory
               , datasetDirectory = stateDirectory </> "dataset"
               , vaultSocket = xdgRuntimeRoot roots </> "lant" </> component </> "vault.sock"
@@ -245,7 +250,15 @@ factoryCalibration :: CalibrationConfig
 factoryCalibration = CalibrationConfig Map.empty
 
 factoryIntegrations :: IntegrationsConfig
-factoryIntegrations = IntegrationsConfig Map.empty Map.empty Map.empty Map.empty Map.empty
+factoryIntegrations = IntegrationsConfig Map.empty Map.empty Map.empty Map.empty Set.empty
+
+writeIntegrationsConfig :: ProfilePaths -> IntegrationsConfig -> IO (Either AppError ())
+writeIntegrationsConfig paths integrations = case validateIntegrationsConfig integrations of
+  Left problem -> pure (Left problem)
+  Right () ->
+    handleProfileIO $ do
+      atomicWrite (integrationsFile paths) (Yaml.encode integrations)
+      pure (Right ())
 
 profileValue :: ProfilePaths -> Text -> ProfileConfig
 profileValue paths name =
@@ -325,7 +338,22 @@ instance FromJSON IntegrationsConfig where
   parseJSON = withObject "IntegrationsConfig" $ \fields -> do
     rejectUnknown fields ["schema", "installed_components", "provider_accounts", "credential_bindings", "delivery_bindings", "trusted_publishers"]
     requireSchema fields "little-ant/integrations@1"
-    IntegrationsConfig <$> fields .: "installed_components" <*> fields .: "provider_accounts" <*> fields .: "credential_bindings" <*> fields .: "delivery_bindings" <*> fields .: "trusted_publishers"
+    integrations <-
+      IntegrationsConfig
+        <$> fields .: "installed_components"
+        <*> fields .: "provider_accounts"
+        <*> fields .: "credential_bindings"
+        <*> fields .: "delivery_bindings"
+        <*> (Set.fromList <$> fields .: "trusted_publishers")
+    either (fail . Text.unpack . appErrorMessage) (const (pure integrations)) (validateIntegrationsConfig integrations)
+
+validateIntegrationsConfig :: IntegrationsConfig -> Either AppError ()
+validateIntegrationsConfig integrations = do
+  mapM_ validatePackPin (installedComponents integrations)
+  mapM_ validateTrustedCommunityPublisher (trustedPublishers integrations)
+  unless
+    (all (\(name, pin) -> name == artifactName (pinArtifact pin)) (Map.toList (installedComponents integrations)))
+    (Left (appError CorruptData "An installed Pack map key must equal its signed Pack name."))
 
 requireSchema :: Object -> Text -> Parser ()
 requireSchema fields expected = do

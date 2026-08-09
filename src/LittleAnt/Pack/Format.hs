@@ -18,6 +18,7 @@ module LittleAnt.Pack.Format (
   structurallyValidSignature,
   structurallyValidManifestBytes,
   structurallyValidSignatureBytes,
+  structurallyValidArchiveBytes,
   structurallyValidPayload,
   structurallyValidManifestDigest,
   structurallyValidArchiveDigest,
@@ -167,6 +168,7 @@ data StructurallyValidPack = StructurallyValidPack
   , structurallyValidSignature :: PackSignatureDocument
   , structurallyValidManifestBytes :: ByteString
   , structurallyValidSignatureBytes :: ByteString
+  , structurallyValidArchiveBytes :: ByteString
   , structurallyValidPayload :: Map Text ByteString
   , structurallyValidManifestDigest :: Text
   , structurallyValidArchiveDigest :: Text
@@ -357,6 +359,7 @@ validatePackArchive archiveBytes = do
       , structurallyValidSignature = signature
       , structurallyValidManifestBytes = manifestBytes
       , structurallyValidSignatureBytes = signatureBytes
+      , structurallyValidArchiveBytes = archiveBytes
       , structurallyValidPayload = payload
       , structurallyValidManifestDigest = sha256Hex manifestBytes
       , structurallyValidArchiveDigest = sha256Hex archiveBytes

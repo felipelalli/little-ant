@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last committed baseline: **e77fdaa** (`feat(packs): verify canonical archive structure`).
-The current milestone establishes Pack signature authentication and
-operation-bound trust authority. This file stays editable between milestone
-commits.
+Last committed baseline: **e0f4f8d** (`feat(packs): bind trust to exact operations`).
+The current milestone establishes the content-addressed Pack store, typed
+profile pins, and execution-authorized component registry. This file stays
+editable between milestone commits.
 
 ## Implementation now available
 
@@ -73,6 +73,15 @@ commits.
   artifact-bound capabilities: catalog expiry blocks a new official install
   while an accepted non-revoked official pin remains executable offline, and
   untrusting a community publisher disables its pins.
+- authorized archives publish idempotently as private regular files under the
+  global XDG content-addressed store and are never overwritten. Every load
+  rechecks file type/mode, filename digest, canonical structure, Ed25519
+  authentication, exact profile pin, current trust, and revocation before
+  yielding execution authority. `integrations.yaml` now round-trips closed
+  typed Pack pins and community publisher keys atomically. The component
+  registry accepts only execution-authorized Packs, restricts payload bytes to
+  each enabled component root, rejects cross-profile authority, and fails on
+  component-ID collisions.
 
 ## Last green gate
 
@@ -88,11 +97,14 @@ source/translation/diagnostic/repair tests, including both cutover crash phases
 and the public no-default consent flow. The new S09 export suite has 7 passing
 tests for deterministic projections, stdout, dry-run, exclusive publication,
 pre-invocation target rejection, exporter failure, and registry compatibility.
-The structural and authority Pack suite has 14 passing tests for reproducible
-archives, JCS, closed schemas, component permission isolation, path ownership,
-payload integrity, canonical ZIP mutation rejection, Unicode path safety,
+The structural, authority, store, and registry Pack suite has 18 passing tests
+for reproducible archives, JCS, closed schemas, component permission
+isolation, path ownership, payload integrity, canonical ZIP mutation
+rejection, Unicode path safety,
 exact Ed25519 authentication, trust precedence, official-catalog expiry,
-community untrust, pin confinement, and release equivocation. The full
+community untrust, pin confinement, release equivocation, private/idempotent
+publication, tamper and symlink rejection, registry confinement, and typed
+profile round-trips. The full
 build, every Haskell suite, the isolated CLI end-to-end test, formatting, and
 targeted lint for the new Pack code pass. The CLI test now isolates all four
 XDG roots, so a developer's real profile cannot contaminate it. The aggregate
@@ -122,10 +134,9 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the content-addressed Pack store, exact typed profile pins,
-durable community trust/revocation state, and a read-only component registry
-that accepts only execution-authorized components. Then implement the
-fresh-process HsLua runner and ship the standard Lua tree,
+Next, implement the accepted official-catalog persistence/revocation refresh
+boundary and the fresh-process HsLua runner, then wire the execution-authorized
+registry into the export port. Ship the standard Lua tree,
 table, RFC 4180 CSV, Org, self-contained HTML, and TaskJuggler exporters through
 that boundary. Continue afterward with the Raw-first import/adapters. The
 `Corrupt history/repair` row is implemented; formal evidence registration and
