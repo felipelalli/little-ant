@@ -118,7 +118,7 @@ reinterprets the view. Neither `/importance` nor `/forecast` is an alias.
 | `/migrate` | `lant migrate --from <v0-jsonl> --into <v1-dataset>` | Produce the harmless v0 preflight plan; `--inspect`, `--build`, and `--cutover` are the only later stages. |
 | `/export` | `lant export <exporter> [--scope <reference>] [--output <new-path>]` | Run one read-only Pack exporter; bytes go to stdout unless the host creates a new output file. |
 | `/web` | `lant web` | Start the loopback-only local web mirror and display its expiring access URL. |
-| `/config` | `lant config show\|paths\|validate` | Inspect or enter the typed configuration hub; secrets remain under Vault. |
+| `/config` | `lant config show\|paths\|validate\|connect` | Inspect or enter the typed configuration hub; `connect` previews one signed provider authorization while secrets remain under Vault. |
 | `/profile` | `lant profile list\|show\|create\|use` | Inspect, create, or select one non-merging named profile. Profile removal is not a 1.0 command. |
 | `/vault` | `lant vault unlock\|lock\|inventory\|add\|update\|remove\|rotate\|backup\|diagnose` | Manage the encrypted local credential vault without exposing plaintext. |
 | `/packs` | `lant packs list\|show\|install\|updates\|update\|remove\|refresh\|trust\|untrust\|gc` | Manage verified Packs, trust, explicit catalog refresh, versions, and unreferenced archives. |

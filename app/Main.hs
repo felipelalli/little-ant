@@ -79,6 +79,7 @@ data CliCommand
   | ConfigShowCli
   | ConfigPathsCli
   | ConfigValidateCli
+  | ConfigConnectCli Text Text (Maybe Text) Text
   | VaultAgentCli Int
   | VaultStatusCli
   | VaultCreateCli (Maybe FilePath) Bool
@@ -186,6 +187,8 @@ run environment options = case optionCommand options of
   ConfigShowCli -> execute environment options ConfigShowCommand
   ConfigPathsCli -> execute environment options ConfigPathsCommand
   ConfigValidateCli -> execute environment options ConfigValidateCommand
+  ConfigConnectCli source account label clientId ->
+    execute environment options (ConfigConnectCommand source account (fromMaybe account label) clientId)
   VaultAgentCli idleSeconds -> runVaultAgentCli environment options idleSeconds
   VaultStatusCli -> runVaultStatus environment options
   VaultCreateCli backup declined -> runVaultCreate environment options backup declined
@@ -942,6 +945,17 @@ configParser =
     ( command "show" (info (pure ConfigShowCli) (progDesc "Show sparse redacted typed configuration"))
         <> command "paths" (info (pure ConfigPathsCli) (progDesc "Show all resolved configuration paths"))
         <> command "validate" (info (pure ConfigValidateCli) (progDesc "Validate all typed configuration files"))
+        <> command
+          "connect"
+          ( info
+              ( ConfigConnectCli
+                  <$> (Text.pack <$> strArgument (metavar "SOURCE"))
+                  <*> (Text.pack <$> strOption (long "account" <> metavar "NAME" <> help "Lowercase local account key"))
+                  <*> optional (Text.pack <$> strOption (long "label" <> metavar "LABEL" <> help "Human account label (defaults to the account key)"))
+                  <*> (Text.pack <$> strOption (long "client-id" <> metavar "PUBLIC-ID" <> help "Public OAuth client ID required by the signed provider authorization"))
+              )
+              (progDesc "Preview one provider account connection without importing data")
+          )
     )
 
 viewReader :: ReadM ViewDepth

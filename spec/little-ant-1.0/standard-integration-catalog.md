@@ -30,6 +30,13 @@ the ordinary no-default authority preview. Refresh does not install it, and
 the Pack receives no provider credential until a separately reviewed account
 connection binds one declared slot.
 
+For Microsoft To Do, that separate step is `lant config connect
+microsoft_todo --account <name> --client-id <public-id>`. It previews the exact
+installed Pack, public client identity, account label, and signed scopes before
+starting transient OAuth Device Authorization. A successful connection stores
+the token in the encrypted profile vault and exposes the account to the
+ordinary `/import` flow; it imports nothing by itself.
+
 Apple Reminders support is an offline import kit in the standard Pack: an
 inspectable Apple Shortcut exports reminder lists as versioned JSON, and the
 file SourceAdapter consumes those bytes. It is snapshot/migration support, not

@@ -4,6 +4,7 @@ module LittleAnt.OAuth.Device (
   validateOAuthCredentialBinding,
   oauthDeviceAuthorizationFingerprint,
   oauthDeviceClientConfigurationKey,
+  oauthDeviceRequestedScopes,
   DeviceAuthorizationPrompt (..),
   DeviceAuthorizationSession,
   deviceAuthorizationPrompt,
@@ -125,6 +126,9 @@ oauthDeviceAuthorizationFingerprint = deviceClientAuthorizationFingerprint
 
 oauthDeviceClientConfigurationKey :: OAuthDeviceClient -> Text
 oauthDeviceClientConfigurationKey = oauthDeviceClientIdConfigurationKey . deviceClientPermission
+
+oauthDeviceRequestedScopes :: OAuthDeviceClient -> Set Text
+oauthDeviceRequestedScopes = oauthDeviceScopes . deviceClientPermission
 
 beginDeviceAuthorization :: OAuthFormTransport -> UTCTime -> OAuthDeviceClient -> IO (Either AppError DeviceAuthorizationSession)
 beginDeviceAuthorization transport now client = do

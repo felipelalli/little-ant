@@ -207,6 +207,8 @@ harness root port = do
       emptyImportPort
       Nothing
       Nothing
+      Nothing
+      Nothing
 
 run :: AppEnv -> Bool -> AppCommand -> IO CommandResult
 run environment dryRun command = assertRight =<< runAppCommand environment dryRun (const (pure ())) command

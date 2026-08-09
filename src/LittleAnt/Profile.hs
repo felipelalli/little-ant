@@ -10,6 +10,8 @@ module LittleAnt.Profile (
   resolveXdgRoots,
   profilePaths,
   validProfileName,
+  validIntegrationName,
+  validateIntegrationsConfig,
   createProfile,
   listProfiles,
   loadProfile,

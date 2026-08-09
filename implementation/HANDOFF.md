@@ -5,12 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **925ca01**
-(`feat(repl): add the contextual Pack manager`). The current milestone
-publishes and compiles the production official-catalog root, exposes explicit
-signed refresh, and lets the CLI/REPL resolve one official name into the same
-canonical no-default installation consent used by local archives. This file
-stays editable between milestone commits.
+Baseline at the start of the current milestone: **e571c09**
+(`feat(packs): publish the official catalog root`). The current milestone
+connects one installed provider account through typed configuration, transient
+OAuth Device Authorization, encrypted vault custody, and the production
+provider-aware ImportPort. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -309,6 +308,22 @@ stays editable between milestone commits.
   inspects; explicit `[r]efresh catalog`, trust, and install retain distinct
   shortcuts. Accepted catalog/profile changes rebuild the long-running REPL
   environment before another adapter can run.
+- `lant config connect microsoft_todo --account <name> --client-id <public-id>`
+  now opens a sealed, no-default preview of the exact installed Pack, public
+  client identity, account, credential slot, and signed scopes. Connection is
+  typed configuration rather than a second import grammar and adopts no source
+  data.
+- acceptance reopens and revalidates the profile and signed Pack before any
+  provider request. A locked vault fails before OAuth starts and leaves the
+  same preview usable; Device Authorization state and codes remain transient,
+  while successful tokens enter the encrypted vault before the account and
+  binding are compare-and-swapped into `integrations.yaml`.
+- production source discovery now treats optional connectors as optional for a
+  clean profile, but fails a configured provider route closed when its account,
+  binding, Pack, or credential authority is invalid. Import failures remain
+  separate from Pack-manager health. After restart, a connected Microsoft To
+  Do account is exposed through the ordinary snapshot/synchronize/migrate
+  ImportPort.
 
 ## Last green gate
 
@@ -381,12 +396,15 @@ round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
 defense-in-depth route checks before credential resolution.
-The dedicated Pack-administration suite has 16 focused cases for exact
+The dedicated Pack-administration suite has 17 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,
 no-default previews, dry-run custody, closed canonical key transport,
 archive-byte invalidation, profile-drift regeneration, and locked profile
-compare-and-swap. It also proves the dumb `/packs` manager's bounded rendering,
+compare-and-swap. It also covers the public provider-connection preview,
+locked-vault recovery before network access, transient Device Authorization,
+typed account/binding persistence, and production import-source discovery.
+The suite proves the dumb `/packs` manager's bounded rendering,
 ordinary-palette reachability, official-name/local-path input, explicit catalog
 refresh, published-root tamper rejection, dry-run isolation, exact official
 pinning, and the `t → t → i` community keyboard consent sequence. Full
@@ -415,7 +433,10 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement explicit update/remove/GC and expose Microsoft account
-connection plus snapshot/synchronize/migrate orchestration. Cleanup remains a separately
-previewed effect. Google Calendar, remaining standard importers, and the local
-web UIAdapter remain. The complete S09 gate still precedes `verified`.
+Next, add the dumb REPL `/import` source selector and contextual connection
+recovery for an installed but unconfigured online source. The public CLI can
+already connect Microsoft To Do and then use its ordinary
+snapshot/synchronize/migrate flow. Explicit update/remove/GC and separately
+previewed cleanup effects remain, as do Google Calendar, remaining standard
+importers, and the local web UIAdapter. The complete S09 gate still precedes
+`verified`.

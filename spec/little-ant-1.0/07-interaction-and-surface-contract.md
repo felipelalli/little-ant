@@ -2421,7 +2421,9 @@ assistance-label, and no-emoji rendering.
   or invent a provider result.
 - **UX-267 [standard] — Import is a short, Raw-first dumb flow.** UX-IMP00 uses
   a searchable source selector, then only the modes declared by its catalog
-  row. UX-IMP01 is the complete read-only preflight. The only committing
+  row. An installed online source without a configured account first opens
+  UX-IMP00's separate connection preview; accepting it connects only and
+  returns to the still-unapproved import intention. UX-IMP01 is the complete read-only preflight. The only committing
   action is `[i]mport`; it has no Enter default. UX-IMP02 reports verified Raw
   counts and offers ordinary triage or next. Cleanup appears only after a
   verified supported migration and uses UX-A01 as a separate consent. Imported

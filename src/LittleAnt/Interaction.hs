@@ -115,6 +115,8 @@ module LittleAnt.Interaction (
   makeSourceResultEnvelope,
   makeImportPreflightEnvelope,
   makeImportResultEnvelope,
+  makeProviderConnectionEnvelope,
+  makeProviderConnectionResultEnvelope,
   makePackInstallEnvelope,
   makePackInstallResultEnvelope,
   makePackTrustEnvelope,
@@ -179,6 +181,8 @@ import LittleAnt.Notice
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Trust
+import LittleAnt.Profile (providerAccountLabel)
+import LittleAnt.Provider.Connection
 import LittleAnt.Source
 import LittleAnt.Store
 
@@ -330,6 +334,8 @@ data Opportunity
   | SourceResultOpportunity UUIDv7 Text
   | ImportPreflightOpportunity Text SourcePreflight Bool
   | ImportResultOpportunity [UUIDv7] [UUIDv7] Bool
+  | ProviderConnectionOpportunity ProviderConnectionDraft
+  | ProviderConnectionResultOpportunity Text Text
   | PackInstallOpportunity PackInstallDraft
   | PackTrustOpportunity PackTrustDraft
   | PackInstallResultOpportunity PackArtifactIdentity
@@ -976,6 +982,63 @@ makeImportResultEnvelope identity cursor precondition now state imported reused 
   newRawSuffix = if dryRun then " new Raws would be preserved" else " new Raws preserved"
   existingRawSuffix = " already preserved"
   count = Text.pack . show . length
+
+makeProviderConnectionEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> ProviderConnectionDraft -> InteractionEnvelope
+makeProviderConnectionEnvelope identity cursor precondition now state draft =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (ProviderConnectionOpportunity draft)
+    ( EnvelopeContent
+        "Connect provider?"
+        (Just (providerConnectionDisplayName draft <> " · " <> providerAccountLabel (providerConnectionAccount draft)))
+        [ "Account key: " <> providerConnectionAccountName draft
+        , "Pack: " <> artifactName (providerConnectionArtifact draft) <> " " <> artifactVersion (providerConnectionArtifact draft)
+        , "Public client ID: " <> providerConnectionClientId draft
+        , "Access requested: " <> Text.intercalate ", " (Set.toAscList (providerConnectionScopes draft))
+        , ""
+        , "Connecting stores the resulting token only in this profile's encrypted vault. It does not import or change provider data."
+        ]
+        Nothing
+    )
+    [ Action "provider.connect.accept" "connect" "c" False "Start the exact signed OAuth Device Authorization in this host."
+    , Action "provider.connect.back" "back" "b" False "Leave the provider account unconfigured."
+    , Action "provider.connect.unknown" "I don't know" "?" False "Explain the connection boundary before authorizing."
+    , moreAction
+    ]
+    [ CommandOption "config" "/config" "Inspect redacted typed configuration"
+    , CommandOption "vault" "/vault" "Manage encrypted credentials"
+    , CommandOption "packs" "/packs" "Inspect the signed provider Pack"
+    , helpCommand
+    , exitCommand
+    ]
+    (Just "binary_consent")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+
+makeProviderConnectionResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> Text -> InteractionEnvelope
+makeProviderConnectionResultEnvelope identity cursor precondition now state source label =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ChoiceGrammar
+    (ProviderConnectionResultOpportunity source label)
+    ( EnvelopeContent
+        "Provider connected."
+        (Just label)
+        ["The connected account is available to the ordinary import flow. No source data was imported."]
+        Nothing
+    )
+    [ Action "next" "next" "n" False "Return to the ordinary opportunity forecast."
+    , moreAction
+    ]
+    [CommandOption "import" "/import" "Choose a source and import mode", CommandOption "config" "/config" "Inspect redacted typed configuration", helpCommand, exitCommand]
+    Nothing
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
 
 makePackInstallEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackInstallDraft -> AuthenticatedPack -> InteractionEnvelope
 makePackInstallEnvelope identity cursor precondition now state draft authenticated =
@@ -3967,6 +4030,8 @@ opportunityValue = \case
   SourceResultOpportunity identity result -> typed "source_result" ["raw_id" .= renderUUIDv7 identity, "result" .= result]
   ImportPreflightOpportunity source preflight eraseAfterImport -> typed "import_preflight" ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
   ImportResultOpportunity imported reused cleanupReady -> typed "import_result" ["imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
+  ProviderConnectionOpportunity draft -> typed "provider_connection" ["draft" .= draft]
+  ProviderConnectionResultOpportunity source label -> typed "provider_connection_result" ["source" .= source, "label" .= label]
   PackInstallOpportunity draft -> typed "pack_install" ["draft" .= draft]
   PackTrustOpportunity draft -> typed "pack_trust" ["draft" .= draft]
   PackInstallResultOpportunity artifact -> typed "pack_install_result" ["artifact" .= artifact]
@@ -4169,6 +4234,8 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "source_result" -> SourceResultOpportunity <$> uuidField value "raw_id" <*> value .: "result"
     "import_preflight" -> ImportPreflightOpportunity <$> value .: "source" <*> value .: "preflight" <*> value .: "erase_after_import"
     "import_result" -> ImportResultOpportunity <$> (value .: "imported_raw_ids" >>= traverse parseUuid) <*> (value .: "reused_raw_ids" >>= traverse parseUuid) <*> value .: "cleanup_ready"
+    "provider_connection" -> ProviderConnectionOpportunity <$> value .: "draft"
+    "provider_connection_result" -> ProviderConnectionResultOpportunity <$> value .: "source" <*> value .: "label"
     "pack_install" -> PackInstallOpportunity <$> value .: "draft"
     "pack_trust" -> PackTrustOpportunity <$> value .: "draft"
     "pack_install_result" -> PackInstallResultOpportunity <$> value .: "artifact"

@@ -249,8 +249,10 @@ deterministicEnv root seed = do
           [] -> error "deterministic UUID fixture exhausted"
       , appExportPort = emptyExportPort
       , appImportPort = emptyImportPort
+      , appImportPortProblem = Nothing
       , appPackRegistryProblem = Nothing
       , appOfficialPackRemote = Nothing
+      , appProviderConnectionRuntime = Nothing
       }
 
 testUuid :: Int -> IO UUIDv7

@@ -1,11 +1,13 @@
 module Main (main) where
 
+import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar, threadDelay)
 import Control.Exception (bracket)
-import Data.Aeson (Value (Object), encode, toJSON)
+import Data.Aeson (Value (Object), encode, object, toJSON, (.=))
 import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Bits ((.&.))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LazyByteString
+import Data.IORef
 import Data.List (isInfixOf)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust, isNothing)
@@ -15,18 +17,24 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import LittleAnt.Application
 import LittleAnt.Error
+import LittleAnt.Import
 import LittleAnt.Interaction
+import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Official
 import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Protocol
+import LittleAnt.Provider.Connection
 import LittleAnt.REPL
 import LittleAnt.Result
 import LittleAnt.Store (DatasetCursor (Genesis))
 import LittleAnt.Surface
-import System.Directory (doesFileExist)
+import LittleAnt.Vault qualified as Vault
+import LittleAnt.Vault.Age (makePassphrase)
+import LittleAnt.Vault.Agent
+import System.Directory (doesFileExist, doesPathExist)
 import System.Environment (lookupEnv, setEnv, unsetEnv)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -55,6 +63,7 @@ main =
       , testCase "the published root refreshes once and rejects catalog equivocation" officialCatalogRefresh
       , testCase "an official name installs the exact catalog release without publisher trust" officialCatalogInstall
       , testCase "official refresh dry-run persists no accepted authority" officialCatalogRefreshDryRun
+      , testCase "provider connection keeps OAuth transient and enables the production import source" providerConnectionEnablesImport
       ]
 
 listBuiltIn :: Assertion
@@ -413,6 +422,119 @@ officialCatalogRefreshDryRun = withHarness $ \base -> do
       appErrorCode problem @?= NotFound
       fmap recoveryActionCommand (appErrorRecovery problem) @?= [Just "lant packs refresh"]
     Right value -> assertFailure ("official install unexpectedly bypassed catalog acceptance: " <> show value)
+
+providerConnectionEnablesImport :: Assertion
+providerConnectionEnablesImport = withHarness $ \base -> do
+  remote <- publishedRemote
+  let catalogEnvironment = base{appOfficialPackRemote = Just remote}
+  _ <- run catalogEnvironment False PacksRefreshCommand
+  installPreview <- run catalogEnvironment False (PacksInstallCommand connectorPackName) >>= expectNextInteraction
+  _ <- respond catalogEnvironment False installPreview "pack.install.accept"
+
+  connectedBase <- productionAppEnv Nothing >>= either (assertFailure . show) pure
+  paths <- currentProfilePaths
+  passphrase <- either (assertFailure . show) pure (makePassphrase "provider connection fixture")
+  vaultIdentity <- appAllocateUUID connectedBase
+  Vault.writeVault (Profile.vaultFile paths) passphrase (Vault.emptyVault vaultIdentity) >>= either (assertFailure . show) pure
+  stopped <- newEmptyMVar
+  _ <- forkIO (runVaultAgent (Profile.vaultSocket paths) (Profile.vaultFile paths) 60 >>= putMVar stopped)
+  waitForPath (Profile.vaultSocket paths) 100
+
+  responses <- newIORef [deviceAuthorizationResponse, deviceTokenResponse]
+  prompts <- newIORef []
+  let transport = OAuthFormTransport $ \_ ->
+        atomicModifyIORef' responses $ \case
+          [] -> ([], Left (appError ExternalFailure "OAuth fixture exhausted"))
+          response : remaining -> (remaining, Right response)
+      runtime =
+        case appProviderConnectionRuntime connectedBase of
+          Nothing -> error "production provider connection runtime is unavailable"
+          Just value ->
+            value
+              { providerConnectionOAuthTransport = transport
+              , providerConnectionPresentPrompt = \prompt -> modifyIORef' prompts (<> [prompt])
+              , providerConnectionWaitSeconds = const (pure ())
+              }
+      environment = connectedBase{appProviderConnectionRuntime = Just runtime}
+
+  preview <-
+    run environment False (ConfigConnectCommand "microsoft_todo" "personal" "Personal account" "11111111-1111-1111-1111-111111111111")
+      >>= expectNextInteraction
+  case envelopeOpportunity preview of
+    ProviderConnectionOpportunity draft -> do
+      providerConnectionSource draft @?= "microsoft_todo"
+      providerConnectionScopes draft @?= Set.fromList ["Tasks.Read", "offline_access"]
+      fmap actionId (envelopeActions preview) @?= ["provider.connect.accept", "provider.connect.back", "provider.connect.unknown", "palette.open"]
+      assertBool "connection has no default" (not (any actionDefault (envelopeActions preview)))
+      let serialized = LazyByteString.unpack (encode preview)
+      assertBool "preview leaked no OAuth device code or token" (not ("PRIVATE-DEVICE-CODE" `isInfixOf` serialized || "ACCESS-TOKEN" `isInfixOf` serialized))
+    other -> assertFailure ("expected provider connection preview, got: " <> show other)
+  before <- loadCurrentIntegrations
+  assertBool "preview changed provider configuration" (Map.null (Profile.providerAccounts before))
+
+  locked <- runAppCommand environment False silentProgress (RespondCommand (responseFor preview "provider.connect.accept"))
+  case locked of
+    Left problem -> appErrorCode problem @?= PermissionRequired
+    Right result -> assertFailure ("locked vault unexpectedly began authorization: " <> show result)
+  pendingResponses <- readIORef responses
+  length pendingResponses @?= 2
+  readIORef prompts >>= (@?= [])
+
+  sendVaultAgentRequest (Profile.vaultSocket paths) (agentUnlockRequest "provider connection fixture") >>= either (assertFailure . show) assertAgentSuccess
+  accepted <- respond environment False preview "provider.connect.accept" >>= expectRespondInteraction
+  case envelopeOpportunity accepted of
+    ProviderConnectionResultOpportunity "microsoft_todo" "Personal account" -> pure ()
+    other -> assertFailure ("expected provider connection result, got: " <> show other)
+  observedPrompts <- readIORef prompts
+  fmap devicePromptUserCode observedPrompts @?= ["ABCD-EFGH"]
+  configured <- loadCurrentIntegrations
+  Map.keys (Profile.providerAccounts configured) @?= ["personal"]
+  Map.keys (Profile.credentialBindings configured) @?= ["microsoft_todo-personal"]
+
+  restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
+  assertBool "connected provider made the production adapter registry unavailable" (isNothing (appPackRegistryProblem restarted))
+  assertBool
+    "Microsoft To Do was not exposed through the production ImportPort"
+    (any ((== "microsoft_todo") . importSourceId) (importPortCatalog (appImportPort restarted)))
+
+  sendVaultAgentRequest (Profile.vaultSocket paths) agentShutdownRequest >>= either (assertFailure . show) assertAgentSuccess
+  takeMVar stopped >>= either (assertFailure . show) pure
+
+deviceAuthorizationResponse :: OAuthFormResponse
+deviceAuthorizationResponse =
+  OAuthFormResponse
+    200
+    ( object
+        [ "device_code" .= ("PRIVATE-DEVICE-CODE" :: Text)
+        , "user_code" .= ("ABCD-EFGH" :: Text)
+        , "verification_uri" .= ("https://microsoft.com/devicelogin" :: Text)
+        , "expires_in" .= (900 :: Int)
+        , "interval" .= (5 :: Int)
+        ]
+    )
+
+deviceTokenResponse :: OAuthFormResponse
+deviceTokenResponse =
+  OAuthFormResponse
+    200
+    ( object
+        [ "token_type" .= ("Bearer" :: Text)
+        , "access_token" .= ("ACCESS-TOKEN" :: Text)
+        , "refresh_token" .= ("REFRESH-TOKEN" :: Text)
+        , "expires_in" .= (3600 :: Int)
+        , "scope" .= ("Tasks.Read" :: Text)
+        ]
+    )
+
+assertAgentSuccess :: AgentReply -> Assertion
+assertAgentSuccess reply = assertBool "vault agent did not acknowledge the request" (agentReplySucceeded reply)
+
+waitForPath :: FilePath -> Int -> Assertion
+waitForPath path attempts
+  | attempts <= 0 = assertFailure ("timed out waiting for " <> path)
+  | otherwise = do
+      exists <- doesPathExist path
+      if exists then pure () else threadDelay 10_000 >> waitForPath path (attempts - 1)
 
 publishedRemote :: IO OfficialPackRemote
 publishedRemote = do

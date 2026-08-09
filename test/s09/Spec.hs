@@ -567,7 +567,7 @@ harnessEnvironment :: FilePath -> IO AppEnv
 harnessEnvironment root = do
   counter <- newIORef (1000 :: Int)
   let allocate = atomicModifyIORef' counter $ \seed -> (seed + 1, fixtureUuid seed)
-  pure (AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate emptyExportPort emptyImportPort Nothing Nothing)
+  pure (AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate emptyExportPort emptyImportPort Nothing Nothing Nothing Nothing)
 
 run :: AppEnv -> AppCommand -> IO CommandResult
 run environment command = assertRight =<< runAppCommand environment False (const (pure ())) command

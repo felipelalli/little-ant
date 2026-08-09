@@ -77,9 +77,10 @@ identities, keeps completed tasks opt-in, and materializes complete returned
 task JSON as structured Raw. Sparse preflight contains no private provider
 body. Reported attachments whose bytes are absent from Graph remain explicit
 limitations, and migrate requires an explicit incomplete-attachment
-acknowledgment. Connection and import commands, separately consented cleanup
-effects, remaining standard importers, Calendar, and local-web UIAdapter remain
-in this slice.
+acknowledgment. The public configuration connection and provider-aware CLI
+import paths are implemented; the dumb REPL source selector, separately
+consented cleanup effects, remaining standard importers, Calendar, and
+local-web UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
@@ -95,8 +96,11 @@ content-addressed store and fails the whole registry on unsafe or unavailable
 configured behavior. Official pins additionally require exact replayed catalog
 history. The production generation-zero root and sequence-1 catalog are now
 published, and explicit refresh plus official-name installation expose the
-ordinary no-default consent path. Connection/import orchestration remains the
-prerequisite for exposing the live Microsoft To Do route in the CLI/REPL.
+ordinary no-default consent path. `config connect` now binds one reviewed
+account through transient Device Authorization and the encrypted vault; a
+restarted production CLI exposes that account through the same
+snapshot/synchronize/migrate ImportPort as offline sources. Contextual REPL
+discovery and connection remain open.
 
 The public read-only Pack manager now exposes `lant packs list` and exact-name
 `lant packs show` through one sparse `little-ant/packs@1` projection. It shows
@@ -121,9 +125,9 @@ through a fresh private process and VM. Remote preflight persists only custody
 digest/count plus the sparse observation; materialization refetches and must
 match. The Microsoft To Do component is built on this kernel as an exact
 official artifact. Typed credential binding, transport, acquisition, refresh,
-and installed-Pack loading are built. The official root, catalog refresh, and
-official-name installation are public; connection/import orchestration and
-cleanup-effect dispatch remain to be built.
+installed-Pack loading, public account connection, and production provider
+import routing are built. Contextual REPL orchestration and cleanup-effect
+dispatch remain to be built.
 
 ## Gate
 

@@ -4974,6 +4974,36 @@ Type to filter available sources.
 ↑/↓ select · Enter choose · Esc back
 ```
 
+An installed online source with no configured account is shown as available
+to connect, not as already importable. The dumb configuration flow collects a
+lowercase local account key, an optional human label, and the public OAuth
+client ID required by the signed Pack. Before provider IO it renders:
+
+```text
+Connect provider?
+
+Microsoft To Do · Personal account
+Account key: personal
+Pack: org.littleant.official-connectors 1.0.0
+Public client ID: 11111111-1111-1111-1111-111111111111
+Access requested: Tasks.Read, offline_access
+
+Connecting stores the resulting token only in this profile's encrypted vault.
+It does not import or change provider data.
+
+[c]onnect    [b]ack    [?] I don't know
+
+[/] more...
+```
+
+There is no default. Connect is unavailable until the profile vault exists and
+is unlocked. After `c`, the trusted host prints only the bounded verification
+URI, user code, and expiry while it polls in the same process. Decline, expiry,
+crash, and network failure preserve the unchanged preview and no ProviderAccount
+is configured. Success encrypts the token, records the typed local account and
+binding, says `Provider connected.`, and returns to the original import route;
+it does not run preflight or import automatically.
+
 After choosing Microsoft To Do, the dumb mode selector is:
 
 ```text

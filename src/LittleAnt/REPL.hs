@@ -349,6 +349,7 @@ refreshesPackRegistry = \case
   PackInstallOpportunity{} -> True
   PackInstallResultOpportunity{} -> True
   PackTrustResultOpportunity{} -> True
+  ProviderConnectionResultOpportunity{} -> True
   _ -> False
 
 screenForEnvelope :: InteractionEnvelope -> ReplScreen

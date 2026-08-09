@@ -314,6 +314,20 @@ that cryptographic format.
   reviewed command explicitly selects an existing verified dataset. It never
   copies another profile, imports data, creates credentials, or selects the
   new profile implicitly. Version 1.0 has no profile-removal operation.
+- **DAT-094 [standard] — Provider connection is configuration, not import.**
+  `lant config connect <source> --account <name> [--label <label>]
+  --client-id <public-id>` builds one no-default preview from the currently
+  installed signed SourceAdapter. The preview names the exact Pack release,
+  public client ID, account label, and signed OAuth scopes. Acceptance first
+  revalidates the Pack and profile revision, requires an already created and
+  unlocked vault, and then runs Device Authorization transiently in the same
+  trusted-host process. Only the verification URI and user code reach the
+  presentation surface; the device code and tokens never enter configuration,
+  arguments, canonical events, or an InteractionEnvelope. A successful token
+  is encrypted before a compare-and-swap adds the typed ProviderAccount and
+  CredentialBinding. A concurrent profile change may leave an unreferenced
+  vault entry for later safe collection, but never a binding without its
+  credential. Connection imports no object and performs no provider mutation.
 - **DAT-029 [standard] — Standard structural formats.** The standard Pack
   ships tree text, aligned table, RFC 4180 CSV, Org, and self-contained HTML
   exporters.

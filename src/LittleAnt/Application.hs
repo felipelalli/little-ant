@@ -1,6 +1,7 @@
 module LittleAnt.Application (
   AppCommand (..),
   AppEnv (..),
+  ProviderConnectionRuntime (..),
   ViewDepth (..),
   natureBranch,
   productionAppEnv,
@@ -10,6 +11,7 @@ module LittleAnt.Application (
 where
 
 import Control.Applicative ((<|>))
+import Control.Concurrent (threadDelay)
 import Control.Exception (IOException, SomeException, catch, displayException, try)
 import Control.Monad (foldM, replicateM, unless, void, when)
 import Data.Aeson
@@ -25,6 +27,7 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
+import Data.Text.IO qualified as TextIO
 import Data.Time
 import Data.Time.Zones (TZ, loadTZFromDB, utcToLocalTimeTZ)
 import LittleAnt.Catalog
@@ -43,27 +46,34 @@ import LittleAnt.JudgmentDecision
 import LittleAnt.JudgmentUI
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Catalog
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Installed
 import LittleAnt.Pack.Official
+import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner (defaultPackRunnerClient)
 import LittleAnt.Pack.Standard (loadStandardPackAuthorization, standardPackIdentity)
 import LittleAnt.Pack.Store (PackStoreConfig (..), inspectStoredPack, storeAuthorizedPack)
+import LittleAnt.Pack.Transport
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
+import LittleAnt.Provider
+import LittleAnt.Provider.Connection
 import LittleAnt.Repair
 import LittleAnt.Result
 import LittleAnt.Source
 import LittleAnt.Store
 import LittleAnt.Temporal
 import LittleAnt.Time
+import LittleAnt.Vault.Agent
 import System.Directory
 import System.Entropy qualified as Entropy
 import System.Environment (lookupEnv)
 import System.FilePath (takeExtension, (</>))
+import System.IO (stderr)
 import System.IO.Error (isDoesNotExistError)
 
 data ViewDepth = SummaryView | OperationalView | RelationshipsView | HistoryView | CompleteView | GuidedView
@@ -113,6 +123,7 @@ data AppCommand
   | ConfigShowCommand
   | ConfigPathsCommand
   | ConfigValidateCommand
+  | ConfigConnectCommand Text Text Text Text
   | UpdateCommand Text (Maybe Text)
   | MergeCommand Text Text
   | SupersedeCommand Text Text
@@ -143,8 +154,17 @@ data AppEnv = AppEnv
   , appAllocateUUID :: IO UUIDv7
   , appExportPort :: ExportPort
   , appImportPort :: ImportPort
+  , appImportPortProblem :: Maybe AppError
   , appPackRegistryProblem :: Maybe AppError
   , appOfficialPackRemote :: Maybe OfficialPackRemote
+  , appProviderConnectionRuntime :: Maybe ProviderConnectionRuntime
+  }
+
+data ProviderConnectionRuntime = ProviderConnectionRuntime
+  { providerConnectionDefinitions :: [ProviderSourceDefinition]
+  , providerConnectionOAuthTransport :: OAuthFormTransport
+  , providerConnectionPresentPrompt :: DeviceAuthorizationPrompt -> IO ()
+  , providerConnectionWaitSeconds :: Int -> IO ()
   }
 
 data PresentationCheckpoint = PresentationCheckpoint
@@ -194,6 +214,18 @@ productionAppEnv explicitProfile = do
                         registry <- loadProfilePackRegistry now scope loadedPaths integrations (OfficialCatalogCompiledRoot root)
                         runner <- defaultPackRunnerClient
                         remote <- newOfficialPackRemote
+                        providerHttp <- newTlsPackHttpTransport
+                        oauthTransport <- newTlsOAuthFormTransport
+                        let providerSources =
+                              registry >>= \available ->
+                                configuredProviderImportSources
+                                  standardProviderSourceDefinitions
+                                  integrations
+                                  available
+                                  (vaultAgentAccessTokenResolver (Profile.vaultSocket loadedPaths) getCurrentTime)
+                                  providerHttp
+                            registryProblem = either Just (const Nothing) registry
+                            importProblem = either Just (const Nothing) (registry >> providerSources)
                         pure . Right $
                           AppEnv
                             { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
@@ -202,10 +234,36 @@ productionAppEnv explicitProfile = do
                             , appZonedNow = getZonedTime
                             , appAllocateUUID = generateUUIDv7
                             , appExportPort = either (const emptyExportPort) (packRegistryExportPort runner) registry
-                            , appImportPort = either (const emptyImportPort) (packRegistryImportPort runner) registry
-                            , appPackRegistryProblem = either Just (const Nothing) registry
+                            , appImportPort =
+                                case (registry, providerSources) of
+                                  (Right available, Right providers) -> packRegistryImportPortWithProviders runner available providers
+                                  (Right available, Left _) -> packRegistryImportPort runner available
+                                  (Left _, _) -> emptyImportPort
+                            , appImportPortProblem = importProblem
+                            , appPackRegistryProblem = registryProblem
                             , appOfficialPackRemote = Just remote
+                            , appProviderConnectionRuntime =
+                                Just
+                                  ProviderConnectionRuntime
+                                    { providerConnectionDefinitions = standardProviderSourceDefinitions
+                                    , providerConnectionOAuthTransport = oauthTransport
+                                    , providerConnectionPresentPrompt = presentDeviceAuthorizationPrompt
+                                    , providerConnectionWaitSeconds = \seconds -> threadDelay (seconds * 1_000_000)
+                                    }
                             }
+
+presentDeviceAuthorizationPrompt :: DeviceAuthorizationPrompt -> IO ()
+presentDeviceAuthorizationPrompt prompt =
+  TextIO.hPutStrLn stderr $
+    Text.unlines
+      [ "Authorize this provider account:"
+      , ""
+      , "Open: " <> devicePromptVerificationUri prompt
+      , "Code: " <> devicePromptUserCode prompt
+      , "Expires: " <> Text.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" (devicePromptExpiresAt prompt))
+      , ""
+      , "Little Ant is waiting for the provider."
+      ]
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
 resolveProfileName explicit = do
@@ -302,6 +360,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   ConfigShowCommand -> runConfigShow environment dryRun dataset
   ConfigPathsCommand -> runConfigPaths environment dryRun dataset
   ConfigValidateCommand -> runConfigValidate environment dryRun dataset
+  ConfigConnectCommand source account label clientId -> runConfigConnect environment dryRun dataset source account label clientId
   UpdateCommand reference section -> pure (unsupportedCommand "update")
   MergeCommand survivor absorbed -> pure (unsupportedCommand ("merge " <> survivor <> " " <> absorbed))
   SupersedeCommand oldBrick newBrick -> pure (unsupportedCommand ("supersede " <> oldBrick <> " " <> newBrick))
@@ -1117,6 +1176,131 @@ runConfigValidate environment dryRun dataset = do
     Right (paths, config, _, _, _) ->
       pure (Right (configurationResult dataset "config_validate" (Just name) (profileFacts paths config) dryRun))
 
+data ConnectionProfileSnapshot = ConnectionProfileSnapshot
+  { connectionProfilePaths :: Profile.ProfilePaths
+  , connectionProfileIntegrations :: Profile.IntegrationsConfig
+  , connectionProfileRevision :: Text
+  , connectionProfileRegistry :: PackRegistry
+  }
+
+runConfigConnect :: AppEnv -> Bool -> LoadedDataset -> Text -> Text -> Text -> Text -> IO (Either AppError CommandResult)
+runConfigConnect environment dryRun dataset source account label clientId =
+  case appProviderConnectionRuntime environment of
+    Nothing -> pure . Left $ providerConnectionUnavailable "This host cannot run provider connection flows."
+    Just runtime ->
+      loadConnectionProfileSnapshot environment >>= \case
+        Left problem -> pure (Left problem)
+        Right profile -> do
+          vaultEntry <- appAllocateUUID environment
+          case prepareProviderConnectionDraft
+            (providerConnectionDefinitions runtime)
+            (connectionProfileRegistry profile)
+            (connectionProfileIntegrations profile)
+            (connectionProfileRevision profile)
+            source
+            account
+            label
+            clientId
+            vaultEntry of
+            Left problem -> pure (Left problem)
+            Right draft -> do
+              identity <- appAllocateUUID environment
+              now <- appZonedNow environment
+              let state = loadedState dataset
+                  envelope = makeProviderConnectionEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state draft
+              saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+              pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+loadConnectionProfileSnapshot :: AppEnv -> IO (Either AppError ConnectionProfileSnapshot)
+loadConnectionProfileSnapshot environment = do
+  roots <- Profile.resolveXdgRoots
+  let profileName = actorProfile (appActor environment)
+  case Profile.profilePaths roots profileName of
+    Left problem -> pure (Left problem)
+    Right expectedPaths ->
+      Profile.integrationsConfigRevision expectedPaths >>= \case
+        Left problem -> pure (Left problem)
+        Right beforeRevision ->
+          Profile.loadProfile roots profileName >>= \case
+            Left problem -> pure (Left problem)
+            Right (paths, _, _, _, integrations) ->
+              Profile.integrationsConfigRevision paths >>= \case
+                Left problem -> pure (Left problem)
+                Right afterRevision
+                  | beforeRevision /= afterRevision -> pure (Left packProfileChanged)
+                  | otherwise -> case mkProfileScope profileName of
+                      Left problem -> pure (Left problem)
+                      Right scope -> do
+                        now <- appNow environment
+                        case compiledOfficialCatalogRoot of
+                          Left problem -> pure (Left problem)
+                          Right root ->
+                            loadProfilePackRegistry now scope paths integrations (OfficialCatalogCompiledRoot root) >>= \case
+                              Left problem -> pure (Left problem)
+                              Right registry ->
+                                pure . Right $
+                                  ConnectionProfileSnapshot
+                                    { connectionProfilePaths = paths
+                                    , connectionProfileIntegrations = integrations
+                                    , connectionProfileRevision = afterRevision
+                                    , connectionProfileRegistry = registry
+                                    }
+
+providerConnectionUnavailable :: Text -> AppError
+providerConnectionUnavailable message =
+  (appError Unsupported message)
+    { appErrorRecovery =
+        [ RecoveryAction "production-host" "Use the ordinary Little Ant CLI or REPL host." Nothing
+        , RecoveryAction "packs" "Install and inspect the signed provider Pack first." (Just "lant packs list")
+        ]
+    }
+
+ensureConnectionVaultUnlocked :: Profile.ProfilePaths -> IO (Either AppError ())
+ensureConnectionVaultUnlocked paths =
+  sendVaultAgentRequest (Profile.vaultSocket paths) agentStatusRequest >>= \case
+    Right reply | agentReplyUnlocked reply == Just True -> pure (Right ())
+    Right _ -> pure (Left locked)
+    Left problem ->
+      pure . Left $
+        locked
+          { appErrorDetails = appErrorMessage problem : appErrorDetails problem
+          }
+ where
+  locked =
+    (appError PermissionRequired "Credentials are unavailable or locked.")
+      { appErrorRecovery =
+          [ RecoveryAction "unlock" "Create or unlock this profile's encrypted vault, then accept the unchanged connection preview again." (Just "lant vault unlock")
+          , RecoveryAction "create" "Create the encrypted vault first if this profile has none." (Just "lant vault create")
+          ]
+      }
+
+runTransientDeviceAuthorization :: AppEnv -> ProviderConnectionRuntime -> OAuthDeviceClient -> IO (Either AppError OAuthTokenSet)
+runTransientDeviceAuthorization environment runtime client = do
+  startedAt <- appNow environment
+  beginDeviceAuthorization (providerConnectionOAuthTransport runtime) startedAt client >>= \case
+    Left problem -> pure (Left problem)
+    Right session -> do
+      providerConnectionPresentPrompt runtime (deviceAuthorizationPrompt session)
+      poll session (devicePromptPollingIntervalSeconds (deviceAuthorizationPrompt session))
+ where
+  poll session delay = do
+    providerConnectionWaitSeconds runtime delay
+    now <- appNow environment
+    pollDeviceAuthorization (providerConnectionOAuthTransport runtime) now client session >>= \case
+      Left problem -> pure (Left problem)
+      Right (DeviceAuthorizationPending nextDelay nextSession) -> poll nextSession nextDelay
+      Right (DeviceAuthorizationSucceeded tokenSet) -> pure (Right tokenSet)
+      Right DeviceAuthorizationDeclined ->
+        pure . Left $
+          (appError PermissionRequired "The provider authorization was declined.")
+            { appErrorRecovery = [RecoveryAction "try-again" "Accept the unchanged connection preview when you are ready to authorize it." Nothing]
+            }
+      Right DeviceAuthorizationExpired ->
+        pure . Left $
+          (appError PreconditionFailed "The provider authorization code expired.")
+            { appErrorRecovery = [RecoveryAction "try-again" "Accept the unchanged connection preview to request a new code." Nothing]
+            }
+
 configurationResult :: LoadedDataset -> Text -> Maybe Text -> Map.Map Text Text -> Bool -> CommandResult
 configurationResult dataset action selected facts =
   ConfigurationResult (loadedCursor dataset) action selected [] facts
@@ -1782,7 +1966,7 @@ runReturnToIdle environment dryRun dataset maybeReference =
 
 runImport :: AppEnv -> Bool -> LoadedDataset -> Text -> SourceMode -> Bool -> IO (Either AppError CommandResult)
 runImport environment dryRun dataset source mode eraseAfterImport =
-  case appPackRegistryProblem environment of
+  case appPackRegistryProblem environment <|> appImportPortProblem environment of
     Just problem -> pure (Left problem)
     Nothing ->
       importPortPreflight (appImportPort environment) source mode >>= \case
@@ -2308,6 +2492,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         [] -> pure (Left (appError PreconditionFailed "This import result contains no Raw material to triage."))
     (ImportResultOpportunity _ _ True, "import.cleanup", _) ->
       local (appendBody current "Verified source cleanup requires the separate effect approval flow; no source item has changed.")
+    (ProviderConnectionOpportunity draft, "provider.connect.accept", _) -> acceptProviderConnection draft
+    (ProviderConnectionOpportunity{}, "provider.connect.back", _) -> replaceWithFresh
+    (ProviderConnectionOpportunity{}, "provider.connect.unknown", _) ->
+      local (appendBody current "The signed Pack fixes the provider endpoints and requested scopes. The public client ID and account label are non-secret profile configuration; device codes stay only in this running host, and tokens go only to the encrypted vault. Connecting imports nothing.")
     (PackInstallOpportunity draft, "pack.install.trust", _) -> beginPackTrust draft
     (PackInstallOpportunity draft, "pack.install.accept", _) -> acceptPackInstall draft
     (PackInstallOpportunity{}, "pack.install.back", _) -> replaceWithFresh
@@ -3159,6 +3347,81 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   cursor = loadedCursor dataset
   precondition = statePreconditionHash state
   actor = appActor environment
+
+  acceptProviderConnection draft = case appProviderConnectionRuntime environment of
+    Nothing -> pure (Left (providerConnectionUnavailable "This host cannot finish the provider connection."))
+    Just runtime ->
+      loadConnectionProfileSnapshot environment >>= \case
+        Left problem -> pure (Left problem)
+        Right profile ->
+          case refreshProviderConnectionDraft runtime profile draft of
+            Left problem -> pure (Left problem)
+            Right refreshed
+              | refreshed /= draft ->
+                  local
+                    ( appendBody
+                        (advanceEnvelope current (makeProviderConnectionEnvelope (envelopeInteractionId current) cursor precondition now state refreshed))
+                        "The profile or signed provider authority changed after the prior preview. Review this refreshed connection before authorizing."
+                    )
+              | dryRun ->
+                  local (appendBody current "Dry run revalidated the profile, Pack, account, binding, client ID, and signed scopes. No OAuth request ran and no configuration or vault entry changed.")
+              | otherwise ->
+                  ensureConnectionVaultUnlocked (connectionProfilePaths profile) >>= \case
+                    Left problem -> pure (Left problem)
+                    Right () -> case connectionOAuthClient (connectionProfileRegistry profile) draft of
+                      Left problem -> pure (Left problem)
+                      Right client ->
+                        runTransientDeviceAuthorization environment runtime client >>= \case
+                          Left problem -> pure (Left problem)
+                          Right tokenSet ->
+                            persistOAuthTokenSet
+                              (Profile.vaultSocket (connectionProfilePaths profile))
+                              client
+                              (providerConnectionBinding draft)
+                              (providerConnectionDisplayName draft <> " · " <> Profile.providerAccountLabel (providerConnectionAccount draft))
+                              tokenSet
+                              >>= \case
+                                Left problem -> pure (Left problem)
+                                Right () -> case applyProviderConnectionDraft (connectionProfileIntegrations profile) draft of
+                                  Left problem -> pure (Left problem)
+                                  Right changed ->
+                                    Profile.writeIntegrationsConfigIfRevision
+                                      (connectionProfilePaths profile)
+                                      (providerConnectionProfileRevision draft)
+                                      changed
+                                      >>= \case
+                                        Left problem -> pure (Left problem)
+                                        Right True -> finishProviderConnection draft
+                                        Right False ->
+                                          pure . Left $
+                                            (appError Conflict "The profile changed after provider authorization; the new vault entry remains safe but is not yet referenced.")
+                                              { appErrorRetrySafety = RetryAfterRefresh
+                                              , appErrorRecovery = [RecoveryAction "review-again" "Run the same connection command again to build a fresh preview; no source data changed." Nothing]
+                                              }
+
+  refreshProviderConnectionDraft runtime profile draft =
+    prepareProviderConnectionDraft
+      (providerConnectionDefinitions runtime)
+      (connectionProfileRegistry profile)
+      (connectionProfileIntegrations profile)
+      (connectionProfileRevision profile)
+      (providerConnectionSource draft)
+      (providerConnectionAccountName draft)
+      (Profile.providerAccountLabel (providerConnectionAccount draft))
+      (providerConnectionClientId draft)
+      (Profile.credentialBindingVaultEntry (providerConnectionBinding draft))
+
+  finishProviderConnection draft = do
+    let result =
+          makeProviderConnectionResultEnvelope
+            (envelopeInteractionId current)
+            cursor
+            precondition
+            now
+            state
+            (providerConnectionSource draft)
+            (Profile.providerAccountLabel (providerConnectionAccount draft))
+    local (advanceEnvelope current result)
 
   acceptImport source expected eraseAfterImport =
     importPortMaterialize (appImportPort environment) source (sourcePreflightMode expected) >>= \case

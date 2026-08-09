@@ -117,6 +117,7 @@ library
     LittleAnt.Projection
     LittleAnt.Protocol
     LittleAnt.Provider
+    LittleAnt.Provider.Connection
     LittleAnt.Reference
     LittleAnt.Repair
     LittleAnt.REPL

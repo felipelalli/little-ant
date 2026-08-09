@@ -275,6 +275,8 @@ withHarness action = withSystemTempDirectory "little-ant-s09-import" $ \root -> 
           (fixtureImportPort bytesRef)
           Nothing
           Nothing
+          Nothing
+          Nothing
   action environment bytesRef
 
 fixtureImportPort :: IORef ByteString -> ImportPort
