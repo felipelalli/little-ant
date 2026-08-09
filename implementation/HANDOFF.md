@@ -5,10 +5,12 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **2a6215a**
-(`feat(oauth): authorize desktop providers with PKCE`). The current milestone
-ships Google Tasks through the generic signed provider boundary and refreshes
-expired OAuth grants before credentialed provider transport. This file stays
+Baseline at the start of the current milestone: **aa9fce8**
+(`feat(import): ship Google Tasks connector`). The current milestone establishes
+the generic exact-container authority boundary needed by observe-only Google
+Calendar: a provider declares whether selection is mandatory, the host discovers
+containers without accepting source objects, and every scoped preflight and
+materialization receives and verifies the exact selected set. This file stays
 editable between milestone commits.
 
 ## Implementation now available
@@ -505,6 +507,15 @@ ordinary-palette reachability, official-name/local-path input, explicit catalog
 refresh, published-root tamper rejection, dry-run isolation, exact official
 pinning, and the `t → t → i` community keyboard consent sequence. Full
 milestone gates are recorded immediately before each signed milestone commit.
+
+The provider host now also carries a generic exact-container selection contract.
+File and ordinary provider sources reject unexpected scope; scoped providers
+reject an empty set with typed `select-containers` recovery before credential or
+network access. The Pack runner projects selected container identifiers in
+deterministic order, and the host rejects observations that omit a selected
+container or return an object outside the allowlist. Google Calendar is declared
+as the first scoped provider, while its adapter, persistence, and dumb selector
+remain the next milestone.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 

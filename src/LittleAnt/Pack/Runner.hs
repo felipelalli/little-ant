@@ -9,6 +9,8 @@ module LittleAnt.Pack.Runner (
   invokePackSourceMaterialize,
   invokePackSourcePreflightHttp,
   invokePackSourceMaterializeHttp,
+  invokePackSourcePreflightHttpScoped,
+  invokePackSourceMaterializeHttpScoped,
   invokePackSourceCleanupItemHttp,
   invokePackSourceCleanupItemVerifyHttp,
   invokePackSourceCleanupContainerInspectHttp,
@@ -353,6 +355,10 @@ invokePackSourceMaterialize client registered mode input =
 
 invokePackSourcePreflightHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> SourceMode -> Text -> Value -> IO (Either AppError (SourceInput, SourcePreflight))
 invokePackSourcePreflightHttp client broker registered mode inputLabel source =
+  invokePackSourcePreflightHttpScoped client broker registered mode inputLabel source Set.empty
+
+invokePackSourcePreflightHttpScoped :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> SourceMode -> Text -> Value -> Set.Set Text -> IO (Either AppError (SourceInput, SourcePreflight))
+invokePackSourcePreflightHttpScoped client broker registered mode inputLabel source selectedContainers =
   case prepareRequest client registered RunnerSourcePreflight Nothing projection of
     Left problem -> pure (Left problem)
     Right request -> case sourceInvocationDetails registered of
@@ -375,10 +381,20 @@ invokePackSourcePreflightHttp client broker registered mode inputLabel source =
                 observation
             pure (input, preflight)
  where
-  projection = object ["schema" .= ("little-ant/source-provider-request@1" :: Text), "mode" .= sourceModeName mode, "source" .= source]
+  projection =
+    object
+      [ "schema" .= ("little-ant/source-provider-request@1" :: Text)
+      , "mode" .= sourceModeName mode
+      , "source" .= source
+      , "selected_containers" .= Set.toAscList selectedContainers
+      ]
 
 invokePackSourceMaterializeHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> SourceMode -> Text -> Value -> IO (Either AppError (SourceInput, SourcePreflight, SourceAdapterMaterialization))
 invokePackSourceMaterializeHttp client broker registered mode inputLabel source =
+  invokePackSourceMaterializeHttpScoped client broker registered mode inputLabel source Set.empty
+
+invokePackSourceMaterializeHttpScoped :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> SourceMode -> Text -> Value -> Set.Set Text -> IO (Either AppError (SourceInput, SourcePreflight, SourceAdapterMaterialization))
+invokePackSourceMaterializeHttpScoped client broker registered mode inputLabel source selectedContainers =
   case prepareRequest client registered RunnerSourceMaterialize Nothing projection of
     Left problem -> pure (Left problem)
     Right request -> case sourceInvocationDetails registered of
@@ -401,7 +417,13 @@ invokePackSourceMaterializeHttp client broker registered mode inputLabel source 
                 (materializedObservation materialization)
             pure (input, preflight, materialization)
  where
-  projection = object ["schema" .= ("little-ant/source-provider-request@1" :: Text), "mode" .= sourceModeName mode, "source" .= source]
+  projection =
+    object
+      [ "schema" .= ("little-ant/source-provider-request@1" :: Text)
+      , "mode" .= sourceModeName mode
+      , "source" .= source
+      , "selected_containers" .= Set.toAscList selectedContainers
+      ]
 
 invokePackSourceCleanupItemHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> Value -> Text -> Text -> Maybe Text -> IO (Either AppError SourceCleanupReceipt)
 invokePackSourceCleanupItemHttp client broker registered source externalIdentity locator containerIdentity =

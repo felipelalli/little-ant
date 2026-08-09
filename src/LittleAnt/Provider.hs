@@ -34,6 +34,7 @@ data ProviderSourceDefinition = ProviderSourceDefinition
   , providerDefinitionNamespace :: Text
   , providerDefinitionDisplayName :: Text
   , providerDefinitionModes :: [SourceMode]
+  , providerDefinitionRequiresContainerSelection :: Bool
   }
   deriving stock (Eq, Show)
 
@@ -44,12 +45,21 @@ standardProviderSourceDefinitions =
       , providerDefinitionNamespace = "microsoft_todo"
       , providerDefinitionDisplayName = "Microsoft To Do"
       , providerDefinitionModes = [SourceSnapshot, SourceSynchronize, SourceMigrate]
+      , providerDefinitionRequiresContainerSelection = False
       }
   , ProviderSourceDefinition
       { providerDefinitionAdapterId = "google_tasks"
       , providerDefinitionNamespace = "google_tasks"
       , providerDefinitionDisplayName = "Google Tasks"
       , providerDefinitionModes = [SourceSnapshot, SourceSynchronize, SourceMigrate]
+      , providerDefinitionRequiresContainerSelection = False
+      }
+  , ProviderSourceDefinition
+      { providerDefinitionAdapterId = "google_calendar"
+      , providerDefinitionNamespace = "google_calendar"
+      , providerDefinitionDisplayName = "Google Calendar"
+      , providerDefinitionModes = [SourceSnapshot, SourceSynchronize]
+      , providerDefinitionRequiresContainerSelection = True
       }
   ]
 
@@ -157,6 +167,7 @@ configuredProviderImportSources definitions integrations registry resolver trans
               , providerImportDisplayName = providerDefinitionDisplayName definition
               , providerImportInputLabel = providerDefinitionDisplayName definition <> " · " <> providerAccountLabel account
               , providerImportModes = providerDefinitionModes definition
+              , providerImportRequiresContainerSelection = providerDefinitionRequiresContainerSelection definition
               , providerImportConfiguration = configuration
               , providerImportCredentialBindingReference = bindingReference
               , providerImportBroker = broker

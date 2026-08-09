@@ -79,8 +79,8 @@ materializationDrift = withHarness $ \environment _ -> do
   let source = "notesnook.zip"
       driftedPort =
         multiObjectImportPort
-          { importPortMaterialize = \reference mode -> pure $ do
-              readValue <- ImportRead reference multiInput <$> multiPreflight mode
+          { importPortMaterialize = \reference mode selected -> pure $ do
+              readValue <- ImportRead reference selected multiInput <$> multiPreflight mode
               pure (ImportMaterialization readValue (Map.delete "path:Projects/Same title.md" multiMaterials))
           }
       driftedEnvironment = environment{appImportPort = driftedPort}
@@ -285,7 +285,8 @@ fixtureImportPort = fixtureImportPortWithIdentity fixturePackIdentity
 fixtureImportPortWithIdentity :: PackArtifactIdentity -> IORef ByteString -> ImportPort
 fixtureImportPortWithIdentity identity bytesRef =
   ImportPort
-    [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate]]
+    [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate] False]
+    (const (pure (Right Nothing)))
     preflight
     materialize
     (importPortCleanupCustody emptyImportPort)
@@ -295,19 +296,20 @@ fixtureImportPortWithIdentity identity bytesRef =
     (importPortCleanupContainer emptyImportPort)
     (importPortVerifyCleanupContainer emptyImportPort)
  where
-  preflight source mode = do
+  preflight source mode selected = do
     bytes <- readIORef bytesRef
-    pure $ ImportRead source (fixtureInput bytes) <$> fixturePreflight identity (fixtureExternalId bytes) mode bytes
-  materialize source mode = do
+    pure $ ImportRead source selected (fixtureInput bytes) <$> fixturePreflight identity (fixtureExternalId bytes) mode bytes
+  materialize source mode selected = do
     bytes <- readIORef bytesRef
     pure $ do
-      readValue <- ImportRead source (fixtureInput bytes) <$> fixturePreflight identity (fixtureExternalId bytes) mode bytes
+      readValue <- ImportRead source selected (fixtureInput bytes) <$> fixturePreflight identity (fixtureExternalId bytes) mode bytes
       pure (ImportMaterialization readValue (Map.singleton (fixtureExternalId bytes) (SourceTextMaterial (decodeFixture bytes))))
 
 fixtureImportPortWithExternalIdentity :: Text -> IORef ByteString -> ImportPort
 fixtureImportPortWithExternalIdentity externalIdentity bytesRef =
   ImportPort
-    [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate]]
+    [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate] False]
+    (const (pure (Right Nothing)))
     preflight
     materialize
     (importPortCleanupCustody emptyImportPort)
@@ -317,19 +319,20 @@ fixtureImportPortWithExternalIdentity externalIdentity bytesRef =
     (importPortCleanupContainer emptyImportPort)
     (importPortVerifyCleanupContainer emptyImportPort)
  where
-  preflight source mode = do
+  preflight source mode selected = do
     bytes <- readIORef bytesRef
-    pure $ ImportRead source (fixtureInput bytes) <$> fixturePreflight fixturePackIdentity externalIdentity mode bytes
-  materialize source mode = do
+    pure $ ImportRead source selected (fixtureInput bytes) <$> fixturePreflight fixturePackIdentity externalIdentity mode bytes
+  materialize source mode selected = do
     bytes <- readIORef bytesRef
     pure $ do
-      readValue <- ImportRead source (fixtureInput bytes) <$> fixturePreflight fixturePackIdentity externalIdentity mode bytes
+      readValue <- ImportRead source selected (fixtureInput bytes) <$> fixturePreflight fixturePackIdentity externalIdentity mode bytes
       pure (ImportMaterialization readValue (Map.singleton externalIdentity (SourceTextMaterial (decodeFixture bytes))))
 
 multiObjectImportPort :: ImportPort
 multiObjectImportPort =
   ImportPort
     [descriptor]
+    (const (pure (Right Nothing)))
     preflight
     materialize
     (importPortCleanupCustody emptyImportPort)
@@ -339,10 +342,10 @@ multiObjectImportPort =
     (importPortCleanupContainer emptyImportPort)
     (importPortVerifyCleanupContainer emptyImportPort)
  where
-  descriptor = ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
-  preflight source mode = pure $ ImportRead source multiInput <$> multiPreflight mode
-  materialize source mode = pure $ do
-    readValue <- ImportRead source multiInput <$> multiPreflight mode
+  descriptor = ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate] False
+  preflight source mode selected = pure $ ImportRead source selected multiInput <$> multiPreflight mode
+  materialize source mode selected = pure $ do
+    readValue <- ImportRead source selected multiInput <$> multiPreflight mode
     pure (ImportMaterialization readValue multiMaterials)
 
 multiPreflight :: SourceMode -> Either AppError SourcePreflight

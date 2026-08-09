@@ -57,6 +57,7 @@ main =
       , testCase "a container that gains an item fails before deletion" containerRaceRefusal
       , testCase "an unknown container deletion is reconciled without another delete" unknownContainerCleanup
       , testCase "locked credentials stop before provider transport and retain a typed non-provider failure" lockedCredential
+      , testCase "remote container selection is explicit and closed by provider policy" containerSelectionBoundary
       , testCase "multiple accounts receive explicit unambiguous import references" multipleAccountReferences
       , testCase "binding scheme and component must match the signed SourceAdapter" bindingAuthority
       , testCase "a direct broker call rechecks the signed route before resolving credentials" brokerDefenseInDepth
@@ -120,7 +121,7 @@ credentialBoundary = do
     "host-only OAuth client ID escaped into Lua configuration"
     (all (not . ("client_id" `ByteString.isInfixOf`) . LazyByteString.toStrict . encode . providerImportConfiguration) providers)
   let importPort = packRegistryImportPortWithProviders runner registry providers
-  imported <- importPortPreflight importPort "microsoft_todo" SourceSnapshot >>= assertRight
+  imported <- importPortPreflight importPort "microsoft_todo" SourceSnapshot Set.empty >>= assertRight
   importReadSourceReference imported @?= "microsoft_todo@personal"
   sourcePreflightAdapterId (importReadPreflight imported) @?= "microsoft_todo"
   sourceInputMediaType (importReadInput imported) @?= "application/vnd.little-ant.http-transcript+json"
@@ -130,7 +131,7 @@ credentialBoundary = do
   length requests @?= 2
   assertBool "Lua supplied an Authorization header" (all (Map.notMember "authorization" . brokerHttpHeaders) requests)
 
-  materialized <- importPortMaterialize importPort "microsoft_todo" SourceSnapshot >>= assertRight
+  materialized <- importPortMaterialize importPort "microsoft_todo" SourceSnapshot Set.empty >>= assertRight
   Map.keys (importMaterializationObjects materialized) @?= ["task:list-1:task-1"]
   assertBool
     "the access token escaped into materialization custody"
@@ -749,8 +750,31 @@ lockedCredential = do
       entries = [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)]
   integrations <- assertRight (authorizedIntegrations registry entries)
   providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry locked (graphTransport transportCalls))
-  result <- importPortPreflight (packRegistryImportPortWithProviders runner registry providers) "microsoft_todo" SourceSnapshot
+  result <- importPortPreflight (packRegistryImportPortWithProviders runner registry providers) "microsoft_todo" SourceSnapshot Set.empty
   assertError PermissionRequired result
+  readIORef transportCalls >>= (@?= [])
+
+containerSelectionBoundary :: Assertion
+containerSelectionBoundary = do
+  (runner, registry) <- connectorRuntime
+  token <- assertRight (accessTokenFromBytes secretToken)
+  transportCalls <- newIORef []
+  let resolver = AccessTokenResolver (const (pure (Right token)))
+      entries = [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)]
+  integrations <- assertRight (authorizedIntegrations registry entries)
+  providers <- assertRight (configuredProviderImportSources [microsoftTodoDefinition] integrations registry resolver (graphTransport transportCalls))
+  provider <- case providers of
+    [one] -> pure one
+    other -> assertFailure ("unexpected provider count: " <> show (length other)) >> fail "unreachable"
+  let ordinaryPort = packRegistryImportPortWithProviders runner registry [provider]
+      scopedPort = packRegistryImportPortWithProviders runner registry [provider{providerImportRequiresContainerSelection = True}]
+  importPortPreflight ordinaryPort "microsoft_todo" SourceSnapshot (Set.singleton "list:inbox") >>= assertError InvalidInput
+  scopedResult <- importPortPreflight scopedPort "microsoft_todo" SourceSnapshot Set.empty
+  assertError PreconditionFailed scopedResult
+  case scopedResult of
+    Left problem -> map recoveryActionId (appErrorRecovery problem) @?= ["select-containers"]
+    Right _ -> assertFailure "scoped import unexpectedly accepted an empty selection"
+  importSourceRequiresContainerSelection (last (importPortCatalog scopedPort)) @?= True
   readIORef transportCalls >>= (@?= [])
 
 multipleAccountReferences :: Assertion
@@ -897,6 +921,7 @@ microsoftTodoDefinition =
     , providerDefinitionNamespace = "microsoft_todo"
     , providerDefinitionDisplayName = "Microsoft To Do"
     , providerDefinitionModes = [SourceSnapshot, SourceSynchronize, SourceMigrate]
+    , providerDefinitionRequiresContainerSelection = False
     }
 
 connectorRuntime :: IO (PackRunnerClient, PackRegistry)

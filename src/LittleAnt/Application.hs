@@ -2088,7 +2088,7 @@ runImport environment dryRun dataset source mode eraseAfterImport =
   case appPackRegistryProblem environment <|> appImportPortProblem environment of
     Just problem -> pure (Left problem)
     Nothing ->
-      importPortPreflight (appImportPort environment) source mode >>= \case
+      importPortPreflight (appImportPort environment) source mode mempty >>= \case
         Left problem -> pure (Left problem)
         Right imported ->
           case validateImportCleanupRequest mode eraseAfterImport preflight of
@@ -4023,7 +4023,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     local (advanceEnvelope current result)
 
   acceptImport source expected eraseAfterImport =
-    importPortMaterialize (appImportPort environment) source (sourcePreflightMode expected) >>= \case
+    importPortMaterialize (appImportPort environment) source (sourcePreflightMode expected) mempty >>= \case
       Left problem -> pure (Left problem)
       Right materialization ->
         let reread = importMaterializationRead materialization

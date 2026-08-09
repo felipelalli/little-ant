@@ -15,6 +15,9 @@ import Control.Monad (unless, void)
 import Data.Aeson (Value)
 import Data.ByteString qualified as ByteString
 import Data.Map.Strict qualified as Map
+import Data.Maybe (isJust)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (defaultTimeLocale, formatTime)
@@ -38,11 +41,13 @@ data ImportSourceDescriptor = ImportSourceDescriptor
   , importSourceDisplayName :: Text
   , importSourceExtensions :: [Text]
   , importSourceModes :: [SourceMode]
+  , importSourceRequiresContainerSelection :: Bool
   }
   deriving stock (Eq, Show)
 
 data ImportRead = ImportRead
   { importReadSourceReference :: Text
+  , importReadSelectedContainers :: Set Text
   , importReadInput :: SourceInput
   , importReadPreflight :: SourcePreflight
   }
@@ -61,6 +66,7 @@ data ProviderImportSource = ProviderImportSource
   , providerImportDisplayName :: Text
   , providerImportInputLabel :: Text
   , providerImportModes :: [SourceMode]
+  , providerImportRequiresContainerSelection :: Bool
   , providerImportConfiguration :: Value
   , providerImportCredentialBindingReference :: Text
   , providerImportBroker :: PackHttpBroker
@@ -68,8 +74,9 @@ data ProviderImportSource = ProviderImportSource
 
 data ImportPort = ImportPort
   { importPortCatalog :: [ImportSourceDescriptor]
-  , importPortPreflight :: Text -> SourceMode -> IO (Either AppError ImportRead)
-  , importPortMaterialize :: Text -> SourceMode -> IO (Either AppError ImportMaterialization)
+  , importPortDiscoverContainers :: Text -> IO (Either AppError (Maybe [SourceContainer]))
+  , importPortPreflight :: Text -> SourceMode -> Set Text -> IO (Either AppError ImportRead)
+  , importPortMaterialize :: Text -> SourceMode -> Set Text -> IO (Either AppError ImportMaterialization)
   , importPortCleanupCustody :: Text -> Either AppError EffectAdapterCustody
   , importPortCleanupItem :: EffectAdapterCustody -> SourceCleanupItemTarget -> IO (Either AppError SourceCleanupReceipt)
   , importPortVerifyCleanupItem :: EffectAdapterCustody -> SourceCleanupItemTarget -> IO (Either AppError SourceCleanupReceipt)
@@ -82,8 +89,9 @@ emptyImportPort :: ImportPort
 emptyImportPort =
   ImportPort
     []
-    (\source _ -> pure . Left $ unavailable source)
-    (\source _ -> pure . Left $ unavailable source)
+    (\source -> pure . Left $ unavailable source)
+    (\source _ _ -> pure . Left $ unavailable source)
+    (\source _ _ -> pure . Left $ unavailable source)
     (Left . unavailable)
     (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
     (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
@@ -104,6 +112,7 @@ packRegistryImportPortWithProviders :: PackRunnerClient -> PackRegistry -> [Prov
 packRegistryImportPortWithProviders runner registry providers =
   ImportPort
     (fileDescriptors <> providerDescriptors)
+    discoverContainers
     preflight
     materialize
     cleanupCustody
@@ -113,45 +122,72 @@ packRegistryImportPortWithProviders runner registry providers =
     cleanupContainer
     verifyCleanupContainer
  where
-  preflight source mode = case providersFor source of
-    [provider] -> preflightProvider provider mode
-    [] -> readFileWith source mode $ \descriptor component input -> do
-      invokePackSourcePreflight runner component mode input >>= \case
-        Left problem -> pure (Left problem)
-        Right preview -> pure $ do
-          verifyCoreCustody descriptor input preview
-          Right (ImportRead (normalizedReference source) input preview)
+  discoverContainers source = case providersFor source of
+    [provider]
+      | providerImportRequiresContainerSelection provider -> discoverProviderContainers provider
+      | otherwise -> pure (Right Nothing)
+    [] -> case fileDescriptorFor source of
+      Right _ -> pure (Right Nothing)
+      Left problem -> pure (Left problem)
     _ -> pure (Left (ambiguousProviderReference source))
-  materialize source mode = case providersFor source of
-    [provider] -> materializeProvider provider mode
-    [] -> readFileWith source mode $ \descriptor component input -> do
-      invokePackSourceMaterialize runner component mode input >>= \case
-        Left problem -> pure (Left problem)
-        Right (preview, materialization) -> pure $ do
-          verifyCoreCustody descriptor input preview
-          validateSourceAdapterMaterialization materialization
-          Right
-            ( ImportMaterialization
-                (ImportRead (normalizedReference source) input preview)
-                (materializedObjects materialization)
-            )
+  preflight source mode selectedContainers = case providersFor source of
+    [provider] -> preflightProvider provider mode selectedContainers
+    []
+      | not (Set.null selectedContainers) -> pure . Left $ sourceProblem InvalidInput "A file SourceAdapter cannot receive remote-container selection."
+      | otherwise -> readFileWith source mode $ \descriptor component input -> do
+          invokePackSourcePreflight runner component mode input >>= \case
+            Left problem -> pure (Left problem)
+            Right preview -> pure $ do
+              verifyCoreCustody descriptor input preview
+              Right (ImportRead (normalizedReference source) Set.empty input preview)
     _ -> pure (Left (ambiguousProviderReference source))
-  preflightProvider provider mode = case validateProviderMode provider mode >> lookupPackComponent (providerImportAdapterId provider) registry of
+  materialize source mode selectedContainers = case providersFor source of
+    [provider] -> materializeProvider provider mode selectedContainers
+    []
+      | not (Set.null selectedContainers) -> pure . Left $ sourceProblem InvalidInput "A file SourceAdapter cannot receive remote-container selection."
+      | otherwise -> readFileWith source mode $ \descriptor component input -> do
+          invokePackSourceMaterialize runner component mode input >>= \case
+            Left problem -> pure (Left problem)
+            Right (preview, materialization) -> pure $ do
+              verifyCoreCustody descriptor input preview
+              validateSourceAdapterMaterialization materialization
+              Right
+                ( ImportMaterialization
+                    (ImportRead (normalizedReference source) Set.empty input preview)
+                    (materializedObjects materialization)
+                )
+    _ -> pure (Left (ambiguousProviderReference source))
+  discoverProviderContainers provider = case lookupPackComponent (providerImportAdapterId provider) registry of
     Left problem -> pure (Left problem)
     Right component ->
-      invokePackSourcePreflightHttp runner (providerImportBroker provider) component mode (providerImportInputLabel provider) (providerImportConfiguration provider) >>= \case
+      invokePackSourcePreflightHttpScoped runner (providerImportBroker provider) component SourceSnapshot (providerImportInputLabel provider) (providerImportConfiguration provider) Set.empty >>= \case
         Left problem -> pure (Left problem)
-        Right (input, preview) -> pure (Right (ImportRead (providerImportCanonicalReference provider) input preview))
-  materializeProvider provider mode = case validateProviderMode provider mode >> lookupPackComponent (providerImportAdapterId provider) registry of
+        Right (_, preview) -> pure $ do
+          let observation = sourcePreflightObservation preview
+          unless (null (observedObjects observation)) $
+            Left (sourceProblem CorruptData "A scoped SourceAdapter returned source objects during container discovery.")
+          unless (not (null (observedContainers observation))) $
+            Left (sourceProblem PreconditionFailed "The provider returned no selectable containers.")
+          Right (Just (observedContainers observation))
+  preflightProvider provider mode selectedContainers = case validateProviderMode provider mode >> validateProviderScope provider selectedContainers >> lookupPackComponent (providerImportAdapterId provider) registry of
     Left problem -> pure (Left problem)
     Right component ->
-      invokePackSourceMaterializeHttp runner (providerImportBroker provider) component mode (providerImportInputLabel provider) (providerImportConfiguration provider) >>= \case
+      invokePackSourcePreflightHttpScoped runner (providerImportBroker provider) component mode (providerImportInputLabel provider) (providerImportConfiguration provider) selectedContainers >>= \case
+        Left problem -> pure (Left problem)
+        Right (input, preview) -> pure $ do
+          validateObservedScope provider selectedContainers preview
+          Right (ImportRead (providerImportCanonicalReference provider) selectedContainers input preview)
+  materializeProvider provider mode selectedContainers = case validateProviderMode provider mode >> validateProviderScope provider selectedContainers >> lookupPackComponent (providerImportAdapterId provider) registry of
+    Left problem -> pure (Left problem)
+    Right component ->
+      invokePackSourceMaterializeHttpScoped runner (providerImportBroker provider) component mode (providerImportInputLabel provider) (providerImportConfiguration provider) selectedContainers >>= \case
         Left problem -> pure (Left problem)
         Right (input, preview, materialization) -> pure $ do
+          validateObservedScope provider selectedContainers preview
           validateSourceAdapterMaterialization materialization
           Right
             ( ImportMaterialization
-                (ImportRead (providerImportCanonicalReference provider) input preview)
+                (ImportRead (providerImportCanonicalReference provider) selectedContainers input preview)
                 (materializedObjects materialization)
             )
   cleanupCustody source = do
@@ -296,16 +332,38 @@ packRegistryImportPortWithProviders runner registry providers =
         (providerImportInputLabel provider)
         []
         (providerImportModes provider)
+        (providerImportRequiresContainerSelection provider)
     | provider <- providers
     ]
   fileDescriptors =
-    [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]
-    , ImportSourceDescriptor "apple_reminders_export" "Apple Reminders Shortcut export" [".apple-reminders.json"] [SourceSnapshot, SourceMigrate]
-    , ImportSourceDescriptor "document_file" "Markdown, HTML, JSON, CSV, or Org file" [".markdown", ".html", ".json", ".csv", ".org", ".md", ".htm"] [SourceSnapshot, SourceMigrate]
-    , ImportSourceDescriptor "evernote_enex" "Evernote ENEX export" [".enex"] [SourceSnapshot, SourceMigrate]
-    , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
-    , ImportSourceDescriptor "taskjuggler_actuals" "TaskJuggler actuals" [".tjp"] [SourceSnapshot]
+    [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate] False
+    , ImportSourceDescriptor "apple_reminders_export" "Apple Reminders Shortcut export" [".apple-reminders.json"] [SourceSnapshot, SourceMigrate] False
+    , ImportSourceDescriptor "document_file" "Markdown, HTML, JSON, CSV, or Org file" [".markdown", ".html", ".json", ".csv", ".org", ".md", ".htm"] [SourceSnapshot, SourceMigrate] False
+    , ImportSourceDescriptor "evernote_enex" "Evernote ENEX export" [".enex"] [SourceSnapshot, SourceMigrate] False
+    , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate] False
+    , ImportSourceDescriptor "taskjuggler_actuals" "TaskJuggler actuals" [".tjp"] [SourceSnapshot] False
     ]
+
+  validateProviderScope provider selected
+    | providerImportRequiresContainerSelection provider && Set.null selected =
+        Left $
+          (sourceProblem PreconditionFailed "This provider requires an explicit nonempty container selection before preflight.")
+            { appErrorRecovery = [RecoveryAction "select-containers" "Use /import to inspect and select exact remote containers." Nothing]
+            }
+    | not (providerImportRequiresContainerSelection provider) && not (Set.null selected) =
+        Left (sourceProblem InvalidInput "This provider does not accept explicit container selection.")
+    | otherwise = Right ()
+
+  validateObservedScope provider selected preview
+    | not (providerImportRequiresContainerSelection provider) = Right ()
+    | otherwise = do
+        let observation = sourcePreflightObservation preview
+            observed = Set.fromList (sourceContainerExternalId <$> observedContainers observation)
+            objectContainers = Set.fromList [container | sourceObject <- observedObjects observation, Just container <- [sourceObjectContainerId sourceObject]]
+        unless (observed == selected) $
+          Left (sourceProblem CorruptData "The scoped SourceAdapter did not return exactly the selected containers.")
+        unless (all (isJust . sourceObjectContainerId) (observedObjects observation) && objectContainers `Set.isSubsetOf` selected) $
+          Left (sourceProblem CorruptData "The scoped SourceAdapter returned an object outside the selected containers.")
 
 makeCleanupCustody :: ProviderImportSource -> RegisteredPackComponent -> Either AppError EffectAdapterCustody
 makeCleanupCustody = makeCleanupCustodyFor SourceCleanupItemPermission "item"
@@ -348,7 +406,7 @@ validateProviderMode provider mode =
     then Right ()
     else Left (unsupportedMode descriptor mode)
  where
-  descriptor = ImportSourceDescriptor (providerImportAdapterId provider) (providerImportDisplayName provider) [] (providerImportModes provider)
+  descriptor = ImportSourceDescriptor (providerImportAdapterId provider) (providerImportDisplayName provider) [] (providerImportModes provider) (providerImportRequiresContainerSelection provider)
 
 unsupportedMode :: ImportSourceDescriptor -> SourceMode -> AppError
 unsupportedMode descriptor mode =

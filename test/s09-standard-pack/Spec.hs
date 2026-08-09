@@ -328,7 +328,7 @@ taskJugglerActualsSourceAdapter = do
   withSystemTempDirectory "little-ant-taskjuggler-actuals" $ \directory -> do
     let path = directory </> "actuals.tjp"
     ByteString.writeFile path actualBytes
-    imported <- importPortPreflight (packRegistryImportPort client registry) (Text.pack path) SourceSnapshot >>= assertRight
+    imported <- importPortPreflight (packRegistryImportPort client registry) (Text.pack path) SourceSnapshot Set.empty >>= assertRight
     sourcePreflightAdapterId (importReadPreflight imported) @?= "taskjuggler_actuals"
     observedIdentity (sourcePreflightObservation (importReadPreflight imported)) @?= observedIdentity (sourcePreflightObservation preflight)
     (exitCode, stdoutText, stderrText) <- readProcessWithExitCode "tj3" ["--check-syntax", "--no-reports", path] ""
