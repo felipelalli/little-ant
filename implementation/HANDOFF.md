@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **5d8ed04**
-(`test(import): prove Raw-first acceptance custody`). The current milestone
-adds the separate TaskJuggler actuals preflight and its independent custody
-parser. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **4dbf2d6**
+(`feat(taskjuggler): verify actuals before import`). The current milestone
+adds Raw-first actual-evidence acceptance and conservative remaining-effort
+planning. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -151,16 +151,30 @@ parser. This file stays editable between milestone commits.
   progress cutoff. The host compares the adapter's manifest/as-of/count facts
   with its own parse before rendering the public import preview. Real `tj3`,
   malformed-custody fixtures, and CLI E2E cover the boundary without events.
+- accepting that preview now atomically persists the whole `.tjp` Raw and its
+  source custody before one immutable evidence event per actual-bearing task.
+  Replay validates the Raw, invocation, canonical task identity, manifest,
+  observation cutoff, and single-record membership. Exact retries add no
+  events; older and equal non-identical observations fail before mutation;
+  absent actual fields remain absent and explicit zero survives.
+- planning leaves the historical EffortClaim and its three-point macro intact.
+  Only the latest explicit `effortleft` becomes a separate, provenance-bearing
+  remaining-effort projection. The signed exporter emits that exact point in
+  all three TaskJuggler scenarios with a visible no-spread warning; a latest
+  missing value or `effortdone` alone never revives or derives remaining work.
 
 ## Last green gate
 
 The most recent full commands were:
 
-    cabal test all --test-show-details=direct
+    make format-check
+    cabal check
+    cabal test all --test-show-details=never
     ./test/e2e/s01-cli.sh
     python3 -m unittest discover -s test/conformance -t .
     python3 tools/lant_conformance.py audit
     python3 tools/lant_conformance.py vocabulary
+    cabal exec runghc -- -XGHC2021 -XDerivingStrategies -XLambdaCase -XOverloadedStrings -isrc tools/rebuild-standard-pack.hs verify
     nix build path:.#little-ant
 
 Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, the
@@ -187,8 +201,8 @@ pre-existing hints are outside this milestone and S09 remains in progress.
 The isolated-runner suite now has 8 process-boundary cases, including closed
 host-custodied source preflight and unsupported-mode rejection. The standard-Pack
 suite now has 7 archive/authority/golden-format/TaskJuggler/source cases, the pure
-planning suite has 2 cut/custody/profile cases, and the dedicated actuals suite
-has 5 strict manifest/task/time/value custody cases. The CLI test exercises
+planning suite has 4 cut/custody/profile/remaining-evidence cases, and the dedicated actuals suite
+has 7 strict custody/acceptance/replay cases. The CLI test exercises
 CSV, TaskJuggler export, and TaskJuggler actuals preflight through the
 production environment. A clean
 `nix build path:.#little-ant` passes all Cabal suites, installs the private
@@ -228,9 +242,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, persist TaskJuggler actuals through Raw-first acceptance as immutable
-evidence and use only explicit remaining-effort observations conservatively in
-later planning. Microsoft To Do and Notesnook migration paths, Calendar, and
+Next, implement the Microsoft To Do and Notesnook migration paths. Calendar and
 the local-web UIAdapter remain. The
-`Corrupt history/repair` row is implemented; formal evidence registration and
-the complete S09 gate still precede `verified`.
+`Corrupt history/repair` row and formal TaskJuggler evidence registration are
+implemented; the complete S09 gate still precedes `verified`.

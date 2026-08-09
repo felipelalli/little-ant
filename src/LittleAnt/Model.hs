@@ -11,6 +11,7 @@ module LittleAnt.Model (
   Dependency (..),
   DependencyStatus (..),
   EffortClaim (..),
+  EffortActualEvidence (..),
   EffortClass (..),
   Fixed (..),
   ForecastDrawEvidence (..),
@@ -852,6 +853,20 @@ data EffortClaim = EffortClaim
   }
   deriving stock (Eq, Show)
 
+data EffortActualEvidence = EffortActualEvidence
+  { effortActualEvidenceId :: UUIDv7
+  , effortActualBrick :: UUIDv7
+  , effortActualRaw :: UUIDv7
+  , effortActualImportInvocation :: UUIDv7
+  , effortActualPlanningManifestDigest :: Text
+  , effortActualTaskId :: Text
+  , effortActualAsOf :: UTCTime
+  , effortActualCompletedMicrohours :: Maybe Integer
+  , effortActualRemainingMicrohours :: Maybe Integer
+  , effortActualRecordedAt :: UTCTime
+  }
+  deriving stock (Eq, Show)
+
 data Brick = Brick
   { brickId :: UUIDv7
   , brickHandle :: Handle
@@ -1019,6 +1034,7 @@ data State = State
   , statePairJudgments :: Map UUIDv7 PairJudgment
   , stateImpactClaims :: Map UUIDv7 ImpactClaim
   , stateEffortClaims :: Map UUIDv7 EffortClaim
+  , stateEffortActualEvidence :: Map UUIDv7 EffortActualEvidence
   , statePhaseClaims :: Map UUIDv7 PhaseClaim
   , stateBricks :: Map UUIDv7 Brick
   , stateBrickHandles :: Map Handle UUIDv7
@@ -1090,6 +1106,7 @@ emptyState =
     , statePairJudgments = Map.empty
     , stateImpactClaims = Map.empty
     , stateEffortClaims = Map.empty
+    , stateEffortActualEvidence = Map.empty
     , statePhaseClaims = Map.empty
     , stateBricks = Map.empty
     , stateBrickHandles = Map.empty

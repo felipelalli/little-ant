@@ -53,16 +53,18 @@ UX-CAL00..CAL01, UX-PACK00..PACK02, UX-EXP00.
 
 Current checkpoint: structural exporters, the core-owned TaskJuggler planning
 cut/exporter, the isolated file-SourceAdapter preflight contract, and the
-separate TaskJuggler actuals custody preflight are
+separate TaskJuggler actuals custody and Raw-first acceptance paths are
 implemented through the exact signed standard Pack. The first `plain_text`
 component now has the complete explicit CLI preflight and verified Raw-first
 acceptance path, including stale regeneration, exact retry, stable
 ImportProfile scope, immutable ImportInvocation custody, SourceBinding
 identity, dry-run, and unsupported cleanup failure. TaskJuggler actuals now
 have independent core/Lua manifest verification, explicit observation time,
-partial actual semantics, real `tj3` coverage, and a public snapshot preview;
-Raw-first evidence acceptance remains next. The remaining standard
-importers/connectors, Calendar, and local-web UIAdapter remain in this slice.
+partial actual semantics, real `tj3` coverage, a public snapshot preview,
+atomic immutable evidence acceptance, monotonic observation custody, and
+conservative explicit-remaining projection without estimate mutation. The
+remaining standard importers/connectors, Calendar, and local-web UIAdapter
+remain in this slice.
 
 ## Gate
 

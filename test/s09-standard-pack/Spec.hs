@@ -201,6 +201,21 @@ planningState =
           [ (brickId first, EffortClaim (brickId first) EasyEffort fixtureTime DirectHuman factoryJudgmentProfileHash)
           , (brickId scheduled, EffortClaim (brickId scheduled) NormalEffort fixtureTime DirectHuman factoryJudgmentProfileHash)
           ]
+    , stateEffortActualEvidence =
+        Map.singleton
+          (planningUuid "0198f000-0000-7000-8000-0000000000a1")
+          ( EffortActualEvidence
+              (planningUuid "0198f000-0000-7000-8000-0000000000a1")
+              (brickId first)
+              (planningUuid "0198f000-0000-7000-8000-0000000000a2")
+              (planningUuid "0198f000-0000-7000-8000-0000000000a3")
+              (Text.replicate 64 "a")
+              "t_0198f000000070008000000000000011"
+              fixtureTime
+              (Just 2_000_000)
+              (Just 2_500_000)
+              fixtureTime
+          )
     , stateDependencies = Map.singleton (dependencyId dependency) dependency
     , stateTemporalConstraints =
         Map.singleton

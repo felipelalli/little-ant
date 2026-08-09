@@ -28,8 +28,8 @@ standardPackIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.standard"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "7670967a401271cb03fec73721dc9ecb411ac90fa83390c804fb64c3d3ae9568"
-    , artifactArchiveDigest = "82c2d25d3c56424dee19a6dcaea173810a48a2758a615d69bf48115f83aec65f"
+    , artifactManifestDigest = "2320682eaf747a0250e49a635aafb5e3bc095a11405433121f8f5a130dae93fb"
+    , artifactArchiveDigest = "54d2b1c7e868cef810c19e778e4047109bd56059fd4c704955897db5170f8df3"
     }
 
 standardPackComponentIds :: Set Text

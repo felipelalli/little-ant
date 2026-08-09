@@ -73,8 +73,18 @@ data PlanningWarning = PlanningWarning
 data CutItem = CutItem
   { cutBrick :: Brick
   , cutEffort :: Maybe EffortMacro
+  , cutRemainingEffort :: Maybe RemainingEffortProjection
   , cutDependencies :: [UUIDv7]
   , cutOrder :: Int
+  }
+  deriving stock (Eq, Show)
+
+data RemainingEffortProjection = RemainingEffortProjection
+  { remainingMicrohours :: Integer
+  , remainingAsOf :: UTCTime
+  , remainingEvidenceIds :: [UUIDv7]
+  , remainingRawIds :: [UUIDv7]
+  , remainingManifestDigests :: [Text]
   }
   deriving stock (Eq, Show)
 
@@ -95,7 +105,14 @@ buildTaskJugglerPayload exporter plannedAt cursor state scopeValue selected = do
       dependencyMap = planningDependencies state selectedIds cutIds
       cutItems =
         zipWith
-          (\position (brick, effort) -> CutItem brick effort (Map.findWithDefault [] (brickId brick) dependencyMap) position)
+          ( \position (brick, effort) ->
+              CutItem
+                brick
+                effort
+                (latestRemainingEffort state (brickId brick))
+                (Map.findWithDefault [] (brickId brick) dependencyMap)
+                position
+          )
           [0 ..]
           cutWithEffort
       warnings =
@@ -250,17 +267,20 @@ dependencyWarnings state selectedIds cutIds = mapMaybe warningFor activeDependen
 itemWarnings :: State -> CutItem -> [PlanningWarning]
 itemWarnings state item =
   catMaybes
-    [ if isNothing (cutEffort item)
+    [ if isNothing (cutEffort item) && isNothing (cutRemainingEffort item)
         then Just (one "missing-effort" "No EffortProfile class is recorded; no planning duration was invented.")
         else Nothing
-    , if brickWorkState brick == Wip && isJust (cutEffort item)
+    , if brickWorkState brick == Wip && isJust (cutEffort item) && isNothing (cutRemainingEffort item)
         then Just (one "wip-total-effort" "The Brick is WIP, but no conservative remaining-effort evidence exists; total effort is exported.")
         else Nothing
+    , case (cutRemainingEffort item, Map.lookup (brickId brick) (stateScheduledIntervals state)) of
+        (Just _, Nothing) -> Just (one "remaining-effort-point-estimate" "Explicit remaining effort is exported unchanged in every scenario because no remaining-effort uncertainty spread was observed.")
+        _ -> Nothing
     , case Map.lookup (brickId brick) (stateTemporalConstraints state) >>= temporalBestBefore of
         Just _ -> Just (one "best-before-advisory" "best_before remains advisory and is not serialized as a hard TaskJuggler constraint.")
         Nothing -> Nothing
-    , case (Map.lookup (brickId brick) (stateScheduledIntervals state), cutEffort item) of
-        (Just _, Just _) -> Just (one "fixed-interval-effort" "The exact scheduled interval governs scheduling; the effort macro remains in the manifest for review.")
+    , case (Map.lookup (brickId brick) (stateScheduledIntervals state), isJust (cutEffort item) || isJust (cutRemainingEffort item)) of
+        (Just _, True) -> Just (one "fixed-interval-effort" "The exact scheduled interval governs scheduling; effort claims and remaining evidence remain in the manifest for review.")
         _ -> Nothing
     ]
  where
@@ -305,6 +325,7 @@ taskValue state totalItems item =
     , "dependencies" .= fmap taskId (cutDependencies item)
     ]
       <> maybe [] (pure . ("effort" .=) . effortMacroValue) (cutEffort item)
+      <> maybe [] (pure . ("remaining_effort" .=) . remainingEffortValue) (cutRemainingEffort item)
       <> maybe [] temporalFields (Map.lookup (brickId brick) (stateTemporalConstraints state))
       <> maybe [] (pure . ("scheduled_interval" .=) . intervalValue) (Map.lookup (brickId brick) (stateScheduledIntervals state))
  where
@@ -325,6 +346,7 @@ cutManifestValue item =
     , "dependencies" .= fmap taskId (cutDependencies item)
     ]
       <> maybe [] (pure . ("effort_macro" .=) . macroName) (cutEffort item)
+      <> maybe [] (pure . ("remaining_effort" .=) . remainingEffortValue) (cutRemainingEffort item)
  where
   brick = cutBrick item
 
@@ -336,6 +358,39 @@ effortMacroValue macro =
     , "optimistic_hours" .= macroOptimisticHours macro
     , "realistic_hours" .= macroRealisticHours macro
     , "pessimistic_hours" .= macroPessimisticHours macro
+    ]
+
+latestRemainingEffort :: State -> UUIDv7 -> Maybe RemainingEffortProjection
+latestRemainingEffort state brickIdentity = do
+  latestAsOf <- maximumMaybe (effortActualAsOf <$> relevant)
+  let latest = filter ((== latestAsOf) . effortActualAsOf) relevant
+  remaining <- case latest of
+    first : rest -> do
+      value <- effortActualRemainingMicrohours first
+      if all ((== Just value) . effortActualRemainingMicrohours) rest then Just value else Nothing
+    [] -> Nothing
+  pure
+    RemainingEffortProjection
+      { remainingMicrohours = remaining
+      , remainingAsOf = latestAsOf
+      , remainingEvidenceIds = Set.toAscList (Set.fromList (effortActualEvidenceId <$> latest))
+      , remainingRawIds = Set.toAscList (Set.fromList (effortActualRaw <$> latest))
+      , remainingManifestDigests = Set.toAscList (Set.fromList (effortActualPlanningManifestDigest <$> latest))
+      }
+ where
+  relevant = filter ((== brickIdentity) . effortActualBrick) (Map.elems (stateEffortActualEvidence state))
+  maximumMaybe = \case
+    [] -> Nothing
+    values -> Just (maximum values)
+
+remainingEffortValue :: RemainingEffortProjection -> Value
+remainingEffortValue projection =
+  object
+    [ "microhours" .= Text.pack (show (remainingMicrohours projection))
+    , "as_of" .= utcText (remainingAsOf projection)
+    , "evidence_ids" .= fmap renderUUIDv7 (remainingEvidenceIds projection)
+    , "raw_ids" .= fmap renderUUIDv7 (remainingRawIds projection)
+    , "planning_manifest_sha256" .= remainingManifestDigests projection
     ]
 
 warningValue :: PlanningWarning -> Value

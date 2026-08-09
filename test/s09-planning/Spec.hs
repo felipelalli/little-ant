@@ -26,6 +26,8 @@ main =
       "S09 core-owned planning cut"
       [ testCase "the cut is deterministic, non-overlapping, sparse, and reproducible" deterministicPlanningCut
       , testCase "an unavailable effort profile fails before serialization" staleEffortProfile
+      , testCase "latest explicit remaining effort is projected without rewriting total effort" explicitRemainingEffort
+      , testCase "a latest observation without remaining effort does not reuse stale evidence" missingLatestRemainingEffort
       ]
 
 deterministicPlanningCut :: Assertion
@@ -57,6 +59,37 @@ staleEffortProfile = do
   case buildTaskJugglerPayload fixtureExporter fixedTime fixtureCursor state (object ["kind" .= ("all" :: Text)]) fixtureBricks of
     Left problem -> appErrorCode problem @?= PreconditionFailed
     Right value -> assertFailure ("expected unavailable profile failure, got " <> show value)
+
+explicitRemainingEffort :: Assertion
+explicitRemainingEffort = do
+  let parent = parentBrick
+      evidence = fixtureActual 101 parent fixedTime (Just 7_000_000) (Just 2_500_000)
+      state = fixtureState{stateEffortActualEvidence = Map.singleton (effortActualEvidenceId evidence) evidence}
+  payload <- assertRight (buildTaskJugglerPayload fixtureExporter fixedTime fixtureCursor state (object ["kind" .= ("all" :: Text)]) fixtureBricks)
+  encoded <- assertRight (canonicalJsonBytes payload)
+  assertContains encoded "\"effort_macro\":\"EFFORT_4D\""
+  assertContains encoded "\"microhours\":\"2500000\""
+  assertContains encoded "\"remaining-effort-point-estimate\""
+  assertBool "remaining evidence did not suppress the total-effort WIP warning" (not ("\"wip-total-effort\"" `ByteString.isInfixOf` encoded))
+  stateEffortClaims state @?= stateEffortClaims fixtureState
+
+missingLatestRemainingEffort :: Assertion
+missingLatestRemainingEffort = do
+  let parent = parentBrick
+      older = fixtureActual 101 parent fixedTime Nothing (Just 2_500_000)
+      newer = fixtureActual 102 parent (addUTCTime 60 fixedTime) (Just 8_000_000) Nothing
+      state =
+        fixtureState
+          { stateEffortActualEvidence =
+              Map.fromList
+                [ (effortActualEvidenceId older, older)
+                , (effortActualEvidenceId newer, newer)
+                ]
+          }
+  payload <- assertRight (buildTaskJugglerPayload fixtureExporter fixedTime fixtureCursor state (object ["kind" .= ("all" :: Text)]) fixtureBricks)
+  encoded <- assertRight (canonicalJsonBytes payload)
+  assertBool "stale remaining evidence leaked past a newer missing observation" (not ("\"remaining_effort\"" `ByteString.isInfixOf` encoded))
+  assertContains encoded "\"wip-total-effort\""
 
 fixtureState :: State
 fixtureState =
@@ -116,6 +149,23 @@ fixtureBrick identity handle title nature parent position workState =
 
 fixtureEffort :: Brick -> EffortClass -> EffortClaim
 fixtureEffort brick effortClass = EffortClaim (brickId brick) effortClass fixedTime DirectHuman factoryJudgmentProfileHash
+
+fixtureActual :: Int -> Brick -> UTCTime -> Maybe Integer -> Maybe Integer -> EffortActualEvidence
+fixtureActual suffix brick asOf completed remaining =
+  EffortActualEvidence
+    (fixtureIdentity suffix)
+    (brickId brick)
+    (fixtureIdentity (suffix + 100))
+    (fixtureIdentity (suffix + 200))
+    (text64 (if suffix == 101 then 'a' else 'b'))
+    ("t_" <> Text.filter (/= '-') (renderUUIDv7 (brickId brick)))
+    asOf
+    completed
+    remaining
+    asOf
+
+fixtureIdentity :: Int -> UUIDv7
+fixtureIdentity suffix = uuid ("0198f000-0000-7000-8000-" <> Text.justifyRight 12 '0' (Text.pack (show suffix)))
 
 fixtureExporter :: PlanningExporterIdentity
 fixtureExporter =

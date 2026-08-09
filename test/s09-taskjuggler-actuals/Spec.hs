@@ -1,15 +1,24 @@
 module Main (main) where
 
+import Control.Monad (foldM)
 import Data.Aeson (Value, object, (.=))
 import Data.ByteString (ByteString)
 import Data.ByteString.Base64.URL qualified as Base64Url
+import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
+import LittleAnt.Decision
 import LittleAnt.Error
+import LittleAnt.Event
+import LittleAnt.Foundation
 import LittleAnt.Id
+import LittleAnt.Model
 import LittleAnt.Pack.Format (canonicalJsonBytes)
+import LittleAnt.Pack.Trust (PackArtifactIdentity (..))
+import LittleAnt.Source
 import LittleAnt.Store (sha256Hex)
 import LittleAnt.TaskJugglerActuals
 import Test.Tasty
@@ -25,6 +34,8 @@ main =
       , testCase "actuals reject unknown, duplicate, nested, and missing manifest tasks" invalidTaskStructure
       , testCase "actuals reject unsupported fields and imprecise effort syntax" invalidActualFields
       , testCase "actuals require one explicit canonical UTC progress cutoff" invalidAsOf
+      , testCase "acceptance persists Raw before immutable evidence and exact retry is event-free" acceptsRawFirstEvidence
+      , testCase "acceptance rejects stale, equal nonidentical, and unknown-Brick observations" rejectsUnsafeEvidence
       ]
 
 validPartialActuals :: Assertion
@@ -69,6 +80,54 @@ invalidAsOf = do
   assertCorrupt "non-UTC project" (Text.replace "timezone \"UTC\"" "timezone \"Europe/Berlin\"" valid)
   assertCorrupt "now outside project" (Text.replace "  now 2026-08-09-12:00" "" valid <> "\nnow 2026-08-09-12:00\n")
   assertCorrupt "unbalanced project" (Text.replace "\n}\n\ntask" "\n\ntask" valid)
+
+acceptsRawFirstEvidence :: Assertion
+acceptsRawFirstEvidence = do
+  bytes <- fixtureSource [(taskOne, ["  actual:effortdone 2.5h"]), (taskTwo, ["  actual:effortleft 0h"])]
+  preflight <- fixturePreflight bytes
+  count <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference preflight)
+  count @?= 11
+  decision <- assertRight (decideAcceptFileImport fixtureState fixtureActor fixtureReference (fixtureInput bytes) preflight (facts 1 count))
+  fmap (eventTypeName . draftPayload) (importAcceptanceEvents decision)
+    @?= [ "import_profile_changed"
+        , "raw_fed"
+        , "source_binding_changed"
+        , "import_invocation_recorded"
+        , "effort_actual_observed"
+        , "effort_actual_observed"
+        ]
+  accepted <- applyEvents fixtureState (importAcceptanceEvents decision)
+  Map.size (stateRaws accepted) @?= 1
+  Map.size (stateEffortActualEvidence accepted) @?= 2
+  stateEffortClaims accepted @?= Map.empty
+  let evidence = Map.elems (stateEffortActualEvidence accepted)
+  assertBool "present zero was lost" (any ((== Just 0) . effortActualRemainingMicrohours) evidence)
+  assertBool "missing remaining became zero" (any ((== Nothing) . effortActualRemainingMicrohours) evidence)
+  retryCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference preflight)
+  retryCount @?= 0
+  retry <- assertRight (decideAcceptFileImport accepted fixtureActor fixtureReference (fixtureInput bytes) preflight (facts 50 0))
+  importAcceptanceCommandId retry @?= Nothing
+  importAcceptanceEvents retry @?= []
+
+rejectsUnsafeEvidence :: Assertion
+rejectsUnsafeEvidence = do
+  initialBytes <- fixtureSource [(taskOne, ["  actual:effortleft 4h"]), (taskTwo, ["  actual:effortdone 1h"])]
+  initialPreflight <- fixturePreflight initialBytes
+  initialCount <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference initialPreflight)
+  initialDecision <- assertRight (decideAcceptFileImport fixtureState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (facts 1 initialCount))
+  accepted <- applyEvents fixtureState (importAcceptanceEvents initialDecision)
+
+  let equalChanged = TextEncoding.encodeUtf8 (Text.replace "actual:effortleft 4h" "actual:effortleft 3h" (TextEncoding.decodeUtf8 initialBytes))
+      older = TextEncoding.encodeUtf8 (Text.replace "now 2026-08-09-12:00" "now 2026-08-09-11:59" (TextEncoding.decodeUtf8 initialBytes))
+  equalPreflight <- fixturePreflight equalChanged
+  olderPreflight <- fixturePreflight older
+  assertCode Conflict (importAcceptanceUUIDCount accepted fixtureReference equalPreflight)
+  olderCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference olderPreflight)
+  assertCode Conflict (decideAcceptFileImport accepted fixtureActor fixtureReference (fixtureInput older) olderPreflight (facts 80 olderCount))
+
+  let missingBrickState = fixtureState{stateBricks = Map.delete brickTwo (stateBricks fixtureState)}
+  missingCount <- assertRight (importAcceptanceUUIDCount missingBrickState fixtureReference initialPreflight)
+  assertCode NotFound (decideAcceptFileImport missingBrickState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (facts 110 missingCount))
 
 fixtureSource :: [(Text, [Text])] -> IO ByteString
 fixtureSource taskActuals = do
@@ -131,6 +190,141 @@ taskTwo = "t_0198f000000070008000000000000012"
 brickOne, brickTwo :: UUIDv7
 brickOne = uuid "0198f000-0000-7000-8000-000000000011"
 brickTwo = uuid "0198f000-0000-7000-8000-000000000012"
+
+fixtureState :: State
+fixtureState =
+  emptyState
+    { stateBricks = Map.fromList [(brickOne, fixtureBrick brickOne "one" "One" 0), (brickTwo, fixtureBrick brickTwo "two" "Two" 1)]
+    }
+
+fixtureBrick :: UUIDv7 -> Text -> Text -> Int -> Brick
+fixtureBrick identity handle title position =
+  Brick
+    identity
+    (Handle handle)
+    title
+    AtomicTask
+    "factory@1"
+    "fixture"
+    Nothing
+    Nothing
+    Set.empty
+    position
+    (DeterministicPosition "fixture")
+    BrickActive
+    Wip
+    observedAt
+    fixtureActor
+    (fixtureUuid 999)
+
+fixturePreflight :: ByteString -> IO SourcePreflight
+fixturePreflight bytes = do
+  actuals <- assertRight (parseTaskJugglerActuals bytes)
+  text <- either (assertFailure . show) pure (TextEncoding.decodeUtf8' bytes)
+  let digest = sha256Hex bytes
+      asOf = Text.pack (formatTime defaultTimeLocale "%Y-%m-%d-%H:%MZ" (actualsAsOf actuals))
+      observation =
+        SourceAdapterObservation
+          "TaskJuggler actuals"
+          Nothing
+          ( Map.fromList
+              [ ("planning_manifest_sha256", actualsManifestDigest actuals)
+              , ("actuals_as_of", asOf)
+              , ("actual_record_count", Text.pack (show (length (actualsRecords actuals))))
+              ]
+          )
+          [SourceSnapshot]
+          False
+          []
+          [ SourceObject
+              ("manifest:" <> actualsManifestDigest actuals <> "@" <> asOf)
+              ("manifest-sha256:" <> actualsManifestDigest actuals)
+              Nothing
+              "actuals.tjp"
+              SourceOtherShape
+              False
+              0
+              (summarizeSourceMaterial (SourceTextMaterial text))
+              [digest, actualsManifestDigest actuals]
+          ]
+          []
+          ["Actual effort remains evidence; historical estimates are unchanged."]
+  assertRight
+    ( makeSourcePreflight
+        "taskjuggler_actuals"
+        fixturePack
+        (sha256Hex "fixture signer")
+        1
+        fixturePermissions
+        SourceSnapshot
+        (fixtureInput bytes)
+        observation
+    )
+
+fixtureInput :: ByteString -> SourceInput
+fixtureInput = SourceInput "actuals.tjp" "text/x-taskjuggler; charset=utf-8"
+
+fixturePack :: PackArtifactIdentity
+fixturePack =
+  PackArtifactIdentity
+    "org.littleant.project"
+    "org.littleant.standard"
+    "1.0.0"
+    (sha256Hex "fixture manifest")
+    (sha256Hex "fixture archive")
+
+fixturePermissions :: Text
+fixturePermissions = "{\"credential_slots\":[],\"effect_purposes\":[],\"host_capabilities\":[\"input_bytes\"],\"http\":[],\"projections\":[]}"
+
+fixtureReference :: Text
+fixtureReference = "actuals.tjp"
+
+fixtureActor :: Actor
+fixtureActor = Actor "human" "test"
+
+observedAt :: UTCTime
+observedAt = UTCTime (fromGregorian 2026 8 9) (secondsToDiffTime (13 * 3600))
+
+facts :: Int -> Int -> RuntimeFacts
+facts base count =
+  RuntimeFacts
+    observedAt
+    [UUIDAllocation (renderUUIDv7 (fixtureUuid number)) | number <- [base .. base + count - 1]]
+    Map.empty
+    (FilesystemFacts True True Nothing)
+    (TerminalCapabilities False False False 80 24 False)
+    []
+
+fixtureUuid :: Int -> UUIDv7
+fixtureUuid number =
+  either (error . show) id $
+    uuidV7FromEntropy
+      (0x019f22340000 + fromIntegral number)
+      (TextEncoding.encodeUtf8 (Text.justifyRight 10 'x' (Text.pack (show (number `mod` 1000000000)))))
+
+applyEvents :: State -> [EventDraft] -> IO State
+applyEvents state events = do
+  persisted <- traverse (assertRight . decodeEvent . encodeEvent) (zipWith persist [stateEventCount state + 1 ..] events)
+  assertRight (foldM applyEvent state persisted)
+
+persist :: Integer -> EventDraft -> PersistedEvent
+persist sequenceNumber draft =
+  PersistedEvent
+    (draftEventId draft)
+    (draftCommandId draft)
+    sequenceNumber
+    0
+    (draftActor draft)
+    (draftRecordedAt draft)
+    (if sequenceNumber == 1 then "GENESIS" else "fixture")
+    (draftPreconditionHash draft)
+    (draftReplayUUIDs draft)
+    (draftPayload draft)
+
+assertCode :: ErrorCode -> Either AppError value -> Assertion
+assertCode expected = \case
+  Left problem -> appErrorCode problem @?= expected
+  Right _ -> assertFailure ("expected " <> show expected <> " failure")
 
 uuid :: Text -> UUIDv7
 uuid value = either (error . Text.unpack) id (parseUUIDv7 value)

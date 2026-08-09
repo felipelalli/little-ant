@@ -16,6 +16,7 @@ module LittleAnt.Event (
   ImportanceCompared (..),
   ImportancePlacementMarked (..),
   EffortClassified (..),
+  EffortActualObserved (..),
   ImpactClassified (..),
   PairJudgmentRecorded (..),
   PhaseChanged (..),
@@ -82,14 +83,15 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as LazyByteString
+import Data.Char (isAscii, isDigit)
 import Data.Foldable (traverse_)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isNothing)
+import Data.Maybe (catMaybes, isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
-import Data.Time (DayOfWeek (..), UTCTime, addUTCTime)
+import Data.Time (DayOfWeek (..), UTCTime, addUTCTime, defaultTimeLocale, formatTime)
 import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Judgment (ContradictionAssessment (..), detectContradiction, factoryJudgmentProfileHash, initialConfidence, reorderedSiblingIds)
@@ -512,6 +514,18 @@ data EffortClassified = EffortClassified
   }
   deriving stock (Eq, Show)
 
+data EffortActualObserved = EffortActualObserved
+  { observedEffortActualBrick :: UUIDv7
+  , observedEffortActualRaw :: UUIDv7
+  , observedEffortActualImportInvocation :: UUIDv7
+  , observedEffortActualPlanningManifestDigest :: Text
+  , observedEffortActualTaskId :: Text
+  , observedEffortActualAsOf :: UTCTime
+  , observedEffortActualCompletedMicrohours :: Maybe Integer
+  , observedEffortActualRemainingMicrohours :: Maybe Integer
+  }
+  deriving stock (Eq, Show)
+
 newtype BrickFocused = BrickFocused {focusedBrickId :: UUIDv7}
   deriving stock (Eq, Show)
 
@@ -587,6 +601,7 @@ data EventPayload
   | PhaseChangedV1 PhaseChanged
   | ImpactClassifiedV1 ImpactClassified
   | EffortClassifiedV1 EffortClassified
+  | EffortActualObservedV1 EffortActualObserved
   | BrickFocusedV1 BrickFocused
   | BrickCompletedV1 BrickCompleted
   | ForecastSelectedV1 ForecastSelected
@@ -678,6 +693,7 @@ eventTypeName = \case
   PhaseChangedV1 _ -> "phase_changed"
   ImpactClassifiedV1 _ -> "impact_classified"
   EffortClassifiedV1 _ -> "effort_classified"
+  EffortActualObservedV1 _ -> "effort_actual_observed"
   BrickFocusedV1 _ -> "brick_focused"
   BrickCompletedV1 _ -> "brick_completed"
   ForecastSelectedV1 _ -> "forecast_selected"
@@ -783,6 +799,7 @@ applyEvent state event = case persistedPayload event of
   PhaseChangedV1 payload -> applyPhaseChanged state event payload
   ImpactClassifiedV1 payload -> applyImpactClassified state event payload
   EffortClassifiedV1 payload -> applyEffortClassified state event payload
+  EffortActualObservedV1 payload -> applyEffortActualObserved state event payload
   BrickFocusedV1 payload -> applyBrickFocused state payload
   BrickCompletedV1 payload -> applyBrickCompleted state payload
   ForecastSelectedV1 payload -> applyForecastSelected state payload
@@ -2384,6 +2401,83 @@ applyEffortClassified state event payload = do
         Just effort -> Map.insert (brickId brick) (EffortClaim (brickId brick) effort (persistedRecordedAt event) (classifiedEffortProvenance payload) (classifiedEffortProfileHash payload)) (stateEffortClaims state)
   Right . bump $ state{stateEffortClaims = claims, stateLastRedo = Nothing}
 
+applyEffortActualObserved :: State -> PersistedEvent -> EffortActualObserved -> Either AppError State
+applyEffortActualObserved state event payload = do
+  _ <- requireBrick state (observedEffortActualBrick payload)
+  raw <- requireRaw state (observedEffortActualRaw payload)
+  invocation <-
+    maybe
+      (corrupt "Effort actual evidence references a missing ImportInvocation.")
+      Right
+      (Map.lookup (observedEffortActualImportInvocation payload) (stateImportInvocations state))
+  when (importInvocationComponentId invocation /= "taskjuggler_actuals") $
+    corrupt "Effort actual evidence must originate from the TaskJuggler actuals adapter."
+  when (Map.member (persistedEventId event) (stateEffortActualEvidence state)) $
+    corrupt "An effort actual evidence identity was recorded twice."
+  unless (rawCreatedByCommand raw == persistedCommandId event) $
+    corrupt "TaskJuggler actual evidence must be recorded atomically after its canonical Raw."
+  unless (validDigest (observedEffortActualPlanningManifestDigest payload)) $
+    corrupt "Effort actual evidence contains an invalid planning-manifest digest."
+  let expectedTaskId = "t_" <> Text.filter (/= '-') (renderUUIDv7 (observedEffortActualBrick payload))
+  unless (observedEffortActualTaskId payload == expectedTaskId) $
+    corrupt "Effort actual evidence contains a noncanonical TaskJuggler task identity."
+  when (isNothing completed && isNothing remaining) $
+    corrupt "Effort actual evidence must contain completed or remaining effort."
+  traverse_ (\value -> when (value < 0) $ corrupt "Effort actual evidence cannot contain negative microhours.") (catMaybes [completed, remaining])
+  case importInvocationMappings invocation of
+    [mapping] -> do
+      unless (importObjectDisposition mapping == ImportCreatedRaw) $
+        corrupt "TaskJuggler actual evidence requires a newly preserved immutable Raw observation."
+      unless (importObjectRawId mapping == observedEffortActualRaw payload) $
+        corrupt "Effort actual evidence does not reference the Raw owned by its ImportInvocation."
+      unless (importObjectExternalIdentity mapping == expectedExternalIdentity) $
+        corrupt "Effort actual evidence does not match its immutable source observation identity."
+    _ -> corrupt "TaskJuggler actual evidence requires exactly one imported source object."
+  let priorForManifest =
+        [ evidence
+        | evidence <- Map.elems (stateEffortActualEvidence state)
+        , effortActualPlanningManifestDigest evidence == observedEffortActualPlanningManifestDigest payload
+        , effortActualImportInvocation evidence /= observedEffortActualImportInvocation payload
+        ]
+      priorForInvocation =
+        [ evidence
+        | evidence <- Map.elems (stateEffortActualEvidence state)
+        , effortActualImportInvocation evidence == observedEffortActualImportInvocation payload
+        ]
+  when (any ((== observedEffortActualTaskId payload) . effortActualTaskId) priorForInvocation) $
+    corrupt "A TaskJuggler actuals invocation contains duplicate evidence for one task."
+  unless
+    ( all ((== observedEffortActualRaw payload) . effortActualRaw) priorForInvocation
+        && all ((== observedEffortActualPlanningManifestDigest payload) . effortActualPlanningManifestDigest) priorForInvocation
+        && all ((== observedEffortActualAsOf payload) . effortActualAsOf) priorForInvocation
+    )
+    $ corrupt "One TaskJuggler actuals invocation contains inconsistent observation custody."
+  unless (all ((< observedEffortActualAsOf payload) . effortActualAsOf) priorForManifest) $
+    corrupt "TaskJuggler actual observations must advance monotonically for one planning manifest."
+  let evidence =
+        EffortActualEvidence
+          (persistedEventId event)
+          (observedEffortActualBrick payload)
+          (observedEffortActualRaw payload)
+          (observedEffortActualImportInvocation payload)
+          (observedEffortActualPlanningManifestDigest payload)
+          (observedEffortActualTaskId payload)
+          (observedEffortActualAsOf payload)
+          completed
+          remaining
+          (persistedRecordedAt event)
+  pure . bump $ state{stateEffortActualEvidence = Map.insert (persistedEventId event) evidence (stateEffortActualEvidence state)}
+ where
+  completed = observedEffortActualCompletedMicrohours payload
+  remaining = observedEffortActualRemainingMicrohours payload
+  expectedExternalIdentity =
+    "manifest:"
+      <> observedEffortActualPlanningManifestDigest payload
+      <> "@"
+      <> Text.pack (formatTime defaultTimeLocale "%Y-%m-%d-%H:%MZ" (observedEffortActualAsOf payload))
+  validDigest digest = Text.length digest == 64 && Text.all lowerHex digest
+  lowerHex character = isAscii character && (isDigit character || (character >= 'a' && character <= 'f'))
+
 requireActiveBrick :: State -> UUIDv7 -> Either AppError Brick
 requireActiveBrick state identity = do
   brick <- requireBrick state identity
@@ -2726,6 +2820,17 @@ payloadValue = \case
       , "profile_hash" .= classifiedEffortProfileHash payload
       ]
         <> maybe [] (pure . ("class" .=) . effortClassText) (classifiedEffortClass payload)
+  EffortActualObservedV1 payload ->
+    object $
+      [ "brick_id" .= uuid (observedEffortActualBrick payload)
+      , "raw_id" .= uuid (observedEffortActualRaw payload)
+      , "import_invocation_id" .= uuid (observedEffortActualImportInvocation payload)
+      , "planning_manifest_sha256" .= observedEffortActualPlanningManifestDigest payload
+      , "task_id" .= observedEffortActualTaskId payload
+      , "as_of" .= observedEffortActualAsOf payload
+      ]
+        <> maybe [] (pure . ("completed_microhours" .=) . Text.pack . show) (observedEffortActualCompletedMicrohours payload)
+        <> maybe [] (pure . ("remaining_microhours" .=) . Text.pack . show) (observedEffortActualRemainingMicrohours payload)
   BrickFocusedV1 payload -> object ["brick_id" .= uuid (focusedBrickId payload)]
   BrickCompletedV1 payload -> object ["brick_id" .= uuid (completedBrickId payload)]
   ForecastSelectedV1 payload -> forecastSelectionValue (selectedForecastEvidence payload)
@@ -2943,6 +3048,7 @@ parsePayload eventType version payload = case (eventType, version) of
   ("phase_changed", 1) -> PhaseChangedV1 <$> parsePhaseChanged payload
   ("impact_classified", 1) -> ImpactClassifiedV1 <$> parseImpactClassified payload
   ("effort_classified", 1) -> EffortClassifiedV1 <$> parseEffortClassified payload
+  ("effort_actual_observed", 1) -> EffortActualObservedV1 <$> parseEffortActualObserved payload
   ("brick_focused", 1) -> BrickFocusedV1 <$> withObject "brick_focused@1" (\value -> BrickFocused <$> (value .: "brick_id" >>= parseId)) payload
   ("brick_completed", 1) -> BrickCompletedV1 <$> withObject "brick_completed@1" (\value -> BrickCompleted <$> (value .: "brick_id" >>= parseId)) payload
   ("forecast_selected", 1) -> ForecastSelectedV1 . ForecastSelected <$> parseForecastSelection payload
@@ -3255,12 +3361,31 @@ parsePayload eventType version payload = case (eventType, version) of
   parsePhaseChanged = withObject "phase_changed@1" $ \value -> PhaseChanged <$> (value .: "brick_id" >>= parseId) <*> (value .:? "phase" >>= traverse parsePhase) <*> (value .: "provenance" >>= parseProvenance)
   parseImpactClassified = withObject "impact_classified@1" $ \value -> ImpactClassified <$> (value .: "brick_id" >>= parseId) <*> (value .:? "class" >>= traverse parseImpactClass) <*> (value .: "maturity" >>= parseImpactMaturity) <*> (value .: "evidence" >>= traverse parseId) <*> (value .: "provenance" >>= parseProvenance) <*> value .: "profile_hash"
   parseEffortClassified = withObject "effort_classified@1" $ \value -> EffortClassified <$> (value .: "brick_id" >>= parseId) <*> (value .:? "class" >>= traverse parseEffortClass) <*> (value .: "provenance" >>= parseProvenance) <*> value .: "profile_hash"
+  parseEffortActualObserved = withObject "effort_actual_observed@1" $ \value ->
+    EffortActualObserved
+      <$> (value .: "brick_id" >>= parseId)
+      <*> (value .: "raw_id" >>= parseId)
+      <*> (value .: "import_invocation_id" >>= parseId)
+      <*> value .: "planning_manifest_sha256"
+      <*> value .: "task_id"
+      <*> value .: "as_of"
+      <*> (value .:? "completed_microhours" >>= traverse parseMicrohoursText)
+      <*> (value .:? "remaining_microhours" >>= traverse parseMicrohoursText)
 
 parseUuidField :: Text -> Parser UUIDv7
 parseUuidField = parseId
 
 parseId :: Text -> Parser UUIDv7
 parseId text = either (fail . Text.unpack) pure (parseUUIDv7 text)
+
+parseMicrohoursText :: Text -> Parser Integer
+parseMicrohoursText text =
+  case reads (Text.unpack text) of
+    [(value, "")]
+      | value >= 0
+      , Text.pack (show value) == text ->
+          pure value
+    _ -> fail "microhours must be a canonical nonnegative decimal integer string"
 
 rawContentValue :: RawContent -> Value
 rawContentValue = \case

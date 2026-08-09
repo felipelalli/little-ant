@@ -107,7 +107,7 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Data.Time (UTCTime, addUTCTime)
+import Data.Time (UTCTime, addUTCTime, defaultTimeLocale, formatTime)
 import LittleAnt.Catalog
 import LittleAnt.Error
 import LittleAnt.Event
@@ -119,6 +119,7 @@ import LittleAnt.Pack.Trust (PackArtifactIdentity (..))
 import LittleAnt.Schedule (validateCalendarRule)
 import LittleAnt.Source
 import LittleAnt.Store (sha256Hex)
+import LittleAnt.TaskJugglerActuals
 
 {-# ANN module ("HLint: ignore Use when" :: String) #-}
 
@@ -266,6 +267,7 @@ statePreconditionHash state =
     ["pair-judgment:" <> renderUUIDv7 identity <> ":" <> Text.pack (show judgment) | (identity, judgment) <- Map.toAscList (statePairJudgments state)]
       <> ["impact:" <> renderUUIDv7 identity <> ":" <> Text.pack (show claim) | (identity, claim) <- Map.toAscList (stateImpactClaims state)]
       <> ["effort:" <> renderUUIDv7 identity <> ":" <> Text.pack (show claim) | (identity, claim) <- Map.toAscList (stateEffortClaims state)]
+      <> ["effort-actual:" <> renderUUIDv7 identity <> ":" <> Text.pack (show evidence) | (identity, evidence) <- Map.toAscList (stateEffortActualEvidence state)]
       <> ["phase:" <> renderUUIDv7 identity <> ":" <> Text.pack (show claim) | (identity, claim) <- Map.toAscList (statePhaseClaims state)]
   reviewLines =
     ["lazy-review:" <> renderUUIDv7 identity <> ":" <> Text.pack (show claim) | (identity, claim) <- Map.toAscList (stateLazyReviews state)]
@@ -381,22 +383,24 @@ decideAttachSourceBinding state actor rawId kind importProfile externalIdentity 
 
 importAcceptanceUUIDCount :: State -> Text -> SourcePreflight -> Either AppError Int
 importAcceptanceUUIDCount state sourceReference preflight = do
-  (sourceObject, _) <- validatePlainTextAcceptance sourceReference preflight
+  (sourceObject, _) <- validateFileAcceptance sourceReference preflight
+  evidenceCount <- preflightActualEvidenceCount preflight
   profile <- uniqueMatchingProfile state sourceReference preflight
   case profile of
-    Nothing -> pure 9
+    Nothing -> pure (9 + evidenceCount)
     Just existingProfile -> do
       invocation <- uniqueMatchingInvocation state (importProfileId existingProfile) preflight
       case invocation of
         Just prior -> validateExistingInvocation state sourceObject prior >> pure 0
         Nothing -> do
           existing <- existingImportedRaw state (Just (importProfileId existingProfile)) preflight sourceObject
-          pure (if isJust existing then 3 else 7)
+          pure ((if isJust existing then 3 else 7) + evidenceCount)
 
 decideAcceptFileImport :: State -> Actor -> Text -> SourceInput -> SourcePreflight -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
 decideAcceptFileImport state actor sourceReference input preflight facts = do
-  (sourceObject, identity) <- validatePlainTextAcceptance sourceReference preflight
+  (sourceObject, identity) <- validateFileAcceptance sourceReference preflight
   content <- validateInputCustody input preflight
+  actuals <- acceptedTaskJugglerActuals input preflight
   profileMatch <- uniqueMatchingProfile state sourceReference preflight
   priorInvocation <- case profileMatch of
     Nothing -> pure Nothing
@@ -404,26 +408,32 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
   case (profileMatch, priorInvocation) of
     (Just profile, Just invocation) -> do
       raw <- validateExistingInvocation state sourceObject invocation
+      validateExistingActualEvidence state raw invocation actuals
       pure (ImportAcceptanceDecision Nothing (importProfileId profile) (importInvocationId invocation) [] [rawId raw] [])
     _ -> do
+      traverse_ (validateNewActuals state) actuals
       existing <- case profileMatch of
         Nothing -> pure Nothing
         Just profile -> existingImportedRaw state (Just (importProfileId profile)) preflight sourceObject
-      let allocationCount = case (profileMatch, existing) of
+      let baseAllocationCount = case (profileMatch, existing) of
             (Nothing, Nothing) -> 9
             (Just _, Nothing) -> 7
             (Just _, Just _) -> 3
             (Nothing, Just _) -> 0
-      when (allocationCount == 0) $ Left (appError CorruptData "An imported Raw exists without its owning ImportProfile.")
+          evidenceCount = maybe 0 (length . actualsRecords) actuals
+          allocationCount = baseAllocationCount + evidenceCount
+      when (baseAllocationCount == 0) $ Left (appError CorruptData "An imported Raw exists without its owning ImportProfile.")
       allocated <- requireUUIDs allocationCount facts
       case allocated of
         commandId : remainder -> do
-          (profile, profileEvents, afterProfile) <- allocateProfile allocated commandId remainder profileMatch
+          let (baseRemainder, evidenceEventIds) = splitAt (baseAllocationCount - 1) remainder
+          (profile, profileEvents, afterProfile) <- allocateProfile allocated commandId baseRemainder profileMatch
           (invocationId, invocationEventId, objectAllocations) <- takeInvocationAllocation afterProfile
           (objectEvents, mapping, imported, reused) <- allocateObject sourceObject content allocated commandId profile objectAllocations existing
           let invocation = buildInvocation invocationId profile mapping identity
               invocationEvent = makeDraft facts actor state allocated invocationEventId commandId (ImportInvocationRecordedV1 (ImportInvocationRecorded invocation))
-              events = profileEvents <> objectEvents <> [invocationEvent]
+              evidenceEvents = buildActualEvidenceEvents allocated commandId invocation mapping evidenceEventIds actuals
+              events = profileEvents <> objectEvents <> [invocationEvent] <> evidenceEvents
           pure (ImportAcceptanceDecision (Just commandId) (importProfileId profile) invocationId imported reused events)
         [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
  where
@@ -496,15 +506,45 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
       (sourcePreflightSignerFingerprint preflight)
       [mapping]
 
-validatePlainTextAcceptance :: Text -> SourcePreflight -> Either AppError (SourceObject, PackArtifactIdentity)
-validatePlainTextAcceptance sourceReference preflight = do
+  buildActualEvidenceEvents allocated commandId invocation mapping eventIds = \case
+    Nothing -> []
+    Just actuals ->
+      zipWith
+        ( \eventId record ->
+            makeDraft
+              facts
+              actor
+              state
+              allocated
+              eventId
+              commandId
+              ( EffortActualObservedV1
+                  ( EffortActualObserved
+                      (actualBrickId record)
+                      (importObjectRawId mapping)
+                      (importInvocationId invocation)
+                      (actualsManifestDigest actuals)
+                      (actualTaskId record)
+                      (actualsAsOf actuals)
+                      (unMicrohours <$> actualCompleted record)
+                      (unMicrohours <$> actualRemaining record)
+                  )
+              )
+        )
+        eventIds
+        (actualsRecords actuals)
+
+validateFileAcceptance :: Text -> SourcePreflight -> Either AppError (SourceObject, PackArtifactIdentity)
+validateFileAcceptance sourceReference preflight = do
   unless (not (Text.null (Text.strip sourceReference))) $ Left (appError InvalidInput "An import source reference cannot be empty.")
-  unless (sourcePreflightAdapterId preflight == "plain_text") $ Left (appError Unsupported "This acceptance boundary currently supports only the signed plain-text SourceAdapter.")
+  unless (sourcePreflightAdapterId preflight `elem` ["plain_text", "taskjuggler_actuals"]) $
+    Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
   sourceObject <- case observedObjects (sourcePreflightObservation preflight) of
     [candidate] -> Right candidate
-    _ -> Left (appError CorruptData "The plain-text SourceAdapter must describe exactly one source object.")
-  unless (sourceObjectShape sourceObject == SourceNoteShape) $ Left (appError CorruptData "The plain-text SourceAdapter returned a non-note object shape.")
-  unless (sourceMaterialKind (sourceObjectMaterial sourceObject) == SourceTextKind) $ Left (appError CorruptData "The plain-text SourceAdapter returned non-text material.")
+    _ -> Left (appError CorruptData "A file SourceAdapter must describe exactly one source object at this acceptance boundary.")
+  let expectedShape = if sourcePreflightAdapterId preflight == "plain_text" then SourceNoteShape else SourceOtherShape
+  unless (sourceObjectShape sourceObject == expectedShape) $ Left (appError CorruptData "A file SourceAdapter returned an unexpected source-object shape.")
+  unless (sourceMaterialKind (sourceObjectMaterial sourceObject) == SourceTextKind) $ Left (appError CorruptData "A file SourceAdapter returned non-text material.")
   pure (sourceObject, sourcePreflightPackIdentity preflight)
 
 validateInputCustody :: SourceInput -> SourcePreflight -> Either AppError RawContent
@@ -513,11 +553,11 @@ validateInputCustody input preflight = do
   unless (sourceInputMediaType input == sourcePreflightInputMediaType preflight) $ stale "The selected input media type changed after preflight."
   unless (sha256Hex (sourceInputBytes input) == sourcePreflightInputDigest preflight) $ stale "The selected input bytes changed after preflight."
   unless (lengthBytes == sourcePreflightInputByteCount preflight) $ stale "The selected input byte count changed after preflight."
-  text <- either (const (Left (appError CorruptData "The plain-text import input is not valid UTF-8."))) Right (Text.decodeUtf8' (sourceInputBytes input))
+  text <- either (const (Left (appError CorruptData "The imported text input is not valid UTF-8."))) Right (Text.decodeUtf8' (sourceInputBytes input))
   let material = summarizeSourceMaterial (SourceTextMaterial text)
   sourceObject <- case observedObjects (sourcePreflightObservation preflight) of
     [candidate] -> Right candidate
-    _ -> Left (appError CorruptData "The plain-text SourceAdapter must describe exactly one source object.")
+    _ -> Left (appError CorruptData "A file SourceAdapter must describe exactly one source object.")
   unless (sourceObjectMaterial sourceObject == material) $ stale "The source material no longer matches its preflight summary."
   pure (RawTextContent text)
  where
@@ -528,6 +568,86 @@ validateInputCustody input preflight = do
           { appErrorRecovery = [RecoveryAction "refresh-preflight" "Regenerate the import preview from the current source." Nothing]
           }
       )
+
+preflightActualEvidenceCount :: SourcePreflight -> Either AppError Int
+preflightActualEvidenceCount preflight
+  | sourcePreflightAdapterId preflight == "plain_text" = Right 0
+  | sourcePreflightAdapterId preflight == "taskjuggler_actuals" =
+      case Map.lookup "actual_record_count" (observedIdentity (sourcePreflightObservation preflight)) >>= readCanonicalPositive of
+        Just count -> Right count
+        Nothing -> Left (appError CorruptData "The TaskJuggler actuals preflight has no canonical positive record count.")
+  | otherwise = Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
+ where
+  readCanonicalPositive value = case reads (Text.unpack value) of
+    [(count, "")] | count > (0 :: Int), Text.pack (show count) == value -> Just count
+    _ -> Nothing
+
+acceptedTaskJugglerActuals :: SourceInput -> SourcePreflight -> Either AppError (Maybe TaskJugglerActuals)
+acceptedTaskJugglerActuals input preflight
+  | sourcePreflightAdapterId preflight == "plain_text" = Right Nothing
+  | sourcePreflightAdapterId preflight == "taskjuggler_actuals" = do
+      actuals <- parseTaskJugglerActuals (sourceInputBytes input)
+      let identity = observedIdentity (sourcePreflightObservation preflight)
+          expectedAsOf = Text.pack (formatTime defaultTimeLocale "%Y-%m-%d-%H:%MZ" (actualsAsOf actuals))
+      unless (Map.lookup "planning_manifest_sha256" identity == Just (actualsManifestDigest actuals)) $
+        Left (appError Conflict "The TaskJuggler planning-manifest identity changed after preflight.")
+      unless (Map.lookup "actuals_as_of" identity == Just expectedAsOf) $
+        Left (appError Conflict "The TaskJuggler actuals cutoff changed after preflight.")
+      unless (Map.lookup "actual_record_count" identity == Just (Text.pack (show (length (actualsRecords actuals))))) $
+        Left (appError Conflict "The TaskJuggler actual-record count changed after preflight.")
+      pure (Just actuals)
+  | otherwise = Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
+
+validateNewActuals :: State -> TaskJugglerActuals -> Either AppError ()
+validateNewActuals state actuals = do
+  traverse_
+    (\record -> unless (Map.member (actualBrickId record) (stateBricks state)) $ Left (appError NotFound "A TaskJuggler actual references a Brick that does not exist in this dataset."))
+    (actualsRecords actuals)
+  let prior =
+        [ evidence
+        | evidence <- Map.elems (stateEffortActualEvidence state)
+        , effortActualPlanningManifestDigest evidence == actualsManifestDigest actuals
+        ]
+  unless (all ((< actualsAsOf actuals) . effortActualAsOf) prior) $
+    Left
+      ( (appError Conflict "TaskJuggler actuals must advance beyond the latest accepted observation for this planning manifest.")
+          { appErrorRecovery = [RecoveryAction "use-newer-actuals" "Set one later explicit UTC project now and regenerate the import preview." Nothing]
+          }
+      )
+
+validateExistingActualEvidence :: State -> Raw -> ImportInvocation -> Maybe TaskJugglerActuals -> Either AppError ()
+validateExistingActualEvidence _ _ _ Nothing = Right ()
+validateExistingActualEvidence state raw invocation (Just actuals) = do
+  let matching =
+        [ evidence
+        | evidence <- Map.elems (stateEffortActualEvidence state)
+        , effortActualImportInvocation evidence == importInvocationId invocation
+        ]
+      expected =
+        [ ( actualBrickId record
+          , actualTaskId record
+          , unMicrohours <$> actualCompleted record
+          , unMicrohours <$> actualRemaining record
+          )
+        | record <- actualsRecords actuals
+        ]
+      observed =
+        [ ( effortActualBrick evidence
+          , effortActualTaskId evidence
+          , effortActualCompletedMicrohours evidence
+          , effortActualRemainingMicrohours evidence
+          )
+        | evidence <- matching
+        ]
+  unless (all ((== rawId raw) . effortActualRaw) matching) $
+    Left (appError CorruptData "Stored TaskJuggler actual evidence references a different Raw.")
+  unless
+    ( length matching == length expected
+        && all ((== actualsManifestDigest actuals) . effortActualPlanningManifestDigest) matching
+        && all ((== actualsAsOf actuals) . effortActualAsOf) matching
+        && Set.fromList observed == Set.fromList expected
+    )
+    $ Left (appError CorruptData "An exact TaskJuggler import retry does not match its stored immutable evidence.")
 
 uniqueMatchingProfile :: State -> Text -> SourcePreflight -> Either AppError (Maybe ImportProfile)
 uniqueMatchingProfile state sourceReference preflight =
@@ -575,7 +695,7 @@ validateExistingInvocation state sourceObject invocation =
           raw <- maybe (Left (appError CorruptData "An ImportInvocation maps to a missing Raw.")) Right (Map.lookup (importObjectRawId mapping) (stateRaws state))
           validateImportedMaterial state sourceObject raw
           pure raw
-    _ -> Left (appError CorruptData "An exact plain-text ImportInvocation has an inconsistent object mapping.")
+    _ -> Left (appError CorruptData "An exact file ImportInvocation has an inconsistent object mapping.")
 
 existingImportedRaw :: State -> Maybe UUIDv7 -> SourcePreflight -> SourceObject -> Either AppError (Maybe Raw)
 existingImportedRaw _ Nothing _ _ = Right Nothing
@@ -602,7 +722,7 @@ validateImportedMaterial state sourceObject raw = do
   revision <- maybe (Left (appError CorruptData "An imported Raw current revision is missing.")) Right (Map.lookup revisionId (stateRawContentRevisions state))
   importedDigest <- case rawContentRevisionContent revision of
     RawTextContent text -> Right (sourceMaterialDigest (summarizeSourceMaterial (SourceTextMaterial text)))
-    _ -> Left (appError CorruptData "A plain-text SourceBinding points to non-text Raw material.")
+    _ -> Left (appError CorruptData "A text-file SourceBinding points to non-text Raw material.")
   unless (importedDigest == sourceMaterialDigest (sourceObjectMaterial sourceObject)) $
     Left (appError Conflict "The source identity already maps to different local Raw material; reconcile it instead of importing a duplicate.")
 

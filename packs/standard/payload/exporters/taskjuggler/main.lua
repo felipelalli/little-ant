@@ -33,6 +33,18 @@ local function integer(value)
   return string.format("%.0f", value)
 end
 
+local function microhours(value)
+  if type(value) ~= "string" or not string.match(value, "^%d+$") or (#value > 1 and string.sub(value, 1, 1) == "0") then
+    error("taskjuggler expected canonical microhours")
+  end
+  local padded = value
+  if #padded < 7 then padded = string.rep("0", 7 - #padded) .. padded end
+  local whole = string.sub(padded, 1, #padded - 6)
+  local fraction = string.gsub(string.sub(padded, #padded - 5), "0+$", "")
+  if fraction == "" then return whole .. "h" end
+  return whole .. "." .. fraction .. "h"
+end
+
 local function utc_taskjuggler(value)
   local year, month, day, hour, minute = string.match(value.utc or "", "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):%d%dZ$")
   if year == nil then error("taskjuggler received an invalid UTC instant") end
@@ -105,6 +117,7 @@ end
 local function emit_task(lines, task, release_id)
   append(lines, "# LANT-BRICK: " .. task.brick_id)
   if task.effort ~= nil then append(lines, "# LANT-EFFORT-MACRO: " .. task.effort.macro) end
+  if task.remaining_effort ~= nil then append(lines, "# LANT-REMAINING-AS-OF: " .. task.remaining_effort.as_of) end
   if task.best_before ~= nil then append(lines, "# LANT-BEST-BEFORE: " .. task.best_before.utc .. " [advisory]") end
   append(lines, "task " .. task.id .. " " .. quote(task.title) .. " {")
   append(lines, "  priority " .. integer(task.taskjuggler_priority))
@@ -113,6 +126,12 @@ local function emit_task(lines, task, release_id)
   if interval ~= nil then
     append(lines, "  start " .. utc_taskjuggler(interval.starts_at))
     append(lines, "  end " .. utc_taskjuggler(interval.ends_at))
+  elseif task.remaining_effort ~= nil then
+    local remaining = microhours(task.remaining_effort.microhours)
+    append(lines, "  effort " .. remaining)
+    append(lines, "  optimistic:effort " .. remaining)
+    append(lines, "  pessimistic:effort " .. remaining)
+    append(lines, "  allocate me")
   elseif task.effort ~= nil then
     append(lines, "  ${" .. task.effort.macro .. "}")
     append(lines, "  allocate me")

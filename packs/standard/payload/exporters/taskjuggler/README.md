@@ -21,6 +21,13 @@ their recorded start and end; an effort macro remains in the manifest but does
 not compete with the fixed interval. `best_before` remains advisory, while a
 deadline maps to `maxend` and `not_before` maps to a release milestone.
 
+When the latest accepted actuals observation contains explicit remaining
+effort, the manifest retains both that immutable evidence provenance and the
+historical total-effort macro. The task uses the observed remaining value
+unchanged in all three planning scenarios because no scenario spread was
+observed. `effortdone` alone never produces remaining effort, and exact
+scheduled intervals continue to govern their own duration.
+
 The serializer maps the core's deterministic importance order to TaskJuggler's
 `priority` field only as a scheduler tie-breaker. This does not create a
 Little Ant priority axis.

@@ -14,10 +14,11 @@ import Data.Aeson.Types (Parser, parseEither)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base64.URL qualified as Base64Url
 import Data.Char (isAscii, isAsciiLower, isAsciiUpper, isDigit)
+import Data.Foldable (traverse_)
 import Data.List (findIndices, nub)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -154,7 +155,7 @@ parseManifestCut = withObject "planning manifest" $ \manifest -> do
   _ <- manifest .: "scope" :: Parser Object
   _ <- manifest .: "planned_at" :: Parser Text
   roots <- manifest .: "roots" :: Parser [Text]
-  _ <- traverse (either (fail . Text.unpack) pure . parseUUIDv7) roots
+  traverse_ (either (fail . Text.unpack) pure . parseUUIDv7) roots
   _ <- manifest .: "effort_profile" :: Parser Object
   _ <- manifest .: "warnings" :: Parser [Value]
   _ <- manifest .: "resources" :: Parser [Value]
@@ -165,14 +166,31 @@ parseManifestCut = withObject "planning manifest" $ \manifest -> do
   manifest .: "cut" >>= traverse parseCutItem
  where
   parseCutItem = withObject "planning cut item" $ \item -> do
-    rejectUnknownKeys item ["task_id", "brick_id", "order", "dependencies", "effort_macro"]
+    rejectUnknownKeys item ["task_id", "brick_id", "order", "dependencies", "effort_macro", "remaining_effort"]
     taskId <- item .: "task_id"
     brickText <- item .: "brick_id"
     _ <- item .: "order" :: Parser Int
     _ <- item .: "dependencies" :: Parser [Text]
     _ <- item .:? "effort_macro" :: Parser (Maybe Text)
+    item .:? "remaining_effort" >>= traverse_ parseRemainingEffort
     brickId <- either (fail . Text.unpack) pure (parseUUIDv7 brickText)
     pure (ManifestCutItem taskId brickId)
+  parseRemainingEffort = withObject "remaining effort projection" $ \projection -> do
+    rejectUnknownKeys projection ["microhours", "as_of", "evidence_ids", "raw_ids", "planning_manifest_sha256"]
+    microhours <- projection .: "microhours"
+    unless (canonicalNonnegativeInteger microhours) $ fail "remaining microhours are not a canonical nonnegative integer string"
+    _ <- projection .: "as_of" :: Parser UTCTime
+    evidenceIds <- projection .: "evidence_ids" :: Parser [Text]
+    rawIds <- projection .: "raw_ids" :: Parser [Text]
+    manifests <- projection .: "planning_manifest_sha256" :: Parser [Text]
+    when (null evidenceIds || null rawIds || null manifests) $ fail "remaining effort provenance cannot be empty"
+    traverse_ (either (fail . Text.unpack) pure . parseUUIDv7) (evidenceIds <> rawIds)
+    unless (all validDigest manifests) $ fail "remaining effort contains an invalid planning-manifest digest"
+  canonicalNonnegativeInteger text =
+    not (Text.null text)
+      && Text.all isDigit text
+      && (text == "0" || not ("0" `Text.isPrefixOf` text))
+  validDigest digest = Text.length digest == 64 && Text.all (\character -> isDigit character || character >= 'a' && character <= 'f') digest
 
 rejectUnknownKeys :: Object -> [Text] -> Parser ()
 rejectUnknownKeys fields allowed =
@@ -254,7 +272,7 @@ scanTaskJuggler lines_ = do
   isNowLine = \case
     "now" : _ -> True
     _ -> False
-  stripQuotedValue value = maybe value id (Text.stripPrefix "\"" value >>= Text.stripSuffix "\"")
+  stripQuotedValue value = fromMaybe value (Text.stripPrefix "\"" value >>= Text.stripSuffix "\"")
 
 parseTaskStart :: Int -> Text -> Either AppError (Maybe Text)
 parseTaskStart depth line

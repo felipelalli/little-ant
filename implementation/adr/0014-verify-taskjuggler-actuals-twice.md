@@ -47,8 +47,21 @@ custody.
 
 Actuals may be partial. Absence means no evidence, while present `0h` remains
 present. Actual evidence never mutates a historical EffortClaim. Acceptance
-will persist the Raw before linked evidence and will reject an older or equal
-non-identical observation for the same manifest.
+persists one immutable Raw, its binding and invocation before one evidence
+event per actual-bearing task in the same atomic command. Replay verifies the
+Raw/invocation/task/manifest/as-of linkage and rejects duplicate task evidence.
+An exact retry is event-free; an older or equal non-identical observation for
+the same manifest is rejected before mutation.
+
+Planning keeps the historical three-point effort macro in its manifest. When
+the latest accepted observation for a Brick explicitly supplies
+`effortleft`, the projection carries that exact microhour value and its Raw,
+event, manifest, and as-of provenance separately. The TaskJuggler exporter
+uses the point observation unchanged in all three scenarios and emits a
+warning that no remaining-effort spread was observed. It does not scale the
+old macro or invent uncertainty. A latest observation without `effortleft`
+does not reuse older remaining evidence, and `effortdone` alone derives
+nothing.
 
 ## Consequences
 
