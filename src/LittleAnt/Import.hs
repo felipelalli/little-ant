@@ -2,21 +2,26 @@ module LittleAnt.Import (
   ImportSourceDescriptor (..),
   ImportRead (..),
   ImportMaterialization (..),
+  ProviderImportSource (..),
   ImportPort (..),
   emptyImportPort,
   packRegistryImportPort,
+  packRegistryImportPortWithProviders,
 )
 where
 
 import Control.Exception (IOException, displayException, finally, try)
 import Control.Monad (void)
+import Data.Aeson (Value)
 import Data.ByteString qualified as ByteString
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (defaultTimeLocale, formatTime)
 import LittleAnt.Error
 import LittleAnt.Model (SourceMode (..))
+import LittleAnt.Pack.Http (PackHttpBroker)
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
 import LittleAnt.Source
@@ -48,6 +53,16 @@ data ImportMaterialization = ImportMaterialization
   }
   deriving stock (Eq, Show)
 
+data ProviderImportSource = ProviderImportSource
+  { providerImportReference :: Text
+  , providerImportAdapterId :: Text
+  , providerImportDisplayName :: Text
+  , providerImportInputLabel :: Text
+  , providerImportModes :: [SourceMode]
+  , providerImportConfiguration :: Value
+  , providerImportBroker :: PackHttpBroker
+  }
+
 data ImportPort = ImportPort
   { importPortCatalog :: [ImportSourceDescriptor]
   , importPortPreflight :: Text -> SourceMode -> IO (Either AppError ImportRead)
@@ -68,57 +83,129 @@ emptyImportPort =
       }
 
 packRegistryImportPort :: PackRunnerClient -> PackRegistry -> ImportPort
-packRegistryImportPort runner registry =
+packRegistryImportPort runner registry = packRegistryImportPortWithProviders runner registry []
+
+packRegistryImportPortWithProviders :: PackRunnerClient -> PackRegistry -> [ProviderImportSource] -> ImportPort
+packRegistryImportPortWithProviders runner registry providers =
   ImportPort
-    descriptors
+    (fileDescriptors <> providerDescriptors)
     preflight
     materialize
  where
-  preflight source mode = readWith source $ \descriptor component input -> do
-    invokePackSourcePreflight runner component mode input >>= \case
+  preflight source mode = case providersFor source of
+    [provider] -> preflightProvider provider mode
+    [] -> readFileWith source mode $ \descriptor component input -> do
+      invokePackSourcePreflight runner component mode input >>= \case
+        Left problem -> pure (Left problem)
+        Right preview -> pure $ do
+          verifyCoreCustody descriptor input preview
+          Right (ImportRead (normalizedReference source) input preview)
+    _ -> pure (Left (ambiguousProviderReference source))
+  materialize source mode = case providersFor source of
+    [provider] -> materializeProvider provider mode
+    [] -> readFileWith source mode $ \descriptor component input -> do
+      invokePackSourceMaterialize runner component mode input >>= \case
+        Left problem -> pure (Left problem)
+        Right (preview, materialization) -> pure $ do
+          verifyCoreCustody descriptor input preview
+          validateSourceAdapterMaterialization materialization
+          Right
+            ( ImportMaterialization
+                (ImportRead (normalizedReference source) input preview)
+                (materializedObjects materialization)
+            )
+    _ -> pure (Left (ambiguousProviderReference source))
+  preflightProvider provider mode = case validateProviderMode provider mode >> lookupPackComponent (providerImportAdapterId provider) registry of
+    Left problem -> pure (Left problem)
+    Right component ->
+      invokePackSourcePreflightHttp runner (providerImportBroker provider) component mode (providerImportInputLabel provider) (providerImportConfiguration provider) >>= \case
+        Left problem -> pure (Left problem)
+        Right (input, preview) -> pure (Right (ImportRead (providerImportReference provider) input preview))
+  materializeProvider provider mode = case validateProviderMode provider mode >> lookupPackComponent (providerImportAdapterId provider) registry of
+    Left problem -> pure (Left problem)
+    Right component ->
+      invokePackSourceMaterializeHttp runner (providerImportBroker provider) component mode (providerImportInputLabel provider) (providerImportConfiguration provider) >>= \case
+        Left problem -> pure (Left problem)
+        Right (input, preview, materialization) -> pure $ do
+          validateSourceAdapterMaterialization materialization
+          Right
+            ( ImportMaterialization
+                (ImportRead (providerImportReference provider) input preview)
+                (materializedObjects materialization)
+            )
+  readFileWith source mode continue = do
+    case fileDescriptorFor source of
       Left problem -> pure (Left problem)
-      Right preview -> pure $ do
-        verifyCoreCustody descriptor input preview
-        Right (ImportRead (normalizedReference source) input preview)
-  materialize source mode = readWith source $ \descriptor component input -> do
-    invokePackSourceMaterialize runner component mode input >>= \case
-      Left problem -> pure (Left problem)
-      Right (preview, materialization) -> pure $ do
-        verifyCoreCustody descriptor input preview
-        validateSourceAdapterMaterialization materialization
-        Right
-          ( ImportMaterialization
-              (ImportRead (normalizedReference source) input preview)
-              (materializedObjects materialization)
-          )
-  readWith source continue = do
-    case descriptorFor source of
-      Left problem -> pure (Left problem)
-      Right descriptor -> do
-        selected <- readFileInput descriptor source
-        case selected of
-          Left problem -> pure (Left problem)
-          Right input ->
-            case lookupPackComponent (importSourceId descriptor) registry of
+      Right descriptor
+        | mode `notElem` importSourceModes descriptor -> pure . Left $ unsupportedMode descriptor mode
+        | otherwise -> do
+            selected <- readFileInput descriptor source
+            case selected of
               Left problem -> pure (Left problem)
-              Right component -> continue descriptor component input
-  descriptorFor source =
+              Right input ->
+                case lookupPackComponent (importSourceId descriptor) registry of
+                  Left problem -> pure (Left problem)
+                  Right component -> continue descriptor component input
+  fileDescriptorFor source =
     let extension = Text.toLower (Text.pack (takeExtension (Text.unpack (Text.strip source))))
-        matches = filter (elem extension . importSourceExtensions) descriptors
+        matches = filter (elem extension . importSourceExtensions) fileDescriptors
      in case matches of
           [descriptor] -> Right descriptor
           _ ->
             Left $
               (sourceProblem Unsupported "No enabled file SourceAdapter unambiguously accepts this source path.")
                 { appErrorSubject = Just (Text.strip source)
-                , appErrorDetails = ["Recognized extensions: " <> Text.intercalate ", " (concatMap importSourceExtensions descriptors)]
+                , appErrorDetails =
+                    [ "Configured provider references: " <> Text.intercalate ", " (providerImportReference <$> providers)
+                    , "Recognized file extensions: " <> Text.intercalate ", " (concatMap importSourceExtensions fileDescriptors)
+                    ]
                 , appErrorRecovery = [RecoveryAction "choose-source" "Choose a source whose format identifies one enabled SourceAdapter." Nothing]
                 }
-  descriptors =
+  providersFor source = filter ((== Text.strip source) . providerImportReference) providers
+  providerDescriptors = uniqueDescriptors Set.empty providers
+  uniqueDescriptors _ [] = []
+  uniqueDescriptors seen (provider : remaining)
+    | providerImportAdapterId provider `Set.member` seen = uniqueDescriptors seen remaining
+    | otherwise =
+        ImportSourceDescriptor
+          (providerImportAdapterId provider)
+          (providerImportDisplayName provider)
+          []
+          (providerImportModes provider)
+          : uniqueDescriptors (Set.insert (providerImportAdapterId provider) seen) remaining
+  fileDescriptors =
     [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "taskjuggler_actuals" "TaskJuggler actuals" [".tjp"] [SourceSnapshot]
     ]
+
+validateProviderMode :: ProviderImportSource -> SourceMode -> Either AppError ()
+validateProviderMode provider mode =
+  if mode `elem` providerImportModes provider
+    then Right ()
+    else Left (unsupportedMode descriptor mode)
+ where
+  descriptor = ImportSourceDescriptor (providerImportAdapterId provider) (providerImportDisplayName provider) [] (providerImportModes provider)
+
+unsupportedMode :: ImportSourceDescriptor -> SourceMode -> AppError
+unsupportedMode descriptor mode =
+  (sourceProblem Unsupported "The selected SourceAdapter does not support this import mode.")
+    { appErrorSubject = Just (importSourceId descriptor)
+    , appErrorDetails = ["Requested: " <> sourceModeLabel mode, "Supported: " <> Text.intercalate ", " (sourceModeLabel <$> importSourceModes descriptor)]
+    }
+
+sourceModeLabel :: SourceMode -> Text
+sourceModeLabel = \case
+  SourceSnapshot -> "snapshot"
+  SourceSynchronize -> "synchronize"
+  SourceMigrate -> "migrate"
+
+ambiguousProviderReference :: Text -> AppError
+ambiguousProviderReference source =
+  (sourceProblem AmbiguousReference "More than one configured provider account owns this import reference.")
+    { appErrorSubject = Just (Text.strip source)
+    , appErrorRecovery = [RecoveryAction "choose-account" "Choose one exact provider account reference." Nothing]
+    }
 
 readFileInput :: ImportSourceDescriptor -> Text -> IO (Either AppError SourceInput)
 readFileInput descriptor source

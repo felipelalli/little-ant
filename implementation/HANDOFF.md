@@ -5,10 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **c4709be**
-(`feat(packs): broker HTTP through replayed transcripts`). The current
-milestone ships the first provider component in the separately signed official
-connector Pack. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **dd9691c**
+(`feat(connectors): ship Microsoft To Do source adapter`). The current
+milestone establishes the typed trusted-host boundary between configured
+provider accounts, vault bindings, authenticated HTTPS, and remote
+SourceAdapters. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -214,6 +215,33 @@ connector Pack. This file stays editable between milestone commits.
   adapter does not misreport metadata as imported bytes. Pure canonical JSON
   encoding and UTF-8 path-segment encoding are available to isolated Packs
   without adding IO authority.
+- `integrations.yaml` now stores closed `ProviderAccount` and
+  `CredentialBinding` records instead of stringly placeholders. An account
+  names its enabled component, provider namespace, stable external identity,
+  human label, and non-secret component configuration. A binding names the
+  exact component slot, account, typed credential scheme, opaque vault-entry
+  UUID, and purposes. Validation rejects dangling components/accounts,
+  duplicate component-slot-account ownership, and recursively secret-shaped
+  configuration keys.
+- configured remote sources join those typed records to an execution-authorized
+  Pack component. One account keeps the human source reference; multiple
+  accounts receive explicit `adapter@account` references. Host-owned provider,
+  account identity, and label fields cannot be replaced by Pack configuration.
+  The provider-aware ImportPort reuses the existing sparse preflight and exact
+  materialization contracts without treating remote input as a file.
+- the credential-bound broker rechecks the signed HTTP route and slot before
+  resolving one access token. The credential is added only to an internal
+  non-serializable transport request after authorization; Pack requests,
+  transcripts, source custody, preflights, diagnostics, and exceptions remain
+  credential-free. The real transport uses CA-validated HTTPS with no redirect,
+  proxy, cookie jar, or automatic decompression, a fixed timeout, bounded JSON
+  responses, closed response headers, and sanitized errors.
+- OAuth vault material has one closed `little-ant/oauth-token-set@1` shape with
+  bearer type, access token, optional refresh token, expiry, and scopes. The
+  profile-scoped vault agent resolves it only for `source_read`; expired
+  credentials return `RetryAfterRefresh` without becoming provider failure.
+  OAuth authorization and refresh are intentionally the next milestone, so no
+  public Microsoft To Do happy path is claimed yet.
 
 ## Last green gate
 
@@ -280,6 +308,11 @@ adaptive Microsoft Graph list/task pagination, canonical provider identity and
 URL encoding, sparse-preview privacy, complete structured-Raw materialization,
 completed-task opt-in, guarded partial attachment migration, and denial of a
 provider-controlled `nextLink` before a second broker call.
+The dedicated provider-host suite has 7 cases covering typed integration-state
+round trips, secret-key rejection, closed OAuth token custody and expiry,
+credential injection after authorization only, transcript privacy, locked-vault
+short-circuiting, multi-account references, signed slot/scheme matching, and
+defense-in-depth route checks before credential resolution.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -304,9 +337,10 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, bind the official Microsoft To Do component to production account and
-credential resolution in the trusted host, then expose its snapshot,
-synchronize, and migrate flows through the public import surface. Cleanup must
+Next, implement Microsoft OAuth 2 Device Authorization and refresh in the
+trusted host/agent boundary, install/load the exact official connector pin from
+the profile Pack store and accepted catalog, and then expose snapshot,
+synchronize, and migrate through the public import selector. Cleanup must
 remain a separately previewed and consented effect, with item deletion and
 empty-container deletion independently selectable. Google Calendar, the
 remaining standard importers, and the local-web UIAdapter remain. The

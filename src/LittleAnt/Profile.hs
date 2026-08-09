@@ -4,6 +4,8 @@ module LittleAnt.Profile (
   ProfileConfig (..),
   PreferencesConfig (..),
   CalibrationConfig (..),
+  ProviderAccount (..),
+  CredentialBinding (..),
   IntegrationsConfig (..),
   resolveXdgRoots,
   profilePaths,
@@ -35,6 +37,7 @@ import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Pack.Trust (PackArtifactIdentity (artifactName), PackPin (..), TrustedCommunityPublisher (..), validatePackPin, validateTrustedCommunityPublisher)
 import LittleAnt.Store (StoreConfig (..), initializeDataset)
+import LittleAnt.Vault (CredentialScheme, credentialSchemeName, parseCredentialSchemeName)
 import System.Directory hiding (isSymbolicLink)
 import System.Environment (lookupEnv)
 import System.FilePath
@@ -90,10 +93,29 @@ newtype CalibrationConfig = CalibrationConfig
   }
   deriving stock (Eq, Show)
 
+data ProviderAccount = ProviderAccount
+  { providerAccountComponent :: Text
+  , providerAccountProvider :: Text
+  , providerAccountExternalId :: Text
+  , providerAccountLabel :: Text
+  , providerAccountConfiguration :: Value
+  }
+  deriving stock (Eq, Show)
+
+data CredentialBinding = CredentialBinding
+  { credentialBindingComponent :: Text
+  , credentialBindingSlot :: Text
+  , credentialBindingAccount :: Text
+  , credentialBindingScheme :: CredentialScheme
+  , credentialBindingVaultEntry :: UUIDv7
+  , credentialBindingPurposes :: Set.Set Text
+  }
+  deriving stock (Eq, Show)
+
 data IntegrationsConfig = IntegrationsConfig
   { installedComponents :: Map Text PackPin
-  , providerAccounts :: Map Text Text
-  , credentialBindings :: Map Text Text
+  , providerAccounts :: Map Text ProviderAccount
+  , credentialBindings :: Map Text CredentialBinding
   , deliveryBindings :: Map Text Text
   , trustedPublishers :: Set.Set TrustedCommunityPublisher
   }
@@ -325,6 +347,50 @@ instance FromJSON CalibrationConfig where
     requireSchema fields "little-ant/calibration@1"
     CalibrationConfig <$> fields .: "parameters"
 
+instance ToJSON ProviderAccount where
+  toJSON account =
+    object
+      [ "component" .= providerAccountComponent account
+      , "provider" .= providerAccountProvider account
+      , "external_id" .= providerAccountExternalId account
+      , "label" .= providerAccountLabel account
+      , "configuration" .= providerAccountConfiguration account
+      ]
+
+instance FromJSON ProviderAccount where
+  parseJSON = withObject "ProviderAccount" $ \fields -> do
+    rejectUnknown fields ["component", "provider", "external_id", "label", "configuration"]
+    ProviderAccount
+      <$> fields .: "component"
+      <*> fields .: "provider"
+      <*> fields .: "external_id"
+      <*> fields .: "label"
+      <*> fields .: "configuration"
+
+instance ToJSON CredentialBinding where
+  toJSON binding =
+    object
+      [ "component" .= credentialBindingComponent binding
+      , "slot" .= credentialBindingSlot binding
+      , "account" .= credentialBindingAccount binding
+      , "scheme" .= credentialSchemeName (credentialBindingScheme binding)
+      , "vault_entry" .= renderUUIDv7 (credentialBindingVaultEntry binding)
+      , "purposes" .= Set.toAscList (credentialBindingPurposes binding)
+      ]
+
+instance FromJSON CredentialBinding where
+  parseJSON = withObject "CredentialBinding" $ \fields -> do
+    rejectUnknown fields ["component", "slot", "account", "scheme", "vault_entry", "purposes"]
+    scheme <- fields .: "scheme" >>= either (fail . Text.unpack . appErrorMessage) pure . parseCredentialSchemeName
+    vaultEntry <- fields .: "vault_entry" >>= either (fail . Text.unpack) pure . parseUUIDv7
+    CredentialBinding
+      <$> fields .: "component"
+      <*> fields .: "slot"
+      <*> fields .: "account"
+      <*> pure scheme
+      <*> pure vaultEntry
+      <*> (Set.fromList <$> fields .: "purposes")
+
 instance ToJSON IntegrationsConfig where
   toJSON integrations =
     object
@@ -356,6 +422,87 @@ validateIntegrationsConfig integrations = do
   unless
     (all (\(name, pin) -> name == artifactName (pinArtifact pin)) (Map.toList (installedComponents integrations)))
     (Left (appError CorruptData "An installed Pack map key must equal its signed Pack name."))
+  mapM_ (uncurry validateProviderAccount) (Map.toList (providerAccounts integrations))
+  let enabledComponents = Set.unions (pinEnabledComponents <$> Map.elems (installedComponents integrations))
+  mapM_
+    ( \(name, account) ->
+        unless
+          (providerAccountComponent account `Set.member` enabledComponents)
+          (invalid "A provider account must reference an enabled installed component." name)
+    )
+    (Map.toList (providerAccounts integrations))
+  mapM_ (uncurry (validateCredentialBinding (providerAccounts integrations))) (Map.toList (credentialBindings integrations))
+  let bindingCoordinates =
+        [ (credentialBindingComponent binding, credentialBindingSlot binding, credentialBindingAccount binding)
+        | binding <- Map.elems (credentialBindings integrations)
+        ]
+  unless
+    (length bindingCoordinates == Set.size (Set.fromList bindingCoordinates))
+    (Left (appError Conflict "Only one CredentialBinding may own one component, slot, and provider account."))
+
+validateProviderAccount :: Text -> ProviderAccount -> Either AppError ()
+validateProviderAccount name account = do
+  unless (validIntegrationName name) (invalid "A provider-account name must be a lowercase local identifier." name)
+  mapM_
+    (\(label, value) -> unless (nonempty value) (invalid ("A provider account needs a nonempty " <> label <> ".") name))
+    [ ("component", providerAccountComponent account)
+    , ("provider", providerAccountProvider account)
+    , ("external identity", providerAccountExternalId account)
+    , ("label", providerAccountLabel account)
+    ]
+  case providerAccountConfiguration account of
+    Object configuration -> rejectSensitiveConfiguration name configuration
+    _ -> invalid "Provider-account configuration must be one JSON object." name
+ where
+  nonempty = not . Text.null . Text.strip
+
+validateCredentialBinding :: Map Text ProviderAccount -> Text -> CredentialBinding -> Either AppError ()
+validateCredentialBinding accounts name binding = do
+  unless (validIntegrationName name) (invalid "A credential-binding name must be a lowercase local identifier." name)
+  unless (nonempty (credentialBindingComponent binding)) (invalid "A CredentialBinding needs a component." name)
+  unless (validIntegrationName (credentialBindingSlot binding)) (invalid "A CredentialBinding slot must be a lowercase local identifier." name)
+  unless (not (Set.null purposes) && all nonempty (Set.toList purposes)) (invalid "A CredentialBinding needs nonempty supported purposes." name)
+  account <-
+    maybe
+      (invalid "A CredentialBinding references an unknown provider account." (credentialBindingAccount binding))
+      Right
+      (Map.lookup (credentialBindingAccount binding) accounts)
+  unless
+    (providerAccountComponent account == credentialBindingComponent binding)
+    (invalid "A CredentialBinding component must match its provider account component." name)
+ where
+  purposes = credentialBindingPurposes binding
+  nonempty = not . Text.null . Text.strip
+
+rejectSensitiveConfiguration :: Text -> Object -> Either AppError ()
+rejectSensitiveConfiguration accountName configuration =
+  mapM_ inspect (KeyMap.toList configuration)
+ where
+  inspect (key, value)
+    | sensitive (Key.toText key) = invalid "Provider-account configuration cannot contain secret-bearing keys." accountName
+    | otherwise = case value of
+        Object nested -> rejectSensitiveConfiguration accountName nested
+        Array values -> mapM_ inspectValue values
+        _ -> Right ()
+  inspectValue = \case
+    Object nested -> rejectSensitiveConfiguration accountName nested
+    Array values -> mapM_ inspectValue values
+    _ -> Right ()
+  sensitive key =
+    any (`Text.isInfixOf` Text.toLower key) ["secret", "token", "password", "authorization", "api_key", "private_key"]
+
+validIntegrationName :: Text -> Bool
+validIntegrationName name = case Text.uncons name of
+  Nothing -> False
+  Just (first, rest) ->
+    Text.length name <= 64
+      && isLowerDigit first
+      && Text.all (\character -> isLowerDigit character || character `elem` ['-', '_']) rest
+ where
+  isLowerDigit character = isAsciiLower character || isDigit character
+
+invalid :: Text -> Text -> Either AppError value
+invalid message subject = Left (appError InvalidInput message){appErrorSubject = Just subject}
 
 requireSchema :: Object -> Text -> Parser ()
 requireSchema fields expected = do

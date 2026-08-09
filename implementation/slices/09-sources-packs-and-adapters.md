@@ -81,6 +81,15 @@ acknowledgment. Production OAuth account binding, the public import command,
 separately consented cleanup effects, remaining standard importers, Calendar,
 and local-web UIAdapter remain in this slice.
 
+The trusted provider host now has typed ProviderAccount and CredentialBinding
+configuration, unambiguous single/multi-account source references, a
+provider-aware ImportPort, closed expiring OAuth token-set custody, vault-agent
+resolution, and real bounded HTTPS transport. Credentials are resolved only
+after signed route and slot authorization and never enter Pack transcripts or
+persisted preflight. OAuth device authorization/refresh and production loading
+of the installed official Pack remain prerequisites for exposing the live
+Microsoft To Do route in the public CLI/REPL.
+
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or
 credential authority. Each exchange is authorized against one unambiguous
@@ -88,8 +97,9 @@ signed component route, executed by the trusted host, sanitized, and replayed
 through a fresh private process and VM. Remote preflight persists only custody
 digest/count plus the sparse observation; materialization refetches and must
 match. The Microsoft To Do component is built on this kernel as an exact
-official artifact. Production credential binding, public command
-orchestration, and cleanup-effect dispatch remain to be built.
+official artifact. Typed credential binding and transport are built; OAuth
+acquisition/refresh, installed-Pack loading, public command orchestration, and
+cleanup-effect dispatch remain to be built.
 
 ## Gate
 
