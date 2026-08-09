@@ -52,18 +52,26 @@ UX-CAL00..CAL01, UX-PACK00..PACK02, UX-EXP00.
    dry-run, typed reference/error families, doctor, and candidate-based repair.
 
 Current checkpoint: structural exporters, the core-owned TaskJuggler planning
-cut/exporter, the isolated file-SourceAdapter preflight contract, and the
-separate TaskJuggler actuals custody and Raw-first acceptance paths are
-implemented through the exact signed standard Pack. The first `plain_text`
-component now has the complete explicit CLI preflight and verified Raw-first
-acceptance path, including stale regeneration, exact retry, stable
-ImportProfile scope, immutable ImportInvocation custody, SourceBinding
-identity, dry-run, and unsupported cleanup failure. TaskJuggler actuals now
-have independent core/Lua manifest verification, explicit observation time,
-partial actual semantics, real `tj3` coverage, a public snapshot preview,
-atomic immutable evidence acceptance, monotonic observation custody, and
-conservative explicit-remaining projection without estimate mutation. The
-remaining standard importers/connectors, Calendar, and local-web UIAdapter
+cut/exporter, the isolated SourceAdapter preflight/materialization contract,
+and the separate TaskJuggler actuals custody and Raw-first acceptance paths are
+implemented through the exact signed standard Pack. Explicit consent now
+reacquires source bytes and invokes a distinct materialization operation; the
+host rejects any drift from the sparse preview before one atomic multiobject
+command. Generic acceptance preserves stable object identity, collision-free
+handles, exact-retry idempotency, and changed-material reconciliation.
+
+The `plain_text` component has the complete explicit CLI preflight and verified
+Raw-first acceptance path, including stale regeneration, stable ImportProfile
+scope, immutable ImportInvocation custody, SourceBinding identity, dry-run,
+and unsupported cleanup failure. The bundled offline Notesnook ZIP adapter
+imports Markdown, HTML, and plain-text notes through a deterministic bounded
+archive helper while retaining relative-path identities, source-container
+suggestions, and unsupported-entry diagnostics. TaskJuggler actuals have
+independent core/Lua manifest verification, explicit observation time, partial
+actual semantics, real `tj3` coverage, a public snapshot preview, atomic
+immutable evidence acceptance, monotonic observation custody, and conservative
+explicit-remaining projection without estimate mutation. The Microsoft To Do
+connector, remaining standard importers, Calendar, and local-web UIAdapter
 remain in this slice.
 
 ## Gate

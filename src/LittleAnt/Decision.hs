@@ -383,23 +383,23 @@ decideAttachSourceBinding state actor rawId kind importProfile externalIdentity 
 
 importAcceptanceUUIDCount :: State -> Text -> SourcePreflight -> Either AppError Int
 importAcceptanceUUIDCount state sourceReference preflight = do
-  (sourceObject, _) <- validateFileAcceptance sourceReference preflight
+  (sourceObjects, _) <- validateFileAcceptance sourceReference preflight
   evidenceCount <- preflightActualEvidenceCount preflight
   profile <- uniqueMatchingProfile state sourceReference preflight
   case profile of
-    Nothing -> pure (9 + evidenceCount)
+    Nothing -> pure (5 + 4 * length sourceObjects + evidenceCount)
     Just existingProfile -> do
       invocation <- uniqueMatchingInvocation state (importProfileId existingProfile) preflight
       case invocation of
-        Just prior -> validateExistingInvocation state sourceObject prior >> pure 0
+        Just prior -> validateExistingInvocation state sourceObjects prior >> pure 0
         Nothing -> do
-          existing <- existingImportedRaw state (Just (importProfileId existingProfile)) preflight sourceObject
-          pure ((if isJust existing then 3 else 7) + evidenceCount)
+          existing <- traverse (existingImportedRaw state (Just (importProfileId existingProfile)) preflight) sourceObjects
+          pure (3 + 4 * length (filter (not . isJust) existing) + evidenceCount)
 
-decideAcceptFileImport :: State -> Actor -> Text -> SourceInput -> SourcePreflight -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
-decideAcceptFileImport state actor sourceReference input preflight facts = do
-  (sourceObject, identity) <- validateFileAcceptance sourceReference preflight
-  content <- validateInputCustody input preflight
+decideAcceptFileImport :: State -> Actor -> Text -> SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
+decideAcceptFileImport state actor sourceReference input preflight materials facts = do
+  (sourceObjects, identity) <- validateFileAcceptance sourceReference preflight
+  contents <- validateInputCustody input preflight materials
   actuals <- acceptedTaskJugglerActuals input preflight
   profileMatch <- uniqueMatchingProfile state sourceReference preflight
   priorInvocation <- case profileMatch of
@@ -407,32 +407,32 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
     Just profile -> uniqueMatchingInvocation state (importProfileId profile) preflight
   case (profileMatch, priorInvocation) of
     (Just profile, Just invocation) -> do
-      raw <- validateExistingInvocation state sourceObject invocation
-      validateExistingActualEvidence state raw invocation actuals
-      pure (ImportAcceptanceDecision Nothing (importProfileId profile) (importInvocationId invocation) [] [rawId raw] [])
+      raws <- validateExistingInvocation state sourceObjects invocation
+      case actuals of
+        Nothing -> pure ()
+        Just _ -> case raws of
+          [raw] -> validateExistingActualEvidence state raw invocation actuals
+          _ -> Left (appError CorruptData "TaskJuggler actuals acceptance must contain exactly one imported Raw.")
+      pure (ImportAcceptanceDecision Nothing (importProfileId profile) (importInvocationId invocation) [] (rawId <$> raws) [])
     _ -> do
       traverse_ (validateNewActuals state) actuals
       existing <- case profileMatch of
-        Nothing -> pure Nothing
-        Just profile -> existingImportedRaw state (Just (importProfileId profile)) preflight sourceObject
-      let baseAllocationCount = case (profileMatch, existing) of
-            (Nothing, Nothing) -> 9
-            (Just _, Nothing) -> 7
-            (Just _, Just _) -> 3
-            (Nothing, Just _) -> 0
+        Nothing -> pure (replicate (length sourceObjects) Nothing)
+        Just profile -> traverse (existingImportedRaw state (Just (importProfileId profile)) preflight) sourceObjects
+      let newObjectCount = length (filter (not . isJust) existing)
+          baseAllocationCount = 3 + (if isJust profileMatch then 0 else 2) + 4 * newObjectCount
           evidenceCount = maybe 0 (length . actualsRecords) actuals
           allocationCount = baseAllocationCount + evidenceCount
-      when (baseAllocationCount == 0) $ Left (appError CorruptData "An imported Raw exists without its owning ImportProfile.")
       allocated <- requireUUIDs allocationCount facts
       case allocated of
         commandId : remainder -> do
           let (baseRemainder, evidenceEventIds) = splitAt (baseAllocationCount - 1) remainder
           (profile, profileEvents, afterProfile) <- allocateProfile allocated commandId baseRemainder profileMatch
           (invocationId, invocationEventId, objectAllocations) <- takeInvocationAllocation afterProfile
-          (objectEvents, mapping, imported, reused) <- allocateObject sourceObject content allocated commandId profile objectAllocations existing
-          let invocation = buildInvocation invocationId profile mapping identity
+          (objectEvents, mappings, imported, reused) <- allocateObjects sourceObjects contents allocated commandId profile objectAllocations existing
+          evidenceEvents <- buildActualEvidenceEvents allocated commandId invocationId mappings evidenceEventIds actuals
+          let invocation = buildInvocation invocationId profile mappings identity
               invocationEvent = makeDraft facts actor state allocated invocationEventId commandId (ImportInvocationRecordedV1 (ImportInvocationRecorded invocation))
-              evidenceEvents = buildActualEvidenceEvents allocated commandId invocation mapping evidenceEventIds actuals
               events = profileEvents <> objectEvents <> [invocationEvent] <> evidenceEvents
           pure (ImportAcceptanceDecision (Just commandId) (importProfileId profile) invocationId imported reused events)
         [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
@@ -459,34 +459,44 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
   takeInvocationAllocation = \case
     invocationId : invocationEventId : rest -> Right (invocationId, invocationEventId, rest)
     _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
-  allocateObject sourceObject content allocated commandId profile objectAllocations = \case
-    Just raw -> do
-      unless (null objectAllocations) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
-      pure ([], ImportObjectMapping (sourceObjectExternalId sourceObject) (rawId raw) ImportReusedRaw, [], [rawId raw])
-    Nothing -> do
-      (rawIdValue, rawEventId, bindingId, bindingEventId) <- exactlyFour objectAllocations
-      let rawHandleValue = allocateHandle RawHandle (stateRetiredRawHandles state) (rawSeed (sourceObjectTitle sourceObject))
-          rawPayload = RawFed rawIdValue rawHandleValue (sourceObjectTitle sourceObject) ("import:" <> sourcePreflightAdapterId preflight) (Just content)
-          binding =
-            SourceBinding
-              bindingId
-              rawIdValue
-              (sourcePreflightAdapterId preflight)
-              (Just (importProfileId profile))
-              (Just (sourceObjectExternalId sourceObject))
-              (sourceObjectContainerId sourceObject)
-              (sourceObjectLocator sourceObject)
-              (sourcePreflightMode preflight)
-              SourceManualCheck
-              SourceBindingActive
-              Nothing
-              1
-          events =
-            [ makeDraft facts actor state allocated rawEventId commandId (RawFedV1 rawPayload)
-            , makeDraft facts actor state allocated bindingEventId commandId (SourceBindingChangedV1 (SourceBindingChanged binding))
-            ]
-      pure (events, ImportObjectMapping (sourceObjectExternalId sourceObject) rawIdValue ImportCreatedRaw, [rawIdValue], [])
-  buildInvocation invocationId profile mapping packIdentity =
+  allocateObjects sourceObjects contents allocated commandId profile objectAllocations existing =
+    go (stateRetiredRawHandles state) objectAllocations (zip sourceObjects existing)
+   where
+    go _ remaining [] = do
+      unless (null remaining) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      pure ([], [], [], [])
+    go used remaining ((sourceObject, maybeRaw) : rest) = do
+      content <- maybe (Left (appError CorruptData "A materialized source object is missing after custody validation.")) Right (Map.lookup (sourceObjectExternalId sourceObject) contents)
+      case maybeRaw of
+        Just raw -> do
+          (events, mappings, imported, reused) <- go used remaining rest
+          pure (events, ImportObjectMapping (sourceObjectExternalId sourceObject) (rawId raw) ImportReusedRaw : mappings, imported, rawId raw : reused)
+        Nothing -> case remaining of
+          rawIdValue : rawEventId : bindingId : bindingEventId : afterObject -> do
+            let rawHandleValue = allocateHandle RawHandle used (rawSeed (sourceObjectTitle sourceObject))
+                rawPayload = RawFed rawIdValue rawHandleValue (sourceObjectTitle sourceObject) ("import:" <> sourcePreflightAdapterId preflight) (Just content)
+                binding =
+                  SourceBinding
+                    bindingId
+                    rawIdValue
+                    (sourcePreflightAdapterId preflight)
+                    (Just (importProfileId profile))
+                    (Just (sourceObjectExternalId sourceObject))
+                    (sourceObjectContainerId sourceObject)
+                    (sourceObjectLocator sourceObject)
+                    (sourcePreflightMode preflight)
+                    SourceManualCheck
+                    SourceBindingActive
+                    Nothing
+                    1
+                objectEvents =
+                  [ makeDraft facts actor state allocated rawEventId commandId (RawFedV1 rawPayload)
+                  , makeDraft facts actor state allocated bindingEventId commandId (SourceBindingChangedV1 (SourceBindingChanged binding))
+                  ]
+            (events, mappings, imported, reused) <- go (Set.insert rawHandleValue used) afterObject rest
+            pure (objectEvents <> events, ImportObjectMapping (sourceObjectExternalId sourceObject) rawIdValue ImportCreatedRaw : mappings, rawIdValue : imported, reused)
+          _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+  buildInvocation invocationId profile mappings packIdentity =
     ImportInvocation
       invocationId
       (importProfileId profile)
@@ -504,11 +514,17 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
       (artifactManifestDigest packIdentity)
       (artifactArchiveDigest packIdentity)
       (sourcePreflightSignerFingerprint preflight)
-      [mapping]
+      mappings
 
-  buildActualEvidenceEvents allocated commandId invocation mapping eventIds = \case
-    Nothing -> []
-    Just actuals ->
+  buildActualEvidenceEvents _ _ _ _ eventIds Nothing = do
+    unless (null eventIds) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+    pure []
+  buildActualEvidenceEvents allocated commandId invocationId mappings eventIds (Just actuals) = do
+    evidenceRaw <- case mappings of
+      [mapping] -> Right (importObjectRawId mapping)
+      _ -> Left (appError CorruptData "TaskJuggler actuals acceptance must contain exactly one material mapping.")
+    unless (length eventIds == length (actualsRecords actuals)) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+    pure $
       zipWith
         ( \eventId record ->
             makeDraft
@@ -521,8 +537,8 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
               ( EffortActualObservedV1
                   ( EffortActualObserved
                       (actualBrickId record)
-                      (importObjectRawId mapping)
-                      (importInvocationId invocation)
+                      evidenceRaw
+                      invocationId
                       (actualsManifestDigest actuals)
                       (actualTaskId record)
                       (actualsAsOf actuals)
@@ -534,32 +550,38 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
         eventIds
         (actualsRecords actuals)
 
-validateFileAcceptance :: Text -> SourcePreflight -> Either AppError (SourceObject, PackArtifactIdentity)
+validateFileAcceptance :: Text -> SourcePreflight -> Either AppError ([SourceObject], PackArtifactIdentity)
 validateFileAcceptance sourceReference preflight = do
   unless (not (Text.null (Text.strip sourceReference))) $ Left (appError InvalidInput "An import source reference cannot be empty.")
-  unless (sourcePreflightAdapterId preflight `elem` ["plain_text", "taskjuggler_actuals"]) $
+  unless (sourcePreflightAdapterId preflight `elem` ["plain_text", "taskjuggler_actuals", "notesnook_export"]) $
     Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
-  sourceObject <- case observedObjects (sourcePreflightObservation preflight) of
-    [candidate] -> Right candidate
-    _ -> Left (appError CorruptData "A file SourceAdapter must describe exactly one source object at this acceptance boundary.")
-  let expectedShape = if sourcePreflightAdapterId preflight == "plain_text" then SourceNoteShape else SourceOtherShape
-  unless (sourceObjectShape sourceObject == expectedShape) $ Left (appError CorruptData "A file SourceAdapter returned an unexpected source-object shape.")
-  unless (sourceMaterialKind (sourceObjectMaterial sourceObject) == SourceTextKind) $ Left (appError CorruptData "A file SourceAdapter returned non-text material.")
-  pure (sourceObject, sourcePreflightPackIdentity preflight)
+  let sourceObjects = observedObjects (sourcePreflightObservation preflight)
+  unless (not (null sourceObjects)) $ Left (appError PreconditionFailed "The selected source contains no importable objects.")
+  case sourcePreflightAdapterId preflight of
+    "plain_text" -> validateOne SourceNoteShape sourceObjects
+    "taskjuggler_actuals" -> validateOne SourceOtherShape sourceObjects
+    "notesnook_export" -> traverse_ (validateShape SourceNoteShape) sourceObjects
+    _ -> Left (appError Unsupported "This acceptance boundary does not support that signed SourceAdapter yet.")
+  traverse_ validateText sourceObjects
+  pure (sourceObjects, sourcePreflightPackIdentity preflight)
+ where
+  validateOne expected = \case
+    [sourceObject] -> validateShape expected sourceObject
+    _ -> Left (appError CorruptData "This SourceAdapter must describe exactly one source object.")
+  validateShape expected sourceObject =
+    unless (sourceObjectShape sourceObject == expected) $ Left (appError CorruptData "A file SourceAdapter returned an unexpected source-object shape.")
+  validateText sourceObject =
+    unless (sourceMaterialKind (sourceObjectMaterial sourceObject) == SourceTextKind) $ Left (appError CorruptData "A file SourceAdapter returned non-text material.")
 
-validateInputCustody :: SourceInput -> SourcePreflight -> Either AppError RawContent
-validateInputCustody input preflight = do
+validateInputCustody :: SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> Either AppError (Map.Map Text RawContent)
+validateInputCustody input preflight materials = do
   unless (sourceInputLabel input == sourcePreflightInputLabel preflight) $ stale "The selected input label changed after preflight."
   unless (sourceInputMediaType input == sourcePreflightInputMediaType preflight) $ stale "The selected input media type changed after preflight."
   unless (sha256Hex (sourceInputBytes input) == sourcePreflightInputDigest preflight) $ stale "The selected input bytes changed after preflight."
   unless (lengthBytes == sourcePreflightInputByteCount preflight) $ stale "The selected input byte count changed after preflight."
-  text <- either (const (Left (appError CorruptData "The imported text input is not valid UTF-8."))) Right (Text.decodeUtf8' (sourceInputBytes input))
-  let material = summarizeSourceMaterial (SourceTextMaterial text)
-  sourceObject <- case observedObjects (sourcePreflightObservation preflight) of
-    [candidate] -> Right candidate
-    _ -> Left (appError CorruptData "A file SourceAdapter must describe exactly one source object.")
-  unless (sourceObjectMaterial sourceObject == material) $ stale "The source material no longer matches its preflight summary."
-  pure (RawTextContent text)
+  let materialization = SourceAdapterMaterialization (sourcePreflightObservation preflight) materials
+  either (const (stale "The materialized source objects no longer match the preflight.")) Right (validateSourceAdapterMaterialization materialization)
+  traverse sourceMaterialToRawContent materials
  where
   lengthBytes = ByteString.length (sourceInputBytes input)
   stale message =
@@ -569,9 +591,16 @@ validateInputCustody input preflight = do
           }
       )
 
+sourceMaterialToRawContent :: SourceMaterial -> Either AppError RawContent
+sourceMaterialToRawContent = \case
+  SourceTextMaterial text -> Right (RawTextContent text)
+  SourceUriMaterial locator label -> Right (RawUriContent locator label)
+  SourceBlobMaterial bytes mediaType filename -> Right (RawBlobContent (sha256Hex bytes) mediaType (fromIntegral (ByteString.length bytes)) filename)
+  SourceStructuredMaterial schema canonicalJson -> Right (RawStructuredContent schema canonicalJson)
+
 preflightActualEvidenceCount :: SourcePreflight -> Either AppError Int
 preflightActualEvidenceCount preflight
-  | sourcePreflightAdapterId preflight == "plain_text" = Right 0
+  | sourcePreflightAdapterId preflight `elem` ["plain_text", "notesnook_export"] = Right 0
   | sourcePreflightAdapterId preflight == "taskjuggler_actuals" =
       case Map.lookup "actual_record_count" (observedIdentity (sourcePreflightObservation preflight)) >>= readCanonicalPositive of
         Just count -> Right count
@@ -584,7 +613,7 @@ preflightActualEvidenceCount preflight
 
 acceptedTaskJugglerActuals :: SourceInput -> SourcePreflight -> Either AppError (Maybe TaskJugglerActuals)
 acceptedTaskJugglerActuals input preflight
-  | sourcePreflightAdapterId preflight == "plain_text" = Right Nothing
+  | sourcePreflightAdapterId preflight `elem` ["plain_text", "notesnook_export"] = Right Nothing
   | sourcePreflightAdapterId preflight == "taskjuggler_actuals" = do
       actuals <- parseTaskJugglerActuals (sourceInputBytes input)
       let identity = observedIdentity (sourcePreflightObservation preflight)
@@ -687,15 +716,21 @@ uniqueMatchingInvocation state profileId preflight =
       && importInvocationPackArchiveDigest invocation == artifactArchiveDigest identity
       && importInvocationSignerFingerprint invocation == sourcePreflightSignerFingerprint preflight
 
-validateExistingInvocation :: State -> SourceObject -> ImportInvocation -> Either AppError Raw
-validateExistingInvocation state sourceObject invocation =
-  case importInvocationMappings invocation of
-    [mapping]
-      | importObjectExternalIdentity mapping == sourceObjectExternalId sourceObject -> do
-          raw <- maybe (Left (appError CorruptData "An ImportInvocation maps to a missing Raw.")) Right (Map.lookup (importObjectRawId mapping) (stateRaws state))
-          validateImportedMaterial state sourceObject raw
-          pure raw
-    _ -> Left (appError CorruptData "An exact file ImportInvocation has an inconsistent object mapping.")
+validateExistingInvocation :: State -> [SourceObject] -> ImportInvocation -> Either AppError [Raw]
+validateExistingInvocation state sourceObjects invocation = do
+  unless (length (importInvocationMappings invocation) == Map.size mappings) $
+    Left (appError CorruptData "An exact file ImportInvocation contains duplicate external object mappings.")
+  unless (Map.keysSet mappings == Map.keysSet expected) $
+    Left (appError CorruptData "An exact file ImportInvocation has an inconsistent object mapping.")
+  traverse resolve sourceObjects
+ where
+  mappings = Map.fromList [(importObjectExternalIdentity mapping, mapping) | mapping <- importInvocationMappings invocation]
+  expected = Map.fromList [(sourceObjectExternalId sourceObject, sourceObject) | sourceObject <- sourceObjects]
+  resolve sourceObject = do
+    mapping <- maybe (Left (appError CorruptData "An exact file ImportInvocation omits a source object.")) Right (Map.lookup (sourceObjectExternalId sourceObject) mappings)
+    raw <- maybe (Left (appError CorruptData "An ImportInvocation maps to a missing Raw.")) Right (Map.lookup (importObjectRawId mapping) (stateRaws state))
+    validateImportedMaterial state sourceObject raw
+    pure raw
 
 existingImportedRaw :: State -> Maybe UUIDv7 -> SourcePreflight -> SourceObject -> Either AppError (Maybe Raw)
 existingImportedRaw _ Nothing _ _ = Right Nothing
@@ -720,11 +755,16 @@ validateImportedMaterial :: State -> SourceObject -> Raw -> Either AppError ()
 validateImportedMaterial state sourceObject raw = do
   revisionId <- maybe (Left (appError CorruptData "An imported Raw has no current material revision.")) Right (Map.lookup (rawId raw) (stateCurrentRawRevisions state))
   revision <- maybe (Left (appError CorruptData "An imported Raw current revision is missing.")) Right (Map.lookup revisionId (stateRawContentRevisions state))
-  importedDigest <- case rawContentRevisionContent revision of
-    RawTextContent text -> Right (sourceMaterialDigest (summarizeSourceMaterial (SourceTextMaterial text)))
-    _ -> Left (appError CorruptData "A text-file SourceBinding points to non-text Raw material.")
+  let importedDigest = rawContentMaterialDigest (rawContentRevisionContent revision)
   unless (importedDigest == sourceMaterialDigest (sourceObjectMaterial sourceObject)) $
     Left (appError Conflict "The source identity already maps to different local Raw material; reconcile it instead of importing a duplicate.")
+
+rawContentMaterialDigest :: RawContent -> Text
+rawContentMaterialDigest = \case
+  RawTextContent text -> sourceMaterialDigest (summarizeSourceMaterial (SourceTextMaterial text))
+  RawUriContent locator label -> sourceMaterialDigest (summarizeSourceMaterial (SourceUriMaterial locator label))
+  RawBlobContent digest _ _ _ -> digest
+  RawStructuredContent schema canonicalJson -> sourceMaterialDigest (summarizeSourceMaterial (SourceStructuredMaterial schema canonicalJson))
 
 decideChangeSourceBinding :: State -> Actor -> UUIDv7 -> Text -> SourceCheckPolicy -> SourceBindingLifecycle -> Maybe UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
 decideChangeSourceBinding state actor bindingId locator policy lifecycle baseline facts = do

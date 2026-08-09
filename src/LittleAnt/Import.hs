@@ -1,6 +1,7 @@
 module LittleAnt.Import (
   ImportSourceDescriptor (..),
   ImportRead (..),
+  ImportMaterialization (..),
   ImportPort (..),
   emptyImportPort,
   packRegistryImportPort,
@@ -41,15 +42,23 @@ data ImportRead = ImportRead
   }
   deriving stock (Eq, Show)
 
+data ImportMaterialization = ImportMaterialization
+  { importMaterializationRead :: ImportRead
+  , importMaterializationObjects :: Map.Map Text SourceMaterial
+  }
+  deriving stock (Eq, Show)
+
 data ImportPort = ImportPort
   { importPortCatalog :: [ImportSourceDescriptor]
   , importPortPreflight :: Text -> SourceMode -> IO (Either AppError ImportRead)
+  , importPortMaterialize :: Text -> SourceMode -> IO (Either AppError ImportMaterialization)
   }
 
 emptyImportPort :: ImportPort
 emptyImportPort =
   ImportPort
     []
+    (\source _ -> pure . Left $ unavailable source)
     (\source _ -> pure . Left $ unavailable source)
  where
   unavailable source =
@@ -63,8 +72,26 @@ packRegistryImportPort runner registry =
   ImportPort
     descriptors
     preflight
+    materialize
  where
-  preflight source mode = do
+  preflight source mode = readWith source $ \descriptor component input -> do
+    invokePackSourcePreflight runner component mode input >>= \case
+      Left problem -> pure (Left problem)
+      Right preview -> pure $ do
+        verifyCoreCustody descriptor input preview
+        Right (ImportRead (normalizedReference source) input preview)
+  materialize source mode = readWith source $ \descriptor component input -> do
+    invokePackSourceMaterialize runner component mode input >>= \case
+      Left problem -> pure (Left problem)
+      Right (preview, materialization) -> pure $ do
+        verifyCoreCustody descriptor input preview
+        validateSourceAdapterMaterialization materialization
+        Right
+          ( ImportMaterialization
+              (ImportRead (normalizedReference source) input preview)
+              (materializedObjects materialization)
+          )
+  readWith source continue = do
     case descriptorFor source of
       Left problem -> pure (Left problem)
       Right descriptor -> do
@@ -74,12 +101,7 @@ packRegistryImportPort runner registry =
           Right input ->
             case lookupPackComponent (importSourceId descriptor) registry of
               Left problem -> pure (Left problem)
-              Right component ->
-                invokePackSourcePreflight runner component mode input >>= \case
-                  Left problem -> pure (Left problem)
-                  Right preview -> pure $ do
-                    verifyCoreCustody descriptor input preview
-                    Right (ImportRead (normalizedReference source) input preview)
+              Right component -> continue descriptor component input
   descriptorFor source =
     let extension = Text.toLower (Text.pack (takeExtension (Text.unpack (Text.strip source))))
         matches = filter (elem extension . importSourceExtensions) descriptors
@@ -94,6 +116,7 @@ packRegistryImportPort runner registry =
                 }
   descriptors =
     [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]
+    , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "taskjuggler_actuals" "TaskJuggler actuals" [".tjp"] [SourceSnapshot]
     ]
 
@@ -124,6 +147,7 @@ readFileInput descriptor source
 mediaTypeFor :: ImportSourceDescriptor -> Text
 mediaTypeFor descriptor = case importSourceId descriptor of
   "taskjuggler_actuals" -> "text/x-taskjuggler; charset=utf-8"
+  "notesnook_export" -> "application/zip"
   _ -> "text/plain; charset=utf-8"
 
 verifyCoreCustody :: ImportSourceDescriptor -> SourceInput -> SourcePreflight -> Either AppError ()

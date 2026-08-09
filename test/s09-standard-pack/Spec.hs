@@ -1,9 +1,11 @@
 module Main (main) where
 
-import Data.Aeson (Value, eitherDecodeStrict')
+import Codec.Archive.Zip qualified as Zip
+import Data.Aeson (Value, eitherDecodeStrict', toJSON)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Char8 qualified as ByteString8
+import Data.ByteString.Lazy qualified as LazyByteString
 import Data.List (sort)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -39,11 +41,12 @@ main =
     testGroup
       "S09 offline standard Pack"
       [ testCase "the committed source tree reconstructs the exact signed archive" canonicalArchive
-      , testCase "the exact compiled identity grants six exporters and two SourceAdapters" builtInRegistry
+      , testCase "the exact compiled identity grants six exporters and three SourceAdapters" builtInRegistry
       , testCase "tree, Org, and self-contained HTML match reviewed fixtures" reviewedFixtures
       , testCase "aligned table and RFC 4180 CSV preserve structural data" structuredTextFormats
       , testCase "the core planning cut produces valid TaskJuggler syntax" taskJugglerPlanningCut
       , testCase "the plain-text SourceAdapter summarizes one whole file for Raw preservation" plainTextSourceAdapter
+      , testCase "the Notesnook SourceAdapter preserves every supported ZIP note lazily" notesnookSourceAdapter
       , testCase "the TaskJuggler actuals SourceAdapter verifies manifest custody independently" taskJugglerActualsSourceAdapter
       ]
 
@@ -99,6 +102,44 @@ plainTextSourceAdapter = do
       sourceObjectShape sourceObject @?= SourceNoteShape
       sourceObjectMaterial sourceObject @?= summarizeSourceMaterial (SourceTextMaterial "First line\nSecond line\n")
     other -> assertFailure ("unexpected plain-text objects: " <> show other)
+
+notesnookSourceAdapter :: Assertion
+notesnookSourceAdapter = do
+  client <- fixtureClient
+  scope <- assertRight (mkProfileScope "default")
+  registry <- loadStandardPackRegistry fixtureTime scope >>= assertRight
+  registered <- assertRight (lookupPackComponent "notesnook_export" registry)
+  let first = "# First note\n\n" <> ByteString.replicate 220 97 <> "::PRIVATE_FIRST::\n"
+      second = "<h1>Second note</h1>\n" <> ByteString.replicate 220 98 <> "::PRIVATE_SECOND::\n"
+      archive =
+        foldr
+          Zip.addEntryToArchive
+          Zip.emptyArchive
+          [ Zip.toEntry "Inbox/First note.md" 0 (LazyByteString.fromStrict first)
+          , Zip.toEntry "Projects/Second note.html" 0 (LazyByteString.fromStrict second)
+          , Zip.toEntry "attachments/image.png" 0 "not imported"
+          ]
+      bytes = LazyByteString.toStrict (Zip.fromArchive archive)
+      input = SourceInput "notesnook.zip" "application/zip" bytes
+  preflight <- invokePackSourcePreflight client registered SourceMigrate input >>= assertRight
+  let observation = sourcePreflightObservation preflight
+  observedSourceLabel observation @?= "Notesnook export"
+  observedSupportedModes observation @?= [SourceSnapshot, SourceMigrate]
+  observedCleanupSupported observation @?= False
+  Set.fromList (sourceContainerLabel <$> observedContainers observation) @?= Set.fromList ["Inbox", "Projects"]
+  Set.fromList (sourceObjectExternalId <$> observedObjects observation)
+    @?= Set.fromList ["path:Inbox/First note.md", "path:Projects/Second note.html"]
+  observedUnsupportedFields observation @?= ["1 non-note archive entries"]
+  encoded <- assertRight (canonicalJsonBytes (toJSON preflight))
+  assertBool "Notesnook preflight leaked full note material" (not ("::PRIVATE_FIRST::" `ByteString.isInfixOf` encoded || "::PRIVATE_SECOND::" `ByteString.isInfixOf` encoded))
+
+  (acceptedPreflight, materialization) <- invokePackSourceMaterialize client registered SourceMigrate input >>= assertRight
+  acceptedPreflight @?= preflight
+  materializedObjects materialization
+    @?= Map.fromList
+      [ ("path:Inbox/First note.md", SourceTextMaterial (TextEncoding.decodeUtf8 first))
+      , ("path:Projects/Second note.html", SourceTextMaterial (TextEncoding.decodeUtf8 second))
+      ]
 
 taskJugglerActualsSourceAdapter :: Assertion
 taskJugglerActualsSourceAdapter = do

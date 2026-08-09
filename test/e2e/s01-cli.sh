@@ -69,6 +69,30 @@ assert not any(action["default"] for action in interaction["actions"])
 ' <<<"$import_json"
 test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
 
+notesnook_source="$test_root/notesnook.zip"
+python3 - "$notesnook_source" <<'PY'
+import pathlib, sys, zipfile
+
+with zipfile.ZipFile(pathlib.Path(sys.argv[1]), "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr("Inbox/First note.md", "# First note\n")
+    archive.writestr("Projects/Second note.html", "<h1>Second note</h1>\n")
+    archive.writestr("attachments/image.png", b"not imported")
+PY
+notesnook_json="$(lant_at "$import_root" --json import "$notesnook_source" --migrate)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+preflight=value["interaction"]["opportunity"]["preflight"]
+observation=preflight["observation"]
+assert preflight["adapter_id"] == "notesnook_export"
+assert preflight["mode"] == "migrate"
+assert observation["cleanup_supported"] is False
+assert len(observation["objects"]) == 2
+assert len(observation["containers"]) == 2
+assert observation["unsupported_fields"] == ["1 non-note archive entries"]
+' <<<"$notesnook_json"
+test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
+
 actuals_source="$test_root/actuals.tjp"
 python3 - "$actuals_source" <<'PY'
 import base64, hashlib, json, pathlib, sys

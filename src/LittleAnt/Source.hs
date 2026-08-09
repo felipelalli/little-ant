@@ -2,6 +2,7 @@ module LittleAnt.Source (
   SourceInput (..),
   SourceObjectShape (..),
   SourceMaterial (..),
+  SourceAdapterMaterialization (..),
   SourceMaterialKind (..),
   SourceMaterialSummary (..),
   SourceContainer (..),
@@ -10,6 +11,7 @@ module LittleAnt.Source (
   SourcePreflight (..),
   sourceModeName,
   validateSourceAdapterObservation,
+  validateSourceAdapterMaterialization,
   validateSourceMaterial,
   summarizeSourceMaterial,
   makeSourcePreflight,
@@ -23,6 +25,7 @@ import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Aeson.Types (Parser)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Base64.URL qualified as Base64Url
 import Data.Char (isAscii, isDigit)
 import Data.Foldable (traverse_)
 import Data.List (nub)
@@ -108,6 +111,17 @@ data SourceAdapterObservation = SourceAdapterObservation
   }
   deriving stock (Eq, Show)
 
+{- | Full source material is a transient acceptance value. It crosses the
+isolated runner boundary only after the human accepts a preflight and is never
+stored in an interaction checkpoint. The observation remains alongside the
+material so the host can prove that every accepted byte matches the preview.
+-}
+data SourceAdapterMaterialization = SourceAdapterMaterialization
+  { materializedObservation :: SourceAdapterObservation
+  , materializedObjects :: Map Text SourceMaterial
+  }
+  deriving stock (Eq, Show)
+
 {- | A complete preflight joins the adapter observation to facts owned by the
 trusted host. These facts are the custody boundary used by later import
 acceptance and stale-preview detection.
@@ -176,6 +190,31 @@ validateSourceAdapterObservation observation = do
   requireDigest label value = unless (Text.length value == 64 && Text.all hexadecimal value) $ invalid ("A SourceAdapter returned an invalid " <> label <> ".")
   hexadecimal character = isAscii character && (isDigit character || character >= 'a' && character <= 'f')
   unique values = length values == length (nub values)
+  invalid message = Left (sourceProblem CorruptData message)
+
+validateSourceAdapterMaterialization :: SourceAdapterMaterialization -> Either AppError ()
+validateSourceAdapterMaterialization materialization = do
+  validateSourceAdapterObservation observation
+  unless (Map.keysSet materials == Map.keysSet expected) $
+    invalid "A SourceAdapter materialization does not contain exactly the previewed object identities."
+  traverse_
+    ( \(externalIdentity, material) -> do
+        validateSourceMaterial material
+        case Map.lookup externalIdentity expected of
+          Nothing -> invalid "A SourceAdapter materialized an unknown object identity."
+          Just summary ->
+            unless (summarizeSourceMaterial material == summary) $
+              invalid "A SourceAdapter materialization does not match its previewed content summary."
+    )
+    (Map.toAscList materials)
+ where
+  observation = materializedObservation materialization
+  materials = materializedObjects materialization
+  expected =
+    Map.fromList
+      [ (sourceObjectExternalId sourceObject, sourceObjectMaterial sourceObject)
+      | sourceObject <- observedObjects observation
+      ]
   invalid message = Left (sourceProblem CorruptData message)
 
 validateSourceMaterial :: SourceMaterial -> Either AppError ()
@@ -297,6 +336,63 @@ instance FromJSON SourceMaterialSummary where
     rejectUnknown fields ["kind", "digest", "byte_count", "preview"]
     SourceMaterialSummary <$> fields .: "kind" <*> fields .: "digest" <*> fields .: "byte_count" <*> fields .: "preview"
 
+instance ToJSON SourceMaterial where
+  toJSON = \case
+    SourceTextMaterial text -> object ["kind" .= ("text" :: Text), "text" .= text]
+    SourceUriMaterial uri label ->
+      object $ ["kind" .= ("uri" :: Text), "uri" .= uri] <> maybe [] (pure . ("label" .=)) label
+    SourceBlobMaterial bytes mediaType filename ->
+      object $
+        [ "kind" .= ("blob" :: Text)
+        , "bytes" .= TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded bytes)
+        , "media_type" .= mediaType
+        ]
+          <> maybe [] (pure . ("filename" .=)) filename
+    SourceStructuredMaterial schema canonicalJson ->
+      object ["kind" .= ("structured" :: Text), "schema" .= schema, "json" .= canonicalJson]
+
+instance FromJSON SourceMaterial where
+  parseJSON = withObject "SourceMaterial" $ \fields -> do
+    kind <- fields .: "kind"
+    material <- case (kind :: Text) of
+      "text" -> rejectUnknown fields ["kind", "text"] >> SourceTextMaterial <$> fields .: "text"
+      "uri" -> rejectUnknown fields ["kind", "uri", "label"] >> SourceUriMaterial <$> fields .: "uri" <*> fields .:? "label"
+      "blob" -> do
+        rejectUnknown fields ["kind", "bytes", "media_type", "filename"]
+        encoded <- fields .: "bytes"
+        bytes <- either fail pure (decodeCanonicalBase64 encoded)
+        SourceBlobMaterial bytes <$> fields .: "media_type" <*> fields .:? "filename"
+      "structured" -> rejectUnknown fields ["kind", "schema", "json"] >> SourceStructuredMaterial <$> fields .: "schema" <*> fields .: "json"
+      value -> fail ("unknown source material kind: " <> Text.unpack value)
+    either (fail . Text.unpack . appErrorMessage) (const (pure material)) (validateSourceMaterial material)
+
+instance ToJSON SourceAdapterMaterialization where
+  toJSON materialization =
+    object
+      [ "schema" .= ("little-ant/source-adapter-materialization@1" :: Text)
+      , "observation" .= materializedObservation materialization
+      , "objects"
+          .= [ object ["external_id" .= externalIdentity, "content" .= material]
+             | (externalIdentity, material) <- Map.toAscList (materializedObjects materialization)
+             ]
+      ]
+
+instance FromJSON SourceAdapterMaterialization where
+  parseJSON = withObject "SourceAdapterMaterialization" $ \fields -> do
+    rejectUnknown fields ["schema", "observation", "objects"]
+    schema <- fields .: "schema"
+    unless (schema == ("little-ant/source-adapter-materialization@1" :: Text)) $ fail "unsupported SourceAdapter materialization schema"
+    observation <- fields .: "observation"
+    entries <- fields .: "objects" >>= traverse parseEntry
+    let externalIdentities = fst <$> entries
+    unless (length externalIdentities == Set.size (Set.fromList externalIdentities)) $ fail "duplicate materialized source-object identity"
+    let materialization = SourceAdapterMaterialization observation (Map.fromList entries)
+    either (fail . Text.unpack . appErrorMessage) (const (pure materialization)) (validateSourceAdapterMaterialization materialization)
+   where
+    parseEntry = withObject "SourceAdapterMaterializedObject" $ \fields -> do
+      rejectUnknown fields ["external_id", "content"]
+      (,) <$> fields .: "external_id" <*> fields .: "content"
+
 instance ToJSON SourceAdapterObservation where
   toJSON observation =
     object $
@@ -413,6 +509,13 @@ parseSourceMode = \case
   "synchronize" -> pure SourceSynchronize
   "migrate" -> pure SourceMigrate
   value -> fail ("unknown source mode: " <> Text.unpack value)
+
+decodeCanonicalBase64 :: Text -> Either String ByteString
+decodeCanonicalBase64 encoded = do
+  let bytes = TextEncoding.encodeUtf8 encoded
+  decoded <- Base64Url.decodeUnpadded bytes
+  unless (Base64Url.encodeUnpadded decoded == bytes) (Left "noncanonical base64url source material")
+  pure decoded
 
 rejectUnknown :: Object -> [Text] -> Parser ()
 rejectUnknown fields allowed =

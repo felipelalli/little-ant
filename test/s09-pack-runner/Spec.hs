@@ -67,6 +67,9 @@ authorizedSourceAdapter = do
     other -> assertFailure ("unexpected source objects: " <> show other)
   encodedPreflight <- assertRight (canonicalJsonBytes (toJSON preflight))
   assertBool "preflight echoed source bytes beyond the bounded preview" (not ("::PRIVATE_TAIL::" `ByteString.isInfixOf` encodedPreflight))
+  (materializedPreflight, materialization) <- invokePackSourceMaterialize client registered SourceSnapshot input >>= assertRight
+  materializedPreflight @?= preflight
+  materializedObjects materialization @?= Map.singleton (sha256Hex bytes) textMaterial
   invokePackSourcePreflight client registered SourceSynchronize input >>= assertError Unsupported
 
 authorizedExporterProcess :: Assertion

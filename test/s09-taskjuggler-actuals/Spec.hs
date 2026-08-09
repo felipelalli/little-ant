@@ -87,7 +87,7 @@ acceptsRawFirstEvidence = do
   preflight <- fixturePreflight bytes
   count <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference preflight)
   count @?= 11
-  decision <- assertRight (decideAcceptFileImport fixtureState fixtureActor fixtureReference (fixtureInput bytes) preflight (facts 1 count))
+  decision <- assertRight (decideAcceptFileImport fixtureState fixtureActor fixtureReference (fixtureInput bytes) preflight (fixtureMaterials bytes preflight) (facts 1 count))
   fmap (eventTypeName . draftPayload) (importAcceptanceEvents decision)
     @?= [ "import_profile_changed"
         , "raw_fed"
@@ -105,7 +105,7 @@ acceptsRawFirstEvidence = do
   assertBool "missing remaining became zero" (any ((== Nothing) . effortActualRemainingMicrohours) evidence)
   retryCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference preflight)
   retryCount @?= 0
-  retry <- assertRight (decideAcceptFileImport accepted fixtureActor fixtureReference (fixtureInput bytes) preflight (facts 50 0))
+  retry <- assertRight (decideAcceptFileImport accepted fixtureActor fixtureReference (fixtureInput bytes) preflight (fixtureMaterials bytes preflight) (facts 50 0))
   importAcceptanceCommandId retry @?= Nothing
   importAcceptanceEvents retry @?= []
 
@@ -114,7 +114,7 @@ rejectsUnsafeEvidence = do
   initialBytes <- fixtureSource [(taskOne, ["  actual:effortleft 4h"]), (taskTwo, ["  actual:effortdone 1h"])]
   initialPreflight <- fixturePreflight initialBytes
   initialCount <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference initialPreflight)
-  initialDecision <- assertRight (decideAcceptFileImport fixtureState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (facts 1 initialCount))
+  initialDecision <- assertRight (decideAcceptFileImport fixtureState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (fixtureMaterials initialBytes initialPreflight) (facts 1 initialCount))
   accepted <- applyEvents fixtureState (importAcceptanceEvents initialDecision)
 
   let equalChanged = TextEncoding.encodeUtf8 (Text.replace "actual:effortleft 4h" "actual:effortleft 3h" (TextEncoding.decodeUtf8 initialBytes))
@@ -123,11 +123,11 @@ rejectsUnsafeEvidence = do
   olderPreflight <- fixturePreflight older
   assertCode Conflict (importAcceptanceUUIDCount accepted fixtureReference equalPreflight)
   olderCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference olderPreflight)
-  assertCode Conflict (decideAcceptFileImport accepted fixtureActor fixtureReference (fixtureInput older) olderPreflight (facts 80 olderCount))
+  assertCode Conflict (decideAcceptFileImport accepted fixtureActor fixtureReference (fixtureInput older) olderPreflight (fixtureMaterials older olderPreflight) (facts 80 olderCount))
 
   let missingBrickState = fixtureState{stateBricks = Map.delete brickTwo (stateBricks fixtureState)}
   missingCount <- assertRight (importAcceptanceUUIDCount missingBrickState fixtureReference initialPreflight)
-  assertCode NotFound (decideAcceptFileImport missingBrickState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (facts 110 missingCount))
+  assertCode NotFound (decideAcceptFileImport missingBrickState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (fixtureMaterials initialBytes initialPreflight) (facts 110 missingCount))
 
 fixtureSource :: [(Text, [Text])] -> IO ByteString
 fixtureSource taskActuals = do
@@ -263,6 +263,12 @@ fixturePreflight bytes = do
 
 fixtureInput :: ByteString -> SourceInput
 fixtureInput = SourceInput "actuals.tjp" "text/x-taskjuggler; charset=utf-8"
+
+fixtureMaterials :: ByteString -> SourcePreflight -> Map.Map Text SourceMaterial
+fixtureMaterials bytes preflight =
+  case observedObjects (sourcePreflightObservation preflight) of
+    [sourceObject] -> Map.singleton (sourceObjectExternalId sourceObject) (SourceTextMaterial (TextEncoding.decodeUtf8 bytes))
+    _ -> Map.empty
 
 fixturePack :: PackArtifactIdentity
 fixturePack =

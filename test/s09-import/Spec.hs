@@ -32,6 +32,8 @@ main =
       "S09 verified Raw-first import"
       [ testCase "preflight is complete, explicit, and read-only" readOnlyPreflight
       , testCase "acceptance atomically preserves one Raw and its source custody" acceptancePreservesRawTruth
+      , testCase "acceptance atomically preserves every previewed source object" multiObjectAcceptance
+      , testCase "materialization drift fails before any Raw is preserved" materializationDrift
       , testCase "repeating the same verified import reuses the canonical Raw" repeatedAcceptance
       , testCase "a new signed adapter invocation reuses the stable source mapping" changedAdapterInvocation
       , testCase "a later file snapshot reuses its profile without overwriting Raw truth" changedSnapshot
@@ -40,6 +42,53 @@ main =
       , testCase "unsupported modes and cleanup requests fail before mutation" unsupportedAuthority
       , testCase "dry-run verifies the decision without persisting it" dryRunAcceptance
       ]
+
+multiObjectAcceptance :: Assertion
+multiObjectAcceptance = withHarness $ \environment _ -> do
+  let source = "notesnook.zip"
+      importedEnvironment = environment{appImportPort = multiObjectImportPort}
+  preview <- run importedEnvironment False (ImportCommand source SourceMigrate False) >>= interactionOf
+  result <- run importedEnvironment False (RespondCommand (response preview "import.accept"))
+  envelope <- interactionOf result
+  imported <- case envelopeOpportunity envelope of
+    ImportResultOpportunity identities [] False -> pure identities
+    opportunity -> assertFailure ("unexpected multi-object import result: " <> show opportunity) >> fail "unreachable"
+  length imported @?= 2
+  dataset <- load importedEnvironment
+  loadedEventCount dataset @?= 6
+  let state = loadedState dataset
+  Map.size (stateRaws state) @?= 2
+  Map.size (stateSourceBindings state) @?= 2
+  Map.size (stateImportInvocations state) @?= 1
+  Set.fromList (unHandle . rawHandle <$> Map.elems (stateRaws state)) @?= Set.fromList ["st", "st2"]
+  let invocation = only "ImportInvocation" (Map.elems (stateImportInvocations state))
+  Set.fromList (importObjectExternalIdentity <$> importInvocationMappings invocation) @?= Set.fromList ["path:Inbox/Same title.md", "path:Projects/Same title.md"]
+
+  secondPreview <- run importedEnvironment False (ImportCommand source SourceMigrate False) >>= interactionOf
+  second <- run importedEnvironment False (RespondCommand (response secondPreview "import.accept"))
+  secondEnvelope <- interactionOf second
+  case envelopeOpportunity secondEnvelope of
+    ImportResultOpportunity [] reused False -> Set.fromList reused @?= Set.fromList imported
+    opportunity -> assertFailure ("multi-object retry was not idempotent: " <> show opportunity)
+  resultMutationCommandId second @?= Nothing
+  finalDataset <- load importedEnvironment
+  loadedEventCount finalDataset @?= 6
+
+materializationDrift :: Assertion
+materializationDrift = withHarness $ \environment _ -> do
+  let source = "notesnook.zip"
+      driftedPort =
+        multiObjectImportPort
+          { importPortMaterialize = \reference mode -> pure $ do
+              readValue <- ImportRead reference multiInput <$> multiPreflight mode
+              pure (ImportMaterialization readValue (Map.delete "path:Projects/Same title.md" multiMaterials))
+          }
+      driftedEnvironment = environment{appImportPort = driftedPort}
+  preview <- run driftedEnvironment False (ImportCommand source SourceMigrate False) >>= interactionOf
+  runAppCommand driftedEnvironment False silentProgress (RespondCommand (response preview "import.accept")) >>= assertError Conflict
+  dataset <- load driftedEnvironment
+  loadedEventCount dataset @?= 0
+  loadedState dataset @?= emptyState
 
 readOnlyPreflight :: Assertion
 readOnlyPreflight = withHarness $ \environment _ -> do
@@ -234,20 +283,87 @@ fixtureImportPortWithIdentity identity bytesRef =
   ImportPort
     [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate]]
     preflight
+    materialize
  where
   preflight source mode = do
     bytes <- readIORef bytesRef
     pure $ ImportRead source (fixtureInput bytes) <$> fixturePreflight identity (fixtureExternalId bytes) mode bytes
+  materialize source mode = do
+    bytes <- readIORef bytesRef
+    pure $ do
+      readValue <- ImportRead source (fixtureInput bytes) <$> fixturePreflight identity (fixtureExternalId bytes) mode bytes
+      pure (ImportMaterialization readValue (Map.singleton (fixtureExternalId bytes) (SourceTextMaterial (decodeFixture bytes))))
 
 fixtureImportPortWithExternalIdentity :: Text -> IORef ByteString -> ImportPort
 fixtureImportPortWithExternalIdentity externalIdentity bytesRef =
   ImportPort
     [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate]]
     preflight
+    materialize
  where
   preflight source mode = do
     bytes <- readIORef bytesRef
     pure $ ImportRead source (fixtureInput bytes) <$> fixturePreflight fixturePackIdentity externalIdentity mode bytes
+  materialize source mode = do
+    bytes <- readIORef bytesRef
+    pure $ do
+      readValue <- ImportRead source (fixtureInput bytes) <$> fixturePreflight fixturePackIdentity externalIdentity mode bytes
+      pure (ImportMaterialization readValue (Map.singleton externalIdentity (SourceTextMaterial (decodeFixture bytes))))
+
+multiObjectImportPort :: ImportPort
+multiObjectImportPort = ImportPort [descriptor] preflight materialize
+ where
+  descriptor = ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
+  preflight source mode = pure $ ImportRead source multiInput <$> multiPreflight mode
+  materialize source mode = pure $ do
+    readValue <- ImportRead source multiInput <$> multiPreflight mode
+    pure (ImportMaterialization readValue multiMaterials)
+
+multiPreflight :: SourceMode -> Either AppError SourcePreflight
+multiPreflight mode =
+  makeSourcePreflight
+    "notesnook_export"
+    fixturePackIdentity
+    fixtureSigner
+    1
+    fixturePermissions
+    mode
+    multiInput
+    ( SourceAdapterObservation
+        "Notesnook export"
+        Nothing
+        (Map.singleton "archive_sha256" (sha256Hex (sourceInputBytes multiInput)))
+        [SourceSnapshot, SourceMigrate]
+        False
+        [SourceContainer "path:Inbox" "Inbox", SourceContainer "path:Projects" "Projects"]
+        [ multiObject "path:Inbox/Same title.md" "zip:fixture!/Inbox/Same title.md" "path:Inbox" "First note"
+        , multiObject "path:Projects/Same title.md" "zip:fixture!/Projects/Same title.md" "path:Projects" "Second note"
+        ]
+        []
+        []
+    )
+ where
+  multiObject externalIdentity locator container text =
+    SourceObject
+      externalIdentity
+      locator
+      (Just container)
+      "Same title"
+      SourceNoteShape
+      False
+      0
+      (summarizeSourceMaterial (SourceTextMaterial text))
+      [sha256Hex (TextEncoding.encodeUtf8 text)]
+
+multiInput :: SourceInput
+multiInput = SourceInput "notesnook.zip" "application/zip" "fixture archive"
+
+multiMaterials :: Map.Map Text SourceMaterial
+multiMaterials =
+  Map.fromList
+    [ ("path:Inbox/Same title.md", SourceTextMaterial "First note")
+    , ("path:Projects/Same title.md", SourceTextMaterial "Second note")
+    ]
 
 fixturePreflight :: PackArtifactIdentity -> Text -> SourceMode -> ByteString -> Either AppError SourcePreflight
 fixturePreflight identity externalIdentity mode bytes =

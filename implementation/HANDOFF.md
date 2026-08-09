@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **4dbf2d6**
-(`feat(taskjuggler): verify actuals before import`). The current milestone
-adds Raw-first actual-evidence acceptance and conservative remaining-effort
-planning. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **1fd6020**
+(`feat(planning): preserve TaskJuggler actual evidence`). The current milestone
+adds consent-gated multiobject materialization and the offline Notesnook ZIP
+SourceAdapter. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -126,9 +126,14 @@ planning. This file stays editable between milestone commits.
   supported modes, cleanup strength, containers, typed objects/material,
   source completion observations, attachment counts, duplicate-suspicion
   keys, unsupported fields, and warnings before the host adds immutable Pack,
-  signer, and input-custody facts. Material crosses back only as a bounded
-  kind/digest/count/preview summary; acceptance will reacquire it under the
-  same custody facts.
+  signer, and input-custody facts. Preflight material crosses back only as a
+  bounded kind/digest/count/preview summary.
+- explicit acceptance now invokes a distinct `source_materialize` runner
+  operation after reacquiring the same source bytes. It returns transient full
+  material only after consent; the host requires the Pack authority, input
+  custody, observation, complete object identity set, and every material
+  summary to reproduce the preview exactly before any event can be decided.
+  No complete body is retained in the interaction checkpoint.
 - the exact signed standard Pack now also authorizes `plain_text`. It describes
   one complete UTF-8 file as one note-shaped source object through a bounded
   custody summary, supports snapshot and migration, and truthfully declares
@@ -143,6 +148,18 @@ planning. This file stays editable between milestone commits.
   bytes, and a stable `SourceBinding`. Exact retries are event-free; a Pack
   upgrade reuses unchanged mappings; changed material under one provider
   identity requires reconciliation; dry-run describes hypothetical results.
+- generic import acceptance now preserves every materialized source object in
+  one atomic command, with one stable `SourceBinding` per object and
+  collision-free human handles. Exact multiobject retries remain event-free;
+  changed material under a stable provider identity still enters explicit
+  reconciliation rather than silently overwriting or duplicating truth.
+- the exact signed standard Pack now also ships an offline Notesnook ZIP
+  SourceAdapter. Its Lua component imports Markdown, HTML, and plain-text notes,
+  retains relative paths as stable external identities, proposes source
+  containers, and reports unsupported entries without provider IO or cleanup.
+  A trusted runner helper expands only already-authorized input bytes with
+  deterministic ordering and entry-count, path, encryption, symlink, size,
+  expanded-total, and CRC checks.
 - the standard Pack now contains a snapshot-only `taskjuggler_actuals`
   SourceAdapter. Its isolated Lua code and an independent Haskell parser both
   reconstruct the contiguous embedded manifest, verify its canonical bytes
@@ -199,8 +216,8 @@ XDG roots, so a developer's real profile cannot contaminate it. The aggregate
 `make ci` gate remains red only at the repository-wide HLint baseline; those
 pre-existing hints are outside this milestone and S09 remains in progress.
 The isolated-runner suite now has 8 process-boundary cases, including closed
-host-custodied source preflight and unsupported-mode rejection. The standard-Pack
-suite now has 7 archive/authority/golden-format/TaskJuggler/source cases, the pure
+host-custodied source preflight, consent-gated materialization, and unsupported-mode rejection. The standard-Pack
+suite now has 8 archive/authority/golden-format/TaskJuggler/source cases, the pure
 planning suite has 4 cut/custody/profile/remaining-evidence cases, and the dedicated actuals suite
 has 7 strict custody/acceptance/replay cases. The CLI test exercises
 CSV, TaskJuggler export, and TaskJuggler actuals preflight through the
@@ -212,12 +229,13 @@ output, and supplies `tj3` to its isolated contract test. The installed
 `tj3 --check-syntax --no-reports`.
 The final source distribution metadata also passes `cabal check` without
 warnings.
-The dedicated S09 import suite has 9 deterministic application cases covering
+The dedicated S09 import suite has 11 deterministic application cases covering
 read-only preview, canonical custody, exact retry, Pack-upgrade reuse, changed
 file snapshots, stable-identity conflict, stale-preview regeneration,
-unsupported authority, and dry-run. The CLI E2E also rejects omitted modes and
-the removed `--mode` form while proving the explicit snapshot preview records
-no events.
+unsupported authority, dry-run, atomic multiobject preservation, and
+materialization drift before mutation. The CLI E2E also rejects omitted modes
+and the removed `--mode` form while proving explicit snapshot previews record
+no events, including for a compressed Notesnook-shaped ZIP.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -242,7 +260,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the Microsoft To Do and Notesnook migration paths. Calendar and
-the local-web UIAdapter remain. The
+Next, implement the official Microsoft To Do connector path. Google Calendar,
+the remaining standard importers, and the local-web UIAdapter remain. The
 `Corrupt history/repair` row and formal TaskJuggler evidence registration are
 implemented; the complete S09 gate still precedes `verified`.

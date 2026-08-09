@@ -6,13 +6,15 @@ module LittleAnt.Pack.Runner (
   RunnerExportArtifact (..),
   invokePackExporter,
   invokePackSourcePreflight,
+  invokePackSourceMaterialize,
   runPackRunnerMain,
 )
 where
 
+import Codec.Archive.Zip qualified as Zip
 import Control.Concurrent (forkFinally, newEmptyMVar, putMVar, takeMVar, threadDelay)
 import Control.Exception (Exception, IOException, SomeException, catch, displayException, try)
-import Control.Monad (filterM, unless, void, when)
+import Control.Monad (filterM, forM, unless, void, when)
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KeyMap
@@ -21,8 +23,11 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Base64.URL qualified as Base64Url
+import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAscii, isAsciiLower, isAsciiUpper, isDigit)
-import Data.List (find)
+import Data.Digest.CRC32 (crc32)
+import Data.Foldable (traverse_)
+import Data.List (find, sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isNothing)
@@ -87,7 +92,7 @@ data RunnerRequest = RunnerRequest
   }
   deriving stock (Eq, Show)
 
-data RunnerOperation = RunnerExport | RunnerSourcePreflight
+data RunnerOperation = RunnerExport | RunnerSourcePreflight | RunnerSourceMaterialize
   deriving stock (Eq, Show)
 
 data RunnerFailure = RunnerFailure
@@ -167,11 +172,13 @@ runnerOperationName :: RunnerOperation -> Text
 runnerOperationName = \case
   RunnerExport -> "export"
   RunnerSourcePreflight -> "source_preflight"
+  RunnerSourceMaterialize -> "source_materialize"
 
 parseRunnerOperation :: Text -> Parser RunnerOperation
 parseRunnerOperation = \case
   "export" -> pure RunnerExport
   "source_preflight" -> pure RunnerSourcePreflight
+  "source_materialize" -> pure RunnerSourceMaterialize
   value -> fail ("unknown runner operation: " <> Text.unpack value)
 
 instance ToJSON RunnerExportArtifact where
@@ -269,6 +276,43 @@ invokePackSourcePreflight client registered mode input =
             ]
       ]
 
+invokePackSourceMaterialize :: PackRunnerClient -> RegisteredPackComponent -> SourceMode -> SourceInput -> IO (Either AppError (SourcePreflight, SourceAdapterMaterialization))
+invokePackSourceMaterialize client registered mode input =
+  case prepareRequest client registered RunnerSourceMaterialize (Just (sourceInputBytes input)) projection of
+    Left problem -> pure (Left problem)
+    Right request -> case (canonicalJsonBytes (toJSON request), sourceInvocationAuthority registered) of
+      (Left problem, _) -> pure (Left problem)
+      (_, Left problem) -> pure (Left problem)
+      (Right requestBytes, Right (contractMajor, permissions)) ->
+        invokeRunnerProcess client requestBytes >>= \case
+          Left problem -> pure (Left problem)
+          Right artifact -> pure $ do
+            materialization <- decodeSourceMaterialization (runnerArtifactBytes artifact)
+            preflight <-
+              makeSourcePreflight
+                (componentId (componentCommon (registeredComponent registered)))
+                (registeredPackIdentity registered)
+                (registeredSignerFingerprint registered)
+                contractMajor
+                permissions
+                mode
+                input
+                (materializedObservation materialization)
+            pure (preflight, materialization)
+ where
+  projection =
+    object
+      [ "schema" .= ("little-ant/source-preflight-request@1" :: Text)
+      , "mode" .= sourceModeName mode
+      , "input"
+          .= object
+            [ "label" .= sourceInputLabel input
+            , "media_type" .= sourceInputMediaType input
+            , "digest" .= sha256Hex (sourceInputBytes input)
+            , "byte_count" .= ByteString.length (sourceInputBytes input)
+            ]
+      ]
+
 sourceInvocationAuthority :: RegisteredPackComponent -> Either AppError (Int, Text)
 sourceInvocationAuthority registered =
   case registeredComponent registered of
@@ -285,8 +329,8 @@ prepareRequest client registered operation input projection = do
       | componentKind common /= expectedKind -> Left (runnerProblem Unsupported wrongKindMessage [])
       | componentContractMajor common /= 1 -> Left (runnerProblem Unsupported "The selected component uses an unsupported host contract major." [Text.pack (show (componentContractMajor common))])
       | operation == RunnerExport && null (permissionProjections permissions) -> Left (runnerProblem CorruptData "The selected exporter declares no input projection." [])
-      | operation == RunnerSourcePreflight && InputBytesCapability `notElem` permissionHostCapabilities permissions -> Left (runnerProblem PermissionRequired "The selected SourceAdapter did not declare the input_bytes host capability." [])
-      | operation == RunnerSourcePreflight && isNothing input -> Left (runnerProblem PreconditionFailed "A file SourceAdapter preflight requires host-custodied input bytes." [])
+      | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && InputBytesCapability `notElem` permissionHostCapabilities permissions -> Left (runnerProblem PermissionRequired "The selected SourceAdapter did not declare the input_bytes host capability." [])
+      | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && isNothing input -> Left (runnerProblem PreconditionFailed "A file SourceAdapter invocation requires host-custodied input bytes." [])
       | otherwise -> do
           let payload = registeredComponentPayload registered
           entryBytes <- maybe (Left (runnerProblem CorruptData "The component entry point is absent from its authorized payload." [entry])) Right (Map.lookup entry payload)
@@ -308,8 +352,14 @@ prepareRequest client registered operation input projection = do
               }
     _ -> Left (runnerProblem Unsupported "Declarative Pack components cannot execute in the Lua runner." [])
  where
-  expectedKind = case operation of RunnerExport -> ReadOnlyExporterComponent; RunnerSourcePreflight -> SourceAdapterComponent
-  wrongKindMessage = case operation of RunnerExport -> "The selected Pack component is not a read-only exporter."; RunnerSourcePreflight -> "The selected Pack component is not a SourceAdapter."
+  expectedKind = case operation of
+    RunnerExport -> ReadOnlyExporterComponent
+    RunnerSourcePreflight -> SourceAdapterComponent
+    RunnerSourceMaterialize -> SourceAdapterComponent
+  wrongKindMessage = case operation of
+    RunnerExport -> "The selected Pack component is not a read-only exporter."
+    RunnerSourcePreflight -> "The selected Pack component is not a SourceAdapter."
+    RunnerSourceMaterialize -> "The selected Pack component is not a SourceAdapter."
 
 validatePayloadSource :: Text -> ByteString -> Either AppError ()
 validatePayloadSource path bytes
@@ -424,6 +474,13 @@ decodeSourceObservation bytes = do
   unless (canonical == bytes) (Left (runnerProblem CorruptData "The SourceAdapter observation is not canonical JSON." []))
   either (\problem -> Left (runnerProblem CorruptData "The SourceAdapter observation violates its closed schema." [Text.pack problem])) Right (parseEither parseJSON value)
 
+decodeSourceMaterialization :: ByteString -> Either AppError SourceAdapterMaterialization
+decodeSourceMaterialization bytes = do
+  value <- either (\problem -> Left (runnerProblem CorruptData "The SourceAdapter materialization returned invalid JSON." [Text.pack problem])) Right (eitherDecodeStrict' bytes)
+  canonical <- canonicalJsonBytes value
+  unless (canonical == bytes) (Left (runnerProblem CorruptData "The SourceAdapter materialization is not canonical JSON." []))
+  either (\problem -> Left (runnerProblem CorruptData "The SourceAdapter materialization violates its closed schema." [Text.pack problem])) Right (parseEither parseJSON value)
+
 runPackRunnerMain :: IO ()
 runPackRunnerMain = do
   mapM_ (`hSetBinaryMode` True) [stdin, stdout, stderr]
@@ -471,6 +528,8 @@ validateRunnerRequest request = do
     (RunnerExport, Just _) -> Left (runnerProblem CorruptData "An exporter request cannot contain source input bytes." [])
     (RunnerSourcePreflight, Just _) -> pure ()
     (RunnerSourcePreflight, Nothing) -> Left (runnerProblem CorruptData "A SourceAdapter preflight request is missing its input bytes." [])
+    (RunnerSourceMaterialize, Just _) -> pure ()
+    (RunnerSourceMaterialize, Nothing) -> Left (runnerProblem CorruptData "A SourceAdapter materialization request is missing its input bytes." [])
  where
   validatePayloadPathAndSource (path, payload) = do
     unless (safeRelativePath path) (Left (runnerProblem CorruptData "The runner payload contains an unsafe path." [path]))
@@ -491,7 +550,8 @@ executeLuaRequest request = do
     artifact <- case requestOperation request of
       RunnerExport -> Lua.forcePeek (peekRunnerArtifact Lua.top)
       RunnerSourcePreflight -> do
-        observation <- Lua.forcePeek (peekSourceObservation Lua.top)
+        materialization <- Lua.forcePeek (peekSourceMaterialization Lua.top)
+        let observation = materializedObservation materialization
         case canonicalJsonBytes (toJSON observation) of
           Left problem -> Lua.failLua (Text.unpack (appErrorMessage problem))
           Right bytes ->
@@ -502,6 +562,19 @@ executeLuaRequest request = do
                 , runnerArtifactSuggestedFilename = "source-preflight.json"
                 , runnerArtifactWarnings = observedWarnings observation
                 , runnerArtifactMetadata = Map.singleton "schema" "little-ant/source-adapter-observation@1"
+                }
+      RunnerSourceMaterialize -> do
+        materialization <- Lua.forcePeek (peekSourceMaterialization Lua.top)
+        case canonicalJsonBytes (toJSON materialization) of
+          Left problem -> Lua.failLua (Text.unpack (appErrorMessage problem))
+          Right bytes ->
+            pure
+              RunnerExportArtifact
+                { runnerArtifactBytes = bytes
+                , runnerArtifactMediaType = "application/vnd.little-ant.source-materialization+json"
+                , runnerArtifactSuggestedFilename = "source-materialization.json"
+                , runnerArtifactWarnings = observedWarnings (materializedObservation materialization)
+                , runnerArtifactMetadata = Map.singleton "schema" "little-ant/source-adapter-materialization@1"
                 }
     Lua.pop 1
     pure artifact
@@ -550,6 +623,21 @@ installPayloadApi entry payload inputBytes = do
       Left problem -> Lua.failLua problem
       Right decoded -> Lua.pushByteString decoded >> pure 1
   Lua.setglobal "__lant_base64url_decode"
+  Lua.pushHaskellFunction $ do
+    case inputBytes of
+      Nothing -> Lua.failLua "input ZIP entries are unavailable for this invocation"
+      Just bytes ->
+        case extractInputZipEntries bytes of
+          Left problem -> Lua.failLua (Text.unpack problem)
+          Right entries -> do
+            Lua.pushValue
+              ( toJSON
+                  [ object ["path" .= path, "bytes" .= encodeBytes content]
+                  | (path, content) <- entries
+                  ]
+              )
+            pure 1
+  Lua.setglobal "__lant_input_zip_entries"
   loadChunk trustedBootstrap "@little-ant/bootstrap"
   Lua.callTrace 0 0
  where
@@ -577,10 +665,11 @@ peekRunnerArtifact index = do
     <*> Lua.peekFieldRaw (Lua.peekList Lua.peekText) "warnings" index
     <*> Lua.peekFieldRaw (Lua.peekMap Lua.peekText Lua.peekText) "metadata" index
 
-peekSourceObservation :: Lua.Peeker Lua.Exception SourceAdapterObservation
-peekSourceObservation index = do
+peekSourceMaterialization :: Lua.Peeker Lua.Exception SourceAdapterMaterialization
+peekSourceMaterialization index = do
   exactLuaKeys "SourceAdapter observation" ["source_label", "account_label", "identity", "supported_modes", "cleanup_supported", "containers", "objects", "unsupported_fields", "warnings"] index
   account <- emptyMeansNothing <$> Lua.peekFieldRaw Lua.peekText "account_label" index
+  sourceObjects <- Lua.peekFieldRaw (Lua.peekList peekSourceObjectWithMaterial) "objects" index
   observation <-
     SourceAdapterObservation
       <$> Lua.peekFieldRaw Lua.peekText "source_label" index
@@ -589,12 +678,16 @@ peekSourceObservation index = do
       <*> Lua.peekFieldRaw (Lua.peekList peekSourceMode) "supported_modes" index
       <*> Lua.peekFieldRaw Lua.peekBool "cleanup_supported" index
       <*> Lua.peekFieldRaw (Lua.peekList peekSourceContainer) "containers" index
-      <*> Lua.peekFieldRaw (Lua.peekList peekSourceObject) "objects" index
+      <*> pure (fst <$> sourceObjects)
       <*> Lua.peekFieldRaw (Lua.peekList Lua.peekText) "unsupported_fields" index
       <*> Lua.peekFieldRaw (Lua.peekList Lua.peekText) "warnings" index
   case validateSourceAdapterObservation observation of
     Left problem -> Lua.failPeek (TextEncoding.encodeUtf8 (appErrorMessage problem))
-    Right () -> pure observation
+    Right () -> do
+      let materialization = SourceAdapterMaterialization observation (Map.fromList [(sourceObjectExternalId sourceObject, material) | (sourceObject, material) <- sourceObjects])
+      case validateSourceAdapterMaterialization materialization of
+        Left problem -> Lua.failPeek (TextEncoding.encodeUtf8 (appErrorMessage problem))
+        Right () -> pure materialization
 
 peekSourceMode :: Lua.Peeker Lua.Exception SourceMode
 peekSourceMode index =
@@ -611,8 +704,8 @@ peekSourceContainer index = do
     <$> Lua.peekFieldRaw Lua.peekText "external_id" index
     <*> Lua.peekFieldRaw Lua.peekText "label" index
 
-peekSourceObject :: Lua.Peeker Lua.Exception SourceObject
-peekSourceObject index = do
+peekSourceObjectWithMaterial :: Lua.Peeker Lua.Exception (SourceObject, SourceMaterial)
+peekSourceObjectWithMaterial index = do
   exactLuaKeys "source object" ["external_id", "locator", "container_id", "title", "shape", "completed", "attachment_count", "content", "duplicate_keys"] index
   externalIdentity <- Lua.peekFieldRaw Lua.peekText "external_id" index
   locator <- Lua.peekFieldRaw Lua.peekText "locator" index
@@ -627,7 +720,7 @@ peekSourceObject index = do
     Right () -> pure ()
   let material = summarizeSourceMaterial sourceMaterial
   duplicateKeys <- Lua.peekFieldRaw (Lua.peekList Lua.peekText) "duplicate_keys" index
-  pure (SourceObject externalIdentity locator container title shape completed attachmentCount material duplicateKeys)
+  pure (SourceObject externalIdentity locator container title shape completed attachmentCount material duplicateKeys, sourceMaterial)
 
 peekSourceShape :: Lua.Peeker Lua.Exception SourceObjectShape
 peekSourceShape index =
@@ -690,11 +783,13 @@ trustedBootstrap =
     , "local input_bytes = __lant_input_bytes"
     , "local sha256 = __lant_sha256"
     , "local base64url_decode = __lant_base64url_decode"
+    , "local input_zip_entries = __lant_input_zip_entries"
     , "__lant_preload = nil"
     , "__lant_assets = nil"
     , "__lant_input_bytes = nil"
     , "__lant_sha256 = nil"
     , "__lant_base64url_decode = nil"
+    , "__lant_input_zip_entries = nil"
     , "local loaded = {}"
     , "function require(name)"
     , "  if type(name) ~= 'string' then"
@@ -727,9 +822,61 @@ trustedBootstrap =
     , "  base64url_decode = function(encoded)"
     , "    if type(encoded) ~= 'string' then error('base64url input must be a string', 2) end"
     , "    return base64url_decode(encoded)"
+    , "  end,"
+    , "  input_zip_entries = function()"
+    , "    local entries = input_zip_entries()"
+    , "    for index = 1, #entries do"
+    , "      entries[index].bytes = base64url_decode(entries[index].bytes)"
+    , "    end"
+    , "    return entries"
     , "  end"
     , "}"
     ]
+
+extractInputZipEntries :: ByteString -> Either Text [(Text, ByteString)]
+extractInputZipEntries bytes = do
+  archive <- either (Left . ("invalid ZIP input: " <>) . Text.pack) Right (Zip.toArchiveOrFail (LazyByteString.fromStrict bytes))
+  let fileEntries = filter (not . isDirectoryEntry) (Zip.zEntries archive)
+  when (null fileEntries) (Left "the ZIP input contains no files")
+  unless (length fileEntries <= maximumInputZipEntries) (Left "the ZIP input contains too many files")
+  traverse_ validateMetadata fileEntries
+  let advertisedTotal = sum (fromIntegral . Zip.eUncompressedSize <$> fileEntries)
+  unless (advertisedTotal <= maximumExpandedZipBytes) (Left "the ZIP input expands beyond the bounded materialization limit")
+  materialized <- forM fileEntries $ \entry -> do
+    let path = Text.pack (Zip.eRelativePath entry)
+        content = LazyByteString.toStrict (Zip.fromEntry entry)
+    unless (ByteString.length content == fromIntegral (Zip.eUncompressedSize entry)) (Left "a ZIP entry does not match its advertised uncompressed size")
+    unless (crc32 content == Zip.eCRC32 entry) (Left "a ZIP entry failed its CRC32 integrity check")
+    pure (path, content)
+  let paths = fst <$> materialized
+  unless (length paths == Set.size (Set.fromList paths)) (Left "the ZIP input contains duplicate file paths")
+  pure (sortOn (TextEncoding.encodeUtf8 . fst) materialized)
+ where
+  validateMetadata entry = do
+    let path = Text.pack (Zip.eRelativePath entry)
+    unless (safeZipEntryPath path) (Left "the ZIP input contains an unsafe file path")
+    unless (Zip.eEncryptionMethod entry == Zip.NoEncryption) (Left "encrypted ZIP entries are unsupported")
+    when (Zip.isEntrySymbolicLink entry) (Left "symbolic links inside ZIP input are unsupported")
+    unless (fromIntegral (Zip.eUncompressedSize entry) <= maximumInputZipEntryBytes) (Left "a ZIP entry exceeds the bounded materialization limit")
+  isDirectoryEntry = Text.isSuffixOf "/" . Text.pack . Zip.eRelativePath
+
+safeZipEntryPath :: Text -> Bool
+safeZipEntryPath path =
+  let segments = Text.splitOn "/" path
+   in not (Text.null path)
+        && not ("/" `Text.isPrefixOf` path)
+        && not (Text.any (\character -> character == '\\' || character == '\0') path)
+        && ByteString.length (TextEncoding.encodeUtf8 path) <= 1024
+        && all (\segment -> not (Text.null segment) && segment /= "." && segment /= "..") segments
+
+maximumInputZipEntries :: Int
+maximumInputZipEntries = 4096
+
+maximumInputZipEntryBytes :: Int
+maximumInputZipEntryBytes = 8 * 1024 * 1024
+
+maximumExpandedZipBytes :: Int
+maximumExpandedZipBytes = 16 * 1024 * 1024
 
 moduleName :: Text -> Maybe Text
 moduleName path = do
