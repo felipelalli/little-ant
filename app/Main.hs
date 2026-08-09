@@ -130,9 +130,9 @@ run environment options = case optionCommand options of
     | optionJson options || optionDryRun options -> execute environment options NextCommand
     | otherwise -> runRepl environment
   NextCli -> execute environment options NextCommand
-  DoneCli (Just target) -> requiredBrickCommand environment options "done" DoneCommand [target]
+  DoneCli (Just target) -> requiredBrickCommand environment options "done" (DoneCommand . Just) [target]
   DoneCli Nothing -> execute environment options (DoneCommand Nothing)
-  ReturnToIdleCli (Just target) -> requiredBrickCommand environment options "return-to-idle" ReturnToIdleCommand [target]
+  ReturnToIdleCli (Just target) -> requiredBrickCommand environment options "return-to-idle" (ReturnToIdleCommand . Just) [target]
   ReturnToIdleCli Nothing -> execute environment options (ReturnToIdleCommand Nothing)
   FinishCli target -> execute environment options (FinishCommand target)
   ListCli maybeList -> execute environment options (ListCommand maybeList)
@@ -666,7 +666,7 @@ commandParser =
         <> command
           "return-to-idle"
           ( info
-              (ReturnToIdleCli . fmap Text.pack . optional (strArgument (metavar "BRICK")))
+              (ReturnToIdleCli . fmap Text.pack <$> optional (strArgument (metavar "BRICK")))
               (progDesc "Return focus to idle (current Brick by default)")
           )
         <> command
@@ -756,13 +756,13 @@ commandParser =
         <> command
           "merge"
           ( info
-              (MergeCli . Text.pack <$> strArgument (metavar "SURVIVOR") <*> Text.pack <$> strArgument (metavar "ABSORBED"))
+              (MergeCli <$> (Text.pack <$> strArgument (metavar "SURVIVOR")) <*> (Text.pack <$> strArgument (metavar "ABSORBED")))
               (progDesc "Merge two Bricks keeping the survivor identity")
           )
         <> command
           "supersede"
           ( info
-              (SupersedeCli . Text.pack <$> strArgument (metavar "OLD") <*> Text.pack <$> strArgument (metavar "NEW"))
+              (SupersedeCli <$> (Text.pack <$> strArgument (metavar "OLD")) <*> (Text.pack <$> strArgument (metavar "NEW")))
               (progDesc "Mark one Brick as superseded by another")
           )
         <> command
@@ -786,8 +786,8 @@ commandParser =
           "migrate"
           ( info
               ( MigrateCli
-                  . Text.pack <$> strArgument (metavar "SOURCE")
-                  <*> Text.pack <$> strArgument (metavar "TARGET")
+                  <$> (Text.pack <$> strArgument (metavar "SOURCE"))
+                  <*> (Text.pack <$> strArgument (metavar "TARGET"))
                   <*> option
                         (strOptionMode ["inspect", "build", "cutover"])
                         ( long "mode"

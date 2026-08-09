@@ -135,7 +135,7 @@ renderCommandResult = \case
       <> ":\n"
       <> ( if null rows
             then "  (empty)"
-            else Text.unlines ["- " <> renderListRow row | ListRow rowHandle rowTitle rowDetails <- rows]
+            else Text.unlines ["- " <> renderListRow row | row <- rows]
          )
   GrammarResult _ names dryRun ->
     dryRunFact dryRun

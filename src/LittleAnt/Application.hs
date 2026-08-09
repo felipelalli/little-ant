@@ -14,6 +14,7 @@ import Control.Exception (IOException, SomeException, catch, displayException, t
 import Control.Monad (foldM, replicateM)
 import Data.Aeson
 import Data.ByteString (ByteString)
+import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.List (find, minimumBy, sort, sortOn)
@@ -29,7 +30,7 @@ import Data.Time.Zones (TZ, loadTZFromDB, utcToLocalTimeTZ)
 import LittleAnt.Catalog
 import LittleAnt.Decision
 import LittleAnt.Error
-import LittleAnt.Event (EventDraft (..), EventPayload (..), ForecastSelected (..), PersistedEvent, RepeatableReturnSet (..), applyEvent, decodeEvent, eventTypeName)
+import LittleAnt.Event (EventDraft (..), EventPayload (..), ForecastSelected (..), PersistedEvent (..), RepeatableReturnSet (..), applyEvent, decodeEvent, eventTypeName)
 import LittleAnt.Forecast
 import LittleAnt.ForecastWorld qualified as World
 import LittleAnt.Foundation
@@ -277,7 +278,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   ExportCommand strategy scope outputPath ->
     let scopeHint = maybe "" (" scope=" <>) scope
         outputHint =
-          maybe "" (\path -> " --out " <> path) outputPath
+          maybe "" (\path -> " --out " <> Text.pack path) outputPath
      in pure (unsupportedCommand ("export " <> strategy <> scopeHint <> outputHint))
   WebCommand -> pure (unsupportedCommand "web")
   PacksListCommand -> pure (unsupportedCommand "packs list")
@@ -462,20 +463,21 @@ runHistory environment dryRun dataset maybeLimit = do
 
 readHistoryEvents :: StoreConfig -> IO (Either AppError [PersistedEvent])
 readHistoryEvents store = do
-  let root = eventsDirectory store
+  let root = storeRoot store </> "events"
   exists <- doesDirectoryExist root
   if not exists
     then pure (Right [])
     else do
       names <- sort <$> listDirectory root
       let segmentFiles = [root </> name | name <- names, takeExtension name == ".jsonl"]
-      fmap concat <$> traverse readSegmentEvents segmentFiles
+      results <- traverse readSegmentEvents segmentFiles
+      pure (concat <$> sequence results)
 
 readSegmentEvents :: FilePath -> IO (Either AppError [PersistedEvent])
 readSegmentEvents path = do
   bytes <- ByteString.readFile path
   let linesInSegment = filter (not . ByteString.null) (ByteString.split 10 bytes)
-  traverse decodeEvent linesInSegment
+  pure (traverse decodeEvent linesInSegment)
 
 selectHistoryLimit :: Maybe Int -> [HistoryEntry] -> [HistoryEntry]
 selectHistoryLimit Nothing history = reverse history
@@ -1037,14 +1039,14 @@ runDone environment dryRun dataset maybeReference =
               (appError PreconditionFailed "There is no current focus to complete.")
                 { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
                 }
-            Just identity -> runDoneByIdentity environment dryRun dataset identity
+            Just identity -> runDoneByIdentity state actor environment dryRun dataset identity
         Just reference ->
           case resolveAnyBrickReference state reference of
             Left problem -> pure (Left problem)
-            Right brick -> runDoneByIdentity environment dryRun dataset (brickId brick)
+            Right brick -> runDoneByIdentity state actor environment dryRun dataset (brickId brick)
  where
-  runDoneByIdentity env dryRun' dataset identity =
-    runDirectMutation env dryRun' dataset (completionUUIDCount state identity) (decideCompleteBrick state actor identity)
+  runDoneByIdentity state actor env dryRun' currentDataset identity =
+    runDirectMutation env dryRun' currentDataset (completionUUIDCount state identity) (decideCompleteBrick state actor identity)
 
 runReturnToIdle :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runReturnToIdle environment dryRun dataset maybeReference =
@@ -1057,32 +1059,17 @@ runReturnToIdle environment dryRun dataset maybeReference =
               (appError PreconditionFailed "There is no current focus to return to idle.")
                 { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
                 }
-            Just identity -> runPauseLike environment dryRun dataset identity
+            Just identity -> runPauseLike state actor environment dryRun dataset identity
         Just reference ->
           case resolveAnyBrickReference state reference of
             Left problem -> pure (Left problem)
             Right brick ->
               if stateCurrentFocus state /= Just (brickId brick)
                 then pure (Left (appError PreconditionFailed "Only the current focus can be returned to idle with /return-to-idle."))
-                else runPauseLike environment dryRun dataset (brickId brick)
+                else runPauseLike state actor environment dryRun dataset (brickId brick)
   where
-  runPauseLike env dryRun' dataset' identity = do
-    case decidePauseFocus state actor identity of
-      Left problem -> pure (Left problem)
-      Right mutation ->
-        persistOrSimulate env dryRun' dataset' (mutationDecisionEvents mutation) >>= \case
-          Left problem -> pure (Left problem)
-          Right accepted ->
-            freshCheckpoint env accepted >>= \case
-              Left problem -> pure (Left problem)
-              Right checkpoint -> do
-                saveUnlessDry env dryRun' checkpoint
-                pure . Right $
-                  RespondResult
-                    (loadedCursor accepted)
-                    (checkpointCurrent checkpoint)
-                    (Just (mutationDecisionCommandId mutation))
-                    dryRun'
+  runPauseLike state actor env dryRun' dataset' identity =
+    runDirectMutation env dryRun' dataset' 2 (decidePauseFocus state actor identity)
 
 runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runList environment dryRun dataset maybeList =
@@ -1113,7 +1100,7 @@ runList environment dryRun dataset maybeList =
               }
 
 importanceListRows :: State -> [ListRow]
-importanceListRows state = concatMap (importanceSubtree state 0) (orderedSiblings state Nothing)
+importanceListRows state = importanceSubtree state 0 Nothing
  where
   importanceSubtree currentState depth parent =
     concatMap
@@ -1145,32 +1132,32 @@ forecastListRows state now =
       (ticketTitle currentState ticket)
       (ticketDetails currentState ticket)
   ticketHandle currentState ticket =
-    case ticketKind ticket of
-      BrickSubject ->
+    case World.ticketKind ticket of
+      World.BrickSubject ->
         maybe
-          (showText (ticketIdentity ticket))
+          (showText (World.ticketIdentity ticket))
           (renderHandle BrickHandle . brickHandle)
-          (Map.lookup (ticketIdentity ticket) (stateBricks currentState))
-      RawSubject ->
+          (Map.lookup (World.ticketIdentity ticket) (stateBricks currentState))
+      World.RawSubject ->
         maybe
-          (showText (ticketIdentity ticket))
+          (showText (World.ticketIdentity ticket))
           (renderHandle RawHandle . rawHandle)
-          (Map.lookup (ticketIdentity ticket) (stateRaws currentState))
+          (Map.lookup (World.ticketIdentity ticket) (stateRaws currentState))
   ticketTitle currentState ticket =
-    case ticketKind ticket of
-      BrickSubject -> fromMaybe (showText (ticketIdentity ticket)) (brickTitle <$> Map.lookup (ticketIdentity ticket) (stateBricks currentState))
-      RawSubject -> fromMaybe "Raw item" (rawOriginal <$> Map.lookup (ticketIdentity ticket) (stateRaws currentState))
+    case World.ticketKind ticket of
+      World.BrickSubject -> fromMaybe (showText (World.ticketIdentity ticket)) (brickTitle <$> Map.lookup (World.ticketIdentity ticket) (stateBricks currentState))
+      World.RawSubject -> fromMaybe "Raw item" (rawOriginal <$> Map.lookup (World.ticketIdentity ticket) (stateRaws currentState))
   ticketDetails currentState ticket =
-    Text.intercalate " · " $ case ticketKind ticket of
-      BrickSubject ->
+    Text.intercalate " · " $ case World.ticketKind ticket of
+      World.BrickSubject ->
         ("kind: brick")
           : maybe
             []
             (\brick -> ["parent: " <> renderHandle BrickHandle (brickHandle brick)])
-            (ticketParent ticket >>= \parent -> Map.lookup parent (stateBricks currentState))
-          <> ["opportunities: " <> showText (length (ticketOpportunities ticket))]
-      RawSubject ->
-        ["kind: raw", "opportunities: " <> showText (length (ticketOpportunities ticket))]
+            (World.ticketParent ticket >>= \parent -> Map.lookup parent (stateBricks currentState))
+          <> ["opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+      World.RawSubject ->
+        ["kind: raw", "opportunities: " <> showText (length (World.ticketOpportunities ticket))]
 
 runSearch :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runSearch _environment dryRun dataset rawQuery =
@@ -1273,6 +1260,12 @@ mkListEntryHit entry =
     (listEntryLabel entry)
     ("quantity: " <> quantityText (listEntryQuantity entry) <> " · state: " <> listEntryStateLabel (listEntryState entry))
 
+quantityText :: Quantity -> Text
+quantityText quantity =
+  Text.pack (show (quantityCoefficient quantity))
+    <> (if quantityScale quantity == 0 then "" else "e-" <> Text.pack (show (quantityScale quantity)))
+    <> (if Text.null (quantityUnit quantity) then "" else " " <> quantityUnit quantity)
+
 listEntryStateLabel :: ListEntryState -> Text
 listEntryStateLabel =
   \case
@@ -1285,7 +1278,7 @@ helpEntries Nothing =
   [ helpEntry "help" "Show help" "Use: lant help <topic>"
   , helpEntry "list" "List structured data" "usage: lant list <importance|forecast>"
   , helpEntry "search" "Search text references" "usage: lant search <query>"
-  , helpEntry "next" "Get the next useful action" "alias: lant"
+  , helpEntry "next" "Get the next useful action" "default REPL route: lant"
   , helpEntry "focus" "Answer pending focus confirmation" "usage: lant focus <BRICK>"
   , helpEntry "done" "Complete a Brick" "usage: lant done [BRICK]"
   , helpEntry "return-to-idle" "Return current focus to idle" "usage: lant return-to-idle [BRICK]"
@@ -1320,8 +1313,9 @@ helpEntries (Just "done") =
   ]
 helpEntries _ =
   [ helpEntry "help" "Unknown help topic" "Try: lant help" ]
- where
-  helpEntry handle title details = ListRow handle title details
+
+helpEntry :: Text -> Text -> Text -> ListRow
+helpEntry handle title details = ListRow handle title details
 
 showText :: Show a => a -> Text
 showText = Text.pack . show
