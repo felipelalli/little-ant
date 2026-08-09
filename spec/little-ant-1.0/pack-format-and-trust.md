@@ -222,6 +222,29 @@ built in | verified official | trusted publisher | untrusted | revoked
   override. Canonical data and Pack-free replay remain available. Recovery is
   to use a non-revoked signed release or replace the integration.
 
+The standalone `<key-file>` is the RFC 8785 canonical JSON document
+`little-ant/pack-publisher-key@1`. It contains exactly `schema`, `publisher`,
+`public_key`, and `key_fingerprint`. `publisher` is the same lowercase
+reverse-DNS identity used by signed Pack manifests; `public_key` is one
+canonical unpadded base64url Ed25519 public key; and `key_fingerprint` is the
+64-character lowercase SHA-256 of its decoded 32 bytes. Unknown or duplicate
+members, alternate encodings, noncanonical bytes, trailing content, invalid
+publisher IDs, and mismatched fingerprints are rejected. The fingerprint
+shown for consent is recomputed and validated from the public key, never
+trusted as an independent claim from the file.
+
+Trust and local archive installation retain only the canonical absolute input
+path, exact source-byte digest, signed identity, and selected-profile
+configuration revision in their pending preview. Acceptance reopens the
+regular nonsymlink file and revalidates the complete path. Changed or missing
+input bytes invalidate and discard that consent instead of silently refreshing
+foreign bytes. A changed profile revision produces a fresh, fully unapproved
+preview. Profile changes use an atomic compare-and-swap; installation may
+publish a verified archive to the content-addressed store before this swap, so
+an interrupted or losing writer can leave only an unreferenced collectable
+archive, never a silently installed Pack. `integrations.yaml` remains the sole
+definition of installed profile state.
+
 Official catalog metadata uses JCS schema `little-ant/pack-catalog@1` with
 nonnegative integer sequence, RFC 3339 expiry instant, delegated publisher
 keys and name prefixes, releases keyed by Pack/version with manifest and

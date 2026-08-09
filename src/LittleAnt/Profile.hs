@@ -13,7 +13,9 @@ module LittleAnt.Profile (
   createProfile,
   listProfiles,
   loadProfile,
+  integrationsConfigRevision,
   writeIntegrationsConfig,
+  writeIntegrationsConfigIfRevision,
   readSelectedProfile,
   writeSelectedProfile,
 )
@@ -36,10 +38,11 @@ import Data.Yaml qualified as Yaml
 import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Pack.Trust (PackArtifactIdentity (artifactName), PackPin (..), TrustedCommunityPublisher (..), validatePackPin, validateTrustedCommunityPublisher)
-import LittleAnt.Store (StoreConfig (..), initializeDataset)
+import LittleAnt.Store (StoreConfig (..), initializeDataset, sha256Hex)
 import LittleAnt.Vault (CredentialScheme (..), credentialSchemeName, parseCredentialSchemeName)
 import System.Directory hiding (isSymbolicLink)
 import System.Environment (lookupEnv)
+import System.FileLock (SharedExclusive (Exclusive), withFileLock)
 import System.FilePath
 import System.IO
 import System.Posix.Files
@@ -284,6 +287,25 @@ writeIntegrationsConfig paths integrations = case validateIntegrationsConfig int
     handleProfileIO $ do
       atomicWrite (integrationsFile paths) (Yaml.encode integrations)
       pure (Right ())
+
+integrationsConfigRevision :: ProfilePaths -> IO (Either AppError Text)
+integrationsConfigRevision paths =
+  handleProfileIO $ do
+    bytes <- ByteString.readFile (integrationsFile paths)
+    pure (Right (sha256Hex bytes))
+
+writeIntegrationsConfigIfRevision :: ProfilePaths -> Text -> IntegrationsConfig -> IO (Either AppError Bool)
+writeIntegrationsConfigIfRevision paths expectedRevision integrations = case validateIntegrationsConfig integrations of
+  Left problem -> pure (Left problem)
+  Right () ->
+    handleProfileIO $ do
+      let lockPath = integrationsFile paths <> ".lock"
+      withFileLock lockPath Exclusive $ \_ -> do
+        setFileMode lockPath 0o600
+        current <- ByteString.readFile (integrationsFile paths)
+        if sha256Hex current /= expectedRevision
+          then pure (Right False)
+          else atomicWrite (integrationsFile paths) (Yaml.encode integrations) >> pure (Right True)
 
 profileValue :: ProfilePaths -> Text -> ProfileConfig
 profileValue paths name =

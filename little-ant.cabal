@@ -92,6 +92,7 @@ library
     LittleAnt.Model
     LittleAnt.Notice
     LittleAnt.OAuth.Device
+    LittleAnt.Pack.Admin
     LittleAnt.Pack.Catalog
     LittleAnt.Pack.Format
     LittleAnt.Pack.Http

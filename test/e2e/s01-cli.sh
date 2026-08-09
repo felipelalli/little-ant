@@ -65,6 +65,23 @@ assert len(pack["signer_fingerprint"]) == 64
 assert all(component["enabled"] for component in pack["components"])
 ' <<<"$pack_show_json"
 
+pack_dry_root="$test_root/pack-dry-profile"
+connector_archive="$PWD/packs/official-connectors/official-connectors.lantpack"
+pack_install_json="$(lant_at "$pack_dry_root" --json --dry-run packs install "$connector_archive")"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+interaction=value["interaction"]
+assert value["dry_run"] is True
+assert interaction["opportunity"]["type"] == "pack_install"
+assert interaction["opportunity"]["draft"]["trust_class"] == "untrusted"
+assert [action["id"] for action in interaction["actions"]] == ["pack.install.trust", "pack.install.back", "pack.install.unknown", "palette.open"]
+assert not any(action["default"] for action in interaction["actions"])
+assert any("graph.microsoft.com" in line for line in interaction["content"]["body"])
+' <<<"$pack_install_json"
+test ! -e "$pack_dry_root/state/lant/profiles/default/dataset/checkpoints/pending-envelope.json"
+test ! -e "$pack_dry_root/data/lant/packs/sha256/db415b7bb53abafa64790dc21f56ca08ea1fdb2f9476966d4f986f47fd0dc5b1.lantpack"
+
 taskjuggler_output="$test_root/little-ant.tjp"
 lant_at "$profile_root" export taskjuggler --output "$taskjuggler_output" >/dev/null
 grep -q '^# LANT-MANIFEST-SHA256: ' "$taskjuggler_output"

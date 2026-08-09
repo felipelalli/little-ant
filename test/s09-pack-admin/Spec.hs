@@ -3,17 +3,24 @@ module Main (main) where
 import Control.Exception (bracket)
 import Data.Aeson (Value (Object), encode, toJSON)
 import Data.Aeson.KeyMap qualified as KeyMap
+import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LazyByteString
 import Data.List (isInfixOf)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
+import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as TextEncoding
 import LittleAnt.Application
 import LittleAnt.Error
+import LittleAnt.Interaction
+import LittleAnt.Pack.Admin
+import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Result
 import LittleAnt.Store (DatasetCursor (Genesis))
+import System.Directory (doesFileExist)
 import System.Environment (lookupEnv, setEnv, unsetEnv)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -30,6 +37,13 @@ main =
       , testCase "show rejects an unknown Pack with an educational recovery" rejectUnknown
       , testCase "read-only dry-run remains visibly read-only and sparse" dryRunList
       , testCase "Pack inspection remains available when one configured archive is unavailable" inspectBrokenRegistry
+      , testCase "community installation separates signer trust from archive installation" communityTrustThenInstall
+      , testCase "Pack dry-run exposes the same preview without arming a checkpoint" installDryRunLeavesNothing
+      , testCase "standalone publisher trust is profile-local and separately consented" standalonePublisherTrust
+      , testCase "profile drift regenerates an unapproved trust preview" trustProfileDrift
+      , testCase "archive drift invalidates and discards the pending consent" archiveDriftInvalidates
+      , testCase "profile compare-and-swap never clobbers a newer integration revision" profileCompareAndSwap
+      , testCase "publisher-key transport requires its closed canonical schema" strictPublisherKeyDocument
       ]
 
 listBuiltIn :: Assertion
@@ -104,6 +118,231 @@ inspectBrokenRegistry = withSystemTempDirectory "little-ant-pack-admin-broken" $
     case ordinary of
       NextResult{} -> pure ()
       other -> assertFailure ("ordinary canonical work became unavailable: " <> show other)
+
+communityTrustThenInstall :: Assertion
+communityTrustThenInstall = withHarness $ \environment -> do
+  preview <- run environment False (PacksInstallCommand (Text.pack connectorArchive))
+  installEnvelope <- expectNextInteraction preview
+  case envelopeOpportunity installEnvelope of
+    PackInstallOpportunity draft -> do
+      packInstallTrustClass draft @?= "untrusted"
+      fmap actionId (envelopeActions installEnvelope) @?= ["pack.install.trust", "pack.install.back", "pack.install.unknown", "palette.open"]
+      assertBool "the untrusted preview has no default" (not (any actionDefault (envelopeActions installEnvelope)))
+    other -> assertFailure ("expected untrusted install preview, got: " <> show other)
+  let previewBody = contentBody (envelopeContent installEnvelope)
+  assertBool "the preview names the signed HTTP host" (any (Text.isInfixOf "graph.microsoft.com") previewBody)
+  assertBool "the preview names credential authority" (any (Text.isInfixOf "oauth2_device_authorization") previewBody)
+  assertBool "the preview names external effects" (any (Text.isInfixOf "source_cleanup_item") previewBody)
+  assertBool "the preview explicitly reports local UI authority" ("Local UI authority: none" `elem` previewBody)
+
+  trustPreview <- respond environment False installEnvelope "pack.install.trust"
+  trustEnvelope <- expectRespondInteraction trustPreview
+  case envelopeOpportunity trustEnvelope of
+    PackTrustOpportunity draft -> do
+      packTrustSource draft @?= PackArchiveSigner
+      communityKeyFingerprint (packTrustPublisher draft) @?= connectorSignerFingerprint
+      assertBool "the full fingerprint is rendered" (connectorSignerFingerprint `elem` contentBody (envelopeContent trustEnvelope))
+      assertBool "trust has no default" (not (any actionDefault (envelopeActions trustEnvelope)))
+    other -> assertFailure ("expected trust preview, got: " <> show other)
+
+  installAgain <- respond environment False trustEnvelope "pack.trust.accept"
+  trustedInstallEnvelope <- expectRespondInteraction installAgain
+  case envelopeOpportunity trustedInstallEnvelope of
+    PackInstallOpportunity draft -> packInstallTrustClass draft @?= "trusted publisher"
+    other -> assertFailure ("expected still-unapproved install preview, got: " <> show other)
+  profileAfterTrust <- loadCurrentIntegrations
+  assertBool "publisher trust is stored" (any ((== connectorSignerFingerprint) . communityKeyFingerprint) (Profile.trustedPublishers profileAfterTrust))
+  assertBool "trust alone does not pin the Pack" (Map.notMember connectorPackName (Profile.installedComponents profileAfterTrust))
+  paths <- currentProfilePaths
+  let storedPath = packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) connectorArchiveDigest
+  storedBeforeInstall <- doesFileExist storedPath
+  assertBool "trust alone does not store the archive" (not storedBeforeInstall)
+
+  installed <- respond environment False trustedInstallEnvelope "pack.install.accept"
+  resultEnvelope <- expectRespondInteraction installed
+  case envelopeOpportunity resultEnvelope of
+    PackInstallResultOpportunity artifact -> artifactName artifact @?= connectorPackName
+    other -> assertFailure ("expected install result, got: " <> show other)
+  profileAfterInstall <- loadCurrentIntegrations
+  case Map.lookup connectorPackName (Profile.installedComponents profileAfterInstall) of
+    Nothing -> assertFailure "the Pack pin was not written"
+    Just pin -> do
+      pinTrustOrigin pin @?= PinTrustedPublisher
+      pinEnabledComponents pin @?= Set.singleton "microsoft_todo"
+  storedAfterInstall <- doesFileExist storedPath
+  assertBool "the exact archive is present in the content-addressed store" storedAfterInstall
+
+installDryRunLeavesNothing :: Assertion
+installDryRunLeavesNothing = withHarness $ \environment -> do
+  before <- loadCurrentIntegrations
+  result <- run environment True (PacksInstallCommand (Text.pack connectorArchive))
+  envelope <- expectNextInteraction result
+  case envelopeOpportunity envelope of
+    PackInstallOpportunity draft -> packInstallTrustClass draft @?= "untrusted"
+    other -> assertFailure ("expected install preview, got: " <> show other)
+  observedAfter <- loadCurrentIntegrations
+  observedAfter @?= before
+  paths <- currentProfilePaths
+  pending <- doesFileExist (Profile.datasetDirectory paths </> "checkpoints" </> "pending-envelope.json")
+  assertBool "dry-run did not persist a consent checkpoint" (not pending)
+  stored <- doesFileExist (packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) connectorArchiveDigest)
+  assertBool "dry-run did not store the archive" (not stored)
+
+standalonePublisherTrust :: Assertion
+standalonePublisherTrust = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-publisher-key" $ \temporary -> do
+    let keyPath = temporary </> "publisher-key.json"
+    writeConnectorKey keyPath
+    before <- loadCurrentIntegrations
+    simulated <- run environment True (PacksTrustCommand (Text.pack keyPath))
+    simulatedEnvelope <- expectNextInteraction simulated
+    case envelopeOpportunity simulatedEnvelope of
+      PackTrustOpportunity{} -> pure ()
+      other -> assertFailure ("expected dry-run trust preview, got: " <> show other)
+    afterSimulation <- loadCurrentIntegrations
+    afterSimulation @?= before
+    paths <- currentProfilePaths
+    dryPending <- doesFileExist (Profile.datasetDirectory paths </> "checkpoints" </> "pending-envelope.json")
+    assertBool "trust dry-run did not arm a checkpoint" (not dryPending)
+    preview <- run environment False (PacksTrustCommand (Text.pack keyPath))
+    envelope <- expectNextInteraction preview
+    case envelopeOpportunity envelope of
+      PackTrustOpportunity draft -> do
+        packTrustSource draft @?= StandalonePublisherKey
+        assertBool "standalone trust has no default" (not (any actionDefault (envelopeActions envelope)))
+      other -> assertFailure ("expected standalone trust preview, got: " <> show other)
+    accepted <- respond environment False envelope "pack.trust.accept"
+    acceptedEnvelope <- expectRespondInteraction accepted
+    case envelopeOpportunity acceptedEnvelope of
+      PackTrustResultOpportunity publisher -> communityKeyFingerprint publisher @?= connectorSignerFingerprint
+      other -> assertFailure ("expected publisher-trust result, got: " <> show other)
+    integrations <- loadCurrentIntegrations
+    Set.size (Profile.trustedPublishers integrations) @?= 1
+    assertBool "standalone trust installed no Pack" (Map.null (Profile.installedComponents integrations))
+
+trustProfileDrift :: Assertion
+trustProfileDrift = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-profile-drift" $ \temporary -> do
+    let keyPath = temporary </> "publisher-key.json"
+    writeConnectorKey keyPath
+    preview <- run environment False (PacksTrustCommand (Text.pack keyPath))
+    envelope <- expectNextInteraction preview
+    beforeDraft <- case envelopeOpportunity envelope of
+      PackTrustOpportunity draft -> pure draft
+      other -> assertFailure ("expected trust preview, got: " <> show other) >> fail "unreachable"
+    paths <- currentProfilePaths
+    integrations <- loadCurrentIntegrations
+    let externallyChanged = integrations{Profile.deliveryBindings = Map.singleton "notice" "stdout"}
+    Profile.writeIntegrationsConfig paths externallyChanged >>= either (assertFailure . show) pure
+    response <- respond environment False envelope "pack.trust.accept"
+    refreshed <- expectRespondInteraction response
+    case envelopeOpportunity refreshed of
+      PackTrustOpportunity draft -> do
+        assertBool "the profile revision changed" (packTrustProfileRevision draft /= packTrustProfileRevision beforeDraft)
+        assertBool "the decision remains unapproved" (not (any actionDefault (envelopeActions refreshed)))
+      other -> assertFailure ("expected refreshed trust preview, got: " <> show other)
+    observedAfter <- loadCurrentIntegrations
+    Profile.deliveryBindings observedAfter @?= Profile.deliveryBindings externallyChanged
+    assertBool "the stale acceptance did not trust the publisher" (Set.null (Profile.trustedPublishers observedAfter))
+
+archiveDriftInvalidates :: Assertion
+archiveDriftInvalidates = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-pack-drift" $ \temporary -> do
+    original <- ByteString.readFile connectorArchive
+    let copied = temporary </> "candidate.lantpack"
+    ByteString.writeFile copied original
+    preview <- run environment False (PacksInstallCommand (Text.pack copied))
+    envelope <- expectNextInteraction preview
+    ByteString.writeFile copied "changed after preview"
+    observed <- runAppCommand environment False silentProgress (RespondCommand (responseFor envelope "pack.install.trust"))
+    case observed of
+      Left problem -> appErrorCode problem @?= Conflict
+      Right result -> assertFailure ("expected drift rejection, got: " <> show result)
+    paths <- currentProfilePaths
+    pending <- doesFileExist (Profile.datasetDirectory paths </> "checkpoints" </> "pending-envelope.json")
+    assertBool "foreign-byte drift discarded the pending consent" (not pending)
+    observedAfter <- loadCurrentIntegrations
+    assertBool "drift stored no publisher trust" (Set.null (Profile.trustedPublishers observedAfter))
+    assertBool "drift installed no Pack" (Map.null (Profile.installedComponents observedAfter))
+
+profileCompareAndSwap :: Assertion
+profileCompareAndSwap = withHarness $ \_ -> do
+  paths <- currentProfilePaths
+  revision <- Profile.integrationsConfigRevision paths >>= either (assertFailure . show) pure
+  original <- loadCurrentIntegrations
+  let newer = original{Profile.deliveryBindings = Map.singleton "notice" "stdout"}
+      staleProposal = original{Profile.trustedPublishers = Set.singleton connectorPublisher}
+  Profile.writeIntegrationsConfig paths newer >>= either (assertFailure . show) pure
+  written <- Profile.writeIntegrationsConfigIfRevision paths revision staleProposal >>= either (assertFailure . show) pure
+  assertBool "stale compare-and-swap was rejected" (not written)
+  observed <- loadCurrentIntegrations
+  observed @?= newer
+
+strictPublisherKeyDocument :: Assertion
+strictPublisherKeyDocument = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-noncanonical-key" $ \temporary -> do
+    let keyPath = temporary </> "publisher-key.json"
+    ByteString.writeFile keyPath . TextEncoding.encodeUtf8 $
+      "{\n  \"schema\": \"little-ant/pack-publisher-key@1\",\n  \"publisher\": \"org.littleant.project\",\n  \"public_key\": \""
+        <> connectorPublicKey
+        <> "\",\n  \"key_fingerprint\": \""
+        <> connectorSignerFingerprint
+        <> "\"\n}\n"
+    observed <- runAppCommand environment False silentProgress (PacksTrustCommand (Text.pack keyPath))
+    case observed of
+      Left problem -> appErrorCode problem @?= CorruptData
+      Right result -> assertFailure ("expected canonical-key rejection, got: " <> show result)
+
+expectNextInteraction :: CommandResult -> IO InteractionEnvelope
+expectNextInteraction = \case
+  NextResult _ envelope _ -> pure envelope
+  other -> assertFailure ("expected NextResult, got: " <> show other) >> fail "unreachable"
+
+expectRespondInteraction :: CommandResult -> IO InteractionEnvelope
+expectRespondInteraction = \case
+  RespondResult _ envelope Nothing _ -> pure envelope
+  other -> assertFailure ("expected noncanonical RespondResult, got: " <> show other) >> fail "unreachable"
+
+respond :: AppEnv -> Bool -> InteractionEnvelope -> Text -> IO CommandResult
+respond environment dryRun envelope action = run environment dryRun (RespondCommand (responseFor envelope action))
+
+responseFor :: InteractionEnvelope -> Text -> InteractionResponse
+responseFor envelope action =
+  InteractionResponse
+    (envelopeInteractionId envelope)
+    (envelopeRevision envelope)
+    action
+    (envelopeIntegrityToken envelope)
+    (envelopeDatasetCursor envelope)
+
+writeConnectorKey :: FilePath -> IO ()
+writeConnectorKey path = do
+  encoded <- either (assertFailure . show) pure (encodePackPublisherKeyDocument (PackPublisherKeyDocument connectorPublisher))
+  ByteString.writeFile path encoded
+
+loadCurrentIntegrations :: IO Profile.IntegrationsConfig
+loadCurrentIntegrations = do
+  roots <- Profile.resolveXdgRoots
+  Profile.loadProfile roots "default" >>= \case
+    Left problem -> assertFailure (show problem) >> fail "unreachable"
+    Right (_, _, _, _, integrations) -> pure integrations
+
+currentProfilePaths :: IO Profile.ProfilePaths
+currentProfilePaths = do
+  roots <- Profile.resolveXdgRoots
+  either (\problem -> assertFailure (show problem) >> fail "unreachable") pure (Profile.profilePaths roots "default")
+
+connectorPublisher :: TrustedCommunityPublisher
+connectorPublisher = TrustedCommunityPublisher "org.littleant.project" connectorPublicKey connectorSignerFingerprint
+
+connectorPackName, connectorArchiveDigest, connectorPublicKey, connectorSignerFingerprint :: Text
+connectorPackName = "org.littleant.official-connectors"
+connectorArchiveDigest = "db415b7bb53abafa64790dc21f56ca08ea1fdb2f9476966d4f986f47fd0dc5b1"
+connectorPublicKey = "b8Jj-4bREWONltz3QO1xeWG3awyXTEVvBRk2ao3fWvg"
+connectorSignerFingerprint = "b95e184ec3696f3dc91623f4120a90d2f040df45f565099707d9eb427ed3b4ca"
+
+connectorArchive :: FilePath
+connectorArchive = "packs" </> "official-connectors" </> "official-connectors.lantpack"
 
 withHarness :: (AppEnv -> IO a) -> IO a
 withHarness action = withSystemTempDirectory "little-ant-pack-admin" $ \root ->

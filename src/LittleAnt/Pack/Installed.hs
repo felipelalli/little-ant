@@ -2,6 +2,7 @@ module LittleAnt.Pack.Installed (
   OfficialCatalogAuthority (..),
   loadProfileAuthorizedPacks,
   loadProfilePackRegistry,
+  loadProfileTrustPolicy,
 )
 where
 

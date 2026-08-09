@@ -29,6 +29,7 @@ module LittleAnt.Pack.Trust (
   installAuthorizedAssessment,
   installAuthorizedPin,
   authorizePackInstall,
+  validatePackInstallCandidate,
   ExecutionAuthorizedPack,
   executionAuthorizedPack,
   executionAuthorizedScope,
@@ -329,8 +330,7 @@ mkProfileScope name
 
 authorizePackInstall :: UTCTime -> ProfileScope -> PackTrustPolicy -> Set Text -> AuthenticatedPack -> Either AppError InstallAuthorizedPack
 authorizePackInstall now scope policy enabledComponents authenticated = do
-  validateCompatibility policy authenticated
-  validateEnabledComponents enabledComponents authenticated
+  validatePackInstallCandidate policy enabledComponents authenticated
   assessment <- assessPackTrust now policy authenticated
   origin <- case assessedTrustClass assessment of
     BuiltInTrust -> Right PinBuiltIn
@@ -361,6 +361,11 @@ authorizePackInstall now scope policy enabledComponents authenticated = do
       , installAuthorizedAssessment = assessment
       , installAuthorizedPin = pin
       }
+
+validatePackInstallCandidate :: PackTrustPolicy -> Set Text -> AuthenticatedPack -> Either AppError ()
+validatePackInstallCandidate policy enabledComponents authenticated = do
+  validateCompatibility policy authenticated
+  validateEnabledComponents enabledComponents authenticated
 
 authorizePinnedPackExecution :: UTCTime -> ProfileScope -> PackTrustPolicy -> PackPin -> AuthenticatedPack -> Either AppError ExecutionAuthorizedPack
 authorizePinnedPackExecution now scope policy pin authenticated = do
@@ -393,7 +398,7 @@ authorizePinnedPackExecution now scope policy pin authenticated = do
         )
     PinTrustedPublisher ->
       unless
-        (assessedTrustClass assessment == TrustedPublisherTrust)
+        (any (matchesCommunityPublisher authenticated) (trustCommunityPublishers policy))
         (Left (trustPermissionProblem "The pinned community publisher is no longer trusted in this profile." []))
   pure
     ExecutionAuthorizedPack

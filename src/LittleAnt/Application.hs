@@ -11,7 +11,7 @@ where
 
 import Control.Applicative ((<|>))
 import Control.Exception (IOException, SomeException, catch, displayException, try)
-import Control.Monad (foldM, replicateM)
+import Control.Monad (foldM, replicateM, unless, void, when)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
@@ -43,11 +43,12 @@ import LittleAnt.JudgmentDecision
 import LittleAnt.JudgmentUI
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Installed
 import LittleAnt.Pack.Runner (defaultPackRunnerClient)
-import LittleAnt.Pack.Standard (loadStandardPackAuthorization)
-import LittleAnt.Pack.Store (PackStoreConfig (..), inspectStoredPack)
+import LittleAnt.Pack.Standard (loadStandardPackAuthorization, standardPackIdentity)
+import LittleAnt.Pack.Store (PackStoreConfig (..), inspectStoredPack, storeAuthorizedPack)
 import LittleAnt.Pack.Trust
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
@@ -61,6 +62,7 @@ import System.Directory
 import System.Entropy qualified as Entropy
 import System.Environment (lookupEnv)
 import System.FilePath (takeExtension, (</>))
+import System.IO.Error (isDoesNotExistError)
 
 data ViewDepth = SummaryView | OperationalView | RelationshipsView | HistoryView | CompleteView | GuidedView
   deriving stock (Eq, Ord, Show)
@@ -303,12 +305,12 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   WebCommand -> pure (unsupportedCommand "web")
   PacksListCommand -> runPacksList environment dryRun dataset
   PacksShowCommand pack -> runPacksShow environment dryRun dataset pack
-  PacksInstallCommand pack -> pure (unsupportedCommand ("packs install " <> pack))
+  PacksInstallCommand archive -> runPacksInstall environment dryRun dataset archive
   PacksUpdatesCommand -> pure (unsupportedCommand "packs updates")
   PacksUpdateCommand pack -> pure (unsupportedCommand ("packs update " <> pack))
   PacksRemoveCommand pack -> pure (unsupportedCommand ("packs remove " <> pack))
   PacksRefreshCommand -> pure (unsupportedCommand "packs refresh")
-  PacksTrustCommand pack -> pure (unsupportedCommand ("packs trust " <> pack))
+  PacksTrustCommand keyFile -> runPacksTrust environment dryRun dataset keyFile
   PacksUntrustCommand pack -> pure (unsupportedCommand ("packs untrust " <> pack))
   PacksGcCommand -> pure (unsupportedCommand "packs gc")
   DoctorCommand -> runDoctor environment dryRun (const (pure ()))
@@ -323,6 +325,159 @@ unsupportedCommand detail =
           [RecoveryAction "implementation-roadmap" "Implement this command path in a later milestone." (Just "lant help commands")]
       , appErrorDetails = ["checkpoint: v1 command-surface alignment"]
       }
+
+data PackProfileSnapshot = PackProfileSnapshot
+  { packProfilePaths :: Profile.ProfilePaths
+  , packProfileScope :: ProfileScope
+  , packProfileIntegrations :: Profile.IntegrationsConfig
+  , packProfileTrustPolicy :: PackTrustPolicy
+  , packProfileRevision :: Text
+  , packProfileObservedAt :: UTCTime
+  }
+
+runPacksInstall :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runPacksInstall environment dryRun dataset requested =
+  readPackArchiveCandidate (Text.unpack (Text.strip requested)) >>= \case
+    Left problem -> pure (Left problem)
+    Right candidate ->
+      loadPackProfileSnapshot environment >>= \case
+        Left problem -> pure (Left problem)
+        Right profile ->
+          case preparePackInstallDraft profile candidate of
+            Left problem -> pure (Left problem)
+            Right draft -> do
+              identity <- appAllocateUUID environment
+              now <- appZonedNow environment
+              let state = loadedState dataset
+                  envelope = makePackInstallEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state draft (packCandidateAuthenticated candidate)
+              saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+              pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+runPacksTrust :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runPacksTrust environment dryRun dataset requested =
+  readPackPublisherKeyDocument (Text.unpack (Text.strip requested)) >>= \case
+    Left problem -> pure (Left problem)
+    Right (canonicalPath, sourceDigest, document) ->
+      loadPackProfileSnapshot environment >>= \case
+        Left problem -> pure (Left problem)
+        Right profile -> do
+          identity <- appAllocateUUID environment
+          now <- appZonedNow environment
+          let state = loadedState dataset
+              publisher = publisherKeyTrust document
+          if publisher `Set.member` Profile.trustedPublishers (packProfileIntegrations profile)
+            then do
+              let envelope = makePackTrustResultEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state publisher
+              saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+              pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+            else do
+              let draft =
+                    PackTrustDraft
+                      { packTrustSource = StandalonePublisherKey
+                      , packTrustSourcePath = canonicalPath
+                      , packTrustSourceSha256 = sourceDigest
+                      , packTrustPublisher = publisher
+                      , packTrustProfileRevision = packProfileRevision profile
+                      , packTrustReturnToInstall = Nothing
+                      }
+                  envelope = makePackTrustEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state draft
+              saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+              pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+loadPackProfileSnapshot :: AppEnv -> IO (Either AppError PackProfileSnapshot)
+loadPackProfileSnapshot environment = do
+  roots <- Profile.resolveXdgRoots
+  let profileName = actorProfile (appActor environment)
+  case Profile.profilePaths roots profileName of
+    Left problem -> pure (Left problem)
+    Right expectedPaths ->
+      Profile.integrationsConfigRevision expectedPaths >>= \case
+        Left problem -> pure (Left problem)
+        Right beforeRevision ->
+          Profile.loadProfile roots profileName >>= \case
+            Left problem -> pure (Left problem)
+            Right (paths, _, _, _, integrations) ->
+              Profile.integrationsConfigRevision paths >>= \case
+                Left problem -> pure (Left problem)
+                Right afterRevision
+                  | beforeRevision /= afterRevision -> pure (Left packProfileChanged)
+                  | otherwise -> case mkProfileScope profileName of
+                      Left problem -> pure (Left problem)
+                      Right scope -> do
+                        now <- appNow environment
+                        loadProfileTrustPolicy now paths integrations OfficialCatalogUnavailable >>= \case
+                          Left problem -> pure (Left problem)
+                          Right policy ->
+                            pure . Right $
+                              PackProfileSnapshot
+                                { packProfilePaths = paths
+                                , packProfileScope = scope
+                                , packProfileIntegrations = integrations
+                                , packProfileTrustPolicy = policy
+                                , packProfileRevision = afterRevision
+                                , packProfileObservedAt = now
+                                }
+
+preparePackInstallDraft :: PackProfileSnapshot -> PackArchiveCandidate -> Either AppError PackInstallDraft
+preparePackInstallDraft profile candidate = do
+  let authenticated = packCandidateAuthenticated candidate
+      identity = authenticatedPackIdentity authenticated
+      manifest = structurallyValidManifest (authenticatedStructuralPack authenticated)
+      enabled = Set.fromList (componentId . componentCommon <$> packComponents manifest)
+      existing = Map.lookup (artifactName identity) (Profile.installedComponents (packProfileIntegrations profile))
+  when (artifactName identity == artifactName standardPackIdentity) $
+    Left (packAlreadyPresent identity "The bundled standard Pack is already available and cannot be installed as a profile Pack.")
+  case existing of
+    Nothing -> pure ()
+    Just pin
+      | pinArtifact pin == identity -> Left (packAlreadyPresent identity "This exact Pack release is already installed in the selected profile.")
+      | otherwise ->
+          Left
+            ( (appError Conflict "A different release of this Pack is already installed.")
+                { appErrorSubject = Just (artifactName identity)
+                , appErrorDetails = ["Installed: " <> artifactVersion (pinArtifact pin), "Candidate: " <> artifactVersion identity]
+                , appErrorRecovery = [RecoveryAction "update-pack" "Review the signed update difference instead of overwriting the current pin." (Just ("lant packs update " <> artifactName identity))]
+                }
+            )
+  validatePackInstallCandidate (packProfileTrustPolicy profile) enabled authenticated
+  assessment <- assessPackTrust (packProfileObservedAt profile) (packProfileTrustPolicy profile) authenticated
+  case assessedTrustClass assessment of
+    RevokedPack ->
+      Left
+        ( (appError PermissionRequired "The Pack signer or archive is revoked and cannot be installed.")
+            { appErrorSubject = Just (artifactName identity)
+            , appErrorDetails = [authenticatedSignerFingerprint authenticated, artifactArchiveDigest identity]
+            }
+        )
+    _ -> pure ()
+  case assessedTrustClass assessment of
+    UntrustedPack -> pure ()
+    RevokedPack -> pure ()
+    _ -> void (authorizePackInstall (packProfileObservedAt profile) (packProfileScope profile) (packProfileTrustPolicy profile) enabled authenticated)
+  pure
+    PackInstallDraft
+      { packInstallSourcePath = packCandidateCanonicalPath candidate
+      , packInstallSourceSha256 = packCandidateSourceSha256 candidate
+      , packInstallArtifact = identity
+      , packInstallSignerFingerprint = authenticatedSignerFingerprint authenticated
+      , packInstallTrustClass = packTrustClassText (assessedTrustClass assessment)
+      , packInstallEnabledComponents = Set.toAscList enabled
+      , packInstallProfileRevision = packProfileRevision profile
+      }
+
+packAlreadyPresent :: PackArtifactIdentity -> Text -> AppError
+packAlreadyPresent identity message =
+  (appError Conflict message)
+    { appErrorSubject = Just (artifactName identity)
+    , appErrorRecovery = [RecoveryAction "show-pack" "Inspect the installed Pack instead." (Just ("lant packs show " <> artifactName identity))]
+    }
+
+packProfileChanged :: AppError
+packProfileChanged =
+  (appError Conflict "The selected profile integrations changed while they were being read.")
+    { appErrorRetrySafety = RetryAfterRefresh
+    , appErrorRecovery = [RecoveryAction "retry" "Retry to build a preview from one stable profile revision." Nothing]
+    }
 
 runPacksList :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runPacksList environment dryRun dataset =
@@ -1975,6 +2130,15 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         [] -> pure (Left (appError PreconditionFailed "This import result contains no Raw material to triage."))
     (ImportResultOpportunity _ _ True, "import.cleanup", _) ->
       local (appendBody current "Verified source cleanup requires the separate effect approval flow; no source item has changed.")
+    (PackInstallOpportunity draft, "pack.install.trust", _) -> beginPackTrust draft
+    (PackInstallOpportunity draft, "pack.install.accept", _) -> acceptPackInstall draft
+    (PackInstallOpportunity{}, "pack.install.back", _) -> replaceWithFresh
+    (PackInstallOpportunity{}, "pack.install.unknown", _) ->
+      local (appendBody current "Publisher trust authorizes one exact signing key for this profile. Installation is a separate decision that pins only the displayed signed archive and components. Neither decision grants undeclared authority.")
+    (PackTrustOpportunity draft, "pack.trust.accept", _) -> acceptPackTrust draft
+    (PackTrustOpportunity draft, "pack.trust.back", _) -> backFromPackTrust draft
+    (PackTrustOpportunity{}, "pack.trust.unknown", _) ->
+      local (appendBody current "Trust binds the displayed publisher ID to this exact public-key fingerprint in the selected profile. It does not install, update, execute, or grant permissions to any Pack by itself.")
     (RawDetailOpportunity rawId, "raw.detail.origin", _) -> withRaw rawId $ \raw -> local (makeRawOriginListEnvelope current now state raw)
     (RawDetailOpportunity rawId, "raw.detail.translate", _) -> withRaw rawId $ \raw ->
       case resolveTranslationTarget state (rawCitationText raw) of
@@ -2881,6 +3045,205 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                                     resultEnvelope
                                     (importAcceptanceCommandId decision)
                                     dryRun
+
+  beginPackTrust draft =
+    reacquirePackInstall draft >>= \case
+      Left problem -> invalidatePackCheckpoint problem
+      Right candidate ->
+        loadPackProfileSnapshot environment >>= \case
+          Left problem -> pure (Left problem)
+          Right profile
+            | packProfileRevision profile /= packInstallProfileRevision draft ->
+                refreshPackInstall candidate profile "The profile changed after the prior preview. Review this refreshed installation candidate before continuing."
+            | otherwise -> do
+                let authenticated = packCandidateAuthenticated candidate
+                    identity = authenticatedPackIdentity authenticated
+                    publisher =
+                      TrustedCommunityPublisher
+                        (artifactPublisher identity)
+                        (authenticatedSignerPublicKey authenticated)
+                        (authenticatedSignerFingerprint authenticated)
+                case validateTrustedCommunityPublisher publisher of
+                  Left problem -> pure (Left problem)
+                  Right ()
+                    | publisher `Set.member` Profile.trustedPublishers (packProfileIntegrations profile) ->
+                        refreshPackInstall candidate profile "This exact publisher key is already trusted. Installation remains unapproved."
+                    | otherwise -> do
+                        let trustDraft =
+                              PackTrustDraft
+                                { packTrustSource = PackArchiveSigner
+                                , packTrustSourcePath = packCandidateCanonicalPath candidate
+                                , packTrustSourceSha256 = packCandidateSourceSha256 candidate
+                                , packTrustPublisher = publisher
+                                , packTrustProfileRevision = packProfileRevision profile
+                                , packTrustReturnToInstall = Just draft
+                                }
+                            candidateEnvelope = makePackTrustEnvelope (envelopeInteractionId current) cursor precondition now state trustDraft
+                        local (advanceEnvelope current candidateEnvelope)
+
+  acceptPackTrust draft =
+    reacquirePackTrust draft >>= \case
+      Left problem -> invalidatePackCheckpoint problem
+      Right publisher ->
+        loadPackProfileSnapshot environment >>= \case
+          Left problem -> pure (Left problem)
+          Right profile
+            | packProfileRevision profile /= packTrustProfileRevision draft ->
+                refreshPackTrust draft publisher profile "The profile changed after the prior trust preview. Review this key again before trusting it."
+            | otherwise -> do
+                let integrations = packProfileIntegrations profile
+                    alreadyTrusted = publisher `Set.member` Profile.trustedPublishers integrations
+                    changed = integrations{Profile.trustedPublishers = Set.insert publisher (Profile.trustedPublishers integrations)}
+                if dryRun
+                  then local (appendBody current "Dry run revalidated this exact publisher key and profile revision. No trust was stored and installation remains unavailable.")
+                  else
+                    if alreadyTrusted
+                      then finishPackTrust draft publisher
+                      else
+                        Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packTrustProfileRevision draft) changed >>= \case
+                          Left problem -> pure (Left problem)
+                          Right True -> finishPackTrust draft publisher
+                          Right False ->
+                            loadPackProfileSnapshot environment >>= \case
+                              Left problem -> pure (Left problem)
+                              Right refreshed -> refreshPackTrust draft publisher refreshed "The profile changed before trust could be stored. Nothing was overwritten; review the refreshed decision."
+
+  acceptPackInstall draft =
+    reacquirePackInstall draft >>= \case
+      Left problem -> invalidatePackCheckpoint problem
+      Right candidate ->
+        loadPackProfileSnapshot environment >>= \case
+          Left problem -> pure (Left problem)
+          Right profile
+            | packProfileRevision profile /= packInstallProfileRevision draft ->
+                refreshPackInstall candidate profile "The profile changed after the prior preview. Review this refreshed installation candidate before installing."
+            | otherwise ->
+                case preparePackInstallDraft profile candidate of
+                  Left problem -> pure (Left problem)
+                  Right refreshedDraft
+                    | refreshedDraft /= draft ->
+                        refreshPackInstall candidate profile "The candidate's current trust or component plan differs from the prior preview. Review it again before installing."
+                    | otherwise -> do
+                        let authenticated = packCandidateAuthenticated candidate
+                            enabled = Set.fromList (packInstallEnabledComponents draft)
+                        case authorizePackInstall (packProfileObservedAt profile) (packProfileScope profile) (packProfileTrustPolicy profile) enabled authenticated of
+                          Left problem -> pure (Left problem)
+                          Right authorized
+                            | dryRun ->
+                                local (appendBody current "Dry run revalidated the exact archive, signer trust, component authority, and profile revision. No archive was stored and no pin changed.")
+                            | otherwise ->
+                                storeAuthorizedPack (PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))) authorized >>= \case
+                                  Left problem -> pure (Left problem)
+                                  Right _ -> do
+                                    let pin = installAuthorizedPin authorized
+                                        integrations = packProfileIntegrations profile
+                                        changed = integrations{Profile.installedComponents = Map.insert (artifactName (pinArtifact pin)) pin (Profile.installedComponents integrations)}
+                                    Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packInstallProfileRevision draft) changed >>= \case
+                                      Left problem -> pure (Left problem)
+                                      Right True -> finishPackInstall (pinArtifact pin)
+                                      Right False ->
+                                        loadPackProfileSnapshot environment >>= \case
+                                          Left problem -> pure (Left problem)
+                                          Right refreshed -> refreshPackInstall candidate refreshed "The profile changed before the pin could be stored. Nothing was overwritten; the unreferenced archive is safe to collect. Review the refreshed plan."
+
+  backFromPackTrust draft = case packTrustReturnToInstall draft of
+    Nothing -> replaceWithFresh
+    Just installDraft ->
+      reacquirePackInstall installDraft >>= \case
+        Left problem -> invalidatePackCheckpoint problem
+        Right candidate ->
+          loadPackProfileSnapshot environment >>= \case
+            Left problem -> pure (Left problem)
+            Right profile -> refreshPackInstall candidate profile "The publisher remains untrusted and installation remains unapproved."
+
+  reacquirePackInstall draft =
+    readPackArchiveCandidate (packInstallSourcePath draft) >>= \case
+      Left problem ->
+        pure . Left $
+          (packInputChanged "The Pack archive changed or became unreadable after the preview." (packInstallSourcePath draft))
+            { appErrorDetails = appErrorMessage problem : appErrorDetails problem
+            }
+      Right candidate ->
+        let authenticated = packCandidateAuthenticated candidate
+            matches =
+              packCandidateCanonicalPath candidate == packInstallSourcePath draft
+                && packCandidateSourceSha256 candidate == packInstallSourceSha256 draft
+                && authenticatedPackIdentity authenticated == packInstallArtifact draft
+                && authenticatedSignerFingerprint authenticated == packInstallSignerFingerprint draft
+         in pure $
+              if matches
+                then Right candidate
+                else Left (packInputChanged "The Pack archive changed after the preview." (packInstallSourcePath draft))
+
+  reacquirePackTrust draft = case packTrustSource draft of
+    StandalonePublisherKey ->
+      readPackPublisherKeyDocument (packTrustSourcePath draft) >>= \case
+        Left problem ->
+          pure . Left $
+            (packInputChanged "The Pack publisher-key file changed or became unreadable after the preview." (packTrustSourcePath draft))
+              { appErrorDetails = appErrorMessage problem : appErrorDetails problem
+              }
+        Right (path, digest, document) ->
+          pure $
+            if path == packTrustSourcePath draft
+              && digest == packTrustSourceSha256 draft
+              && publisherKeyTrust document == packTrustPublisher draft
+              then Right (publisherKeyTrust document)
+              else Left (packInputChanged "The Pack publisher-key file changed after the preview." (packTrustSourcePath draft))
+    PackArchiveSigner -> case packTrustReturnToInstall draft of
+      Nothing -> pure (Left (appError CorruptData "A Pack-archive trust preview lost its installation custody."))
+      Just installDraft ->
+        reacquirePackInstall installDraft >>= \case
+          Left problem -> pure (Left problem)
+          Right candidate ->
+            let authenticated = packCandidateAuthenticated candidate
+                identity = authenticatedPackIdentity authenticated
+                publisher = TrustedCommunityPublisher (artifactPublisher identity) (authenticatedSignerPublicKey authenticated) (authenticatedSignerFingerprint authenticated)
+             in pure $
+                  if packCandidateCanonicalPath candidate == packTrustSourcePath draft
+                    && packCandidateSourceSha256 candidate == packTrustSourceSha256 draft
+                    && publisher == packTrustPublisher draft
+                    then Right publisher
+                    else Left (packInputChanged "The Pack signer changed after the trust preview." (packTrustSourcePath draft))
+
+  refreshPackInstall candidate profile message =
+    case preparePackInstallDraft profile candidate of
+      Left problem -> invalidatePackCheckpoint problem
+      Right refreshedDraft -> do
+        let candidateEnvelope = makePackInstallEnvelope (envelopeInteractionId current) cursor precondition now state refreshedDraft (packCandidateAuthenticated candidate)
+        local (appendBody (advanceEnvelope current candidateEnvelope) message)
+
+  refreshPackTrust draft publisher profile message
+    | publisher `Set.member` Profile.trustedPublishers (packProfileIntegrations profile) = finishPackTrust draft publisher
+    | otherwise = do
+        let refreshedDraft = draft{packTrustProfileRevision = packProfileRevision profile}
+            candidateEnvelope = makePackTrustEnvelope (envelopeInteractionId current) cursor precondition now state refreshedDraft
+        local (appendBody (advanceEnvelope current candidateEnvelope) message)
+
+  finishPackTrust draft publisher = case packTrustReturnToInstall draft of
+    Nothing -> do
+      let result = makePackTrustResultEnvelope (envelopeInteractionId current) cursor precondition now state publisher
+      local (advanceEnvelope current result)
+    Just installDraft ->
+      reacquirePackInstall installDraft >>= \case
+        Left problem -> invalidatePackCheckpoint problem
+        Right candidate ->
+          loadPackProfileSnapshot environment >>= \case
+            Left problem -> pure (Left problem)
+            Right profile ->
+              case preparePackInstallDraft profile candidate of
+                Left problem -> pure (Left problem)
+                Right refreshedDraft -> do
+                  let preview = makePackInstallEnvelope (envelopeInteractionId current) cursor precondition now state refreshedDraft (packCandidateAuthenticated candidate)
+                  local (appendBody (advanceEnvelope current preview) "Publisher trusted. Installation is still unapproved.")
+
+  finishPackInstall artifact = do
+    let result = makePackInstallResultEnvelope (envelopeInteractionId current) cursor precondition now state artifact
+    local (advanceEnvelope current result)
+
+  invalidatePackCheckpoint problem = do
+    unless dryRun (discardPendingCheckpoint environment)
+    pure (Left problem)
 
   replaceWithFresh = do
     fresh <- freshCheckpoint environment dataset
@@ -4689,6 +5052,19 @@ missingInteraction replacement =
 
 checkpointPath :: AppEnv -> FilePath
 checkpointPath environment = storeRoot (appStore environment) </> "checkpoints" </> "pending-envelope.json"
+
+discardPendingCheckpoint :: AppEnv -> IO ()
+discardPendingCheckpoint environment =
+  removeFile (checkpointPath environment)
+    `catch` \problem -> unless (isDoesNotExistError problem) (ioError (problem :: IOException))
+
+packInputChanged :: Text -> FilePath -> AppError
+packInputChanged message path =
+  (appError Conflict message)
+    { appErrorSubject = Just (Text.pack path)
+    , appErrorRetrySafety = RetryAfterRefresh
+    , appErrorRecovery = [RecoveryAction "restart-preview" "Start a new Pack preview from the current file bytes." Nothing]
+    }
 
 saveUnlessDry :: AppEnv -> Bool -> PresentationCheckpoint -> IO ()
 saveUnlessDry environment dryRun checkpoint = if dryRun then pure () else savePendingCheckpoint environment checkpoint

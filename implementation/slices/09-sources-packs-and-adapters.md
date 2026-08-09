@@ -105,8 +105,11 @@ the built-in and profile-pinned identities, trust class, status, exact signer
 and archive digests, enabled components, and signed permission summaries.
 Registry failure no longer prevents Pack recovery or Pack-free canonical work:
 adapter ports fail closed with the retained typed error, while the manager can
-still inspect a missing or invalid pin as unavailable. Trust/install consent,
-updates, refresh, removal/GC, and the `/packs` REPL flow remain open.
+still inspect a missing or invalid pin as unavailable. Local community trust
+and archive installation now implement UX-PACK00 as two independent
+no-default consents with exact file/profile custody, dry-run, content-addressed
+publication, and atomic profile pinning. Updates, refresh, removal/GC, and the
+contextual `/packs` REPL manager remain open.
 
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or

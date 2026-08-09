@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **fc714cc**
-(`feat(packs): load profile pins with anchored trust`). The current milestone
-exposes safe read-only Pack administration while preserving recovery when the
-executable registry fails closed. This file stays editable between milestone
-commits.
+Baseline at the start of the current milestone: **6c16646**
+(`feat(packs): expose recoverable Pack inspection`). The current milestone
+adds separate, recoverable community-publisher trust and local Pack-install
+consent, binding each acceptance to exact source bytes and profile revision.
+This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -281,6 +281,17 @@ commits.
   available. The read-only manager structurally inspects each pin and renders
   missing, corrupt, revoked, untrusted, or colliding registry state as
   unavailable rather than granting partial execution.
+- `lant packs trust <key-file>` and `lant packs install <archive>` now use the
+  shared persisted Interaction contract. Community trust shows the complete
+  validated fingerprint and returns to a still-unapproved installation
+  preview; installation shows every component kind and declared host,
+  credential, effect, and local-UI authority with no Enter default.
+- pending consent retains no archive or key bytes. Acceptance safely reopens
+  and authenticates the exact file, rejects byte drift, refreshes without
+  carrying yes across profile drift, and compare-and-swaps the profile under
+  an exclusive lock. Archive publication precedes the exact pin, so a lost
+  race leaves only collectable content-addressed bytes. Dry-run persists none
+  of the checkpoint, trust, archive, or pin.
 
 ## Last green gate
 
@@ -313,8 +324,9 @@ community untrust, pin confinement, release equivocation, private/idempotent
 publication, tamper and symlink rejection, registry confinement, typed profile
 round-trips, catalog sequence/expiry, monotonic revocation, dual-signed root
 rotation, and private replayable catalog state. The full
-build, every Haskell suite, the isolated CLI end-to-end test, formatting, and
-targeted lint for the new Pack code pass. The CLI test now isolates all four
+build, every Haskell suite, the isolated CLI end-to-end test, and formatting
+pass. Targeted HLint review found only the documented repository baseline after
+the newly introduced hint was corrected. The CLI test now isolates all four
 XDG roots, so a developer's real profile cannot contaminate it. The aggregate
 `make ci` gate remains red only at the repository-wide HLint baseline; those
 pre-existing hints are outside this milestone and S09 remains in progress.
@@ -352,11 +364,13 @@ round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
 defense-in-depth route checks before credential resolution.
-The dedicated Pack-administration suite has 5 passing cases for the exact
-built-in list/detail projection, sparse read-only dry-run JSON, exact-name
-recovery, and a missing profile pin whose complete executable registry fails
-closed while `packs list` and ordinary Pack-free work remain available. The
-full Nix package build passes at this checkpoint.
+The dedicated Pack-administration suite has 12 focused cases for exact
+built-in list/detail projection, sparse read-only recovery, the complete
+community trust/install journey, separate standalone publisher trust,
+no-default previews, dry-run custody, closed canonical key transport,
+archive-byte invalidation, profile-drift regeneration, and locked profile
+compare-and-swap. Full milestone gates are recorded immediately before each
+signed milestone commit.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -381,10 +395,9 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement UX-PACK00 as the shared dumb-first CLI/REPL trust and local
-archive-install flow: full community-key fingerprint consent remains separate
-from the no-default Pack preview, and dry-run writes neither trust nor archive
-nor pin. Then publish the real official root/catalog, implement explicit
+Next, expose the implemented UX-PACK00 Interaction through the contextual
+`/packs` REPL manager and prove restored keyboard-only consent. Then publish
+the real official root/catalog, implement explicit
 refresh/update/remove/GC, and expose Microsoft account connection plus
 snapshot/synchronize/migrate orchestration. Cleanup remains a separately
 previewed effect. Google Calendar, remaining standard importers, and the local

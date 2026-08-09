@@ -115,6 +115,10 @@ module LittleAnt.Interaction (
   makeSourceResultEnvelope,
   makeImportPreflightEnvelope,
   makeImportResultEnvelope,
+  makePackInstallEnvelope,
+  makePackInstallResultEnvelope,
+  makePackTrustEnvelope,
+  makePackTrustResultEnvelope,
   makeRawAttachmentEnvelope,
   makeRawAttachmentResultEnvelope,
   makeRawUnderBrickEnvelope,
@@ -172,6 +176,9 @@ import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.Pack.Admin
+import LittleAnt.Pack.Format
+import LittleAnt.Pack.Trust
 import LittleAnt.Source
 import LittleAnt.Store
 
@@ -323,6 +330,10 @@ data Opportunity
   | SourceResultOpportunity UUIDv7 Text
   | ImportPreflightOpportunity Text SourcePreflight Bool
   | ImportResultOpportunity [UUIDv7] [UUIDv7] Bool
+  | PackInstallOpportunity PackInstallDraft
+  | PackTrustOpportunity PackTrustDraft
+  | PackInstallResultOpportunity PackArtifactIdentity
+  | PackTrustResultOpportunity TrustedCommunityPublisher
   | RawDestinationOpportunity UUIDv7 Int
   | RawGroupDiscoveryOpportunity UUIDv7
   | RawShelfNameOpportunity UUIDv7 Text
@@ -965,6 +976,131 @@ makeImportResultEnvelope identity cursor precondition now state imported reused 
   newRawSuffix = if dryRun then " new Raws would be preserved" else " new Raws preserved"
   existingRawSuffix = " already preserved"
   count = Text.pack . show . length
+
+makePackInstallEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackInstallDraft -> AuthenticatedPack -> InteractionEnvelope
+makePackInstallEnvelope identity cursor precondition now state draft authenticated =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (PackInstallOpportunity draft)
+    ( EnvelopeContent
+        "Install Pack?"
+        (Just (packName manifest))
+        ( [ packDisplayName manifest <> " " <> packVersion manifest
+          , "Publisher: " <> packPublisher manifest <> " · " <> packInstallTrustClass draft
+          , "Digest: sha256:" <> abbreviatedDigest (artifactArchiveDigest (packInstallArtifact draft))
+          , ""
+          , "Components:"
+          ]
+            <> fmap componentLine (packComponents manifest)
+            <> [ "HTTP: " <> orNone httpHosts
+               , "Credentials: " <> orNone credentials
+               , "External effects: " <> orNone effects
+               , "Local UI authority: " <> orNone localUiAuthority
+               ]
+        )
+        Nothing
+    )
+    actions
+    [CommandOption "packs" "/packs" "Inspect Packs and installation state", helpCommand, exitCommand]
+    (Just "binary_consent")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  manifest = structurallyValidManifest (authenticatedStructuralPack authenticated)
+  actions
+    | packInstallTrustClass draft == "untrusted" =
+        [ Action "pack.install.trust" "trust publisher..." "t" False "Inspect and separately trust this exact publisher key."
+        , Action "pack.install.back" "back" "b" False "Leave the candidate uninstalled and untrusted."
+        , Action "pack.install.unknown" "I don't know" "?" False "Explain the separate trust and installation decisions."
+        , moreAction
+        ]
+    | otherwise =
+        [ Action "pack.install.accept" "install" "i" False "Store this exact signed archive and pin its displayed components."
+        , Action "pack.install.back" "back" "b" False "Leave the candidate uninstalled."
+        , Action "pack.install.unknown" "I don't know" "?" False "Explain the authority granted by this installation."
+        , moreAction
+        ]
+  componentLine component =
+    let common = componentCommon component
+     in "  " <> componentKindText (componentKind common) <> ": " <> componentId common
+  executablePermissions = [permissions | ExecutableComponent _ _ permissions <- packComponents manifest]
+  httpHosts = Set.toAscList . Set.fromList $ httpPermissionHost <$> (permissionHttp =<< executablePermissions)
+  credentials =
+    Set.toAscList . Set.fromList $
+      [ credentialSlotId slot <> " (" <> credentialSchemeText (credentialSlotScheme slot) <> ")"
+      | permissions <- executablePermissions
+      , slot <- permissionCredentialSlots permissions
+      ]
+  effects = Set.toAscList . Set.fromList $ effectPermissionText <$> (permissionEffectPurposes =<< executablePermissions)
+  localUiAuthority =
+    Set.toAscList . Set.fromList $
+      [ componentId common <> " (" <> Text.intercalate ", " (hostCapabilityText <$> permissionHostCapabilities permissions) <> ")"
+      | ExecutableComponent common _ permissions <- packComponents manifest
+      , componentKind common == UIAdapterComponent
+      ]
+  orNone [] = "none"
+  orNone values = Text.intercalate ", " values
+
+makePackTrustEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackTrustDraft -> InteractionEnvelope
+makePackTrustEnvelope identity cursor precondition now state draft =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (PackTrustOpportunity draft)
+    ( EnvelopeContent
+        "Trust Pack publisher?"
+        (Just (communityPublisher publisher))
+        [ "Publisher: " <> communityPublisher publisher
+        , "Full fingerprint:"
+        , communityKeyFingerprint publisher
+        , ""
+        , "Trust is local to the selected profile. It does not install a Pack."
+        ]
+        Nothing
+    )
+    [ Action "pack.trust.accept" "trust" "t" False "Trust this exact publisher and public key in the selected profile."
+    , Action "pack.trust.back" "back" "b" False "Leave this publisher untrusted."
+    , Action "pack.trust.unknown" "I don't know" "?" False "Explain publisher-key trust without changing it."
+    , moreAction
+    ]
+    [CommandOption "packs" "/packs" "Inspect trusted publishers and Packs", helpCommand, exitCommand]
+    (Just "binary_consent")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  publisher = packTrustPublisher draft
+
+makePackInstallResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackArtifactIdentity -> InteractionEnvelope
+makePackInstallResultEnvelope identity cursor precondition now state artifact =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (PackInstallResultOpportunity artifact)
+    "Pack installed."
+    [artifactName artifact <> " " <> artifactVersion artifact, "sha256:" <> abbreviatedDigest (artifactArchiveDigest artifact)]
+
+makePackTrustResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> TrustedCommunityPublisher -> InteractionEnvelope
+makePackTrustResultEnvelope identity cursor precondition now state publisher =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (PackTrustResultOpportunity publisher)
+    "Publisher trusted."
+    [communityPublisher publisher, communityKeyFingerprint publisher]
+
+abbreviatedDigest :: Text -> Text
+abbreviatedDigest digest = Text.take 8 digest <> "…" <> Text.takeEnd 4 digest
 
 rawDetailBody :: State -> Raw -> [Text]
 rawDetailBody state raw =
@@ -3827,6 +3963,10 @@ opportunityValue = \case
   SourceResultOpportunity identity result -> typed "source_result" ["raw_id" .= renderUUIDv7 identity, "result" .= result]
   ImportPreflightOpportunity source preflight eraseAfterImport -> typed "import_preflight" ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
   ImportResultOpportunity imported reused cleanupReady -> typed "import_result" ["imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
+  PackInstallOpportunity draft -> typed "pack_install" ["draft" .= draft]
+  PackTrustOpportunity draft -> typed "pack_trust" ["draft" .= draft]
+  PackInstallResultOpportunity artifact -> typed "pack_install_result" ["artifact" .= artifact]
+  PackTrustResultOpportunity publisher -> typed "pack_trust_result" ["publisher" .= publisher]
   RawDestinationOpportunity identity page -> typed "raw_destination" ["raw_id" .= renderUUIDv7 identity, "page" .= page]
   RawGroupDiscoveryOpportunity rawId -> typed "raw_group_discovery" ["raw_id" .= renderUUIDv7 rawId]
   RawShelfNameOpportunity rawId name -> typed "raw_shelf_name" ["raw_id" .= renderUUIDv7 rawId, "name" .= name]
@@ -4025,6 +4165,10 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "source_result" -> SourceResultOpportunity <$> uuidField value "raw_id" <*> value .: "result"
     "import_preflight" -> ImportPreflightOpportunity <$> value .: "source" <*> value .: "preflight" <*> value .: "erase_after_import"
     "import_result" -> ImportResultOpportunity <$> (value .: "imported_raw_ids" >>= traverse parseUuid) <*> (value .: "reused_raw_ids" >>= traverse parseUuid) <*> value .: "cleanup_ready"
+    "pack_install" -> PackInstallOpportunity <$> value .: "draft"
+    "pack_trust" -> PackTrustOpportunity <$> value .: "draft"
+    "pack_install_result" -> PackInstallResultOpportunity <$> value .: "artifact"
+    "pack_trust_result" -> PackTrustResultOpportunity <$> value .: "publisher"
     "raw_destination" -> RawDestinationOpportunity <$> uuidField value "raw_id" <*> value .: "page"
     "raw_group_discovery" -> RawGroupDiscoveryOpportunity <$> uuidField value "raw_id"
     "raw_shelf_name" -> RawShelfNameOpportunity <$> uuidField value "raw_id" <*> value .: "name"
