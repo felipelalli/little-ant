@@ -238,9 +238,10 @@ invokePackSourcePreflight :: PackRunnerClient -> RegisteredPackComponent -> Sour
 invokePackSourcePreflight client registered mode input =
   case prepareRequest client registered RunnerSourcePreflight (Just (sourceInputBytes input)) projection of
     Left problem -> pure (Left problem)
-    Right request -> case canonicalJsonBytes (toJSON request) of
-      Left problem -> pure (Left problem)
-      Right requestBytes ->
+    Right request -> case (canonicalJsonBytes (toJSON request), sourceInvocationAuthority registered) of
+      (Left problem, _) -> pure (Left problem)
+      (_, Left problem) -> pure (Left problem)
+      (Right requestBytes, Right (contractMajor, permissions)) ->
         invokeRunnerProcess client requestBytes >>= \case
           Left problem -> pure (Left problem)
           Right artifact -> pure $ do
@@ -249,6 +250,8 @@ invokePackSourcePreflight client registered mode input =
               (componentId (componentCommon (registeredComponent registered)))
               (registeredPackIdentity registered)
               (registeredSignerFingerprint registered)
+              contractMajor
+              permissions
               mode
               input
               observation
@@ -265,6 +268,14 @@ invokePackSourcePreflight client registered mode input =
             , "byte_count" .= ByteString.length (sourceInputBytes input)
             ]
       ]
+
+sourceInvocationAuthority :: RegisteredPackComponent -> Either AppError (Int, Text)
+sourceInvocationAuthority registered =
+  case registeredComponent registered of
+    ExecutableComponent common _ permissions -> do
+      encoded <- canonicalJsonBytes (toJSON permissions)
+      pure (componentContractMajor common, TextEncoding.decodeUtf8 encoded)
+    _ -> Left (runnerProblem Unsupported "A declarative Pack component has no executable invocation authority." [])
 
 prepareRequest :: PackRunnerClient -> RegisteredPackComponent -> RunnerOperation -> Maybe ByteString -> Value -> Either AppError RunnerRequest
 prepareRequest client registered operation input projection = do

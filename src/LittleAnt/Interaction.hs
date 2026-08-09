@@ -928,8 +928,8 @@ makeImportPreflightEnvelope identity cursor precondition now state profileName s
   warningLines = ("Warning: " <>) <$> observedWarnings observation
   count = Text.pack . show . length
 
-makeImportResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> [UUIDv7] -> [UUIDv7] -> Bool -> InteractionEnvelope
-makeImportResultEnvelope identity cursor precondition now state imported reused cleanupReady =
+makeImportResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> [UUIDv7] -> [UUIDv7] -> Bool -> Bool -> InteractionEnvelope
+makeImportResultEnvelope identity cursor precondition now state imported reused cleanupReady dryRun =
   sealed
     identity
     1
@@ -938,10 +938,10 @@ makeImportResultEnvelope identity cursor precondition now state imported reused 
     ChoiceGrammar
     (ImportResultOpportunity imported reused cleanupReady)
     ( EnvelopeContent
-        "Import verified."
+        (if dryRun then "Import simulation verified." else "Import verified.")
         Nothing
-        [ count imported <> " new Raws preserved · " <> count reused <> " already preserved"
-        , "0 source items changed"
+        [ count imported <> newRawSuffix <> " · " <> count reused <> existingRawSuffix
+        , if dryRun then "0 source items would change" else "0 source items changed"
         ]
         Nothing
     )
@@ -956,6 +956,8 @@ makeImportResultEnvelope identity cursor precondition now state imported reused 
  where
   triageAction = [Action "import.triage" "triage imported material" "t" False "Open ordinary lazy Raw triage." | not (null (imported <> reused))]
   cleanupAction = [Action "import.cleanup" "clean up the source..." "c" False "Open a separate exact cleanup approval." | cleanupReady]
+  newRawSuffix = if dryRun then " new Raws would be preserved" else " new Raws preserved"
+  existingRawSuffix = " already preserved"
   count = Text.pack . show . length
 
 rawDetailBody :: State -> Raw -> [Text]

@@ -38,16 +38,26 @@ completion observation, attachment count, a bounded material summary with its
 digest, duplicate-suspicion keys, unsupported fields, and warnings. The runner
 validates and canonically encodes that observation without echoing source bytes
 back across the process boundary. The host then joins it to the exact Pack
-identity, signer, requested mode, and input custody facts as
+identity, signer, component contract, canonical permissions, requested mode,
+and input custody facts as
 `little-ant/source-preflight@1`. Unsupported modes fail before canonical
 mutation.
 
+For the initial file boundary, the public `<source>` token is the input path.
+The host must resolve it to exactly one enabled adapter before execution. The
+standard registry maps `.txt` and `.text` to `plain_text`; an unknown or
+ambiguous format fails instead of guessing. Extension resolution selects an
+adapter only—it never invents supported modes or cleanup authority. The host
+rejects symbolic links and non-regular files, enforces a 64 MiB ceiling before
+and after reading, opens with `O_NOFOLLOW`, and hashes the bytes obtained from
+that opened descriptor.
+
 The first standard component, `plain_text`, identifies the entire UTF-8 file
-as one note-shaped source object for later Raw preservation. It supports
-snapshot and migration but no live observation or cleanup. This component
-establishes the boundary; `/import` selection, stale-preview acceptance,
-ImportProfile creation, Raw persistence, and cleanup review are separate
-following milestones.
+as one note-shaped source object for Raw preservation. It supports snapshot
+and migration but no live observation or cleanup. `/import` persists the
+complete preflight as a read-only checkpoint, reacquires the file through the
+same boundary on acceptance, and refreshes a stale preview without canonical
+mutation.
 
 ## Consequences
 

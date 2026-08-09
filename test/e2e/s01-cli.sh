@@ -44,6 +44,31 @@ lant_at "$profile_root" export taskjuggler --output "$taskjuggler_output" >/dev/
 grep -q '^# LANT-MANIFEST-SHA256: ' "$taskjuggler_output"
 tj3 --check-syntax --no-reports "$taskjuggler_output" >/dev/null
 
+import_root="$test_root/import-profile"
+plain_source="$test_root/notes.txt"
+printf '%s\n' 'First note' 'Second note' >"$plain_source"
+if lant_at "$import_root" import "$plain_source" >"$test_root/import-missing-mode.out" 2>"$test_root/import-missing-mode.err"; then
+  echo "import without an explicit mode unexpectedly succeeded" >&2
+  exit 1
+fi
+grep -q -- '--snapshot' "$test_root/import-missing-mode.err"
+if lant_at "$import_root" import "$plain_source" --mode snapshot >"$test_root/import-alias.out" 2>"$test_root/import-alias.err"; then
+  echo "removed import --mode grammar unexpectedly succeeded" >&2
+  exit 1
+fi
+grep -q -- '--mode' "$test_root/import-alias.err"
+import_json="$(lant_at "$import_root" --json import "$plain_source" --snapshot)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+interaction=value["interaction"]
+assert interaction["opportunity"]["type"] == "import_preflight"
+assert interaction["opportunity"]["preflight"]["mode"] == "snapshot"
+assert [action["id"] for action in interaction["actions"]] == ["import.accept", "import.back", "import.unknown", "palette.open"]
+assert not any(action["default"] for action in interaction["actions"])
+' <<<"$import_json"
+test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
+
 dry_root="$test_root/dry"
 lant_at "$dry_root" --json --dry-run feed milk >/dev/null
 test -z "$(find "$dry_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"

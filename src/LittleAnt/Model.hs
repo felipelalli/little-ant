@@ -41,6 +41,9 @@ module LittleAnt.Model (
   BrickTitleNormalization (..),
   ImportProfileLifecycle (..),
   ImportProfile (..),
+  ImportObjectDisposition (..),
+  ImportObjectMapping (..),
+  ImportInvocation (..),
   SourceMode (..),
   SourceCheckPolicy (..),
   SourceBindingLifecycle (..),
@@ -196,17 +199,41 @@ data ImportProfile = ImportProfile
   , importProfileSourceLabel :: Text
   , importProfileAccountLabel :: Maybe Text
   , importProfileInputReference :: Text
-  , importProfileInputDigest :: Text
-  , importProfileInputByteCount :: Int
   , importProfileMode :: SourceMode
   , importProfileCleanupSupported :: Bool
-  , importProfilePackName :: Text
-  , importProfilePackVersion :: Text
-  , importProfilePackManifestDigest :: Text
-  , importProfilePackArchiveDigest :: Text
-  , importProfileSignerFingerprint :: Text
   , importProfileLifecycle :: ImportProfileLifecycle
   , importProfileRevision :: Int
+  }
+  deriving stock (Eq, Show)
+
+data ImportObjectDisposition = ImportCreatedRaw | ImportReusedRaw
+  deriving stock (Bounded, Enum, Eq, Ord, Show)
+
+data ImportObjectMapping = ImportObjectMapping
+  { importObjectExternalIdentity :: Text
+  , importObjectRawId :: UUIDv7
+  , importObjectDisposition :: ImportObjectDisposition
+  }
+  deriving stock (Eq, Show)
+
+data ImportInvocation = ImportInvocation
+  { importInvocationId :: UUIDv7
+  , importInvocationProfileId :: UUIDv7
+  , importInvocationComponentId :: Text
+  , importInvocationContractMajor :: Int
+  , importInvocationPermissions :: Text
+  , importInvocationInputLabel :: Text
+  , importInvocationInputMediaType :: Text
+  , importInvocationInputDigest :: Text
+  , importInvocationInputByteCount :: Int
+  , importInvocationMode :: SourceMode
+  , importInvocationPackPublisher :: Text
+  , importInvocationPackName :: Text
+  , importInvocationPackVersion :: Text
+  , importInvocationPackManifestDigest :: Text
+  , importInvocationPackArchiveDigest :: Text
+  , importInvocationSignerFingerprint :: Text
+  , importInvocationMappings :: [ImportObjectMapping]
   }
   deriving stock (Eq, Show)
 
@@ -1042,6 +1069,7 @@ data State = State
   , stateBrickTitleNormalizations :: Map UUIDv7 BrickTitleNormalization
   , stateCurrentBrickTitleNormalizations :: Map UUIDv7 UUIDv7
   , stateImportProfiles :: Map UUIDv7 ImportProfile
+  , stateImportInvocations :: Map UUIDv7 ImportInvocation
   , stateSourceBindings :: Map UUIDv7 SourceBinding
   , stateSourceObservations :: Map UUIDv7 SourceObservation
   , stateSourceReconciliations :: Map UUIDv7 SourceReconciliation
@@ -1112,6 +1140,7 @@ emptyState =
     , stateBrickTitleNormalizations = Map.empty
     , stateCurrentBrickTitleNormalizations = Map.empty
     , stateImportProfiles = Map.empty
+    , stateImportInvocations = Map.empty
     , stateSourceBindings = Map.empty
     , stateSourceObservations = Map.empty
     , stateSourceReconciliations = Map.empty

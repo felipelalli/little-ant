@@ -7,7 +7,8 @@ module LittleAnt.Import (
 )
 where
 
-import Control.Exception (IOException, displayException, try)
+import Control.Exception (IOException, displayException, finally, try)
+import Control.Monad (void)
 import Data.ByteString qualified as ByteString
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -17,7 +18,9 @@ import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
 import LittleAnt.Source
 import System.FilePath (normalise, takeExtension, takeFileName)
-import System.Posix.Files (fileSize, getSymbolicLinkStatus, isRegularFile, isSymbolicLink)
+import System.IO (hClose)
+import System.Posix.Files (fileSize, getFdStatus, getSymbolicLinkStatus, isRegularFile, isSymbolicLink)
+import System.Posix.IO (OpenMode (ReadOnly), cloexec, closeFd, defaultFileFlags, fdToHandle, nofollow, openFd)
 import System.Posix.Types (FileOffset)
 
 data ImportSourceDescriptor = ImportSourceDescriptor
@@ -93,10 +96,8 @@ readPlainTextInput source
                   { appErrorDetails = ["Maximum bytes: " <> Text.pack (show maximumInputBytes)]
                   }
           | otherwise -> do
-              loaded <- try (ByteString.readFile path)
-              pure $ case loaded of
-                Left problem -> Left (readProblem source problem)
-                Right bytes -> Right (SourceInput (Text.pack (takeFileName path)) "text/plain; charset=utf-8" bytes)
+              loaded <- readOpenedRegularFile source path
+              pure $ SourceInput (Text.pack (takeFileName path)) "text/plain; charset=utf-8" <$> loaded
  where
   stripped = Text.strip source
   path = Text.unpack stripped
@@ -107,6 +108,33 @@ normalizedReference = Text.pack . normalise . Text.unpack . Text.strip
 
 maximumInputBytes :: FileOffset
 maximumInputBytes = 64 * 1024 * 1024
+
+readOpenedRegularFile :: Text -> FilePath -> IO (Either AppError ByteString.ByteString)
+readOpenedRegularFile source path =
+  try (openFd path ReadOnly defaultFileFlags{nofollow = True, cloexec = True}) >>= \case
+    Left problem -> pure (Left (readProblem source problem))
+    Right descriptor ->
+      try (getFdStatus descriptor) >>= \case
+        Left problem -> closeQuietly descriptor >> pure (Left (readProblem source problem))
+        Right status
+          | not (isRegularFile status) -> closeQuietly descriptor >> pure (Left (sourceProblem PreconditionFailed "A file import source must remain one regular file while it is opened."))
+          | fileSize status > maximumInputBytes -> closeQuietly descriptor >> pure (Left tooLarge)
+          | otherwise ->
+              try (fdToHandle descriptor) >>= \case
+                Left problem -> closeQuietly descriptor >> pure (Left (readProblem source problem))
+                Right handle -> do
+                  loaded <- try (ByteString.hGetContents handle `finally` hClose handle)
+                  pure $ case loaded of
+                    Left problem -> Left (readProblem source problem)
+                    Right bytes
+                      | fromIntegral (ByteString.length bytes) > maximumInputBytes -> Left tooLarge
+                      | otherwise -> Right bytes
+ where
+  tooLarge =
+    (sourceProblem PreconditionFailed "The selected file exceeds the bounded import-input limit.")
+      { appErrorDetails = ["Maximum bytes: " <> Text.pack (show maximumInputBytes)]
+      }
+  closeQuietly descriptor = void (try (closeFd descriptor) :: IO (Either IOException ()))
 
 readProblem :: Text -> IOException -> AppError
 readProblem source problem =

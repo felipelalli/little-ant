@@ -85,6 +85,8 @@ plainTextSourceAdapter = do
   let bytes = "First line\nSecond line\n"
       input = SourceInput "ideas.txt" "text/plain; charset=utf-8" bytes
   preflight <- invokePackSourcePreflight client registered SourceMigrate input >>= assertRight
+  sourcePreflightContractMajor preflight @?= 1
+  assertBool "standard preflight omitted its input authority" ("input_bytes" `Text.isInfixOf` sourcePreflightPermissions preflight)
   sourcePreflightInputDigest preflight @?= sha256Hex bytes
   observedSourceLabel (sourcePreflightObservation preflight) @?= "Plain text file"
   observedCleanupSupported (sourcePreflightObservation preflight) @?= False

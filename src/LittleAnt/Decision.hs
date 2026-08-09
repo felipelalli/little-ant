@@ -132,6 +132,7 @@ data FeedDecision = FeedDecision
 data ImportAcceptanceDecision = ImportAcceptanceDecision
   { importAcceptanceCommandId :: Maybe UUIDv7
   , importAcceptanceProfileId :: UUIDv7
+  , importAcceptanceInvocationId :: UUIDv7
   , importAcceptanceImportedRaws :: [UUIDv7]
   , importAcceptanceReusedRaws :: [UUIDv7]
   , importAcceptanceEvents :: [EventDraft]
@@ -308,6 +309,7 @@ statePreconditionHash state =
     , "english-normalizations:" <> Text.pack (show (Map.toAscList (stateEnglishNormalizations state)))
     , "brick-title-normalizations:" <> Text.pack (show (Map.toAscList (stateBrickTitleNormalizations state)))
     , "import-profiles:" <> Text.pack (show (Map.toAscList (stateImportProfiles state)))
+    , "import-invocations:" <> Text.pack (show (Map.toAscList (stateImportInvocations state)))
     , "source-bindings:" <> Text.pack (show (Map.toAscList (stateSourceBindings state)))
     , "source-observations:" <> Text.pack (show (Map.toAscList (stateSourceObservations state)))
     , "source-reconciliations:" <> Text.pack (show (Map.toAscList (stateSourceReconciliations state)))
@@ -381,55 +383,51 @@ importAcceptanceUUIDCount :: State -> Text -> SourcePreflight -> Either AppError
 importAcceptanceUUIDCount state sourceReference preflight = do
   (sourceObject, _) <- validatePlainTextAcceptance sourceReference preflight
   profile <- uniqueMatchingProfile state sourceReference preflight
-  existing <- existingImportedRaw state (importProfileId <$> profile) preflight sourceObject
-  pure $ case (profile, existing) of
-    (Just _, Just _) -> 0
-    (Just _, Nothing) -> 5
-    (Nothing, Nothing) -> 7
-    (Nothing, Just _) -> 0
+  case profile of
+    Nothing -> pure 9
+    Just existingProfile -> do
+      invocation <- uniqueMatchingInvocation state (importProfileId existingProfile) preflight
+      case invocation of
+        Just prior -> validateExistingInvocation state sourceObject prior >> pure 0
+        Nothing -> do
+          existing <- existingImportedRaw state (Just (importProfileId existingProfile)) preflight sourceObject
+          pure (if isJust existing then 3 else 7)
 
 decideAcceptFileImport :: State -> Actor -> Text -> SourceInput -> SourcePreflight -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
 decideAcceptFileImport state actor sourceReference input preflight facts = do
   (sourceObject, identity) <- validatePlainTextAcceptance sourceReference preflight
   content <- validateInputCustody input preflight
   profileMatch <- uniqueMatchingProfile state sourceReference preflight
-  existing <- existingImportedRaw state (importProfileId <$> profileMatch) preflight sourceObject
-  case (profileMatch, existing) of
-    (Just profile, Just raw) ->
-      pure (ImportAcceptanceDecision Nothing (importProfileId profile) [] [rawId raw] [])
-    (Nothing, Just _) -> Left (appError CorruptData "An imported Raw exists without its owning ImportProfile.")
+  priorInvocation <- case profileMatch of
+    Nothing -> pure Nothing
+    Just profile -> uniqueMatchingInvocation state (importProfileId profile) preflight
+  case (profileMatch, priorInvocation) of
+    (Just profile, Just invocation) -> do
+      raw <- validateExistingInvocation state sourceObject invocation
+      pure (ImportAcceptanceDecision Nothing (importProfileId profile) (importInvocationId invocation) [] [rawId raw] [])
     _ -> do
-      let allocationCount = if isJust profileMatch then 5 else 7
+      existing <- case profileMatch of
+        Nothing -> pure Nothing
+        Just profile -> existingImportedRaw state (Just (importProfileId profile)) preflight sourceObject
+      let allocationCount = case (profileMatch, existing) of
+            (Nothing, Nothing) -> 9
+            (Just _, Nothing) -> 7
+            (Just _, Just _) -> 3
+            (Nothing, Just _) -> 0
+      when (allocationCount == 0) $ Left (appError CorruptData "An imported Raw exists without its owning ImportProfile.")
       allocated <- requireUUIDs allocationCount facts
       case allocated of
         commandId : remainder -> do
-          (profile, profileEvents, objectAllocations) <- allocateProfile allocated commandId remainder profileMatch identity
-          (rawIdValue, rawEventId, bindingId, bindingEventId) <- exactlyFour objectAllocations
-          let rawHandleValue = allocateHandle RawHandle (stateRetiredRawHandles state) (rawSeed (sourceObjectTitle sourceObject))
-              rawPayload = RawFed rawIdValue rawHandleValue (sourceObjectTitle sourceObject) ("import:" <> sourcePreflightAdapterId preflight) (Just content)
-              binding =
-                SourceBinding
-                  bindingId
-                  rawIdValue
-                  (sourcePreflightAdapterId preflight)
-                  (Just (importProfileId profile))
-                  (Just (sourceObjectExternalId sourceObject))
-                  (sourceObjectContainerId sourceObject)
-                  (sourceObjectLocator sourceObject)
-                  (sourcePreflightMode preflight)
-                  SourceManualCheck
-                  SourceBindingActive
-                  Nothing
-                  1
-              events =
-                profileEvents
-                  <> [ makeDraft facts actor state allocated rawEventId commandId (RawFedV1 rawPayload)
-                     , makeDraft facts actor state allocated bindingEventId commandId (SourceBindingChangedV1 (SourceBindingChanged binding))
-                     ]
-          pure (ImportAcceptanceDecision (Just commandId) (importProfileId profile) [rawIdValue] [] events)
+          (profile, profileEvents, afterProfile) <- allocateProfile allocated commandId remainder profileMatch
+          (invocationId, invocationEventId, objectAllocations) <- takeInvocationAllocation afterProfile
+          (objectEvents, mapping, imported, reused) <- allocateObject sourceObject content allocated commandId profile objectAllocations existing
+          let invocation = buildInvocation invocationId profile mapping identity
+              invocationEvent = makeDraft facts actor state allocated invocationEventId commandId (ImportInvocationRecordedV1 (ImportInvocationRecorded invocation))
+              events = profileEvents <> objectEvents <> [invocationEvent]
+          pure (ImportAcceptanceDecision (Just commandId) (importProfileId profile) invocationId imported reused events)
         [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
  where
-  allocateProfile allocated commandId remainder profileMatch identity = case profileMatch of
+  allocateProfile allocated commandId remainder profileMatch = case profileMatch of
     Just profile -> pure (profile, [], remainder)
     Nothing -> case remainder of
       profileId : profileEventId : objectAllocations -> do
@@ -441,20 +439,62 @@ decideAcceptFileImport state actor sourceReference input preflight facts = do
                 (observedSourceLabel observation)
                 (observedAccountLabel observation)
                 (Text.strip sourceReference)
-                (sourcePreflightInputDigest preflight)
-                (sourcePreflightInputByteCount preflight)
                 (sourcePreflightMode preflight)
                 (observedCleanupSupported observation)
-                (artifactName identity)
-                (artifactVersion identity)
-                (artifactManifestDigest identity)
-                (artifactArchiveDigest identity)
-                (sourcePreflightSignerFingerprint preflight)
                 ImportProfileActive
                 1
             event = makeDraft facts actor state allocated profileEventId commandId (ImportProfileChangedV1 (ImportProfileChanged profile))
         pure (profile, [event], objectAllocations)
       _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+  takeInvocationAllocation = \case
+    invocationId : invocationEventId : rest -> Right (invocationId, invocationEventId, rest)
+    _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+  allocateObject sourceObject content allocated commandId profile objectAllocations = \case
+    Just raw -> do
+      unless (null objectAllocations) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      pure ([], ImportObjectMapping (sourceObjectExternalId sourceObject) (rawId raw) ImportReusedRaw, [], [rawId raw])
+    Nothing -> do
+      (rawIdValue, rawEventId, bindingId, bindingEventId) <- exactlyFour objectAllocations
+      let rawHandleValue = allocateHandle RawHandle (stateRetiredRawHandles state) (rawSeed (sourceObjectTitle sourceObject))
+          rawPayload = RawFed rawIdValue rawHandleValue (sourceObjectTitle sourceObject) ("import:" <> sourcePreflightAdapterId preflight) (Just content)
+          binding =
+            SourceBinding
+              bindingId
+              rawIdValue
+              (sourcePreflightAdapterId preflight)
+              (Just (importProfileId profile))
+              (Just (sourceObjectExternalId sourceObject))
+              (sourceObjectContainerId sourceObject)
+              (sourceObjectLocator sourceObject)
+              (sourcePreflightMode preflight)
+              SourceManualCheck
+              SourceBindingActive
+              Nothing
+              1
+          events =
+            [ makeDraft facts actor state allocated rawEventId commandId (RawFedV1 rawPayload)
+            , makeDraft facts actor state allocated bindingEventId commandId (SourceBindingChangedV1 (SourceBindingChanged binding))
+            ]
+      pure (events, ImportObjectMapping (sourceObjectExternalId sourceObject) rawIdValue ImportCreatedRaw, [rawIdValue], [])
+  buildInvocation invocationId profile mapping packIdentity =
+    ImportInvocation
+      invocationId
+      (importProfileId profile)
+      (sourcePreflightAdapterId preflight)
+      (sourcePreflightContractMajor preflight)
+      (sourcePreflightPermissions preflight)
+      (sourcePreflightInputLabel preflight)
+      (sourcePreflightInputMediaType preflight)
+      (sourcePreflightInputDigest preflight)
+      (sourcePreflightInputByteCount preflight)
+      (sourcePreflightMode preflight)
+      (artifactPublisher packIdentity)
+      (artifactName packIdentity)
+      (artifactVersion packIdentity)
+      (artifactManifestDigest packIdentity)
+      (artifactArchiveDigest packIdentity)
+      (sourcePreflightSignerFingerprint preflight)
+      [mapping]
 
 validatePlainTextAcceptance :: Text -> SourcePreflight -> Either AppError (SourceObject, PackArtifactIdentity)
 validatePlainTextAcceptance sourceReference preflight = do
@@ -494,19 +534,48 @@ uniqueMatchingProfile state sourceReference preflight =
   case filter matches (Map.elems (stateImportProfiles state)) of
     [] -> Right Nothing
     [profile] -> Right (Just profile)
-    _ -> Left (appError CorruptData "Several ImportProfiles claim the same source scope and custody facts.")
+    _ -> Left (appError CorruptData "Several active ImportProfiles claim the same source scope.")
  where
-  identity = sourcePreflightPackIdentity preflight
   matches profile =
     importProfileAdapterId profile == sourcePreflightAdapterId preflight
       && importProfileInputReference profile == Text.strip sourceReference
-      && importProfileInputDigest profile == sourcePreflightInputDigest preflight
       && importProfileMode profile == sourcePreflightMode preflight
-      && importProfilePackName profile == artifactName identity
-      && importProfilePackVersion profile == artifactVersion identity
-      && importProfilePackManifestDigest profile == artifactManifestDigest identity
-      && importProfilePackArchiveDigest profile == artifactArchiveDigest identity
-      && importProfileSignerFingerprint profile == sourcePreflightSignerFingerprint preflight
+      && importProfileLifecycle profile == ImportProfileActive
+
+uniqueMatchingInvocation :: State -> UUIDv7 -> SourcePreflight -> Either AppError (Maybe ImportInvocation)
+uniqueMatchingInvocation state profileId preflight =
+  case filter matches (Map.elems (stateImportInvocations state)) of
+    [] -> Right Nothing
+    [invocation] -> Right (Just invocation)
+    _ -> Left (appError CorruptData "Several ImportInvocations claim the same exact input custody.")
+ where
+  identity = sourcePreflightPackIdentity preflight
+  matches invocation =
+    importInvocationProfileId invocation == profileId
+      && importInvocationComponentId invocation == sourcePreflightAdapterId preflight
+      && importInvocationContractMajor invocation == sourcePreflightContractMajor preflight
+      && importInvocationPermissions invocation == sourcePreflightPermissions preflight
+      && importInvocationInputLabel invocation == sourcePreflightInputLabel preflight
+      && importInvocationInputMediaType invocation == sourcePreflightInputMediaType preflight
+      && importInvocationInputDigest invocation == sourcePreflightInputDigest preflight
+      && importInvocationInputByteCount invocation == sourcePreflightInputByteCount preflight
+      && importInvocationMode invocation == sourcePreflightMode preflight
+      && importInvocationPackPublisher invocation == artifactPublisher identity
+      && importInvocationPackName invocation == artifactName identity
+      && importInvocationPackVersion invocation == artifactVersion identity
+      && importInvocationPackManifestDigest invocation == artifactManifestDigest identity
+      && importInvocationPackArchiveDigest invocation == artifactArchiveDigest identity
+      && importInvocationSignerFingerprint invocation == sourcePreflightSignerFingerprint preflight
+
+validateExistingInvocation :: State -> SourceObject -> ImportInvocation -> Either AppError Raw
+validateExistingInvocation state sourceObject invocation =
+  case importInvocationMappings invocation of
+    [mapping]
+      | importObjectExternalIdentity mapping == sourceObjectExternalId sourceObject -> do
+          raw <- maybe (Left (appError CorruptData "An ImportInvocation maps to a missing Raw.")) Right (Map.lookup (importObjectRawId mapping) (stateRaws state))
+          validateImportedMaterial state sourceObject raw
+          pure raw
+    _ -> Left (appError CorruptData "An exact plain-text ImportInvocation has an inconsistent object mapping.")
 
 existingImportedRaw :: State -> Maybe UUIDv7 -> SourcePreflight -> SourceObject -> Either AppError (Maybe Raw)
 existingImportedRaw _ Nothing _ _ = Right Nothing
@@ -515,10 +584,7 @@ existingImportedRaw state (Just profileId) preflight sourceObject =
     [] -> Right Nothing
     [binding] -> do
       raw <- maybe (Left (appError CorruptData "An imported SourceBinding points to a missing Raw.")) Right (Map.lookup (sourceBindingRaw binding) (stateRaws state))
-      revisionId <- maybe (Left (appError CorruptData "An imported Raw has no current material revision.")) Right (Map.lookup (rawId raw) (stateCurrentRawRevisions state))
-      revision <- maybe (Left (appError CorruptData "An imported Raw current revision is missing.")) Right (Map.lookup revisionId (stateRawContentRevisions state))
-      unless (rawContentRevisionDigest revision == sourceMaterialDigest (sourceObjectMaterial sourceObject)) $
-        Left (appError Conflict "The source identity already maps to different local Raw material; reconcile it instead of importing a duplicate.")
+      validateImportedMaterial state sourceObject raw
       pure (Just raw)
     _ -> Left (appError CorruptData "Several SourceBindings claim one external identity inside the same ImportProfile.")
  where
@@ -529,6 +595,16 @@ existingImportedRaw state (Just profileId) preflight sourceObject =
     , sourceBindingKind binding == sourcePreflightAdapterId preflight
     , sourceBindingExternalIdentity binding == Just (sourceObjectExternalId sourceObject)
     ]
+
+validateImportedMaterial :: State -> SourceObject -> Raw -> Either AppError ()
+validateImportedMaterial state sourceObject raw = do
+  revisionId <- maybe (Left (appError CorruptData "An imported Raw has no current material revision.")) Right (Map.lookup (rawId raw) (stateCurrentRawRevisions state))
+  revision <- maybe (Left (appError CorruptData "An imported Raw current revision is missing.")) Right (Map.lookup revisionId (stateRawContentRevisions state))
+  importedDigest <- case rawContentRevisionContent revision of
+    RawTextContent text -> Right (sourceMaterialDigest (summarizeSourceMaterial (SourceTextMaterial text)))
+    _ -> Left (appError CorruptData "A plain-text SourceBinding points to non-text Raw material.")
+  unless (importedDigest == sourceMaterialDigest (sourceObjectMaterial sourceObject)) $
+    Left (appError Conflict "The source identity already maps to different local Raw material; reconcile it instead of importing a duplicate.")
 
 decideChangeSourceBinding :: State -> Actor -> UUIDv7 -> Text -> SourceCheckPolicy -> SourceBindingLifecycle -> Maybe UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
 decideChangeSourceBinding state actor bindingId locator policy lifecycle baseline facts = do

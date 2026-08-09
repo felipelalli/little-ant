@@ -52,6 +52,8 @@ authorizedSourceAdapter = do
       input = SourceInput "notes.txt" "text/plain; charset=utf-8" bytes
   preflight <- invokePackSourcePreflight client registered SourceSnapshot input >>= assertRight
   sourcePreflightAdapterId preflight @?= fixtureSourceId
+  sourcePreflightContractMajor preflight @?= 1
+  assertBool "preflight omitted exact invocation permissions" ("input_bytes" `Text.isInfixOf` sourcePreflightPermissions preflight)
   sourcePreflightInputDigest preflight @?= sha256Hex bytes
   sourcePreflightInputByteCount preflight @?= ByteString.length bytes
   observedSupportedModes (sourcePreflightObservation preflight) @?= [SourceSnapshot, SourceMigrate]

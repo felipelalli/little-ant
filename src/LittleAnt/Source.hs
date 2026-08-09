@@ -113,6 +113,8 @@ data SourcePreflight = SourcePreflight
   { sourcePreflightAdapterId :: Text
   , sourcePreflightPackIdentity :: PackArtifactIdentity
   , sourcePreflightSignerFingerprint :: Text
+  , sourcePreflightContractMajor :: Int
+  , sourcePreflightPermissions :: Text
   , sourcePreflightMode :: SourceMode
   , sourcePreflightInputLabel :: Text
   , sourcePreflightInputMediaType :: Text
@@ -181,9 +183,11 @@ validateSourceMaterial = \case
     when (Text.null (Text.strip value)) $
       Left (sourceProblem CorruptData ("A SourceAdapter returned empty " <> label <> "."))
 
-makeSourcePreflight :: Text -> PackArtifactIdentity -> Text -> SourceMode -> SourceInput -> SourceAdapterObservation -> Either AppError SourcePreflight
-makeSourcePreflight adapter identity signer mode input observation = do
+makeSourcePreflight :: Text -> PackArtifactIdentity -> Text -> Int -> Text -> SourceMode -> SourceInput -> SourceAdapterObservation -> Either AppError SourcePreflight
+makeSourcePreflight adapter identity signer contractMajor permissions mode input observation = do
   when (Text.null (Text.strip adapter)) $ Left (sourceProblem InvalidInput "A SourceAdapter identifier cannot be empty.")
+  when (contractMajor < 1) $ Left (sourceProblem InvalidInput "A SourceAdapter contract major must be positive.")
+  when (Text.null (Text.strip permissions)) $ Left (sourceProblem InvalidInput "SourceAdapter invocation permissions cannot be empty.")
   when (Text.null (Text.strip (sourceInputLabel input))) $ Left (sourceProblem InvalidInput "A source input label cannot be empty.")
   when (Text.null (Text.strip (sourceInputMediaType input))) $ Left (sourceProblem InvalidInput "A source input media type cannot be empty.")
   validateSourceAdapterObservation observation
@@ -204,6 +208,8 @@ makeSourcePreflight adapter identity signer mode input observation = do
       { sourcePreflightAdapterId = Text.strip adapter
       , sourcePreflightPackIdentity = identity
       , sourcePreflightSignerFingerprint = signer
+      , sourcePreflightContractMajor = contractMajor
+      , sourcePreflightPermissions = Text.strip permissions
       , sourcePreflightMode = mode
       , sourcePreflightInputLabel = Text.strip (sourceInputLabel input)
       , sourcePreflightInputMediaType = Text.strip (sourceInputMediaType input)
@@ -322,6 +328,8 @@ instance ToJSON SourcePreflight where
       , "adapter_id" .= sourcePreflightAdapterId preflight
       , "pack" .= sourcePreflightPackIdentity preflight
       , "signer_fingerprint" .= sourcePreflightSignerFingerprint preflight
+      , "contract_major" .= sourcePreflightContractMajor preflight
+      , "permissions" .= sourcePreflightPermissions preflight
       , "mode" .= sourceModeName (sourcePreflightMode preflight)
       , "input_label" .= sourcePreflightInputLabel preflight
       , "input_media_type" .= sourcePreflightInputMediaType preflight
@@ -332,7 +340,7 @@ instance ToJSON SourcePreflight where
 
 instance FromJSON SourcePreflight where
   parseJSON = withObject "SourcePreflight" $ \fields -> do
-    rejectUnknown fields ["schema", "adapter_id", "pack", "signer_fingerprint", "mode", "input_label", "input_media_type", "input_digest", "input_byte_count", "observation"]
+    rejectUnknown fields ["schema", "adapter_id", "pack", "signer_fingerprint", "contract_major", "permissions", "mode", "input_label", "input_media_type", "input_digest", "input_byte_count", "observation"]
     schema <- fields .: "schema"
     unless (schema == ("little-ant/source-preflight@1" :: Text)) $ fail "unsupported SourcePreflight schema"
     preflight <-
@@ -340,13 +348,16 @@ instance FromJSON SourcePreflight where
         <$> fields .: "adapter_id"
         <*> fields .: "pack"
         <*> fields .: "signer_fingerprint"
+        <*> fields .: "contract_major"
+        <*> fields .: "permissions"
         <*> (fields .: "mode" >>= parseSourceMode)
         <*> fields .: "input_label"
         <*> fields .: "input_media_type"
         <*> fields .: "input_digest"
         <*> fields .: "input_byte_count"
         <*> fields .: "observation"
-    when (any (Text.null . Text.strip) [sourcePreflightAdapterId preflight, sourcePreflightSignerFingerprint preflight, sourcePreflightInputLabel preflight, sourcePreflightInputMediaType preflight]) $ fail "SourcePreflight contains an empty custody field"
+    when (any (Text.null . Text.strip) [sourcePreflightAdapterId preflight, sourcePreflightSignerFingerprint preflight, sourcePreflightPermissions preflight, sourcePreflightInputLabel preflight, sourcePreflightInputMediaType preflight]) $ fail "SourcePreflight contains an empty custody field"
+    when (sourcePreflightContractMajor preflight < 1) $ fail "SourcePreflight contains an invalid contract major"
     unless (Text.length (sourcePreflightInputDigest preflight) == 64 && Text.all hexadecimal (sourcePreflightInputDigest preflight)) $ fail "SourcePreflight contains an invalid input digest"
     when (sourcePreflightInputByteCount preflight < 0) $ fail "SourcePreflight contains a negative input byte count"
     unless (sourcePreflightMode preflight `elem` observedSupportedModes (sourcePreflightObservation preflight)) $ fail "SourcePreflight mode is not supported by its observation"

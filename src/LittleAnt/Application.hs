@@ -1325,19 +1325,10 @@ runImport :: AppEnv -> Bool -> LoadedDataset -> Text -> SourceMode -> Bool -> IO
 runImport environment dryRun dataset source mode eraseAfterImport =
   importPortPreflight (appImportPort environment) source mode >>= \case
     Left problem -> pure (Left problem)
-    Right imported
-      | eraseAfterImport && mode /= SourceMigrate ->
-          pure . Left $
-            (appError Unsupported "--erase-after-import is valid only with --migrate.")
-              { appErrorRecovery = [RecoveryAction "migrate" "Use --migrate or omit source cleanup." Nothing]
-              }
-      | eraseAfterImport && not (observedCleanupSupported observation) ->
-          pure . Left $
-            (appError Unsupported "The selected SourceAdapter does not support source cleanup.")
-              { appErrorSubject = Just (sourcePreflightAdapterId preflight)
-              , appErrorRecovery = [RecoveryAction "ordinary-migration" "Run a verified migration without --erase-after-import." Nothing]
-              }
-      | otherwise -> do
+    Right imported ->
+      case validateImportCleanupRequest mode eraseAfterImport preflight of
+        Left problem -> pure (Left problem)
+        Right () -> do
           identity <- appAllocateUUID environment
           now <- appZonedNow environment
           let state = loadedState dataset
@@ -1357,7 +1348,22 @@ runImport environment dryRun dataset source mode eraseAfterImport =
           pure (Right (NextResult cursor envelope dryRun))
      where
       preflight = importReadPreflight imported
-      observation = sourcePreflightObservation preflight
+
+validateImportCleanupRequest :: SourceMode -> Bool -> SourcePreflight -> Either AppError ()
+validateImportCleanupRequest mode eraseAfterImport preflight
+  | not eraseAfterImport = Right ()
+  | mode /= SourceMigrate =
+      Left $
+        (appError Unsupported "--erase-after-import is valid only with --migrate.")
+          { appErrorRecovery = [RecoveryAction "migrate" "Use --migrate or omit source cleanup." Nothing]
+          }
+  | not (observedCleanupSupported (sourcePreflightObservation preflight)) =
+      Left $
+        (appError Unsupported "The selected SourceAdapter does not support source cleanup.")
+          { appErrorSubject = Just (sourcePreflightAdapterId preflight)
+          , appErrorRecovery = [RecoveryAction "ordinary-migration" "Run a verified migration without --erase-after-import." Nothing]
+          }
+  | otherwise = Right ()
 
 runExport :: AppEnv -> Bool -> LoadedDataset -> Text -> Maybe Text -> Maybe FilePath -> IO (Either AppError CommandResult)
 runExport environment dryRun dataset exporter requestedScope outputPath =
@@ -2683,61 +2689,65 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   acceptImport source expected eraseAfterImport =
     importPortPreflight (appImportPort environment) source (sourcePreflightMode expected) >>= \case
       Left problem -> pure (Left problem)
-      Right reread
-        | importReadSourceReference reread /= source || importReadPreflight reread /= expected -> do
-            let refreshed =
-                  makeImportPreflightEnvelope
-                    (envelopeInteractionId current)
-                    cursor
-                    precondition
-                    now
-                    state
-                    (actorProfile actor)
-                    (importReadSourceReference reread)
-                    eraseAfterImport
-                    (importReadPreflight reread)
-                staleEnvelope = appendBody (advanceEnvelope current refreshed) "The source or its signed adapter changed after the prior preview. Review this refreshed preflight before importing."
-            local staleEnvelope
-        | otherwise ->
-            case importAcceptanceUUIDCount state source expected of
-              Left problem -> pure (Left problem)
-              Right count -> do
-                facts <- runtimeFacts environment count cursor
-                case decideAcceptFileImport state actor source (importReadInput reread) expected facts of
+      Right reread ->
+        case validateImportCleanupRequest (sourcePreflightMode expected) eraseAfterImport (importReadPreflight reread) of
+          Left problem -> pure (Left problem)
+          Right ()
+            | importReadSourceReference reread /= source || importReadPreflight reread /= expected -> do
+                let refreshed =
+                      makeImportPreflightEnvelope
+                        (envelopeInteractionId current)
+                        cursor
+                        precondition
+                        now
+                        state
+                        (actorProfile actor)
+                        (importReadSourceReference reread)
+                        eraseAfterImport
+                        (importReadPreflight reread)
+                    staleEnvelope = appendBody (advanceEnvelope current refreshed) "The source or its signed adapter changed after the prior preview. Review this refreshed preflight before importing."
+                local staleEnvelope
+            | otherwise ->
+                case importAcceptanceUUIDCount state source expected of
                   Left problem -> pure (Left problem)
-                  Right decision -> do
-                    acceptedResult <-
-                      if null (importAcceptanceEvents decision)
-                        then pure (Right dataset)
-                        else persistOrSimulate environment dryRun dataset (importAcceptanceEvents decision)
-                    case acceptedResult of
+                  Right count -> do
+                    facts <- runtimeFacts environment count cursor
+                    case decideAcceptFileImport state actor source (importReadInput reread) expected facts of
                       Left problem -> pure (Left problem)
-                      Right accepted -> do
-                        identity <- appAllocateUUID environment
-                        currentNow <- appZonedNow environment
-                        let acceptedState = loadedState accepted
-                            cleanupReady =
-                              eraseAfterImport
-                                && sourcePreflightMode expected == SourceMigrate
-                                && observedCleanupSupported (sourcePreflightObservation expected)
-                            resultEnvelope =
-                              makeImportResultEnvelope
-                                identity
+                      Right decision -> do
+                        acceptedResult <-
+                          if null (importAcceptanceEvents decision)
+                            then pure (Right dataset)
+                            else persistOrSimulate environment dryRun dataset (importAcceptanceEvents decision)
+                        case acceptedResult of
+                          Left problem -> pure (Left problem)
+                          Right accepted -> do
+                            identity <- appAllocateUUID environment
+                            currentNow <- appZonedNow environment
+                            let acceptedState = loadedState accepted
+                                cleanupReady =
+                                  eraseAfterImport
+                                    && sourcePreflightMode expected == SourceMigrate
+                                    && observedCleanupSupported (sourcePreflightObservation expected)
+                                resultEnvelope =
+                                  makeImportResultEnvelope
+                                    identity
+                                    (loadedCursor accepted)
+                                    (statePreconditionHash acceptedState)
+                                    currentNow
+                                    acceptedState
+                                    (importAcceptanceImportedRaws decision)
+                                    (importAcceptanceReusedRaws decision)
+                                    cleanupReady
+                                    dryRun
+                                nextCheckpoint = PresentationCheckpoint resultEnvelope [] []
+                            saveUnlessDry environment dryRun nextCheckpoint
+                            pure . Right $
+                              RespondResult
                                 (loadedCursor accepted)
-                                (statePreconditionHash acceptedState)
-                                currentNow
-                                acceptedState
-                                (importAcceptanceImportedRaws decision)
-                                (importAcceptanceReusedRaws decision)
-                                cleanupReady
-                            nextCheckpoint = PresentationCheckpoint resultEnvelope [] []
-                        saveUnlessDry environment dryRun nextCheckpoint
-                        pure . Right $
-                          RespondResult
-                            (loadedCursor accepted)
-                            resultEnvelope
-                            (importAcceptanceCommandId decision)
-                            dryRun
+                                resultEnvelope
+                                (importAcceptanceCommandId decision)
+                                dryRun
 
   replaceWithFresh = do
     fresh <- freshCheckpoint environment dataset

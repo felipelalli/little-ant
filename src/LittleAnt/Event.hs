@@ -34,6 +34,7 @@ module LittleAnt.Event (
   EnglishNormalizationAccepted (..),
   BrickTitleNormalizationAccepted (..),
   ImportProfileChanged (..),
+  ImportInvocationRecorded (..),
   SourceBindingChanged (..),
   SourceObservationRecorded (..),
   SourceObservationReconciled (..),
@@ -139,6 +140,11 @@ newtype SourceBindingChanged = SourceBindingChanged
 
 newtype ImportProfileChanged = ImportProfileChanged
   { changedImportProfile :: ImportProfile
+  }
+  deriving stock (Eq, Show)
+
+newtype ImportInvocationRecorded = ImportInvocationRecorded
+  { recordedImportInvocation :: ImportInvocation
   }
   deriving stock (Eq, Show)
 
@@ -541,6 +547,7 @@ data EventPayload
   | EnglishNormalizationAcceptedV1 EnglishNormalizationAccepted
   | BrickTitleNormalizationAcceptedV1 BrickTitleNormalizationAccepted
   | ImportProfileChangedV1 ImportProfileChanged
+  | ImportInvocationRecordedV1 ImportInvocationRecorded
   | SourceBindingChangedV1 SourceBindingChanged
   | SourceObservationRecordedV1 SourceObservationRecorded
   | SourceObservationReconciledV1 SourceObservationReconciled
@@ -631,6 +638,7 @@ eventTypeName = \case
   EnglishNormalizationAcceptedV1 _ -> "english_normalization_accepted"
   BrickTitleNormalizationAcceptedV1 _ -> "brick_title_normalization_accepted"
   ImportProfileChangedV1 _ -> "import_profile_changed"
+  ImportInvocationRecordedV1 _ -> "import_invocation_recorded"
   SourceBindingChangedV1 _ -> "source_binding_changed"
   SourceObservationRecordedV1 _ -> "source_observation_recorded"
   SourceObservationReconciledV1 _ -> "source_observation_reconciled"
@@ -735,6 +743,7 @@ applyEvent state event = case persistedPayload event of
   EnglishNormalizationAcceptedV1 payload -> applyEnglishNormalizationAccepted state event payload
   BrickTitleNormalizationAcceptedV1 payload -> applyBrickTitleNormalizationAccepted state event payload
   ImportProfileChangedV1 payload -> applyImportProfileChanged state (changedImportProfile payload)
+  ImportInvocationRecordedV1 payload -> applyImportInvocationRecorded state event (recordedImportInvocation payload)
   SourceBindingChangedV1 payload -> applySourceBindingChanged state (changedSourceBinding payload)
   SourceObservationRecordedV1 payload -> applySourceObservationRecorded state event payload
   SourceObservationReconciledV1 payload -> applySourceObservationReconciled state event payload
@@ -1691,8 +1700,7 @@ applyBrickTitleNormalizationAccepted state event payload = do
 
 applyImportProfileChanged :: State -> ImportProfile -> Either AppError State
 applyImportProfileChanged state profile = do
-  when (any (Text.null . Text.strip) requiredText) $ corrupt "An ImportProfile contains an empty custody field."
-  when (importProfileInputByteCount profile < 0) $ corrupt "An ImportProfile input byte count cannot be negative."
+  when (any (Text.null . Text.strip) requiredText) $ corrupt "An ImportProfile contains an empty source-scope field."
   case Map.lookup (importProfileId profile) (stateImportProfiles state) of
     Nothing -> unless (importProfileRevision profile == 1) $ corrupt "A new ImportProfile must start at revision one."
     Just previous -> do
@@ -1708,13 +1716,63 @@ applyImportProfileChanged state profile = do
     [ importProfileAdapterId profile
     , importProfileSourceLabel profile
     , importProfileInputReference profile
-    , importProfileInputDigest profile
-    , importProfilePackName profile
-    , importProfilePackVersion profile
-    , importProfilePackManifestDigest profile
-    , importProfilePackArchiveDigest profile
-    , importProfileSignerFingerprint profile
     ]
+
+applyImportInvocationRecorded :: State -> PersistedEvent -> ImportInvocation -> Either AppError State
+applyImportInvocationRecorded state event invocation = do
+  profile <- case Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state) of
+    Nothing -> corrupt "An ImportInvocation references a missing ImportProfile."
+    Just value -> Right value
+  when (Map.member (importInvocationId invocation) (stateImportInvocations state)) $ corrupt "An ImportInvocation identity was recorded twice."
+  when (any (Text.null . Text.strip) requiredText) $ corrupt "An ImportInvocation contains an empty custody field."
+  when (importInvocationContractMajor invocation < 1) $ corrupt "An ImportInvocation contract major must be positive."
+  when (importInvocationInputByteCount invocation < 0) $ corrupt "An ImportInvocation input byte count cannot be negative."
+  traverse_ requireDigest digestFields
+  when (null mappings) $ corrupt "An ImportInvocation must attribute at least one source object."
+  unless (unique (importObjectExternalIdentity <$> mappings)) $ corrupt "An ImportInvocation repeats one external identity."
+  unless
+    ( importProfileAdapterId profile == importInvocationComponentId invocation
+        && importProfileMode profile == importInvocationMode invocation
+    )
+    $ corrupt "An ImportInvocation does not match its ImportProfile scope."
+  traverse_ validateMapping mappings
+  pure . bump $ state{stateImportInvocations = Map.insert (importInvocationId invocation) invocation (stateImportInvocations state)}
+ where
+  mappings = importInvocationMappings invocation
+  requiredText =
+    [ importInvocationComponentId invocation
+    , importInvocationPermissions invocation
+    , importInvocationInputLabel invocation
+    , importInvocationInputMediaType invocation
+    , importInvocationPackPublisher invocation
+    , importInvocationPackName invocation
+    , importInvocationPackVersion invocation
+    , importInvocationSignerFingerprint invocation
+    ]
+  digestFields =
+    [ importInvocationInputDigest invocation
+    , importInvocationPackManifestDigest invocation
+    , importInvocationPackArchiveDigest invocation
+    ]
+  requireDigest digest =
+    unless (Text.length digest == 64 && Text.all lowerHex digest) $
+      corrupt "An ImportInvocation contains an invalid SHA-256 digest."
+  lowerHex character = (character >= '0' && character <= '9') || (character >= 'a' && character <= 'f')
+  unique values = Set.size (Set.fromList values) == length values
+  validateMapping mapping = do
+    when (Text.null (Text.strip (importObjectExternalIdentity mapping))) $ corrupt "An ImportInvocation mapping has an empty external identity."
+    raw <- requireRaw state (importObjectRawId mapping)
+    let matchingBindings =
+          [ binding
+          | binding <- Map.elems (stateSourceBindings state)
+          , sourceBindingImportProfile binding == Just (importInvocationProfileId invocation)
+          , sourceBindingExternalIdentity binding == Just (importObjectExternalIdentity mapping)
+          , sourceBindingRaw binding == importObjectRawId mapping
+          ]
+    unless (length matchingBindings == 1) $ corrupt "An ImportInvocation mapping has no unique SourceBinding."
+    case importObjectDisposition mapping of
+      ImportCreatedRaw -> unless (rawCreatedByCommand raw == persistedCommandId event) $ corrupt "An ImportInvocation labels a pre-existing Raw as newly created."
+      ImportReusedRaw -> when (rawCreatedByCommand raw == persistedCommandId event) $ corrupt "An ImportInvocation labels a newly created Raw as reused."
 
 applySourceBindingChanged :: State -> SourceBinding -> Either AppError State
 applySourceBindingChanged state binding = do
@@ -2473,6 +2531,7 @@ payloadValue = \case
   BrickTitleNormalizationAcceptedV1 payload ->
     object $ ["brick_id" .= uuid (acceptedTitleNormalizationBrick payload), "previous" .= acceptedTitleNormalizationPrevious payload, "current" .= acceptedTitleNormalizationCurrent payload, "source" .= normalizationSourceText (acceptedTitleNormalizationSource payload)] <> maybe [] (pure . ("producer" .=)) (acceptedTitleNormalizationProducer payload) <> maybe [] (pure . ("confidence" .=) . unFixed) (acceptedTitleNormalizationConfidence payload)
   ImportProfileChangedV1 payload -> importProfileValue (changedImportProfile payload)
+  ImportInvocationRecordedV1 payload -> importInvocationValue (recordedImportInvocation payload)
   SourceBindingChangedV1 payload -> sourceBindingValue (changedSourceBinding payload)
   SourceObservationRecordedV1 payload ->
     object $ ["binding_id" .= uuid (recordedSourceObservationBinding payload), "locator" .= recordedSourceObservationLocator payload, "outcome" .= sourceObservationOutcomeText (recordedSourceObservationOutcome payload)] <> maybe [] (pure . ("provider_version" .=)) (recordedSourceObservationProviderVersion payload) <> maybe [] (pure . ("fingerprint" .=)) (recordedSourceObservationFingerprint payload) <> maybe [] (pure . ("snapshot_digest" .=)) (recordedSourceObservationSnapshotDigest payload) <> maybe [] (pure . ("snapshot" .=) . rawContentValue) (recordedSourceObservationSnapshot payload)
@@ -2776,6 +2835,7 @@ parsePayload eventType version payload = case (eventType, version) of
   ("english_normalization_accepted", 1) -> EnglishNormalizationAcceptedV1 <$> parseEnglishNormalizationAccepted payload
   ("brick_title_normalization_accepted", 1) -> BrickTitleNormalizationAcceptedV1 <$> parseBrickTitleNormalizationAccepted payload
   ("import_profile_changed", 1) -> ImportProfileChangedV1 . ImportProfileChanged <$> parseImportProfile payload
+  ("import_invocation_recorded", 1) -> ImportInvocationRecordedV1 . ImportInvocationRecorded <$> parseImportInvocation payload
   ("source_binding_changed", 1) -> SourceBindingChangedV1 . SourceBindingChanged <$> parseSourceBinding payload
   ("source_observation_recorded", 1) -> SourceObservationRecordedV1 <$> parseSourceObservationRecorded payload
   ("source_observation_reconciled", 1) -> SourceObservationReconciledV1 <$> parseSourceObservationReconciled payload
@@ -3072,17 +3132,41 @@ parsePayload eventType version payload = case (eventType, version) of
       <*> value .: "source_label"
       <*> value .:? "account_label"
       <*> value .: "input_reference"
+      <*> (value .: "mode" >>= parseSourceMode)
+      <*> value .: "cleanup_supported"
+      <*> (value .: "lifecycle" >>= parseImportProfileLifecycle)
+      <*> value .: "revision"
+
+  parseImportObjectDisposition :: Text -> Parser ImportObjectDisposition
+  parseImportObjectDisposition = \case "created_raw" -> pure ImportCreatedRaw; "reused_raw" -> pure ImportReusedRaw; _ -> fail "unknown import object disposition"
+
+  parseImportObjectMapping :: Value -> Parser ImportObjectMapping
+  parseImportObjectMapping = withObject "ImportObjectMapping" $ \value ->
+    ImportObjectMapping
+      <$> value .: "external_identity"
+      <*> (value .: "raw_id" >>= parseId)
+      <*> (value .: "disposition" >>= parseImportObjectDisposition)
+
+  parseImportInvocation :: Value -> Parser ImportInvocation
+  parseImportInvocation = withObject "ImportInvocation" $ \value ->
+    ImportInvocation
+      <$> (value .: "import_invocation_id" >>= parseId)
+      <*> (value .: "import_profile_id" >>= parseId)
+      <*> value .: "component_id"
+      <*> value .: "contract_major"
+      <*> value .: "permissions"
+      <*> value .: "input_label"
+      <*> value .: "input_media_type"
       <*> value .: "input_digest"
       <*> value .: "input_byte_count"
       <*> (value .: "mode" >>= parseSourceMode)
-      <*> value .: "cleanup_supported"
+      <*> value .: "pack_publisher"
       <*> value .: "pack_name"
       <*> value .: "pack_version"
       <*> value .: "pack_manifest_digest"
       <*> value .: "pack_archive_digest"
       <*> value .: "signer_fingerprint"
-      <*> (value .: "lifecycle" >>= parseImportProfileLifecycle)
-      <*> value .: "revision"
+      <*> (value .: "mappings" >>= traverse parseImportObjectMapping)
 
   parseSourceLifecycle :: Text -> Parser SourceBindingLifecycle
   parseSourceLifecycle = \case "active" -> pure SourceBindingActive; "paused" -> pure SourceBindingPaused; "detached" -> pure SourceBindingDetached; _ -> fail "unknown source lifecycle"
@@ -3205,19 +3289,45 @@ importProfileValue profile =
     , "adapter_id" .= importProfileAdapterId profile
     , "source_label" .= importProfileSourceLabel profile
     , "input_reference" .= importProfileInputReference profile
-    , "input_digest" .= importProfileInputDigest profile
-    , "input_byte_count" .= importProfileInputByteCount profile
     , "mode" .= sourceModeText (importProfileMode profile)
     , "cleanup_supported" .= importProfileCleanupSupported profile
-    , "pack_name" .= importProfilePackName profile
-    , "pack_version" .= importProfilePackVersion profile
-    , "pack_manifest_digest" .= importProfilePackManifestDigest profile
-    , "pack_archive_digest" .= importProfilePackArchiveDigest profile
-    , "signer_fingerprint" .= importProfileSignerFingerprint profile
     , "lifecycle" .= importProfileLifecycleText (importProfileLifecycle profile)
     , "revision" .= importProfileRevision profile
     ]
       <> maybe [] (pure . ("account_label" .=)) (importProfileAccountLabel profile)
+
+importObjectDispositionText :: ImportObjectDisposition -> Text
+importObjectDispositionText = \case ImportCreatedRaw -> "created_raw"; ImportReusedRaw -> "reused_raw"
+
+importObjectMappingValue :: ImportObjectMapping -> Value
+importObjectMappingValue mapping =
+  object
+    [ "external_identity" .= importObjectExternalIdentity mapping
+    , "raw_id" .= renderUUIDv7 (importObjectRawId mapping)
+    , "disposition" .= importObjectDispositionText (importObjectDisposition mapping)
+    ]
+
+importInvocationValue :: ImportInvocation -> Value
+importInvocationValue invocation =
+  object
+    [ "import_invocation_id" .= renderUUIDv7 (importInvocationId invocation)
+    , "import_profile_id" .= renderUUIDv7 (importInvocationProfileId invocation)
+    , "component_id" .= importInvocationComponentId invocation
+    , "contract_major" .= importInvocationContractMajor invocation
+    , "permissions" .= importInvocationPermissions invocation
+    , "input_label" .= importInvocationInputLabel invocation
+    , "input_media_type" .= importInvocationInputMediaType invocation
+    , "input_digest" .= importInvocationInputDigest invocation
+    , "input_byte_count" .= importInvocationInputByteCount invocation
+    , "mode" .= sourceModeText (importInvocationMode invocation)
+    , "pack_publisher" .= importInvocationPackPublisher invocation
+    , "pack_name" .= importInvocationPackName invocation
+    , "pack_version" .= importInvocationPackVersion invocation
+    , "pack_manifest_digest" .= importInvocationPackManifestDigest invocation
+    , "pack_archive_digest" .= importInvocationPackArchiveDigest invocation
+    , "signer_fingerprint" .= importInvocationSignerFingerprint invocation
+    , "mappings" .= fmap importObjectMappingValue (importInvocationMappings invocation)
+    ]
 
 sourceLifecycleText :: SourceBindingLifecycle -> Text
 sourceLifecycleText = \case SourceBindingActive -> "active"; SourceBindingPaused -> "paused"; SourceBindingDetached -> "detached"

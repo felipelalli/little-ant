@@ -5,10 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **0be8f65**
-(`feat(planning): export reproducible TaskJuggler cuts`). The current milestone
-adds the isolated file-SourceAdapter preflight boundary and the first standard
-plain-text importer. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **6c43b3b**
+(`feat(import): accept verified files as canonical Raw`). The current milestone
+closes the dedicated public import evidence, separates durable source scope
+from immutable invocation custody, and hardens host file acquisition. This file
+stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -135,6 +136,14 @@ plain-text importer. This file stays editable between milestone commits.
   no synchronization or cleanup. Both
   the generic runner fixture and the exact bundled component execute through
   the real private process.
+- `lant import <source> (--snapshot|--synchronize|--migrate)` now has a
+  persisted read-only preflight with no default consent. Acceptance reacquires
+  the file through `O_NOFOLLOW`, reruns the signed adapter, refreshes stale
+  previews without events, and atomically records durable `ImportProfile`
+  scope, immutable `ImportInvocation` authority/custody/result, canonical Raw
+  bytes, and a stable `SourceBinding`. Exact retries are event-free; a Pack
+  upgrade reuses unchanged mappings; changed material under one provider
+  identity requires reconciliation; dry-run describes hypothetical results.
 
 ## Last green gate
 
@@ -180,6 +189,12 @@ output, and supplies `tj3` to its isolated contract test. The installed
 `tj3 --check-syntax --no-reports`.
 The final source distribution metadata also passes `cabal check` without
 warnings.
+The dedicated S09 import suite has 9 deterministic application cases covering
+read-only preview, canonical custody, exact retry, Pack-upgrade reuse, changed
+file snapshots, stable-identity conflict, stale-preview regeneration,
+unsupported authority, and dry-run. The CLI E2E also rejects omitted modes and
+the removed `--mode` form while proving the explicit snapshot preview records
+no events.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -204,10 +219,8 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, connect the frozen `/import` grammar and dumb preflight screen to this
-boundary, rerun preflight on acceptance, and atomically preserve verified
-objects as idempotent Raw truth with ImportProfile/SourceBinding custody.
-Then expand the standard file adapters, including the separate TaskJuggler
-actuals SourceAdapter that verifies embedded manifest custody. The
+Next, expand the standard file adapters, including the separate TaskJuggler actuals
+SourceAdapter that verifies embedded manifest custody. Microsoft To Do and
+Notesnook migration paths, Calendar, and the local-web UIAdapter remain. The
 `Corrupt history/repair` row is implemented; formal evidence registration and
 the complete S09 gate still precede `verified`.
