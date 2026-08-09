@@ -1,16 +1,20 @@
 module Main (main) where
 
 import Control.Concurrent
+import Control.Exception (bracket)
 import Data.Aeson (object, (.=))
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Char8 qualified as ByteString8
 import Data.IORef
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
 import LittleAnt.Error
 import LittleAnt.Id
+import LittleAnt.OAuth.AuthorizationCode
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
@@ -20,24 +24,182 @@ import LittleAnt.Profile
 import LittleAnt.Vault qualified as Vault
 import LittleAnt.Vault.Age (makePassphrase)
 import LittleAnt.Vault.Agent
+import Network.HTTP.Types.URI (parseQueryText)
+import Network.Socket
+import Network.Socket.ByteString qualified as SocketBytes
 import System.Directory (doesPathExist)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
 import Test.Tasty.HUnit
+import Text.Read (readMaybe)
 
 main :: IO ()
 main =
   defaultMain $
     testGroup
-      "S09 OAuth device authorization"
+      "S09 OAuth authorization"
       [ testCase "signed authorization and account client id produce one drift-sensitive binding" signedAuthorizationBinding
       , testCase "device authorization exposes only the human prompt and polls pending to success" deviceAuthorizationLifecycle
       , testCase "slow_down lengthens polling while decline and expiry stop cleanly" pollingOutcomes
       , testCase "token scope escalation and malformed endpoint responses fail closed" responseConfinement
       , testCase "refresh replaces rotated refresh tokens and preserves an omitted replacement" refreshRotation
       , testCase "OAuth grants insert and refresh through one atomic same-scheme vault mutation" oauthVaultPersistence
+      , testCase "authorization code PKCE keeps state and verifier transient through loopback exchange" pkceAuthorizationLifecycle
+      , testCase "authorization code PKCE rejects state mismatch and missing refresh custody" pkceResponseConfinement
+      , testCase "the production PKCE receiver accepts one exact IPv4 loopback callback" pkceLoopbackRoundTrip
       ]
+
+pkceLoopbackRoundTrip :: Assertion
+pkceLoopbackRoundTrip = do
+  client <- fixturePkceClient
+  receiver <- newLoopbackReceiver
+  presented <- newIORef Nothing
+  let runtime =
+        OAuthAuthorizationCodeRuntime
+          { oauthPkceEntropy = deterministicEntropy
+          , oauthPkceLoopbackReceiver = receiver
+          , oauthPkcePresentAuthorizationUrl = \url -> do
+              writeIORef presented (Just url)
+              query <- assertRight (authorizationQuery url)
+              redirectUri <- maybe (assertFailure "authorization URL omitted redirect URI" >> pure "") pure (Map.lookup "redirect_uri" query)
+              state <- maybe (assertFailure "authorization URL omitted state" >> pure "") pure (Map.lookup "state" query)
+              _ <- forkIO (sendLoopbackCallback redirectUri state)
+              pure ()
+          , oauthPkceCurrentTime = pure fixtureTime
+          }
+  (transport, _) <- scriptedTransport [pkceTokenResponse (Just "LOOPBACK-REFRESH")]
+  result <- runAuthorizationCodePkce runtime transport client >>= assertRight
+  oauthRefreshToken result @?= Just "LOOPBACK-REFRESH"
+  readIORef presented >>= maybe (assertFailure "production receiver presented no URL") (const (pure ()))
+
+sendLoopbackCallback :: Text -> Text -> IO ()
+sendLoopbackCallback redirectUri state = withSocketsDo $ do
+  port <- case loopbackPort redirectUri of
+    Nothing -> assertFailure "fixture could not parse loopback port" >> pure 0
+    Just value -> pure value
+  bracket (socket AF_INET Stream defaultProtocol) close $ \connection -> do
+    connect connection (SockAddrInet (fromIntegral port) (tupleToHostAddress (127, 0, 0, 1)))
+    let host = "127.0.0.1:" <> show port
+        request =
+          "GET /oauth/callback?code=LOOPBACK-CODE&state="
+            <> Text.unpack state
+            <> " HTTP/1.1\r\nHost: "
+            <> host
+            <> "\r\nConnection: close\r\n\r\n"
+    SocketBytes.sendAll connection (ByteString8.pack request)
+    response <- SocketBytes.recv connection 4096
+    assertBool "loopback receiver did not return its private completion page" ("Authorization received" `ByteString.isInfixOf` response)
+
+loopbackPort :: Text -> Maybe Int
+loopbackPort uri = do
+  remainder <- Text.stripPrefix "http://127.0.0.1:" uri
+  let (portText, path) = Text.breakOn "/" remainder
+  if path == "/oauth/callback" then readMaybe (Text.unpack portText) else Nothing
+
+pkceAuthorizationLifecycle :: Assertion
+pkceAuthorizationLifecycle = do
+  client <- fixturePkceClient
+  presented <- newIORef Nothing
+  let redirectUri = "http://127.0.0.1:43123/oauth/callback"
+      receiver = OAuthLoopbackReceiver $ \begin -> do
+        begin redirectUri >>= assertRight
+        url <- readIORef presented >>= maybe (assertFailure "authorization URL was not presented" >> pure "") pure
+        query <- assertRight (authorizationQuery url)
+        state <- maybe (assertFailure "authorization URL omitted state" >> pure "") pure (Map.lookup "state" query)
+        pure (Right (redirectUri, Map.fromList [("code", "AUTHORIZATION-CODE"), ("state", state)]))
+      runtime =
+        OAuthAuthorizationCodeRuntime
+          { oauthPkceEntropy = deterministicEntropy
+          , oauthPkceLoopbackReceiver = receiver
+          , oauthPkcePresentAuthorizationUrl = writeIORef presented . Just
+          , oauthPkceCurrentTime = pure fixtureTime
+          }
+  (transport, requests) <- scriptedTransport [pkceTokenResponse (Just "GOOGLE-REFRESH")]
+  tokenSet <- runAuthorizationCodePkce runtime transport client >>= assertRight
+  oauthScopes tokenSet @?= Set.singleton googleTasksScope
+  oauthRefreshToken tokenSet @?= Just "GOOGLE-REFRESH"
+  oauthAuthorizationFingerprint tokenSet @?= oauthPkceAuthorizationFingerprint client
+
+  (refreshTransport, _) <- scriptedTransport [pkceRefreshResponseWithoutScope]
+  refreshed <- refreshOAuthPkceTokenSet refreshTransport (addUTCTime 3600 fixtureTime) client tokenSet >>= assertRight
+  oauthScopes refreshed @?= oauthScopes tokenSet
+  oauthRefreshToken refreshed @?= oauthRefreshToken tokenSet
+
+  url <- readIORef presented >>= maybe (assertFailure "authorization URL was not retained by the fixture" >> pure "") pure
+  assertBool "wrong authorization endpoint" (googleAuthorizationEndpoint `Text.isPrefixOf` url)
+  query <- assertRight (authorizationQuery url)
+  Map.lookup "response_type" query @?= Just "code"
+  Map.lookup "code_challenge_method" query @?= Just "S256"
+  Map.lookup "redirect_uri" query @?= Just redirectUri
+  Map.lookup "prompt" query @?= Just "consent"
+  Map.lookup "scope" query @?= Just googleTasksScope
+  maybe (assertFailure "authorization URL omitted PKCE challenge") (\challenge -> Text.length challenge @?= 43) (Map.lookup "code_challenge" query)
+
+  observed <- readIORef requests
+  case observed of
+    [exchange] -> do
+      oauthFormEndpoint exchange @?= googleTokenEndpoint
+      Map.lookup "grant_type" (oauthFormFields exchange) @?= Just "authorization_code"
+      Map.lookup "code" (oauthFormFields exchange) @?= Just "AUTHORIZATION-CODE"
+      Map.lookup "redirect_uri" (oauthFormFields exchange) @?= Just redirectUri
+      maybe (assertFailure "token exchange omitted code_verifier") (\verifier -> Text.length verifier @?= 86) (Map.lookup "code_verifier" (oauthFormFields exchange))
+      assertBool "public client unexpectedly sent a secret" (Map.notMember "client_secret" (oauthFormFields exchange))
+    other -> assertFailure ("unexpected PKCE request count: " <> show (length other))
+
+pkceResponseConfinement :: Assertion
+pkceResponseConfinement = do
+  client <- fixturePkceClient
+  calls <- newIORef (0 :: Int)
+  let mismatched =
+        OAuthAuthorizationCodeRuntime
+          { oauthPkceEntropy = deterministicEntropy
+          , oauthPkceLoopbackReceiver = OAuthLoopbackReceiver $ \begin -> do
+              begin "http://127.0.0.1:43123/oauth/callback" >>= assertRight
+              pure (Right ("http://127.0.0.1:43123/oauth/callback", Map.fromList [("code", "CODE"), ("state", "wrong")]))
+          , oauthPkcePresentAuthorizationUrl = const (pure ())
+          , oauthPkceCurrentTime = pure fixtureTime
+          }
+      unusedTransport = OAuthFormTransport $ \_ -> modifyIORef' calls (+ 1) >> pure (Left (appError ExternalFailure "must not run"))
+  runAuthorizationCodePkce mismatched unusedTransport client >>= assertError PermissionRequired
+  readIORef calls >>= (@?= 0)
+
+  presented <- newIORef Nothing
+  let noRefresh = successfulPkceRuntime presented
+  (transport, _) <- scriptedTransport [pkceTokenResponse Nothing]
+  runAuthorizationCodePkce noRefresh transport client >>= assertError ExternalFailure
+
+successfulPkceRuntime :: IORef (Maybe Text) -> OAuthAuthorizationCodeRuntime
+successfulPkceRuntime presented =
+  OAuthAuthorizationCodeRuntime
+    { oauthPkceEntropy = deterministicEntropy
+    , oauthPkceLoopbackReceiver = OAuthLoopbackReceiver $ \begin -> do
+        let redirectUri = "http://127.0.0.1:43123/oauth/callback"
+        begin redirectUri >>= assertRight
+        url <- readIORef presented >>= maybe (assertFailure "authorization URL was not presented" >> pure "") pure
+        query <- assertRight (authorizationQuery url)
+        state <- maybe (assertFailure "authorization URL omitted state" >> pure "") pure (Map.lookup "state" query)
+        pure (Right (redirectUri, Map.fromList [("code", "CODE"), ("state", state)]))
+    , oauthPkcePresentAuthorizationUrl = writeIORef presented . Just
+    , oauthPkceCurrentTime = pure fixtureTime
+    }
+
+authorizationQuery :: Text -> Either AppError (Map.Map Text Text)
+authorizationQuery url = do
+  let (_, marked) = Text.breakOn "?" url
+  if Text.null marked
+    then Left (appError InvalidInput "authorization URL has no query")
+    else foldl insertOne (Right Map.empty) (parseQueryText (TextEncoding.encodeUtf8 (Text.drop 1 marked)))
+ where
+  insertOne prior (key, value) = do
+    fields <- prior
+    decoded <- maybe (Left (appError InvalidInput "authorization query has a valueless field")) Right value
+    if Map.member key fields
+      then Left (appError InvalidInput "authorization query has a duplicate field")
+      else Right (Map.insert key decoded fields)
+
+deterministicEntropy :: Int -> IO ByteString.ByteString
+deterministicEntropy count = pure (ByteString.pack (take count (cycle [0 .. 255])))
 
 signedAuthorizationBinding :: Assertion
 signedAuthorizationBinding = do
@@ -191,6 +353,9 @@ scriptedTransport responses = do
 fixtureClient :: IO OAuthDeviceClient
 fixtureClient = assertRight (resolveOAuthDeviceClient fixtureRegistered fixtureAccount "microsoft")
 
+fixturePkceClient :: IO OAuthPkceClient
+fixturePkceClient = assertRight (resolveOAuthPkceClient fixturePkceRegistered fixturePkceAccount "google")
+
 fixtureTokenSet :: OAuthDeviceClient -> Text -> OAuthTokenSet
 fixtureTokenSet client refresh =
   OAuthTokenSet
@@ -209,6 +374,16 @@ fixtureAccount =
     , providerAccountExternalId = "account-personal"
     , providerAccountLabel = "Personal"
     , providerAccountConfiguration = object ["client_id" .= ("11111111-1111-1111-1111-111111111111" :: Text)]
+    }
+
+fixturePkceAccount :: ProviderAccount
+fixturePkceAccount =
+  ProviderAccount
+    { providerAccountComponent = "google_tasks"
+    , providerAccountProvider = "google_tasks"
+    , providerAccountExternalId = "google-personal"
+    , providerAccountLabel = "Personal"
+    , providerAccountConfiguration = object ["client_id" .= ("example.apps.googleusercontent.com" :: Text)]
     }
 
 fixtureBinding :: Maybe Text -> CredentialBinding
@@ -248,10 +423,53 @@ fixtureRegistered =
     , registeredComponentPayload = Map.empty
     }
 
+fixturePkceRegistered :: RegisteredPackComponent
+fixturePkceRegistered =
+  RegisteredPackComponent
+    { registeredPackIdentity =
+        PackArtifactIdentity
+          "org.littleant.project"
+          "org.littleant.official-connectors"
+          "1.0.0"
+          (Text.replicate 64 "4")
+          (Text.replicate 64 "5")
+    , registeredSignerFingerprint = Text.replicate 64 "6"
+    , registeredComponent =
+        ExecutableComponent
+          ComponentCommon
+            { componentId = "google_tasks"
+            , componentKind = SourceAdapterComponent
+            , componentContractMajor = 1
+            , componentRoot = "sources/google_tasks"
+            , componentConfigurationSchema = "config.schema.json"
+            }
+          "main.lua"
+          ComponentPermissions
+            { permissionCredentialSlots = [CredentialSlot "google" OAuthAuthorizationCodePkce]
+            , permissionOAuthAuthorizationCodePkce =
+                [ OAuthAuthorizationCodePkcePermission
+                    { oauthPkceCredentialSlot = "google"
+                    , oauthPkceAuthorizationEndpoint = googleAuthorizationEndpoint
+                    , oauthPkceTokenEndpoint = googleTokenEndpoint
+                    , oauthPkceClientIdConfigurationKey = "client_id"
+                    , oauthPkceScopes = Set.singleton googleTasksScope
+                    , oauthPkceAuthorizationParameters = Map.singleton "prompt" "consent"
+                    }
+                ]
+            , permissionOAuthDeviceAuthorizations = []
+            , permissionHttp = [HttpPermission ["GET"] "tasks.googleapis.com" "/tasks/v1" (Just "google")]
+            , permissionEffectPurposes = []
+            , permissionProjections = []
+            , permissionHostCapabilities = []
+            }
+    , registeredComponentPayload = Map.empty
+    }
+
 fixturePermissions :: ComponentPermissions
 fixturePermissions =
   ComponentPermissions
     { permissionCredentialSlots = [CredentialSlot "microsoft" OAuthDeviceAuthorization]
+    , permissionOAuthAuthorizationCodePkce = []
     , permissionOAuthDeviceAuthorizations = [fixtureAuthorization]
     , permissionHttp = [HttpPermission ["GET"] "graph.microsoft.com" "/v1.0/me/todo" (Just "microsoft")]
     , permissionEffectPurposes = []
@@ -314,9 +532,38 @@ tokenResponseWithScopesAndRefresh scopes refresh =
           <> maybe [] (pure . ("refresh_token" .=)) refresh
     )
 
+pkceTokenResponse :: Maybe Text -> OAuthFormResponse
+pkceTokenResponse refresh =
+  OAuthFormResponse
+    200
+    ( object $
+        [ "token_type" .= ("Bearer" :: Text)
+        , "scope" .= googleTasksScope
+        , "expires_in" .= (3600 :: Int)
+        , "access_token" .= ("GOOGLE-ACCESS" :: Text)
+        ]
+          <> maybe [] (pure . ("refresh_token" .=)) refresh
+    )
+
+pkceRefreshResponseWithoutScope :: OAuthFormResponse
+pkceRefreshResponseWithoutScope =
+  OAuthFormResponse
+    200
+    ( object
+        [ "token_type" .= ("Bearer" :: Text)
+        , "expires_in" .= (3600 :: Int)
+        , "access_token" .= ("GOOGLE-REFRESHED-ACCESS" :: Text)
+        ]
+    )
+
 deviceEndpoint, tokenEndpoint :: Text
 deviceEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
 tokenEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+
+googleAuthorizationEndpoint, googleTokenEndpoint, googleTasksScope :: Text
+googleAuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
+googleTokenEndpoint = "https://oauth2.googleapis.com/token"
+googleTasksScope = "https://www.googleapis.com/auth/tasks"
 
 fixtureTime :: UTCTime
 fixtureTime = read "2026-08-09 12:00:00 UTC"

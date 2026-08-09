@@ -17,6 +17,7 @@ import Data.Text qualified as Text
 import LittleAnt.Error
 import LittleAnt.Import
 import LittleAnt.Model (SourceMode (..))
+import LittleAnt.OAuth.AuthorizationCode
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Transport
@@ -61,6 +62,10 @@ configuredProviderImportSources definitions integrations registry resolver trans
             Left (providerProblem CorruptData "A configured provider account has the wrong provider namespace." [accountName, providerAccountProvider account])
           (bindingReference, binding) <- exactBinding integrations definition accountName
           hostOnlyKeys <- case credentialBindingScheme binding of
+            Vault.OAuthAuthorizationCodePKCE -> do
+              oauthClient <- resolveOAuthPkceClient registered account (credentialBindingSlot binding)
+              validateOAuthPkceCredentialBinding oauthClient binding
+              pure (Set.singleton (oauthPkceClientConfigurationKey oauthClient))
             Vault.OAuthDeviceAuthorization -> do
               oauthClient <- resolveOAuthDeviceClient registered account (credentialBindingSlot binding)
               validateOAuthCredentialBinding oauthClient binding

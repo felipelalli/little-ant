@@ -259,12 +259,14 @@ support them honestly.
   secret after Pack output validation, never returns it to Lua, and redacts
   request headers, URLs, bodies, errors, receipts, and traces according to the
   component manifest. OAuth authorization and refresh happen in the trusted
-  host/agent boundary. Device authorization uses only signed Pack endpoints and
-  scopes, keeps the device code and tokens outside Lua and persisted
-  interactions, rejects returned scope escalation, and binds the token set to
-  DAT-060's authorization fingerprint. Refresh-token replacement is an atomic
-  same-scheme vault mutation; a successful refresh that omits a replacement
-  retains the previous refresh token.
+  host/agent boundary. Device authorization and authorization code with PKCE
+  use only signed Pack endpoints and scopes, keep transient codes, verifier,
+  state, and tokens outside Lua and persisted interactions, reject returned
+  scope escalation, and bind the token set to DAT-060's authorization
+  fingerprint. PKCE uses `S256`, an external browser, and one ephemeral
+  loopback-only callback. Refresh-token replacement is an atomic same-scheme
+  vault mutation; a successful refresh that omits a replacement or an
+  unchanged scope field retains the previously verified value.
   Secrets are never accepted in command arguments, environment variables,
   YAML, ordinary stdin, or InteractionEnvelopes. Dedicated no-echo unlock and
   authorization-code inputs are the only interactive secret inputs.
@@ -320,14 +322,17 @@ that cryptographic format.
   installed signed SourceAdapter. The preview names the exact Pack release,
   public client ID, account label, and signed OAuth scopes. Acceptance first
   revalidates the Pack and profile revision, requires an already created and
-  unlocked vault, and then runs Device Authorization transiently in the same
-  trusted-host process. Only the verification URI and user code reach the
-  presentation surface; the device code and tokens never enter configuration,
-  arguments, canonical events, or an InteractionEnvelope. A successful token
-  is encrypted before a compare-and-swap adds the typed ProviderAccount and
-  CredentialBinding. A concurrent profile change may leave an unreferenced
-  vault entry for later safe collection, but never a binding without its
-  credential. Connection imports no object and performs no provider mutation.
+  unlocked vault, and then runs the exact signed OAuth scheme transiently in
+  the same trusted-host process. Device Authorization exposes only its
+  verification URI and user code. Authorization code with PKCE exposes only
+  the signed browser URL and receives one callback on `127.0.0.1`; its state,
+  verifier, and authorization code remain transient. Tokens from either flow
+  never enter configuration, arguments, canonical events, or an
+  InteractionEnvelope. A successful token is encrypted before a
+  compare-and-swap adds the typed ProviderAccount and CredentialBinding. A
+  concurrent profile change may leave an unreferenced vault entry for later
+  safe collection, but never a binding without its credential. Connection
+  imports no object and performs no provider mutation.
 - **DAT-029 [standard] — Standard structural formats.** The standard Pack
   ships tree text, aligned table, RFC 4180 CSV, Org, and self-contained HTML
   exporters.

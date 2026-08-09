@@ -269,6 +269,7 @@ fixtureComponent =
     "main.lua"
     ComponentPermissions
       { permissionCredentialSlots = []
+      , permissionOAuthAuthorizationCodePkce = []
       , permissionOAuthDeviceAuthorizations = []
       , permissionHttp = []
       , permissionEffectPurposes = []
@@ -289,6 +290,7 @@ fixtureSourceComponent =
     "main.lua"
     ComponentPermissions
       { permissionCredentialSlots = []
+      , permissionOAuthAuthorizationCodePkce = []
       , permissionOAuthDeviceAuthorizations = []
       , permissionHttp = []
       , permissionEffectPurposes = []
@@ -309,6 +311,7 @@ fixtureHttpSourceComponent =
     "main.lua"
     ComponentPermissions
       { permissionCredentialSlots = [CredentialSlot "microsoft" OAuthDeviceAuthorization]
+      , permissionOAuthAuthorizationCodePkce = []
       , permissionOAuthDeviceAuthorizations =
           [ OAuthDeviceAuthorizationPermission
               "microsoft"

@@ -134,6 +134,27 @@ permissionIsolation = do
   assertLeft "OAuth authorization without refresh custody" (encodePackManifest fixtureManifest{packComponents = [unsignedScope]})
   assertLeft "OAuth authorization over insecure endpoint" (encodePackManifest fixtureManifest{packComponents = [insecureEndpoint]})
 
+  let pkceSlot = CredentialSlot "google" OAuthAuthorizationCodePkce
+      pkce =
+        OAuthAuthorizationCodePkcePermission
+          { oauthPkceCredentialSlot = "google"
+          , oauthPkceAuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
+          , oauthPkceTokenEndpoint = "https://oauth2.googleapis.com/token"
+          , oauthPkceClientIdConfigurationKey = "client_id"
+          , oauthPkceScopes = Set.singleton "https://www.googleapis.com/auth/tasks"
+          , oauthPkceAuthorizationParameters = Map.singleton "prompt" "consent"
+          }
+      validPkce = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionCredentialSlots = [pkceSlot], permissionOAuthAuthorizationCodePkce = [pkce]}
+      missingPkce = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionCredentialSlots = [pkceSlot]}
+      replacedState = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionCredentialSlots = [pkceSlot], permissionOAuthAuthorizationCodePkce = [pkce{oauthPkceAuthorizationParameters = Map.singleton "state" "unsafe"}]}
+      insecurePkce = ExecutableComponent sourceCommon "main.lua" emptyPermissions{permissionCredentialSlots = [pkceSlot], permissionOAuthAuthorizationCodePkce = [pkce{oauthPkceAuthorizationEndpoint = "http://accounts.google.com/auth"}]}
+  encodedPkce <- assertRight (encodePackManifest fixtureManifest{packComponents = [validPkce]})
+  decodedPkce <- either (assertFailure . show) pure (eitherDecodeStrict' encodedPkce)
+  packComponents decodedPkce @?= [validPkce]
+  assertLeft "PKCE slot without signed authorization" (encodePackManifest fixtureManifest{packComponents = [missingPkce]})
+  assertLeft "PKCE authorization replacing host-owned state" (encodePackManifest fixtureManifest{packComponents = [replacedState]})
+  assertLeft "PKCE authorization over insecure endpoint" (encodePackManifest fixtureManifest{packComponents = [insecurePkce]})
+
   let uiCommon = fixtureCommon{componentKind = UIAdapterComponent}
       invalidUi = ExecutableComponent uiCommon "main.lua" emptyPermissions{permissionEffectPurposes = [CalendarCreatePermission]}
   assertLeft "UIAdapter effect authority" (encodePackManifest fixtureManifest{packComponents = [invalidUi]})
@@ -699,7 +720,7 @@ fixtureCommon =
     }
 
 emptyPermissions :: ComponentPermissions
-emptyPermissions = ComponentPermissions [] [] [] [] [] []
+emptyPermissions = ComponentPermissions [] [] [] [] [] [] []
 
 fixturePayload :: Map Text ByteString
 fixturePayload =

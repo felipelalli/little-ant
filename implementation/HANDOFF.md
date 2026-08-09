@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **6f21b1b**
-(`feat(import): ship offline document adapters`). The current milestone adds
-the Apple Reminders offline Shortcut export kit and its strict Raw-first file
-adapter to the signed standard Pack. This file stays editable between
-milestone commits.
+Baseline at the start of the current milestone: **e935ecd**
+(`feat(import): ship Apple Reminders export kit`). The current milestone adds
+the generic signed authorization-code-with-PKCE authority and trusted desktop
+loopback flow required by provider connectors such as Google Tasks. This file
+stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -280,6 +280,17 @@ milestone commits.
   persists same-scheme token sets through the vault agent. Any Pack, endpoint,
   scope, slot, or client-ID drift requires fresh reviewed consent. Lua receives
   neither OAuth material nor host-only client configuration.
+- OAuth authorization code with PKCE is now a second complete signed
+  trusted-host protocol. Each participating component owns exact authorization
+  and token endpoints, scopes, public-client configuration key, and bounded
+  extra authorization parameters. The host generates an `S256` verifier and
+  unpredictable state, exposes only the browser URL, receives one exact
+  callback on an ephemeral `127.0.0.1` listener, exchanges the code without a
+  client secret, and atomically stores the resulting token set through the
+  same vault-agent boundary. State, verifier, authorization code, and tokens
+  never enter Pack, profile, event, or interaction state. Initial exchange
+  requires refresh custody; refresh preserves an omitted replacement token or
+  unchanged scope set.
 - The exact official connector Pack declares Microsoft To Do's device-flow
   authority and `Tasks.ReadWrite offline_access`; its archive and signed fixture
   identities were rebuilt reproducibly. Public connection and import still

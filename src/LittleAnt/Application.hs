@@ -47,6 +47,7 @@ import LittleAnt.JudgmentDecision
 import LittleAnt.JudgmentUI
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.OAuth.AuthorizationCode
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Catalog
@@ -165,6 +166,7 @@ data ProviderConnectionRuntime = ProviderConnectionRuntime
   { providerConnectionDefinitions :: [ProviderSourceDefinition]
   , providerConnectionInstalledDefinitions :: [ProviderSourceDefinition]
   , providerConnectionOAuthTransport :: OAuthFormTransport
+  , providerConnectionPkceRuntime :: OAuthAuthorizationCodeRuntime
   , providerConnectionPresentPrompt :: DeviceAuthorizationPrompt -> IO ()
   , providerConnectionWaitSeconds :: Int -> IO ()
   }
@@ -218,6 +220,7 @@ productionAppEnv explicitProfile = do
                         remote <- newOfficialPackRemote
                         providerHttp <- newTlsPackHttpTransport
                         oauthTransport <- newTlsOAuthFormTransport
+                        loopbackReceiver <- newLoopbackReceiver
                         let providerSources =
                               registry >>= \available ->
                                 configuredProviderImportSources
@@ -254,6 +257,13 @@ productionAppEnv explicitProfile = do
                                     { providerConnectionDefinitions = standardProviderSourceDefinitions
                                     , providerConnectionInstalledDefinitions = installedProviderDefinitions
                                     , providerConnectionOAuthTransport = oauthTransport
+                                    , providerConnectionPkceRuntime =
+                                        OAuthAuthorizationCodeRuntime
+                                          { oauthPkceEntropy = Entropy.getEntropy
+                                          , oauthPkceLoopbackReceiver = loopbackReceiver
+                                          , oauthPkcePresentAuthorizationUrl = presentAuthorizationCodeUrl
+                                          , oauthPkceCurrentTime = getCurrentTime
+                                          }
                                     , providerConnectionPresentPrompt = presentDeviceAuthorizationPrompt
                                     , providerConnectionWaitSeconds = \seconds -> threadDelay (seconds * 1_000_000)
                                     }
@@ -270,6 +280,18 @@ presentDeviceAuthorizationPrompt prompt =
       , "Expires: " <> Text.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" (devicePromptExpiresAt prompt))
       , ""
       , "Little Ant is waiting for the provider."
+      ]
+
+presentAuthorizationCodeUrl :: Text -> IO ()
+presentAuthorizationCodeUrl url =
+  TextIO.hPutStrLn stderr $
+    Text.unlines
+      [ "Authorize this provider account:"
+      , ""
+      , "Open this URL in your browser:"
+      , url
+      , ""
+      , "Little Ant is listening only on 127.0.0.1 and waiting for the provider."
       ]
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
@@ -1307,6 +1329,17 @@ runTransientDeviceAuthorization environment runtime client = do
           (appError PreconditionFailed "The provider authorization code expired.")
             { appErrorRecovery = [RecoveryAction "try-again" "Accept the unchanged connection preview to request a new code." Nothing]
             }
+
+runProviderAuthorization :: AppEnv -> ProviderConnectionRuntime -> ProviderOAuthClient -> IO (Either AppError OAuthTokenSet)
+runProviderAuthorization environment runtime = \case
+  ProviderOAuthPkceClient client ->
+    runAuthorizationCodePkce (providerConnectionPkceRuntime runtime) (providerConnectionOAuthTransport runtime) client
+  ProviderOAuthDeviceClient client -> runTransientDeviceAuthorization environment runtime client
+
+persistProviderTokenSet :: FilePath -> ProviderOAuthClient -> Profile.CredentialBinding -> Text -> OAuthTokenSet -> IO (Either AppError ())
+persistProviderTokenSet socketPath client binding label tokenSet = case client of
+  ProviderOAuthPkceClient pkce -> persistOAuthPkceTokenSet socketPath pkce binding label tokenSet
+  ProviderOAuthDeviceClient device -> persistOAuthTokenSet socketPath device binding label tokenSet
 
 configurationResult :: LoadedDataset -> Text -> Maybe Text -> Map.Map Text Text -> Bool -> CommandResult
 configurationResult dataset action selected facts =
@@ -3929,10 +3962,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                     Right () -> case connectionOAuthClient (connectionProfileRegistry profile) draft of
                       Left problem -> pure (Left problem)
                       Right client ->
-                        runTransientDeviceAuthorization environment runtime client >>= \case
+                        runProviderAuthorization environment runtime client >>= \case
                           Left problem -> pure (Left problem)
                           Right tokenSet ->
-                            persistOAuthTokenSet
+                            persistProviderTokenSet
                               (Profile.vaultSocket (connectionProfilePaths profile))
                               client
                               (providerConnectionBinding draft)

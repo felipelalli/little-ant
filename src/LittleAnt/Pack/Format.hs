@@ -7,6 +7,7 @@ module LittleAnt.Pack.Format (
   CredentialScheme (..),
   credentialSchemeText,
   CredentialSlot (..),
+  OAuthAuthorizationCodePkcePermission (..),
   OAuthDeviceAuthorizationPermission (..),
   HttpPermission (..),
   EffectPermission (..),
@@ -111,6 +112,16 @@ data OAuthDeviceAuthorizationPermission = OAuthDeviceAuthorizationPermission
   }
   deriving stock (Eq, Ord, Show)
 
+data OAuthAuthorizationCodePkcePermission = OAuthAuthorizationCodePkcePermission
+  { oauthPkceCredentialSlot :: Text
+  , oauthPkceAuthorizationEndpoint :: Text
+  , oauthPkceTokenEndpoint :: Text
+  , oauthPkceClientIdConfigurationKey :: Text
+  , oauthPkceScopes :: Set Text
+  , oauthPkceAuthorizationParameters :: Map Text Text
+  }
+  deriving stock (Eq, Ord, Show)
+
 data HttpPermission = HttpPermission
   { httpPermissionMethods :: [Text]
   , httpPermissionHost :: Text
@@ -137,6 +148,7 @@ data HostCapability
 
 data ComponentPermissions = ComponentPermissions
   { permissionCredentialSlots :: [CredentialSlot]
+  , permissionOAuthAuthorizationCodePkce :: [OAuthAuthorizationCodePkcePermission]
   , permissionOAuthDeviceAuthorizations :: [OAuthDeviceAuthorizationPermission]
   , permissionHttp :: [HttpPermission]
   , permissionEffectPurposes :: [EffectPermission]
@@ -259,13 +271,15 @@ instance ToJSON ComponentPermissions where
       , "projections" .= permissionProjections permissions
       , "host_capabilities" .= fmap hostCapabilityText (permissionHostCapabilities permissions)
       ]
+        <> ["oauth_authorization_code_pkce" .= permissionOAuthAuthorizationCodePkce permissions | not (null (permissionOAuthAuthorizationCodePkce permissions))]
         <> ["oauth_device_authorization" .= permissionOAuthDeviceAuthorizations permissions | not (null (permissionOAuthDeviceAuthorizations permissions))]
 
 instance FromJSON ComponentPermissions where
   parseJSON = withObject "ComponentPermissions" $ \fields -> do
-    rejectUnknown fields ["credential_slots", "oauth_device_authorization", "http", "effect_purposes", "projections", "host_capabilities"]
+    rejectUnknown fields ["credential_slots", "oauth_authorization_code_pkce", "oauth_device_authorization", "http", "effect_purposes", "projections", "host_capabilities"]
     ComponentPermissions
       <$> fields .: "credential_slots"
+      <*> fields .:? "oauth_authorization_code_pkce" .!= []
       <*> fields .:? "oauth_device_authorization" .!= []
       <*> fields .: "http"
       <*> (fields .: "effect_purposes" >>= traverse parseEffectPermission)
@@ -299,6 +313,28 @@ instance FromJSON OAuthDeviceAuthorizationPermission where
       <*> fields .: "token_endpoint"
       <*> fields .: "client_id_configuration_key"
       <*> (Set.fromList <$> fields .: "scopes")
+
+instance ToJSON OAuthAuthorizationCodePkcePermission where
+  toJSON permission =
+    object
+      [ "credential_slot" .= oauthPkceCredentialSlot permission
+      , "authorization_endpoint" .= oauthPkceAuthorizationEndpoint permission
+      , "token_endpoint" .= oauthPkceTokenEndpoint permission
+      , "client_id_configuration_key" .= oauthPkceClientIdConfigurationKey permission
+      , "scopes" .= Set.toAscList (oauthPkceScopes permission)
+      , "authorization_parameters" .= oauthPkceAuthorizationParameters permission
+      ]
+
+instance FromJSON OAuthAuthorizationCodePkcePermission where
+  parseJSON = withObject "OAuthAuthorizationCodePkcePermission" $ \fields -> do
+    rejectUnknown fields ["credential_slot", "authorization_endpoint", "token_endpoint", "client_id_configuration_key", "scopes", "authorization_parameters"]
+    OAuthAuthorizationCodePkcePermission
+      <$> fields .: "credential_slot"
+      <*> fields .: "authorization_endpoint"
+      <*> fields .: "token_endpoint"
+      <*> fields .: "client_id_configuration_key"
+      <*> (Set.fromList <$> fields .: "scopes")
+      <*> fields .: "authorization_parameters"
 
 instance ToJSON HttpPermission where
   toJSON permission =
@@ -465,15 +501,20 @@ validateComponent component = do
 validatePermissions :: PackComponentKind -> ComponentPermissions -> Either AppError ()
 validatePermissions kind permissions = do
   unique "credential slot" (credentialSlotId <$> permissionCredentialSlots permissions)
+  unique "OAuth authorization-code PKCE credential slot" (oauthPkceCredentialSlot <$> permissionOAuthAuthorizationCodePkce permissions)
   unique "OAuth device-authorization credential slot" (oauthDeviceCredentialSlot <$> permissionOAuthDeviceAuthorizations permissions)
   unique "HTTP permission" (permissionHttp permissions)
   unique "effect purpose" (permissionEffectPurposes permissions)
   unique "projection" (permissionProjections permissions)
   unique "host capability" (permissionHostCapabilities permissions)
   traverse_ validateCredentialSlot (permissionCredentialSlots permissions)
+  traverse_ (validateOAuthAuthorizationCodePkce slots) (permissionOAuthAuthorizationCodePkce permissions)
   traverse_ (validateOAuthDeviceAuthorization slots) (permissionOAuthDeviceAuthorizations permissions)
-  let deviceSlots = Set.fromList [credentialSlotId slot | slot <- slots, credentialSlotScheme slot == OAuthDeviceAuthorization]
+  let pkceSlots = Set.fromList [credentialSlotId slot | slot <- slots, credentialSlotScheme slot == OAuthAuthorizationCodePkce]
+      authorizedPkceSlots = Set.fromList (oauthPkceCredentialSlot <$> permissionOAuthAuthorizationCodePkce permissions)
+      deviceSlots = Set.fromList [credentialSlotId slot | slot <- slots, credentialSlotScheme slot == OAuthDeviceAuthorization]
       authorizedDeviceSlots = Set.fromList (oauthDeviceCredentialSlot <$> permissionOAuthDeviceAuthorizations permissions)
+  unless (pkceSlots == authorizedPkceSlots) (invalid "Every OAuth authorization-code PKCE slot must have exactly one signed authorization permission.")
   unless (deviceSlots == authorizedDeviceSlots) (invalid "Every OAuth device-authorization slot must have exactly one signed authorization permission.")
   traverse_ (validateHttpPermission slots) (permissionHttp permissions)
   unless (httpPermissionsNonoverlapping (permissionHttp permissions)) (invalid "HTTP permissions cannot overlap for one method, host, and path.")
@@ -510,6 +551,41 @@ httpPermissionsNonoverlapping (permission : rest) = not (any (overlaps permissio
 validateCredentialSlot :: CredentialSlot -> Either AppError ()
 validateCredentialSlot slot = unless (validLocalId (credentialSlotId slot)) (Left (packProblem "A credential slot ID is invalid." []))
 
+validateOAuthAuthorizationCodePkce :: [CredentialSlot] -> OAuthAuthorizationCodePkcePermission -> Either AppError ()
+validateOAuthAuthorizationCodePkce slots permission = do
+  case filter ((== oauthPkceCredentialSlot permission) . credentialSlotId) slots of
+    [slot] ->
+      unless
+        (credentialSlotScheme slot == OAuthAuthorizationCodePkce)
+        (invalid "An OAuth authorization-code PKCE permission must reference a slot with the matching scheme.")
+    _ -> invalid "An OAuth authorization-code PKCE permission references an unknown credential slot."
+  validateOAuthEndpoint "authorization" (oauthPkceAuthorizationEndpoint permission)
+  validateOAuthEndpoint "token" (oauthPkceTokenEndpoint permission)
+  unless (validLocalId (oauthPkceClientIdConfigurationKey permission)) $
+    invalid "An OAuth client-id configuration key is invalid."
+  validateOAuthScopes (oauthPkceScopes permission)
+  let parameters = oauthPkceAuthorizationParameters permission
+      reserved = Set.fromList ["client_id", "code_challenge", "code_challenge_method", "redirect_uri", "response_type", "scope", "state"]
+  unless (Map.size parameters <= 16) (invalid "OAuth authorization parameters exceed the bounded count.")
+  unless (Set.disjoint reserved (Map.keysSet parameters)) (invalid "OAuth authorization parameters cannot replace host-owned PKCE fields.")
+  unless (all validOAuthParameter (Map.toList parameters)) (invalid "OAuth authorization parameters must be bounded visible ASCII name/value pairs.")
+ where
+  invalid message = Left (packProblem message [])
+
+validateOAuthScopes :: Set Text -> Either AppError ()
+validateOAuthScopes scopes =
+  unless (not (Set.null scopes) && Set.size scopes <= 32 && all validOAuthScope (Set.toList scopes)) $
+    Left (packProblem "OAuth scopes must be a nonempty bounded set of visible ASCII scope tokens." [])
+
+validOAuthParameter :: (Text, Text) -> Bool
+validOAuthParameter (name, value) =
+  not (Text.null name)
+    && Text.length name <= 128
+    && Text.all (\character -> isAscii character && (isAsciiLower character || isDigit character || character == '_' || character == '-')) name
+    && not (Text.null value)
+    && Text.length value <= 2048
+    && Text.all (\character -> isAscii character && ord character >= 0x20 && ord character <= 0x7e) value
+
 validateOAuthDeviceAuthorization :: [CredentialSlot] -> OAuthDeviceAuthorizationPermission -> Either AppError ()
 validateOAuthDeviceAuthorization slots permission = do
   case filter ((== oauthDeviceCredentialSlot permission) . credentialSlotId) slots of
@@ -523,8 +599,7 @@ validateOAuthDeviceAuthorization slots permission = do
   unless (validLocalId (oauthDeviceClientIdConfigurationKey permission)) $
     invalid "An OAuth client-id configuration key is invalid."
   let scopes = oauthDeviceScopes permission
-  unless (not (Set.null scopes) && Set.size scopes <= 32 && all validOAuthScope (Set.toList scopes)) $
-    invalid "OAuth scopes must be a nonempty bounded set of visible ASCII scope tokens."
+  validateOAuthScopes scopes
   unless ("offline_access" `Set.member` scopes) $
     invalid "An OAuth device-authorization permission must request offline_access for refresh custody."
  where

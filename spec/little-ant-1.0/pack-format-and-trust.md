@@ -101,13 +101,15 @@ exactly `declarative_body`, a declared JSON file relative to its root. It has no
 Permissions are per component; there is no Pack-wide permission union.
 
 The executable permissions object contains the five base arrays below,
-including the empty ones. It additionally contains
-`oauth_device_authorization` when at least one device-authorization credential
-slot exists; the optional array is omitted when empty so Packs without that
-scheme retain their canonical identity:
+including the empty ones. It additionally contains the applicable OAuth
+authority arrays when a component declares either OAuth credential scheme;
+each optional array is omitted when empty so unrelated Packs retain their
+canonical identity:
 
 ```text
 credential_slots        declared credential-slot objects
+oauth_authorization_code_pkce
+                        signed authorization-code authority descriptors when used
 oauth_device_authorization
                         signed device-flow authority descriptors when used
 http                    host-brokered HTTP-rule objects
@@ -137,6 +139,22 @@ names one field in the component's signed configuration schema. Scopes are a
 nonempty set of bounded visible ASCII values and include `offline_access`.
 Endpoints and scopes are therefore signed Pack authority; the resolved public
 client ID remains non-secret account configuration.
+
+Every `oauth2_authorization_code_pkce` slot likewise has exactly one
+`oauth_authorization_code_pkce` descriptor, and no other slot may have one.
+The descriptor has only `credential_slot`, `authorization_endpoint`,
+`token_endpoint`, `client_id_configuration_key`, `scopes`, and
+`authorization_parameters`. Endpoints, client-ID key, and scopes obey the
+same closed rules as device authorization. Authorization parameters are a
+bounded map of visible ASCII names and values; they cannot replace the
+host-owned `client_id`, `code_challenge`, `code_challenge_method`,
+`redirect_uri`, `response_type`, `scope`, or `state` fields. The trusted host
+uses an external browser and a one-shot ephemeral IPv4 loopback listener,
+requires PKCE `S256`, verifies an unpredictable state value, and keeps the
+authorization code, verifier, state, and tokens out of Pack and interaction
+state. Initial authorization must return refresh custody. A refresh response
+may omit both a replacement refresh token and the unchanged scope set; the
+host then retains the previously verified values.
 
 The effect-purpose strings are exactly `delegation_delivery`,
 `delegation_take_back_notice`, `source_cleanup_item`,

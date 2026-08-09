@@ -97,10 +97,12 @@ configuration, unambiguous single/multi-account source references, a
 provider-aware ImportPort, closed expiring OAuth token-set custody, vault-agent
 resolution, and real bounded HTTPS transport. Credentials are resolved only
 after signed route and slot authorization and never enter Pack transcripts or
-persisted preflight. Signed OAuth Device Authorization and refresh are now
-implemented: endpoint and scope authority plus the public client ID produce a
-drift-sensitive fingerprint, returned scopes remain confined, and token
-rotation persists atomically through the vault agent. Production now combines
+persisted preflight. Signed OAuth Device Authorization and authorization code
+with PKCE are now implemented: endpoint and scope authority plus the public
+client ID produce a drift-sensitive fingerprint, returned scopes remain
+confined, and token rotation persists atomically through the vault agent. PKCE
+uses `S256`, a one-shot IPv4 loopback receiver, exact state validation, and no
+persisted authorization session. Production now combines
 the exact standard Pack with all trusted profile pins from the
 content-addressed store and fails the whole registry on unsafe or unavailable
 configured behavior. Official pins additionally require exact replayed catalog

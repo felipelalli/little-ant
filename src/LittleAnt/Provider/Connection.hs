@@ -1,5 +1,6 @@
 module LittleAnt.Provider.Connection (
   ProviderConnectionDraft (..),
+  ProviderOAuthClient (..),
   prepareProviderConnectionDraft,
   applyProviderConnectionDraft,
   connectionOAuthClient,
@@ -19,6 +20,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import LittleAnt.Error
 import LittleAnt.Id
+import LittleAnt.OAuth.AuthorizationCode
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
@@ -41,6 +43,14 @@ data ProviderConnectionDraft = ProviderConnectionDraft
   }
   deriving stock (Eq, Show)
 
+data ProviderOAuthClient
+  = ProviderOAuthPkceClient OAuthPkceClient
+  | ProviderOAuthDeviceClient OAuthDeviceClient
+
+data OAuthDescriptor
+  = PkceDescriptor OAuthAuthorizationCodePkcePermission
+  | DeviceDescriptor OAuthDeviceAuthorizationPermission
+
 prepareProviderConnectionDraft :: [ProviderSourceDefinition] -> PackRegistry -> IntegrationsConfig -> Text -> Text -> Text -> Text -> Text -> UUIDv7 -> Either AppError ProviderConnectionDraft
 prepareProviderConnectionDraft definitions registry integrations revision requestedSource requestedAccount requestedLabel clientId allocatedVaultEntry = do
   let source = Text.strip requestedSource
@@ -58,8 +68,9 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
   registered <- lookupPackComponent source registry
   unless (componentKind (componentCommon (registeredComponent registered)) == SourceAdapterComponent) $
     Left (connectionProblem PreconditionFailed "The selected Pack component is not a SourceAdapter." [source])
-  authorization <- soleOAuthDeviceAuthorization registered
-  let slot = oauthDeviceCredentialSlot authorization
+  authorization <- soleOAuthAuthorization registered
+  let slot = descriptorSlot authorization
+      scheme = descriptorScheme authorization
   existingAccount <- compatibleExistingAccount definition accountName integrations
   let account =
         ProviderAccount
@@ -67,18 +78,18 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
           , providerAccountProvider = providerDefinitionNamespace definition
           , providerAccountExternalId = maybe accountName providerAccountExternalId existingAccount
           , providerAccountLabel = label
-          , providerAccountConfiguration = insertClientId (oauthDeviceClientIdConfigurationKey authorization) clientId (providerAccountConfiguration <$> existingAccount)
+          , providerAccountConfiguration = insertClientId (descriptorClientIdKey authorization) clientId (providerAccountConfiguration <$> existingAccount)
           }
-  client <- resolveOAuthDeviceClient registered account slot
-  (bindingName, vaultEntry) <- existingBinding source accountName slot allocatedVaultEntry integrations
+  client <- resolveProviderOAuthClient registered account authorization
+  (bindingName, vaultEntry) <- existingBinding source accountName slot scheme allocatedVaultEntry integrations
   let binding =
         CredentialBinding
           { credentialBindingComponent = source
           , credentialBindingSlot = slot
           , credentialBindingAccount = accountName
-          , credentialBindingScheme = Vault.OAuthDeviceAuthorization
+          , credentialBindingScheme = scheme
           , credentialBindingVaultEntry = vaultEntry
-          , credentialBindingAuthorizationFingerprint = Just (oauthDeviceAuthorizationFingerprint client)
+          , credentialBindingAuthorizationFingerprint = Just (providerOAuthFingerprint client)
           , credentialBindingPurposes = Set.singleton "source_read"
           }
       draft =
@@ -91,7 +102,7 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
           , providerConnectionBinding = binding
           , providerConnectionClientId = clientId
           , providerConnectionArtifact = registeredPackIdentity registered
-          , providerConnectionScopes = oauthDeviceRequestedScopes client
+          , providerConnectionScopes = providerOAuthScopes client
           , providerConnectionProfileRevision = revision
           }
   _ <- applyProviderConnectionDraft integrations draft
@@ -107,26 +118,63 @@ applyProviderConnectionDraft integrations draft = do
   validateIntegrationsConfig changed
   pure changed
 
-connectionOAuthClient :: PackRegistry -> ProviderConnectionDraft -> Either AppError OAuthDeviceClient
+connectionOAuthClient :: PackRegistry -> ProviderConnectionDraft -> Either AppError ProviderOAuthClient
 connectionOAuthClient registry draft = do
   registered <- lookupPackComponent (providerConnectionSource draft) registry
   unless (registeredPackIdentity registered == providerConnectionArtifact draft) $
     Left (connectionProblem PermissionRequired "The installed provider Pack changed after the connection preview." [providerConnectionSource draft])
-  client <- resolveOAuthDeviceClient registered (providerConnectionAccount draft) (credentialBindingSlot (providerConnectionBinding draft))
+  descriptor <- soleOAuthAuthorization registered
+  client <- resolveProviderOAuthClient registered (providerConnectionAccount draft) descriptor
   unless
-    ( oauthDeviceAuthorizationFingerprint client == maybe "" id (credentialBindingAuthorizationFingerprint (providerConnectionBinding draft))
-        && oauthDeviceRequestedScopes client == providerConnectionScopes draft
+    ( providerOAuthFingerprint client == maybe "" id (credentialBindingAuthorizationFingerprint (providerConnectionBinding draft))
+        && providerOAuthScopes client == providerConnectionScopes draft
+        && descriptorSlot descriptor == credentialBindingSlot (providerConnectionBinding draft)
+        && descriptorScheme descriptor == credentialBindingScheme (providerConnectionBinding draft)
     )
     (Left (connectionProblem PermissionRequired "The signed provider authorization changed after the connection preview." [providerConnectionSource draft]))
   pure client
 
-soleOAuthDeviceAuthorization :: RegisteredPackComponent -> Either AppError OAuthDeviceAuthorizationPermission
-soleOAuthDeviceAuthorization registered = case registeredComponent registered of
-  ExecutableComponent _ _ permissions -> case permissionOAuthDeviceAuthorizations permissions of
-    [permission] -> Right permission
-    [] -> Left (connectionProblem PreconditionFailed "The selected provider declares no OAuth Device Authorization." [])
-    _ -> Left (connectionProblem Conflict "The selected provider declares more than one OAuth Device Authorization; choose an explicit connection profile." [])
+soleOAuthAuthorization :: RegisteredPackComponent -> Either AppError OAuthDescriptor
+soleOAuthAuthorization registered = case registeredComponent registered of
+  ExecutableComponent _ _ permissions -> case candidates permissions of
+    [authorization] -> Right authorization
+    [] -> Left (connectionProblem PreconditionFailed "The selected provider declares no supported OAuth authorization." [])
+    _ -> Left (connectionProblem Conflict "The selected provider declares more than one OAuth authorization; choose an explicit connection profile." [])
   _ -> Left (connectionProblem PreconditionFailed "A declarative component cannot connect a provider account." [])
+ where
+  candidates permissions =
+    (PkceDescriptor <$> permissionOAuthAuthorizationCodePkce permissions)
+      <> (DeviceDescriptor <$> permissionOAuthDeviceAuthorizations permissions)
+
+descriptorSlot :: OAuthDescriptor -> Text
+descriptorSlot = \case
+  PkceDescriptor permission -> oauthPkceCredentialSlot permission
+  DeviceDescriptor permission -> oauthDeviceCredentialSlot permission
+
+descriptorScheme :: OAuthDescriptor -> Vault.CredentialScheme
+descriptorScheme = \case
+  PkceDescriptor _ -> Vault.OAuthAuthorizationCodePKCE
+  DeviceDescriptor _ -> Vault.OAuthDeviceAuthorization
+
+descriptorClientIdKey :: OAuthDescriptor -> Text
+descriptorClientIdKey = \case
+  PkceDescriptor permission -> oauthPkceClientIdConfigurationKey permission
+  DeviceDescriptor permission -> oauthDeviceClientIdConfigurationKey permission
+
+resolveProviderOAuthClient :: RegisteredPackComponent -> ProviderAccount -> OAuthDescriptor -> Either AppError ProviderOAuthClient
+resolveProviderOAuthClient registered account = \case
+  PkceDescriptor permission -> ProviderOAuthPkceClient <$> resolveOAuthPkceClient registered account (oauthPkceCredentialSlot permission)
+  DeviceDescriptor permission -> ProviderOAuthDeviceClient <$> resolveOAuthDeviceClient registered account (oauthDeviceCredentialSlot permission)
+
+providerOAuthFingerprint :: ProviderOAuthClient -> Text
+providerOAuthFingerprint = \case
+  ProviderOAuthPkceClient client -> oauthPkceAuthorizationFingerprint client
+  ProviderOAuthDeviceClient client -> oauthDeviceAuthorizationFingerprint client
+
+providerOAuthScopes :: ProviderOAuthClient -> Set Text
+providerOAuthScopes = \case
+  ProviderOAuthPkceClient client -> oauthPkceRequestedScopes client
+  ProviderOAuthDeviceClient client -> oauthDeviceRequestedScopes client
 
 compatibleExistingAccount :: ProviderSourceDefinition -> Text -> IntegrationsConfig -> Either AppError (Maybe ProviderAccount)
 compatibleExistingAccount definition accountName integrations = case Map.lookup accountName (providerAccounts integrations) of
@@ -138,8 +186,8 @@ compatibleExistingAccount definition accountName integrations = case Map.lookup 
         Left (connectionProblem Conflict "This provider account key already belongs to another provider namespace." [accountName, providerAccountProvider account])
     | otherwise -> Right (Just account)
 
-existingBinding :: Text -> Text -> Text -> UUIDv7 -> IntegrationsConfig -> Either AppError (Text, UUIDv7)
-existingBinding source accountName slot allocated integrations =
+existingBinding :: Text -> Text -> Text -> Vault.CredentialScheme -> UUIDv7 -> IntegrationsConfig -> Either AppError (Text, UUIDv7)
+existingBinding source accountName slot scheme allocated integrations =
   case [ (name, binding)
        | (name, binding) <- Map.toList (credentialBindings integrations)
        , credentialBindingComponent binding == source
@@ -153,7 +201,7 @@ existingBinding source accountName slot allocated integrations =
         Nothing -> Right (name, allocated)
         Just _ -> Left (connectionProblem Conflict "The derived credential-binding name is already in use." [name])
     [(name, binding)] -> do
-      unless (credentialBindingSlot binding == slot && credentialBindingScheme binding == Vault.OAuthDeviceAuthorization) $
+      unless (credentialBindingSlot binding == slot && credentialBindingScheme binding == scheme) $
         Left (connectionProblem Conflict "The existing provider binding uses a different credential slot or scheme." [name])
       Right (name, credentialBindingVaultEntry binding)
     matches -> Left (connectionProblem Conflict "The provider account has more than one credential binding." (fst <$> matches))
