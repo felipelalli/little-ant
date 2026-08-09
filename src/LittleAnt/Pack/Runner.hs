@@ -539,6 +539,17 @@ installPayloadApi entry payload inputBytes = do
   Lua.setglobal "__lant_assets"
   maybe Lua.pushnil Lua.pushByteString inputBytes
   Lua.setglobal "__lant_input_bytes"
+  Lua.pushHaskellFunction $ do
+    bytes <- Lua.forcePeek (Lua.peekByteString (Lua.nthBottom 1))
+    Lua.pushText (sha256Hex bytes)
+    pure 1
+  Lua.setglobal "__lant_sha256"
+  Lua.pushHaskellFunction $ do
+    encoded <- Lua.forcePeek (Lua.peekText (Lua.nthBottom 1))
+    case decodeBytes encoded of
+      Left problem -> Lua.failLua problem
+      Right decoded -> Lua.pushByteString decoded >> pure 1
+  Lua.setglobal "__lant_base64url_decode"
   loadChunk trustedBootstrap "@little-ant/bootstrap"
   Lua.callTrace 0 0
  where
@@ -568,12 +579,13 @@ peekRunnerArtifact index = do
 
 peekSourceObservation :: Lua.Peeker Lua.Exception SourceAdapterObservation
 peekSourceObservation index = do
-  exactLuaKeys "SourceAdapter observation" ["source_label", "account_label", "supported_modes", "cleanup_supported", "containers", "objects", "unsupported_fields", "warnings"] index
+  exactLuaKeys "SourceAdapter observation" ["source_label", "account_label", "identity", "supported_modes", "cleanup_supported", "containers", "objects", "unsupported_fields", "warnings"] index
   account <- emptyMeansNothing <$> Lua.peekFieldRaw Lua.peekText "account_label" index
   observation <-
     SourceAdapterObservation
       <$> Lua.peekFieldRaw Lua.peekText "source_label" index
       <*> pure account
+      <*> Lua.peekFieldRaw (Lua.peekMap Lua.peekText Lua.peekText) "identity" index
       <*> Lua.peekFieldRaw (Lua.peekList peekSourceMode) "supported_modes" index
       <*> Lua.peekFieldRaw Lua.peekBool "cleanup_supported" index
       <*> Lua.peekFieldRaw (Lua.peekList peekSourceContainer) "containers" index
@@ -676,9 +688,13 @@ trustedBootstrap =
     [ "local preload = __lant_preload"
     , "local assets = __lant_assets"
     , "local input_bytes = __lant_input_bytes"
+    , "local sha256 = __lant_sha256"
+    , "local base64url_decode = __lant_base64url_decode"
     , "__lant_preload = nil"
     , "__lant_assets = nil"
     , "__lant_input_bytes = nil"
+    , "__lant_sha256 = nil"
+    , "__lant_base64url_decode = nil"
     , "local loaded = {}"
     , "function require(name)"
     , "  if type(name) ~= 'string' then"
@@ -703,6 +719,14 @@ trustedBootstrap =
     , "  input_bytes = function()"
     , "    if input_bytes == nil then error('input bytes are unavailable for this invocation', 2) end"
     , "    return input_bytes"
+    , "  end,"
+    , "  sha256 = function(bytes)"
+    , "    if type(bytes) ~= 'string' then error('sha256 input must be bytes', 2) end"
+    , "    return sha256(bytes)"
+    , "  end,"
+    , "  base64url_decode = function(encoded)"
+    , "    if type(encoded) ~= 'string' then error('base64url input must be a string', 2) end"
+    , "    return base64url_decode(encoded)"
     , "  end"
     , "}"
     ]

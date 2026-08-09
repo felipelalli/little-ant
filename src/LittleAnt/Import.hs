@@ -10,13 +10,16 @@ where
 import Control.Exception (IOException, displayException, finally, try)
 import Control.Monad (void)
 import Data.ByteString qualified as ByteString
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Time (defaultTimeLocale, formatTime)
 import LittleAnt.Error
 import LittleAnt.Model (SourceMode (..))
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
 import LittleAnt.Source
+import LittleAnt.TaskJugglerActuals
 import System.FilePath (normalise, takeExtension, takeFileName)
 import System.IO (hClose)
 import System.Posix.Files (fileSize, getFdStatus, getSymbolicLinkStatus, isRegularFile, isSymbolicLink)
@@ -58,31 +61,46 @@ emptyImportPort =
 packRegistryImportPort :: PackRunnerClient -> PackRegistry -> ImportPort
 packRegistryImportPort runner registry =
   ImportPort
-    [ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]]
+    descriptors
     preflight
  where
   preflight source mode = do
-    selected <- readPlainTextInput source
-    case selected of
+    case descriptorFor source of
       Left problem -> pure (Left problem)
-      Right input ->
-        case lookupPackComponent "plain_text" registry of
+      Right descriptor -> do
+        selected <- readFileInput descriptor source
+        case selected of
           Left problem -> pure (Left problem)
-          Right component ->
-            invokePackSourcePreflight runner component mode input >>= \case
+          Right input ->
+            case lookupPackComponent (importSourceId descriptor) registry of
               Left problem -> pure (Left problem)
-              Right preview -> pure (Right (ImportRead (normalizedReference source) input preview))
+              Right component ->
+                invokePackSourcePreflight runner component mode input >>= \case
+                  Left problem -> pure (Left problem)
+                  Right preview -> pure $ do
+                    verifyCoreCustody descriptor input preview
+                    Right (ImportRead (normalizedReference source) input preview)
+  descriptorFor source =
+    let extension = Text.toLower (Text.pack (takeExtension (Text.unpack (Text.strip source))))
+        matches = filter (elem extension . importSourceExtensions) descriptors
+     in case matches of
+          [descriptor] -> Right descriptor
+          _ ->
+            Left $
+              (sourceProblem Unsupported "No enabled file SourceAdapter unambiguously accepts this source path.")
+                { appErrorSubject = Just (Text.strip source)
+                , appErrorDetails = ["Recognized extensions: " <> Text.intercalate ", " (concatMap importSourceExtensions descriptors)]
+                , appErrorRecovery = [RecoveryAction "choose-source" "Choose a source whose format identifies one enabled SourceAdapter." Nothing]
+                }
+  descriptors =
+    [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]
+    , ImportSourceDescriptor "taskjuggler_actuals" "TaskJuggler actuals" [".tjp"] [SourceSnapshot]
+    ]
 
-readPlainTextInput :: Text -> IO (Either AppError SourceInput)
-readPlainTextInput source
+readFileInput :: ImportSourceDescriptor -> Text -> IO (Either AppError SourceInput)
+readFileInput descriptor source
   | Text.null stripped = pure . Left $ sourceProblem InvalidInput "A file import needs a nonempty source path."
-  | extension `notElem` [".txt", ".text"] =
-      pure . Left $
-        (sourceProblem Unsupported "No enabled file SourceAdapter unambiguously accepts this source path.")
-          { appErrorSubject = Just stripped
-          , appErrorDetails = ["The current standard boundary recognizes .txt and .text as plain text."]
-          , appErrorRecovery = [RecoveryAction "choose-source" "Choose a source whose format identifies one enabled SourceAdapter." Nothing]
-          }
+  | extension `notElem` importSourceExtensions descriptor = pure . Left $ sourceProblem Unsupported "The selected SourceAdapter does not accept this file extension."
   | otherwise = do
       inspected <- try (getSymbolicLinkStatus path)
       case inspected of
@@ -97,11 +115,37 @@ readPlainTextInput source
                   }
           | otherwise -> do
               loaded <- readOpenedRegularFile source path
-              pure $ SourceInput (Text.pack (takeFileName path)) "text/plain; charset=utf-8" <$> loaded
+              pure $ SourceInput (Text.pack (takeFileName path)) (mediaTypeFor descriptor) <$> loaded
  where
   stripped = Text.strip source
   path = Text.unpack stripped
   extension = Text.toLower (Text.pack (takeExtension path))
+
+mediaTypeFor :: ImportSourceDescriptor -> Text
+mediaTypeFor descriptor = case importSourceId descriptor of
+  "taskjuggler_actuals" -> "text/x-taskjuggler; charset=utf-8"
+  _ -> "text/plain; charset=utf-8"
+
+verifyCoreCustody :: ImportSourceDescriptor -> SourceInput -> SourcePreflight -> Either AppError ()
+verifyCoreCustody descriptor input preflight
+  | importSourceId descriptor /= "taskjuggler_actuals" = Right ()
+  | otherwise = do
+      actuals <- parseTaskJugglerActuals (sourceInputBytes input)
+      let identity = observedIdentity (sourcePreflightObservation preflight)
+          expected =
+            Map.fromList
+              [ ("planning_manifest_sha256", actualsManifestDigest actuals)
+              , ("actuals_as_of", Text.pack (formatTime defaultTimeLocale "%Y-%m-%d-%H:%MZ" (actualsAsOf actuals)))
+              , ("actual_record_count", Text.pack (show (length (actualsRecords actuals))))
+              ]
+      if expected == identity
+        then Right ()
+        else
+          Left
+            ( (sourceProblem CorruptData "The TaskJuggler SourceAdapter observation disagrees with the core custody parser.")
+                { appErrorDetails = ["Expected: " <> Text.pack (show expected), "Observed: " <> Text.pack (show identity)]
+                }
+            )
 
 normalizedReference :: Text -> Text
 normalizedReference = Text.pack . normalise . Text.unpack . Text.strip

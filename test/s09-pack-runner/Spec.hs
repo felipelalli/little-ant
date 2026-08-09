@@ -319,7 +319,7 @@ validSourceAdapter :: ByteString
 validSourceAdapter =
   "return function(request)\n"
     <> "  local bytes = lant.input_bytes()\n"
-    <> "  return {source_label='Fixture source', account_label='', supported_modes={'snapshot','migrate'}, cleanup_supported=false, containers={}, objects={{external_id=request.input.digest, locator='sha256:' .. request.input.digest, container_id='', title=request.input.label, shape='note', completed=false, attachment_count=0, content={kind='text', text=bytes}, duplicate_keys={request.input.digest}}}, unsupported_fields={}, warnings={}}\n"
+    <> "  return {source_label='Fixture source', account_label='', identity={content_sha256=lant.sha256(bytes)}, supported_modes={'snapshot','migrate'}, cleanup_supported=false, containers={}, objects={{external_id=request.input.digest, locator='sha256:' .. request.input.digest, container_id='', title=request.input.label, shape='note', completed=false, attachment_count=0, content={kind='text', text=bytes}, duplicate_keys={request.input.digest}}}, unsupported_fields={}, warnings={}}\n"
     <> "end\n"
 
 assertRight :: (Show left) => Either left right -> IO right

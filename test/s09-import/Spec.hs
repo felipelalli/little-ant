@@ -269,6 +269,7 @@ fixtureObservation externalIdentity bytes =
   SourceAdapterObservation
     "Plain text fixture"
     (Just "Local file")
+    (Map.singleton "content_sha256" (sha256Hex bytes))
     [SourceSnapshot, SourceMigrate]
     False
     [SourceContainer fixtureContainerId "Fixture directory"]

@@ -891,14 +891,16 @@ makeImportPreflightEnvelope identity cursor precondition now state profileName s
         Nothing
         ( [ observedSourceLabel observation <> accountSuffix
           , "Mode: " <> sourceModeName (sourcePreflightMode preflight)
-          , ""
-          , "Containers: " <> count containers
-          , "Items: " <> count openObjects <> " open · " <> count completedObjects <> " completed"
-          , "Attachments: " <> Text.pack (show attachments)
-          , "Will preserve: " <> count objects <> " Raws with source identity"
-          , "Destination profile: " <> profileName
-          , "Possible duplicates: " <> Text.pack (show duplicateSuspicions)
           ]
+            <> identityLines
+            <> [ ""
+               , "Containers: " <> count containers
+               , "Items: " <> count openObjects <> " open · " <> count completedObjects <> " completed"
+               , "Attachments: " <> Text.pack (show attachments)
+               , "Will preserve: " <> count objects <> " Raws with source identity"
+               , "Destination profile: " <> profileName
+               , "Possible duplicates: " <> Text.pack (show duplicateSuspicions)
+               ]
             <> unsupportedLine
             <> warningLines
             <> ["", "Nothing will be deleted from the source."]
@@ -922,6 +924,10 @@ makeImportPreflightEnvelope identity cursor precondition now state profileName s
   attachments = sum (sourceObjectAttachmentCount <$> objects)
   duplicateSuspicions = length (filter (not . null . sourceObjectDuplicateKeys) objects)
   accountSuffix = maybe "" (" · " <>) (observedAccountLabel observation)
+  identityLines =
+    ["Planning manifest: " <> value | Just value <- [Map.lookup "planning_manifest_sha256" (observedIdentity observation)]]
+      <> ["Actuals as of: " <> value | Just value <- [Map.lookup "actuals_as_of" (observedIdentity observation)]]
+      <> ["Actual records: " <> value | Just value <- [Map.lookup "actual_record_count" (observedIdentity observation)]]
   unsupportedLine = case observedUnsupportedFields observation of
     [] -> []
     unsupported -> ["Unsupported fields: " <> Text.intercalate "; " unsupported]

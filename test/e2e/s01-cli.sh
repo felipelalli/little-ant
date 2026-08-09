@@ -69,6 +69,69 @@ assert not any(action["default"] for action in interaction["actions"])
 ' <<<"$import_json"
 test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
 
+actuals_source="$test_root/actuals.tjp"
+python3 - "$actuals_source" <<'PY'
+import base64, hashlib, json, pathlib, sys
+
+brick = "0198f000-0000-7000-8000-000000000011"
+task = "t_" + brick.replace("-", "")
+manifest = {
+    "calendars": [],
+    "cut": [{"brick_id": brick, "dependencies": [], "order": 0, "task_id": task}],
+    "effort_profile": {"id": "fixture"},
+    "exporter": {"component": "taskjuggler"},
+    "planned_at": "2026-08-09T09:00:00Z",
+    "projection": {"schema": "little-ant/taskjuggler@1"},
+    "resources": [],
+    "roots": [],
+    "schema": "little-ant/planning-manifest@1",
+    "scope": {"kind": "all"},
+    "source": {"cursor": "0:fixture", "hash": "a" * 64},
+    "warnings": [],
+}
+canonical = json.dumps(manifest, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+digest = hashlib.sha256(canonical).hexdigest()
+encoded = base64.urlsafe_b64encode(canonical).decode().rstrip("=")
+lines = [f"# LANT-MANIFEST-SHA256: {digest}"]
+for index, offset in enumerate(range(0, len(encoded), 160), 1):
+    lines.append(f"# LANT-MANIFEST-JCS-BASE64URL-{index:04d}: {encoded[offset:offset + 160]}")
+lines += [
+    "",
+    'project p "Actuals" "1.0" 2026-08-01 +1m {',
+    '  timezone "UTC"',
+    "  now 2026-08-09-09:00",
+    '  scenario plan "Plan" {',
+    '    scenario actual "Actual"',
+    "  }",
+    "  trackingscenario actual",
+    "}",
+    "",
+    'resource me "Me"',
+    "",
+    f'task {task} "Fixture work" {{',
+    "  effort 6h",
+    "  allocate me",
+    "  actual:effortdone 2h",
+    "  actual:effortleft 4h",
+    "}",
+]
+pathlib.Path(sys.argv[1]).write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+tj3 --check-syntax --no-reports "$actuals_source" >/dev/null
+actuals_json="$(lant_at "$import_root" --json import "$actuals_source" --snapshot)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+preflight=value["interaction"]["opportunity"]["preflight"]
+observation=preflight["observation"]
+assert preflight["adapter_id"] == "taskjuggler_actuals"
+assert preflight["mode"] == "snapshot"
+assert observation["identity"]["actuals_as_of"] == "2026-08-09-09:00Z"
+assert observation["identity"]["actual_record_count"] == "1"
+assert "Planning manifest:" in "\n".join(value["interaction"]["content"]["body"])
+' <<<"$actuals_json"
+test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
+
 dry_root="$test_root/dry"
 lant_at "$dry_root" --json --dry-run feed milk >/dev/null
 test -z "$(find "$dry_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"

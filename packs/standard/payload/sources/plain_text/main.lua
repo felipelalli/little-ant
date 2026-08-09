@@ -12,6 +12,7 @@ return function(request)
   return {
     source_label = "Plain text file",
     account_label = "",
+    identity = {content_sha256 = input.digest},
     supported_modes = {"snapshot", "migrate"},
     cleanup_supported = false,
     containers = {},

@@ -5,11 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **6c43b3b**
-(`feat(import): accept verified files as canonical Raw`). The current milestone
-closes the dedicated public import evidence, separates durable source scope
-from immutable invocation custody, and hardens host file acquisition. This file
-stays editable between milestone commits.
+Baseline at the start of the current milestone: **5d8ed04**
+(`test(import): prove Raw-first acceptance custody`). The current milestone
+adds the separate TaskJuggler actuals preflight and its independent custody
+parser. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -144,6 +143,14 @@ stays editable between milestone commits.
   bytes, and a stable `SourceBinding`. Exact retries are event-free; a Pack
   upgrade reuses unchanged mappings; changed material under one provider
   identity requires reconciliation; dry-run describes hypothetical results.
+- the standard Pack now contains a snapshot-only `taskjuggler_actuals`
+  SourceAdapter. Its isolated Lua code and an independent Haskell parser both
+  reconstruct the contiguous embedded manifest, verify its canonical bytes
+  and SHA-256 identity, enforce flat canonical task membership, retain partial
+  `effortdone`/`effortleft` with explicit zero, and require one explicit UTC
+  progress cutoff. The host compares the adapter's manifest/as-of/count facts
+  with its own parse before rendering the public import preview. Real `tj3`,
+  malformed-custody fixtures, and CLI E2E cover the boundary without events.
 
 ## Last green gate
 
@@ -179,9 +186,11 @@ XDG roots, so a developer's real profile cannot contaminate it. The aggregate
 pre-existing hints are outside this milestone and S09 remains in progress.
 The isolated-runner suite now has 8 process-boundary cases, including closed
 host-custodied source preflight and unsupported-mode rejection. The standard-Pack
-suite now has 6 archive/authority/golden-format/TaskJuggler/source cases, the pure
-planning suite has 2 cut/custody/profile cases, and the CLI test exercises both
-CSV and TaskJuggler through the production environment. A clean
+suite now has 7 archive/authority/golden-format/TaskJuggler/source cases, the pure
+planning suite has 2 cut/custody/profile cases, and the dedicated actuals suite
+has 5 strict manifest/task/time/value custody cases. The CLI test exercises
+CSV, TaskJuggler export, and TaskJuggler actuals preflight through the
+production environment. A clean
 `nix build path:.#little-ant` passes all Cabal suites, installs the private
 runner under `libexec/little-ant`, carries the signed archive in the Cabal data
 output, and supplies `tj3` to its isolated contract test. The installed
@@ -219,8 +228,9 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, expand the standard file adapters, including the separate TaskJuggler actuals
-SourceAdapter that verifies embedded manifest custody. Microsoft To Do and
-Notesnook migration paths, Calendar, and the local-web UIAdapter remain. The
+Next, persist TaskJuggler actuals through Raw-first acceptance as immutable
+evidence and use only explicit remaining-effort observations conservatively in
+later planning. Microsoft To Do and Notesnook migration paths, Calendar, and
+the local-web UIAdapter remain. The
 `Corrupt history/repair` row is implemented; formal evidence registration and
 the complete S09 gate still precede `verified`.

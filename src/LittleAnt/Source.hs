@@ -26,6 +26,8 @@ import Data.ByteString qualified as ByteString
 import Data.Char (isAscii, isDigit)
 import Data.Foldable (traverse_)
 import Data.List (nub)
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -96,6 +98,7 @@ Host-owned input custody and Pack identity are deliberately absent here.
 data SourceAdapterObservation = SourceAdapterObservation
   { observedSourceLabel :: Text
   , observedAccountLabel :: Maybe Text
+  , observedIdentity :: Map Text Text
   , observedSupportedModes :: [SourceMode]
   , observedCleanupSupported :: Bool
   , observedContainers :: [SourceContainer]
@@ -134,6 +137,11 @@ validateSourceAdapterObservation :: SourceAdapterObservation -> Either AppError 
 validateSourceAdapterObservation observation = do
   requireText "source label" (observedSourceLabel observation)
   traverse_ (requireText "account label") (observedAccountLabel observation)
+  unless (Map.size (observedIdentity observation) <= 64) $ invalid "A SourceAdapter returned too many source-identity facts."
+  traverse_ (requireText "source-identity key") (Map.keys (observedIdentity observation))
+  traverse_ (requireText "source-identity value") (Map.elems (observedIdentity observation))
+  when (any ((> 128) . Text.length) (Map.keys (observedIdentity observation))) $ invalid "A SourceAdapter returned an oversized source-identity key."
+  when (any ((> 2048) . Text.length) (Map.elems (observedIdentity observation))) $ invalid "A SourceAdapter returned an oversized source-identity value."
   unless (not (null modes) && unique modes) $ invalid "A SourceAdapter must return a nonempty unique mode list."
   unless (unique (sourceContainerExternalId <$> containers)) $ invalid "A SourceAdapter returned duplicate container identities."
   unless (unique (sourceObjectExternalId <$> objects)) $ invalid "A SourceAdapter returned duplicate object identities."
@@ -294,6 +302,7 @@ instance ToJSON SourceAdapterObservation where
     object $
       [ "schema" .= ("little-ant/source-adapter-observation@1" :: Text)
       , "source_label" .= observedSourceLabel observation
+      , "identity" .= observedIdentity observation
       , "supported_modes" .= fmap sourceModeName (observedSupportedModes observation)
       , "cleanup_supported" .= observedCleanupSupported observation
       , "containers" .= observedContainers observation
@@ -305,7 +314,7 @@ instance ToJSON SourceAdapterObservation where
 
 instance FromJSON SourceAdapterObservation where
   parseJSON = withObject "SourceAdapterObservation" $ \fields -> do
-    rejectUnknown fields ["schema", "source_label", "account_label", "supported_modes", "cleanup_supported", "containers", "objects", "unsupported_fields", "warnings"]
+    rejectUnknown fields ["schema", "source_label", "account_label", "identity", "supported_modes", "cleanup_supported", "containers", "objects", "unsupported_fields", "warnings"]
     schema <- fields .: "schema"
     unless (schema == ("little-ant/source-adapter-observation@1" :: Text)) $ fail "unsupported SourceAdapter observation schema"
     modes <- fields .: "supported_modes" >>= traverse parseSourceMode
@@ -313,6 +322,7 @@ instance FromJSON SourceAdapterObservation where
       SourceAdapterObservation
         <$> fields .: "source_label"
         <*> fields .:? "account_label"
+        <*> fields .: "identity"
         <*> pure modes
         <*> fields .: "cleanup_supported"
         <*> fields .: "containers"

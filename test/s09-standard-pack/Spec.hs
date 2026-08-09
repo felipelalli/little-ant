@@ -14,6 +14,7 @@ import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
 import LittleAnt.Export
 import LittleAnt.Id
+import LittleAnt.Import
 import LittleAnt.Judgment (factoryJudgmentProfileHash)
 import LittleAnt.Model
 import LittleAnt.Pack.Format
@@ -23,6 +24,7 @@ import LittleAnt.Pack.Standard
 import LittleAnt.Pack.Trust
 import LittleAnt.Source
 import LittleAnt.Store
+import LittleAnt.TaskJugglerActuals
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.Exit (ExitCode (..))
 import System.FilePath (makeRelative, splitDirectories, (</>))
@@ -37,11 +39,12 @@ main =
     testGroup
       "S09 offline standard Pack"
       [ testCase "the committed source tree reconstructs the exact signed archive" canonicalArchive
-      , testCase "the exact compiled identity grants the six exporters and plain-text SourceAdapter" builtInRegistry
+      , testCase "the exact compiled identity grants six exporters and two SourceAdapters" builtInRegistry
       , testCase "tree, Org, and self-contained HTML match reviewed fixtures" reviewedFixtures
       , testCase "aligned table and RFC 4180 CSV preserve structural data" structuredTextFormats
       , testCase "the core planning cut produces valid TaskJuggler syntax" taskJugglerPlanningCut
       , testCase "the plain-text SourceAdapter summarizes one whole file for Raw preservation" plainTextSourceAdapter
+      , testCase "the TaskJuggler actuals SourceAdapter verifies manifest custody independently" taskJugglerActualsSourceAdapter
       ]
 
 canonicalArchive :: Assertion
@@ -96,6 +99,47 @@ plainTextSourceAdapter = do
       sourceObjectShape sourceObject @?= SourceNoteShape
       sourceObjectMaterial sourceObject @?= summarizeSourceMaterial (SourceTextMaterial "First line\nSecond line\n")
     other -> assertFailure ("unexpected plain-text objects: " <> show other)
+
+taskJugglerActualsSourceAdapter :: Assertion
+taskJugglerActualsSourceAdapter = do
+  client <- fixtureClient
+  scope <- assertRight (mkProfileScope "default")
+  registry <- loadStandardPackRegistry fixtureTime scope >>= assertRight
+  exported <- runExportHost (packRegistryExportPort client registry) False fixtureTime genesisCursor planningState "taskjuggler" ExportWholeDataset Nothing >>= assertRight
+  let original = TextEncoding.decodeUtf8 (exportArtifactBytes (exportHostArtifact exported))
+      taskHeader = "task t_0198f000000070008000000000000011 \"Prepare the planning cut\" {\n"
+      actualText =
+        Text.replace "  now ${projectstart}" "  now 2026-08-09-09:00" $
+          Text.replace taskHeader (taskHeader <> "  actual:effortdone 2h\n  actual:effortleft 4h\n") original
+      actualBytes = TextEncoding.encodeUtf8 actualText
+      input = SourceInput "little-ant.tjp" "text/x-taskjuggler; charset=utf-8" actualBytes
+  parsed <- assertRight (parseTaskJugglerActuals actualBytes)
+  length (actualsRecords parsed) @?= 1
+  registered <- assertRight (lookupPackComponent "taskjuggler_actuals" registry)
+  preflight <- invokePackSourcePreflight client registered SourceSnapshot input >>= assertRight
+  observedIdentity (sourcePreflightObservation preflight)
+    @?= Map.fromList
+      [ ("actual_record_count", "1")
+      , ("actuals_as_of", "2026-08-09-09:00Z")
+      , ("planning_manifest_sha256", actualsManifestDigest parsed)
+      ]
+  observedSupportedModes (sourcePreflightObservation preflight) @?= [SourceSnapshot]
+  observedCleanupSupported (sourcePreflightObservation preflight) @?= False
+  case observedObjects (sourcePreflightObservation preflight) of
+    [sourceObject] -> do
+      sourceObjectLocator sourceObject @?= "manifest-sha256:" <> actualsManifestDigest parsed
+      sourceObjectMaterial sourceObject @?= summarizeSourceMaterial (SourceTextMaterial actualText)
+    other -> assertFailure ("unexpected TaskJuggler actuals objects: " <> show other)
+  withSystemTempDirectory "little-ant-taskjuggler-actuals" $ \directory -> do
+    let path = directory </> "actuals.tjp"
+    ByteString.writeFile path actualBytes
+    imported <- importPortPreflight (packRegistryImportPort client registry) (Text.pack path) SourceSnapshot >>= assertRight
+    sourcePreflightAdapterId (importReadPreflight imported) @?= "taskjuggler_actuals"
+    observedIdentity (sourcePreflightObservation (importReadPreflight imported)) @?= observedIdentity (sourcePreflightObservation preflight)
+    (exitCode, stdoutText, stderrText) <- readProcessWithExitCode "tj3" ["--check-syntax", "--no-reports", path] ""
+    case exitCode of
+      ExitSuccess -> pure ()
+      ExitFailure code -> assertFailure ("tj3 rejected the actuals fixture (" <> show code <> "):\n" <> stdoutText <> stderrText)
 
 reviewedFixtures :: Assertion
 reviewedFixtures = do
