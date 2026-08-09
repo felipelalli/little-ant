@@ -1,6 +1,7 @@
 module LittleAnt.Pack.Standard (
   standardPackIdentity,
   standardPackComponentIds,
+  loadStandardPackAuthorization,
   loadStandardPackRegistry,
 )
 where
@@ -36,7 +37,11 @@ standardPackComponentIds :: Set Text
 standardPackComponentIds = Set.fromList ["csv", "html", "notesnook_export", "org", "plain_text", "table", "taskjuggler", "taskjuggler_actuals", "tree"]
 
 loadStandardPackRegistry :: UTCTime -> ProfileScope -> IO (Either AppError PackRegistry)
-loadStandardPackRegistry now scope = do
+loadStandardPackRegistry now scope =
+  loadStandardPackAuthorization now scope >>= pure . (>>= buildPackRegistry scope . pure)
+
+loadStandardPackAuthorization :: UTCTime -> ProfileScope -> IO (Either AppError ExecutionAuthorizedPack)
+loadStandardPackAuthorization now scope = do
   archivePath <- locateStandardPackArchive
   loaded <- try (ByteString.readFile archivePath)
   pure $ do
@@ -58,13 +63,13 @@ loadStandardPackRegistry now scope = do
             , trustOfficialCatalogSequence = Nothing
             , trustOfficialCatalogExpiresAt = Nothing
             , trustOfficialReleaseGrants = Set.empty
+            , trustOfficialPinAuthorizations = Set.empty
             , trustCommunityPublishers = Set.empty
             , trustRevokedKeyFingerprints = Set.empty
             , trustRevokedArchiveDigests = Set.empty
             }
     install <- authorizePackInstall now scope policy standardPackComponentIds authenticated
-    execution <- authorizePinnedPackExecution now scope policy (installAuthorizedPin install) authenticated
-    buildPackRegistry scope [execution]
+    authorizePinnedPackExecution now scope policy (installAuthorizedPin install) authenticated
 
 locateStandardPackArchive :: IO FilePath
 locateStandardPackArchive = do

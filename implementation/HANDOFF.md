@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **85f9394**
-(`feat(providers): bind credentials after route authorization`). The current
-milestone completes signed OAuth Device Authorization and refresh authority,
-including atomic token-set persistence through the vault agent. This file
-stays editable between milestone commits.
+Baseline at the start of the current milestone: **00ce844**
+(`feat(oauth): bind device grants to signed Pack authority`). The current
+milestone joins profile pins, the content-addressed store, catalog history, and
+the built-in standard Pack into one production registry without widening
+official trust. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -252,8 +252,24 @@ stays editable between milestone commits.
 - The exact official connector Pack declares Microsoft To Do's device-flow
   authority and `Tasks.Read offline_access`; its archive and signed fixture
   identities were rebuilt reproducibly. Public discovery, connection, and
-  import are still gated on production loading of the pinned official Pack and
-  explicit CLI/REPL orchestration.
+  import are still gated on publication of the production catalog root,
+  official install/refresh, and explicit CLI/REPL orchestration.
+- production now builds one registry from the exact standard Pack plus every
+  selected-profile pin loaded in deterministic Pack-name order from the
+  content-addressed store. Missing, unsafe, untrusted, revoked, mismatched, or
+  colliding configured Packs fail the complete registry rather than silently
+  disappearing. Export and file-import ports therefore see installed
+  trusted-community components without a provider-specific branch.
+- official pins now require exact historical authorization by catalog
+  sequence, artifact identity, and delegated signer. Expired catalog metadata
+  preserves that offline proof, while remembered revocations dominate. A
+  build without a compiled official root treats official authority as
+  unavailable and refuses both official pins and pre-existing catalog state;
+  it never treats absence as an empty revocation set.
+- no production catalog root is published yet. The official Microsoft To Do
+  Pack remains a separately shipped, fully verifiable artifact rather than a
+  built-in; public official installation/refresh must publish the real root
+  before connection/import orchestration can expose it honestly.
 
 ## Last green gate
 

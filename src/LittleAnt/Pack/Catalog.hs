@@ -377,6 +377,7 @@ catalogTrustPolicy now supportedMajor builtIns community state =
     , trustOfficialCatalogSequence = officialCatalogSequence <$> current
     , trustOfficialCatalogExpiresAt = officialCatalogExpiresAt <$> current
     , trustOfficialReleaseGrants = maybe Set.empty releaseGrants current
+    , trustOfficialPinAuthorizations = Set.fromList (concatMap pinAuthorizations (acceptedCatalogCatalogs state))
     , trustCommunityPublishers = community
     , trustRevokedKeyFingerprints = revoked RevokePublisherKey
     , trustRevokedArchiveDigests = revoked RevokeArchive
@@ -406,6 +407,11 @@ catalogTrustPolicy now supportedMajor builtIns community state =
         , officialGrantManifestDigest = catalogReleaseManifestDigest release
         , officialGrantArchiveDigest = catalogReleaseArchiveDigest release
         }
+
+  pinAuthorizations catalog = mapMaybe (pinAuthorizationFor catalog) (officialCatalogReleases catalog)
+  pinAuthorizationFor catalog release = do
+    grant <- grantFor catalog release
+    pure (officialPinAuthorizationFromGrant (officialCatalogSequence catalog) grant)
 
 readAcceptedCatalogState :: CatalogStateConfig -> CatalogRoot -> IO (Either AppError AcceptedCatalogState)
 readAcceptedCatalogState config compiledRoot = handleCatalogIo $ do

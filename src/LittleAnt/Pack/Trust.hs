@@ -10,6 +10,8 @@ module LittleAnt.Pack.Trust (
   packTrustClassText,
   OfficialCatalogFreshness (..),
   OfficialReleaseGrant (..),
+  OfficialPinAuthorization (..),
+  officialPinAuthorizationFromGrant,
   TrustedCommunityPublisher (..),
   validateTrustedCommunityPublisher,
   PackTrustPolicy (..),
@@ -107,6 +109,28 @@ data OfficialReleaseGrant = OfficialReleaseGrant
   }
   deriving stock (Eq, Ord, Show)
 
+data OfficialPinAuthorization = OfficialPinAuthorization
+  { officialPinCatalogSequence :: Integer
+  , officialPinArtifact :: PackArtifactIdentity
+  , officialPinSignerFingerprint :: Text
+  }
+  deriving stock (Eq, Ord, Show)
+
+officialPinAuthorizationFromGrant :: Integer -> OfficialReleaseGrant -> OfficialPinAuthorization
+officialPinAuthorizationFromGrant sequenceNumber grant =
+  OfficialPinAuthorization
+    { officialPinCatalogSequence = sequenceNumber
+    , officialPinArtifact =
+        PackArtifactIdentity
+          { artifactPublisher = officialGrantPublisher grant
+          , artifactName = officialGrantName grant
+          , artifactVersion = officialGrantVersion grant
+          , artifactManifestDigest = officialGrantManifestDigest grant
+          , artifactArchiveDigest = officialGrantArchiveDigest grant
+          }
+    , officialPinSignerFingerprint = officialGrantKeyFingerprint grant
+    }
+
 data TrustedCommunityPublisher = TrustedCommunityPublisher
   { communityPublisher :: Text
   , communityPublicKey :: Text
@@ -120,6 +144,7 @@ data PackTrustPolicy = PackTrustPolicy
   , trustOfficialCatalogSequence :: Maybe Integer
   , trustOfficialCatalogExpiresAt :: Maybe UTCTime
   , trustOfficialReleaseGrants :: Set OfficialReleaseGrant
+  , trustOfficialPinAuthorizations :: Set OfficialPinAuthorization
   , trustCommunityPublishers :: Set TrustedCommunityPublisher
   , trustRevokedKeyFingerprints :: Set Text
   , trustRevokedArchiveDigests :: Set Text
@@ -356,6 +381,16 @@ authorizePinnedPackExecution now scope policy pin authenticated = do
       unless
         (pinSignerFingerprint pin == authenticatedSignerFingerprint authenticated)
         (Left (trustDataProblem "The pinned official signer does not match the archive signer." []))
+      unless
+        ( OfficialPinAuthorization sequenceNumber (pinArtifact pin) (pinSignerFingerprint pin)
+            `Set.member` trustOfficialPinAuthorizations policy
+        )
+        ( Left
+            ( (trustPermissionProblem "The official Pack pin is not backed by accepted signed catalog history." [artifactName (pinArtifact pin)])
+                { appErrorRecovery = [RecoveryAction "catalog" "Use a build with the official catalog root and restore or refresh its accepted catalog history." (Just "lant packs refresh")]
+                }
+            )
+        )
     PinTrustedPublisher ->
       unless
         (assessedTrustClass assessment == TrustedPublisherTrust)
@@ -401,12 +436,15 @@ validateTrustPolicy :: PackTrustPolicy -> Either AppError ()
 validateTrustPolicy policy = do
   unless (trustSupportedLittleAntMajor policy > 0) (Left (invalid "The supported Little Ant major must be positive." []))
   case (trustOfficialCatalogSequence policy, trustOfficialCatalogExpiresAt policy) of
-    (Nothing, Nothing) -> unless (Set.null (trustOfficialReleaseGrants policy)) (Left (invalid "Official release grants require accepted catalog metadata." []))
+    (Nothing, Nothing) -> do
+      unless (Set.null (trustOfficialReleaseGrants policy)) (Left (invalid "Official release grants require accepted catalog metadata." []))
+      unless (Set.null (trustOfficialPinAuthorizations policy)) (Left (invalid "Official pin authorizations require accepted catalog metadata." []))
     (Just sequenceNumber, Just _) -> when (sequenceNumber < 0) (Left (invalid "The official catalog sequence cannot be negative." []))
     _ -> Left (invalid "Official catalog sequence and expiry must be present together." [])
   mapM_ validateArtifactIdentity builtInArtifacts
   mapM_ validateTrustedCommunityPublisher (trustCommunityPublishers policy)
   mapM_ validateOfficialGrant officialGrants
+  mapM_ validateOfficialPinAuthorization (trustOfficialPinAuthorizations policy)
   unless
     (uniqueOn artifactReleaseKey builtInArtifacts)
     (Left (invalid "Built-in trust contains an equivocated Pack release." []))
@@ -461,6 +499,12 @@ validateOfficialGrant grant = do
   validateDigest "An official archive digest" (officialGrantArchiveDigest grant)
  where
   invalid = trustDataProblem
+
+validateOfficialPinAuthorization :: OfficialPinAuthorization -> Either AppError ()
+validateOfficialPinAuthorization authorization = do
+  when (officialPinCatalogSequence authorization < 0) (Left (trustDataProblem "An official pin authorization has a negative catalog sequence." []))
+  validateArtifactIdentity (officialPinArtifact authorization)
+  validateDigest "An official pin signer fingerprint" (officialPinSignerFingerprint authorization)
 
 validatePublisherBinding :: Text -> Text -> Text -> Either AppError ()
 validatePublisherBinding publisher publicKeyText fingerprint = do

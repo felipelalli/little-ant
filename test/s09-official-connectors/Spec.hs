@@ -193,6 +193,7 @@ officialRegistry authenticated = do
           , trustOfficialCatalogSequence = Just 1
           , trustOfficialCatalogExpiresAt = Just (read "2027-01-01 00:00:00 UTC")
           , trustOfficialReleaseGrants = Set.singleton grant
+          , trustOfficialPinAuthorizations = Set.singleton (officialPinAuthorizationFromGrant 1 grant)
           , trustCommunityPublishers = Set.empty
           , trustRevokedKeyFingerprints = Set.empty
           , trustRevokedArchiveDigests = Set.empty

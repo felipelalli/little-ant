@@ -265,11 +265,13 @@ expiredOfficialCatalog :: Assertion
 expiredOfficialCatalog = do
   (_, authenticated) <- signedFixture fixtureManifest
   scope <- assertRight (mkProfileScope "work")
-  let currentPolicy =
+  let grant = officialGrant authenticated
+      currentPolicy =
         emptyTrustPolicy
           { trustOfficialCatalogSequence = Just 7
           , trustOfficialCatalogExpiresAt = Just (addUTCTime 3600 fixtureNow)
-          , trustOfficialReleaseGrants = Set.singleton (officialGrant authenticated)
+          , trustOfficialReleaseGrants = Set.singleton grant
+          , trustOfficialPinAuthorizations = Set.singleton (officialPinAuthorizationFromGrant 7 grant)
           }
       expiredPolicy = currentPolicy{trustOfficialCatalogExpiresAt = Just (addUTCTime (-1) fixtureNow)}
   currentAssessment <- assertRight (assessPackTrust fixtureNow currentPolicy authenticated)
@@ -282,6 +284,8 @@ expiredOfficialCatalog = do
   assessedOfficialCatalogFreshness expiredAssessment @?= OfficialCatalogExpired
   assertLeft "expired catalog install" (authorizePackInstall fixtureNow scope expiredPolicy (Set.singleton "tree") authenticated)
   _ <- assertRight (authorizePinnedPackExecution fixtureNow scope expiredPolicy (installAuthorizedPin install) authenticated)
+  let unanchoredPolicy = expiredPolicy{trustOfficialPinAuthorizations = Set.empty}
+  assertLeft "official pin without accepted catalog evidence" (authorizePinnedPackExecution fixtureNow scope unanchoredPolicy (installAuthorizedPin install) authenticated)
   let revokedPolicy = expiredPolicy{trustRevokedArchiveDigests = Set.singleton (artifactArchiveDigest (authenticatedPackIdentity authenticated))}
   assertLeft "revoked accepted pin" (authorizePinnedPackExecution fixtureNow scope revokedPolicy (installAuthorizedPin install) authenticated)
 
@@ -448,12 +452,15 @@ officialCatalogRevocationMemory = do
   let identity = authenticatedPackIdentity authenticated
       revocation = CatalogRevocation RevokeArchive (artifactArchiveDigest identity) "release withdrawn" fixtureNow
       first = fixtureCatalog authenticated 1 (addUTCTime 3600 fixtureNow) [revocation]
-      second = fixtureCatalog authenticated 2 (addUTCTime 7200 fixtureNow) []
+      second = (fixtureCatalog authenticated 2 (addUTCTime 7200 fixtureNow) []){officialCatalogReleases = []}
   (firstBytes, firstSignature) <- signedCatalog fixtureCatalogSecretKey root first
   (secondBytes, secondSignature) <- signedCatalog fixtureCatalogSecretKey root second
   acceptedFirst <- assertRight (acceptOfficialPackCatalog fixtureNow (emptyAcceptedCatalogState root) firstBytes firstSignature)
   acceptedSecond <- assertRight (acceptOfficialPackCatalog fixtureNow acceptedFirst secondBytes secondSignature)
   let policy = catalogTrustPolicy fixtureNow 1 Set.empty Set.empty acceptedSecond
+  trustOfficialReleaseGrants policy @?= Set.empty
+  trustOfficialPinAuthorizations policy
+    @?= Set.singleton (officialPinAuthorizationFromGrant 1 (officialGrant authenticated))
   trustRevokedArchiveDigests policy @?= Set.singleton (artifactArchiveDigest identity)
   assessedTrustClass <$> assessPackTrust fixtureNow policy authenticated @?= Right RevokedPack
 
@@ -620,6 +627,7 @@ emptyTrustPolicy =
     , trustOfficialCatalogSequence = Nothing
     , trustOfficialCatalogExpiresAt = Nothing
     , trustOfficialReleaseGrants = Set.empty
+    , trustOfficialPinAuthorizations = Set.empty
     , trustCommunityPublishers = Set.empty
     , trustRevokedKeyFingerprints = Set.empty
     , trustRevokedArchiveDigests = Set.empty

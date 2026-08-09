@@ -43,8 +43,8 @@ import LittleAnt.JudgmentDecision
 import LittleAnt.JudgmentUI
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.Pack.Installed
 import LittleAnt.Pack.Runner (defaultPackRunnerClient)
-import LittleAnt.Pack.Standard (loadStandardPackRegistry)
 import LittleAnt.Pack.Trust (mkProfileScope)
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
@@ -175,11 +175,11 @@ productionAppEnv explicitProfile = do
             Right () ->
               Profile.loadProfile roots profile >>= \case
                 Left problem -> pure (Left problem)
-                Right (_, config, _, _, _) -> case mkProfileScope profile of
+                Right (loadedPaths, config, _, _, integrations) -> case mkProfileScope profile of
                   Left problem -> pure (Left problem)
                   Right scope -> do
                     now <- getCurrentTime
-                    loadStandardPackRegistry now scope >>= \case
+                    loadProfilePackRegistry now scope loadedPaths integrations OfficialCatalogUnavailable >>= \case
                       Left problem -> pure (Left problem)
                       Right registry -> do
                         runner <- defaultPackRunnerClient

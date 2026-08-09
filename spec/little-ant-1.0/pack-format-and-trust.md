@@ -288,6 +288,16 @@ already accepted pin. No generic `trusted Pack` token crosses these
 operations, and every capability is rechecked against locally known key and
 archive revocations before use.
 
+`PinVerifiedOfficial(sequence)` records which accepted decision installed the
+artifact; it is not an independent trust root. On every execution, the host
+replays catalog history from a root compiled into that binary and requires an
+entry at the recorded sequence that delegates the pin's exact artifact identity
+and signer fingerprint. An expired current catalog does not erase this
+historical authorization, while the accumulated known-revocation union still
+dominates it. If the binary has no official root, or the accepted history no
+longer proves the exact pin, official execution fails explicitly. Absence of
+catalog authority is never interpreted as an empty revocation set.
+
 The content-addressed store path is
 `$XDG_DATA_HOME/lant/packs/sha256/<archive-sha256>.lantpack`. Store files are
 private regular files and are never replaced in place. Every load checks the
@@ -295,6 +305,11 @@ filename digest, reconstructs the canonical archive, authenticates its exact
 manifest, and re-evaluates the selected profile pin before a component enters
 the registry. A symlink, non-private file, digest mismatch, malformed archive,
 invalid signature, revoked signer/archive, or mismatched pin fails closed.
+Production builds one profile registry from the exact built-in standard Pack
+plus every configured pin in deterministic Pack-name order. Any configured
+Pack that cannot receive execution authority, or any enabled component-ID
+collision, fails the complete registry rather than silently disabling a
+component.
 
 Within `little-ant/integrations@1`, `installed_components` is an object keyed
 by exact Pack name. Each value contains exactly `artifact`,

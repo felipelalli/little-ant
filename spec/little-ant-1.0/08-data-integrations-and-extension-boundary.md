@@ -188,6 +188,11 @@ support them honestly.
   `little-ant/profile-selection@1` and contains only one selected profile name.
   Unknown keys are errors. No YAML file accepts secret values or arbitrary
   adapter configuration outside its component schema.
+  A recorded official pin is usable only when signed catalog history replayed
+  from the binary's compiled root proves its exact sequence, artifact, and
+  signer. A build without that root treats official authority as unavailable,
+  not as an empty catalog, and fails rather than trusting the YAML assertion or
+  ignoring existing catalog state.
 - **DAT-059 [standard] — Profile selection is explicit and non-merging.** The
   selected profile is, in order, the CLI `--profile <name>`, `LANT_PROFILE`,
   DAT-058's selection file, or literal `default`. `/profile use <name>` writes

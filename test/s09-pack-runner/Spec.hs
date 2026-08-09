@@ -233,6 +233,7 @@ fixtureRegistryFor component root entrySource support = do
           , trustOfficialCatalogSequence = Nothing
           , trustOfficialCatalogExpiresAt = Nothing
           , trustOfficialReleaseGrants = Set.empty
+          , trustOfficialPinAuthorizations = Set.empty
           , trustCommunityPublishers = Set.singleton (communityTrust authenticated)
           , trustRevokedKeyFingerprints = Set.empty
           , trustRevokedArchiveDigests = Set.empty

@@ -77,10 +77,10 @@ identities, keeps completed tasks opt-in, and materializes complete returned
 task JSON as structured Raw. Sparse preflight contains no private provider
 body. Reported attachments whose bytes are absent from Graph remain explicit
 limitations, and migrate requires an explicit incomplete-attachment
-acknowledgment. Production discovery of the pinned official Pack, public
-connection and import commands, separately consented cleanup effects,
-remaining standard importers, Calendar, and local-web UIAdapter remain in this
-slice.
+acknowledgment. Publication of the production official-catalog root, public
+Pack install/refresh, connection and import commands, separately consented
+cleanup effects, remaining standard importers, Calendar, and local-web
+UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
@@ -90,9 +90,14 @@ after signed route and slot authorization and never enter Pack transcripts or
 persisted preflight. Signed OAuth Device Authorization and refresh are now
 implemented: endpoint and scope authority plus the public client ID produce a
 drift-sensitive fingerprint, returned scopes remain confined, and token
-rotation persists atomically through the vault agent. Production loading of
-the pinned official Pack and public connection/import orchestration remain
-prerequisites for exposing the live Microsoft To Do route in the CLI/REPL.
+rotation persists atomically through the vault agent. Production now combines
+the exact standard Pack with all trusted profile pins from the
+content-addressed store and fails the whole registry on unsafe or unavailable
+configured behavior. Official pins additionally require exact replayed catalog
+history; until the real root is published, official authority is explicitly
+unavailable. Root publication, public Pack install/refresh, and
+connection/import orchestration remain prerequisites for exposing the live
+Microsoft To Do route in the CLI/REPL.
 
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or
@@ -101,9 +106,10 @@ signed component route, executed by the trusted host, sanitized, and replayed
 through a fresh private process and VM. Remote preflight persists only custody
 digest/count plus the sparse observation; materialization refetches and must
 match. The Microsoft To Do component is built on this kernel as an exact
-official artifact. Typed credential binding, transport, acquisition, and
-refresh are built; installed-Pack loading, public connection/import
-orchestration, and cleanup-effect dispatch remain to be built.
+official artifact. Typed credential binding, transport, acquisition, refresh,
+and installed-Pack loading are built; official-root publication,
+public Pack install/refresh, connection/import orchestration, and cleanup-effect
+dispatch remain to be built.
 
 ## Gate
 
