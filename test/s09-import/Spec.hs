@@ -51,7 +51,7 @@ multiObjectAcceptance = withHarness $ \environment _ -> do
   result <- run importedEnvironment False (RespondCommand (response preview "import.accept"))
   envelope <- interactionOf result
   imported <- case envelopeOpportunity envelope of
-    ImportResultOpportunity identities [] False -> pure identities
+    ImportResultOpportunity _ identities [] False -> pure identities
     opportunity -> assertFailure ("unexpected multi-object import result: " <> show opportunity) >> fail "unreachable"
   length imported @?= 2
   dataset <- load importedEnvironment
@@ -68,7 +68,7 @@ multiObjectAcceptance = withHarness $ \environment _ -> do
   second <- run importedEnvironment False (RespondCommand (response secondPreview "import.accept"))
   secondEnvelope <- interactionOf second
   case envelopeOpportunity secondEnvelope of
-    ImportResultOpportunity [] reused False -> Set.fromList reused @?= Set.fromList imported
+    ImportResultOpportunity _ [] reused False -> Set.fromList reused @?= Set.fromList imported
     opportunity -> assertFailure ("multi-object retry was not idempotent: " <> show opportunity)
   resultMutationCommandId second @?= Nothing
   finalDataset <- load importedEnvironment
@@ -115,7 +115,7 @@ acceptancePreservesRawTruth = withHarness $ \environment _ -> do
   result <- run environment False (RespondCommand (response preview "import.accept"))
   envelope <- interactionOf result
   importedRaw <- case envelopeOpportunity envelope of
-    ImportResultOpportunity [identity] [] False -> pure identity
+    ImportResultOpportunity _ [identity] [] False -> pure identity
     opportunity -> assertFailure ("unexpected import result: " <> show opportunity) >> fail "unreachable"
   contentHeading (envelopeContent envelope) @?= "Import verified."
   assertBodyContains "1 new Raws preserved · 0 already preserved" envelope
@@ -155,14 +155,14 @@ repeatedAcceptance = withHarness $ \environment _ -> do
   firstPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
   firstResult <- run environment False (RespondCommand (response firstPreview "import.accept")) >>= interactionOf
   firstRaw <- case envelopeOpportunity firstResult of
-    ImportResultOpportunity [identity] [] False -> pure identity
+    ImportResultOpportunity _ [identity] [] False -> pure identity
     opportunity -> assertFailure ("unexpected first import result: " <> show opportunity) >> fail "unreachable"
   before <- load environment
   secondPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
   secondResult <- run environment False (RespondCommand (response secondPreview "import.accept"))
   secondEnvelope <- interactionOf secondResult
   case envelopeOpportunity secondEnvelope of
-    ImportResultOpportunity [] [identity] False -> identity @?= firstRaw
+    ImportResultOpportunity _ [] [identity] False -> identity @?= firstRaw
     opportunity -> assertFailure ("repeat import was not idempotent: " <> show opportunity)
   resultMutationCommandId secondResult @?= Nothing
   finalDataset <- load environment
@@ -181,7 +181,7 @@ changedAdapterInvocation = withHarness $ \environment bytesRef -> do
   secondPreview <- run upgraded False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
   secondResult <- run upgraded False (RespondCommand (response secondPreview "import.accept")) >>= interactionOf
   case envelopeOpportunity secondResult of
-    ImportResultOpportunity [] [_] False -> pure ()
+    ImportResultOpportunity _ [] [_] False -> pure ()
     opportunity -> assertFailure ("new adapter invocation duplicated stable source material: " <> show opportunity)
   dataset <- load upgraded
   loadedEventCount dataset @?= 5
@@ -198,7 +198,7 @@ changedSnapshot = withHarness $ \environment bytesRef -> do
   secondPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
   secondResult <- run environment False (RespondCommand (response secondPreview "import.accept")) >>= interactionOf
   case envelopeOpportunity secondResult of
-    ImportResultOpportunity [_] [] False -> pure ()
+    ImportResultOpportunity _ [_] [] False -> pure ()
     opportunity -> assertFailure ("changed snapshot was not preserved separately: " <> show opportunity)
   dataset <- load environment
   Map.size (stateImportProfiles (loadedState dataset)) @?= 1
@@ -288,6 +288,8 @@ fixtureImportPortWithIdentity identity bytesRef =
     [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate]]
     preflight
     materialize
+    (importPortCleanupCustody emptyImportPort)
+    (importPortCleanupItem emptyImportPort)
  where
   preflight source mode = do
     bytes <- readIORef bytesRef
@@ -304,6 +306,8 @@ fixtureImportPortWithExternalIdentity externalIdentity bytesRef =
     [ImportSourceDescriptor "plain_text" "Plain text fixture" [".txt"] [SourceSnapshot, SourceMigrate]]
     preflight
     materialize
+    (importPortCleanupCustody emptyImportPort)
+    (importPortCleanupItem emptyImportPort)
  where
   preflight source mode = do
     bytes <- readIORef bytesRef
@@ -315,7 +319,13 @@ fixtureImportPortWithExternalIdentity externalIdentity bytesRef =
       pure (ImportMaterialization readValue (Map.singleton externalIdentity (SourceTextMaterial (decodeFixture bytes))))
 
 multiObjectImportPort :: ImportPort
-multiObjectImportPort = ImportPort [descriptor] preflight materialize
+multiObjectImportPort =
+  ImportPort
+    [descriptor]
+    preflight
+    materialize
+    (importPortCleanupCustody emptyImportPort)
+    (importPortCleanupItem emptyImportPort)
  where
   descriptor = ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
   preflight source mode = pure $ ImportRead source multiInput <$> multiPreflight mode

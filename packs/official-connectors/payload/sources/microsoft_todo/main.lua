@@ -42,6 +42,40 @@ local function validate_source(source)
   return selected
 end
 
+local function cleanup_item(source, target)
+  validate_source(source)
+  if type(target) ~= "table" then error("cleanup target must be an object") end
+  local expected = {external_identity = true, locator = true, container_identity = true}
+  for key, _ in pairs(target) do
+    if not expected[key] then error("unknown Microsoft To Do cleanup target field: " .. tostring(key)) end
+  end
+  local external_identity = require_string(target.external_identity, "external_identity")
+  local locator = require_string(target.locator, "locator")
+  local container_identity = require_string(target.container_identity, "container_identity")
+  local list_id, task_id = string.match(external_identity, "^task:([^:]+):(.+)$")
+  if list_id == nil or task_id == nil then error("external_identity is not a Microsoft To Do task identity") end
+  if container_identity ~= "list:" .. list_id then error("cleanup container identity does not match the task identity") end
+  local expected_locator = "microsoft-todo://" .. lant.url.encode_path_segment(source.account_id)
+    .. "/lists/" .. lant.url.encode_path_segment(list_id)
+    .. "/tasks/" .. lant.url.encode_path_segment(task_id)
+  if locator ~= expected_locator then error("cleanup locator does not match the exact provider target") end
+
+  local url = graph_root .. "/lists/" .. lant.url.encode_path_segment(list_id)
+    .. "/tasks/" .. lant.url.encode_path_segment(task_id)
+  local response = lant.http.request({method = "DELETE", url = url, headers = {accept = "application/json"}})
+  local provider_reference = "Microsoft To Do task " .. task_id
+  if response.status == 204 then
+    return {outcome = "succeeded", provider_reference = provider_reference, redacted_detail = "Deleted from Microsoft To Do."}
+  end
+  if response.status == 404 then
+    return {outcome = "succeeded", provider_reference = provider_reference, redacted_detail = "Already absent from Microsoft To Do."}
+  end
+  if response.status == 429 or response.status >= 500 then
+    return {outcome = "failed_retryable", provider_reference = provider_reference, redacted_detail = "Microsoft Graph returned HTTP " .. tostring(response.status) .. "."}
+  end
+  return {outcome = "failed_terminal", provider_reference = provider_reference, redacted_detail = "Microsoft Graph returned HTTP " .. tostring(response.status) .. "."}
+end
+
 local function collection(url, label)
   local values = {}
   local next_url = url
@@ -130,6 +164,9 @@ local function source_object(source, list, task)
 end
 
 return function(request)
+  if request.schema == "little-ant/source-cleanup-item-request@1" then
+    return cleanup_item(request.source, request.target)
+  end
   if request.schema ~= "little-ant/source-provider-request@1" then
     error("unsupported source provider request schema")
   end

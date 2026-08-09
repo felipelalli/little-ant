@@ -3,6 +3,7 @@ module LittleAnt.Decision (
   BreakDraft (..),
   FeedDecision (..),
   ImportAcceptanceDecision (..),
+  ExternalEffectBatchDecision (..),
   MutationDecision (..),
   UndoDecision (..),
   WorkDraft (..),
@@ -74,9 +75,12 @@ module LittleAnt.Decision (
   decideReviewDelegationWithFollowUp,
   decideAllowDelegationFollowUp,
   decideProposeDelegationDelivery,
+  decideProposeSourceCleanupItems,
+  sourceCleanupProposalUUIDCount,
   decideReviseExternalEffect,
   decideApproveExternalEffects,
   decideRejectExternalEffect,
+  decideRejectExternalEffects,
   decideWithdrawExternalEffect,
   decideRetryExternalEffect,
   decideDeferExternalEffect,
@@ -96,7 +100,7 @@ module LittleAnt.Decision (
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (unless, when)
+import Control.Monad (filterM, unless, when)
 import Data.ByteString qualified as ByteString
 import Data.Foldable (traverse_)
 import Data.List (maximumBy, sortOn)
@@ -138,6 +142,13 @@ data ImportAcceptanceDecision = ImportAcceptanceDecision
   , importAcceptanceImportedRaws :: [UUIDv7]
   , importAcceptanceReusedRaws :: [UUIDv7]
   , importAcceptanceEvents :: [EventDraft]
+  }
+  deriving stock (Eq, Show)
+
+data ExternalEffectBatchDecision = ExternalEffectBatchDecision
+  { externalEffectBatchCommandId :: Maybe UUIDv7
+  , externalEffectBatchIds :: [UUIDv7]
+  , externalEffectBatchEvents :: [EventDraft]
   }
   deriving stock (Eq, Show)
 
@@ -1332,6 +1343,30 @@ decideRejectExternalEffect state actor identity facts = do
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
   pure (MutationDecision commandId Nothing Nothing [event])
 
+decideRejectExternalEffects :: State -> Actor -> [UUIDv7] -> RuntimeFacts -> Either AppError MutationDecision
+decideRejectExternalEffects state actor identities facts = do
+  let exactIds = sortOn id identities
+  unless (not (null exactIds) && Set.size (Set.fromList exactIds) == length exactIds) $
+    Left (appError InvalidInput "An external-effect rejection needs one nonempty finite set without duplicates.")
+  effects <- traverse (requireExternalEffect state) exactIds
+  unless (all ((`elem` [EffectProposed, EffectApproved]) . externalEffectStatus) effects) $
+    Left (appError PreconditionFailed "Only proposed or approved external effects can be rejected together.")
+  allocated <- requireUUIDs (1 + length effects) facts
+  case allocated of
+    commandId : eventIds -> do
+      unless (length eventIds == length effects) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      let changed effect =
+            effect
+              { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
+              , externalEffectStatus = EffectRejected
+              , externalEffectReviewNotBefore = Nothing
+              , externalEffectApprovalGrant = Nothing
+              , externalEffectApprovedDigest = Nothing
+              }
+          events = zipWith (\eventId effect -> makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged (changed effect)))) eventIds effects
+      pure (MutationDecision commandId Nothing Nothing events)
+    [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+
 decideWithdrawExternalEffect :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
 decideWithdrawExternalEffect state actor identity facts = do
   effect <- requireExternalEffect state identity
@@ -2458,6 +2493,110 @@ decideProposeDelegationDelivery state actor delegationId reason contactId adapte
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged effect))
   pure (MutationDecision commandId (Map.lookup (delegationBrick delegation) (stateBricks state)) Nothing [event])
 
+sourceCleanupProposalUUIDCount :: State -> UUIDv7 -> EffectAdapterCustody -> Either AppError Int
+sourceCleanupProposalUUIDCount state invocationId custody = do
+  requests <- sourceCleanupRequests state invocationId custody
+  newRequests <- filterM (fmap not . hasReusableEffect state) requests
+  pure $ if null newRequests then 0 else 1 + 2 * length newRequests
+
+decideProposeSourceCleanupItems :: State -> Actor -> UUIDv7 -> EffectAdapterCustody -> RuntimeFacts -> Either AppError ExternalEffectBatchDecision
+decideProposeSourceCleanupItems state actor invocationId custody facts = do
+  requests <- sourceCleanupRequests state invocationId custody
+  existing <- traverse (reusableEffect state) requests
+  let newRequests = [request | (request, Nothing) <- zip requests existing]
+      existingIds = [externalEffectId effect | Just effect <- existing]
+  if null newRequests
+    then pure (ExternalEffectBatchDecision Nothing existingIds [])
+    else do
+      allocated <- requireUUIDs (1 + 2 * length newRequests) facts
+      case allocated of
+        commandId : remainder -> do
+          (newIds, events) <- buildEffects allocated commandId remainder newRequests
+          pure (ExternalEffectBatchDecision (Just commandId) (sortOn id (existingIds <> newIds)) events)
+        [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+ where
+  buildEffects allocated commandId identities = \case
+    [] -> do
+      unless (null identities) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      pure ([], [])
+    request : rest -> case identities of
+      effectId : eventId : remaining -> do
+        let target = case request of
+              SourceCleanupItemRequest _ value -> value
+              _ -> error "sourceCleanupRequests returned a non-item request"
+            raw = stateRaws state Map.! cleanupItemRaw target
+            preview = "Delete \"" <> rawOriginal raw <> "\" from " <> effectAdapterProviderAccount custody <> "."
+            idempotencyKey = "source-cleanup-item:" <> externalEffectRequestDigest request
+            effect = makeProposedExternalEffect effectId commandId facts request preview (Just idempotencyKey)
+            event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged effect))
+        (ids, events) <- buildEffects allocated commandId remaining rest
+        pure (effectId : ids, event : events)
+      _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+
+sourceCleanupRequests :: State -> UUIDv7 -> EffectAdapterCustody -> Either AppError [ExternalEffectRequest]
+sourceCleanupRequests state invocationId custody = do
+  invocation <- maybe (Left (appError NotFound "No ImportInvocation matches this cleanup review.")) Right (Map.lookup invocationId (stateImportInvocations state))
+  profile <- maybe (Left (appError CorruptData "The cleanup ImportProfile is missing.")) Right (Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state))
+  unless
+    ( importInvocationMode invocation == SourceMigrate
+        && importProfileMode profile == SourceMigrate
+        && importProfileCleanupSupported profile
+        && importProfileLifecycle profile == ImportProfileActive
+    )
+    $ Left (appError PreconditionFailed "Source cleanup requires one active verified migration whose adapter declares cleanup.")
+  unless
+    ( importInvocationComponentId invocation == effectAdapterComponentId custody
+        && importInvocationContractMajor invocation == effectAdapterContractMajor custody
+        && importInvocationPackPublisher invocation == effectAdapterPackPublisher custody
+        && importInvocationPackName invocation == effectAdapterPackName custody
+        && importInvocationPackVersion invocation == effectAdapterPackVersion custody
+        && importInvocationPackManifestDigest invocation == effectAdapterPackManifestDigest custody
+        && importInvocationPackArchiveDigest invocation == effectAdapterPackArchiveDigest custody
+        && importInvocationSignerFingerprint invocation == effectAdapterSignerFingerprint custody
+        && importProfileInputReference profile == effectAdapterProviderAccount custody
+    )
+    $ Left (appError Conflict "The current cleanup authority does not match the verified ImportInvocation.")
+  traverse makeRequest (sortOn importObjectExternalIdentity (importInvocationMappings invocation))
+ where
+  makeRequest mapping = do
+    binding <- uniqueCleanupBinding mapping
+    let target =
+          SourceCleanupItemTarget
+            invocationId
+            (sourceBindingId binding)
+            (importObjectRawId mapping)
+            (importObjectExternalIdentity mapping)
+            (sourceBindingLocator binding)
+            (sourceBindingContainerIdentity binding)
+    pure (SourceCleanupItemRequest custody target)
+  uniqueCleanupBinding mapping =
+    case
+      [ binding
+      | binding <- Map.elems (stateSourceBindings state)
+      , sourceBindingImportProfile binding == Just (importInvocationProfileId (stateImportInvocations state Map.! invocationId))
+      , sourceBindingRaw binding == importObjectRawId mapping
+      , sourceBindingExternalIdentity binding == Just (importObjectExternalIdentity mapping)
+      , sourceBindingMode binding == SourceMigrate
+      ] of
+      [binding] -> Right binding
+      [] -> Left (appError CorruptData "A cleanup item has no unique migration SourceBinding.")
+      _ -> Left (appError CorruptData "Several SourceBindings claim one cleanup item.")
+
+hasReusableEffect :: State -> ExternalEffectRequest -> Either AppError Bool
+hasReusableEffect state request = isJust <$> reusableEffect state request
+
+reusableEffect :: State -> ExternalEffectRequest -> Either AppError (Maybe ExternalEffect)
+reusableEffect state request =
+  case
+    [ effect
+    | effect <- Map.elems (stateExternalEffects state)
+    , externalEffectRequest effect == request
+    , externalEffectStatus effect `notElem` [EffectRejected, EffectWithdrawn]
+    ] of
+    [] -> Right Nothing
+    [effect] -> Right (Just effect)
+    _ -> Left (appError CorruptData "Several live ExternalEffects claim one exact source cleanup item.")
+
 decideApproveExternalEffects :: State -> Actor -> [UUIDv7] -> RuntimeFacts -> Either AppError MutationDecision
 decideApproveExternalEffects state actor identities facts = do
   let exactIds = sortOn id identities
@@ -2491,24 +2630,62 @@ decideRecordExternalEffectReceipt state actor identity outcome providerReference
   unless (outcome `elem` [EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $ Left (appError InvalidInput "Choose succeeded, retryable failure, terminal failure, or outcome unknown.")
   let maybeDelegation = externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state))
       reconciliation = maybeDelegation >>= successfulEffectReconciliation state facts effect
+      profileRetirement = successfulSourceCleanupRetirement state effect outcome
   allocated <- requireUUIDs (externalEffectReceiptUUIDCount state identity outcome) facts
   (commandId, receiptId, receiptEventId, remaining) <- case allocated of
     commandIdentity : receiptIdentity : eventIdentity : rest -> Right (commandIdentity, receiptIdentity, eventIdentity, rest)
     _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
   let receipt = ExternalEffectReceipt receiptId identity (runtimeNow facts) outcome providerReference redactedDetail
       receiptEvent = makeDraft facts actor state allocated receiptEventId commandId (ExternalEffectReceiptRecordedV1 (ExternalEffectReceiptRecorded receipt))
-      reconciliationEvents = case (reconciliation, remaining) of
-        (Just changed, [delegationEventId]) -> [makeDraft facts actor state allocated delegationEventId commandId (DelegationChangedV1 (DelegationChanged changed))]
-        _ -> []
-  unless (length reconciliationEvents == length remaining) $
+      (delegationEvents, afterDelegation) = case (reconciliation, remaining) of
+        (Just changed, delegationEventId : rest) -> ([makeDraft facts actor state allocated delegationEventId commandId (DelegationChangedV1 (DelegationChanged changed))], rest)
+        (Nothing, rest) -> ([], rest)
+        _ -> ([], remaining)
+      (profileEvents, afterProfile) = case (profileRetirement, afterDelegation) of
+        (Just changed, profileEventId : rest) -> ([makeDraft facts actor state allocated profileEventId commandId (ImportProfileChangedV1 (ImportProfileChanged changed))], rest)
+        (Nothing, rest) -> ([], rest)
+        _ -> ([], afterDelegation)
+      reconciliationEvents = delegationEvents <> profileEvents
+  unless (null afterProfile && length reconciliationEvents == length remaining) $
     Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
   pure (MutationDecision commandId (maybeDelegation >>= (\delegation -> Map.lookup (delegationBrick delegation) (stateBricks state))) Nothing (receiptEvent : reconciliationEvents))
 
 externalEffectReceiptUUIDCount :: State -> UUIDv7 -> ExternalEffectStatus -> Int
 externalEffectReceiptUUIDCount state identity outcome =
-  case Map.lookup identity (stateExternalEffects state) >>= \effect -> externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state)) >>= successfulEffectReconciliationAt effect of
-    Just{} | outcome == EffectSucceeded -> 4
-    _ -> 3
+  case Map.lookup identity (stateExternalEffects state) of
+    Nothing -> 3
+    Just effect ->
+      3
+        + if outcome == EffectSucceeded && isJust (externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state)) >>= successfulEffectReconciliationAt effect) then 1 else 0
+        + if isJust (successfulSourceCleanupRetirement state effect outcome) then 1 else 0
+
+successfulSourceCleanupRetirement :: State -> ExternalEffect -> ExternalEffectStatus -> Maybe ImportProfile
+successfulSourceCleanupRetirement state current outcome = do
+  target <- case externalEffectRequest current of
+    SourceCleanupItemRequest _ value -> Just value
+    _ -> Nothing
+  guardTerminal outcome
+  invocation <- Map.lookup (cleanupItemImportInvocation target) (stateImportInvocations state)
+  profile <- Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state)
+  if importProfileLifecycle profile /= ImportProfileActive || not (all (mappingTerminal invocation) (importInvocationMappings invocation))
+    then Nothing
+    else Just profile{importProfileLifecycle = ImportProfileRetired, importProfileRevision = importProfileRevision profile + 1}
+ where
+  mappingTerminal invocation mapping =
+    any
+      (\effect -> effectTerminal effect && belongsTo invocation mapping effect)
+      (Map.elems (stateExternalEffects state))
+  effectTerminal effect
+    | externalEffectId effect == externalEffectId current = terminalStatus outcome
+    | otherwise = terminalStatus (externalEffectStatus effect)
+  belongsTo invocation mapping effect = case externalEffectRequest effect of
+    SourceCleanupItemRequest _ target ->
+      cleanupItemImportInvocation target == importInvocationId invocation
+        && cleanupItemExternalIdentity target == importObjectExternalIdentity mapping
+        && cleanupItemRaw target == importObjectRawId mapping
+    _ -> False
+  terminalStatus status = status `elem` [EffectSucceeded, EffectFailedTerminal, EffectRejected, EffectWithdrawn]
+  guardTerminal status = if terminalStatus status then Just () else Nothing
 
 successfulEffectReconciliation :: State -> RuntimeFacts -> ExternalEffect -> Delegation -> Maybe Delegation
 successfulEffectReconciliation state facts effect delegation = do

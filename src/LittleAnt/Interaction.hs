@@ -67,6 +67,8 @@ module LittleAnt.Interaction (
   makeDelegationReviewEnvelope,
   makeDelegationResultEnvelope,
   makeExternalEffectApprovalEnvelope,
+  makeSourceCleanupApprovalEnvelope,
+  makeSourceCleanupResultEnvelope,
   makeExternalEffectRecoveryEnvelope,
   makeExternalEffectDuplicateRiskEnvelope,
   makeExternalEffectEditEnvelope,
@@ -333,7 +335,7 @@ data Opportunity
   | SourceLifecyclePreviewOpportunity UUIDv7 SourceBindingLifecycle
   | SourceResultOpportunity UUIDv7 Text
   | ImportPreflightOpportunity Text SourcePreflight Bool
-  | ImportResultOpportunity [UUIDv7] [UUIDv7] Bool
+  | ImportResultOpportunity UUIDv7 [UUIDv7] [UUIDv7] Bool
   | ProviderConnectionOpportunity ProviderConnectionDraft
   | ProviderConnectionResultOpportunity Text Text Text
   | PackInstallOpportunity PackInstallDraft
@@ -434,7 +436,8 @@ data Opportunity
   | DelegationTakeBackPreviewOpportunity UUIDv7
   | DelegationReviewScreenOpportunity UUIDv7
   | DelegationResultOpportunity UUIDv7 Text
-  | ExternalEffectApprovalScreenOpportunity UUIDv7
+  | ExternalEffectApprovalScreenOpportunity [UUIDv7]
+  | SourceCleanupResultOpportunity [UUIDv7]
   | ExternalEffectRecoveryScreenOpportunity UUIDv7
   | ExternalEffectDuplicateRiskOpportunity UUIDv7
   | ExternalEffectEditOpportunity UUIDv7 Text
@@ -951,15 +954,15 @@ makeImportPreflightEnvelope identity cursor precondition now state profileName s
   warningLines = ("Warning: " <>) <$> observedWarnings observation
   count = Text.pack . show . length
 
-makeImportResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> [UUIDv7] -> [UUIDv7] -> Bool -> Bool -> InteractionEnvelope
-makeImportResultEnvelope identity cursor precondition now state imported reused cleanupReady dryRun =
+makeImportResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> UUIDv7 -> [UUIDv7] -> [UUIDv7] -> Bool -> Bool -> InteractionEnvelope
+makeImportResultEnvelope identity cursor precondition now state invocationId imported reused cleanupReady dryRun =
   sealed
     identity
     1
     cursor
     precondition
     ChoiceGrammar
-    (ImportResultOpportunity imported reused cleanupReady)
+    (ImportResultOpportunity invocationId imported reused cleanupReady)
     ( EnvelopeContent
         (if dryRun then "Import simulation verified." else "Import verified.")
         Nothing
@@ -3078,7 +3081,7 @@ makeExternalEffectApprovalEnvelope identity cursor precondition now state brick 
     cursor
     precondition
     ConfirmationGrammar
-    (ExternalEffectApprovalScreenOpportunity (externalEffectId effect))
+    (ExternalEffectApprovalScreenOpportunity [externalEffectId effect])
     ( EnvelopeContent
         "Approve this external action?"
         (Just (brickCitation brick))
@@ -3096,6 +3099,68 @@ makeExternalEffectApprovalEnvelope identity cursor precondition now state brick 
     [helpCommand, exitCommand]
     (Just "understand_external_effect")
     (brickFooter now state brick)
+
+makeSourceCleanupApprovalEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> EffectAdapterCustody -> [ExternalEffect] -> InteractionEnvelope
+makeSourceCleanupApprovalEnvelope identity cursor precondition now state custody effects =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (ExternalEffectApprovalScreenOpportunity (sortOn id (externalEffectId <$> effects)))
+    ( EnvelopeContent
+        question
+        Nothing
+        [ "Source: " <> effectAdapterProviderAccount custody
+        , "Adapter: " <> effectAdapterComponentId custody <> " " <> effectAdapterPackVersion custody
+        , "Items: " <> count
+        , "This permanently deletes only the displayed source items. Verified local Raws remain preserved."
+        , "Nothing has been deleted yet."
+        ]
+        Nothing
+    )
+    [ Action "effect.approve" "yes" "y" False "Approve this exact finite set and dispatch each item separately."
+    , Action "effect.reject" "no" "n" False "Reject this cleanup set; local and source data remain preserved."
+    , Action "effect.later" "later" "l" False "Keep the exact proposed set for a later review."
+    , Action "effect.inspect" "inspect items" "i" False "Show the exact bounded item list before consent."
+    , Action "effect.unknown" "I don't know" "?" False "Explain source cleanup without changing either side."
+    , moreAction
+    ]
+    [helpCommand, exitCommand]
+    (Just "understand_source_cleanup")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  count = Text.pack (show (length effects))
+  question = if length effects == 1 then "Delete this source item?" else "Delete these " <> count <> " source items?"
+
+makeSourceCleanupResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> [ExternalEffect] -> InteractionEnvelope
+makeSourceCleanupResultEnvelope identity cursor precondition now state effects =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ChoiceGrammar
+    (SourceCleanupResultOpportunity (sortOn id (externalEffectId <$> effects)))
+    ( EnvelopeContent
+        "Source cleanup updated:"
+        Nothing
+        [ "Deleted: " <> count EffectSucceeded
+        , "Retryable failures: " <> count EffectFailedRetryable
+        , "Terminal failures: " <> count EffectFailedTerminal
+        , "Unknown outcomes: " <> count EffectOutcomeUnknown
+        , "Approved and still pending: " <> count EffectApproved
+        , "Verified local Raws remain preserved."
+        ]
+        Nothing
+    )
+    [Action "next" "next" "n" False "Return to the ordinary opportunity forecast.", Action "effect.inspect" "inspect items" "i" False "Show every item outcome and redacted receipt.", moreAction]
+    [helpCommand, exitCommand]
+    Nothing
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  count status = Text.pack . show . length $ filter ((== status) . externalEffectStatus) effects
 
 makeExternalEffectResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ExternalEffect -> Text -> InteractionEnvelope
 makeExternalEffectResultEnvelope identity cursor precondition now state brick effect message =
@@ -4064,7 +4129,7 @@ opportunityValue = \case
   SourceLifecyclePreviewOpportunity identity lifecycle -> typed "source_lifecycle_preview" ["binding_id" .= renderUUIDv7 identity, "lifecycle" .= sourceLifecycleLabel lifecycle]
   SourceResultOpportunity identity result -> typed "source_result" ["raw_id" .= renderUUIDv7 identity, "result" .= result]
   ImportPreflightOpportunity source preflight eraseAfterImport -> typed "import_preflight" ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
-  ImportResultOpportunity imported reused cleanupReady -> typed "import_result" ["imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
+  ImportResultOpportunity invocationId imported reused cleanupReady -> typed "import_result" ["import_invocation_id" .= renderUUIDv7 invocationId, "imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
   ProviderConnectionOpportunity draft -> typed "provider_connection" ["draft" .= draft]
   ProviderConnectionResultOpportunity source accountName label -> typed "provider_connection_result" ["source" .= source, "account_name" .= accountName, "label" .= label]
   PackInstallOpportunity draft -> typed "pack_install" ["draft" .= draft]
@@ -4172,7 +4237,8 @@ opportunityValue = \case
   DelegationTakeBackPreviewOpportunity identity -> typed "delegation_take_back_preview" ["delegation_id" .= renderUUIDv7 identity]
   DelegationReviewScreenOpportunity identity -> typed "delegation_review" ["delegation_id" .= renderUUIDv7 identity]
   DelegationResultOpportunity identity result -> typed "delegation_result" ["delegation_id" .= renderUUIDv7 identity, "result" .= result]
-  ExternalEffectApprovalScreenOpportunity identity -> typed "external_effect_approval" ["effect_id" .= renderUUIDv7 identity]
+  ExternalEffectApprovalScreenOpportunity identities -> typed "external_effect_approval" ["effect_ids" .= fmap renderUUIDv7 identities]
+  SourceCleanupResultOpportunity identities -> typed "source_cleanup_result" ["effect_ids" .= fmap renderUUIDv7 identities]
   ExternalEffectRecoveryScreenOpportunity identity -> typed "external_effect_recovery" ["effect_id" .= renderUUIDv7 identity]
   ExternalEffectDuplicateRiskOpportunity identity -> typed "external_effect_duplicate_risk" ["effect_id" .= renderUUIDv7 identity]
   ExternalEffectEditOpportunity identity draft -> typed "external_effect_edit" ["effect_id" .= renderUUIDv7 identity, "draft" .= draft]
@@ -4268,7 +4334,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "source_lifecycle_preview" -> SourceLifecyclePreviewOpportunity <$> uuidField value "binding_id" <*> (value .: "lifecycle" >>= parseSourceLifecycleLabel)
     "source_result" -> SourceResultOpportunity <$> uuidField value "raw_id" <*> value .: "result"
     "import_preflight" -> ImportPreflightOpportunity <$> value .: "source" <*> value .: "preflight" <*> value .: "erase_after_import"
-    "import_result" -> ImportResultOpportunity <$> (value .: "imported_raw_ids" >>= traverse parseUuid) <*> (value .: "reused_raw_ids" >>= traverse parseUuid) <*> value .: "cleanup_ready"
+    "import_result" -> ImportResultOpportunity <$> uuidField value "import_invocation_id" <*> (value .: "imported_raw_ids" >>= traverse parseUuid) <*> (value .: "reused_raw_ids" >>= traverse parseUuid) <*> value .: "cleanup_ready"
     "provider_connection" -> ProviderConnectionOpportunity <$> value .: "draft"
     "provider_connection_result" -> ProviderConnectionResultOpportunity <$> value .: "source" <*> value .: "account_name" <*> value .: "label"
     "pack_install" -> PackInstallOpportunity <$> value .: "draft"
@@ -4369,7 +4435,8 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "delegation_take_back_preview" -> DelegationTakeBackPreviewOpportunity <$> uuidField value "delegation_id"
     "delegation_review" -> DelegationReviewScreenOpportunity <$> uuidField value "delegation_id"
     "delegation_result" -> DelegationResultOpportunity <$> uuidField value "delegation_id" <*> value .: "result"
-    "external_effect_approval" -> ExternalEffectApprovalScreenOpportunity <$> uuidField value "effect_id"
+    "external_effect_approval" -> ExternalEffectApprovalScreenOpportunity <$> (value .: "effect_ids" >>= traverse parseUuid)
+    "source_cleanup_result" -> SourceCleanupResultOpportunity <$> (value .: "effect_ids" >>= traverse parseUuid)
     "external_effect_recovery" -> ExternalEffectRecoveryScreenOpportunity <$> uuidField value "effect_id"
     "external_effect_duplicate_risk" -> ExternalEffectDuplicateRiskOpportunity <$> uuidField value "effect_id"
     "external_effect_edit" -> ExternalEffectEditOpportunity <$> uuidField value "effect_id" <*> value .: "draft"

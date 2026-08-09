@@ -67,9 +67,9 @@ canonicalArchive = do
                   "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
                   "https://login.microsoftonline.com/common/oauth2/v2.0/token"
                   "client_id"
-                  (Set.fromList ["Tasks.Read", "offline_access"])
+                  (Set.fromList ["Tasks.ReadWrite", "offline_access"])
               ]
-        permissionHttp permissions @?= [HttpPermission ["GET"] "graph.microsoft.com" "/v1.0/me/todo" (Just "microsoft")]
+        permissionHttp permissions @?= [HttpPermission ["GET", "DELETE"] "graph.microsoft.com" "/v1.0/me/todo" (Just "microsoft")]
         permissionEffectPurposes permissions @?= [SourceCleanupItemPermission, SourceCleanupContainerPermission]
       component -> assertFailure ("unexpected connector component: " <> show component)
     components -> assertFailure ("unexpected connector component count: " <> show (length components))
@@ -323,6 +323,6 @@ connectorIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.official-connectors"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "06432a6b2d59dbed3e506c1acbc203da7153f8b006bcc7417556702d8c5f97cd"
-    , artifactArchiveDigest = "db415b7bb53abafa64790dc21f56ca08ea1fdb2f9476966d4f986f47fd0dc5b1"
+    , artifactManifestDigest = "27bf699a7df346613b31132675aca5f6e510e2bb9e16436ac679cbb11702a4d7"
+    , artifactArchiveDigest = "3e708db5a1861dfda1f008588257faa7339cc8e11b885d29855457a7330fd192"
     }

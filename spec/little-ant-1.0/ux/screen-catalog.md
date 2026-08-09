@@ -4986,7 +4986,7 @@ Microsoft To Do · Personal account
 Account key: personal
 Pack: org.littleant.official-connectors 1.0.0
 Public client ID: 11111111-1111-1111-1111-111111111111
-Access requested: Tasks.Read, offline_access
+Access requested: Tasks.ReadWrite, offline_access
 
 Connecting stores the resulting token only in this profile's encrypted vault.
 It does not import or change provider data.

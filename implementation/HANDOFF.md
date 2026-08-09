@@ -199,9 +199,10 @@ milestone commits.
 - `org.littleant.official-connectors` is a separate canonical, reproducible,
   Ed25519-signed Pack rather than privileged provider code in the core. Its
   first SourceAdapter, `microsoft_todo`, declares only the Microsoft Graph To
-  Do GET route, one OAuth device-authorization credential slot, and separate
-  item/container cleanup effect purposes. Lua never receives the OAuth token
-  or DELETE authority.
+  Do GET/DELETE route, one OAuth device-authorization credential slot, and
+  separate item/container cleanup effect purposes. Lua never receives the
+  OAuth token; DELETE remains host-brokered and requires a durable exact effect
+  approval before invocation.
 - the Microsoft To Do adapter supports snapshot, synchronization, and
   migration observations over paginated list and task collections. It keeps
   stable account/list/task provider identities, treats completed tasks as an
@@ -251,7 +252,7 @@ milestone commits.
   scope, slot, or client-ID drift requires fresh reviewed consent. Lua receives
   neither OAuth material nor host-only client configuration.
 - The exact official connector Pack declares Microsoft To Do's device-flow
-  authority and `Tasks.Read offline_access`; its archive and signed fixture
+  authority and `Tasks.ReadWrite offline_access`; its archive and signed fixture
   identities were rebuilt reproducibly. Public connection and import still
   require explicit CLI/REPL orchestration.
 - production now builds one registry from the exact standard Pack plus every

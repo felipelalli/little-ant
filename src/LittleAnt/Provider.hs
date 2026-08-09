@@ -59,7 +59,7 @@ configuredProviderImportSources definitions integrations registry resolver trans
         forM matchingAccounts $ \(accountName, account) -> do
           unless (providerAccountProvider account == providerDefinitionNamespace definition) $
             Left (providerProblem CorruptData "A configured provider account has the wrong provider namespace." [accountName, providerAccountProvider account])
-          binding <- exactBinding integrations definition accountName
+          (bindingReference, binding) <- exactBinding integrations definition accountName
           hostOnlyKeys <- case credentialBindingScheme binding of
             Vault.OAuthDeviceAuthorization -> do
               oauthClient <- resolveOAuthDeviceClient registered account (credentialBindingSlot binding)
@@ -82,13 +82,14 @@ configuredProviderImportSources definitions integrations registry resolver trans
               , providerImportInputLabel = providerDefinitionDisplayName definition <> " · " <> providerAccountLabel account
               , providerImportModes = providerDefinitionModes definition
               , providerImportConfiguration = configuration
+              , providerImportCredentialBindingReference = bindingReference
               , providerImportBroker = broker
               }
 
-exactBinding :: IntegrationsConfig -> ProviderSourceDefinition -> Text -> Either AppError CredentialBinding
+exactBinding :: IntegrationsConfig -> ProviderSourceDefinition -> Text -> Either AppError (Text, CredentialBinding)
 exactBinding integrations definition accountName =
-  case [ binding
-       | binding <- Map.elems (credentialBindings integrations)
+  case [ (bindingName, binding)
+       | (bindingName, binding) <- Map.toList (credentialBindings integrations)
        , credentialBindingComponent binding == providerDefinitionAdapterId definition
        , credentialBindingAccount binding == accountName
        ] of

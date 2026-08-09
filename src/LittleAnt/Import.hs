@@ -11,7 +11,7 @@ module LittleAnt.Import (
 where
 
 import Control.Exception (IOException, displayException, finally, try)
-import Control.Monad (void)
+import Control.Monad (unless, void)
 import Data.Aeson (Value)
 import Data.ByteString qualified as ByteString
 import Data.Map.Strict qualified as Map
@@ -19,10 +19,12 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (defaultTimeLocale, formatTime)
 import LittleAnt.Error
-import LittleAnt.Model (SourceMode (..))
+import LittleAnt.Model (EffectAdapterCustody (..), SourceCleanupItemTarget (..), SourceMode (..))
+import LittleAnt.Pack.Format (EffectPermission (SourceCleanupItemPermission), PackComponent (..), componentCommon, componentContractMajor, componentId, permissionEffectPurposes)
 import LittleAnt.Pack.Http (PackHttpBroker)
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
+import LittleAnt.Pack.Trust (PackArtifactIdentity (..))
 import LittleAnt.Source
 import LittleAnt.TaskJugglerActuals
 import System.FilePath (normalise, takeExtension, takeFileName)
@@ -60,6 +62,7 @@ data ProviderImportSource = ProviderImportSource
   , providerImportInputLabel :: Text
   , providerImportModes :: [SourceMode]
   , providerImportConfiguration :: Value
+  , providerImportCredentialBindingReference :: Text
   , providerImportBroker :: PackHttpBroker
   }
 
@@ -67,6 +70,8 @@ data ImportPort = ImportPort
   { importPortCatalog :: [ImportSourceDescriptor]
   , importPortPreflight :: Text -> SourceMode -> IO (Either AppError ImportRead)
   , importPortMaterialize :: Text -> SourceMode -> IO (Either AppError ImportMaterialization)
+  , importPortCleanupCustody :: Text -> Either AppError EffectAdapterCustody
+  , importPortCleanupItem :: EffectAdapterCustody -> SourceCleanupItemTarget -> IO (Either AppError SourceCleanupReceipt)
   }
 
 emptyImportPort :: ImportPort
@@ -75,6 +80,8 @@ emptyImportPort =
     []
     (\source _ -> pure . Left $ unavailable source)
     (\source _ -> pure . Left $ unavailable source)
+    (Left . unavailable)
+    (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
  where
   unavailable source =
     (appError Unsupported "No SourceAdapter is available in this host environment.")
@@ -91,6 +98,8 @@ packRegistryImportPortWithProviders runner registry providers =
     (fileDescriptors <> providerDescriptors)
     preflight
     materialize
+    cleanupCustody
+    cleanupItem
  where
   preflight source mode = case providersFor source of
     [provider] -> preflightProvider provider mode
@@ -133,6 +142,27 @@ packRegistryImportPortWithProviders runner registry providers =
                 (ImportRead (providerImportCanonicalReference provider) input preview)
                 (materializedObjects materialization)
             )
+  cleanupCustody source = do
+    provider <- uniqueProvider source
+    component <- lookupPackComponent (providerImportAdapterId provider) registry
+    makeCleanupCustody provider component
+  cleanupItem suppliedCustody target = case matchingCleanupProviders suppliedCustody of
+    [(provider, component)] ->
+      case makeCleanupCustody provider component of
+        Left problem -> pure (Left problem)
+        Right currentCustody
+          | currentCustody /= suppliedCustody -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+          | otherwise ->
+              invokePackSourceCleanupItemHttp
+                runner
+                (providerImportBroker provider)
+                component
+                (providerImportConfiguration provider)
+                (cleanupItemExternalIdentity target)
+                (cleanupItemLocator target)
+                (cleanupItemContainerIdentity target)
+    [] -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+    _ -> pure . Left $ sourceProblem CorruptData "Several current provider bindings claim one cleanup authority."
   readFileWith source mode continue = do
     case fileDescriptorFor source of
       Left problem -> pure (Left problem)
@@ -162,6 +192,21 @@ packRegistryImportPortWithProviders runner registry providers =
                 , appErrorRecovery = [RecoveryAction "choose-source" "Choose a source whose format identifies one enabled SourceAdapter." Nothing]
                 }
   providersFor source = filter (matchesProviderReference (Text.strip source)) providers
+  uniqueProvider source = case providersFor source of
+    [provider] -> Right provider
+    [] ->
+      Left
+        ( (sourceProblem Unsupported "No configured provider account owns this cleanup source.")
+            { appErrorSubject = Just (Text.strip source)
+            }
+        )
+    _ -> Left (ambiguousProviderReference source)
+  matchingCleanupProviders custody =
+    [ (provider, component)
+    | provider <- providers
+    , providerImportCanonicalReference provider == effectAdapterProviderAccount custody
+    , Right component <- [lookupPackComponent (providerImportAdapterId provider) registry]
+    ]
   matchesProviderReference source provider =
     source == providerImportReference provider || source == providerImportCanonicalReference provider
   providerDescriptors =
@@ -177,6 +222,35 @@ packRegistryImportPortWithProviders runner registry providers =
     , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "taskjuggler_actuals" "TaskJuggler actuals" [".tjp"] [SourceSnapshot]
     ]
+
+makeCleanupCustody :: ProviderImportSource -> RegisteredPackComponent -> Either AppError EffectAdapterCustody
+makeCleanupCustody provider registered = case registeredComponent registered of
+  ExecutableComponent common _ permissions -> do
+    unless (SourceCleanupItemPermission `elem` permissionEffectPurposes permissions) $
+      Left (sourceProblem Unsupported "The selected SourceAdapter does not declare item cleanup.")
+    let identity = registeredPackIdentity registered
+    pure
+      EffectAdapterCustody
+        { effectAdapterComponentId = componentId common
+        , effectAdapterContractMajor = componentContractMajor common
+        , effectAdapterProviderAccount = providerImportCanonicalReference provider
+        , effectAdapterCredentialBinding = providerImportCredentialBindingReference provider
+        , effectAdapterPackPublisher = artifactPublisher identity
+        , effectAdapterPackName = artifactName identity
+        , effectAdapterPackVersion = artifactVersion identity
+        , effectAdapterPackManifestDigest = artifactManifestDigest identity
+        , effectAdapterPackArchiveDigest = artifactArchiveDigest identity
+        , effectAdapterSignerFingerprint = registeredSignerFingerprint registered
+        }
+  _ -> Left (sourceProblem Unsupported "A declarative Pack component cannot clean up a source.")
+
+cleanupAuthorityChanged :: EffectAdapterCustody -> AppError
+cleanupAuthorityChanged custody =
+  (sourceProblem Conflict "The provider cleanup authority changed after approval; nothing was dispatched.")
+    { appErrorSubject = Just (effectAdapterProviderAccount custody)
+    , appErrorRetrySafety = DoNotRetry
+    , appErrorRecovery = [RecoveryAction "review-again" "Create and approve a new effect revision against the current Pack and credential binding." Nothing]
+    }
 
 validateProviderMode :: ProviderImportSource -> SourceMode -> Either AppError ()
 validateProviderMode provider mode =

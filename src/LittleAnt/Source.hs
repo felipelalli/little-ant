@@ -9,6 +9,9 @@ module LittleAnt.Source (
   SourceObject (..),
   SourceAdapterObservation (..),
   SourcePreflight (..),
+  SourceCleanupOutcome (..),
+  SourceCleanupReceipt (..),
+  validateSourceCleanupReceipt,
   sourceModeName,
   validateSourceAdapterObservation,
   validateSourceAdapterMaterialization,
@@ -140,6 +143,29 @@ data SourcePreflight = SourcePreflight
   , sourcePreflightObservation :: SourceAdapterObservation
   }
   deriving stock (Eq, Show)
+
+data SourceCleanupOutcome
+  = SourceCleanupSucceeded
+  | SourceCleanupFailedRetryable
+  | SourceCleanupFailedTerminal
+  | SourceCleanupOutcomeUnknown
+  deriving stock (Bounded, Enum, Eq, Ord, Show)
+
+data SourceCleanupReceipt = SourceCleanupReceipt
+  { sourceCleanupOutcome :: SourceCleanupOutcome
+  , sourceCleanupProviderReference :: Maybe Text
+  , sourceCleanupRedactedDetail :: Maybe Text
+  }
+  deriving stock (Eq, Show)
+
+validateSourceCleanupReceipt :: SourceCleanupReceipt -> Either AppError ()
+validateSourceCleanupReceipt receipt = do
+  traverse_ (requireBounded "provider reference" 2048) (sourceCleanupProviderReference receipt)
+  traverse_ (requireBounded "redacted detail" 4096) (sourceCleanupRedactedDetail receipt)
+ where
+  requireBounded label limit value =
+    when (Text.null (Text.strip value) || Text.length value > limit) $
+      Left (sourceProblem CorruptData ("A SourceAdapter returned an invalid cleanup " <> label <> "."))
 
 sourceModeName :: SourceMode -> Text
 sourceModeName = \case

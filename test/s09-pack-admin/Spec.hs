@@ -345,7 +345,7 @@ officialCatalogRefresh = withHarness $ \base -> do
   refreshed <- run environment False PacksRefreshCommand
   case refreshed of
     ConfigurationResult Genesis "packs_refresh" Nothing [] facts False -> do
-      Map.lookup "catalog_sequence" facts @?= Just "1"
+      Map.lookup "catalog_sequence" facts @?= Just "2"
       Map.lookup "status" facts @?= Just "updated"
     other -> assertFailure ("unexpected catalog refresh result: " <> show other)
   paths <- currentProfilePaths
@@ -391,7 +391,7 @@ officialCatalogInstall = withHarness $ \base -> do
     other -> assertFailure ("expected official install result, got: " <> show other)
   integrations <- loadCurrentIntegrations
   case Map.lookup connectorPackName (Profile.installedComponents integrations) of
-    Just pin -> pinTrustOrigin pin @?= PinVerifiedOfficial 1
+    Just pin -> pinTrustOrigin pin @?= PinVerifiedOfficial 2
     Nothing -> assertFailure "the official release was not pinned"
   assertBool "official install did not add community trust" (Set.null (Profile.trustedPublishers integrations))
   restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
@@ -472,7 +472,7 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   case envelopeOpportunity preview of
     ProviderConnectionOpportunity draft -> do
       providerConnectionSource draft @?= "microsoft_todo"
-      providerConnectionScopes draft @?= Set.fromList ["Tasks.Read", "offline_access"]
+      providerConnectionScopes draft @?= Set.fromList ["Tasks.ReadWrite", "offline_access"]
       fmap actionId (envelopeActions preview) @?= ["provider.connect.accept", "provider.connect.back", "provider.connect.unknown", "palette.open"]
       assertBool "connection has no default" (not (any actionDefault (envelopeActions preview)))
       let serialized = LazyByteString.unpack (encode preview)
@@ -541,7 +541,7 @@ deviceTokenResponse =
         , "access_token" .= ("ACCESS-TOKEN" :: Text)
         , "refresh_token" .= ("REFRESH-TOKEN" :: Text)
         , "expires_in" .= (3600 :: Int)
-        , "scope" .= ("Tasks.Read" :: Text)
+        , "scope" .= ("Tasks.ReadWrite" :: Text)
         ]
     )
 
@@ -627,9 +627,9 @@ connectorPublisher = TrustedCommunityPublisher "org.littleant.project" connector
 
 connectorPackName, connectorArchiveDigest, connectorPublicKey, connectorSignerFingerprint :: Text
 connectorPackName = "org.littleant.official-connectors"
-connectorArchiveDigest = "db415b7bb53abafa64790dc21f56ca08ea1fdb2f9476966d4f986f47fd0dc5b1"
-connectorPublicKey = "b8Jj-4bREWONltz3QO1xeWG3awyXTEVvBRk2ao3fWvg"
-connectorSignerFingerprint = "b95e184ec3696f3dc91623f4120a90d2f040df45f565099707d9eb427ed3b4ca"
+connectorArchiveDigest = "3e708db5a1861dfda1f008588257faa7339cc8e11b885d29855457a7330fd192"
+connectorPublicKey = "T4bADXpORaJjwQT-imlnCn3RNFEX2rbzTvmWIHpKh4Y"
+connectorSignerFingerprint = "b4be8b7bd0a60ee3d19c70e26ba5b40fd982cd857241b278f7e26cd91d933c51"
 
 connectorArchive :: FilePath
 connectorArchive = "packs" </> "official-connectors" </> "official-connectors.lantpack"
@@ -644,7 +644,7 @@ connectorIdentity =
     "org.littleant.project"
     connectorPackName
     "1.0.0"
-    "06432a6b2d59dbed3e506c1acbc203da7153f8b006bcc7417556702d8c5f97cd"
+    "27bf699a7df346613b31132675aca5f6e510e2bb9e16436ac679cbb11702a4d7"
     connectorArchiveDigest
 
 withHarness :: (AppEnv -> IO a) -> IO a

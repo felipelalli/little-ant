@@ -13,7 +13,8 @@ effect approvals.
 
 The account configuration supplies one public Microsoft application
 `client_id`. The signed component fixes the Microsoft device-authorization and
-token endpoints plus the least-authority `Tasks.Read offline_access` scope set.
+token endpoints plus the `Tasks.ReadWrite offline_access` scope set required by
+its separately approved cleanup capability.
 The resulting grant is fingerprint-bound to that exact client ID, signed Pack
 identity, slot, endpoints, and scopes; changing any of them requires fresh
 human consent.

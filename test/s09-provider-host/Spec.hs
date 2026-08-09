@@ -57,7 +57,7 @@ oauthTokenCustody = do
           { oauthAccessToken = "SECRET-ACCESS-TOKEN"
           , oauthRefreshToken = Just "SECRET-REFRESH-TOKEN"
           , oauthExpiresAt = addUTCTime 3600 fixtureTime
-          , oauthScopes = Set.fromList ["Tasks.Read", "offline_access"]
+          , oauthScopes = Set.fromList ["Tasks.ReadWrite", "offline_access"]
           , oauthAuthorizationFingerprint = fixtureAuthorizationFingerprint
           }
   encoded <- assertRight (encodeOAuthTokenSet tokenSet)
@@ -128,6 +128,13 @@ remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root ->
   (runner, registry) <- connectorRuntime
   token <- assertRight (accessTokenFromBytes secretToken)
   transportCalls <- newIORef []
+  dispatchObserved <- newIORef False
+  let store = StoreConfig (root </> "dataset") 2_000_000 20_000
+      observeDurableDispatch = do
+        current <- loadDataset store silentProgress >>= assertRight
+        let dispatching = filter ((== EffectDispatching) . externalEffectStatus) (Map.elems (stateExternalEffects (loadedState current)))
+        length dispatching @?= 1
+        modifyIORef' dispatchObserved (const True)
   integrations <-
     assertRight (authorizedIntegrations registry [("personal", fixtureAccount "account-personal" "Personal", fixtureBinding "personal" fixtureVaultEntry)])
   providers <-
@@ -137,13 +144,13 @@ remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root ->
           integrations
           registry
           (AccessTokenResolver (const (pure (Right token))))
-          (graphTransport transportCalls)
+          (graphTransportWithProbe transportCalls observeDurableDispatch)
       )
   counter <- newIORef (9000 :: Int)
   let importPort = packRegistryImportPortWithProviders runner registry providers
       environment =
         AppEnv
-          (StoreConfig (root </> "dataset") 2_000_000 20_000)
+          store
           (Actor "human" "test")
           (pure fixtureTime)
           (pure (utcToZonedTime utc fixtureTime))
@@ -164,7 +171,7 @@ remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root ->
   acceptedResult <- runAppCommand environment False silentProgress (RespondCommand (response preview "import.accept")) >>= assertRight
   accepted <- interactionOf acceptedResult
   importedRaw <- case envelopeOpportunity accepted of
-    ImportResultOpportunity [identity] [] True -> pure identity
+    ImportResultOpportunity _ [identity] [] True -> pure identity
     other -> assertFailure ("unexpected provider import result: " <> show other) >> fail "unreachable"
   dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
   let state = loadedState dataset
@@ -189,11 +196,39 @@ remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root ->
   repeatedResult <- runAppCommand environment False silentProgress (RespondCommand (response repeatedPreview "import.accept")) >>= assertRight
   repeated <- interactionOf repeatedResult
   case envelopeOpportunity repeated of
-    ImportResultOpportunity [] [identity] True -> identity @?= importedRaw
+    ImportResultOpportunity _ [] [identity] True -> identity @?= importedRaw
     other -> assertFailure ("provider retry was not idempotent: " <> show other)
   resultMutationCommandId repeatedResult @?= Nothing
   repeatedDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
   loadedEventCount repeatedDataset @?= acceptedEventCount
+
+  cleanupPreview <- runAppCommand environment False silentProgress (RespondCommand (response repeated "import.cleanup")) >>= assertRight >>= interactionOf
+  cleanupEffect <- case envelopeOpportunity cleanupPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected cleanup approval: " <> show other) >> fail "unreachable"
+  proposedDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState proposedDataset) Map.! cleanupEffect) @?= EffectProposed
+  deleteCallsBeforeApproval <- filter ((== "DELETE") . brokerHttpMethod) <$> readIORef transportCalls
+  deleteCallsBeforeApproval @?= []
+
+  cleanupResult <- runAppCommand environment False silentProgress (RespondCommand (response cleanupPreview "effect.approve")) >>= assertRight >>= interactionOf
+  case envelopeOpportunity cleanupResult of
+    SourceCleanupResultOpportunity [identity] -> identity @?= cleanupEffect
+    other -> assertFailure ("unexpected cleanup result: " <> show other)
+  finalDataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let finalState = loadedState finalDataset
+      finalEffect = stateExternalEffects finalState Map.! cleanupEffect
+      finalProfile = only "retired ImportProfile" (Map.elems (stateImportProfiles finalState))
+  externalEffectStatus finalEffect @?= EffectSucceeded
+  Map.size (stateExternalEffectApprovalGrants finalState) @?= 1
+  Map.size (stateExternalEffectReceipts finalState) @?= 1
+  importProfileLifecycle finalProfile @?= ImportProfileRetired
+  assertBool "verified local Raw disappeared after source cleanup" (Map.member importedRaw (stateRaws finalState))
+  readIORef dispatchObserved >>= (@?= True)
+  deleteCalls <- filter ((== "DELETE") . brokerHttpMethod) <$> readIORef transportCalls
+  case deleteCalls of
+    [request] -> brokerHttpUrl request @?= "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1"
+    other -> assertFailure ("unexpected cleanup DELETE calls: " <> show other)
 
 lockedCredential :: Assertion
 lockedCredential = do
@@ -268,27 +303,32 @@ brokerDefenseInDepth = do
   readIORef resolverCalls >>= (@?= 0)
 
 graphTransport :: IORef [BrokerHttpRequest] -> PackHttpTransport
-graphTransport calls = PackHttpTransport $ \credentialed -> do
+graphTransport calls = graphTransportWithProbe calls (pure ())
+
+graphTransportWithProbe :: IORef [BrokerHttpRequest] -> IO () -> PackHttpTransport
+graphTransportWithProbe calls onDelete = PackHttpTransport $ \credentialed -> do
   accessTokenBytes (credentialedAccessToken credentialed) @?= secretToken
   let request = credentialedRequest credentialed
   modifyIORef' calls (<> [request])
-  pure . Right $ case brokerHttpUrl request of
-    "https://graph.microsoft.com/v1.0/me/todo/lists" ->
-      jsonResponse (object ["value" .= [object ["id" .= ("list-1" :: Text), "displayName" .= ("Tasks" :: Text)]]])
-    "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks" ->
-      jsonResponse
-        ( object
-            [ "value"
-                .= [ object
-                       [ "id" .= ("task-1" :: Text)
-                       , "title" .= ("Keep the token private" :: Text)
-                       , "status" .= ("notStarted" :: Text)
-                       , "hasAttachments" .= False
-                       ]
-                   ]
-            ]
-        )
-    _ -> BrokerHttpResponse 404 Map.empty (object ["error" .= ("not found" :: Text)])
+  case (brokerHttpMethod request, brokerHttpUrl request) of
+    ("DELETE", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1") -> onDelete >> pure (Right (BrokerHttpResponse 204 Map.empty (object [])))
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists") ->
+      pure . Right $ jsonResponse (object ["value" .= [object ["id" .= ("list-1" :: Text), "displayName" .= ("Tasks" :: Text)]]])
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks") ->
+      pure . Right $
+        jsonResponse
+          ( object
+              [ "value"
+                  .= [ object
+                         [ "id" .= ("task-1" :: Text)
+                         , "title" .= ("Keep the token private" :: Text)
+                         , "status" .= ("notStarted" :: Text)
+                         , "hasAttachments" .= False
+                         ]
+                     ]
+              ]
+          )
+    _ -> pure . Right $ BrokerHttpResponse 404 Map.empty (object ["error" .= ("not found" :: Text)])
 
 jsonResponse :: Value -> BrokerHttpResponse
 jsonResponse = BrokerHttpResponse 200 (Map.singleton "content-type" "application/json")
@@ -454,10 +494,10 @@ connectorPin =
           { artifactPublisher = "org.littleant.project"
           , artifactName = "org.littleant.official-connectors"
           , artifactVersion = "1.0.0"
-          , artifactManifestDigest = "06432a6b2d59dbed3e506c1acbc203da7153f8b006bcc7417556702d8c5f97cd"
-          , artifactArchiveDigest = "db415b7bb53abafa64790dc21f56ca08ea1fdb2f9476966d4f986f47fd0dc5b1"
+          , artifactManifestDigest = "27bf699a7df346613b31132675aca5f6e510e2bb9e16436ac679cbb11702a4d7"
+          , artifactArchiveDigest = "3e708db5a1861dfda1f008588257faa7339cc8e11b885d29855457a7330fd192"
           }
-    , pinSignerFingerprint = "b95e184ec3696f3dc91623f4120a90d2f040df45f565099707d9eb427ed3b4ca"
-    , pinTrustOrigin = PinVerifiedOfficial 1
+    , pinSignerFingerprint = "b4be8b7bd0a60ee3d19c70e26ba5b40fd982cd857241b278f7e26cd91d933c51"
+    , pinTrustOrigin = PinVerifiedOfficial 2
     , pinEnabledComponents = Set.singleton "microsoft_todo"
     }
