@@ -94,6 +94,23 @@ local function verify_cleanup_item(source, target)
   return {outcome = "outcome_unknown", provider_reference = provider_reference, redacted_detail = "Microsoft Graph verification returned HTTP " .. tostring(response.status) .. "."}
 end
 
+local function cleanup_container_target(source, target)
+  local selected = validate_source(source)
+  if type(target) ~= "table" then error("container cleanup target must be an object") end
+  local expected = {external_identity = true}
+  for key, _ in pairs(target) do
+    if not expected[key] then error("unknown Microsoft To Do container cleanup target field: " .. tostring(key)) end
+  end
+  local external_identity = require_string(target.external_identity, "external_identity")
+  local list_id = string.match(external_identity, "^list:(.+)$")
+  if list_id == nil then error("external_identity is not a Microsoft To Do list identity") end
+  if next(selected) ~= nil and not selected[list_id] then
+    error("container cleanup target is outside the configured Microsoft To Do list scope")
+  end
+  local encoded = lant.url.encode_path_segment(list_id)
+  return list_id, graph_root .. "/lists/" .. encoded, graph_root .. "/lists/" .. encoded .. "/tasks"
+end
+
 local function collection(url, label)
   local values = {}
   local next_url = url
@@ -120,6 +137,90 @@ local function collection(url, label)
     end
   end
   return values
+end
+
+local function inspect_cleanup_container(source, target)
+  local list_id, list_url, tasks_url = cleanup_container_target(source, target)
+  local response = lant.http.request({method = "GET", url = list_url, headers = {accept = "application/json"}})
+  local external_identity = "list:" .. list_id
+  if response.status == 404 then
+    return {
+      external_identity = external_identity,
+      label = list_id,
+      outcome = "absent",
+      item_count = -1,
+      provider_version = "",
+      redacted_detail = "The Microsoft To Do list is already absent."
+    }
+  end
+  if response.status ~= 200 then
+    error("Microsoft To Do list inspection failed with HTTP " .. tostring(response.status))
+  end
+  if type(response.json) ~= "table" then error("Microsoft To Do list inspection returned no object") end
+  if require_string(response.json.id, "list id") ~= list_id then error("Microsoft To Do list inspection returned a different identity") end
+  local label = require_string(response.json.displayName, "list displayName")
+  local provider_version = response.json["@odata.etag"]
+  if provider_version == nil then provider_version = "" end
+  if type(provider_version) ~= "string" then error("list @odata.etag must be a string") end
+  local wellknown = response.json.wellknownListName
+  local protected = wellknown ~= nil and wellknown ~= "none"
+  if response.json.isOwner ~= true or response.json.isShared == true then protected = true end
+  if protected then
+    return {
+      external_identity = external_identity,
+      label = label,
+      outcome = "protected",
+      item_count = -1,
+      provider_version = provider_version,
+      redacted_detail = "The Microsoft To Do list is built-in, shared, or not owned by this account."
+    }
+  end
+  local tasks = collection(tasks_url, "Microsoft To Do container tasks")
+  local count = #tasks
+  return {
+    external_identity = external_identity,
+    label = label,
+    outcome = count == 0 and "empty" or "nonempty",
+    item_count = count,
+    provider_version = provider_version,
+    redacted_detail = count == 0 and "Verified empty in Microsoft To Do." or ("Microsoft To Do still contains " .. tostring(count) .. " task(s).")
+  }
+end
+
+local function cleanup_container(source, target)
+  local inspection = inspect_cleanup_container(source, target)
+  local provider_reference = "Microsoft To Do list " .. inspection.label
+  if inspection.outcome == "absent" then
+    return {outcome = "succeeded", provider_reference = provider_reference, redacted_detail = "Already absent from Microsoft To Do."}
+  end
+  if inspection.outcome == "protected" or inspection.outcome == "nonempty" then
+    return {outcome = "failed_terminal", provider_reference = provider_reference, redacted_detail = inspection.redacted_detail .. " Nothing was deleted."}
+  end
+  local _, list_url = cleanup_container_target(source, target)
+  local response = lant.http.request({method = "DELETE", url = list_url, headers = {accept = "application/json"}})
+  if response.status == 204 then
+    return {outcome = "succeeded", provider_reference = provider_reference, redacted_detail = "Deleted the verified empty list from Microsoft To Do."}
+  end
+  if response.status == 404 then
+    return {outcome = "succeeded", provider_reference = provider_reference, redacted_detail = "Already absent from Microsoft To Do."}
+  end
+  if response.status == 429 or response.status >= 500 then
+    return {outcome = "failed_retryable", provider_reference = provider_reference, redacted_detail = "Microsoft Graph returned HTTP " .. tostring(response.status) .. "."}
+  end
+  return {outcome = "failed_terminal", provider_reference = provider_reference, redacted_detail = "Microsoft Graph returned HTTP " .. tostring(response.status) .. "."}
+end
+
+local function verify_cleanup_container(source, target)
+  local list_id, list_url = cleanup_container_target(source, target)
+  local response = lant.http.request({method = "GET", url = list_url, headers = {accept = "application/json"}})
+  local provider_reference = "Microsoft To Do list " .. list_id
+  if response.status == 404 then
+    return {outcome = "succeeded", provider_reference = provider_reference, redacted_detail = "Verified absent from Microsoft To Do."}
+  end
+  if response.status == 200 then
+    return {outcome = "failed_retryable", provider_reference = provider_reference, redacted_detail = "Verified still present in Microsoft To Do."}
+  end
+  return {outcome = "outcome_unknown", provider_reference = provider_reference, redacted_detail = "Microsoft Graph verification returned HTTP " .. tostring(response.status) .. "."}
 end
 
 local function normalized_title(title)
@@ -187,6 +288,15 @@ return function(request)
   end
   if request.schema == "little-ant/source-cleanup-item-verify-request@1" then
     return verify_cleanup_item(request.source, request.target)
+  end
+  if request.schema == "little-ant/source-cleanup-container-inspect-request@1" then
+    return inspect_cleanup_container(request.source, request.target)
+  end
+  if request.schema == "little-ant/source-cleanup-container-request@1" then
+    return cleanup_container(request.source, request.target)
+  end
+  if request.schema == "little-ant/source-cleanup-container-verify-request@1" then
+    return verify_cleanup_container(request.source, request.target)
   end
   if request.schema ~= "little-ant/source-provider-request@1" then
     error("unsupported source provider request schema")

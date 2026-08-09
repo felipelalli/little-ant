@@ -68,6 +68,7 @@ module LittleAnt.Interaction (
   makeDelegationResultEnvelope,
   makeExternalEffectApprovalEnvelope,
   makeSourceCleanupApprovalEnvelope,
+  makeSourceContainerCleanupApprovalEnvelope,
   makeSourceCleanupResultEnvelope,
   makeSourceCleanupRiskEnvelope,
   makeExternalEffectRecoveryEnvelope,
@@ -3136,8 +3137,42 @@ makeSourceCleanupApprovalEnvelope identity cursor precondition now state custody
   count = Text.pack (show (length effects))
   question = if length effects == 1 then "Delete this source item?" else "Delete these " <> count <> " source items?"
 
-makeSourceCleanupResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> [ExternalEffect] -> InteractionEnvelope
-makeSourceCleanupResultEnvelope identity cursor precondition now state effects =
+makeSourceContainerCleanupApprovalEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> EffectAdapterCustody -> [ExternalEffect] -> InteractionEnvelope
+makeSourceContainerCleanupApprovalEnvelope identity cursor precondition now state custody effects =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (ExternalEffectApprovalScreenOpportunity (sortOn id (externalEffectId <$> effects)))
+    ( EnvelopeContent
+        question
+        Nothing
+        [ "Source: " <> effectAdapterProviderAccount custody
+        , "Empty containers: " <> count
+        , "A complete read-only check found no tasks in the displayed containers."
+        , "Each container will be checked again immediately before deletion. Verified local Raws remain preserved."
+        , "Nothing has been deleted yet."
+        ]
+        Nothing
+    )
+    [ Action "effect.approve" "yes" "y" False "Approve only these exact empty containers and recheck each before deletion."
+    , Action "effect.reject" "no" "n" False "Reject this container cleanup set; local and source data remain preserved."
+    , Action "effect.later" "later" "l" False "Keep the exact proposed set for a later review."
+    , Action "effect.inspect" "inspect containers" "i" False "Show the exact container identities and inspection custody."
+    , Action "effect.unknown" "I don't know" "?" False "Explain the separate empty-container approval."
+    , moreAction
+    ]
+    [helpCommand, exitCommand]
+    (Just "understand_source_container_cleanup")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  count = Text.pack (show (length effects))
+  question = if length effects == 1 then "Delete this empty source container?" else "Delete these " <> count <> " empty source containers?"
+
+makeSourceCleanupResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Bool -> [ExternalEffect] -> InteractionEnvelope
+makeSourceCleanupResultEnvelope identity cursor precondition now state offerContainerCheck effects =
   sealed
     identity
     1
@@ -3148,7 +3183,7 @@ makeSourceCleanupResultEnvelope identity cursor precondition now state effects =
     ( EnvelopeContent
         "Source cleanup updated:"
         Nothing
-        [ "Deleted: " <> count EffectSucceeded
+        [ subjectLabel <> " deleted: " <> count EffectSucceeded
         , "Retryable failures: " <> count EffectFailedRetryable
         , "Terminal failures: " <> count EffectFailedTerminal
         , "Interrupted attempts: " <> count EffectDispatching
@@ -3165,6 +3200,8 @@ makeSourceCleanupResultEnvelope identity cursor precondition now state effects =
  where
   count status = Text.pack . show . length $ filter ((== status) . externalEffectStatus) effects
   has status = any ((== status) . externalEffectStatus) effects
+  containers = all (\effect -> externalEffectPurpose effect == SourceCleanupContainerEffect) effects
+  subjectLabel = if containers then "Containers" else "Items"
   actions =
     [Action "effect.cleanup.proceed" "proceed with approved items" "p" False "Continue only the already approved item effects." | has EffectApproved]
       <> [Action "effect.cleanup.check" "check interrupted attempts" "c" False "Record interrupted dispatches as unknown, then verify them read-only." | has EffectDispatching]
@@ -3172,8 +3209,10 @@ makeSourceCleanupResultEnvelope identity cursor precondition now state effects =
       <> [Action "effect.cleanup.verify" "verify unknown outcomes" "v" False "Ask the adapter to inspect provider truth without mutating it." | has EffectOutcomeUnknown]
       <> [Action "effect.cleanup.retry-risk" "attempt again with risk" "a" False "Review a new revision when provider truth remains unknowable." | has EffectOutcomeUnknown]
       <> [Action "effect.cleanup.stop" "stop unknown recovery" "s" False "Withdraw unknown item effects without claiming success." | has EffectOutcomeUnknown]
+      <> [Action "effect.cleanup.check-containers" "check empty source containers..." "c" False "Read the provider completely and propose only verified empty containers." | offerContainerCheck]
+      <> [Action "effect.cleanup.reinspect-container" "check the container again..." "c" False "Start a fresh emptiness check after the container changed or became protected." | containers && has EffectFailedTerminal]
       <> [ Action "next" "next" "n" False "Return to the ordinary opportunity forecast."
-         , Action "effect.inspect" "inspect items" "i" False "Show every item outcome and redacted receipt."
+         , Action "effect.inspect" (if containers then "inspect containers" else "inspect items") "i" False "Show every outcome and redacted receipt."
          , moreAction
          ]
 

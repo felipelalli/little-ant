@@ -454,8 +454,11 @@ data SourceCleanupItemTarget = SourceCleanupItemTarget
 
 data SourceCleanupContainerTarget = SourceCleanupContainerTarget
   { cleanupContainerImportProfile :: UUIDv7
+  , cleanupContainerImportInvocation :: UUIDv7
   , cleanupContainerExternalIdentity :: Text
   , cleanupContainerLabel :: Text
+  , cleanupContainerInspectionDigest :: Text
+  , cleanupContainerInspectedAt :: UTCTime
   }
   deriving stock (Eq, Show)
 

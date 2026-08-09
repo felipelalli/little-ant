@@ -291,6 +291,9 @@ fixtureImportPortWithIdentity identity bytesRef =
     (importPortCleanupCustody emptyImportPort)
     (importPortCleanupItem emptyImportPort)
     (importPortVerifyCleanupItem emptyImportPort)
+    (importPortInspectCleanupContainer emptyImportPort)
+    (importPortCleanupContainer emptyImportPort)
+    (importPortVerifyCleanupContainer emptyImportPort)
  where
   preflight source mode = do
     bytes <- readIORef bytesRef
@@ -310,6 +313,9 @@ fixtureImportPortWithExternalIdentity externalIdentity bytesRef =
     (importPortCleanupCustody emptyImportPort)
     (importPortCleanupItem emptyImportPort)
     (importPortVerifyCleanupItem emptyImportPort)
+    (importPortInspectCleanupContainer emptyImportPort)
+    (importPortCleanupContainer emptyImportPort)
+    (importPortVerifyCleanupContainer emptyImportPort)
  where
   preflight source mode = do
     bytes <- readIORef bytesRef
@@ -329,6 +335,9 @@ multiObjectImportPort =
     (importPortCleanupCustody emptyImportPort)
     (importPortCleanupItem emptyImportPort)
     (importPortVerifyCleanupItem emptyImportPort)
+    (importPortInspectCleanupContainer emptyImportPort)
+    (importPortCleanupContainer emptyImportPort)
+    (importPortVerifyCleanupContainer emptyImportPort)
  where
   descriptor = ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
   preflight source mode = pure $ ImportRead source multiInput <$> multiPreflight mode

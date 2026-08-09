@@ -1059,10 +1059,38 @@ validateExternalEffectRequest state = \case
   SourceCleanupContainerRequest custody target -> do
     validateEffectAdapterCustody custody
     profile <- maybe (corrupt "A source-container cleanup effect references a missing ImportProfile.") Right (Map.lookup (cleanupContainerImportProfile target) (stateImportProfiles state))
-    unless (importProfileMode profile == SourceMigrate && importProfileAdapterId profile == effectAdapterComponentId custody) $
-      corrupt "A source-container cleanup effect changed its migration scope."
-    when (Text.null (Text.strip (cleanupContainerExternalIdentity target)) || Text.null (Text.strip (cleanupContainerLabel target))) $
-      corrupt "A source-container cleanup target cannot be empty."
+    invocation <- maybe (corrupt "A source-container cleanup effect references a missing ImportInvocation.") Right (Map.lookup (cleanupContainerImportInvocation target) (stateImportInvocations state))
+    unless
+      ( importProfileMode profile == SourceMigrate
+          && importProfileLifecycle profile == ImportProfileRetired
+          && importProfileAdapterId profile == effectAdapterComponentId custody
+          && importInvocationProfileId invocation == importProfileId profile
+          && importInvocationMode invocation == SourceMigrate
+          && importInvocationComponentId invocation == effectAdapterComponentId custody
+          && importInvocationContractMajor invocation == effectAdapterContractMajor custody
+          && importInvocationPackPublisher invocation == effectAdapterPackPublisher custody
+          && importInvocationPackName invocation == effectAdapterPackName custody
+          && importInvocationPackVersion invocation == effectAdapterPackVersion custody
+          && importInvocationPackManifestDigest invocation == effectAdapterPackManifestDigest custody
+          && importInvocationPackArchiveDigest invocation == effectAdapterPackArchiveDigest custody
+          && importInvocationSignerFingerprint invocation == effectAdapterSignerFingerprint custody
+      )
+      $ corrupt "A source-container cleanup effect changed its migration scope."
+    let itemEffects =
+          [ effect
+          | effect <- Map.elems (stateExternalEffects state)
+          , SourceCleanupItemRequest _ item <- [externalEffectRequest effect]
+          , cleanupItemImportInvocation item == importInvocationId invocation
+          , cleanupItemContainerIdentity item == Just (cleanupContainerExternalIdentity target)
+          ]
+    unless (not (null itemEffects) && all ((== EffectSucceeded) . externalEffectStatus) itemEffects) $
+      corrupt "A source-container cleanup effect lacks complete successful item cleanup custody."
+    when
+      ( Text.null (Text.strip (cleanupContainerExternalIdentity target))
+          || Text.null (Text.strip (cleanupContainerLabel target))
+          || not (validDigest (cleanupContainerInspectionDigest target))
+      )
+      $ corrupt "A source-container cleanup target cannot be empty."
  where
   validateDelegationRequest delegationId targetId contactId message = do
     delegation <- maybe (corrupt "An ExternalEffect Delegation is missing.") Right (Map.lookup delegationId (stateDelegations state))
@@ -1073,6 +1101,7 @@ validateExternalEffectRequest state = \case
     contact <- maybe (corrupt "An ExternalEffect ContactPoint is missing.") Right (Map.lookup identity (stateContactPoints state))
     unless (contactPointOwner contact == targetId && contactPointActive contact) $
       corrupt "An ExternalEffect ContactPoint is not an active binding of its target."
+  validDigest value = Text.length value == 64 && Text.all (\character -> isDigit character || character `elem` ['a' .. 'f']) value
 
 validateEffectAdapterCustody :: EffectAdapterCustody -> Either AppError ()
 validateEffectAdapterCustody custody = do
@@ -4771,16 +4800,22 @@ sourceCleanupContainerTargetValue :: SourceCleanupContainerTarget -> Value
 sourceCleanupContainerTargetValue target =
   object
     [ "import_profile_id" .= renderUUIDv7 (cleanupContainerImportProfile target)
+    , "import_invocation_id" .= renderUUIDv7 (cleanupContainerImportInvocation target)
     , "external_identity" .= cleanupContainerExternalIdentity target
     , "label" .= cleanupContainerLabel target
+    , "inspection_digest" .= cleanupContainerInspectionDigest target
+    , "inspected_at" .= cleanupContainerInspectedAt target
     ]
 
 parseSourceCleanupContainerTarget :: Value -> Parser SourceCleanupContainerTarget
 parseSourceCleanupContainerTarget = withObject "SourceCleanupContainerTarget" $ \value ->
   SourceCleanupContainerTarget
     <$> (value .: "import_profile_id" >>= parseId)
+    <*> (value .: "import_invocation_id" >>= parseId)
     <*> value .: "external_identity"
     <*> value .: "label"
+    <*> value .: "inspection_digest"
+    <*> value .: "inspected_at"
 
 externalEffectPurposeText :: ExternalEffectPurpose -> Text
 externalEffectPurposeText DelegationDeliveryEffect = "delegation_delivery"

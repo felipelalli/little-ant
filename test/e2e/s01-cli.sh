@@ -80,7 +80,7 @@ assert not any(action["default"] for action in interaction["actions"])
 assert any("graph.microsoft.com" in line for line in interaction["content"]["body"])
 ' <<<"$pack_install_json"
 test ! -e "$pack_dry_root/state/lant/profiles/default/dataset/checkpoints/pending-envelope.json"
-test ! -e "$pack_dry_root/data/lant/packs/sha256/7ac501769a4592a75fec1fed4a54a8e6b2af5bed057553879374e7d0db6d50a0.lantpack"
+test ! -e "$pack_dry_root/data/lant/packs/sha256/86fd16259a6579a537df3a1007844da55e752ab55166a494b3f486bc6cf0b7d8.lantpack"
 
 taskjuggler_output="$test_root/little-ant.tjp"
 lant_at "$profile_root" export taskjuggler --output "$taskjuggler_output" >/dev/null

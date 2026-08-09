@@ -11,7 +11,10 @@ module LittleAnt.Source (
   SourcePreflight (..),
   SourceCleanupOutcome (..),
   SourceCleanupReceipt (..),
+  SourceContainerInspectionOutcome (..),
+  SourceContainerInspection (..),
   validateSourceCleanupReceipt,
+  validateSourceContainerInspection,
   sourceModeName,
   validateSourceAdapterObservation,
   validateSourceAdapterMaterialization,
@@ -158,6 +161,24 @@ data SourceCleanupReceipt = SourceCleanupReceipt
   }
   deriving stock (Eq, Show)
 
+data SourceContainerInspectionOutcome
+  = SourceContainerEmpty
+  | SourceContainerNonempty
+  | SourceContainerAbsent
+  | SourceContainerProtected
+  deriving stock (Bounded, Enum, Eq, Ord, Show)
+
+data SourceContainerInspection = SourceContainerInspection
+  { inspectedContainerExternalIdentity :: Text
+  , inspectedContainerLabel :: Text
+  , inspectedContainerOutcome :: SourceContainerInspectionOutcome
+  , inspectedContainerItemCount :: Maybe Int
+  , inspectedContainerProviderVersion :: Maybe Text
+  , inspectedContainerRedactedDetail :: Text
+  , inspectedContainerDigest :: Text
+  }
+  deriving stock (Eq, Show)
+
 validateSourceCleanupReceipt :: SourceCleanupReceipt -> Either AppError ()
 validateSourceCleanupReceipt receipt = do
   traverse_ (requireBounded "provider reference" 2048) (sourceCleanupProviderReference receipt)
@@ -166,6 +187,27 @@ validateSourceCleanupReceipt receipt = do
   requireBounded label limit value =
     when (Text.null (Text.strip value) || Text.length value > limit) $
       Left (sourceProblem CorruptData ("A SourceAdapter returned an invalid cleanup " <> label <> "."))
+
+validateSourceContainerInspection :: SourceContainerInspection -> Either AppError ()
+validateSourceContainerInspection inspection = do
+  requireBounded "container external identity" 2048 (inspectedContainerExternalIdentity inspection)
+  requireBounded "container label" 2048 (inspectedContainerLabel inspection)
+  requireBounded "container inspection detail" 4096 (inspectedContainerRedactedDetail inspection)
+  traverse_ (requireBounded "container provider version" 2048) (inspectedContainerProviderVersion inspection)
+  unless (validDigest (inspectedContainerDigest inspection)) $
+    Left (sourceProblem CorruptData "A SourceAdapter container inspection has an invalid host digest.")
+  case (inspectedContainerOutcome inspection, inspectedContainerItemCount inspection) of
+    (SourceContainerEmpty, Just 0) -> pure ()
+    (SourceContainerNonempty, Just count) | count > 0 -> pure ()
+    (SourceContainerAbsent, Nothing) -> pure ()
+    (SourceContainerProtected, _) -> pure ()
+    _ -> Left (sourceProblem CorruptData "A SourceAdapter container inspection has an inconsistent item count.")
+ where
+  requireBounded label limit value =
+    when (Text.null (Text.strip value) || Text.length value > limit) $
+      Left (sourceProblem CorruptData ("A SourceAdapter returned an invalid " <> label <> "."))
+  validDigest value = Text.length value == 64 && Text.all isLowerHex value
+  isLowerHex character = isDigit character || character `elem` ['a' .. 'f']
 
 sourceModeName :: SourceMode -> Text
 sourceModeName = \case

@@ -77,6 +77,9 @@ module LittleAnt.Decision (
   decideProposeDelegationDelivery,
   decideProposeSourceCleanupItems,
   sourceCleanupProposalUUIDCount,
+  eligibleSourceCleanupContainers,
+  decideProposeSourceCleanupContainers,
+  sourceCleanupContainerProposalUUIDCount,
   decideReviseExternalEffect,
   decideApproveExternalEffects,
   decideRejectExternalEffect,
@@ -2606,6 +2609,155 @@ sourceCleanupRequests state invocationId custody = do
       [binding] -> Right binding
       [] -> Left (appError CorruptData "A cleanup item has no unique migration SourceBinding.")
       _ -> Left (appError CorruptData "Several SourceBindings claim one cleanup item.")
+
+eligibleSourceCleanupContainers :: State -> UUIDv7 -> EffectAdapterCustody -> Either AppError [Text]
+eligibleSourceCleanupContainers state invocationId custody = do
+  invocation <- requireCleanupInvocation state invocationId custody
+  let grouped =
+        Map.fromListWith
+          (<>)
+          [ (containerIdentity, [effect])
+          | effect <- Map.elems (stateExternalEffects state)
+          , SourceCleanupItemRequest itemCustody target <- [externalEffectRequest effect]
+          , itemCustody == custody
+          , cleanupItemImportInvocation target == invocationId
+          , Just containerIdentity <- [cleanupItemContainerIdentity target]
+          ]
+      eligible =
+        [ containerIdentity
+        | (containerIdentity, effects) <- Map.toAscList grouped
+        , not (null effects)
+        , all ((== EffectSucceeded) . externalEffectStatus) effects
+        , not (hasLiveContainerEffect containerIdentity)
+        ]
+  unless (importProfileLifecycleFor invocation == ImportProfileRetired) $
+    Left (appError PreconditionFailed "Source containers can be checked only after every selected item cleanup has a terminal disposition.")
+  pure eligible
+ where
+  importProfileLifecycleFor invocation =
+    maybe ImportProfileActive importProfileLifecycle (Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state))
+  hasLiveContainerEffect containerIdentity =
+    any
+      ( \effect -> case externalEffectRequest effect of
+          SourceCleanupContainerRequest _ target ->
+            cleanupContainerImportInvocation target == invocationId
+              && cleanupContainerExternalIdentity target == containerIdentity
+              && externalEffectStatus effect `notElem` [EffectFailedTerminal, EffectRejected, EffectWithdrawn]
+          _ -> False
+      )
+      (Map.elems (stateExternalEffects state))
+
+sourceCleanupContainerProposalUUIDCount :: State -> UUIDv7 -> EffectAdapterCustody -> [SourceContainerInspection] -> Either AppError Int
+sourceCleanupContainerProposalUUIDCount state invocationId custody inspections = do
+  (_, verified) <- validatedSourceContainerInspections state invocationId custody inspections
+  existing <- traverse (reusableContainerEffectFor state invocationId . inspectedContainerExternalIdentity) verified
+  let newCount = length [() | Nothing <- existing]
+  pure $ if newCount == 0 then 0 else 1 + 2 * newCount
+
+decideProposeSourceCleanupContainers :: State -> Actor -> UUIDv7 -> EffectAdapterCustody -> [SourceContainerInspection] -> RuntimeFacts -> Either AppError ExternalEffectBatchDecision
+decideProposeSourceCleanupContainers state actor invocationId custody inspections facts = do
+  requests <- sourceCleanupContainerRequests state invocationId custody (runtimeNow facts) inspections
+  existing <- traverse (reusableContainerEffect state) requests
+  let newRequests = [request | (request, Nothing) <- zip requests existing]
+      existingIds = [externalEffectId effect | Just effect <- existing]
+  if null newRequests
+    then pure (ExternalEffectBatchDecision Nothing existingIds [])
+    else do
+      allocated <- requireUUIDs (1 + 2 * length newRequests) facts
+      case allocated of
+        commandId : remainder -> do
+          (newIds, events) <- buildEffects allocated commandId remainder newRequests
+          pure (ExternalEffectBatchDecision (Just commandId) (sortOn id (existingIds <> newIds)) events)
+        [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+ where
+  buildEffects allocated commandId identities = \case
+    [] -> do
+      unless (null identities) $ Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      pure ([], [])
+    request : rest -> case (request, identities) of
+      (SourceCleanupContainerRequest _ target, effectId : eventId : remaining) -> do
+        let preview = "Delete empty source container \"" <> cleanupContainerLabel target <> "\" from " <> effectAdapterProviderAccount custody <> "."
+            idempotencyKey = "source-cleanup-container:" <> externalEffectRequestDigest request
+            effect = makeProposedExternalEffect effectId commandId facts request preview (Just idempotencyKey)
+            event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged effect))
+        (ids, events) <- buildEffects allocated commandId remaining rest
+        pure (effectId : ids, event : events)
+      (SourceCleanupContainerRequest{}, _) -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      _ -> Left (appError CorruptData "The source-container cleanup request builder returned a non-container effect.")
+
+sourceCleanupContainerRequests :: State -> UUIDv7 -> EffectAdapterCustody -> UTCTime -> [SourceContainerInspection] -> Either AppError [ExternalEffectRequest]
+sourceCleanupContainerRequests state invocationId custody inspectedAt inspections = do
+  (profile, verified) <- validatedSourceContainerInspections state invocationId custody inspections
+  pure
+    [ SourceCleanupContainerRequest
+        custody
+        ( SourceCleanupContainerTarget
+            (importProfileId profile)
+            invocationId
+            (inspectedContainerExternalIdentity inspection)
+            (inspectedContainerLabel inspection)
+            (inspectedContainerDigest inspection)
+            inspectedAt
+        )
+    | inspection <- verified
+    ]
+
+validatedSourceContainerInspections :: State -> UUIDv7 -> EffectAdapterCustody -> [SourceContainerInspection] -> Either AppError (ImportProfile, [SourceContainerInspection])
+validatedSourceContainerInspections state invocationId custody inspections = do
+  invocation <- requireCleanupInvocation state invocationId custody
+  profile <- maybe (Left (appError CorruptData "The cleanup ImportProfile is missing.")) Right (Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state))
+  eligible <- Set.fromList <$> eligibleSourceCleanupContainers state invocationId custody
+  let identities = inspectedContainerExternalIdentity <$> inspections
+      validateInspection inspection = do
+        validateSourceContainerInspection inspection
+        unless (inspectedContainerOutcome inspection == SourceContainerEmpty) $
+          Left (appError PreconditionFailed "Only a freshly verified empty source container can be proposed for deletion.")
+        unless (inspectedContainerExternalIdentity inspection `Set.member` eligible) $
+          Left (appError Conflict "The inspected source container is outside the completed item-cleanup scope.")
+  unless (not (null inspections) && Set.size (Set.fromList identities) == length identities) $
+    Left (appError InvalidInput "A source-container cleanup check needs one nonempty set without duplicate identities.")
+  traverse_ validateInspection inspections
+  pure (profile, sortOn inspectedContainerExternalIdentity inspections)
+
+requireCleanupInvocation :: State -> UUIDv7 -> EffectAdapterCustody -> Either AppError ImportInvocation
+requireCleanupInvocation state invocationId custody = do
+  invocation <- maybe (Left (appError NotFound "No ImportInvocation matches this cleanup review.")) Right (Map.lookup invocationId (stateImportInvocations state))
+  profile <- maybe (Left (appError CorruptData "The cleanup ImportProfile is missing.")) Right (Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state))
+  unless
+    ( importInvocationMode invocation == SourceMigrate
+        && importProfileMode profile == SourceMigrate
+        && importProfileCleanupSupported profile
+        && importInvocationComponentId invocation == effectAdapterComponentId custody
+        && importInvocationContractMajor invocation == effectAdapterContractMajor custody
+        && importInvocationPackPublisher invocation == effectAdapterPackPublisher custody
+        && importInvocationPackName invocation == effectAdapterPackName custody
+        && importInvocationPackVersion invocation == effectAdapterPackVersion custody
+        && importInvocationPackManifestDigest invocation == effectAdapterPackManifestDigest custody
+        && importInvocationPackArchiveDigest invocation == effectAdapterPackArchiveDigest custody
+        && importInvocationSignerFingerprint invocation == effectAdapterSignerFingerprint custody
+        && importProfileInputReference profile == effectAdapterProviderAccount custody
+    )
+    $ Left (appError Conflict "The current cleanup authority does not match the verified ImportInvocation.")
+  pure invocation
+
+reusableContainerEffect :: State -> ExternalEffectRequest -> Either AppError (Maybe ExternalEffect)
+reusableContainerEffect state request =
+  case request of
+    SourceCleanupContainerRequest _ target -> reusableContainerEffectFor state (cleanupContainerImportInvocation target) (cleanupContainerExternalIdentity target)
+    _ -> Left (appError CorruptData "A non-container effect reached container reuse lookup.")
+
+reusableContainerEffectFor :: State -> UUIDv7 -> Text -> Either AppError (Maybe ExternalEffect)
+reusableContainerEffectFor state invocationId externalIdentity =
+  case [ effect
+       | effect <- Map.elems (stateExternalEffects state)
+       , SourceCleanupContainerRequest _ existing <- [externalEffectRequest effect]
+       , cleanupContainerImportInvocation existing == invocationId
+       , cleanupContainerExternalIdentity existing == externalIdentity
+       , externalEffectStatus effect `notElem` [EffectFailedTerminal, EffectRejected, EffectWithdrawn]
+       ] of
+    [] -> Right Nothing
+    [effect] -> Right (Just effect)
+    _ -> Left (appError CorruptData "Several live ExternalEffects claim one exact source container.")
 
 hasReusableEffect :: State -> ExternalEffectRequest -> Either AppError Bool
 hasReusableEffect state request = isJust <$> reusableEffect state request

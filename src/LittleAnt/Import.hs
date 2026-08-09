@@ -19,8 +19,8 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (defaultTimeLocale, formatTime)
 import LittleAnt.Error
-import LittleAnt.Model (EffectAdapterCustody (..), SourceCleanupItemTarget (..), SourceMode (..))
-import LittleAnt.Pack.Format (EffectPermission (SourceCleanupItemPermission), PackComponent (..), componentContractMajor, componentId, permissionEffectPurposes)
+import LittleAnt.Model (EffectAdapterCustody (..), SourceCleanupContainerTarget (..), SourceCleanupItemTarget (..), SourceMode (..))
+import LittleAnt.Pack.Format (EffectPermission (SourceCleanupContainerPermission, SourceCleanupItemPermission), PackComponent (..), componentContractMajor, componentId, permissionEffectPurposes)
 import LittleAnt.Pack.Http (PackHttpBroker)
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
@@ -73,6 +73,9 @@ data ImportPort = ImportPort
   , importPortCleanupCustody :: Text -> Either AppError EffectAdapterCustody
   , importPortCleanupItem :: EffectAdapterCustody -> SourceCleanupItemTarget -> IO (Either AppError SourceCleanupReceipt)
   , importPortVerifyCleanupItem :: EffectAdapterCustody -> SourceCleanupItemTarget -> IO (Either AppError SourceCleanupReceipt)
+  , importPortInspectCleanupContainer :: EffectAdapterCustody -> Text -> IO (Either AppError SourceContainerInspection)
+  , importPortCleanupContainer :: EffectAdapterCustody -> SourceCleanupContainerTarget -> IO (Either AppError SourceCleanupReceipt)
+  , importPortVerifyCleanupContainer :: EffectAdapterCustody -> SourceCleanupContainerTarget -> IO (Either AppError SourceCleanupReceipt)
   }
 
 emptyImportPort :: ImportPort
@@ -82,6 +85,9 @@ emptyImportPort =
     (\source _ -> pure . Left $ unavailable source)
     (\source _ -> pure . Left $ unavailable source)
     (Left . unavailable)
+    (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
+    (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
+    (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
     (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
     (\custody _ -> pure . Left $ unavailable (effectAdapterProviderAccount custody))
  where
@@ -103,6 +109,9 @@ packRegistryImportPortWithProviders runner registry providers =
     cleanupCustody
     cleanupItem
     verifyCleanupItem
+    inspectCleanupContainer
+    cleanupContainer
+    verifyCleanupContainer
  where
   preflight source mode = case providersFor source of
     [provider] -> preflightProvider provider mode
@@ -183,6 +192,51 @@ packRegistryImportPortWithProviders runner registry providers =
                 (cleanupItemContainerIdentity target)
     [] -> pure . Left $ cleanupAuthorityChanged suppliedCustody
     _ -> pure . Left $ sourceProblem CorruptData "Several current provider bindings claim one cleanup authority."
+  inspectCleanupContainer suppliedCustody externalIdentity = case matchingCleanupProviders suppliedCustody of
+    [(provider, component)] ->
+      case makeContainerCleanupCustody provider component of
+        Left problem -> pure (Left problem)
+        Right currentCustody
+          | currentCustody /= suppliedCustody -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+          | otherwise ->
+              invokePackSourceCleanupContainerInspectHttp
+                runner
+                (providerImportBroker provider)
+                component
+                (providerImportConfiguration provider)
+                externalIdentity
+    [] -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+    _ -> pure . Left $ sourceProblem CorruptData "Several current provider bindings claim one cleanup authority."
+  cleanupContainer suppliedCustody target = case matchingCleanupProviders suppliedCustody of
+    [(provider, component)] ->
+      case makeContainerCleanupCustody provider component of
+        Left problem -> pure (Left problem)
+        Right currentCustody
+          | currentCustody /= suppliedCustody -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+          | otherwise ->
+              invokePackSourceCleanupContainerHttp
+                runner
+                (providerImportBroker provider)
+                component
+                (providerImportConfiguration provider)
+                (cleanupContainerExternalIdentity target)
+    [] -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+    _ -> pure . Left $ sourceProblem CorruptData "Several current provider bindings claim one cleanup authority."
+  verifyCleanupContainer suppliedCustody target = case matchingCleanupProviders suppliedCustody of
+    [(provider, component)] ->
+      case makeContainerCleanupCustody provider component of
+        Left problem -> pure (Left problem)
+        Right currentCustody
+          | currentCustody /= suppliedCustody -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+          | otherwise ->
+              invokePackSourceCleanupContainerVerifyHttp
+                runner
+                (providerImportBroker provider)
+                component
+                (providerImportConfiguration provider)
+                (cleanupContainerExternalIdentity target)
+    [] -> pure . Left $ cleanupAuthorityChanged suppliedCustody
+    _ -> pure . Left $ sourceProblem CorruptData "Several current provider bindings claim one cleanup authority."
   readFileWith source mode continue = do
     case fileDescriptorFor source of
       Left problem -> pure (Left problem)
@@ -244,10 +298,16 @@ packRegistryImportPortWithProviders runner registry providers =
     ]
 
 makeCleanupCustody :: ProviderImportSource -> RegisteredPackComponent -> Either AppError EffectAdapterCustody
-makeCleanupCustody provider registered = case registeredComponent registered of
+makeCleanupCustody = makeCleanupCustodyFor SourceCleanupItemPermission "item"
+
+makeContainerCleanupCustody :: ProviderImportSource -> RegisteredPackComponent -> Either AppError EffectAdapterCustody
+makeContainerCleanupCustody = makeCleanupCustodyFor SourceCleanupContainerPermission "container"
+
+makeCleanupCustodyFor :: EffectPermission -> Text -> ProviderImportSource -> RegisteredPackComponent -> Either AppError EffectAdapterCustody
+makeCleanupCustodyFor requiredPermission label provider registered = case registeredComponent registered of
   ExecutableComponent common _ permissions -> do
-    unless (SourceCleanupItemPermission `elem` permissionEffectPurposes permissions) $
-      Left (sourceProblem Unsupported "The selected SourceAdapter does not declare item cleanup.")
+    unless (requiredPermission `elem` permissionEffectPurposes permissions) $
+      Left (sourceProblem Unsupported ("The selected SourceAdapter does not declare " <> label <> " cleanup."))
     let identity = registeredPackIdentity registered
     pure
       EffectAdapterCustody

@@ -52,6 +52,10 @@ main =
       , testCase "cleanup authority drift fails before provider deletion" cleanupAuthorityDrift
       , testCase "rejecting the exact cleanup set retires the migration without deletion" cleanupRejection
       , testCase "unknowable provider truth requires risk consent and a new exact approval" unknownCleanupRiskConsent
+      , testCase "an empty source container needs its own check and approval" emptyContainerCleanup
+      , testCase "a nonempty source container never becomes a cleanup effect" nonemptyContainerRefusal
+      , testCase "a container that gains an item fails before deletion" containerRaceRefusal
+      , testCase "an unknown container deletion is reconciled without another delete" unknownContainerCleanup
       , testCase "locked credentials stop before provider transport and retain a typed non-provider failure" lockedCredential
       , testCase "multiple accounts receive explicit unambiguous import references" multipleAccountReferences
       , testCase "binding scheme and component must match the signed SourceAdapter" bindingAuthority
@@ -433,6 +437,114 @@ unknownCleanupRiskConsent = withSystemTempDirectory "lant-provider-cleanup-risk"
   requests <- readIORef calls
   length (filter ((== "DELETE") . brokerHttpMethod) requests) @?= 2
 
+emptyContainerCleanup :: Assertion
+emptyContainerCleanup = withSystemTempDirectory "lant-provider-empty-container" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  itemDeleted <- newIORef False
+  listDeleted <- newIORef False
+  postDeleteReads <- newIORef (0 :: Int)
+  environment <- providerEnvironment root 17000 runner registry (containerCleanupTransport ContainerStaysEmpty calls itemDeleted listDeleted postDeleteReads)
+  (itemEffect, itemResult) <- completeItemCleanup environment
+  assertBool "completed item cleanup did not offer an empty-container check" (any ((== "effect.cleanup.check-containers") . actionId) (envelopeActions itemResult))
+
+  containerPreview <- runAppCommand environment False silentProgress (RespondCommand (response itemResult "effect.cleanup.check-containers")) >>= assertRight >>= interactionOf
+  containerEffect <- case envelopeOpportunity containerPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected container cleanup approval: " <> show other) >> fail "unreachable"
+  beforeApproval <- readIORef calls
+  assertBool "the source list was deleted before its separate approval" (not (any isContainerDelete beforeApproval))
+
+  result <- runAppCommand environment False silentProgress (RespondCommand (response containerPreview "effect.approve")) >>= assertRight >>= interactionOf
+  envelopeOpportunity result @?= SourceCleanupResultOpportunity [containerEffect]
+  dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  let currentState = loadedState dataset
+  externalEffectStatus (stateExternalEffects currentState Map.! itemEffect) @?= EffectSucceeded
+  externalEffectStatus (stateExternalEffects currentState Map.! containerEffect) @?= EffectSucceeded
+  Map.size (stateExternalEffectApprovalGrants currentState) @?= 2
+  Map.size (stateExternalEffectReceipts currentState) @?= 2
+  Map.size (stateRaws currentState) @?= 1
+  requests <- readIORef calls
+  length (filter isContainerDelete requests) @?= 1
+  reads <- readIORef postDeleteReads
+  reads @?= 2
+
+nonemptyContainerRefusal :: Assertion
+nonemptyContainerRefusal = withSystemTempDirectory "lant-provider-nonempty-container" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  itemDeleted <- newIORef False
+  listDeleted <- newIORef False
+  postDeleteReads <- newIORef (0 :: Int)
+  environment <- providerEnvironment root 18000 runner registry (containerCleanupTransport ContainerHasNewItem calls itemDeleted listDeleted postDeleteReads)
+  (_, itemResult) <- completeItemCleanup environment
+  checked <- runAppCommand environment False silentProgress (RespondCommand (response itemResult "effect.cleanup.check-containers")) >>= assertRight >>= interactionOf
+  envelopeOpportunity checked @?= envelopeOpportunity itemResult
+  assertBool "the nonempty result omitted its truthful explanation" (any (Text.isInfixOf "still contains 1 item(s)") (contentBody (envelopeContent checked)))
+  dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  Map.size (stateExternalEffects (loadedState dataset)) @?= 1
+  requests <- readIORef calls
+  filter isContainerDelete requests @?= []
+
+containerRaceRefusal :: Assertion
+containerRaceRefusal = withSystemTempDirectory "lant-provider-container-race" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  itemDeleted <- newIORef False
+  listDeleted <- newIORef False
+  postDeleteReads <- newIORef (0 :: Int)
+  environment <- providerEnvironment root 19000 runner registry (containerCleanupTransport ContainerChangesAfterInspection calls itemDeleted listDeleted postDeleteReads)
+  (_, itemResult) <- completeItemCleanup environment
+  containerPreview <- runAppCommand environment False silentProgress (RespondCommand (response itemResult "effect.cleanup.check-containers")) >>= assertRight >>= interactionOf
+  containerEffect <- case envelopeOpportunity containerPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected raced-container approval: " <> show other) >> fail "unreachable"
+  result <- runAppCommand environment False silentProgress (RespondCommand (response containerPreview "effect.approve")) >>= assertRight >>= interactionOf
+  envelopeOpportunity result @?= SourceCleanupResultOpportunity [containerEffect]
+  assertBool "a terminal container race omitted fresh reinspection" (any ((== "effect.cleanup.reinspect-container") . actionId) (envelopeActions result))
+  dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState dataset) Map.! containerEffect) @?= EffectFailedTerminal
+  requests <- readIORef calls
+  filter isContainerDelete requests @?= []
+
+unknownContainerCleanup :: Assertion
+unknownContainerCleanup = withSystemTempDirectory "lant-provider-unknown-container" $ \root -> do
+  (runner, registry) <- connectorRuntime
+  calls <- newIORef []
+  itemDeleted <- newIORef False
+  listDeleted <- newIORef False
+  postDeleteReads <- newIORef (0 :: Int)
+  environment <- providerEnvironment root 20000 runner registry (containerCleanupTransport ContainerDeleteResponseLost calls itemDeleted listDeleted postDeleteReads)
+  (_, itemResult) <- completeItemCleanup environment
+  containerPreview <- runAppCommand environment False silentProgress (RespondCommand (response itemResult "effect.cleanup.check-containers")) >>= assertRight >>= interactionOf
+  containerEffect <- case envelopeOpportunity containerPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected unknown-container approval: " <> show other) >> fail "unreachable"
+  unknown <- runAppCommand environment False silentProgress (RespondCommand (response containerPreview "effect.approve")) >>= assertRight >>= interactionOf
+  datasetUnknown <- loadDataset (appStore environment) silentProgress >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState datasetUnknown) Map.! containerEffect) @?= EffectOutcomeUnknown
+  verified <- runAppCommand environment False silentProgress (RespondCommand (response unknown "effect.cleanup.verify")) >>= assertRight >>= interactionOf
+  envelopeOpportunity verified @?= SourceCleanupResultOpportunity [containerEffect]
+  dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  externalEffectStatus (stateExternalEffects (loadedState dataset) Map.! containerEffect) @?= EffectSucceeded
+  requests <- readIORef calls
+  length (filter isContainerDelete requests) @?= 1
+
+completeItemCleanup :: AppEnv -> IO (UUIDv7, InteractionEnvelope)
+completeItemCleanup environment = do
+  cleanupPreview <- prepareCleanup environment
+  itemEffect <- case envelopeOpportunity cleanupPreview of
+    ExternalEffectApprovalScreenOpportunity [identity] -> pure identity
+    other -> assertFailure ("unexpected item cleanup approval: " <> show other) >> fail "unreachable"
+  result <- runAppCommand environment False silentProgress (RespondCommand (response cleanupPreview "effect.approve")) >>= assertRight >>= interactionOf
+  envelopeOpportunity result @?= SourceCleanupResultOpportunity [itemEffect]
+  pure (itemEffect, result)
+
+isContainerDelete :: BrokerHttpRequest -> Bool
+isContainerDelete request =
+  brokerHttpMethod request == "DELETE"
+    && brokerHttpUrl request == "https://graph.microsoft.com/v1.0/me/todo/lists/list-1"
+
 nextAfterRawTriage :: AppEnv -> IO InteractionEnvelope
 nextAfterRawTriage environment = seek (16 :: Int)
  where
@@ -536,6 +648,57 @@ unknownThenRetryTransport calls deleteAttempts = PackHttpTransport $ \credential
         then pure (Left (appError ExternalFailure "The provider response was lost."))
         else pure (Right (BrokerHttpResponse 204 Map.empty (object [])))
     _ -> pure (Right (BrokerHttpResponse 404 Map.empty (object [])))
+
+data ContainerCleanupBehavior
+  = ContainerStaysEmpty
+  | ContainerHasNewItem
+  | ContainerChangesAfterInspection
+  | ContainerDeleteResponseLost
+  deriving stock (Eq, Show)
+
+containerCleanupTransport :: ContainerCleanupBehavior -> IORef [BrokerHttpRequest] -> IORef Bool -> IORef Bool -> IORef Int -> PackHttpTransport
+containerCleanupTransport behavior calls itemDeleted listDeleted postDeleteReads = PackHttpTransport $ \credentialed -> do
+  accessTokenBytes (credentialedAccessToken credentialed) @?= secretToken
+  let request = credentialedRequest credentialed
+  modifyIORef' calls (<> [request])
+  case (brokerHttpMethod request, brokerHttpUrl request) of
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists") -> pure (Right oneListResponse)
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1") -> do
+      absent <- readIORef listDeleted
+      pure . Right $ if absent then BrokerHttpResponse 404 Map.empty (object []) else listDetailResponse
+    ("GET", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks") -> do
+      cleaned <- readIORef itemDeleted
+      if not cleaned
+        then pure (Right oneTaskResponse)
+        else do
+          prior <- atomicModifyIORef' postDeleteReads (\count -> (count + 1, count))
+          pure . Right $ case behavior of
+            ContainerStaysEmpty -> taskCollection []
+            ContainerDeleteResponseLost -> taskCollection []
+            ContainerHasNewItem -> taskCollection ["new-task"]
+            ContainerChangesAfterInspection -> if prior == 0 then taskCollection [] else taskCollection ["new-task"]
+    ("DELETE", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1/tasks/task-1") -> do
+      modifyIORef' itemDeleted (const True)
+      pure (Right (BrokerHttpResponse 204 Map.empty (object [])))
+    ("DELETE", "https://graph.microsoft.com/v1.0/me/todo/lists/list-1") -> do
+      modifyIORef' listDeleted (const True)
+      if behavior == ContainerDeleteResponseLost
+        then pure (Left (appError ExternalFailure "The provider response was lost."))
+        else pure (Right (BrokerHttpResponse 204 Map.empty (object [])))
+    _ -> pure (Right (BrokerHttpResponse 404 Map.empty (object [])))
+
+listDetailResponse :: BrokerHttpResponse
+listDetailResponse =
+  jsonResponse
+    ( object
+        [ "@odata.etag" .= ("W/\"list-version-1\"" :: Text)
+        , "id" .= ("list-1" :: Text)
+        , "displayName" .= ("Tasks" :: Text)
+        , "isOwner" .= True
+        , "isShared" .= False
+        , "wellknownListName" .= ("none" :: Text)
+        ]
+    )
 
 oneListResponse :: BrokerHttpResponse
 oneListResponse = jsonResponse (object ["value" .= [object ["id" .= ("list-1" :: Text), "displayName" .= ("Tasks" :: Text)]]])
@@ -826,10 +989,10 @@ connectorPin =
           { artifactPublisher = "org.littleant.project"
           , artifactName = "org.littleant.official-connectors"
           , artifactVersion = "1.0.0"
-          , artifactManifestDigest = "b41e96168276ca7b920178d05f0fd29c12851b9487dcce9152e489307144ddf9"
-          , artifactArchiveDigest = "7ac501769a4592a75fec1fed4a54a8e6b2af5bed057553879374e7d0db6d50a0"
+          , artifactManifestDigest = "7ef1a9e6e5dfd487865783d8d278ff5cbd6f6e30e5f9fa52d5144fcbe8a4fe27"
+          , artifactArchiveDigest = "86fd16259a6579a537df3a1007844da55e752ab55166a494b3f486bc6cf0b7d8"
           }
-    , pinSignerFingerprint = "0c6e4b153e8f45caf172785dabb493e3694ea14d5573f9f7ae49509002615fbb"
-    , pinTrustOrigin = PinVerifiedOfficial 3
+    , pinSignerFingerprint = "7bc8da187ab5426a5aa9a881b6aa54302ea9b5b4c4714ac831bafc513560ac48"
+    , pinTrustOrigin = PinVerifiedOfficial 4
     , pinEnabledComponents = Set.singleton "microsoft_todo"
     }

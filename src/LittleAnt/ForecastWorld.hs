@@ -257,10 +257,12 @@ buildForecastWorld state now =
   sourceCleanupNeedsReview effect = case externalEffectRequest effect of
     SourceCleanupItemRequest _ target ->
       profileActive target
-        && case externalEffectStatus effect of
-          EffectProposed -> maybe True ((<= now) . zonedInstantUtc) (externalEffectReviewNotBefore effect)
-          status -> status `elem` [EffectApproved, EffectDispatching, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]
+        && reviewableStatus effect
+    SourceCleanupContainerRequest{} -> reviewableStatus effect
     _ -> False
+  reviewableStatus effect = case externalEffectStatus effect of
+    EffectProposed -> maybe True ((<= now) . zonedInstantUtc) (externalEffectReviewNotBefore effect)
+    status -> status `elem` [EffectApproved, EffectDispatching, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]
   profileActive target =
     case Map.lookup (cleanupItemImportInvocation target) (stateImportInvocations state) >>= (\invocation -> Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state)) of
       Just profile -> importProfileLifecycle profile == ImportProfileActive

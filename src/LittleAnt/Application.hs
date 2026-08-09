@@ -1683,17 +1683,25 @@ persistForecastSelection environment dryRun dataset selectionId now seed selecti
                             then Left (appError CorruptData "The selected source-cleanup approval is no longer proposed.")
                             else makeCheckpoint (makeSourceCleanupApprovalEnvelope selectionId acceptedCursor acceptedPrecondition now acceptedState custody proposed)
                     Nothing ->
-                      case pendingEffect acceptedState endpoint of
-                        Just effect ->
-                          maybe
-                            (Left (appError CorruptData "The selected external-effect subject is missing after forecast replay."))
-                            (\brick -> makeCheckpoint (makeExternalEffectApprovalEnvelope selectionId acceptedCursor acceptedPrecondition now acceptedState brick effect))
-                            (Map.lookup endpoint (stateBricks acceptedState))
-                        Nothing -> Left (appError CorruptData "The selected external-effect approval is missing after forecast replay.")
+                      case Map.lookup endpoint (stateExternalEffects acceptedState) >>= sourceCleanupContainerDetails of
+                        Just (custody, _) ->
+                          let proposed = filter ((== EffectProposed) . externalEffectStatus) (sourceCleanupCohort acceptedState endpoint)
+                           in if null proposed
+                                then Left (appError CorruptData "The selected source-container cleanup approval is no longer proposed.")
+                                else makeCheckpoint (makeSourceContainerCleanupApprovalEnvelope selectionId acceptedCursor acceptedPrecondition now acceptedState custody proposed)
+                        Nothing ->
+                          case pendingEffect acceptedState endpoint of
+                            Just effect ->
+                              maybe
+                                (Left (appError CorruptData "The selected external-effect subject is missing after forecast replay."))
+                                (\brick -> makeCheckpoint (makeExternalEffectApprovalEnvelope selectionId acceptedCursor acceptedPrecondition now acceptedState brick effect))
+                                (Map.lookup endpoint (stateBricks acceptedState))
+                            Nothing -> Left (appError CorruptData "The selected external-effect approval is missing after forecast replay.")
                 World.ExternalEffectRecoveryOpportunity ->
-                  case Map.lookup endpoint (stateExternalEffects acceptedState) >>= sourceCleanupItemDetails of
+                  case Map.lookup endpoint (stateExternalEffects acceptedState) >>= sourceCleanupDetails of
                     Just{} ->
-                      makeCheckpoint (makeSourceCleanupResultEnvelope selectionId acceptedCursor acceptedPrecondition now acceptedState (sourceCleanupCohort acceptedState endpoint))
+                      let cohort = sourceCleanupCohort acceptedState endpoint
+                       in makeCheckpoint (makeSourceCleanupResultEnvelope selectionId acceptedCursor acceptedPrecondition now acceptedState (sourceCleanupCanCheckContainers acceptedState cohort) cohort)
                     Nothing ->
                       case recoverableEffect acceptedState endpoint of
                         Just effect ->
@@ -1757,19 +1765,50 @@ sourceCleanupItemDetails effect = case externalEffectRequest effect of
   SourceCleanupItemRequest custody target -> Just (custody, target)
   _ -> Nothing
 
+sourceCleanupContainerDetails :: ExternalEffect -> Maybe (EffectAdapterCustody, SourceCleanupContainerTarget)
+sourceCleanupContainerDetails effect = case externalEffectRequest effect of
+  SourceCleanupContainerRequest custody target -> Just (custody, target)
+  _ -> Nothing
+
+sourceCleanupDetails :: ExternalEffect -> Maybe EffectAdapterCustody
+sourceCleanupDetails effect = case externalEffectRequest effect of
+  SourceCleanupItemRequest custody _ -> Just custody
+  SourceCleanupContainerRequest custody _ -> Just custody
+  _ -> Nothing
+
 sourceCleanupCohort :: State -> UUIDv7 -> [ExternalEffect]
 sourceCleanupCohort state selectedIdentity =
-  case Map.lookup selectedIdentity (stateExternalEffects state) >>= sourceCleanupItemDetails of
+  case Map.lookup selectedIdentity (stateExternalEffects state) of
     Nothing -> []
-    Just (_, selectedTarget) ->
-      sortOn
-        externalEffectId
-        [ effect
-        | effect <- Map.elems (stateExternalEffects state)
-        , Just (_, target) <- [sourceCleanupItemDetails effect]
-        , cleanupItemImportInvocation target == cleanupItemImportInvocation selectedTarget
-        , externalEffectStatus effect `notElem` [EffectRejected, EffectWithdrawn]
-        ]
+    Just selected -> case sourceCleanupItemDetails selected of
+      Just (_, selectedTarget) ->
+        sortOn
+          externalEffectId
+          [ effect
+          | effect <- Map.elems (stateExternalEffects state)
+          , Just (_, target) <- [sourceCleanupItemDetails effect]
+          , cleanupItemImportInvocation target == cleanupItemImportInvocation selectedTarget
+          , externalEffectStatus effect `notElem` [EffectRejected, EffectWithdrawn]
+          ]
+      Nothing -> case sourceCleanupContainerDetails selected of
+        Just{} ->
+          sortOn
+            externalEffectId
+            [ effect
+            | effect <- Map.elems (stateExternalEffects state)
+            , isJust (sourceCleanupContainerDetails effect)
+            , externalEffectOriginatingCommand effect == externalEffectOriginatingCommand selected
+            , externalEffectStatus effect `notElem` [EffectRejected, EffectWithdrawn]
+            ]
+        Nothing -> []
+
+sourceCleanupCanCheckContainers :: State -> [ExternalEffect] -> Bool
+sourceCleanupCanCheckContainers state effects = case mapMaybe sourceCleanupItemDetails effects of
+  (custody, target) : _ ->
+    case eligibleSourceCleanupContainers state (cleanupItemImportInvocation target) custody of
+      Right containers -> not (null containers)
+      Left _ -> False
+  [] -> False
 
 forecastEvidence :: UUIDv7 -> ByteString -> World.ForecastSelection -> ForecastSelectionEvidence
 forecastEvidence selectionId seed selection =
@@ -2854,6 +2893,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (SourceCleanupResultOpportunity effectIdentities, "effect.cleanup.verify", _) -> verifyUnknownSourceCleanup dataset effectIdentities
     (SourceCleanupResultOpportunity effectIdentities, "effect.cleanup.retry-risk", _) -> reviewSourceCleanupDuplicateRisk effectIdentities
     (SourceCleanupResultOpportunity effectIdentities, "effect.cleanup.stop", _) -> stopUnknownSourceCleanup effectIdentities
+    (SourceCleanupResultOpportunity effectIdentities, "effect.cleanup.check-containers", _) -> checkSourceCleanupContainers effectIdentities
+    (SourceCleanupResultOpportunity effectIdentities, "effect.cleanup.reinspect-container", _) -> recheckSourceCleanupContainer effectIdentities
     (SourceCleanupRiskOpportunity effectIdentities, "effect.cleanup.risk.accept", _) -> acceptSourceCleanupDuplicateRisk effectIdentities
     (SourceCleanupRiskOpportunity effectIdentities, "effect.cleanup.risk.reject", _) -> finishSourceCleanupResult dataset effectIdentities Nothing
     (SourceCleanupRiskOpportunity{}, "effect.cleanup.risk.unknown", _) ->
@@ -3436,7 +3477,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         let proposed = filter ((== EffectProposed) . externalEffectStatus) effects
             envelope =
               if null proposed
-                then makeSourceCleanupResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) effects
+                then makeSourceCleanupResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) (sourceCleanupCanCheckContainers (loadedState accepted) effects) effects
                 else makeSourceCleanupApprovalEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) custody proposed
             nextCheckpoint = PresentationCheckpoint envelope [] []
         saveUnlessDry environment dryRun nextCheckpoint
@@ -3445,7 +3486,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   approveExternalEffectSet effectIdentities = case exactEffects state effectIdentities of
     Left problem -> pure (Left problem)
     Right effects
-      | all isSourceCleanupItem effects -> approveAndDispatchSourceCleanup effectIdentities
+      | all isSourceCleanupEffect effects -> approveAndDispatchSourceCleanup effectIdentities
       | [effect] <- effects ->
           case externalEffectDelegation effect of
             Just{} ->
@@ -3464,25 +3505,25 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
           Right approved
             | dryRun -> finishSourceCleanupResult approved effectIdentities (Just (mutationDecisionCommandId approval))
             | otherwise ->
-                dispatchSourceCleanupItems approved effectIdentities >>= \case
+                dispatchSourceCleanupEffects approved effectIdentities >>= \case
                   Left problem -> pure (Left problem)
                   Right completed -> finishSourceCleanupResult completed effectIdentities (Just (mutationDecisionCommandId approval))
 
   proceedSourceCleanupItems effectIdentities = case exactEffects state effectIdentities of
     Left problem -> pure (Left problem)
     Right effects
-      | not (all isSourceCleanupItem effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
-      | not (any ((== EffectApproved) . externalEffectStatus) effects) -> pure (Left (appError PreconditionFailed "No approved cleanup item is waiting for dispatch."))
+      | not (all isSourceCleanupEffect effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
+      | not (any ((== EffectApproved) . externalEffectStatus) effects) -> pure (Left (appError PreconditionFailed "No approved cleanup effect is waiting for dispatch."))
       | dryRun -> finishSourceCleanupResult dataset effectIdentities Nothing
       | otherwise ->
-          dispatchSourceCleanupItems dataset effectIdentities >>= \case
+          dispatchSourceCleanupEffects dataset effectIdentities >>= \case
             Left problem -> pure (Left problem)
             Right completed -> finishSourceCleanupResult completed effectIdentities Nothing
 
   checkInterruptedSourceCleanup effectIdentities = case exactEffects state effectIdentities of
     Left problem -> pure (Left problem)
     Right effects
-      | not (all isSourceCleanupItem effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
+      | not (all isSourceCleanupEffect effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
       | null interrupted -> pure (Left (appError PreconditionFailed "No cleanup attempt is durably dispatching."))
       | dryRun -> finishSourceCleanupResult dataset effectIdentities Nothing
       | otherwise ->
@@ -3511,7 +3552,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   retrySafeSourceCleanup effectIdentities = case exactEffects state effectIdentities of
     Left problem -> pure (Left problem)
     Right effects
-      | not (all isSourceCleanupItem effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
+      | not (all isSourceCleanupEffect effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
       | null retryable -> pure (Left (appError PreconditionFailed "No unchanged idempotent cleanup failure is retryable."))
       | otherwise ->
           applyEffectTransitions dataset retryable (const (const 2)) (\current identity -> decideRetryExternalEffect current actor identity False) >>= \case
@@ -3519,7 +3560,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             Right (approved, commandId)
               | dryRun -> finishSourceCleanupResult approved effectIdentities commandId
               | otherwise ->
-                  dispatchSourceCleanupItems approved effectIdentities >>= \case
+                  dispatchSourceCleanupEffects approved effectIdentities >>= \case
                     Left problem -> pure (Left problem)
                     Right completed -> finishSourceCleanupResult completed effectIdentities commandId
      where
@@ -3528,7 +3569,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   verifyUnknownSourceCleanup starting effectIdentities = case exactEffects (loadedState starting) effectIdentities of
     Left problem -> pure (Left problem)
     Right effects
-      | not (all isSourceCleanupItem effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
+      | not (all isSourceCleanupEffect effects) -> pure (Left (appError InvalidInput "This recovery set contains a non-cleanup effect."))
       | null unknown -> pure (Left (appError PreconditionFailed "No cleanup outcome is unknown."))
       | dryRun -> finishSourceCleanupResult starting effectIdentities Nothing
       | otherwise -> verifyEach starting Nothing unknown
@@ -3548,14 +3589,19 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
               Right recorded -> verifyEach recorded (Just (mutationDecisionCommandId receiptDecision)) rest
 
   verifyCleanupEffect currentState effectIdentity =
-    case Map.lookup effectIdentity (stateExternalEffects currentState) >>= sourceCleanupItemDetails of
-      Just (custody, target) -> do
-        attempted <- try (importPortVerifyCleanupItem (appImportPort environment) custody target)
-        pure $ case attempted of
-          Left (_ :: SomeException) -> SourceCleanupReceipt SourceCleanupOutcomeUnknown Nothing (Just "The provider verification response was not observed.")
-          Right (Left problem) -> cleanupVerificationProblemReceipt problem
-          Right (Right receipt) -> receipt
+    case Map.lookup effectIdentity (stateExternalEffects currentState) of
+      Just effect -> case externalEffectRequest effect of
+        SourceCleanupItemRequest custody target -> verifyWith (importPortVerifyCleanupItem (appImportPort environment) custody target)
+        SourceCleanupContainerRequest custody target -> verifyWith (importPortVerifyCleanupContainer (appImportPort environment) custody target)
+        _ -> pure (SourceCleanupReceipt SourceCleanupOutcomeUnknown Nothing (Just "The effect is not a source cleanup."))
       Nothing -> pure (SourceCleanupReceipt SourceCleanupOutcomeUnknown Nothing (Just "The cleanup effect disappeared before verification."))
+   where
+    verifyWith operation = do
+      attempted <- try operation
+      pure $ case attempted of
+        Left (_ :: SomeException) -> SourceCleanupReceipt SourceCleanupOutcomeUnknown Nothing (Just "The provider verification response was not observed.")
+        Right (Left problem) -> cleanupVerificationProblemReceipt problem
+        Right (Right receipt) -> receipt
 
   cleanupVerificationProblemReceipt problem =
     SourceCleanupReceipt
@@ -3588,8 +3634,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   acceptSourceCleanupDuplicateRisk effectIdentities = case exactEffects state effectIdentities of
     Left problem -> pure (Left problem)
     Right effects
-      | not (all isSourceCleanupItem effects && all ((== EffectOutcomeUnknown) . externalEffectStatus) effects) ->
-          pure (Left (appError PreconditionFailed "Duplicate-risk consent applies only to exact outcome-unknown cleanup items."))
+      | not (all isSourceCleanupEffect effects && all ((== EffectOutcomeUnknown) . externalEffectStatus) effects) ->
+          pure (Left (appError PreconditionFailed "Duplicate-risk consent applies only to exact outcome-unknown cleanup effects."))
       | otherwise ->
           applyEffectTransitions dataset effectIdentities (const (const 2)) (\current identity -> decideRetryExternalEffect current actor identity True) >>= \case
             Left problem -> pure (Left problem)
@@ -3601,7 +3647,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                   Right custody -> do
                     identity <- appAllocateUUID environment
                     currentNow <- appZonedNow environment
-                    let envelope = makeSourceCleanupApprovalEnvelope identity (loadedCursor revised) (statePreconditionHash (loadedState revised)) currentNow (loadedState revised) custody proposed
+                    let envelope = sourceCleanupApprovalEnvelope identity (loadedCursor revised) currentNow (loadedState revised) custody proposed
                         nextCheckpoint = PresentationCheckpoint envelope [] []
                     saveUnlessDry environment dryRun nextCheckpoint
                     pure . Right $ RespondResult (loadedCursor revised) envelope commandId dryRun
@@ -3617,6 +3663,98 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
      where
       unknown = externalEffectId <$> filter ((== EffectOutcomeUnknown) . externalEffectStatus) effects
 
+  checkSourceCleanupContainers effectIdentities = case exactEffects state effectIdentities of
+    Left problem -> pure (Left problem)
+    Right effects
+      | not (all isSourceCleanupItem effects) -> pure (Left (appError InvalidInput "Only completed item cleanup can lead to a container check."))
+      | otherwise -> case sourceCleanupItemOrigin effects of
+          Left problem -> pure (Left problem)
+          Right (custody, invocationId) -> case eligibleSourceCleanupContainers state invocationId custody of
+            Left problem -> pure (Left problem)
+            Right [] -> pure (Left (appError PreconditionFailed "No source container has complete successful item cleanup."))
+            Right containerIdentities
+              | dryRun -> local (appendBody current ("Dry run would inspect " <> Text.pack (show (length containerIdentities)) <> " source container(s) without deleting anything."))
+              | otherwise -> do
+                  inspected <- traverse (inspectCleanupContainer custody) containerIdentities
+                  case sequence inspected of
+                    Left problem -> pure (Left problem)
+                    Right inspections ->
+                      let empty = filter ((== SourceContainerEmpty) . inspectedContainerOutcome) inspections
+                          summary = Text.intercalate "\n" (containerInspectionSummary <$> inspections)
+                       in if null empty
+                            then local (appendBody current (summary <> "\nNo empty source container was proposed for deletion."))
+                            else proposeInspectedContainers custody invocationId empty
+
+  recheckSourceCleanupContainer effectIdentities = case exactEffects state effectIdentities of
+    Left problem -> pure (Left problem)
+    Right effects -> case mapMaybe sourceCleanupContainerDetails effects of
+      [] -> pure (Left (appError InvalidInput "No source-container cleanup is available to recheck."))
+      (_, target) : rest
+        | any (\(_, other) -> cleanupContainerImportInvocation other /= cleanupContainerImportInvocation target) rest ->
+            pure (Left (appError CorruptData "One cleanup screen contains more than one import authority."))
+        | otherwise ->
+            let itemIdentities =
+                  [ externalEffectId effect
+                  | effect <- Map.elems (stateExternalEffects state)
+                  , SourceCleanupItemRequest _ itemTarget <- [externalEffectRequest effect]
+                  , cleanupItemImportInvocation itemTarget == cleanupContainerImportInvocation target
+                  ]
+             in checkSourceCleanupContainers itemIdentities
+
+  inspectCleanupContainer custody externalIdentity = do
+    attempted <- try (importPortInspectCleanupContainer (appImportPort environment) custody externalIdentity)
+    pure $ case attempted of
+      Left (_ :: SomeException) -> Left (appError ExternalFailure "The source-container inspection response was not observed.")
+      Right result -> result
+
+  containerInspectionSummary inspection =
+    "- "
+      <> inspectedContainerLabel inspection
+      <> ": "
+      <> case inspectedContainerOutcome inspection of
+        SourceContainerEmpty -> "empty"
+        SourceContainerNonempty -> "still contains " <> maybe "unknown" (Text.pack . show) (inspectedContainerItemCount inspection) <> " item(s)"
+        SourceContainerAbsent -> "already absent"
+        SourceContainerProtected -> "protected from deletion"
+
+  proposeInspectedContainers custody invocationId inspections =
+    case sourceCleanupContainerProposalUUIDCount state invocationId custody inspections of
+      Left problem -> pure (Left problem)
+      Right count -> do
+        facts <- runtimeFacts environment count cursor
+        case decideProposeSourceCleanupContainers state actor invocationId custody inspections facts of
+          Left problem -> pure (Left problem)
+          Right decision -> do
+            acceptedResult <-
+              if null (externalEffectBatchEvents decision)
+                then pure (Right dataset)
+                else persistOrSimulate environment dryRun dataset (externalEffectBatchEvents decision)
+            case acceptedResult of
+              Left problem -> pure (Left problem)
+              Right accepted -> finishContainerCleanupReview accepted custody (externalEffectBatchIds decision) (externalEffectBatchCommandId decision)
+
+  finishContainerCleanupReview accepted custody effectIdentities commandId =
+    case exactEffects (loadedState accepted) effectIdentities of
+      Left problem -> pure (Left problem)
+      Right effects -> do
+        identity <- appAllocateUUID environment
+        currentNow <- appZonedNow environment
+        let proposed = filter ((== EffectProposed) . externalEffectStatus) effects
+            envelope =
+              if null proposed
+                then makeSourceCleanupResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) False effects
+                else makeSourceContainerCleanupApprovalEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) custody proposed
+            nextCheckpoint = PresentationCheckpoint envelope [] []
+        saveUnlessDry environment dryRun nextCheckpoint
+        pure . Right $ RespondResult (loadedCursor accepted) envelope commandId dryRun
+
+  sourceCleanupItemOrigin effects = case mapMaybe sourceCleanupItemDetails effects of
+    [] -> Left (appError PreconditionFailed "No source-cleanup item is available.")
+    (custody, target) : rest
+      | all (\(otherCustody, otherTarget) -> otherCustody == custody && cleanupItemImportInvocation otherTarget == cleanupItemImportInvocation target) rest ->
+          Right (custody, cleanupItemImportInvocation target)
+      | otherwise -> Left (appError CorruptData "One cleanup screen contains more than one import authority.")
+
   applyEffectTransitions starting identities uuidCount decide = go starting Nothing identities
    where
     go accepted commandId [] = pure (Right (accepted, commandId))
@@ -3629,13 +3767,19 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             Left problem -> pure (Left problem)
             Right changed -> go changed (Just (mutationDecisionCommandId mutation)) rest
 
-  sourceCleanupSetCustody effects = case mapMaybe (fmap fst . sourceCleanupItemDetails) effects of
+  sourceCleanupSetCustody effects = case mapMaybe sourceCleanupDetails effects of
     [] -> Left (appError PreconditionFailed "No source-cleanup effect is available.")
     custody : rest
       | all (== custody) rest -> Right custody
       | otherwise -> Left (appError CorruptData "One cleanup screen contains more than one adapter authority.")
 
-  dispatchSourceCleanupItems starting = go starting
+  sourceCleanupApprovalEnvelope identity currentCursor currentNow currentState custody effects
+    | all (\effect -> externalEffectPurpose effect == SourceCleanupContainerEffect) effects =
+        makeSourceContainerCleanupApprovalEnvelope identity currentCursor (statePreconditionHash currentState) currentNow currentState custody effects
+    | otherwise =
+        makeSourceCleanupApprovalEnvelope identity currentCursor (statePreconditionHash currentState) currentNow currentState custody effects
+
+  dispatchSourceCleanupEffects starting = go starting
    where
     go accepted [] = pure (Right accepted)
     go accepted (effectIdentity : rest) =
@@ -3671,7 +3815,13 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             Left (_ :: SomeException) -> SourceCleanupReceipt SourceCleanupOutcomeUnknown Nothing (Just "The provider response was not observed.")
             Right (Left problem) -> cleanupProblemReceipt problem
             Right (Right receipt) -> receipt
-        _ -> pure (SourceCleanupReceipt SourceCleanupFailedTerminal Nothing (Just "The approved effect is not a source-cleanup item."))
+        SourceCleanupContainerRequest custody target -> do
+          attempted <- try (importPortCleanupContainer (appImportPort environment) custody target)
+          pure $ case attempted of
+            Left (_ :: SomeException) -> SourceCleanupReceipt SourceCleanupOutcomeUnknown Nothing (Just "The provider response was not observed.")
+            Right (Left problem) -> cleanupProblemReceipt problem
+            Right (Right receipt) -> receipt
+        _ -> pure (SourceCleanupReceipt SourceCleanupFailedTerminal Nothing (Just "The approved effect is not a source cleanup."))
       Nothing -> pure (SourceCleanupReceipt SourceCleanupFailedTerminal Nothing (Just "The approved cleanup effect disappeared."))
 
   cleanupProblemReceipt problem =
@@ -3700,7 +3850,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       Right effects -> do
         identity <- appAllocateUUID environment
         currentNow <- appZonedNow environment
-        let envelope = makeSourceCleanupResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) effects
+        let envelope = makeSourceCleanupResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) (sourceCleanupCanCheckContainers (loadedState accepted) effects) effects
             nextCheckpoint = PresentationCheckpoint envelope [] []
         saveUnlessDry environment dryRun nextCheckpoint
         pure . Right $ RespondResult (loadedCursor accepted) envelope commandId dryRun
@@ -3708,7 +3858,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   rejectExternalEffectSet effectIdentities = case exactEffects state effectIdentities of
     Left problem -> pure (Left problem)
     Right effects
-      | all isSourceCleanupItem effects -> do
+      | all isSourceCleanupEffect effects -> do
           case externalEffectRejectionUUIDCount state effectIdentities of
             Left problem -> pure (Left problem)
             Right count -> do
@@ -3749,6 +3899,11 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
 
   isSourceCleanupItem effect = case externalEffectRequest effect of
     SourceCleanupItemRequest{} -> True
+    _ -> False
+
+  isSourceCleanupEffect effect = case externalEffectRequest effect of
+    SourceCleanupItemRequest{} -> True
+    SourceCleanupContainerRequest{} -> True
     _ -> False
 
   acceptProviderConnection draft = case appProviderConnectionRuntime environment of
