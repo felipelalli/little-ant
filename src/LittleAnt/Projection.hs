@@ -119,8 +119,8 @@ renderCommandResult = \case
       <> query
       <> "\n"
       <> ( if null hits
-            then "No matches."
-            else Text.unlines [searchHitLine hit | hit <- hits]
+             then "No matches."
+             else Text.unlines [searchHitLine hit | hit <- hits]
          )
   UndoResult _ _ _ raw redoToken wasRedo interaction dryRun ->
     dryRunFact dryRun
@@ -134,9 +134,17 @@ renderCommandResult = \case
       <> name
       <> ":\n"
       <> ( if null rows
-            then "  (empty)"
-            else Text.unlines ["- " <> renderListRow row | row <- rows]
+             then "  (empty)"
+             else Text.unlines ["- " <> renderListRow row | row <- rows]
          )
+  DoctorResult _ healthy validated checks dryRun ->
+    dryRunFact dryRun
+      <> "Doctor: "
+      <> (if healthy then "healthy" else "attention required")
+      <> "\nValid events: "
+      <> Text.pack (show validated)
+      <> "\n"
+      <> Text.unlines (renderDiagnosticCheck <$> checks)
   GrammarResult _ names dryRun ->
     dryRunFact dryRun
       <> "Screen grammars:\n"
@@ -226,6 +234,14 @@ renderListRow row =
 dryRunFact :: Bool -> Text
 dryRunFact True = "Dry run: nothing was recorded.\n\n"
 dryRunFact False = ""
+
+renderDiagnosticCheck :: DiagnosticCheck -> Text
+renderDiagnosticCheck check =
+  (if diagnosticCheckPassed check then "✓ " else "! ")
+    <> diagnosticCheckName check
+    <> ": "
+    <> diagnosticCheckSummary check
+
 administrationHeading :: Text -> Text
 administrationHeading action = case action of
   "profile_list" -> "Profiles"

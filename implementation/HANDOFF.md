@@ -5,8 +5,9 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last verified commit: **8c3a07a** (`feat: implement the v1 core through source reconciliation`).
-Recent work is now progressing from there, and this file should stay editable between milestones.
+Last verified baseline commit: **3b4e975** (`fix(cli): restore a green command surface`).
+The current milestone adds the read-only half of corrupt-history recovery; this
+file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -32,15 +33,21 @@ Recent work is now progressing from there, and this file should stay editable be
   Delegation from skip diagnosis through observed handoff;
 - effect edit, defer, reject, approval, durable dispatch intent, and receipt
   transitions, with deferred effects excluded from the forecast.
+- `lant doctor` runs before ordinary replay and auto-tick, reports the last
+  valid cursor and event count, and identifies the first malformed event by
+  canonical segment, physical JSONL line, and byte offset without mutating the
+  dataset.
 
 ## Last green gate
 
-The most recent full command was:
+The most recent full commands were:
 
     nix develop -c make test
+    nix develop -c make python-test spec-audit vocabulary
 
-All 16 S08 tests and every earlier test suite passed. The S08 tests now include
-live vault-agent behavior and public guided Wait/Delegation simulations.
+Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, and
+the public-vocabulary guard passed. S09 now has 14 passing source/translation/
+diagnostic tests.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -65,4 +72,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Current focus in this slice is: source attachment consistency, source-failure handling, Raw detail recovery copy, and command registry/adapter hooks.
+Current focus in this slice is: candidate-based `lant repair`, followed by safe
+export hosting, Pack protocols, and Raw-first import/adapter paths. The combined
+`Corrupt history/repair` coverage row remains `planned` until repair constructs,
+fully replays, and previews a separate replacement dataset.

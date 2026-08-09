@@ -1,5 +1,6 @@
 module LittleAnt.Result (
   CommandResult (..),
+  DiagnosticCheck (..),
   HistoryEntry (..),
   SearchHit (..),
   ListRow (..),
@@ -13,6 +14,7 @@ import Data.Aeson
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 import Data.Time (UTCTime)
+import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Interaction
 import LittleAnt.Model
@@ -52,6 +54,14 @@ data ListRow = ListRow
   { listEntryHandle :: Text
   , listEntryTitle :: Text
   , listEntryDetails :: Text
+  }
+  deriving stock (Eq, Show)
+
+data DiagnosticCheck = DiagnosticCheck
+  { diagnosticCheckName :: Text
+  , diagnosticCheckPassed :: Bool
+  , diagnosticCheckSummary :: Text
+  , diagnosticCheckProblem :: Maybe AppError
   }
   deriving stock (Eq, Show)
 
@@ -128,6 +138,13 @@ data CommandResult
       , resultListEntries :: [ListRow]
       , resultDryRun :: Bool
       }
+  | DoctorResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultDatasetHealthy :: Bool
+      , resultValidatedEvents :: Integer
+      , resultDiagnosticChecks :: [DiagnosticCheck]
+      , resultDryRun :: Bool
+      }
   deriving stock (Eq, Show)
 
 resultCursor :: CommandResult -> DatasetCursor
@@ -160,6 +177,15 @@ instance ToJSON ListRow where
       , "title" .= listEntryTitle entry
       , "details" .= listEntryDetails entry
       ]
+
+instance ToJSON DiagnosticCheck where
+  toJSON check =
+    object $
+      [ "name" .= diagnosticCheckName check
+      , "status" .= (if diagnosticCheckPassed check then ("pass" :: Text) else "fail")
+      , "summary" .= diagnosticCheckSummary check
+      ]
+        <> maybe [] (pure . ("problem" .=)) (diagnosticCheckProblem check)
 
 instance ToJSON RawProjection where
   toJSON raw =
@@ -220,6 +246,15 @@ instance ToJSON CommandResult where
         , "dataset_cursor" .= renderCursor cursor
         , "list" .= name
         , "entries" .= entries
+        ]
+          <> dryRunPair dryRun
+    DoctorResult cursor healthy validated checks dryRun ->
+      object $
+        [ "schema" .= ("little-ant/doctor@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "healthy" .= healthy
+        , "validated_events" .= validated
+        , "checks" .= checks
         ]
           <> dryRunPair dryRun
     RespondResult cursor interaction commandId dryRun ->

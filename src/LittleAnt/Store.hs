@@ -1,9 +1,11 @@
 module LittleAnt.Store (
+  DatasetDiagnosis (..),
   DatasetCursor (..),
   LoadedDataset (..),
   StoreConfig (..),
   appendCommand,
   cursorHash,
+  diagnoseDataset,
   encodeSegment,
   genesisCursor,
   initializeDataset,
@@ -47,6 +49,12 @@ data LoadedDataset = LoadedDataset
   { loadedState :: State
   , loadedCursor :: DatasetCursor
   , loadedEventCount :: Integer
+  }
+  deriving stock (Eq, Show)
+
+data DatasetDiagnosis = DatasetDiagnosis
+  { diagnosedDataset :: LoadedDataset
+  , diagnosisProblem :: Maybe AppError
   }
   deriving stock (Eq, Show)
 instance ToJSON DatasetCursor where
@@ -101,32 +109,58 @@ initializeDataset config = do
   mapM_ (`setFileMode` 0o700) directories
 
 loadDataset :: StoreConfig -> (Integer -> IO ()) -> IO (Either AppError LoadedDataset)
-loadDataset config progress = handleIo $ do
+loadDataset config progress =
+  diagnoseDataset config progress >>= \case
+    Left problem -> pure (Left problem)
+    Right diagnosis ->
+      pure $ case diagnosisProblem diagnosis of
+        Nothing -> Right (diagnosedDataset diagnosis)
+        Just problem -> Left problem
+
+diagnoseDataset :: StoreConfig -> (Integer -> IO ()) -> IO (Either AppError DatasetDiagnosis)
+diagnoseDataset config progress = handleIo $ do
   exists <- doesDirectoryExist (eventsDirectory config)
   if not exists
-    then pure (Right (LoadedDataset emptyState Genesis 0))
+    then pure (Right (healthyDiagnosis (LoadedDataset emptyState Genesis 0)))
     else do
       names <- sort <$> listDirectory (eventsDirectory config)
       let accepted = filter (not . Text.isPrefixOf "." . Text.pack) names
           alien = filter ((/= ".jsonl") . takeExtension) accepted
       if not (null alien)
         then
-          pure . Left $
-            (appError CorruptData "The events directory contains an unrecognized canonical file.")
-              { appErrorDetails = fmap Text.pack alien
-              }
+          pure . Right $
+            failedDiagnosis
+              (LoadedDataset emptyState Genesis 0)
+              ( (appError CorruptData "The events directory contains an unrecognized canonical file.")
+                  { appErrorDetails = fmap Text.pack alien
+                  }
+              )
         else replayFiles accepted
  where
   replayFiles = go 1 Genesis emptyState 0
-  go _ cursor state count [] = pure (Right (LoadedDataset state cursor count))
+  go _ cursor state count [] = pure (Right (healthyDiagnosis (LoadedDataset state cursor count)))
   go expected cursor state count (name : rest) = do
     bytes <- ByteString.readFile (eventsDirectory config </> name)
     case validateSegment expected cursor name bytes state of
-      Left problem -> pure (Left problem)
+      Left problem ->
+        pure . Right $
+          failedDiagnosis
+            (LoadedDataset state cursor count)
+            problem
+              { appErrorDetails =
+                  appErrorDetails problem
+                    <> ["valid_event_count: " <> Text.pack (show count)]
+              }
       Right (nextState, nextCursor, events) -> do
         let counts = [count + 1 .. count + fromIntegral (length events)]
         mapM_ progress counts
         go (expected + 1) nextCursor nextState (count + fromIntegral (length events)) rest
+
+healthyDiagnosis :: LoadedDataset -> DatasetDiagnosis
+healthyDiagnosis dataset = DatasetDiagnosis dataset Nothing
+
+failedDiagnosis :: LoadedDataset -> AppError -> DatasetDiagnosis
+failedDiagnosis dataset problem = DatasetDiagnosis dataset (Just problem)
 
 appendCommand :: StoreConfig -> DatasetCursor -> [EventDraft] -> IO (Either AppError LoadedDataset)
 appendCommand _ _ [] = pure (Left (appError InvalidInput "A command group must contain at least one event."))
@@ -220,8 +254,10 @@ validateSegment expected previous name bytes state = do
   unless (not (ByteString.null bytes) && ByteString.last bytes == 10) $
     corrupt "A canonical JSONL segment must be nonempty and newline-terminated."
   let physicalLines = init (ByteString.split 10 bytes)
+      byteOffsets = init (scanl (\offset line -> offset + ByteString.length line + 1) 0 physicalLines)
+      indexedLines = zip3 [1 :: Int ..] byteOffsets physicalLines
   when (any ByteString.null physicalLines) $ corrupt "A canonical JSONL segment contains a blank line."
-  events <- traverse decodeEvent physicalLines
+  events <- traverse decodeAt indexedLines
   when (null events) $ corrupt "A command-group segment contains no events."
   let eventSequences = fmap persistedEventSequence events
       commandIds = fmap persistedCommandId events
@@ -235,7 +271,7 @@ validateSegment expected previous name bytes state = do
       unless (all (== firstCommand) otherCommands) $
         corrupt "A segment contains more than one command ID."
     [] -> corrupt "A command-group segment contains no events."
-  nextState <- foldM applyEvent state events
+  nextState <- foldM applyAt state (zip indexedLines events)
   pure (nextState, DatasetCursor nameSequence nameHash, events)
  where
   corrupt message =
@@ -244,6 +280,23 @@ validateSegment expected previous name bytes state = do
         { appErrorSubject = Just (Text.pack name)
         , appErrorCursor = Just (renderCursor previous)
         }
+  decodeAt (lineNumber, byteOffset, line) =
+    contextualize lineNumber byteOffset (decodeEvent line)
+  applyAt current ((lineNumber, byteOffset, _), event) =
+    contextualize lineNumber byteOffset (applyEvent current event)
+  contextualize lineNumber byteOffset = \case
+    Right value -> Right value
+    Left problem ->
+      Left
+        problem
+          { appErrorSubject = Just (Text.pack name)
+          , appErrorCursor = Just (renderCursor previous)
+          , appErrorDetails =
+              appErrorDetails problem
+                <> [ "physical_line: " <> Text.pack (show lineNumber)
+                   , "byte_offset: " <> Text.pack (show byteOffset)
+                   ]
+          }
 
 parseSegmentFileName :: FilePath -> Either AppError (Integer, Text)
 parseSegmentFileName name = case Text.splitOn "-" (Text.pack (take (length name - 6) name)) of

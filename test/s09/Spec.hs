@@ -7,6 +7,7 @@ import Data.IORef
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Application
 import LittleAnt.Decision
@@ -18,6 +19,7 @@ import LittleAnt.Interaction
 import LittleAnt.Model
 import LittleAnt.Result
 import LittleAnt.Store
+import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -39,6 +41,8 @@ main =
       , testCase "dumb translate previews and accepts one same-Raw normalization" publicRawTranslation
       , testCase "translation skip records nothing and leaves the candidate unresolved" translationSkip
       , testCase "translation queue opportunities round-trip in persisted checkpoints" translationOpportunityRoundTrip
+      , testCase "doctor validates a pristine dataset without clock or randomness" pristineDoctor
+      , testCase "doctor reports the exact corrupt boundary while ordinary replay stays closed" corruptDoctor
       ]
 
 initialRevision :: Assertion
@@ -197,6 +201,49 @@ translationOpportunityRoundTrip = do
   let candidate = TranslationRawRevision (fixtureUuid 150) (fixtureUuid 151)
       opportunity = TranslationPreviewOpportunity (TranslationQueue (TranslationScope True True False) [candidate] 2 1 7) "translated" PoweredUpNormalization (Just "/bin/claude-fast.sh") (Just (Fixed 700000))
   eitherDecode (encode opportunity) @?= Right opportunity
+
+pristineDoctor :: Assertion
+pristineDoctor = withHarness $ \environment -> do
+  let isolated =
+        environment
+          { appNow = fail "doctor must not read the semantic clock"
+          , appZonedNow = fail "doctor must not read the presentation clock"
+          , appAllocateUUID = fail "doctor must not allocate identity"
+          }
+  result <- run isolated DoctorCommand
+  case result of
+    DoctorResult Genesis True 0 [check] False -> do
+      diagnosticCheckName check @?= "canonical_history"
+      diagnosticCheckPassed check @?= True
+      diagnosticCheckProblem check @?= Nothing
+    other -> assertFailure ("unexpected pristine diagnosis: " <> show other)
+
+corruptDoctor :: Assertion
+corruptDoctor = withHarness $ \environment -> do
+  _ <- run environment (FeedCommand "test" "preserved before corruption")
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let corruptBytes = "{not-json}\n"
+      corruptName = segmentFileName 2 (sha256Hex corruptBytes)
+      corruptPath = storeRoot (appStore environment) </> "events" </> corruptName
+  ByteString.writeFile corruptPath corruptBytes
+  result <- run environment DoctorCommand
+  case result of
+    DoctorResult cursor False validated [check] False -> do
+      cursor @?= loadedCursor loaded
+      validated @?= loadedEventCount loaded
+      diagnosticCheckPassed check @?= False
+      case diagnosticCheckProblem check of
+        Nothing -> assertFailure "corrupt diagnosis omitted its typed problem"
+        Just problem -> do
+          appErrorCode problem @?= CorruptData
+          appErrorSubject problem @?= Just (Text.pack corruptName)
+          assertBool "physical line is reported" ("physical_line: 1" `elem` appErrorDetails problem)
+          assertBool "byte offset is reported" ("byte_offset: 0" `elem` appErrorDetails problem)
+    other -> assertFailure ("unexpected corrupt diagnosis: " <> show other)
+  ordinary <- runAppCommand environment False (const (pure ())) NextCommand
+  case ordinary of
+    Left problem -> appErrorCode problem @?= CorruptData
+    Right accepted -> assertFailure ("ordinary replay crossed corruption: " <> show accepted)
 
 fedState :: Text -> IO (State, Raw)
 fedState text = do

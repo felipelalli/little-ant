@@ -189,6 +189,7 @@ resolveProfileName explicit = do
               else Left (appError InvalidInput "A profile name must match [a-z0-9][a-z0-9-]{0,31}."){appErrorSubject = Just selected}
 
 runAppCommand :: AppEnv -> Bool -> (Integer -> IO ()) -> AppCommand -> IO (Either AppError CommandResult)
+runAppCommand environment dryRun progress DoctorCommand = runDoctor environment dryRun progress
 runAppCommand environment dryRun progress command =
   loadDataset (appStore environment) progress >>= \case
     Left problem -> pure (Left problem)
@@ -291,7 +292,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   PacksTrustCommand pack -> pure (unsupportedCommand ("packs trust " <> pack))
   PacksUntrustCommand pack -> pure (unsupportedCommand ("packs untrust " <> pack))
   PacksGcCommand -> pure (unsupportedCommand "packs gc")
-  DoctorCommand -> pure (unsupportedCommand "doctor")
+  DoctorCommand -> runDoctor environment dryRun (const (pure ()))
   RepairCommand -> pure (unsupportedCommand "repair")
   EditorCommand -> pure (unsupportedCommand "editor")
 
@@ -303,6 +304,34 @@ unsupportedCommand detail =
           [RecoveryAction "implementation-roadmap" "Implement this command path in a later milestone." (Just "lant help commands")]
       , appErrorDetails = ["checkpoint: v1 command-surface alignment"]
       }
+
+runDoctor :: AppEnv -> Bool -> (Integer -> IO ()) -> IO (Either AppError CommandResult)
+runDoctor environment dryRun progress =
+  diagnoseDataset (appStore environment) progress >>= \case
+    Left problem ->
+      pure . Right $
+        DoctorResult
+          Genesis
+          False
+          0
+          [DiagnosticCheck "canonical_history" False (appErrorMessage problem) (Just problem)]
+          dryRun
+    Right diagnosis ->
+      let dataset = diagnosedDataset diagnosis
+          issue = diagnosisProblem diagnosis
+          healthy = isNothing issue
+          summary =
+            maybe
+              "Every canonical segment replayed successfully."
+              appErrorMessage
+              issue
+       in pure . Right $
+            DoctorResult
+              (loadedCursor dataset)
+              healthy
+              (loadedEventCount dataset)
+              [DiagnosticCheck "canonical_history" healthy summary issue]
+              dryRun
 
 runProfileList :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runProfileList environment dryRun dataset = do
@@ -1035,10 +1064,11 @@ runDone environment dryRun dataset maybeReference =
    in case maybeReference of
         Nothing ->
           case stateCurrentFocus state of
-            Nothing -> pure . Left $
-              (appError PreconditionFailed "There is no current focus to complete.")
-                { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
-                }
+            Nothing ->
+              pure . Left $
+                (appError PreconditionFailed "There is no current focus to complete.")
+                  { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
+                  }
             Just identity -> runDoneByIdentity state actor environment dryRun dataset identity
         Just reference ->
           case resolveAnyBrickReference state reference of
@@ -1055,10 +1085,11 @@ runReturnToIdle environment dryRun dataset maybeReference =
    in case maybeReference of
         Nothing ->
           case stateCurrentFocus state of
-            Nothing -> pure . Left $
-              (appError PreconditionFailed "There is no current focus to return to idle.")
-                { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
-                }
+            Nothing ->
+              pure . Left $
+                (appError PreconditionFailed "There is no current focus to return to idle.")
+                  { appErrorRecovery = [RecoveryAction "next" "Get the next focus first." (Just "lant next")]
+                  }
             Just identity -> runPauseLike state actor environment dryRun dataset identity
         Just reference ->
           case resolveAnyBrickReference state reference of
@@ -1067,7 +1098,7 @@ runReturnToIdle environment dryRun dataset maybeReference =
               if stateCurrentFocus state /= Just (brickId brick)
                 then pure (Left (appError PreconditionFailed "Only the current focus can be returned to idle with /return-to-idle."))
                 else runPauseLike state actor environment dryRun dataset (brickId brick)
-  where
+ where
   runPauseLike state actor env dryRun' dataset' identity =
     runDirectMutation env dryRun' dataset' 2 (decidePauseFocus state actor identity)
 
@@ -1104,9 +1135,9 @@ importanceListRows state = importanceSubtree state 0 Nothing
  where
   importanceSubtree currentState depth parent =
     concatMap
-      (\current ->
-        mkImportanceRow currentState depth current
-          : importanceSubtree currentState (depth + 1) (Just (brickId current))
+      ( \current ->
+          mkImportanceRow currentState depth current
+            : importanceSubtree currentState (depth + 1) (Just (brickId current))
       )
       (orderedSiblings currentState parent)
   mkImportanceRow currentState depth brick =
@@ -1155,7 +1186,7 @@ forecastListRows state now =
             []
             (\brick -> ["parent: " <> renderHandle BrickHandle (brickHandle brick)])
             (World.ticketParent ticket >>= \parent -> Map.lookup parent (stateBricks currentState))
-          <> ["opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+            <> ["opportunities: " <> showText (length (World.ticketOpportunities ticket))]
       World.RawSubject ->
         ["kind: raw", "opportunities: " <> showText (length (World.ticketOpportunities ticket))]
 
@@ -1172,11 +1203,11 @@ runHelp :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError 
 runHelp _environment _dryRun dataset maybeTopic =
   let topic = fmap (Text.toLower . Text.strip) maybeTopic
    in pure . Right $
-      ListResult
-        (loadedCursor dataset)
-        "help"
-        (helpEntries topic)
-        False
+        ListResult
+          (loadedCursor dataset)
+          "help"
+          (helpEntries topic)
+          False
 
 searchEntries :: State -> Text -> [SearchHit]
 searchEntries state query
@@ -1186,18 +1217,18 @@ searchEntries state query
         [ mkBrickHit state brick
         | brick <- activeBricks state
         , queryIn query (brickTitle brick)
-           || queryIn query (unHandle (brickHandle brick))
+            || queryIn query (unHandle (brickHandle brick))
         ]
           <> [ mkRawHit raw
              | raw <- Map.elems (stateRaws state)
              , queryIn query (rawOriginal raw)
-                || queryIn query (unHandle (rawHandle raw))
+                 || queryIn query (unHandle (rawHandle raw))
              ]
           <> [ mkDomainHit state domain
              | domain <- Map.elems (stateDomains state)
              , domainActive domain
              , queryIn query (domainName domain)
-                || queryIn query (Text.unwords (Text.splitOn "›" (domainPathText state (domainId domain))) )
+                 || queryIn query (Text.unwords (Text.splitOn "›" (domainPathText state (domainId domain))))
              ]
           <> [ mkEntityHit entity
              | entity <- Map.elems (stateExternalEntities state)
@@ -1312,12 +1343,12 @@ helpEntries (Just "done") =
   , helpEntry "return-to-idle" "Move current focus to idle" "usage: lant return-to-idle [BRICK]"
   ]
 helpEntries _ =
-  [ helpEntry "help" "Unknown help topic" "Try: lant help" ]
+  [helpEntry "help" "Unknown help topic" "Try: lant help"]
 
 helpEntry :: Text -> Text -> Text -> ListRow
 helpEntry handle title details = ListRow handle title details
 
-showText :: Show a => a -> Text
+showText :: (Show a) => a -> Text
 showText = Text.pack . show
 
 entityKindLabel :: ExternalEntityKind -> Text
