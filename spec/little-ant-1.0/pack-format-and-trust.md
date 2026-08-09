@@ -136,6 +136,23 @@ A `SourceAdapter` cannot request UI host capabilities. A `UIAdapter` cannot
 request an effect purpose. These kind checks supplement the invocation
 contract: the host exposes only both declared and kind-valid capabilities.
 
+### Lua component invocation
+
+Every executable invocation receives a fresh bounded Lua state. An exporter
+entry point is UTF-8 source whose chunk returns one function. The host calls
+that function with the selected versioned projection represented as ordinary
+Lua tables. It must return one closed table containing exactly `bytes`,
+`media_type`, `suggested_filename`, `warnings`, and `metadata`; the host
+validates every field before it may publish the bytes.
+
+The pure Lua surface contains base, math, string, and table operations after
+removing dynamic loaders, bytecode generation, process output, and
+nondeterministic random functions. `require` and `lant.asset(path)` can resolve
+only signed files within that component's declared payload root. Filesystem,
+environment, process, network, clock, random, debug, package-loader, and host
+output-path authority are absent. Request, response, execution time, memory,
+and artifact size are bounded by the versioned host contract.
+
 A payload-file object contains exactly `path`, `length`, `media_type`, and
 `sha256`. The path is relative to `payload/` and follows the archive path
 rules, length is a nonnegative integer, media type is nonempty ASCII, and the

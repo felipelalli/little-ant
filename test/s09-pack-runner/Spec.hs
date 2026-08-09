@@ -22,7 +22,6 @@ import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner
 import LittleAnt.Pack.Trust
 import LittleAnt.Store (genesisCursor, sha256Hex)
-import System.Directory (findExecutable)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -104,10 +103,8 @@ invalidResults = do
 
 fixtureClient :: PackRunnerLimits -> IO PackRunnerClient
 fixtureClient limits = do
-  executablePath <- findExecutable "lant-pack-runner"
-  case executablePath of
-    Nothing -> assertFailure "Cabal did not expose the private runner to its contract test" >> fail "unreachable"
-    Just path -> pure (PackRunnerClient path limits)
+  client <- defaultPackRunnerClient
+  pure client{packRunnerLimits = limits}
 
 fixtureRegistry :: ByteString -> Map Text ByteString -> IO PackRegistry
 fixtureRegistry entrySource support = do

@@ -42,6 +42,9 @@ import LittleAnt.JudgmentDecision
 import LittleAnt.JudgmentUI
 import LittleAnt.Model
 import LittleAnt.Notice
+import LittleAnt.Pack.Runner (defaultPackRunnerClient)
+import LittleAnt.Pack.Standard (loadStandardPackRegistry)
+import LittleAnt.Pack.Trust (mkProfileScope)
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Repair
@@ -169,15 +172,22 @@ productionAppEnv explicitProfile = do
             Right () ->
               Profile.loadProfile roots profile >>= \case
                 Left problem -> pure (Left problem)
-                Right (_, config, _, _, _) ->
-                  pure . Right $
-                    AppEnv
-                      (StoreConfig (Profile.configuredDataset config) 2000000 20000)
-                      (Actor "human" profile)
-                      getCurrentTime
-                      getZonedTime
-                      generateUUIDv7
-                      emptyExportPort
+                Right (_, config, _, _, _) -> case mkProfileScope profile of
+                  Left problem -> pure (Left problem)
+                  Right scope -> do
+                    now <- getCurrentTime
+                    loadStandardPackRegistry now scope >>= \case
+                      Left problem -> pure (Left problem)
+                      Right registry -> do
+                        runner <- defaultPackRunnerClient
+                        pure . Right $
+                          AppEnv
+                            (StoreConfig (Profile.configuredDataset config) 2000000 20000)
+                            (Actor "human" profile)
+                            getCurrentTime
+                            getZonedTime
+                            generateUUIDv7
+                            (packRegistryExportPort runner registry)
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
 resolveProfileName explicit = do

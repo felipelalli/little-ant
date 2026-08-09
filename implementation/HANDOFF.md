@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last committed baseline: **e0f4f8d** (`feat(packs): bind trust to exact operations`).
-The current milestone establishes the content-addressed Pack store, typed
-profile pins, and execution-authorized component registry. This file stays
-editable between milestone commits.
+Baseline at the start of the current milestone: **b824c8b**
+(`feat(packs): isolate Lua exporter execution`). The current milestone bundles
+and production-wires the first five standard structural exporters. This file
+stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -54,9 +54,9 @@ editable between milestone commits.
   authority. The host either emits the artifact bytes to stdout or exclusively
   publishes one private new regular file through a same-directory temporary
   file and atomic no-clobber link; unsafe targets fail before exporter
-  invocation, and dry-run writes nothing. The production registry remains
-  empty until the Pack runtime is implemented: the standard serializers belong
-  to the standard Pack rather than to the Haskell core.
+  invocation, and dry-run writes nothing. The production registry is populated
+  from the exact built-in standard Pack; the serializers remain Lua components
+  rather than privileged Haskell implementations.
 - `little-ant/pack@1` has one closed concrete manifest shape with permissions
   owned by individual executable components. The canonical `.lantpack` writer
   emits one reproducible ZIP32/store encoding, and the structural verifier
@@ -88,6 +88,17 @@ editable between milestone commits.
   contiguous root transitions remain verifiable from either compiled root,
   while effective key/archive revocations accumulate across all accepted
   catalogs and cannot disappear by omission.
+- every Pack exporter runs in a fresh private non-threaded HsLua process over a
+  bounded canonical stdin/stdout protocol. The VM has only pure library
+  operations, payload-confined modules/assets, no dynamic loader or random
+  source, and parent/child resource ceilings. Nix exposes only `lant` publicly
+  and relocates the helper under `libexec/little-ant`.
+- the signed, reproducible `org.littleant.standard` archive is verified against
+  its compiled exact identity at startup and grants built-in execution
+  authority only to `tree`, `table`, `csv`, `org`, and `html`. Their reviewed
+  fixtures cover hierarchy, quoting, UTF-8 alignment, RFC 4180 framing, and a
+  script-free/offline HTML document. The CLI production environment uses this
+  registry, so `lant export csv` works without installing a provider Pack.
 
 ## Last green gate
 
@@ -117,6 +128,14 @@ targeted lint for the new Pack code pass. The CLI test now isolates all four
 XDG roots, so a developer's real profile cannot contaminate it. The aggregate
 `make ci` gate remains red only at the repository-wide HLint baseline; those
 pre-existing hints are outside this milestone and S09 remains in progress.
+The isolated-runner suite adds 7 process-boundary cases. The standard-Pack
+suite adds 4 archive/authority/golden-format cases, and the CLI test exercises
+the built-in CSV exporter through the production environment. A clean
+`nix build path:.#little-ant` passes all 21 Cabal suites, installs the private
+runner under `libexec/little-ant`, carries the signed archive in the Cabal data
+output, and runs the installed `lant export csv` from an empty XDG profile.
+The final source distribution metadata also passes `cabal check` without
+warnings.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -141,9 +160,9 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the fresh-process HsLua runner and wire the
-execution-authorized registry into the export port. Ship the standard Lua tree,
-table, RFC 4180 CSV, Org, self-contained HTML, and TaskJuggler exporters through
-that boundary. Continue afterward with the Raw-first import/adapters. The
+Next, implement the core-owned planning cut, immutable planning manifest, and
+`little-ant/taskjuggler@1` projection, then ship the standard Lua TaskJuggler
+exporter and its failure fixtures/authoring guide through the existing runner.
+Continue afterward with the Raw-first import/adapters. The
 `Corrupt history/repair` row is implemented; formal evidence registration and
 the complete S09 gate still precede `verified`.

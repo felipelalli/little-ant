@@ -5,6 +5,8 @@ test_root="$(mktemp -d /tmp/lant-s01-cli.XXXXXX)"
 trap 'rm -rf -- "$test_root"' EXIT
 
 lant_executable="$(cabal list-bin exe:lant)"
+pack_runner_executable="$(cabal list-bin exe:lant-pack-runner)"
+pack_runner_directory="$(dirname "$pack_runner_executable")"
 profile_root="$test_root/profile"
 state_home="$profile_root/state"
 
@@ -15,6 +17,7 @@ lant_at() {
     XDG_DATA_HOME="$root/data" \
     XDG_STATE_HOME="$root/state" \
     XDG_RUNTIME_DIR="$root/runtime" \
+    PATH="$pack_runner_directory:$PATH" \
     "$lant_executable" "$@"
 }
 
@@ -29,6 +32,12 @@ python3 -c 'import json,sys; expected=sys.argv[1]; value=json.load(sys.stdin); a
 
 restored_json="$(lant_at "$profile_root" --json next)"
 python3 -c 'import json,sys; first=json.loads(sys.argv[1]); restored=json.load(sys.stdin); assert restored["interaction"]["interaction_id"] == first["interaction"]["interaction_id"]' "$feed_json" <<<"$restored_json"
+
+csv_output="$(lant_at "$profile_root" export csv)"
+case "$csv_output" in
+  id,handle,title,nature,parent_id,domains,sibling_position,status,work_state,phase,effort,impact_class,impact_maturity$'\r') ;;
+  *) echo "the built-in CSV exporter was not available through the production environment" >&2; exit 1 ;;
+esac
 
 dry_root="$test_root/dry"
 lant_at "$dry_root" --json --dry-run feed milk >/dev/null

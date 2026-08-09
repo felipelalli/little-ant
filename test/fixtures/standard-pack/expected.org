@@ -1,0 +1,17 @@
+#+TITLE: Little Ant
+#+SEQ_TODO: TODO WIP | DONE
+
+* WIP #pa Plan "alpha" next
+:PROPERTIES:
+:BRICK_ID: 019fe080-4344-763f-b110-53cb7aefd0d4
+:NATURE: project
+:PHASE: spec
+:DOMAINS: Orbit
+:END:
+** TODO #ss Ship, safely & verify <all>
+:PROPERTIES:
+:BRICK_ID: 019fe080-4345-7e0a-8c0e-dc2f3340d228
+:NATURE: atomic_task
+:PHASE: execution
+:DOMAINS: Orbit › Rock Splitter
+:END:

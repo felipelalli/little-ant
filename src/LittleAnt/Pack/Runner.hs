@@ -2,6 +2,7 @@ module LittleAnt.Pack.Runner (
   PackRunnerClient (..),
   PackRunnerLimits (..),
   factoryPackRunnerLimits,
+  defaultPackRunnerClient,
   RunnerExportArtifact (..),
   invokePackExporter,
   runPackRunnerMain,
@@ -10,7 +11,7 @@ where
 
 import Control.Concurrent (forkFinally, newEmptyMVar, putMVar, takeMVar, threadDelay)
 import Control.Exception (Exception, IOException, SomeException, catch, displayException, try)
-import Control.Monad (unless, void, when)
+import Control.Monad (filterM, unless, void, when)
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KeyMap
@@ -20,6 +21,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Base64.URL qualified as Base64Url
 import Data.Char (isAscii, isAsciiLower, isAsciiUpper, isDigit)
+import Data.List (find)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
@@ -27,17 +29,21 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Text.Encoding.Error qualified as TextError
+import Data.Text.IO qualified as TextIO
 import GHC.Clock (getMonotonicTimeNSec)
 import HsLua qualified as Lua
 import LittleAnt.Error
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Trust
-import System.Directory (doesFileExist, executable, getPermissions)
+import System.Directory (doesFileExist, executable, findExecutable, getPermissions)
+import System.Environment (getExecutablePath)
 import System.Exit (ExitCode (..))
+import System.FilePath (takeDirectory, (</>))
 import System.IO (Handle, hClose, hFlush, hSetBinaryMode, stderr, stdin, stdout)
 import System.Posix.Resource
 import System.Process
+import Text.Read (readMaybe)
 
 data PackRunnerLimits = PackRunnerLimits
   { runnerWallTimeoutMicros :: Int
@@ -93,6 +99,25 @@ factoryPackRunnerLimits =
     , runnerMaximumResponseBytes = 24 * 1024 * 1024
     , runnerMaximumArtifactBytes = 16 * 1024 * 1024
     }
+
+defaultPackRunnerClient :: IO PackRunnerClient
+defaultPackRunnerClient = do
+  host <- getExecutablePath
+  let binaryDirectory = takeDirectory host
+      installRoot = takeDirectory binaryDirectory
+      installed = installRoot </> "libexec" </> "little-ant" </> "lant-pack-runner"
+      development = binaryDirectory </> "lant-pack-runner"
+      classicBuilds = fmap (\root -> root </> "lant-pack-runner" </> "lant-pack-runner") (take 12 (ancestors binaryDirectory))
+  local <- filterM doesFileExist (installed : development : classicBuilds)
+  fromPath <- findExecutable "lant-pack-runner"
+  pure (PackRunnerClient (firstAvailable installed local fromPath) factoryPackRunnerLimits)
+ where
+  firstAvailable fallback candidates fromPath = case candidates <> maybe [] pure fromPath of
+    candidate : _ -> candidate
+    [] -> fallback
+  ancestors path =
+    let parent = takeDirectory path
+     in path : if parent == path then [] else ancestors parent
 
 instance ToJSON RunnerRequest where
   toJSON request =
@@ -226,7 +251,7 @@ validateLuaSource path bytes = do
 
 validateClientLimits :: PackRunnerLimits -> Either AppError ()
 validateClientLimits limits = do
-  unless (runnerWallTimeoutMicros limits > 0) invalid
+  unless (runnerWallTimeoutMicros limits > 0 && runnerWallTimeoutMicros limits <= runnerWallTimeoutMicros factoryPackRunnerLimits) invalid
   unless (runnerMaximumRequestBytes limits > 0 && runnerMaximumRequestBytes limits <= runnerMaximumRequestBytes factoryPackRunnerLimits) invalid
   unless (runnerMaximumResponseBytes limits > 0 && runnerMaximumResponseBytes limits <= runnerMaximumResponseBytes factoryPackRunnerLimits) invalid
   unless (runnerMaximumArtifactBytes limits > 0 && runnerMaximumArtifactBytes limits <= runnerMaximumArtifactBytes factoryPackRunnerLimits) invalid
@@ -545,7 +570,8 @@ waitForProcessBounded maximumMicros processHandle = do
 applyChildResourceLimits :: IO ()
 applyChildResourceLimits = do
   capSoft ResourceCPUTime (ResourceLimit 3)
-  capSoft ResourceTotalMemory (ResourceLimit (1024 * 1024 * 1024))
+  baselineAddressSpace <- currentAddressSpaceBytes
+  capSoft ResourceTotalMemory (ResourceLimit (baselineAddressSpace + maximumAdditionalAddressSpaceBytes))
   capSoft ResourceFileSize (ResourceLimit 0)
   capSoft ResourceCoreFileSize (ResourceLimit 0)
   capSoft ResourceOpenFiles (ResourceLimit 32)
@@ -560,6 +586,23 @@ applyChildResourceLimits = do
     (ResourceLimit _, ResourceLimitInfinity) -> requested
     (ResourceLimit _, ResourceLimitUnknown) -> requested
     _ -> inherited
+
+-- GHC's reserved virtual address space varies with the linker and profiling
+-- mode. RLIMIT_AS therefore caps additional address space above the fresh
+-- helper's measured runtime baseline rather than an absolute virtual address.
+currentAddressSpaceBytes :: IO Integer
+currentAddressSpaceBytes = catch inspect (const (pure 0) :: IOException -> IO Integer)
+ where
+  inspect = do
+    status <- TextIO.readFile "/proc/self/status"
+    pure $ case find (Text.isPrefixOf "VmSize:") (Text.lines status) of
+      Just line -> case Text.words line of
+        ["VmSize:", kibibytes, "kB"] -> maybe 0 (* 1024) (readMaybe (Text.unpack kibibytes))
+        _ -> 0
+      Nothing -> 0
+
+maximumAdditionalAddressSpaceBytes :: Integer
+maximumAdditionalAddressSpaceBytes = 1024 * 1024 * 1024
 
 encodeBytes :: ByteString -> Text
 encodeBytes = TextEncoding.decodeUtf8 . Base64Url.encodeUnpadded

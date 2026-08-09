@@ -1,0 +1,2 @@
+#pa "Plan \"alpha\"\nnext" · project · spec
+  #ss "Ship, safely & verify <all>" · atomic_task · execution
