@@ -31,6 +31,7 @@ import LittleAnt.Catalog
 import LittleAnt.Decision
 import LittleAnt.Error
 import LittleAnt.Event (EventDraft (..), EventPayload (..), ForecastSelected (..), PersistedEvent (..), RepeatableReturnSet (..), applyEvent, decodeEvent, eventTypeName)
+import LittleAnt.Export
 import LittleAnt.Forecast
 import LittleAnt.ForecastWorld qualified as World
 import LittleAnt.Foundation
@@ -128,6 +129,7 @@ data AppEnv = AppEnv
   , appNow :: IO UTCTime
   , appZonedNow :: IO ZonedTime
   , appAllocateUUID :: IO UUIDv7
+  , appExportPort :: ExportPort
   }
 
 data PresentationCheckpoint = PresentationCheckpoint
@@ -175,6 +177,7 @@ productionAppEnv explicitProfile = do
                       getCurrentTime
                       getZonedTime
                       generateUUIDv7
+                      emptyExportPort
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
 resolveProfileName explicit = do
@@ -280,11 +283,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
         ("import from " <> source <> " mode=" <> mode <> (if eraseAfterImport then " --erase-after-import" else ""))
   MigrateCommand sourcePath targetPath mode ->
     pure $ unsupportedCommand ("migrate " <> sourcePath <> " " <> targetPath <> " mode=" <> mode)
-  ExportCommand strategy scope outputPath ->
-    let scopeHint = maybe "" (" scope=" <>) scope
-        outputHint =
-          maybe "" (\path -> " --out " <> Text.pack path) outputPath
-     in pure (unsupportedCommand ("export " <> strategy <> scopeHint <> outputHint))
+  ExportCommand exporter scope outputPath -> runExport environment dryRun dataset exporter scope outputPath
   WebCommand -> pure (unsupportedCommand "web")
   PacksListCommand -> pure (unsupportedCommand "packs list")
   PacksShowCommand pack -> pure (unsupportedCommand ("packs show " <> pack))
@@ -1307,6 +1306,63 @@ runReturnToIdle environment dryRun dataset maybeReference =
   runPauseLike state actor env dryRun' dataset' identity =
     runDirectMutation env dryRun' dataset' 2 (decidePauseFocus state actor identity)
 
+runExport :: AppEnv -> Bool -> LoadedDataset -> Text -> Maybe Text -> Maybe FilePath -> IO (Either AppError CommandResult)
+runExport environment dryRun dataset exporter requestedScope outputPath =
+  case resolveExportScope (loadedState dataset) requestedScope of
+    Left problem -> pure (Left problem)
+    Right scope ->
+      runExportHost
+        (appExportPort environment)
+        dryRun
+        (loadedCursor dataset)
+        (loadedState dataset)
+        exporter
+        scope
+        outputPath
+        >>= \case
+          Left problem -> pure (Left problem)
+          Right result -> do
+            let artifact = exportHostArtifact result
+                stdoutBytes =
+                  if isNothing (exportHostDestination result) && not dryRun
+                    then Just (exportArtifactBytes artifact)
+                    else Nothing
+            pure . Right $
+              ExportResult
+                (loadedCursor dataset)
+                (exportHostDescriptor result)
+                (exportHostScopeLabel result)
+                (exportArtifactMediaType artifact)
+                (exportArtifactSuggestedFilename artifact)
+                (exportHostDestination result)
+                (ByteString.length (exportArtifactBytes artifact))
+                (exportHostDigest result)
+                (exportArtifactWarnings artifact)
+                (exportArtifactMetadata artifact)
+                stdoutBytes
+                dryRun
+
+resolveExportScope :: State -> Maybe Text -> Either AppError ExportScope
+resolveExportScope _ Nothing = Right ExportWholeDataset
+resolveExportScope state (Just supplied)
+  | Text.null reference = Left (appError InvalidInput "Export scope cannot be empty.")
+  | "#" `Text.isPrefixOf` reference = ExportBrickSubtree . brickId <$> resolveAnyBrickReference state reference
+  | otherwise =
+      case (resolveAnyBrickReference state reference, resolveDomainReference state reference) of
+        (Right brick, Left _) -> Right (ExportBrickSubtree (brickId brick))
+        (Left _, Right domain) -> Right (ExportDomain (domainId domain))
+        (Right brick, Right domain) ->
+          Left
+            ( (appError AmbiguousReference "The export scope matches both a Brick and a Domain.")
+                { appErrorSubject = Just reference
+                , appErrorDetails = [renderHandle BrickHandle (brickHandle brick), domainPathText state (domainId domain)]
+                , appErrorRecovery = [RecoveryAction "scope" "Use a #Brick handle or a complete Domain path." Nothing]
+                }
+            )
+        (Left brickProblem, Left _) -> Left brickProblem
+ where
+  reference = Text.strip supplied
+
 runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runList environment dryRun dataset maybeList =
   let listName = fmap (Text.toLower . Text.strip) maybeList
@@ -1525,7 +1581,7 @@ helpEntries Nothing =
   , helpEntry "supersede" "Supersede a Brick with another" "usage: lant supersede <OLD> <NEW>"
   , helpEntry "import" "Import external source data" "usage: lant import <SOURCE> [--mode snapshot|synchronize|migrate] [--erase-after-import]"
   , helpEntry "migrate" "Migrate state between formats" "usage: lant migrate <SOURCE> <TARGET> [--mode inspect|build|cutover]"
-  , helpEntry "export" "Export state through a strategy" "usage: lant export <STRATEGY> [SCOPE] [--out FILE]"
+  , helpEntry "export" "Export a named versioned projection" "usage: lant export <EXPORTER> [--scope REFERENCE] [--output NEW_FILE]"
   , helpEntry "packs" "Manage packs and extensions" "usage: lant packs <list|show|install|updates|update|remove|refresh|trust|untrust|gc>"
   , helpEntry "doctor" "Run dataset consistency checks" "usage: lant doctor"
   , helpEntry "repair" "Attempt deterministic dataset repair steps" "usage: lant repair"

@@ -11,10 +11,13 @@ module LittleAnt.Result (
 where
 
 import Data.Aeson
+import Data.ByteString (ByteString)
 import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Time (UTCTime)
 import LittleAnt.Error
+import LittleAnt.Export
 import LittleAnt.Id
 import LittleAnt.Interaction
 import LittleAnt.Model
@@ -151,6 +154,20 @@ data CommandResult
       , resultInteraction :: InteractionEnvelope
       , resultDryRun :: Bool
       }
+  | ExportResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultExporter :: ExportDescriptor
+      , resultExportScope :: Text
+      , resultExportMediaType :: Text
+      , resultExportSuggestedFilename :: FilePath
+      , resultExportDestination :: Maybe FilePath
+      , resultExportByteCount :: Int
+      , resultExportDigest :: Text
+      , resultExportWarnings :: [Text]
+      , resultExportMetadata :: Map Text Text
+      , resultExportBytes :: Maybe ByteString
+      , resultDryRun :: Bool
+      }
   deriving stock (Eq, Show)
 
 resultCursor :: CommandResult -> DatasetCursor
@@ -270,6 +287,21 @@ instance ToJSON CommandResult where
         , "stage" .= stage
         , "interaction" .= interaction
         ]
+          <> dryRunPair dryRun
+    ExportResult cursor exporter scope mediaType suggested destination byteCount digest warnings metadata _ dryRun ->
+      object $
+        [ "schema" .= ("little-ant/export@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "exporter" .= exporter
+        , "scope" .= scope
+        , "media_type" .= mediaType
+        , "suggested_filename" .= suggested
+        , "byte_count" .= byteCount
+        , "sha256" .= digest
+        ]
+          <> maybe [] (pure . ("created_path" .=)) destination
+          <> ["warnings" .= warnings | not (null warnings)]
+          <> ["metadata" .= metadata | not (Map.null metadata)]
           <> dryRunPair dryRun
     RespondResult cursor interaction commandId dryRun ->
       object $

@@ -5,9 +5,9 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last verified baseline commit: **da821b8** (`feat(recovery): build verified repair candidates`).
-The current milestone completes the separately consented public repair and
-atomic cutover path; this file stays editable between milestone commits.
+Last committed baseline: **8377707** (`feat(recovery): complete atomic repair cutover`).
+The current milestone establishes the host-owned export boundary. This file
+stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -47,6 +47,15 @@ atomic cutover path; this file stays editable between milestone commits.
   uses an atomic same-filesystem directory exchange, resumes forward from
   pre- or post-exchange interruption, and retains the former authority as a
   read-only backup. Dry-run writes no repair artifact.
+- `lant export` resolves a named, versioned exporter through an injected
+  read-only port and supplies only a deterministic sparse structural
+  projection. Export code receives no destination path or filesystem
+  authority. The host either emits the artifact bytes to stdout or exclusively
+  publishes one private new regular file through a same-directory temporary
+  file and atomic no-clobber link; unsafe targets fail before exporter
+  invocation, and dry-run writes nothing. The production registry remains
+  empty until the Pack runtime is implemented: the standard serializers belong
+  to the standard Pack rather than to the Haskell core.
 
 ## Last green gate
 
@@ -56,10 +65,14 @@ The most recent full commands were:
     nix develop -c make python-test spec-audit vocabulary
 
 Every Haskell test suite, all 16 conformance tests, the canonical-ID audit, the
-public-vocabulary guard, and explicit formatting checks passed at the prior
-full gate. The targeted S09 suite now has 22 passing
+public-vocabulary guard, and explicit formatting checks pass at this
+checkpoint. The targeted S09 source suite has 22 passing
 source/translation/diagnostic/repair tests, including both cutover crash phases
-and the public no-default consent flow.
+and the public no-default consent flow. The new S09 export suite has 7 passing
+tests for deterministic projections, stdout, dry-run, exclusive publication,
+pre-invocation target rejection, exporter failure, and registry compatibility.
+Lint, build, and CLI gates should still be rerun before S09 is declared
+verified.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 
@@ -84,7 +97,9 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the safe exporter host boundary and the standard structural
-exporters, then proceed to Pack protocols and Raw-first import/adapters. The
-`Corrupt history/repair` row is implemented; formal evidence registration and
-the complete S09 gate still precede `verified`.
+Next, implement the minimal Pack archive, manifest, trust, and runtime registry;
+then ship the standard Lua tree, table, RFC 4180 CSV, Org, self-contained HTML,
+and TaskJuggler exporters through that boundary. Continue afterward with the
+Raw-first import/adapters. The `Corrupt history/repair` row is implemented;
+formal evidence registration and the complete S09 gate still precede
+`verified`.

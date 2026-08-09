@@ -13,6 +13,7 @@ import Data.Time
 import LittleAnt.Application
 import LittleAnt.Decision
 import LittleAnt.Event
+import LittleAnt.Export (emptyExportPort)
 import LittleAnt.ForecastWorld
 import LittleAnt.Foundation
 import LittleAnt.Id
@@ -445,6 +446,7 @@ withAppHarness action = withSystemTempDirectory "little-ant-s08-flow" $ \root ->
           (pure now)
           (pure (utcToZonedTime utc now))
           allocate
+          emptyExportPort
   action environment
 
 seedGuidedBrick :: AppEnv -> IO ()

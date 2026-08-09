@@ -15,6 +15,7 @@ import LittleAnt.Application
 import LittleAnt.Decision
 import LittleAnt.Error
 import LittleAnt.Event
+import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Interaction
@@ -565,7 +566,7 @@ harnessEnvironment :: FilePath -> IO AppEnv
 harnessEnvironment root = do
   counter <- newIORef (1000 :: Int)
   let allocate = atomicModifyIORef' counter $ \seed -> (seed + 1, fixtureUuid seed)
-  pure (AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate)
+  pure (AppEnv (StoreConfig root 2000000 20000) actor (pure now) (pure (utcToZonedTime utc now)) allocate emptyExportPort)
 
 run :: AppEnv -> AppCommand -> IO CommandResult
 run environment command = assertRight =<< runAppCommand environment False (const (pure ())) command

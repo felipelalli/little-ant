@@ -553,6 +553,8 @@ execute :: AppEnv -> Options -> AppCommand -> IO ()
 execute environment options command =
   runAppCommand environment (optionDryRun options) (const (pure ())) command >>= \case
     Left problem -> emitError (optionJson options) problem
+    Right ExportResult{resultExportBytes = Just bytes, resultExportDestination = Nothing}
+      | not (optionDryRun options) -> StrictByteString.putStr bytes
     Right result
       | optionJson options -> LazyByteString.putStrLn (encode result)
       | otherwise -> Text.putStrLn (renderCommandResult result)
@@ -807,17 +809,24 @@ commandParser =
           ( info
               ( ExportCli
                   . Text.pack
-                  <$> strArgument (metavar "STRATEGY")
-                  <*> optional (Text.pack <$> strArgument (metavar "SCOPE"))
+                  <$> strArgument (metavar "EXPORTER")
+                  <*> optional
+                    ( Text.pack
+                        <$> strOption
+                          ( long "scope"
+                              <> metavar "REFERENCE"
+                              <> help "Narrow the projection to one Brick or Domain"
+                          )
+                    )
                   <*> optional
                     ( strOption
-                        ( long "out"
+                        ( long "output"
                             <> metavar "FILE"
-                            <> help "Write output into a specific path"
+                            <> help "Exclusively create one new output file"
                         )
                     )
               )
-              (progDesc "Export data through a named strategy")
+              (progDesc "Run one installed read-only exporter")
           )
         <> command "web" (info (pure WebCli) (progDesc "Start or inspect the web service mode"))
         <> command

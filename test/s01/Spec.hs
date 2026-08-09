@@ -15,6 +15,7 @@ import LittleAnt.Application
 import LittleAnt.Decision
 import LittleAnt.Error
 import LittleAnt.Event
+import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Interaction
@@ -245,6 +246,7 @@ deterministicEnv root seed = do
       , appAllocateUUID = atomicModifyIORef' reference $ \case
           identity : rest -> (rest, identity)
           [] -> error "deterministic UUID fixture exhausted"
+      , appExportPort = emptyExportPort
       }
 
 testUuid :: Int -> IO UUIDv7

@@ -11,6 +11,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
 import LittleAnt.Error
+import LittleAnt.Export
 import LittleAnt.Id
 import LittleAnt.Interaction
 import LittleAnt.Model
@@ -146,6 +147,23 @@ renderCommandResult = \case
       <> "\n"
       <> Text.unlines (renderDiagnosticCheck <$> checks)
   RepairResult _ _ interaction dryRun -> dryRunFact dryRun <> renderPlain (renderEnvelope interaction)
+  ExportResult _ exporter scope mediaType suggested destination byteCount digest warnings _ _ dryRun ->
+    dryRunFact dryRun
+      <> "Export: "
+      <> exportDescriptorDisplayName exporter
+      <> " ("
+      <> exportDescriptorFormat exporter
+      <> ")\nScope: "
+      <> scope
+      <> "\nMedia type: "
+      <> mediaType
+      <> "\n"
+      <> maybe ("Suggested file: " <> Text.pack suggested) ("Created: " <>) (Text.pack <$> destination)
+      <> "\nBytes: "
+      <> tshow byteCount
+      <> "\nSHA-256: "
+      <> digest
+      <> (if null warnings then "" else "\nWarnings:\n" <> Text.unlines ["- " <> warning | warning <- warnings])
   GrammarResult _ names dryRun ->
     dryRunFact dryRun
       <> "Screen grammars:\n"
