@@ -211,6 +211,15 @@ Pack name, version, manifest digest, archive digest, and enabled components in
 `integrations.yaml`. Installation verifies and stores an archive, then changes
 only that pin after preview. It creates no canonical work event.
 
+Installation authority and execution authority are distinct,
+non-interchangeable host capabilities. Each names the selected profile, signer
+fingerprint, Pack identity, exact manifest/archive digests, and enabled
+components. Catalog expiry can therefore deny a new official install/update
+without granting that installer the execution-only authority retained by an
+already accepted pin. No generic `trusted Pack` token crosses these
+operations, and every capability is rechecked against locally known key and
+archive revocations before use.
+
 There is no background or automatic update. `lant packs updates` is read-only.
 `lant packs update` downloads and verifies one candidate, then shows signer,
 version/digests, component additions/removals, permission and host-allowlist

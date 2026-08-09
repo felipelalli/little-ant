@@ -1,17 +1,25 @@
 module Main (main) where
 
+import Crypto.Error (CryptoFailable (..))
+import Crypto.PubKey.Ed25519 qualified as Ed25519
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KeyMap
+import Data.Bits (xor)
+import Data.ByteArray (convert)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Base64.URL qualified as Base64Url
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
+import Data.Time
 import Data.Word (Word8)
 import LittleAnt.Pack.Format
+import LittleAnt.Pack.Trust
 import LittleAnt.Store (sha256Hex)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -29,6 +37,12 @@ main =
       , testCase "payload length, digest, and entry set are verified before authority" payloadIntegrity
       , testCase "unsafe and Unicode-colliding paths are rejected by the writer" pathSafety
       , testCase "JCS object ordering follows UTF-16 code units" jcsOrdering
+      , testCase "Ed25519 authenticates the exact manifest and canonical key identity" signatureAuthentication
+      , testCase "revocation dominates every positive trust source" revocationDominates
+      , testCase "expired official metadata blocks install but preserves an accepted pin" expiredOfficialCatalog
+      , testCase "untrusting a community publisher disables its existing pin" communityUntrust
+      , testCase "pins cannot authorize another artifact or undeclared component" pinConfinement
+      , testCase "trust policy rejects release equivocation" trustPolicyEquivocation
       ]
 
 canonicalRoundTrip :: Assertion
@@ -143,6 +157,192 @@ jcsOrdering = do
   indexOf (TextEncoding.encodeUtf8 supplementary) bytes @?= 2
   assertBool "UTF-16 order placed the supplementary key first" (indexOf (TextEncoding.encodeUtf8 supplementary) bytes < indexOf (TextEncoding.encodeUtf8 privateUse) bytes)
   assertLeft "fractional control number" (canonicalJsonBytes (Number 1.5))
+
+signatureAuthentication :: Assertion
+signatureAuthentication = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  authenticatedSignerFingerprint authenticated @?= sha256Hex fixturePublicKeyBytes
+  authenticatedSignerPublicKey authenticated @?= TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded fixturePublicKeyBytes)
+
+  manifestBytes <- assertRight (encodePackManifest fixtureManifest)
+  let wrongFingerprint =
+        (signedDocument manifestBytes)
+          { packSignatureKeyFingerprint = Text.replicate 64 "0"
+          }
+  wrongFingerprintBytes <- assertRight (encodePackSignature wrongFingerprint)
+  wrongFingerprintArchive <- assertRight (buildCanonicalPackArchive manifestBytes wrongFingerprintBytes fixturePayload)
+  wrongFingerprintPack <- assertRight (validatePackArchive wrongFingerprintArchive)
+  assertLeft "fingerprint mismatch" (authenticatePack wrongFingerprintPack)
+
+  let signatureBytes = signatureBytesFor manifestBytes
+      changedSignature = ByteString.init signatureBytes <> ByteString.singleton (ByteString.last signatureBytes `xor` 1)
+      invalidSignature = (signedDocument manifestBytes){packSignatureValue = TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded changedSignature)}
+  invalidSignatureBytes <- assertRight (encodePackSignature invalidSignature)
+  invalidSignatureArchive <- assertRight (buildCanonicalPackArchive manifestBytes invalidSignatureBytes fixturePayload)
+  invalidSignaturePack <- assertRight (validatePackArchive invalidSignatureArchive)
+  assertLeft "invalid Ed25519 signature" (authenticatePack invalidSignaturePack)
+
+  let shortKey = (signedDocument manifestBytes){packSignaturePublicKey = TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded (ByteString.take 31 fixturePublicKeyBytes))}
+  shortKeyBytes <- assertRight (encodePackSignature shortKey)
+  shortKeyArchive <- assertRight (buildCanonicalPackArchive manifestBytes shortKeyBytes fixturePayload)
+  shortKeyPack <- assertRight (validatePackArchive shortKeyArchive)
+  assertLeft "short public key" (authenticatePack shortKeyPack)
+
+revocationDominates :: Assertion
+revocationDominates = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  scope <- assertRight (mkProfileScope "default")
+  let identity = authenticatedPackIdentity authenticated
+      builtInPolicy = emptyTrustPolicy{trustBuiltInArtifacts = Set.singleton identity}
+  builtIn <- assertRight (assessPackTrust fixtureNow builtInPolicy authenticated)
+  assessedTrustClass builtIn @?= BuiltInTrust
+  _ <- assertRight (authorizePackInstall fixtureNow scope builtInPolicy (Set.singleton "tree") authenticated)
+
+  let revokedByKey = builtInPolicy{trustRevokedKeyFingerprints = Set.singleton (authenticatedSignerFingerprint authenticated)}
+      revokedByArchive = builtInPolicy{trustRevokedArchiveDigests = Set.singleton (artifactArchiveDigest identity)}
+  assessedTrustClass <$> assessPackTrust fixtureNow revokedByKey authenticated @?= Right RevokedPack
+  assessedTrustClass <$> assessPackTrust fixtureNow revokedByArchive authenticated @?= Right RevokedPack
+  assertLeft "revoked built-in install" (authorizePackInstall fixtureNow scope revokedByKey (Set.singleton "tree") authenticated)
+
+expiredOfficialCatalog :: Assertion
+expiredOfficialCatalog = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  scope <- assertRight (mkProfileScope "work")
+  let currentPolicy =
+        emptyTrustPolicy
+          { trustOfficialCatalogSequence = Just 7
+          , trustOfficialCatalogExpiresAt = Just (addUTCTime 3600 fixtureNow)
+          , trustOfficialReleaseGrants = Set.singleton (officialGrant authenticated)
+          }
+      expiredPolicy = currentPolicy{trustOfficialCatalogExpiresAt = Just (addUTCTime (-1) fixtureNow)}
+  currentAssessment <- assertRight (assessPackTrust fixtureNow currentPolicy authenticated)
+  assessedTrustClass currentAssessment @?= VerifiedOfficialTrust
+  assessedOfficialCatalogFreshness currentAssessment @?= OfficialCatalogCurrent
+  install <- assertRight (authorizePackInstall fixtureNow scope currentPolicy (Set.singleton "tree") authenticated)
+
+  expiredAssessment <- assertRight (assessPackTrust fixtureNow expiredPolicy authenticated)
+  assessedTrustClass expiredAssessment @?= VerifiedOfficialTrust
+  assessedOfficialCatalogFreshness expiredAssessment @?= OfficialCatalogExpired
+  assertLeft "expired catalog install" (authorizePackInstall fixtureNow scope expiredPolicy (Set.singleton "tree") authenticated)
+  _ <- assertRight (authorizePinnedPackExecution fixtureNow scope expiredPolicy (installAuthorizedPin install) authenticated)
+  let revokedPolicy = expiredPolicy{trustRevokedArchiveDigests = Set.singleton (artifactArchiveDigest (authenticatedPackIdentity authenticated))}
+  assertLeft "revoked accepted pin" (authorizePinnedPackExecution fixtureNow scope revokedPolicy (installAuthorizedPin install) authenticated)
+
+communityUntrust :: Assertion
+communityUntrust = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  scope <- assertRight (mkProfileScope "personal")
+  let trustedPolicy = emptyTrustPolicy{trustCommunityPublishers = Set.singleton (communityTrust authenticated)}
+  assessment <- assertRight (assessPackTrust fixtureNow trustedPolicy authenticated)
+  assessedTrustClass assessment @?= TrustedPublisherTrust
+  install <- assertRight (authorizePackInstall fixtureNow scope trustedPolicy (Set.singleton "tree") authenticated)
+  _ <- assertRight (authorizePinnedPackExecution fixtureNow scope trustedPolicy (installAuthorizedPin install) authenticated)
+  assertLeft "untrusted publisher execution" (authorizePinnedPackExecution fixtureNow scope emptyTrustPolicy (installAuthorizedPin install) authenticated)
+
+pinConfinement :: Assertion
+pinConfinement = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  (_, otherArtifact) <- signedFixture fixtureManifest{packVersion = "1.0.1"}
+  scope <- assertRight (mkProfileScope "default")
+  let policy = emptyTrustPolicy{trustCommunityPublishers = Set.singleton (communityTrust authenticated)}
+  install <- assertRight (authorizePackInstall fixtureNow scope policy (Set.singleton "tree") authenticated)
+  assertLeft "different artifact" (authorizePinnedPackExecution fixtureNow scope policy (installAuthorizedPin install) otherArtifact)
+  assertLeft "missing component" (authorizePackInstall fixtureNow scope policy (Set.singleton "missing") authenticated)
+
+trustPolicyEquivocation :: Assertion
+trustPolicyEquivocation = do
+  (_, authenticated) <- signedFixture fixtureManifest
+  let grant = officialGrant authenticated
+      otherDigest = grant{officialGrantArchiveDigest = Text.replicate 64 "0"}
+      officialPolicy =
+        emptyTrustPolicy
+          { trustOfficialCatalogSequence = Just 8
+          , trustOfficialCatalogExpiresAt = Just (addUTCTime 3600 fixtureNow)
+          , trustOfficialReleaseGrants = Set.fromList [grant, otherDigest]
+          }
+      identity = authenticatedPackIdentity authenticated
+      builtInPolicy =
+        emptyTrustPolicy
+          { trustBuiltInArtifacts =
+              Set.fromList
+                [ identity
+                , identity{artifactArchiveDigest = Text.replicate 64 "0"}
+                ]
+          }
+  assertLeft "official equivocation" (assessPackTrust fixtureNow officialPolicy authenticated)
+  assertLeft "built-in equivocation" (assessPackTrust fixtureNow builtInPolicy authenticated)
+
+signedFixture :: PackManifest -> IO (ByteString, AuthenticatedPack)
+signedFixture manifest = do
+  manifestBytes <- assertRight (encodePackManifest manifest)
+  signatureDocumentBytes <- assertRight (encodePackSignature (signedDocument manifestBytes))
+  archive <- assertRight (buildCanonicalPackArchive manifestBytes signatureDocumentBytes fixturePayload)
+  structural <- assertRight (validatePackArchive archive)
+  authenticated <- assertRight (authenticatePack structural)
+  pure (archive, authenticated)
+
+signedDocument :: ByteString -> PackSignatureDocument
+signedDocument manifestBytes =
+  PackSignatureDocument
+    { packSignaturePublicKey = TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded fixturePublicKeyBytes)
+    , packSignatureKeyFingerprint = sha256Hex fixturePublicKeyBytes
+    , packSignatureValue = TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded (signatureBytesFor manifestBytes))
+    }
+
+signatureBytesFor :: ByteString -> ByteString
+signatureBytesFor manifestBytes = convert (Ed25519.sign fixtureSecretKey fixturePublicKey manifestBytes)
+
+fixtureSecretKey :: Ed25519.SecretKey
+fixtureSecretKey = cryptoPassed (Ed25519.secretKey (ByteString.pack [0 .. 31]))
+
+fixturePublicKey :: Ed25519.PublicKey
+fixturePublicKey = Ed25519.toPublic fixtureSecretKey
+
+fixturePublicKeyBytes :: ByteString
+fixturePublicKeyBytes = convert fixturePublicKey
+
+emptyTrustPolicy :: PackTrustPolicy
+emptyTrustPolicy =
+  PackTrustPolicy
+    { trustSupportedLittleAntMajor = 1
+    , trustBuiltInArtifacts = Set.empty
+    , trustOfficialCatalogSequence = Nothing
+    , trustOfficialCatalogExpiresAt = Nothing
+    , trustOfficialReleaseGrants = Set.empty
+    , trustCommunityPublishers = Set.empty
+    , trustRevokedKeyFingerprints = Set.empty
+    , trustRevokedArchiveDigests = Set.empty
+    }
+
+communityTrust :: AuthenticatedPack -> TrustedCommunityPublisher
+communityTrust authenticated =
+  TrustedCommunityPublisher
+    { communityPublisher = artifactPublisher (authenticatedPackIdentity authenticated)
+    , communityPublicKey = authenticatedSignerPublicKey authenticated
+    , communityKeyFingerprint = authenticatedSignerFingerprint authenticated
+    }
+
+officialGrant :: AuthenticatedPack -> OfficialReleaseGrant
+officialGrant authenticated =
+  let identity = authenticatedPackIdentity authenticated
+   in OfficialReleaseGrant
+        { officialGrantPublisher = artifactPublisher identity
+        , officialGrantNamePrefix = "org.littleant."
+        , officialGrantPublicKey = authenticatedSignerPublicKey authenticated
+        , officialGrantKeyFingerprint = authenticatedSignerFingerprint authenticated
+        , officialGrantName = artifactName identity
+        , officialGrantVersion = artifactVersion identity
+        , officialGrantManifestDigest = artifactManifestDigest identity
+        , officialGrantArchiveDigest = artifactArchiveDigest identity
+        }
+
+fixtureNow :: UTCTime
+fixtureNow = UTCTime (fromGregorian 2026 8 8) (secondsToDiffTime (12 * 60 * 60))
+
+cryptoPassed :: CryptoFailable value -> value
+cryptoPassed = \case
+  CryptoPassed value -> value
+  CryptoFailed problem -> error (show problem)
 
 fixtureArchive :: PackManifest -> Map Text ByteString -> IO ByteString
 fixtureArchive manifest payload = do

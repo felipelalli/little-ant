@@ -5,9 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Last committed baseline: **a292e0f** (`feat(export): establish host-owned publication boundary`).
-The current milestone establishes canonical structural Pack verification. This
-file stays editable between milestone commits.
+Last committed baseline: **e77fdaa** (`feat(packs): verify canonical archive structure`).
+The current milestone establishes Pack signature authentication and
+operation-bound trust authority. This file stays editable between milestone
+commits.
 
 ## Implementation now available
 
@@ -63,7 +64,15 @@ file stays editable between milestone commits.
   control documents or validating payload ownership, limits, lengths, and
   SHA-256 digests. It extracts nothing and produces a structural type that the
   executable registry cannot consume. Signature authentication and trust
-  classification remain the next authority boundary.
+  classification remain a separate authority boundary.
+- exact Ed25519 authentication now validates canonical unpadded key/signature
+  encodings, decoded lengths, the public-key fingerprint, and the signature
+  over the exact manifest bytes. Trust assessment renders only the five
+  canonical classes with revocation dominant and catalog freshness separate.
+  Installation and pinned execution produce distinct opaque, profile- and
+  artifact-bound capabilities: catalog expiry blocks a new official install
+  while an accepted non-revoked official pin remains executable offline, and
+  untrusting a community publisher disables its pins.
 
 ## Last green gate
 
@@ -79,9 +88,11 @@ source/translation/diagnostic/repair tests, including both cutover crash phases
 and the public no-default consent flow. The new S09 export suite has 7 passing
 tests for deterministic projections, stdout, dry-run, exclusive publication,
 pre-invocation target rejection, exporter failure, and registry compatibility.
-The structural Pack suite has 8 passing tests for reproducible archives, JCS,
-closed schemas, component permission isolation, path ownership, payload
-integrity, canonical ZIP mutation rejection, and Unicode path safety. The full
+The structural and authority Pack suite has 14 passing tests for reproducible
+archives, JCS, closed schemas, component permission isolation, path ownership,
+payload integrity, canonical ZIP mutation rejection, Unicode path safety,
+exact Ed25519 authentication, trust precedence, official-catalog expiry,
+community untrust, pin confinement, and release equivocation. The full
 build, every Haskell suite, the isolated CLI end-to-end test, formatting, and
 targeted lint for the new Pack code pass. The CLI test now isolates all four
 XDG roots, so a developer's real profile cannot contaminate it. The aggregate
@@ -111,10 +122,10 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, authenticate the exact manifest bytes with Ed25519, classify built-in,
-official, community, untrusted, and revoked signers, and implement the
-content-addressed store, exact profile pins, and read-only component registry.
-Then implement the fresh-process HsLua runner and ship the standard Lua tree,
+Next, implement the content-addressed Pack store, exact typed profile pins,
+durable community trust/revocation state, and a read-only component registry
+that accepts only execution-authorized components. Then implement the
+fresh-process HsLua runner and ship the standard Lua tree,
 table, RFC 4180 CSV, Org, self-contained HTML, and TaskJuggler exporters through
 that boundary. Continue afterward with the Raw-first import/adapters. The
 `Corrupt history/repair` row is implemented; formal evidence registration and

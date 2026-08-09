@@ -2,6 +2,7 @@ module LittleAnt.Pack.Format (
   PackComponentKind (..),
   ComponentCommon (..),
   PackComponent (..),
+  componentCommon,
   CredentialScheme (..),
   CredentialSlot (..),
   HttpPermission (..),
