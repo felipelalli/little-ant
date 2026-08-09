@@ -5,10 +5,10 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **1fd6020**
-(`feat(planning): preserve TaskJuggler actual evidence`). The current milestone
-adds consent-gated multiobject materialization and the offline Notesnook ZIP
-SourceAdapter. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **579d8ce**
+(`feat(import): materialize Notesnook exports safely`). The current milestone
+adds the bounded host-brokered HTTP foundation required by provider-backed
+SourceAdapters. This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -179,6 +179,21 @@ SourceAdapter. This file stays editable between milestone commits.
   remaining-effort projection. The signed exporter emits that exact point in
   all three TaskJuggler scenarios with a visible no-spread warning; a latest
   missing value or `effortdone` alone never revives or derives remaining work.
+- provider-backed SourceAdapters can now call synchronous-looking
+  `lant.http.request` without receiving network or credential authority. Every
+  broker step runs a new private process and Lua VM against an exact sanitized
+  transcript; an exhausted transcript yields one typed pending request for the
+  trusted parent to authorize, execute, append, and replay from the beginning.
+  Signed component permissions constrain the closed method set, exact
+  lowercase HTTPS host, decoded path prefix, and allowed headers. Ambiguous
+  rules, nearby hosts, ports, escaped traversal, unused exchanges, repeated
+  request cycles, and oversized bodies or transcripts fail before unsafe IO.
+- remote preflight and materialization entry points retain provider response
+  transcripts only as transient host custody. Persisted previews contain the
+  digest, count, label, and sparse SourceObservation rather than private
+  provider bodies. A fake adaptive provider proves sequential list/child
+  requests, fresh-VM replay, exact materialization, and denial before broker
+  invocation.
 
 ## Last green gate
 
@@ -201,7 +216,7 @@ source/translation/diagnostic/repair tests, including both cutover crash phases
 and the public no-default consent flow. The new S09 export suite has 7 passing
 tests for deterministic projections, stdout, dry-run, exclusive publication,
 pre-invocation target rejection, exporter failure, and registry compatibility.
-The structural, authority, store, registry, and catalog Pack suite has 22 passing tests
+The structural, authority, store, registry, and catalog Pack suite has 23 passing tests
 for reproducible archives, JCS, closed schemas, component permission
 isolation, path ownership, payload integrity, canonical ZIP mutation
 rejection, Unicode path safety,
@@ -215,8 +230,10 @@ targeted lint for the new Pack code pass. The CLI test now isolates all four
 XDG roots, so a developer's real profile cannot contaminate it. The aggregate
 `make ci` gate remains red only at the repository-wide HLint baseline; those
 pre-existing hints are outside this milestone and S09 remains in progress.
-The isolated-runner suite now has 8 process-boundary cases, including closed
-host-custodied source preflight, consent-gated materialization, and unsupported-mode rejection. The standard-Pack
+The isolated-runner suite now has 11 process-boundary cases, including closed
+host-custodied source preflight, consent-gated materialization,
+unsupported-mode rejection, adaptive fake-provider paging, route denial before
+broker invocation, and repeated-request cycle prevention. The standard-Pack
 suite now has 8 archive/authority/golden-format/TaskJuggler/source cases, the pure
 planning suite has 4 cut/custody/profile/remaining-evidence cases, and the dedicated actuals suite
 has 7 strict custody/acceptance/replay cases. The CLI test exercises
@@ -260,7 +277,9 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, implement the official Microsoft To Do connector path. Google Calendar,
+Next, use the broker foundation to implement the separately signed official
+Microsoft To Do connector Pack and bind its account/credential preflight in the
+trusted host. Google Calendar,
 the remaining standard importers, and the local-web UIAdapter remain. The
 `Corrupt history/repair` row and formal TaskJuggler evidence registration are
 implemented; the complete S09 gate still precedes `verified`.

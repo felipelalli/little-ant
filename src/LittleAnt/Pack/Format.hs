@@ -433,6 +433,7 @@ validatePermissions kind permissions = do
   unique "host capability" (permissionHostCapabilities permissions)
   traverse_ validateCredentialSlot (permissionCredentialSlots permissions)
   traverse_ (validateHttpPermission slots) (permissionHttp permissions)
+  unless (httpPermissionsNonoverlapping (permissionHttp permissions)) (invalid "HTTP permissions cannot overlap for one method, host, and path.")
   traverse_ validateProjection (permissionProjections permissions)
   case kind of
     ReadOnlyExporterComponent -> do
@@ -452,6 +453,16 @@ validatePermissions kind permissions = do
  where
   slots = permissionCredentialSlots permissions
   invalid message = Left (packProblem message [])
+
+httpPermissionsNonoverlapping :: [HttpPermission] -> Bool
+httpPermissionsNonoverlapping [] = True
+httpPermissionsNonoverlapping (permission : rest) = not (any (overlaps permission) rest) && httpPermissionsNonoverlapping rest
+ where
+  overlaps left right =
+    httpPermissionHost left == httpPermissionHost right
+      && not (Set.disjoint (Set.fromList (httpPermissionMethods left)) (Set.fromList (httpPermissionMethods right)))
+      && (pathContains (httpPermissionPathPrefix left) (httpPermissionPathPrefix right) || pathContains (httpPermissionPathPrefix right) (httpPermissionPathPrefix left))
+  pathContains prefix path = prefix == "/" || path == prefix || (prefix <> "/") `Text.isPrefixOf` path
 
 validateCredentialSlot :: CredentialSlot -> Either AppError ()
 validateCredentialSlot slot = unless (validLocalId (credentialSlotId slot)) (Left (packProblem "A credential slot ID is invalid." []))

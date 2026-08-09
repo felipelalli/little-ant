@@ -7,6 +7,8 @@ module LittleAnt.Pack.Runner (
   invokePackExporter,
   invokePackSourcePreflight,
   invokePackSourceMaterialize,
+  invokePackSourcePreflightHttp,
+  invokePackSourceMaterializeHttp,
   runPackRunnerMain,
 )
 where
@@ -15,6 +17,7 @@ import Codec.Archive.Zip qualified as Zip
 import Control.Concurrent (forkFinally, newEmptyMVar, putMVar, takeMVar, threadDelay)
 import Control.Exception (Exception, IOException, SomeException, catch, displayException, try)
 import Control.Monad (filterM, forM, unless, void, when)
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KeyMap
@@ -27,10 +30,11 @@ import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAscii, isAsciiLower, isAsciiUpper, isDigit)
 import Data.Digest.CRC32 (crc32)
 import Data.Foldable (traverse_)
+import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
 import Data.List (find, sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isNothing)
+import Data.Maybe (isJust, isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -42,6 +46,7 @@ import HsLua qualified as Lua
 import LittleAnt.Error
 import LittleAnt.Model (SourceMode (..))
 import LittleAnt.Pack.Format
+import LittleAnt.Pack.Http
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Trust
 import LittleAnt.Source
@@ -88,6 +93,8 @@ data RunnerRequest = RunnerRequest
   , requestProjection :: Value
   , requestOperation :: RunnerOperation
   , requestInputBytes :: Maybe ByteString
+  , requestHttpEnabled :: Bool
+  , requestHttpTranscript :: [BrokerHttpExchange]
   , requestMaximumArtifactBytes :: Int
   }
   deriving stock (Eq, Show)
@@ -103,6 +110,7 @@ data RunnerFailure = RunnerFailure
 
 data RunnerResponse
   = RunnerSucceeded RunnerExportArtifact
+  | RunnerNeedsHttp BrokerHttpRequest
   | RunnerFailed RunnerFailure
   deriving stock (Eq, Show)
 
@@ -137,7 +145,7 @@ defaultPackRunnerClient = do
 instance ToJSON RunnerRequest where
   toJSON request =
     object $
-      [ "schema" .= ("little-ant/pack-runner-request@1" :: Text)
+      [ "schema" .= ("little-ant/pack-runner-request@2" :: Text)
       , "artifact" .= requestArtifact request
       , "signer_fingerprint" .= requestSignerFingerprint request
       , "component_id" .= requestComponentId request
@@ -146,14 +154,16 @@ instance ToJSON RunnerRequest where
       , "payload" .= fmap encodeBytes (requestPayload request)
       , "projection" .= requestProjection request
       , "operation" .= runnerOperationName (requestOperation request)
+      , "http_enabled" .= requestHttpEnabled request
+      , "http_transcript" .= requestHttpTranscript request
       , "maximum_artifact_bytes" .= requestMaximumArtifactBytes request
       ]
         <> maybe [] (pure . ("input_bytes" .=) . encodeBytes) (requestInputBytes request)
 
 instance FromJSON RunnerRequest where
   parseJSON = withObject "RunnerRequest" $ \fields -> do
-    rejectUnknown fields ["schema", "artifact", "signer_fingerprint", "component_id", "contract_major", "entry_point", "payload", "projection", "operation", "input_bytes", "maximum_artifact_bytes"]
-    requireSchema fields "little-ant/pack-runner-request@1"
+    rejectUnknown fields ["schema", "artifact", "signer_fingerprint", "component_id", "contract_major", "entry_point", "payload", "projection", "operation", "input_bytes", "http_enabled", "http_transcript", "maximum_artifact_bytes"]
+    requireSchema fields "little-ant/pack-runner-request@2"
     encodedPayload <- fields .: "payload"
     payload <- traverse (either fail pure . decodeBytes) encodedPayload
     RunnerRequest
@@ -166,6 +176,8 @@ instance FromJSON RunnerRequest where
       <*> fields .: "projection"
       <*> (fields .: "operation" >>= parseRunnerOperation)
       <*> (fields .:? "input_bytes" >>= traverse (either fail pure . decodeBytes))
+      <*> fields .: "http_enabled"
+      <*> fields .: "http_transcript"
       <*> fields .: "maximum_artifact_bytes"
 
 runnerOperationName :: RunnerOperation -> Text
@@ -214,42 +226,46 @@ instance ToJSON RunnerResponse where
   toJSON = \case
     RunnerSucceeded artifact ->
       object
-        [ "schema" .= ("little-ant/pack-runner-response@1" :: Text)
-        , "ok" .= True
+        [ "schema" .= ("little-ant/pack-runner-response@2" :: Text)
+        , "kind" .= ("succeeded" :: Text)
         , "artifact" .= artifact
+        ]
+    RunnerNeedsHttp request ->
+      object
+        [ "schema" .= ("little-ant/pack-runner-response@2" :: Text)
+        , "kind" .= ("http_request" :: Text)
+        , "request" .= request
         ]
     RunnerFailed failure ->
       object
-        [ "schema" .= ("little-ant/pack-runner-response@1" :: Text)
-        , "ok" .= False
+        [ "schema" .= ("little-ant/pack-runner-response@2" :: Text)
+        , "kind" .= ("failed" :: Text)
         , "error" .= failure
         ]
 
 instance FromJSON RunnerResponse where
   parseJSON = withObject "RunnerResponse" $ \fields -> do
-    requireSchema fields "little-ant/pack-runner-response@1"
-    succeeded <- fields .: "ok"
-    if succeeded
-      then rejectUnknown fields ["schema", "ok", "artifact"] >> RunnerSucceeded <$> fields .: "artifact"
-      else rejectUnknown fields ["schema", "ok", "error"] >> RunnerFailed <$> fields .: "error"
+    requireSchema fields "little-ant/pack-runner-response@2"
+    fields .: "kind" >>= \case
+      ("succeeded" :: Text) -> rejectUnknown fields ["schema", "kind", "artifact"] >> RunnerSucceeded <$> fields .: "artifact"
+      "http_request" -> rejectUnknown fields ["schema", "kind", "request"] >> RunnerNeedsHttp <$> fields .: "request"
+      "failed" -> rejectUnknown fields ["schema", "kind", "error"] >> RunnerFailed <$> fields .: "error"
+      value -> fail ("unknown Pack runner response kind: " <> Text.unpack value)
 
 invokePackExporter :: PackRunnerClient -> RegisteredPackComponent -> Value -> IO (Either AppError RunnerExportArtifact)
 invokePackExporter client registered projection =
   case prepareRequest client registered RunnerExport Nothing projection of
     Left problem -> pure (Left problem)
-    Right request -> case canonicalJsonBytes (toJSON request) of
-      Left problem -> pure (Left problem)
-      Right requestBytes -> invokeRunnerProcess client requestBytes
+    Right request -> invokeRunnerProcess client request
 
 invokePackSourcePreflight :: PackRunnerClient -> RegisteredPackComponent -> SourceMode -> SourceInput -> IO (Either AppError SourcePreflight)
 invokePackSourcePreflight client registered mode input =
   case prepareRequest client registered RunnerSourcePreflight (Just (sourceInputBytes input)) projection of
     Left problem -> pure (Left problem)
-    Right request -> case (canonicalJsonBytes (toJSON request), sourceInvocationAuthority registered) of
-      (Left problem, _) -> pure (Left problem)
-      (_, Left problem) -> pure (Left problem)
-      (Right requestBytes, Right (contractMajor, permissions)) ->
-        invokeRunnerProcess client requestBytes >>= \case
+    Right request -> case sourceInvocationAuthority registered of
+      Left problem -> pure (Left problem)
+      Right (contractMajor, permissions) ->
+        invokeRunnerProcess client request >>= \case
           Left problem -> pure (Left problem)
           Right artifact -> pure $ do
             observation <- decodeSourceObservation (runnerArtifactBytes artifact)
@@ -280,11 +296,10 @@ invokePackSourceMaterialize :: PackRunnerClient -> RegisteredPackComponent -> So
 invokePackSourceMaterialize client registered mode input =
   case prepareRequest client registered RunnerSourceMaterialize (Just (sourceInputBytes input)) projection of
     Left problem -> pure (Left problem)
-    Right request -> case (canonicalJsonBytes (toJSON request), sourceInvocationAuthority registered) of
-      (Left problem, _) -> pure (Left problem)
-      (_, Left problem) -> pure (Left problem)
-      (Right requestBytes, Right (contractMajor, permissions)) ->
-        invokeRunnerProcess client requestBytes >>= \case
+    Right request -> case sourceInvocationAuthority registered of
+      Left problem -> pure (Left problem)
+      Right (contractMajor, permissions) ->
+        invokeRunnerProcess client request >>= \case
           Left problem -> pure (Left problem)
           Right artifact -> pure $ do
             materialization <- decodeSourceMaterialization (runnerArtifactBytes artifact)
@@ -313,12 +328,74 @@ invokePackSourceMaterialize client registered mode input =
             ]
       ]
 
+invokePackSourcePreflightHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> SourceMode -> Text -> Value -> IO (Either AppError (SourceInput, SourcePreflight))
+invokePackSourcePreflightHttp client broker registered mode inputLabel source =
+  case prepareRequest client registered RunnerSourcePreflight Nothing projection of
+    Left problem -> pure (Left problem)
+    Right request -> case sourceInvocationDetails registered of
+      Left problem -> pure (Left problem)
+      Right (contractMajor, encodedPermissions, permissions) ->
+        invokeRunnerProcessHttp client permissions broker request >>= \case
+          Left problem -> pure (Left problem)
+          Right (artifact, transcript) -> pure $ do
+            input <- transcriptSourceInput inputLabel transcript
+            observation <- decodeSourceObservation (runnerArtifactBytes artifact)
+            preflight <-
+              makeSourcePreflight
+                (componentId (componentCommon (registeredComponent registered)))
+                (registeredPackIdentity registered)
+                (registeredSignerFingerprint registered)
+                contractMajor
+                encodedPermissions
+                mode
+                input
+                observation
+            pure (input, preflight)
+ where
+  projection = object ["schema" .= ("little-ant/source-provider-request@1" :: Text), "mode" .= sourceModeName mode, "source" .= source]
+
+invokePackSourceMaterializeHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> SourceMode -> Text -> Value -> IO (Either AppError (SourceInput, SourcePreflight, SourceAdapterMaterialization))
+invokePackSourceMaterializeHttp client broker registered mode inputLabel source =
+  case prepareRequest client registered RunnerSourceMaterialize Nothing projection of
+    Left problem -> pure (Left problem)
+    Right request -> case sourceInvocationDetails registered of
+      Left problem -> pure (Left problem)
+      Right (contractMajor, encodedPermissions, permissions) ->
+        invokeRunnerProcessHttp client permissions broker request >>= \case
+          Left problem -> pure (Left problem)
+          Right (artifact, transcript) -> pure $ do
+            input <- transcriptSourceInput inputLabel transcript
+            materialization <- decodeSourceMaterialization (runnerArtifactBytes artifact)
+            preflight <-
+              makeSourcePreflight
+                (componentId (componentCommon (registeredComponent registered)))
+                (registeredPackIdentity registered)
+                (registeredSignerFingerprint registered)
+                contractMajor
+                encodedPermissions
+                mode
+                input
+                (materializedObservation materialization)
+            pure (input, preflight, materialization)
+ where
+  projection = object ["schema" .= ("little-ant/source-provider-request@1" :: Text), "mode" .= sourceModeName mode, "source" .= source]
+
+transcriptSourceInput :: Text -> [BrokerHttpExchange] -> Either AppError SourceInput
+transcriptSourceInput label transcript = do
+  validateBrokerHttpTranscript transcript
+  bytes <- canonicalJsonBytes (toJSON transcript)
+  pure (SourceInput (Text.strip label) "application/vnd.little-ant.http-transcript+json" bytes)
+
 sourceInvocationAuthority :: RegisteredPackComponent -> Either AppError (Int, Text)
 sourceInvocationAuthority registered =
+  (\(contractMajor, encoded, _) -> (contractMajor, encoded)) <$> sourceInvocationDetails registered
+
+sourceInvocationDetails :: RegisteredPackComponent -> Either AppError (Int, Text, ComponentPermissions)
+sourceInvocationDetails registered =
   case registeredComponent registered of
     ExecutableComponent common _ permissions -> do
       encoded <- canonicalJsonBytes (toJSON permissions)
-      pure (componentContractMajor common, TextEncoding.decodeUtf8 encoded)
+      pure (componentContractMajor common, TextEncoding.decodeUtf8 encoded, permissions)
     _ -> Left (runnerProblem Unsupported "A declarative Pack component has no executable invocation authority." [])
 
 prepareRequest :: PackRunnerClient -> RegisteredPackComponent -> RunnerOperation -> Maybe ByteString -> Value -> Either AppError RunnerRequest
@@ -329,8 +406,8 @@ prepareRequest client registered operation input projection = do
       | componentKind common /= expectedKind -> Left (runnerProblem Unsupported wrongKindMessage [])
       | componentContractMajor common /= 1 -> Left (runnerProblem Unsupported "The selected component uses an unsupported host contract major." [Text.pack (show (componentContractMajor common))])
       | operation == RunnerExport && null (permissionProjections permissions) -> Left (runnerProblem CorruptData "The selected exporter declares no input projection." [])
-      | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && InputBytesCapability `notElem` permissionHostCapabilities permissions -> Left (runnerProblem PermissionRequired "The selected SourceAdapter did not declare the input_bytes host capability." [])
-      | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && isNothing input -> Left (runnerProblem PreconditionFailed "A file SourceAdapter invocation requires host-custodied input bytes." [])
+      | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && isJust input && InputBytesCapability `notElem` permissionHostCapabilities permissions -> Left (runnerProblem PermissionRequired "The selected SourceAdapter did not declare the input_bytes host capability." [])
+      | operation `elem` [RunnerSourcePreflight, RunnerSourceMaterialize] && isNothing input && null (permissionHttp permissions) -> Left (runnerProblem PreconditionFailed "A SourceAdapter invocation requires host-custodied input bytes or signed HTTP permissions." [])
       | otherwise -> do
           let payload = registeredComponentPayload registered
           entryBytes <- maybe (Left (runnerProblem CorruptData "The component entry point is absent from its authorized payload." [entry])) Right (Map.lookup entry payload)
@@ -348,6 +425,8 @@ prepareRequest client registered operation input projection = do
               , requestProjection = projection
               , requestOperation = operation
               , requestInputBytes = input
+              , requestHttpEnabled = not (null (permissionHttp permissions))
+              , requestHttpTranscript = []
               , requestMaximumArtifactBytes = runnerMaximumArtifactBytes limits
               }
     _ -> Left (runnerProblem Unsupported "Declarative Pack components cannot execute in the Lua runner." [])
@@ -383,17 +462,60 @@ validateClientLimits limits = do
  where
   invalid = Left (runnerProblem InvalidInput "Pack runner limits must be positive and cannot exceed the factory safety ceiling." [])
 
-invokeRunnerProcess :: PackRunnerClient -> ByteString -> IO (Either AppError RunnerExportArtifact)
-invokeRunnerProcess client requestBytes
-  | ByteString.length requestBytes > runnerMaximumRequestBytes limits = pure (Left (runnerProblem PreconditionFailed "The Pack runner request exceeds its bounded size." []))
-  | otherwise = do
-      executableReady <- validateRunnerExecutable (packRunnerExecutable client)
-      case executableReady of
-        Left problem -> pure (Left problem)
-        Right () -> runBoundedProcess
+data RunnerProcessOutcome
+  = RunnerProcessCompleted RunnerExportArtifact
+  | RunnerProcessNeedsHttp BrokerHttpRequest
+
+data HttpReplayState = HttpReplayState
+  { replayRemaining :: [BrokerHttpExchange]
+  , replayPending :: Maybe BrokerHttpRequest
+  }
+
+invokeRunnerProcess :: PackRunnerClient -> RunnerRequest -> IO (Either AppError RunnerExportArtifact)
+invokeRunnerProcess client request =
+  invokeRunnerProcessOnce client request >>= \case
+    Left problem -> pure (Left problem)
+    Right (RunnerProcessCompleted artifact) -> pure (Right artifact)
+    Right (RunnerProcessNeedsHttp _) -> pure (Left (runnerProblem PermissionRequired "The Pack requested HTTP but this invocation has no trusted host broker." []))
+
+invokeRunnerProcessHttp :: PackRunnerClient -> ComponentPermissions -> PackHttpBroker -> RunnerRequest -> IO (Either AppError (RunnerExportArtifact, [BrokerHttpExchange]))
+invokeRunnerProcessHttp client permissions broker = go []
+ where
+  go transcript request =
+    invokeRunnerProcessOnce client request{requestHttpTranscript = transcript} >>= \case
+      Left problem -> pure (Left problem)
+      Right (RunnerProcessCompleted artifact) -> pure (Right (artifact, transcript))
+      Right (RunnerProcessNeedsHttp pending) ->
+        case ensureFreshRequest transcript pending >> authorizeBrokerHttpRequest permissions pending of
+          Left problem -> pure (Left problem)
+          Right authorized -> do
+            brokered <- try (runPackHttpBroker broker authorized pending)
+            case brokered of
+              Left (_ :: SomeException) -> pure (Left (runnerProblem ExternalFailure "The trusted HTTP broker failed before returning a sanitized response." []))
+              Right (Left problem) -> pure (Left problem)
+              Right (Right response) ->
+                case validateBrokerHttpResponse response >> validateBrokerHttpTranscript (transcript <> [BrokerHttpExchange pending response]) of
+                  Left problem -> pure (Left problem)
+                  Right () -> go (transcript <> [BrokerHttpExchange pending response]) request
+  ensureFreshRequest transcript pending =
+    when
+      (pending `elem` (brokerExchangeRequest <$> transcript))
+      (Left (runnerProblem PreconditionFailed "The Pack repeated an identical brokered HTTP request in one invocation." [brokerHttpMethod pending, brokerHttpUrl pending]))
+
+invokeRunnerProcessOnce :: PackRunnerClient -> RunnerRequest -> IO (Either AppError RunnerProcessOutcome)
+invokeRunnerProcessOnce client request =
+  case canonicalJsonBytes (toJSON request) of
+    Left problem -> pure (Left problem)
+    Right requestBytes
+      | ByteString.length requestBytes > runnerMaximumRequestBytes limits -> pure (Left (runnerProblem PreconditionFailed "The Pack runner request exceeds its bounded size." []))
+      | otherwise -> do
+          executableReady <- validateRunnerExecutable (packRunnerExecutable client)
+          case executableReady of
+            Left problem -> pure (Left problem)
+            Right () -> runBoundedProcess requestBytes
  where
   limits = packRunnerLimits client
-  runBoundedProcess =
+  runBoundedProcess requestBytes =
     handleRunnerIo $ withCreateProcess processSpec $ \maybeInput maybeOutput maybeError processHandle ->
       case (maybeInput, maybeOutput, maybeError) of
         (Just input, Just output, Just errorOutput) -> do
@@ -437,7 +559,7 @@ validateRunnerExecutable path = do
       permissions <- getPermissions path
       pure $ unless (executable permissions) (Left (runnerProblem PermissionRequired "The private Pack runner is not executable." [Text.pack path]))
 
-decodeProcessOutcome :: Int -> (ExitCode, Either SomeException (Either () ByteString), Either SomeException (Either () ByteString)) -> Either AppError RunnerExportArtifact
+decodeProcessOutcome :: Int -> (ExitCode, Either SomeException (Either () ByteString), Either SomeException (Either () ByteString)) -> Either AppError RunnerProcessOutcome
 decodeProcessOutcome maximumArtifactBytes (exitCode, stdoutResult, stderrResult) = do
   output <- flattenRead "stdout" stdoutResult
   errors <- flattenRead "stderr" stderrResult
@@ -446,7 +568,8 @@ decodeProcessOutcome maximumArtifactBytes (exitCode, stdoutResult, stderrResult)
     (Left (runnerProblem ExternalFailure "The private Pack runner exited unsuccessfully." (processDetails exitCode errors)))
   response <- decodeCanonicalResponse output
   case response of
-    RunnerSucceeded artifact -> validateRunnerArtifact maximumArtifactBytes artifact >> Right artifact
+    RunnerSucceeded artifact -> validateRunnerArtifact maximumArtifactBytes artifact >> Right (RunnerProcessCompleted artifact)
+    RunnerNeedsHttp request -> validateBrokerHttpRequest request >> Right (RunnerProcessNeedsHttp request)
     RunnerFailed failure -> Left (runnerProblem ExternalFailure "The Pack component failed in the isolated runner." [runnerFailureKind failure, runnerFailureMessage failure])
 
 flattenRead :: Text -> Either SomeException (Either () ByteString) -> Either AppError ByteString
@@ -502,7 +625,8 @@ executeEncodedRequest bytes = case decodeCanonicalRequest bytes of
     pure $ case result of
       Left problem -> RunnerFailed (RunnerFailure "lua_failure" (boundedException (problem :: SomeException)))
       Right (Left problem) -> RunnerFailed (failureFromError "invalid_result" problem)
-      Right (Right artifact) -> RunnerSucceeded artifact
+      Right (Right (RunnerProcessCompleted artifact)) -> RunnerSucceeded artifact
+      Right (Right (RunnerProcessNeedsHttp pending)) -> RunnerNeedsHttp pending
 
 decodeCanonicalRequest :: ByteString -> Either AppError RunnerRequest
 decodeCanonicalRequest bytes = do
@@ -523,23 +647,28 @@ validateRunnerRequest request = do
   entry <- maybe (Left (runnerProblem CorruptData "The runner entry point is missing from the payload." [])) Right (Map.lookup (requestEntryPoint request) (requestPayload request))
   validateLuaSource (requestEntryPoint request) entry
   mapM_ validatePayloadPathAndSource (Map.toAscList (requestPayload request))
+  validateBrokerHttpTranscript (requestHttpTranscript request)
+  unless (requestHttpEnabled request || null (requestHttpTranscript request)) (Left (runnerProblem CorruptData "A runner request disabled HTTP but supplied a broker transcript." []))
   case (requestOperation request, requestInputBytes request) of
-    (RunnerExport, Nothing) -> pure ()
+    (RunnerExport, Nothing) -> do
+      when (requestHttpEnabled request) (Left (runnerProblem CorruptData "An exporter request cannot enable brokered HTTP." []))
+      unless (null (requestHttpTranscript request)) (Left (runnerProblem CorruptData "An exporter request cannot contain a brokered HTTP transcript." []))
     (RunnerExport, Just _) -> Left (runnerProblem CorruptData "An exporter request cannot contain source input bytes." [])
     (RunnerSourcePreflight, Just _) -> pure ()
-    (RunnerSourcePreflight, Nothing) -> Left (runnerProblem CorruptData "A SourceAdapter preflight request is missing its input bytes." [])
+    (RunnerSourcePreflight, Nothing) -> unless (requestHttpEnabled request) (Left (runnerProblem CorruptData "A SourceAdapter preflight request has neither input bytes nor brokered HTTP." []))
     (RunnerSourceMaterialize, Just _) -> pure ()
-    (RunnerSourceMaterialize, Nothing) -> Left (runnerProblem CorruptData "A SourceAdapter materialization request is missing its input bytes." [])
+    (RunnerSourceMaterialize, Nothing) -> unless (requestHttpEnabled request) (Left (runnerProblem CorruptData "A SourceAdapter materialization request has neither input bytes nor brokered HTTP." []))
  where
   validatePayloadPathAndSource (path, payload) = do
     unless (safeRelativePath path) (Left (runnerProblem CorruptData "The runner payload contains an unsafe path." [path]))
     validatePayloadSource path payload
 
-executeLuaRequest :: RunnerRequest -> IO (Either AppError RunnerExportArtifact)
+executeLuaRequest :: RunnerRequest -> IO (Either AppError RunnerProcessOutcome)
 executeLuaRequest request = do
+  replay <- newIORef (HttpReplayState (requestHttpTranscript request) Nothing)
   result <- Lua.runEither $ do
     openSafeLibraries
-    installPayloadApi (requestEntryPoint request) (requestPayload request) (requestInputBytes request)
+    installPayloadApi (requestEntryPoint request) (requestPayload request) (requestInputBytes request) (requestHttpEnabled request) replay
     let source = requestPayload request Map.! requestEntryPoint request
     loadChunk source ("@" <> requestEntryPoint request)
     Lua.callTrace 0 1
@@ -578,9 +707,14 @@ executeLuaRequest request = do
                 }
     Lua.pop 1
     pure artifact
-  pure $ case result of
-    Left problem -> Left (runnerProblem ExternalFailure "Lua execution failed." [boundedException problem])
-    Right artifact -> validateRunnerArtifact (requestMaximumArtifactBytes request) artifact >> Right artifact
+  replayed <- readIORef replay
+  pure $ case replayPending replayed of
+    Just pending -> Right (RunnerProcessNeedsHttp pending)
+    Nothing
+      | not (null (replayRemaining replayed)) -> Left (runnerProblem CorruptData "The Pack completed without consuming its exact brokered HTTP transcript." [])
+      | otherwise -> case result of
+          Left problem -> Left (runnerProblem ExternalFailure "Lua execution failed." [boundedException problem])
+          Right artifact -> validateRunnerArtifact (requestMaximumArtifactBytes request) artifact >> Right (RunnerProcessCompleted artifact)
 
 openSafeLibraries :: Lua.Lua ()
 openSafeLibraries = do
@@ -603,8 +737,8 @@ openSafeLibraries = do
     when (valueType == Lua.TypeTable) (Lua.pushnil >> Lua.setfield (Lua.nth 2) field)
     Lua.pop 1
 
-installPayloadApi :: Text -> Map Text ByteString -> Maybe ByteString -> Lua.Lua ()
-installPayloadApi entry payload inputBytes = do
+installPayloadApi :: Text -> Map Text ByteString -> Maybe ByteString -> Bool -> IORef HttpReplayState -> Lua.Lua ()
+installPayloadApi entry payload inputBytes httpEnabled replay = do
   Lua.newtable
   mapM_ pushModule (Map.toAscList payload)
   Lua.setglobal "__lant_preload"
@@ -638,6 +772,19 @@ installPayloadApi entry payload inputBytes = do
               )
             pure 1
   Lua.setglobal "__lant_input_zip_entries"
+  Lua.pushBool httpEnabled
+  Lua.setglobal "__lant_http_enabled"
+  Lua.pushHaskellFunction $ do
+    requestValue <- Lua.forcePeek (Lua.peekValue (Lua.nthBottom 1))
+    request <- case parseEither parseJSON requestValue of
+      Left problem -> Lua.failLua ("invalid brokered HTTP request: " <> problem)
+      Right value -> pure value
+    step <- liftIO $ atomicModifyIORef' replay (consumeHttpExchange request)
+    case step of
+      Left problem -> Lua.failLua (Text.unpack problem)
+      Right Nothing -> Lua.failLua "__little_ant_http_request_pending__"
+      Right (Just response) -> Lua.pushValue (toJSON response) >> pure 1
+  Lua.setglobal "__lant_http_request"
   loadChunk trustedBootstrap "@little-ant/bootstrap"
   Lua.callTrace 0 0
  where
@@ -647,6 +794,15 @@ installPayloadApi entry payload inputBytes = do
       loadChunk source ("@" <> path)
       Lua.rawset (Lua.nth 3)
     _ -> pure ()
+
+consumeHttpExchange :: BrokerHttpRequest -> HttpReplayState -> (HttpReplayState, Either Text (Maybe BrokerHttpResponse))
+consumeHttpExchange request state = case replayPending state of
+  Just _ -> (state, Left "a Pack cannot issue another HTTP request while one is pending")
+  Nothing -> case replayRemaining state of
+    [] -> (state{replayPending = Just request}, Right Nothing)
+    exchange : remaining
+      | brokerExchangeRequest exchange == request -> (state{replayRemaining = remaining}, Right (Just (brokerExchangeResponse exchange)))
+      | otherwise -> (state, Left "the Pack's HTTP request diverged from the exact broker transcript")
 
 loadChunk :: ByteString -> Text -> Lua.Lua ()
 loadChunk source name = do
@@ -784,12 +940,16 @@ trustedBootstrap =
     , "local sha256 = __lant_sha256"
     , "local base64url_decode = __lant_base64url_decode"
     , "local input_zip_entries = __lant_input_zip_entries"
+    , "local http_enabled = __lant_http_enabled"
+    , "local http_request = __lant_http_request"
     , "__lant_preload = nil"
     , "__lant_assets = nil"
     , "__lant_input_bytes = nil"
     , "__lant_sha256 = nil"
     , "__lant_base64url_decode = nil"
     , "__lant_input_zip_entries = nil"
+    , "__lant_http_enabled = nil"
+    , "__lant_http_request = nil"
     , "local loaded = {}"
     , "function require(name)"
     , "  if type(name) ~= 'string' then"
@@ -831,6 +991,14 @@ trustedBootstrap =
     , "    return entries"
     , "  end"
     , "}"
+    , "if http_enabled then"
+    , "  lant.http = {"
+    , "    request = function(request)"
+    , "      if type(request) ~= 'table' then error('http request must be a table', 2) end"
+    , "      return http_request(request)"
+    , "    end"
+    , "  }"
+    , "end"
     ]
 
 extractInputZipEntries :: ByteString -> Either Text [(Text, ByteString)]

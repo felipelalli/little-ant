@@ -22,6 +22,7 @@ import LittleAnt.Error (AppError)
 import LittleAnt.Id (UUIDv7, parseUUIDv7)
 import LittleAnt.Pack.Catalog
 import LittleAnt.Pack.Format
+import LittleAnt.Pack.Http
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
@@ -43,6 +44,7 @@ main =
       , testCase "noncanonical ZIP bytes and trailing data fail closed" zipMutations
       , testCase "pack.json and signature.json require exact JCS and closed keys" controlDocuments
       , testCase "permissions are component-local and kind constrained" permissionIsolation
+      , testCase "brokered HTTP authority rejects ambiguous and escaped routes" httpAuthorityConfinement
       , testCase "component roots and file ownership are unambiguous" componentOwnership
       , testCase "payload length, digest, and entry set are verified before authority" payloadIntegrity
       , testCase "unsafe and Unicode-colliding paths are rejected by the writer" pathSafety
@@ -120,6 +122,28 @@ permissionIsolation = do
   let uiCommon = fixtureCommon{componentKind = UIAdapterComponent}
       invalidUi = ExecutableComponent uiCommon "main.lua" emptyPermissions{permissionEffectPurposes = [CalendarCreatePermission]}
   assertLeft "UIAdapter effect authority" (encodePackManifest fixtureManifest{packComponents = [invalidUi]})
+
+  let overlapping =
+        emptyPermissions
+          { permissionCredentialSlots = [CredentialSlot "account" BearerToken]
+          , permissionHttp =
+              [ HttpPermission ["GET"] "graph.microsoft.com" "/v1.0/me/todo" (Just "account")
+              , HttpPermission ["GET"] "graph.microsoft.com" "/v1.0/me/todo/lists" (Just "account")
+              ]
+          }
+      ambiguousSource = ExecutableComponent sourceCommon "main.lua" overlapping
+  assertLeft "overlapping HTTP permissions" (encodePackManifest fixtureManifest{packComponents = [ambiguousSource]})
+
+httpAuthorityConfinement :: Assertion
+httpAuthorityConfinement = do
+  let permission = HttpPermission ["GET"] "graph.microsoft.com" "/v1.0/me/todo" (Just "account")
+      permissions = emptyPermissions{permissionCredentialSlots = [CredentialSlot "account" BearerToken], permissionHttp = [permission]}
+      valid = BrokerHttpRequest "GET" "https://graph.microsoft.com/v1.0/me/todo/lists?%24top=100" (Map.singleton "accept" "application/json") Nothing
+  authorizeBrokerHttpRequest permissions valid @?= Right permission
+  assertLeft "explicit port" (authorizeBrokerHttpRequest permissions valid{brokerHttpUrl = "https://graph.microsoft.com:443/v1.0/me/todo/lists"})
+  assertLeft "encoded path traversal" (authorizeBrokerHttpRequest permissions valid{brokerHttpUrl = "https://graph.microsoft.com/v1.0/me/todo/%2e%2e/users"})
+  assertLeft "authorization header from Lua" (authorizeBrokerHttpRequest permissions valid{brokerHttpHeaders = Map.singleton "authorization" "Bearer forbidden"})
+  assertLeft "nearby host" (authorizeBrokerHttpRequest permissions valid{brokerHttpUrl = "https://graph.microsoft.com.example/v1.0/me/todo/lists"})
 
 componentOwnership :: Assertion
 componentOwnership = do

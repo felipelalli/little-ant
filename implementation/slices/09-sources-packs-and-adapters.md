@@ -74,6 +74,15 @@ explicit-remaining projection without estimate mutation. The Microsoft To Do
 connector, remaining standard importers, Calendar, and local-web UIAdapter
 remain in this slice.
 
+Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
+Lua receives a synchronous-looking JSON request function but no network or
+credential authority. Each exchange is authorized against one unambiguous
+signed component route, executed by the trusted host, sanitized, and replayed
+through a fresh private process and VM. Remote preflight persists only custody
+digest/count plus the sparse observation; materialization refetches and must
+match. The official Microsoft To Do component, production credential binding,
+and cleanup effects remain to be built on this kernel.
+
 ## Gate
 
 - replay works with every Pack removed and performs no provider IO;
