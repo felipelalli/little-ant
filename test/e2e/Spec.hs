@@ -13,11 +13,14 @@ tests :: TestTree
 tests =
   testGroup
     "end-to-end package boundary"
-    [ testCase "the package exposes only lant" $ do
+    [ testCase "the package exposes only lant and relocates its private runner" $ do
         root <- findProjectRoot
         cabalFile <- readFile (root </> "little-ant.cabal")
+        flakeFile <- readFile (root </> "flake.nix")
         assertBool "lant executable must exist" ("executable lant" `isInfixOf` cabalFile)
         assertBool "retired executable must not exist" (not ("executable la\n" `isInfixOf` cabalFile))
+        assertBool "the private runner component must exist" ("executable lant-pack-runner" `isInfixOf` cabalFile)
+        assertBool "the release package must relocate the runner out of bin" ("mv $out/bin/lant-pack-runner $out/libexec/little-ant/lant-pack-runner" `isInfixOf` flakeFile)
     , testCase "the CLI E2E script covers Feed and durable restart" $ do
         root <- findProjectRoot
         doesFileExist (root </> "test/e2e/s01-cli.sh") >>= assertBool "S01 CLI E2E script must exist"

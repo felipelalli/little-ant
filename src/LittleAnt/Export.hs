@@ -7,6 +7,7 @@ module LittleAnt.Export (
   ExportScope (..),
   buildStructuralProjection,
   emptyExportPort,
+  packRegistryExportPort,
   runExportHost,
 )
 where
@@ -15,9 +16,10 @@ import Control.Exception (IOException, bracketOnError, catch, try)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
-import Data.Char (isUpper, toLower)
+import Data.Char (isUpper, toLower, toUpper)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -25,6 +27,9 @@ import LittleAnt.Catalog (natureIdentifier)
 import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Model
+import LittleAnt.Pack.Format
+import LittleAnt.Pack.Registry
+import LittleAnt.Pack.Runner
 import LittleAnt.Store
 import System.Directory hiding (isSymbolicLink)
 import System.FilePath (isAbsolute, normalise, takeDirectory, takeFileName)
@@ -112,6 +117,57 @@ emptyExportPort =
         { appErrorSubject = Just (exportDescriptorId descriptor)
         , appErrorRecovery = [RecoveryAction "packs" "Inspect installed exporter components." (Just "lant packs list")]
         }
+
+packRegistryExportPort :: PackRunnerClient -> PackRegistry -> ExportPort
+packRegistryExportPort client registry = ExportPort descriptors invoke
+ where
+  descriptors = mapMaybeExporterDescriptor (componentsOfKind ReadOnlyExporterComponent registry)
+  invoke descriptor projection = case lookupPackComponent (exportDescriptorId descriptor) registry of
+    Left problem -> pure (Left problem)
+    Right registered ->
+      invokePackExporter client registered (toJSON projection) >>= \case
+        Left problem -> pure (Left problem)
+        Right artifact ->
+          pure . Right $
+            ExportArtifact
+              { exportArtifactBytes = runnerArtifactBytes artifact
+              , exportArtifactMediaType = runnerArtifactMediaType artifact
+              , exportArtifactSuggestedFilename = runnerArtifactSuggestedFilename artifact
+              , exportArtifactWarnings = runnerArtifactWarnings artifact
+              , exportArtifactMetadata = runnerArtifactMetadata artifact
+              }
+
+mapMaybeExporterDescriptor :: [RegisteredPackComponent] -> [ExportDescriptor]
+mapMaybeExporterDescriptor = mapMaybe exporterDescriptor
+
+exporterDescriptor :: RegisteredPackComponent -> Maybe ExportDescriptor
+exporterDescriptor registered = case registeredComponent registered of
+  ExecutableComponent common _ permissions
+    | componentKind common == ReadOnlyExporterComponent
+    , projections@(projection : rest) <- permissionProjections permissions ->
+        let selectedProjection =
+              if structuralProjectionSchema `elem` projections
+                then structuralProjectionSchema
+                else foldl min projection rest
+         in Just
+              ExportDescriptor
+                { exportDescriptorId = componentId common
+                , exportDescriptorDisplayName = humanizeComponentId (componentId common)
+                , exportDescriptorFormat = componentId common
+                , exportDescriptorProjection = selectedProjection
+                }
+  _ -> Nothing
+
+humanizeComponentId :: Text -> Text
+humanizeComponentId identifier =
+  Text.unwords (capitalize <$> Text.words (Text.map separator identifier))
+ where
+  separator character
+    | character `elem` ("._-" :: String) = ' '
+    | otherwise = character
+  capitalize value = case Text.uncons value of
+    Nothing -> value
+    Just (first, rest) -> Text.cons (toUpper first) rest
 
 runExportHost :: ExportPort -> Bool -> DatasetCursor -> State -> Text -> ExportScope -> Maybe FilePath -> IO (Either AppError ExportHostResult)
 runExportHost port dryRun cursor state requestedExporter scope outputPath =

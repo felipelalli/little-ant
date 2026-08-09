@@ -70,6 +70,7 @@ library
     LittleAnt.Pack.Catalog
     LittleAnt.Pack.Format
     LittleAnt.Pack.Registry
+    LittleAnt.Pack.Runner
     LittleAnt.Pack.Store
     LittleAnt.Pack.Trust
     LittleAnt.Profile
@@ -105,8 +106,10 @@ library
     , entropy             >=0.4   && <0.5
     , filelock            >=0.1   && <0.2
     , filepath            >=1.5   && <1.6
+    , hslua               >=2.3   && <2.4
     , memory              >=0.18  && <0.19
     , network             >=3.2   && <3.3
+    , process             >=1.6   && <1.7
     , scientific          >=0.3   && <0.4
     , text                >=2.1   && <2.2
     , time                >=1.12  && <1.13
@@ -140,6 +143,15 @@ executable lant
     , process               >=1.6  && <1.7
     , text                  >=2.1  && <2.2
     , unix                  >=2.8  && <2.9
+
+executable lant-pack-runner
+  import:         language, warnings
+  main-is:        PackRunnerMain.hs
+  hs-source-dirs: app
+  ghc-options:    -rtsopts
+  build-depends:
+    , base        >=4.20 && <5
+    , little-ant
 
 test-suite little-ant-unit-property-test
   import:         language, warnings
@@ -271,6 +283,26 @@ test-suite little-ant-s09-pack-format-test
     , text               >=2.1  && <2.2
     , time               >=1.12 && <1.13
     , unix               >=2.8  && <2.9
+
+test-suite little-ant-s09-pack-runner-test
+  import:             language, warnings
+  type:               exitcode-stdio-1.0
+  main-is:            Spec.hs
+  hs-source-dirs:     test/s09-pack-runner
+  build-tool-depends: little-ant:lant-pack-runner
+  build-depends:
+    , base               >=4.20 && <5
+    , base64-bytestring  >=1.2  && <1.3
+    , bytestring         >=0.12 && <0.13
+    , containers         >=0.7  && <0.8
+    , crypton            >=1.0  && <1.1
+    , directory          >=1.3  && <1.4
+    , little-ant
+    , memory             >=0.18 && <0.19
+    , tasty              >=1.5  && <1.6
+    , tasty-hunit        >=0.10 && <0.11
+    , text               >=2.1  && <2.2
+    , time               >=1.12 && <1.13
 
 test-suite little-ant-s04-flow-test
   import:         language, warnings

@@ -26,9 +26,15 @@
             runHook postInstall
           '';
         };
-        pkg = haskellPackages.callCabal2nix packageName self {
+        pkgBase = haskellPackages.callCabal2nix packageName self {
           lant_age_ffi = ageFfi;
         };
+        pkg = pkgBase.overrideAttrs (old: {
+          postInstall = (old.postInstall or "") + ''
+            mkdir -p $out/libexec/little-ant
+            mv $out/bin/lant-pack-runner $out/libexec/little-ant/lant-pack-runner
+          '';
+        });
       in {
         packages.${packageName} = pkg;
         packages.lant-age-ffi = ageFfi;
