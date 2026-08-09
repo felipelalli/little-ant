@@ -1,6 +1,7 @@
 module Main (main) where
 
 import Codec.Archive.Zip qualified as Zip
+import Control.Monad (forM_)
 import Data.Aeson (Value, eitherDecodeStrict', toJSON)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
@@ -41,11 +42,13 @@ main =
     testGroup
       "S09 offline standard Pack"
       [ testCase "the committed source tree reconstructs the exact signed archive" canonicalArchive
-      , testCase "the exact compiled identity grants six exporters and three SourceAdapters" builtInRegistry
+      , testCase "the exact compiled identity grants six exporters and five SourceAdapters" builtInRegistry
       , testCase "tree, Org, and self-contained HTML match reviewed fixtures" reviewedFixtures
       , testCase "aligned table and RFC 4180 CSV preserve structural data" structuredTextFormats
       , testCase "the core planning cut produces valid TaskJuggler syntax" taskJugglerPlanningCut
       , testCase "the plain-text SourceAdapter summarizes one whole file for Raw preservation" plainTextSourceAdapter
+      , testCase "the document SourceAdapter preserves Markdown, HTML, JSON, CSV, and Org without conversion" documentFileSourceAdapter
+      , testCase "the Evernote SourceAdapter preserves complete ENEX notes and embedded resources" evernoteEnexSourceAdapter
       , testCase "the Notesnook SourceAdapter preserves every supported ZIP note lazily" notesnookSourceAdapter
       , testCase "the TaskJuggler actuals SourceAdapter verifies manifest custody independently" taskJugglerActualsSourceAdapter
       ]
@@ -102,6 +105,66 @@ plainTextSourceAdapter = do
       sourceObjectShape sourceObject @?= SourceNoteShape
       sourceObjectMaterial sourceObject @?= summarizeSourceMaterial (SourceTextMaterial "First line\nSecond line\n")
     other -> assertFailure ("unexpected plain-text objects: " <> show other)
+
+documentFileSourceAdapter :: Assertion
+documentFileSourceAdapter = do
+  client <- fixtureClient
+  scope <- assertRight (mkProfileScope "default")
+  registry <- loadStandardPackRegistry fixtureTime scope >>= assertRight
+  registered <- assertRight (lookupPackComponent "document_file" registry)
+  forM_ fixtures $ \(filename, mediaType, label, shape, bytes) -> do
+    let input = SourceInput filename mediaType bytes
+    preflight <- invokePackSourcePreflight client registered SourceMigrate input >>= assertRight
+    let observation = sourcePreflightObservation preflight
+    observedSourceLabel observation @?= label
+    observedSupportedModes observation @?= [SourceSnapshot, SourceMigrate]
+    observedCleanupSupported observation @?= False
+    case observedObjects observation of
+      [sourceObject] -> do
+        sourceObjectTitle sourceObject @?= filename
+        sourceObjectShape sourceObject @?= shape
+        sourceObjectMaterial sourceObject @?= summarizeSourceMaterial (SourceTextMaterial (TextEncoding.decodeUtf8 bytes))
+      other -> assertFailure ("unexpected document objects: " <> show other)
+    (materializedPreflight, materialization) <- invokePackSourceMaterialize client registered SourceMigrate input >>= assertRight
+    materializedPreflight @?= preflight
+    materializedObjects materialization @?= Map.singleton (sha256Hex bytes) (SourceTextMaterial (TextEncoding.decodeUtf8 bytes))
+ where
+  fixtures =
+    [ ("note.md", "text/markdown; charset=utf-8", "Markdown file", SourceNoteShape, "# Exact Markdown\n")
+    , ("page.html", "text/html; charset=utf-8", "HTML file", SourceNoteShape, "<h1>Exact HTML</h1>\n")
+    , ("data.json", "application/json", "JSON file", SourceOtherShape, "{\"kept\":true}\n")
+    , ("rows.csv", "text/csv; charset=utf-8", "CSV file", SourceOtherShape, "name,value\r\nalpha,1\r\n")
+    , ("tasks.org", "text/org; charset=utf-8", "Org file", SourceNoteShape, "* Exact Org\n")
+    ]
+
+evernoteEnexSourceAdapter :: Assertion
+evernoteEnexSourceAdapter = do
+  client <- fixtureClient
+  scope <- assertRight (mkProfileScope "default")
+  registry <- loadStandardPackRegistry fixtureTime scope >>= assertRight
+  registered <- assertRight (lookupPackComponent "evernote_enex" registry)
+  let first = "<note><title>First &amp; exact</title><guid>note-1</guid><content><![CDATA[<en-note>" <> ByteString.replicate 220 97 <> "::PRIVATE_FIRST::</en-note>]]></content><resource><data encoding=\"base64\">AQI=</data></resource></note>"
+      second = "<note><title>Second</title><content><![CDATA[<en-note>" <> ByteString.replicate 220 98 <> "::PRIVATE_SECOND::</en-note>]]></content></note>"
+      bytes = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><en-export>" <> first <> second <> "</en-export>"
+      input = SourceInput "notebook.enex" "application/vnd.evernote.enex+xml" bytes
+  preflight <- invokePackSourcePreflight client registered SourceMigrate input >>= assertRight
+  let observation = sourcePreflightObservation preflight
+      objects = observedObjects observation
+  observedSourceLabel observation @?= "Evernote ENEX export"
+  observedIdentity observation @?= Map.fromList [("archive_sha256", sha256Hex bytes), ("note_count", "2")]
+  observedCleanupSupported observation @?= False
+  fmap sourceObjectExternalId objects @?= ["guid:note-1", "sha256:" <> sha256Hex second]
+  fmap sourceObjectTitle objects @?= ["First & exact", "Second"]
+  fmap sourceObjectAttachmentCount objects @?= [1, 0]
+  encoded <- assertRight (canonicalJsonBytes (toJSON preflight))
+  assertBool "ENEX preflight leaked complete note material" (not ("::PRIVATE_FIRST::" `ByteString.isInfixOf` encoded || "::PRIVATE_SECOND::" `ByteString.isInfixOf` encoded))
+  (acceptedPreflight, materialization) <- invokePackSourceMaterialize client registered SourceMigrate input >>= assertRight
+  acceptedPreflight @?= preflight
+  materializedObjects materialization
+    @?= Map.fromList
+      [ ("guid:note-1", SourceTextMaterial (TextEncoding.decodeUtf8 first))
+      , ("sha256:" <> sha256Hex second, SourceTextMaterial (TextEncoding.decodeUtf8 second))
+      ]
 
 notesnookSourceAdapter :: Assertion
 notesnookSourceAdapter = do

@@ -27,7 +27,7 @@ import LittleAnt.Pack.Runner
 import LittleAnt.Pack.Trust (PackArtifactIdentity (..))
 import LittleAnt.Source
 import LittleAnt.TaskJugglerActuals
-import System.FilePath (normalise, takeExtension, takeFileName)
+import System.FilePath (normalise, takeFileName)
 import System.IO (hClose)
 import System.Posix.Files (fileSize, getFdStatus, getSymbolicLinkStatus, isRegularFile, isSymbolicLink)
 import System.Posix.IO (OpenMode (ReadOnly), cloexec, closeFd, defaultFileFlags, fdToHandle, nofollow, openFd)
@@ -251,8 +251,15 @@ packRegistryImportPortWithProviders runner registry providers =
                   Left problem -> pure (Left problem)
                   Right component -> continue descriptor component input
   fileDescriptorFor source =
-    let extension = Text.toLower (Text.pack (takeExtension (Text.unpack (Text.strip source))))
-        matches = filter (elem extension . importSourceExtensions) fileDescriptors
+    let normalized = Text.toLower (Text.strip source)
+        ranked =
+          [ (descriptor, maximum matchingLengths)
+          | descriptor <- fileDescriptors
+          , let matchingLengths = [Text.length suffix | suffix <- importSourceExtensions descriptor, suffix `Text.isSuffixOf` normalized]
+          , not (null matchingLengths)
+          ]
+        bestLength = maximum (0 : fmap snd ranked)
+        matches = [descriptor | (descriptor, length_) <- ranked, length_ == bestLength]
      in case matches of
           [descriptor] -> Right descriptor
           _ ->
@@ -293,6 +300,8 @@ packRegistryImportPortWithProviders runner registry providers =
     ]
   fileDescriptors =
     [ ImportSourceDescriptor "plain_text" "Plain text file" [".txt", ".text"] [SourceSnapshot, SourceMigrate]
+    , ImportSourceDescriptor "document_file" "Markdown, HTML, JSON, CSV, or Org file" [".markdown", ".html", ".json", ".csv", ".org", ".md", ".htm"] [SourceSnapshot, SourceMigrate]
+    , ImportSourceDescriptor "evernote_enex" "Evernote ENEX export" [".enex"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "notesnook_export" "Notesnook export" [".zip"] [SourceSnapshot, SourceMigrate]
     , ImportSourceDescriptor "taskjuggler_actuals" "TaskJuggler actuals" [".tjp"] [SourceSnapshot]
     ]
@@ -363,7 +372,7 @@ ambiguousProviderReference source =
 readFileInput :: ImportSourceDescriptor -> Text -> IO (Either AppError SourceInput)
 readFileInput descriptor source
   | Text.null stripped = pure . Left $ sourceProblem InvalidInput "A file import needs a nonempty source path."
-  | extension `notElem` importSourceExtensions descriptor = pure . Left $ sourceProblem Unsupported "The selected SourceAdapter does not accept this file extension."
+  | not (any (`Text.isSuffixOf` Text.toLower stripped) (importSourceExtensions descriptor)) = pure . Left $ sourceProblem Unsupported "The selected SourceAdapter does not accept this file suffix."
   | otherwise = do
       inspected <- try (getSymbolicLinkStatus path)
       case inspected of
@@ -378,17 +387,26 @@ readFileInput descriptor source
                   }
           | otherwise -> do
               loaded <- readOpenedRegularFile source path
-              pure $ SourceInput (Text.pack (takeFileName path)) (mediaTypeFor descriptor) <$> loaded
+              pure $ SourceInput (Text.pack (takeFileName path)) (mediaTypeFor descriptor stripped) <$> loaded
  where
   stripped = Text.strip source
   path = Text.unpack stripped
-  extension = Text.toLower (Text.pack (takeExtension path))
 
-mediaTypeFor :: ImportSourceDescriptor -> Text
-mediaTypeFor descriptor = case importSourceId descriptor of
+mediaTypeFor :: ImportSourceDescriptor -> Text -> Text
+mediaTypeFor descriptor source = case importSourceId descriptor of
   "taskjuggler_actuals" -> "text/x-taskjuggler; charset=utf-8"
   "notesnook_export" -> "application/zip"
+  "evernote_enex" -> "application/vnd.evernote.enex+xml"
+  "document_file"
+    | ".markdown" `Text.isSuffixOf` lower || ".md" `Text.isSuffixOf` lower -> "text/markdown; charset=utf-8"
+    | ".html" `Text.isSuffixOf` lower || ".htm" `Text.isSuffixOf` lower -> "text/html; charset=utf-8"
+    | ".json" `Text.isSuffixOf` lower -> "application/json"
+    | ".csv" `Text.isSuffixOf` lower -> "text/csv; charset=utf-8"
+    | ".org" `Text.isSuffixOf` lower -> "text/org; charset=utf-8"
+    | otherwise -> "application/octet-stream"
   _ -> "text/plain; charset=utf-8"
+ where
+  lower = Text.toLower source
 
 verifyCoreCustody :: ImportSourceDescriptor -> SourceInput -> SourcePreflight -> Either AppError ()
 verifyCoreCustody descriptor input preflight

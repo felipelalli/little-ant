@@ -546,15 +546,21 @@ isContainerDelete request =
     && brokerHttpUrl request == "https://graph.microsoft.com/v1.0/me/todo/lists/list-1"
 
 nextAfterRawTriage :: AppEnv -> IO InteractionEnvelope
-nextAfterRawTriage environment = seek (16 :: Int)
+nextAfterRawTriage environment = do
+  dataset <- loadDataset (appStore environment) silentProgress >>= assertRight
+  seek (Map.size (stateRaws (loadedState dataset)) + 1)
  where
   seek remaining
-    | remaining <= 0 = assertFailure "source cleanup recovery did not surface after bounded Raw triage deferrals" >> fail "unreachable"
+    | remaining <= 0 = assertFailure "source cleanup recovery did not surface after every Raw triage was settled" >> fail "unreachable"
     | otherwise = do
         next <- runAppCommand environment False silentProgress NextCommand >>= assertRight >>= interactionOf
         case envelopeOpportunity next of
           RawTriageOpportunity{} -> do
-            _ <- runAppCommand environment False silentProgress (RespondCommand (response next "raw.defer-triage")) >>= assertRight
+            destination <- runAppCommand environment False silentProgress (RespondCommand (response next "raw.choose-destination")) >>= assertRight >>= interactionOf
+            case envelopeOpportunity destination of
+              RawDestinationOpportunity{} -> pure ()
+              other -> assertFailure ("unexpected Raw destination screen: " <> show other)
+            _ <- runAppCommand environment False silentProgress (RespondCommand (response destination "raw.keep-standalone")) >>= assertRight
             seek (remaining - 1)
           _ -> pure next
 

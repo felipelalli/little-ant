@@ -66,7 +66,10 @@ scope, immutable ImportInvocation custody, SourceBinding identity, dry-run,
 and unsupported cleanup failure. The bundled offline Notesnook ZIP adapter
 imports Markdown, HTML, and plain-text notes through a deterministic bounded
 archive helper while retaining relative-path identities, source-container
-suggestions, and unsupported-entry diagnostics. TaskJuggler actuals have
+suggestions, and unsupported-entry diagnostics. The same signed Pack now
+preserves individual Markdown, HTML, JSON, CSV, and Org files without
+conversion and imports complete Evernote ENEX note elements with stable GUID or
+digest identity and embedded-resource custody. TaskJuggler actuals have
 independent core/Lua manifest verification, explicit observation time, partial
 actual semantics, real `tj3` coverage, a public snapshot preview, atomic
 immutable evidence acceptance, monotonic observation custody, and conservative

@@ -51,7 +51,7 @@ pack=value["packs"][0]
 assert pack["name"] == "org.littleant.standard"
 assert pack["trust"] == "built in"
 assert pack["status"] == "enabled"
-assert len(pack["components"]) == 9
+assert len(pack["components"]) == 11
 ' <<<"$packs_json"
 
 pack_show_json="$(lant_at "$profile_root" --json packs show org.littleant.standard)"
@@ -134,6 +134,37 @@ assert len(observation["objects"]) == 2
 assert len(observation["containers"]) == 2
 assert observation["unsupported_fields"] == ["1 non-note archive entries"]
 ' <<<"$notesnook_json"
+test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
+
+markdown_source="$test_root/document.md"
+printf '%s\n' '# Imported Markdown' 'Exact source text.' >"$markdown_source"
+markdown_json="$(lant_at "$import_root" --json import "$markdown_source" --migrate)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+preflight=value["interaction"]["opportunity"]["preflight"]
+observation=preflight["observation"]
+assert preflight["adapter_id"] == "document_file"
+assert preflight["input_media_type"] == "text/markdown; charset=utf-8"
+assert observation["source_label"] == "Markdown file"
+assert len(observation["objects"]) == 1
+assert observation["objects"][0]["shape"] == "note"
+' <<<"$markdown_json"
+
+enex_source="$test_root/evernote.enex"
+printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<en-export><note><title>First</title><guid>first</guid><content><![CDATA[<en-note>One</en-note>]]></content></note><note><title>Second</title><content><![CDATA[<en-note>Two</en-note>]]></content></note></en-export>' >"$enex_source"
+enex_json="$(lant_at "$import_root" --json import "$enex_source" --migrate)"
+python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+preflight=value["interaction"]["opportunity"]["preflight"]
+observation=preflight["observation"]
+assert preflight["adapter_id"] == "evernote_enex"
+assert preflight["input_media_type"] == "application/vnd.evernote.enex+xml"
+assert observation["source_label"] == "Evernote ENEX export"
+assert len(observation["objects"]) == 2
+assert [item["title"] for item in observation["objects"]] == ["First", "Second"]
+' <<<"$enex_json"
 test -z "$(find "$import_root/state/lant/profiles/default/dataset/events" -name '*.jsonl' -type f -print 2>/dev/null)"
 
 actuals_source="$test_root/actuals.tjp"

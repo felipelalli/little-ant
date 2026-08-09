@@ -5,12 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Current implementation baseline: **d7cef5d**
-(`feat(import): verify empty source containers`). Source-item cleanup is
-resumable and reconciles unknown outcomes before retry. Source-container
-cleanup now has its own eligibility check, fresh complete inspection, exact
-approval, pre-delete recheck, durable dispatch, and read-only unknown-outcome
-recovery. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **c6ab3ad**
+(`docs(import): record container cleanup boundary`). The current milestone adds
+the missing single-document and Evernote ENEX offline import paths to the
+signed standard Pack without adding format-specific domain semantics to core.
+This file stays editable between milestone commits.
 
 ## Implementation now available
 
@@ -111,11 +110,12 @@ recovery. This file stays editable between milestone commits.
 - the signed, reproducible `org.littleant.standard` archive is verified against
   its compiled exact identity at startup and grants built-in execution
   authority only to the `tree`, `table`, `csv`, `org`, `html`, and
-  `taskjuggler` exporters plus the `plain_text` SourceAdapter. The structural
-  exporters' reviewed
-  fixtures cover hierarchy, quoting, UTF-8 alignment, RFC 4180 framing, and a
-  script-free/offline HTML document. The CLI production environment uses this
-  registry, so `lant export csv` works without installing a provider Pack.
+  `taskjuggler` exporters plus the `document_file`, `evernote_enex`,
+  `notesnook_export`, `plain_text`, and `taskjuggler_actuals` SourceAdapters.
+  The structural exporters' reviewed fixtures cover hierarchy, quoting, UTF-8
+  alignment, RFC 4180 framing, and a script-free/offline HTML document. The CLI
+  production environment uses this registry, so `lant export csv` works
+  without installing a provider Pack.
 - `little-ant/taskjuggler@1` is built by the core from the explicit scope,
   current human-reviewed effort claims, dependencies, and temporal facts. Its
   deterministic cut never overlaps an effort-bearing ancestor and descendant,
@@ -155,6 +155,13 @@ recovery. This file stays editable between milestone commits.
   no synchronization or cleanup. Both
   the generic runner fixture and the exact bundled component execute through
   the real private process.
+- the standard Pack now also authorizes `document_file` for Markdown, HTML,
+  JSON, CSV, and Org. One signed component preserves each complete UTF-8 file
+  as one Raw without conversion, while the host chooses media type through a
+  longest-specific-suffix rule. `evernote_enex` preserves every complete note
+  element independently, retains embedded resources in the Raw XML, counts
+  attachments, and uses GUID or element-digest identity. Both support only
+  snapshot/migrate and declare no cleanup or live-presence inference.
 - `lant import <source> (--snapshot|--synchronize|--migrate)` now has a
   persisted read-only preflight with no default consent. Acceptance reacquires
   the file through `O_NOFOLLOW`, reruns the signed adapter, refreshes stale
@@ -402,7 +409,7 @@ The isolated-runner suite now has 11 process-boundary cases, including closed
 host-custodied source preflight, consent-gated materialization,
 unsupported-mode rejection, adaptive fake-provider paging, route denial before
 broker invocation, and repeated-request cycle prevention. The standard-Pack
-suite now has 8 archive/authority/golden-format/TaskJuggler/source cases, the pure
+suite now has 10 archive/authority/golden-format/TaskJuggler/source cases, the pure
 planning suite has 4 cut/custody/profile/remaining-evidence cases, and the dedicated actuals suite
 has 7 strict custody/acceptance/replay cases. The CLI test exercises
 CSV, TaskJuggler export, and TaskJuggler actuals preflight through the
@@ -420,7 +427,9 @@ file snapshots, stable-identity conflict, stale-preview regeneration,
 unsupported authority, dry-run, atomic multiobject preservation, and
 materialization drift before mutation. The CLI E2E also rejects omitted modes
 and the removed `--mode` form while proving explicit snapshot previews record
-no events, including for a compressed Notesnook-shaped ZIP.
+no events, including for a compressed Notesnook-shaped ZIP. It also selects
+Markdown and Evernote ENEX by file suffix, exposes the exact media type, and
+keeps both preflights read-only.
 The dedicated official-connectors suite has 5 cases covering exact archive
 reconstruction and official trust, least-authority manifest permissions,
 adaptive Microsoft Graph list/task pagination, canonical provider identity and
@@ -486,6 +495,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, complete the remaining standard importers. Explicit Pack
-update/remove/GC, Google Calendar, and the local web UIAdapter also remain. The
-complete S09 gate still precedes `verified`.
+Next, complete the Apple Reminders offline export kit and importer, then the
+remaining official connector adapters. Explicit Pack update/remove/GC, Google
+Calendar write-back, and the local web UIAdapter also remain. The complete S09
+gate still precedes `verified`.
