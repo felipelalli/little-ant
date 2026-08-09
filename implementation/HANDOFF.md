@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **f62326d**
-(`feat(repl): guide Raw-first imports`). The current milestone closes the
-missing canonical-acceptance path for signed provider material and normalizes
-durable provider custody to an exact account reference before source cleanup
-is introduced. This file stays editable between milestone commits.
+Baseline at the start of the current milestone: **df25bec**
+(`feat(import): accept verified provider material`). The current milestone
+generalizes the external-effect protocol and makes finite-set approval durable
+before source cleanup is introduced. This file stays editable between
+milestone commits.
 
 ## Implementation now available
 
@@ -29,8 +29,9 @@ is introduced. This file stays editable between milestone commits.
   scheduled commitments, operational-day boundaries, and truthful standing
   outcomes;
 - ExternalEntity and ContactPoint state, Wait gates/reviews, Nature-aware
-  Delegation coverage, immutable external effects, profiles/configuration,
-  age-v1 encrypted vaults, and a profile-scoped AF_UNIX vault agent;
+  Delegation coverage, typed immutable external-effect requests, exact finite
+  approval grants, profiles/configuration, age-v1 encrypted vaults, and a
+  profile-scoped AF_UNIX vault agent;
 - dumb mini-simulations for external-condition Wait activation and manual
   Delegation from skip diagnosis through observed handoff;
 - effect edit, defer, reject, approval, durable dispatch intent, and receipt
@@ -421,6 +422,10 @@ that multiple configured accounts remain separate, human-labeled catalog rows
 with exact source references. Its full application path accepts one verified
 Microsoft To Do task as structured Raw truth and proves an exact retry is
 event-free.
+The S08 responsibility suite now also proves that payload revision and record
+version are distinct, one approval grant covers only its exact finite effect
+set, dispatch requires that durable grant, and provider receipts cannot appear
+before durable dispatch intent.
 The dedicated Pack-administration suite has 17 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,

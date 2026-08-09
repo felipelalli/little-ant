@@ -73,10 +73,11 @@ module LittleAnt.Decision (
   decideReviewDelegation,
   decideReviewDelegationWithFollowUp,
   decideAllowDelegationFollowUp,
-  decideProposeExternalEffect,
+  decideProposeDelegationDelivery,
   decideReviseExternalEffect,
-  decideApproveExternalEffect,
+  decideApproveExternalEffects,
   decideRejectExternalEffect,
+  decideWithdrawExternalEffect,
   decideRetryExternalEffect,
   decideDeferExternalEffect,
   decideStartExternalEffectDispatch,
@@ -306,6 +307,7 @@ statePreconditionHash state =
     , "wait-observations:" <> Text.pack (show (Map.toAscList (stateWaitObservations state)))
     , "delegations:" <> Text.pack (show (Map.toAscList (stateDelegations state)))
     , "external-effects:" <> Text.pack (show (Map.toAscList (stateExternalEffects state)))
+    , "external-effect-approval-grants:" <> Text.pack (show (Map.toAscList (stateExternalEffectApprovalGrants state)))
     , "external-effect-receipts:" <> Text.pack (show (Map.toAscList (stateExternalEffectReceipts state)))
     , "raw-content-revisions:" <> Text.pack (show (Map.toAscList (stateRawContentRevisions state)))
     , "english-normalizations:" <> Text.pack (show (Map.toAscList (stateEnglishNormalizations state)))
@@ -1315,15 +1317,34 @@ decideSetOperationalDayConfig state actor config facts = do
 decideRejectExternalEffect :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
 decideRejectExternalEffect state actor identity facts = do
   effect <- requireExternalEffect state identity
-  unless (externalEffectStatus effect `elem` [EffectPendingApproval, EffectApproved, EffectFailed, EffectOutcomeUnknown]) $
-    Left (appError PreconditionFailed "Only an undispatched or terminally unresolved external effect can be stopped.")
+  unless (externalEffectStatus effect `elem` [EffectProposed, EffectApproved]) $
+    Left (appError PreconditionFailed "Only a proposed or approved external effect can be rejected.")
   allocated <- requireUUIDs 2 facts
   (commandId, eventId) <- exactlyTwo allocated
   let changed =
         effect
-          { externalEffectRevision = externalEffectRevision effect + 1
+          { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
           , externalEffectStatus = EffectRejected
           , externalEffectReviewNotBefore = Nothing
+          , externalEffectApprovalGrant = Nothing
+          , externalEffectApprovedDigest = Nothing
+          }
+      event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
+  pure (MutationDecision commandId Nothing Nothing [event])
+
+decideWithdrawExternalEffect :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
+decideWithdrawExternalEffect state actor identity facts = do
+  effect <- requireExternalEffect state identity
+  unless (externalEffectStatus effect `elem` [EffectProposed, EffectApproved, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $
+    Left (appError PreconditionFailed "Only an effect that has not succeeded or begun a new dispatch can be withdrawn.")
+  allocated <- requireUUIDs 2 facts
+  (commandId, eventId) <- exactlyTwo allocated
+  let changed =
+        effect
+          { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
+          , externalEffectStatus = EffectWithdrawn
+          , externalEffectReviewNotBefore = Nothing
+          , externalEffectApprovalGrant = Nothing
           , externalEffectApprovedDigest = Nothing
           }
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
@@ -1332,20 +1353,27 @@ decideRejectExternalEffect state actor identity facts = do
 decideRetryExternalEffect :: State -> Actor -> UUIDv7 -> Bool -> RuntimeFacts -> Either AppError MutationDecision
 decideRetryExternalEffect state actor identity duplicateRiskAccepted facts = do
   effect <- requireExternalEffect state identity
-  case externalEffectStatus effect of
-    EffectFailed -> pure ()
+  target <- case externalEffectStatus effect of
+    EffectFailedRetryable
+      | isJust (externalEffectIdempotencyKey effect) -> Right EffectApproved
+      | otherwise -> Right EffectProposed
     EffectOutcomeUnknown
-      | duplicateRiskAccepted -> pure ()
+      | duplicateRiskAccepted -> Right EffectProposed
       | otherwise -> Left (appError PreconditionFailed "Retrying an unknown provider outcome requires explicit duplicate-risk consent.")
-    _ -> Left (appError PreconditionFailed "Only a failed or unknown-outcome external effect can enter retry approval.")
+    _ -> Left (appError PreconditionFailed "Only a retryable failure or unknown outcome can be retried.")
   allocated <- requireUUIDs 2 facts
   (commandId, eventId) <- exactlyTwo allocated
-  let changed =
+  let corrected = target == EffectProposed
+      changed =
         effect
-          { externalEffectRevision = externalEffectRevision effect + 1
-          , externalEffectStatus = EffectPendingApproval
+          { externalEffectRevision = externalEffectRevision effect + if corrected then 1 else 0
+          , externalEffectRecordVersion = externalEffectRecordVersion effect + 1
+          , externalEffectOriginatingCommand = if corrected then commandId else externalEffectOriginatingCommand effect
+          , externalEffectOriginatingCursor = if corrected then runtimeCursor facts else externalEffectOriginatingCursor effect
+          , externalEffectStatus = target
           , externalEffectReviewNotBefore = Nothing
-          , externalEffectApprovedDigest = Nothing
+          , externalEffectApprovalGrant = if corrected then Nothing else externalEffectApprovalGrant effect
+          , externalEffectApprovedDigest = if corrected then Nothing else externalEffectApprovedDigest effect
           }
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
   pure (MutationDecision commandId Nothing Nothing [event])
@@ -1353,15 +1381,15 @@ decideRetryExternalEffect state actor identity duplicateRiskAccepted facts = do
 decideDeferExternalEffect :: State -> Actor -> UUIDv7 -> ZonedInstant -> RuntimeFacts -> Either AppError MutationDecision
 decideDeferExternalEffect state actor identity reviewAt facts = do
   effect <- requireExternalEffect state identity
-  unless (externalEffectStatus effect == EffectPendingApproval) $
-    Left (appError PreconditionFailed "Only a pending external effect can be deferred.")
+  unless (externalEffectStatus effect == EffectProposed) $
+    Left (appError PreconditionFailed "Only a proposed external effect can be deferred.")
   unless (zonedInstantUtc reviewAt > runtimeNow facts) $
     Left (appError InvalidInput "An external-effect review must be deferred into the future.")
   allocated <- requireUUIDs 2 facts
   (commandId, eventId) <- exactlyTwo allocated
   let changed =
         effect
-          { externalEffectRevision = externalEffectRevision effect + 1
+          { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
           , externalEffectReviewNotBefore = Just reviewAt
           }
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
@@ -2319,7 +2347,8 @@ decideReviewDelegationWithFollowUp state actor identity suppliedMessage facts = 
           , delegationLastObservedAt = Just (runtimeNow facts)
           , delegationRevision = delegationRevision delegation + 1
           }
-      effect = ExternalEffect effectId identity DelegationFollowUpEffect 1 (delegationTarget delegation) Nothing Nothing message EffectPendingApproval Nothing Nothing
+      request = DelegationDeliveryRequest identity FollowUpDelegationDelivery (delegationTarget delegation) Nothing Nothing message
+      effect = makeProposedExternalEffect effectId commandId facts request message Nothing
       events =
         [ makeDraft facts actor state allocated delegationEventId commandId (DelegationChangedV1 (DelegationChanged changed))
         , makeDraft facts actor state allocated effectEventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged effect))
@@ -2356,18 +2385,28 @@ decideObserveDelegationHandoff state actor identity reviewAt facts = do
 decideReviseExternalEffect :: State -> Actor -> UUIDv7 -> Text -> RuntimeFacts -> Either AppError MutationDecision
 decideReviseExternalEffect state actor identity suppliedMessage facts = do
   effect <- requireExternalEffect state identity
-  unless (externalEffectStatus effect == EffectPendingApproval) $
-    Left (appError PreconditionFailed "Only a pending external effect can be edited.")
+  unless (externalEffectStatus effect == EffectProposed) $
+    Left (appError PreconditionFailed "Only a proposed external effect can be edited.")
   let message = Text.strip suppliedMessage
   unless (not (Text.null message)) $
     Left (appError InvalidInput "An external-effect message cannot be empty.")
+  request <- case externalEffectRequest effect of
+    DelegationDeliveryRequest delegationId reason targetId contactId adapter _ -> Right (DelegationDeliveryRequest delegationId reason targetId contactId adapter message)
+    DelegationTakeBackNoticeRequest delegationId targetId contactId adapter _ -> Right (DelegationTakeBackNoticeRequest delegationId targetId contactId adapter message)
+    _ -> Left (appError Unsupported "This typed external effect has no free-form message to edit.")
   allocated <- requireUUIDs 2 facts
   (commandId, eventId) <- exactlyTwo allocated
   let changed =
         effect
-          { externalEffectRevision = externalEffectRevision effect + 1
-          , externalEffectMessage = message
+          { externalEffectRequest = request
+          , externalEffectRevision = externalEffectRevision effect + 1
+          , externalEffectRecordVersion = externalEffectRecordVersion effect + 1
+          , externalEffectRedactedPreview = message
+          , externalEffectPayloadDigest = externalEffectRequestDigest request
+          , externalEffectOriginatingCommand = commandId
+          , externalEffectOriginatingCursor = runtimeCursor facts
           , externalEffectReviewNotBefore = Nothing
+          , externalEffectApprovalGrant = Nothing
           , externalEffectApprovedDigest = Nothing
           }
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
@@ -2402,27 +2441,36 @@ decideReviewDelegation state actor identity targetStatus reviewAt observation fo
       event = makeDraft facts actor state allocated eventId commandId (DelegationChangedV1 (DelegationChanged changed))
   pure (MutationDecision commandId (Map.lookup (delegationBrick delegation) (stateBricks state)) Nothing [event])
 
-decideProposeExternalEffect :: State -> Actor -> UUIDv7 -> ExternalEffectPurpose -> Maybe UUIDv7 -> Maybe Text -> Text -> RuntimeFacts -> Either AppError MutationDecision
-decideProposeExternalEffect state actor delegationId purpose contactId adapter suppliedMessage facts = do
+decideProposeDelegationDelivery :: State -> Actor -> UUIDv7 -> DelegationDeliveryReason -> Maybe UUIDv7 -> Maybe Text -> Text -> RuntimeFacts -> Either AppError MutationDecision
+decideProposeDelegationDelivery state actor delegationId reason contactId adapter suppliedMessage facts = do
   delegation <- requireDelegation state delegationId
   unless (delegationStatus delegation `elem` [DelegationProposed, DelegationActive]) $ Left (appError PreconditionFailed "This Delegation cannot propose an external effect.")
+  case reason of
+    InitialDelegationDelivery -> unless (delegationStatus delegation == DelegationProposed) $ Left (appError PreconditionFailed "Initial delivery requires a proposed Delegation.")
+    FollowUpDelegationDelivery -> unless (delegationStatus delegation == DelegationActive) $ Left (appError PreconditionFailed "Follow-up delivery requires an active Delegation.")
   let message = Text.strip suppliedMessage
   unless (not (Text.null message)) $ Left (appError InvalidInput "An external-effect message cannot be empty.")
   traverse_ (validateContact state (delegationTarget delegation)) contactId
   allocated <- requireUUIDs 3 facts
   (commandId, effectId, eventId) <- exactlyThree allocated
-  let effect = ExternalEffect effectId delegationId purpose 1 (delegationTarget delegation) contactId adapter message EffectPendingApproval Nothing Nothing
+  let request = DelegationDeliveryRequest delegationId reason (delegationTarget delegation) contactId adapter message
+      effect = makeProposedExternalEffect effectId commandId facts request message Nothing
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged effect))
   pure (MutationDecision commandId (Map.lookup (delegationBrick delegation) (stateBricks state)) Nothing [event])
 
-decideApproveExternalEffect :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
-decideApproveExternalEffect state actor identity facts = do
-  effect <- requireExternalEffect state identity
-  unless (externalEffectStatus effect == EffectPendingApproval) $ Left (appError PreconditionFailed "Only the exact pending revision can be approved.")
-  allocated <- requireUUIDs 2 facts
-  (commandId, eventId) <- exactlyTwo allocated
-  let changed = effect{externalEffectRevision = externalEffectRevision effect + 1, externalEffectStatus = EffectApproved, externalEffectApprovedDigest = Just (externalEffectDigest effect)}
-      event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
+decideApproveExternalEffects :: State -> Actor -> [UUIDv7] -> RuntimeFacts -> Either AppError MutationDecision
+decideApproveExternalEffects state actor identities facts = do
+  let exactIds = sortOn id identities
+  unless (not (null exactIds) && Set.size (Set.fromList exactIds) == length exactIds) $
+    Left (appError InvalidInput "An external-effect approval needs one nonempty finite set without duplicates.")
+  effects <- traverse (requireExternalEffect state) exactIds
+  unless (all ((== EffectProposed) . externalEffectStatus) effects) $
+    Left (appError PreconditionFailed "Only exact proposed revisions can be approved together.")
+  allocated <- requireUUIDs 3 facts
+  (commandId, grantId, eventId) <- exactlyThree allocated
+  let items = [ExternalEffectApprovalItem (externalEffectId effect) (externalEffectRevision effect) (externalEffectDigest effect) | effect <- effects]
+      grant = ExternalEffectApprovalGrant grantId items (runtimeNow facts) commandId (runtimeCursor facts)
+      event = makeDraft facts actor state allocated eventId commandId (ExternalEffectApprovalGrantedV1 (ExternalEffectApprovalGranted grant))
   pure (MutationDecision commandId Nothing Nothing [event])
 
 decideStartExternalEffectDispatch :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
@@ -2432,7 +2480,7 @@ decideStartExternalEffectDispatch state actor identity facts = do
     Left (appError PreconditionFailed "Dispatch requires the exact durably approved effect revision.")
   allocated <- requireUUIDs 2 facts
   (commandId, eventId) <- exactlyTwo allocated
-  let changed = effect{externalEffectRevision = externalEffectRevision effect + 1, externalEffectStatus = EffectDispatching}
+  let changed = effect{externalEffectRecordVersion = externalEffectRecordVersion effect + 1, externalEffectStatus = EffectDispatching}
       event = makeDraft facts actor state allocated eventId commandId (ExternalEffectChangedV1 (ExternalEffectChanged changed))
   pure (MutationDecision commandId Nothing Nothing [event])
 
@@ -2440,9 +2488,9 @@ decideRecordExternalEffectReceipt :: State -> Actor -> UUIDv7 -> ExternalEffectS
 decideRecordExternalEffectReceipt state actor identity outcome providerReference redactedDetail facts = do
   effect <- requireExternalEffect state identity
   unless (externalEffectStatus effect == EffectDispatching) $ Left (appError PreconditionFailed "A receipt can follow only a durably dispatching effect.")
-  unless (outcome `elem` [EffectSucceeded, EffectFailed, EffectOutcomeUnknown]) $ Left (appError InvalidInput "Choose succeeded, failed, or outcome unknown.")
-  delegation <- requireDelegation state (externalEffectDelegation effect)
-  let reconciliation = successfulEffectReconciliation state facts effect delegation
+  unless (outcome `elem` [EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $ Left (appError InvalidInput "Choose succeeded, retryable failure, terminal failure, or outcome unknown.")
+  let maybeDelegation = externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state))
+      reconciliation = maybeDelegation >>= successfulEffectReconciliation state facts effect
   allocated <- requireUUIDs (externalEffectReceiptUUIDCount state identity outcome) facts
   (commandId, receiptId, receiptEventId, remaining) <- case allocated of
     commandIdentity : receiptIdentity : eventIdentity : rest -> Right (commandIdentity, receiptIdentity, eventIdentity, rest)
@@ -2454,11 +2502,11 @@ decideRecordExternalEffectReceipt state actor identity outcome providerReference
         _ -> []
   unless (length reconciliationEvents == length remaining) $
     Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
-  pure (MutationDecision commandId (Map.lookup (delegationBrick delegation) (stateBricks state)) Nothing (receiptEvent : reconciliationEvents))
+  pure (MutationDecision commandId (maybeDelegation >>= (\delegation -> Map.lookup (delegationBrick delegation) (stateBricks state))) Nothing (receiptEvent : reconciliationEvents))
 
 externalEffectReceiptUUIDCount :: State -> UUIDv7 -> ExternalEffectStatus -> Int
 externalEffectReceiptUUIDCount state identity outcome =
-  case Map.lookup identity (stateExternalEffects state) >>= \effect -> Map.lookup (externalEffectDelegation effect) (stateDelegations state) >>= successfulEffectReconciliationAt effect of
+  case Map.lookup identity (stateExternalEffects state) >>= \effect -> externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state)) >>= successfulEffectReconciliationAt effect of
     Just{} | outcome == EffectSucceeded -> 4
     _ -> 3
 
@@ -2469,8 +2517,8 @@ successfulEffectReconciliation state facts effect delegation = do
         ZonedInstant
           (addUTCTime (fromIntegral (delegationReviewDelaySeconds delegation)) (runtimeNow facts))
           (operationalZone (stateOperationalDayConfig state))
-  case externalEffectPurpose effect of
-    DelegationDeliveryEffect ->
+  case externalEffectRequest effect of
+    DelegationDeliveryRequest{effectRequestDeliveryReason = InitialDelegationDelivery} ->
       Just
         delegation
           { delegationStatus = DelegationActive
@@ -2478,7 +2526,7 @@ successfulEffectReconciliation state facts effect delegation = do
           , delegationReviewNotBefore = Just reviewAt
           , delegationRevision = delegationRevision delegation + 1
           }
-    DelegationFollowUpEffect ->
+    DelegationDeliveryRequest{effectRequestDeliveryReason = FollowUpDelegationDelivery} ->
       Just
         delegation
           { delegationFollowUpHandoffs = delegationFollowUpHandoffs delegation + 1
@@ -2487,25 +2535,40 @@ successfulEffectReconciliation state facts effect delegation = do
           , delegationLastObservedAt = Just (runtimeNow facts)
           , delegationRevision = delegationRevision delegation + 1
           }
-    DelegationTakeBackEffect -> Nothing
+    _ -> Nothing
 
 successfulEffectReconciliationAt :: ExternalEffect -> Delegation -> Maybe Delegation
-successfulEffectReconciliationAt effect delegation
-  | externalEffectPurpose effect == DelegationDeliveryEffect && delegationStatus delegation == DelegationProposed = Just delegation
-  | externalEffectPurpose effect == DelegationFollowUpEffect && delegationStatus delegation == DelegationActive = Just delegation
-  | otherwise = Nothing
+successfulEffectReconciliationAt effect delegation =
+  case externalEffectRequest effect of
+    DelegationDeliveryRequest{effectRequestDeliveryReason = InitialDelegationDelivery}
+      | delegationStatus delegation == DelegationProposed -> Just delegation
+    DelegationDeliveryRequest{effectRequestDeliveryReason = FollowUpDelegationDelivery}
+      | delegationStatus delegation == DelegationActive -> Just delegation
+    _ -> Nothing
 
 externalEffectDigest :: ExternalEffect -> Text
-externalEffectDigest effect =
-  sha256Hex . Text.encodeUtf8 . Text.intercalate "\n" $
-    [ renderUUIDv7 (externalEffectId effect)
-    , renderUUIDv7 (externalEffectDelegation effect)
-    , Text.pack (show (externalEffectPurpose effect))
-    , renderUUIDv7 (externalEffectTarget effect)
-    , maybe "" renderUUIDv7 (externalEffectContactPoint effect)
-    , fromMaybe "" (externalEffectAdapter effect)
-    , externalEffectMessage effect
-    ]
+externalEffectDigest = externalEffectConsentDigest
+
+makeProposedExternalEffect :: UUIDv7 -> UUIDv7 -> RuntimeFacts -> ExternalEffectRequest -> Text -> Maybe Text -> ExternalEffect
+makeProposedExternalEffect effectId commandId facts request preview idempotencyKey =
+  ExternalEffect
+    { externalEffectId = effectId
+    , externalEffectRequest = request
+    , externalEffectRevision = 1
+    , externalEffectRecordVersion = 1
+    , externalEffectRedactedPreview = Text.strip preview
+    , externalEffectPayloadDigest = externalEffectRequestDigest request
+    , externalEffectOriginatingCommand = commandId
+    , externalEffectOriginatingCursor = runtimeCursor facts
+    , externalEffectIdempotencyKey = idempotencyKey
+    , externalEffectStatus = EffectProposed
+    , externalEffectReviewNotBefore = Nothing
+    , externalEffectApprovalGrant = Nothing
+    , externalEffectApprovedDigest = Nothing
+    }
+
+runtimeCursor :: RuntimeFacts -> Text
+runtimeCursor facts = fromMaybe "genesis" (filesystemCursor (runtimeFilesystem facts))
 
 validateWaitKind :: State -> WaitKind -> Either AppError ()
 validateWaitKind state = \case

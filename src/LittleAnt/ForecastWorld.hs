@@ -513,14 +513,16 @@ brickOpportunities state now brick children allChildren =
   effectReviews =
     [ op kind 400_000 explanation
     | effect <- Map.elems (stateExternalEffects state)
-    , Just delegation <- [Map.lookup (externalEffectDelegation effect) (stateDelegations state)]
+    , Just delegationId <- [externalEffectDelegation effect]
+    , Just delegation <- [Map.lookup delegationId (stateDelegations state)]
     , delegationBrick delegation == brickId brick
     , (kind, explanation) <- case externalEffectStatus effect of
-        EffectPendingApproval
+        EffectProposed
           | maybe True ((<= now) . zonedInstantUtc) (externalEffectReviewNotBefore effect) ->
               [(ExternalEffectApprovalOpportunity, "External effect awaits exact approval")]
           | otherwise -> []
-        EffectFailed -> [(ExternalEffectRecoveryOpportunity, "External effect failed and needs recovery")]
+        EffectFailedRetryable -> [(ExternalEffectRecoveryOpportunity, "External effect failed and can be retried")]
+        EffectFailedTerminal -> [(ExternalEffectRecoveryOpportunity, "External effect failed terminally")]
         EffectOutcomeUnknown -> [(ExternalEffectRecoveryOpportunity, "External effect outcome is unknown")]
         _ -> []
     ]

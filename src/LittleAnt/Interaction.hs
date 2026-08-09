@@ -1776,11 +1776,7 @@ makeExternalEffectRecoveryEnvelope identity cursor precondition now state brick 
     ( EnvelopeContent
         heading
         (Just (brickCitation brick))
-        [ "To: " <> entityReference state (externalEffectTarget effect)
-        , "Message:"
-        , externalEffectMessage effect
-        , explanation
-        ]
+        (externalEffectHumanDetails state effect <> [explanation])
         (Just "What should happen?")
     )
     (actions <> [Action "effect.recovery.stop" "stop" "s" False "Keep the exact history and stop retrying this effect.", Action "effect.recovery.unknown" "I don't know" "?" False "Explain what is known without guessing provider truth.", moreAction])
@@ -1789,10 +1785,15 @@ makeExternalEffectRecoveryEnvelope identity cursor precondition now state brick 
     (brickFooter now state brick)
  where
   (heading, explanation, actions) = case externalEffectStatus effect of
-    EffectFailed ->
+    EffectFailedRetryable ->
       ( "External action failed"
-      , "The provider reported a failure. A retry creates a new revision and returns to exact approval."
-      , [Action "effect.recovery.retry" "retry" "r" False "Create a new pending revision; do not dispatch it yet."]
+      , "The provider reported a retryable failure. An unchanged idempotent request may reuse its exact approval."
+      , [Action "effect.recovery.retry" "retry" "r" False "Retry only under the recorded adapter idempotency contract."]
+      )
+    EffectFailedTerminal ->
+      ( "External action failed terminally"
+      , "The provider rejected this exact request. A corrected payload needs a new revision and approval."
+      , []
       )
     EffectOutcomeUnknown ->
       ( "External action outcome is unknown"
@@ -2955,7 +2956,7 @@ makeExternalEffectEditEnvelope previous now state brick effect draft =
       (envelopePreconditionHash previous)
       InputGrammar
       (ExternalEffectEditOpportunity (externalEffectId effect) draft)
-      (EnvelopeContent "Edit external message" (Just (brickCitation brick)) ["To: " <> entityReference state (externalEffectTarget effect), "", draft] (Just "Message"))
+      (EnvelopeContent "Edit external message" (Just (brickCitation brick)) (externalEffectRecipientLines state effect <> ["", draft]) (Just "Message"))
       [Action "effect.edit.submit" "review" "enter" False "Create a new immutable pending revision and return to approval."]
       [showBrickCommand brick, helpCommand, exitCommand]
       Nothing
@@ -3081,12 +3082,7 @@ makeExternalEffectApprovalEnvelope identity cursor precondition now state brick 
     ( EnvelopeContent
         "Approve this external action?"
         (Just (brickCitation brick))
-        [ "To: " <> entityReference state (externalEffectTarget effect)
-        , "Purpose: " <> Text.pack (show (externalEffectPurpose effect))
-        , "Message:"
-        , externalEffectMessage effect
-        , "Nothing has been sent yet."
-        ]
+        (externalEffectHumanDetails state effect <> ["Nothing has been sent yet."])
         Nothing
     )
     [ Action "effect.approve" "yes" "y" False "Approve this exact immutable effect revision."
@@ -3104,6 +3100,37 @@ makeExternalEffectApprovalEnvelope identity cursor precondition now state brick 
 makeExternalEffectResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ExternalEffect -> Text -> InteractionEnvelope
 makeExternalEffectResultEnvelope identity cursor precondition now state brick effect message =
   resultEnvelope identity cursor precondition now state (ExternalEffectResultOpportunity (externalEffectId effect) message) "External action updated:" [brickCitation brick, message]
+
+externalEffectHumanDetails :: State -> ExternalEffect -> [Text]
+externalEffectHumanDetails state effect =
+  externalEffectRecipientLines state effect
+    <> [ "Purpose: " <> externalEffectPurposeLabel (externalEffectPurpose effect)
+       , "Preview:"
+       , externalEffectRedactedPreview effect
+       ]
+
+externalEffectRecipientLines :: State -> ExternalEffect -> [Text]
+externalEffectRecipientLines state effect = case externalEffectRequest effect of
+  DelegationDeliveryRequest{effectRequestTarget} -> ["To: " <> entityReference state effectRequestTarget]
+  DelegationTakeBackNoticeRequest{effectRequestTarget} -> ["To: " <> entityReference state effectRequestTarget]
+  SourceCleanupItemRequest custody target ->
+    [ "Source: " <> effectAdapterProviderAccount custody
+    , "Object: " <> cleanupItemExternalIdentity target
+    ]
+  SourceCleanupContainerRequest custody target ->
+    [ "Source: " <> effectAdapterProviderAccount custody
+    , "Container: " <> cleanupContainerLabel target
+    ]
+
+externalEffectPurposeLabel :: ExternalEffectPurpose -> Text
+externalEffectPurposeLabel = \case
+  DelegationDeliveryEffect -> "Delegation delivery"
+  DelegationTakeBackNoticeEffect -> "Delegation take-back notice"
+  SourceCleanupItemEffect -> "Source item cleanup"
+  SourceCleanupContainerEffect -> "Source container cleanup"
+  CalendarCreateEffect -> "Calendar create"
+  CalendarUpdateEffect -> "Calendar update"
+  CalendarCancelEffect -> "Calendar cancel"
 
 scheduledOutcomeName :: StandingOutcomeKind -> Text
 scheduledOutcomeName = \case

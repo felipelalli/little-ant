@@ -96,10 +96,19 @@ module LittleAnt.Model (
   FollowUpPolicy (..),
   DelegationStatus (..),
   Delegation (..),
+  DelegationDeliveryReason (..),
+  EffectAdapterCustody (..),
+  SourceCleanupItemTarget (..),
+  SourceCleanupContainerTarget (..),
+  ExternalEffectRequest (..),
   ExternalEffectPurpose (..),
   ExternalEffectStatus (..),
   ExternalEffect (..),
+  ExternalEffectApprovalItem (..),
+  ExternalEffectApprovalGrant (..),
   ExternalEffectReceipt (..),
+  externalEffectPurpose,
+  externalEffectDelegation,
   WorkState (..),
   WorkDeferral (..),
   ActiveSprint (..),
@@ -416,31 +425,112 @@ data Delegation = Delegation
   }
   deriving stock (Eq, Show)
 
-data ExternalEffectPurpose = DelegationDeliveryEffect | DelegationFollowUpEffect | DelegationTakeBackEffect
+data DelegationDeliveryReason = InitialDelegationDelivery | FollowUpDelegationDelivery
+  deriving stock (Bounded, Enum, Eq, Ord, Show)
+
+data EffectAdapterCustody = EffectAdapterCustody
+  { effectAdapterComponentId :: Text
+  , effectAdapterContractMajor :: Int
+  , effectAdapterProviderAccount :: Text
+  , effectAdapterCredentialBinding :: Text
+  , effectAdapterPackPublisher :: Text
+  , effectAdapterPackName :: Text
+  , effectAdapterPackVersion :: Text
+  , effectAdapterPackManifestDigest :: Text
+  , effectAdapterPackArchiveDigest :: Text
+  , effectAdapterSignerFingerprint :: Text
+  }
+  deriving stock (Eq, Show)
+
+data SourceCleanupItemTarget = SourceCleanupItemTarget
+  { cleanupItemImportInvocation :: UUIDv7
+  , cleanupItemSourceBinding :: UUIDv7
+  , cleanupItemRaw :: UUIDv7
+  , cleanupItemExternalIdentity :: Text
+  , cleanupItemLocator :: Text
+  , cleanupItemContainerIdentity :: Maybe Text
+  }
+  deriving stock (Eq, Show)
+
+data SourceCleanupContainerTarget = SourceCleanupContainerTarget
+  { cleanupContainerImportProfile :: UUIDv7
+  , cleanupContainerExternalIdentity :: Text
+  , cleanupContainerLabel :: Text
+  }
+  deriving stock (Eq, Show)
+
+data ExternalEffectRequest
+  = DelegationDeliveryRequest
+      { effectRequestDelegation :: UUIDv7
+      , effectRequestDeliveryReason :: DelegationDeliveryReason
+      , effectRequestTarget :: UUIDv7
+      , effectRequestContactPoint :: Maybe UUIDv7
+      , effectRequestAdapter :: Maybe Text
+      , effectRequestMessage :: Text
+      }
+  | DelegationTakeBackNoticeRequest
+      { effectRequestDelegation :: UUIDv7
+      , effectRequestTarget :: UUIDv7
+      , effectRequestContactPoint :: Maybe UUIDv7
+      , effectRequestAdapter :: Maybe Text
+      , effectRequestMessage :: Text
+      }
+  | SourceCleanupItemRequest EffectAdapterCustody SourceCleanupItemTarget
+  | SourceCleanupContainerRequest EffectAdapterCustody SourceCleanupContainerTarget
+  deriving stock (Eq, Show)
+
+data ExternalEffectPurpose
+  = DelegationDeliveryEffect
+  | DelegationTakeBackNoticeEffect
+  | SourceCleanupItemEffect
+  | SourceCleanupContainerEffect
+  | CalendarCreateEffect
+  | CalendarUpdateEffect
+  | CalendarCancelEffect
   deriving stock (Bounded, Enum, Eq, Ord, Show)
 
 data ExternalEffectStatus
-  = EffectPendingApproval
+  = EffectProposed
   | EffectApproved
   | EffectDispatching
   | EffectSucceeded
-  | EffectFailed
+  | EffectFailedRetryable
+  | EffectFailedTerminal
   | EffectOutcomeUnknown
   | EffectRejected
+  | EffectWithdrawn
   deriving stock (Eq, Ord, Show)
 
 data ExternalEffect = ExternalEffect
   { externalEffectId :: UUIDv7
-  , externalEffectDelegation :: UUIDv7
-  , externalEffectPurpose :: ExternalEffectPurpose
+  , externalEffectRequest :: ExternalEffectRequest
   , externalEffectRevision :: Int
-  , externalEffectTarget :: UUIDv7
-  , externalEffectContactPoint :: Maybe UUIDv7
-  , externalEffectAdapter :: Maybe Text
-  , externalEffectMessage :: Text
+  , externalEffectRecordVersion :: Int
+  , externalEffectRedactedPreview :: Text
+  , externalEffectPayloadDigest :: Text
+  , externalEffectOriginatingCommand :: UUIDv7
+  , externalEffectOriginatingCursor :: Text
+  , externalEffectIdempotencyKey :: Maybe Text
   , externalEffectStatus :: ExternalEffectStatus
   , externalEffectReviewNotBefore :: Maybe ZonedInstant
+  , externalEffectApprovalGrant :: Maybe UUIDv7
   , externalEffectApprovedDigest :: Maybe Text
+  }
+  deriving stock (Eq, Show)
+
+data ExternalEffectApprovalItem = ExternalEffectApprovalItem
+  { approvedEffectId :: UUIDv7
+  , approvedEffectRevision :: Int
+  , approvedEffectDigest :: Text
+  }
+  deriving stock (Eq, Ord, Show)
+
+data ExternalEffectApprovalGrant = ExternalEffectApprovalGrant
+  { externalEffectApprovalGrantId :: UUIDv7
+  , externalEffectApprovalItems :: [ExternalEffectApprovalItem]
+  , externalEffectApprovalAt :: UTCTime
+  , externalEffectApprovalCommand :: UUIDv7
+  , externalEffectApprovalCursor :: Text
   }
   deriving stock (Eq, Show)
 
@@ -453,6 +543,20 @@ data ExternalEffectReceipt = ExternalEffectReceipt
   , externalEffectReceiptRedactedDetail :: Maybe Text
   }
   deriving stock (Eq, Show)
+
+externalEffectPurpose :: ExternalEffect -> ExternalEffectPurpose
+externalEffectPurpose effect = case externalEffectRequest effect of
+  DelegationDeliveryRequest{} -> DelegationDeliveryEffect
+  DelegationTakeBackNoticeRequest{} -> DelegationTakeBackNoticeEffect
+  SourceCleanupItemRequest{} -> SourceCleanupItemEffect
+  SourceCleanupContainerRequest{} -> SourceCleanupContainerEffect
+
+externalEffectDelegation :: ExternalEffect -> Maybe UUIDv7
+externalEffectDelegation effect = case externalEffectRequest effect of
+  DelegationDeliveryRequest{effectRequestDelegation} -> Just effectRequestDelegation
+  DelegationTakeBackNoticeRequest{effectRequestDelegation} -> Just effectRequestDelegation
+  SourceCleanupItemRequest{} -> Nothing
+  SourceCleanupContainerRequest{} -> Nothing
 
 data RecurrenceFamily = DailyRecurrence | WeeklyRecurrence | MonthlyRecurrence | YearlyRecurrence
   deriving stock (Bounded, Enum, Eq, Ord, Show)
@@ -1077,6 +1181,7 @@ data State = State
   , stateWaitObservations :: Map UUIDv7 WaitObservation
   , stateDelegations :: Map UUIDv7 Delegation
   , stateExternalEffects :: Map UUIDv7 ExternalEffect
+  , stateExternalEffectApprovalGrants :: Map UUIDv7 ExternalEffectApprovalGrant
   , stateExternalEffectReceipts :: Map UUIDv7 ExternalEffectReceipt
   , stateRawContentRevisions :: Map UUIDv7 RawContentRevision
   , stateCurrentRawRevisions :: Map UUIDv7 UUIDv7
@@ -1149,6 +1254,7 @@ emptyState =
     , stateWaitObservations = Map.empty
     , stateDelegations = Map.empty
     , stateExternalEffects = Map.empty
+    , stateExternalEffectApprovalGrants = Map.empty
     , stateExternalEffectReceipts = Map.empty
     , stateRawContentRevisions = Map.empty
     , stateCurrentRawRevisions = Map.empty

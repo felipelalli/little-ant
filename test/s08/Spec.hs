@@ -45,6 +45,7 @@ main =
       , testCase "follow-up none still produces internal Delegation review" explicitNoFollowUpStillReviews
       , testCase "Nature matrix rejects invalid Delegation scope" delegationNatureMatrix
       , testCase "external effect requires exact approval and durable dispatch before receipt" effectProtocol
+      , testCase "one approval grant covers only its exact finite effect set" effectBatchGrant
       , testCase "external effect edit, defer, and reject are durable distinct transitions" effectReviewTransitions
       , testCase "follow-up counts only after a successful provider receipt" followUpReceiptReconciliation
       , testCase "unknown provider outcome cannot retry without duplicate-risk consent" unknownOutcomeRecovery
@@ -259,29 +260,62 @@ effectProtocol :: Assertion
 effectProtocol = do
   state1 <- activeDelegationState
   let delegation = head (Map.elems (stateDelegations state1))
-  proposed <- assertRight (decideProposeExternalEffect state1 testActor (delegationId delegation) DelegationDeliveryEffect Nothing Nothing "Please handle this." (facts now 110 3))
+  proposed <- assertRight (decideProposeDelegationDelivery state1 testActor (delegationId delegation) FollowUpDelegationDelivery Nothing Nothing "Please handle this." (facts now 110 3))
   state2 <- applyMutation state1 proposed
   let effect = head (Map.elems (stateExternalEffects state2))
   assertLeft (decideStartExternalEffectDispatch state2 testActor (externalEffectId effect) (facts now 120 2))
-  approved <- assertRight (decideApproveExternalEffect state2 testActor (externalEffectId effect) (facts now 130 2))
+  approved <- assertRight (decideApproveExternalEffects state2 testActor [externalEffectId effect] (facts now 130 3))
   state3 <- applyMutation state2 approved
+  let approvedEffect = stateExternalEffects state3 Map.! externalEffectId effect
+  externalEffectRevision approvedEffect @?= 1
+  externalEffectRecordVersion approvedEffect @?= 2
+  externalEffectStatus approvedEffect @?= EffectApproved
+  Map.size (stateExternalEffectApprovalGrants state3) @?= 1
+  externalEffectApprovedDigest approvedEffect @?= Just (externalEffectDigest approvedEffect)
   dispatching <- assertRight (decideStartExternalEffectDispatch state3 testActor (externalEffectId effect) (facts now 140 2))
   state4 <- applyMutation state3 dispatching
-  receipt <- assertRight (decideRecordExternalEffectReceipt state4 testActor (externalEffectId effect) EffectSucceeded (Just "provider-42") Nothing (facts now 150 3))
+  receipt <-
+    assertRight
+      ( decideRecordExternalEffectReceipt
+          state4
+          testActor
+          (externalEffectId effect)
+          EffectSucceeded
+          (Just "provider-42")
+          Nothing
+          (facts now 150 (externalEffectReceiptUUIDCount state4 (externalEffectId effect) EffectSucceeded))
+      )
   state5 <- applyMutation state4 receipt
   externalEffectStatus (stateExternalEffects state5 Map.! externalEffectId effect) @?= EffectSucceeded
   Map.size (stateExternalEffectReceipts state5) @?= 1
+
+effectBatchGrant :: Assertion
+effectBatchGrant = do
+  state1 <- activeDelegationState
+  let delegation = head (Map.elems (stateDelegations state1))
+  first <- assertRight (decideProposeDelegationDelivery state1 testActor (delegationId delegation) FollowUpDelegationDelivery Nothing Nothing "First exact message" (facts now 400 3))
+  state2 <- applyMutation state1 first
+  second <- assertRight (decideProposeDelegationDelivery state2 testActor (delegationId delegation) FollowUpDelegationDelivery Nothing Nothing "Second exact message" (facts now 410 3))
+  state3 <- applyMutation state2 second
+  let effectIds = fmap externalEffectId (Map.elems (stateExternalEffects state3))
+  assertLeft (decideApproveExternalEffects state3 testActor (effectIds <> take 1 effectIds) (facts now 420 3))
+  approval <- assertRight (decideApproveExternalEffects state3 testActor (reverse effectIds) (facts now 430 3))
+  state4 <- applyMutation state3 approval
+  let [grant] = Map.elems (stateExternalEffectApprovalGrants state4)
+      grantedIds = fmap approvedEffectId (externalEffectApprovalItems grant)
+  grantedIds @?= Set.toAscList (Set.fromList effectIds)
+  fmap externalEffectStatus (Map.elems (stateExternalEffects state4)) @?= replicate 2 EffectApproved
 
 effectReviewTransitions :: Assertion
 effectReviewTransitions = do
   state1 <- activeDelegationState
   let delegation = head (Map.elems (stateDelegations state1))
-  proposed <- assertRight (decideProposeExternalEffect state1 testActor (delegationId delegation) DelegationFollowUpEffect Nothing Nothing "First draft" (facts now 190 3))
+  proposed <- assertRight (decideProposeDelegationDelivery state1 testActor (delegationId delegation) FollowUpDelegationDelivery Nothing Nothing "First draft" (facts now 190 3))
   state2 <- applyMutation state1 proposed
   let effect = head (Map.elems (stateExternalEffects state2))
   revised <- assertRight (decideReviseExternalEffect state2 testActor (externalEffectId effect) "Clearer draft" (facts now 200 2))
   state3 <- applyMutation state2 revised
-  externalEffectMessage (stateExternalEffects state3 Map.! externalEffectId effect) @?= "Clearer draft"
+  externalEffectRedactedPreview (stateExternalEffects state3 Map.! externalEffectId effect) @?= "Clearer draft"
   deferred <- assertRight (decideDeferExternalEffect state3 testActor (externalEffectId effect) (zoned (addUTCTime 7200 now)) (facts now 210 2))
   state4 <- applyMutation state3 deferred
   assertBool "deferred effect must not be selectable early" (ExternalEffectApprovalOpportunity `notElem` ordinaryKinds state4 (addUTCTime 7199 now))
@@ -298,9 +332,9 @@ followUpReceiptReconciliation = do
   state2 <- applyMutation state1 reviewed
   let proposedEffect = head (Map.elems (stateExternalEffects state2))
       reviewedDelegation = stateDelegations state2 Map.! delegationId delegation
-  externalEffectStatus proposedEffect @?= EffectPendingApproval
+  externalEffectStatus proposedEffect @?= EffectProposed
   delegationFollowUpHandoffs reviewedDelegation @?= 0
-  approved <- assertRight (decideApproveExternalEffect state2 testActor (externalEffectId proposedEffect) (facts now 240 2))
+  approved <- assertRight (decideApproveExternalEffects state2 testActor [externalEffectId proposedEffect] (facts now 240 3))
   state3 <- applyMutation state2 approved
   dispatching <- assertRight (decideStartExternalEffectDispatch state3 testActor (externalEffectId proposedEffect) (facts now 250 2))
   state4 <- applyMutation state3 dispatching
@@ -326,10 +360,10 @@ unknownOutcomeRecovery :: Assertion
 unknownOutcomeRecovery = do
   state1 <- activeDelegationState
   let delegation = head (Map.elems (stateDelegations state1))
-  proposed <- assertRight (decideProposeExternalEffect state1 testActor (delegationId delegation) DelegationFollowUpEffect Nothing Nothing "Could you share an update?" (facts now 270 3))
+  proposed <- assertRight (decideProposeDelegationDelivery state1 testActor (delegationId delegation) FollowUpDelegationDelivery Nothing Nothing "Could you share an update?" (facts now 270 3))
   state2 <- applyMutation state1 proposed
   let effect = head (Map.elems (stateExternalEffects state2))
-  approved <- assertRight (decideApproveExternalEffect state2 testActor (externalEffectId effect) (facts now 280 2))
+  approved <- assertRight (decideApproveExternalEffects state2 testActor [externalEffectId effect] (facts now 280 3))
   state3 <- applyMutation state2 approved
   dispatching <- assertRight (decideStartExternalEffectDispatch state3 testActor (externalEffectId effect) (facts now 290 2))
   state4 <- applyMutation state3 dispatching
@@ -340,7 +374,7 @@ unknownOutcomeRecovery = do
   retry <- assertRight (decideRetryExternalEffect state5 testActor (externalEffectId effect) True (facts now 320 2))
   state6 <- applyMutation state5 retry
   let revised = stateExternalEffects state6 Map.! externalEffectId effect
-  externalEffectStatus revised @?= EffectPendingApproval
+  externalEffectStatus revised @?= EffectProposed
   externalEffectApprovedDigest revised @?= Nothing
   stopped <- assertRight (decideRejectExternalEffect state6 testActor (externalEffectId effect) (facts now 330 2))
   state7 <- applyMutation state6 stopped

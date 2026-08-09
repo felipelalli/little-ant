@@ -130,6 +130,13 @@ installed-Pack loading, public account connection, production provider import
 routing, contextual REPL orchestration, and canonical provider-material
 acceptance are built. Cleanup-effect dispatch remains to be built.
 
+The shared ExternalEffect aggregate is no longer Delegation-shaped. Closed
+typed requests, exact signed-adapter custody, separate payload and record
+versions, the full lifecycle vocabulary, and durable finite-set approval
+grants now provide the common consent boundary for source cleanup and later
+Calendar effects. Cleanup proposal and itemwise dispatch remain the next
+checkpoint.
+
 ## Gate
 
 - replay works with every Pack removed and performs no provider IO;

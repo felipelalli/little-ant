@@ -1724,17 +1724,19 @@ persistForecastSelection environment dryRun dataset selectionId now seed selecti
     safeFirst . sortOn externalEffectId $
       [ effect
       | effect <- Map.elems (stateExternalEffects state)
-      , externalEffectStatus effect == EffectPendingApproval
+      , externalEffectStatus effect == EffectProposed
       , maybe True ((<= zonedTimeToUTC now) . zonedInstantUtc) (externalEffectReviewNotBefore effect)
-      , Just delegation <- [Map.lookup (externalEffectDelegation effect) (stateDelegations state)]
+      , Just delegationId <- [externalEffectDelegation effect]
+      , Just delegation <- [Map.lookup delegationId (stateDelegations state)]
       , delegationBrick delegation == brickIdentity
       ]
   recoverableEffect state brickIdentity =
     safeFirst . sortOn externalEffectId $
       [ effect
       | effect <- Map.elems (stateExternalEffects state)
-      , externalEffectStatus effect `elem` [EffectFailed, EffectOutcomeUnknown]
-      , Just delegation <- [Map.lookup (externalEffectDelegation effect) (stateDelegations state)]
+      , externalEffectStatus effect `elem` [EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]
+      , Just delegationId <- [externalEffectDelegation effect]
+      , Just delegation <- [Map.lookup delegationId (stateDelegations state)]
       , delegationBrick delegation == brickIdentity
       ]
 
@@ -2787,9 +2789,11 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       local (appendBody current "Choose only an observed outcome. A report is not completion, refusal is not take-back, and no response never proves that a follow-up was sent.")
     (ExternalEffectApprovalScreenOpportunity effectIdentity, "effect.approve", _) ->
       withEffect effectIdentity $ \_ _ ->
-        mutate 2 (decideApproveExternalEffect state actor effectIdentity) (makeEffectUpdated effectIdentity "The exact revision was approved. It has not been dispatched yet.")
+        mutate 3 (decideApproveExternalEffects state actor [effectIdentity]) (makeEffectUpdated effectIdentity "The exact revision was approved. It has not been dispatched yet.")
     (ExternalEffectApprovalScreenOpportunity effectIdentity, "effect.edit", _) ->
-      withEffect effectIdentity $ \effect brick -> local (makeExternalEffectEditEnvelope current now state brick effect (externalEffectMessage effect))
+      withEffect effectIdentity $ \effect brick -> case editableExternalEffectMessage effect of
+        Just message -> local (makeExternalEffectEditEnvelope current now state brick effect message)
+        Nothing -> pure (Left (appError Unsupported "This typed external effect has no editable message."))
     (ExternalEffectEditOpportunity effectIdentity _, "effect.edit.submit", Just message)
       | not (Text.null (Text.strip message)) ->
           withEffect effectIdentity $ \_ _ -> mutate 2 (decideReviseExternalEffect state actor effectIdentity (Text.strip message)) (makeEffectApproval effectIdentity)
@@ -2815,7 +2819,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (ExternalEffectRecoveryScreenOpportunity{}, "effect.recovery.verify", _) ->
       local (appendBody current "Provider verification is read-only and adapter-specific. Until an observation arrives, this effect remains outcome unknown and no retry is authorized.")
     (ExternalEffectRecoveryScreenOpportunity effectIdentity, "effect.recovery.stop", _) ->
-      withEffect effectIdentity $ \_ _ -> mutate 2 (decideRejectExternalEffect state actor effectIdentity) (makeEffectUpdated effectIdentity "Recovery stopped. Provider history remains inspectable and no success was inferred.")
+      withEffect effectIdentity $ \_ _ -> mutate 2 (decideWithdrawExternalEffect state actor effectIdentity) (makeEffectUpdated effectIdentity "Recovery stopped. Provider history remains inspectable and no success was inferred.")
     (ExternalEffectRecoveryScreenOpportunity{}, "effect.recovery.unknown", _) ->
       local (appendBody current "A reported failure is safe to revise and approve again. An unknown outcome may already have happened outside Little Ant, so retry needs separate duplicate-risk consent.")
     (ExternalEffectDuplicateRiskOpportunity effectIdentity, "effect.risk.accept", _) ->
@@ -3780,9 +3784,14 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
 
   withEffect identity continue = case Map.lookup identity (stateExternalEffects state) of
     Nothing -> pure (Left (appError NotFound "The external effect used by this interaction no longer exists."))
-    Just effect -> case Map.lookup (externalEffectDelegation effect) (stateDelegations state) of
+    Just effect -> case externalEffectDelegation effect >>= (\delegationId -> Map.lookup delegationId (stateDelegations state)) of
       Nothing -> pure (Left (appError CorruptData "The external effect has no owning Delegation."))
       Just delegation -> withBrick (delegationBrick delegation) (continue effect)
+
+  editableExternalEffectMessage effect = case externalEffectRequest effect of
+    DelegationDeliveryRequest{effectRequestMessage} -> Just effectRequestMessage
+    DelegationTakeBackNoticeRequest{effectRequestMessage} -> Just effectRequestMessage
+    _ -> Nothing
 
   reviewInstant seconds = ZonedInstant (addUTCTime seconds (zonedTimeToUTC now)) (operationalZone (stateOperationalDayConfig state))
 
@@ -4407,7 +4416,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   makeEffectApproval effectIdentity identity currentNow accepted _ = do
     let acceptedState = loadedState accepted
     effect <- maybe (Left (appError CorruptData "The revised external effect disappeared after replay.")) Right (Map.lookup effectIdentity (stateExternalEffects acceptedState))
-    delegation <- maybe (Left (appError CorruptData "The revised external effect lost its Delegation.")) Right (Map.lookup (externalEffectDelegation effect) (stateDelegations acceptedState))
+    delegationId <- maybe (Left (appError CorruptData "The revised external effect lost its Delegation.")) Right (externalEffectDelegation effect)
+    delegation <- maybe (Left (appError CorruptData "The revised external effect lost its Delegation.")) Right (Map.lookup delegationId (stateDelegations acceptedState))
     brick <- maybe (Left (appError CorruptData "The revised external effect lost its Work.")) Right (Map.lookup (delegationBrick delegation) (stateBricks acceptedState))
     pure (makeExternalEffectApprovalEnvelope identity (loadedCursor accepted) (statePreconditionHash acceptedState) currentNow acceptedState brick effect)
 
@@ -4416,9 +4426,9 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         effects =
           [ effect
           | effect <- Map.elems (stateExternalEffects acceptedState)
-          , externalEffectDelegation effect == delegationIdentity
-          , externalEffectPurpose effect == DelegationFollowUpEffect
-          , externalEffectStatus effect == EffectPendingApproval
+          , externalEffectDelegation effect == Just delegationIdentity
+          , case externalEffectRequest effect of DelegationDeliveryRequest{effectRequestDeliveryReason = FollowUpDelegationDelivery} -> True; _ -> False
+          , externalEffectStatus effect == EffectProposed
           , Map.notMember (externalEffectId effect) (stateExternalEffects state)
           ]
     effect <- case effects of
@@ -4448,7 +4458,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
 
   makeEffectUpdated effectIdentity message identity currentNow accepted _ = do
     effect <- maybe (Left (appError CorruptData "The external effect disappeared after replay.")) Right (Map.lookup effectIdentity (stateExternalEffects (loadedState accepted)))
-    delegation <- maybe (Left (appError CorruptData "The external effect lost its owning Delegation.")) Right (Map.lookup (externalEffectDelegation effect) (stateDelegations (loadedState accepted)))
+    delegationId <- maybe (Left (appError CorruptData "The external effect lost its owning Delegation.")) Right (externalEffectDelegation effect)
+    delegation <- maybe (Left (appError CorruptData "The external effect lost its owning Delegation.")) Right (Map.lookup delegationId (stateDelegations (loadedState accepted)))
     brick <- maybe (Left (appError CorruptData "The external-effect Work disappeared after replay.")) Right (Map.lookup (delegationBrick delegation) (stateBricks (loadedState accepted)))
     pure (makeExternalEffectResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick effect message)
 

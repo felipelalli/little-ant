@@ -63,6 +63,7 @@ module LittleAnt.Event (
   WaitSuccessorDeclared (..),
   DelegationChanged (..),
   ExternalEffectChanged (..),
+  ExternalEffectApprovalGranted (..),
   ExternalEffectReceiptRecorded (..),
   WorkReactionRecorded (..),
   rawContentDigest,
@@ -71,6 +72,8 @@ module LittleAnt.Event (
   encodeEvent,
   eventTypeName,
   eventVersionNumber,
+  externalEffectConsentDigest,
+  externalEffectRequestDigest,
 )
 where
 
@@ -85,8 +88,9 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAscii, isDigit)
 import Data.Foldable (traverse_)
+import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (catMaybes, isNothing)
+import Data.Maybe (catMaybes, isJust, isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -195,6 +199,11 @@ newtype DelegationChanged = DelegationChanged
 
 newtype ExternalEffectChanged = ExternalEffectChanged
   { changedExternalEffect :: ExternalEffect
+  }
+  deriving stock (Eq, Show)
+
+newtype ExternalEffectApprovalGranted = ExternalEffectApprovalGranted
+  { grantedExternalEffectApproval :: ExternalEffectApprovalGrant
   }
   deriving stock (Eq, Show)
 
@@ -618,6 +627,7 @@ data EventPayload
   | WaitSuccessorDeclaredV1 WaitSuccessorDeclared
   | DelegationChangedV1 DelegationChanged
   | ExternalEffectChangedV1 ExternalEffectChanged
+  | ExternalEffectApprovalGrantedV1 ExternalEffectApprovalGranted
   | ExternalEffectReceiptRecordedV1 ExternalEffectReceiptRecorded
   deriving stock (Eq, Show)
 
@@ -710,6 +720,7 @@ eventTypeName = \case
   WaitSuccessorDeclaredV1 _ -> "wait_successor_declared"
   DelegationChangedV1 _ -> "delegation_changed"
   ExternalEffectChangedV1 _ -> "external_effect_changed"
+  ExternalEffectApprovalGrantedV1 _ -> "external_effect_approval_granted"
   ExternalEffectReceiptRecordedV1 _ -> "external_effect_receipt_recorded"
 
 eventVersionNumber :: EventPayload -> Int
@@ -816,6 +827,7 @@ applyEvent state event = case persistedPayload event of
   WaitSuccessorDeclaredV1 payload -> applyWaitSuccessorDeclared state (declaredWaitSuccessor payload)
   DelegationChangedV1 payload -> applyDelegationChanged state (changedDelegation payload)
   ExternalEffectChangedV1 payload -> applyExternalEffectChanged state (changedExternalEffect payload)
+  ExternalEffectApprovalGrantedV1 payload -> applyExternalEffectApprovalGranted state (grantedExternalEffectApproval payload)
   ExternalEffectReceiptRecordedV1 payload -> applyExternalEffectReceiptRecorded state (recordedExternalEffectReceipt payload)
 
 applyExternalEntityRegistered :: State -> ExternalEntity -> Either AppError State
@@ -941,36 +953,60 @@ delegationTransitionAllowed from to = case from of
 
 applyExternalEffectChanged :: State -> ExternalEffect -> Either AppError State
 applyExternalEffectChanged state effect = do
-  delegation <- maybe (corrupt "An ExternalEffect Delegation is missing.") Right (Map.lookup (externalEffectDelegation effect) (stateDelegations state))
-  unless (delegationTarget delegation == externalEffectTarget effect) $ corrupt "An ExternalEffect target differs from its Delegation."
-  traverse_ requireContact (externalEffectContactPoint effect)
-  when (Text.null (Text.strip (externalEffectMessage effect))) $ corrupt "An ExternalEffect message cannot be empty."
+  validateExternalEffectRequest state (externalEffectRequest effect)
+  when (Text.null (Text.strip (externalEffectRedactedPreview effect))) $ corrupt "An ExternalEffect preview cannot be empty."
+  when (Text.null (Text.strip (externalEffectOriginatingCursor effect))) $ corrupt "An ExternalEffect originating cursor cannot be empty."
+  unless (externalEffectPayloadDigest effect == externalEffectRequestDigest (externalEffectRequest effect)) $
+    corrupt "An ExternalEffect payload digest does not match its typed request."
   case Map.lookup (externalEffectId effect) (stateExternalEffects state) of
     Nothing ->
-      unless (externalEffectRevision effect == 1 && externalEffectStatus effect == EffectPendingApproval && isNothing (externalEffectApprovedDigest effect)) $
-        corrupt "A new ExternalEffect must start pending approval at revision one."
+      unless
+        ( externalEffectRevision effect == 1
+            && externalEffectRecordVersion effect == 1
+            && externalEffectStatus effect == EffectProposed
+            && isNothing (externalEffectApprovalGrant effect)
+            && isNothing (externalEffectApprovedDigest effect)
+        )
+        $ corrupt "A new ExternalEffect must start proposed at payload and record version one."
     Just previous -> do
-      unless (externalEffectRevision effect == externalEffectRevision previous + 1) $ corrupt "An ExternalEffect revision is not contiguous."
-      unless (externalEffectDelegation effect == externalEffectDelegation previous && externalEffectPurpose effect == externalEffectPurpose previous && externalEffectTarget effect == externalEffectTarget previous) $
-        corrupt "An ExternalEffect update changed immutable purpose facts."
-      unless (effectTransitionAllowed (externalEffectStatus previous) (externalEffectStatus effect)) $
+      unless (externalEffectRecordVersion effect == externalEffectRecordVersion previous + 1) $
+        corrupt "An ExternalEffect record version is not contiguous."
+      validateEffectRevision previous effect
+      unless (effectTransitionAllowed previous effect) $
         corrupt "An ExternalEffect transition is invalid."
-      when (externalEffectStatus effect `elem` [EffectApproved, EffectDispatching] && isNothing (externalEffectApprovedDigest effect)) $
-        corrupt "An approved ExternalEffect requires the exact approved digest."
+  validateEffectApprovalCustody effect
   pure . bump $ state{stateExternalEffects = Map.insert (externalEffectId effect) effect (stateExternalEffects state)}
- where
-  requireContact identity = do
-    contact <- maybe (corrupt "An ExternalEffect ContactPoint is missing.") Right (Map.lookup identity (stateContactPoints state))
-    unless (contactPointOwner contact == externalEffectTarget effect && contactPointActive contact) $
-      corrupt "An ExternalEffect ContactPoint is not an active binding of its target."
 
-effectTransitionAllowed :: ExternalEffectStatus -> ExternalEffectStatus -> Bool
-effectTransitionAllowed from to = case from of
-  EffectPendingApproval -> to `elem` [EffectPendingApproval, EffectApproved, EffectRejected]
-  EffectApproved -> to `elem` [EffectApproved, EffectDispatching, EffectRejected]
-  EffectFailed -> to `elem` [EffectPendingApproval, EffectRejected]
-  EffectOutcomeUnknown -> to `elem` [EffectPendingApproval, EffectRejected]
-  _ -> False
+applyExternalEffectApprovalGranted :: State -> ExternalEffectApprovalGrant -> Either AppError State
+applyExternalEffectApprovalGranted state grant = do
+  when (Map.member (externalEffectApprovalGrantId grant) (stateExternalEffectApprovalGrants state)) $
+    corrupt "An ExternalEffect approval-grant UUID is repeated in canonical history."
+  when (null items || items /= sortOn approvedEffectId items || not (allUnique (approvedEffectId <$> items))) $
+    corrupt "An ExternalEffect approval grant must contain one nonempty sorted set of effects."
+  when (Text.null (Text.strip (externalEffectApprovalCursor grant))) $
+    corrupt "An ExternalEffect approval grant needs its exact dataset cursor."
+  approved <- traverse approve items
+  pure . bump $
+    state
+      { stateExternalEffects = foldr (\effect -> Map.insert (externalEffectId effect) effect) (stateExternalEffects state) approved
+      , stateExternalEffectApprovalGrants = Map.insert (externalEffectApprovalGrantId grant) grant (stateExternalEffectApprovalGrants state)
+      }
+ where
+  items = externalEffectApprovalItems grant
+  approve item = do
+    effect <- maybe (corrupt "An ExternalEffect approval item references a missing effect.") Right (Map.lookup (approvedEffectId item) (stateExternalEffects state))
+    unless (externalEffectStatus effect == EffectProposed) $
+      corrupt "An ExternalEffect approval item is not proposed."
+    unless (approvedEffectRevision item == externalEffectRevision effect && approvedEffectDigest item == externalEffectConsentDigest effect) $
+      corrupt "An ExternalEffect approval item does not match the exact payload revision."
+    pure
+      effect
+        { externalEffectRecordVersion = externalEffectRecordVersion effect + 1
+        , externalEffectStatus = EffectApproved
+        , externalEffectReviewNotBefore = Nothing
+        , externalEffectApprovalGrant = Just (externalEffectApprovalGrantId grant)
+        , externalEffectApprovedDigest = Just (approvedEffectDigest item)
+        }
 
 applyExternalEffectReceiptRecorded :: State -> ExternalEffectReceipt -> Either AppError State
 applyExternalEffectReceiptRecorded state receipt = do
@@ -978,14 +1014,126 @@ applyExternalEffectReceiptRecorded state receipt = do
     corrupt "An ExternalEffect receipt UUID is repeated in canonical history."
   effect <- maybe (corrupt "An ExternalEffect receipt references a missing effect.") Right (Map.lookup (externalEffectReceiptEffect receipt) (stateExternalEffects state))
   unless (externalEffectStatus effect == EffectDispatching) $ corrupt "A provider receipt requires a durably dispatching ExternalEffect."
-  unless (externalEffectReceiptOutcome receipt `elem` [EffectSucceeded, EffectFailed, EffectOutcomeUnknown]) $
+  unless (externalEffectReceiptOutcome receipt `elem` [EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $
     corrupt "An ExternalEffect receipt has an invalid provider outcome."
-  let resolved = effect{externalEffectStatus = externalEffectReceiptOutcome receipt}
+  let resolved = effect{externalEffectRecordVersion = externalEffectRecordVersion effect + 1, externalEffectStatus = externalEffectReceiptOutcome receipt}
   pure . bump $
     state
       { stateExternalEffects = Map.insert (externalEffectId effect) resolved (stateExternalEffects state)
       , stateExternalEffectReceipts = Map.insert (externalEffectReceiptId receipt) receipt (stateExternalEffectReceipts state)
       }
+
+validateExternalEffectRequest :: State -> ExternalEffectRequest -> Either AppError ()
+validateExternalEffectRequest state = \case
+  DelegationDeliveryRequest delegationId _ targetId contactId _ message -> validateDelegationRequest delegationId targetId contactId message
+  DelegationTakeBackNoticeRequest delegationId targetId contactId _ message -> validateDelegationRequest delegationId targetId contactId message
+  SourceCleanupItemRequest custody target -> do
+    validateEffectAdapterCustody custody
+    invocation <- maybe (corrupt "A source-cleanup effect references a missing ImportInvocation.") Right (Map.lookup (cleanupItemImportInvocation target) (stateImportInvocations state))
+    binding <- maybe (corrupt "A source-cleanup effect references a missing SourceBinding.") Right (Map.lookup (cleanupItemSourceBinding target) (stateSourceBindings state))
+    unless
+      ( importInvocationMode invocation == SourceMigrate
+          && importInvocationComponentId invocation == effectAdapterComponentId custody
+          && importInvocationContractMajor invocation == effectAdapterContractMajor custody
+          && importInvocationPackPublisher invocation == effectAdapterPackPublisher custody
+          && importInvocationPackName invocation == effectAdapterPackName custody
+          && importInvocationPackVersion invocation == effectAdapterPackVersion custody
+          && importInvocationPackManifestDigest invocation == effectAdapterPackManifestDigest custody
+          && importInvocationPackArchiveDigest invocation == effectAdapterPackArchiveDigest custody
+          && importInvocationSignerFingerprint invocation == effectAdapterSignerFingerprint custody
+      )
+      $ corrupt "A source-cleanup effect changed signed ImportInvocation custody."
+    unless
+      ( sourceBindingRaw binding == cleanupItemRaw target
+          && sourceBindingExternalIdentity binding == Just (cleanupItemExternalIdentity target)
+          && sourceBindingLocator binding == cleanupItemLocator target
+          && sourceBindingContainerIdentity binding == cleanupItemContainerIdentity target
+          && sourceBindingMode binding == SourceMigrate
+      )
+      $ corrupt "A source-cleanup effect changed its exact SourceBinding target."
+  SourceCleanupContainerRequest custody target -> do
+    validateEffectAdapterCustody custody
+    profile <- maybe (corrupt "A source-container cleanup effect references a missing ImportProfile.") Right (Map.lookup (cleanupContainerImportProfile target) (stateImportProfiles state))
+    unless (importProfileMode profile == SourceMigrate && importProfileAdapterId profile == effectAdapterComponentId custody) $
+      corrupt "A source-container cleanup effect changed its migration scope."
+    when (Text.null (Text.strip (cleanupContainerExternalIdentity target)) || Text.null (Text.strip (cleanupContainerLabel target))) $
+      corrupt "A source-container cleanup target cannot be empty."
+ where
+  validateDelegationRequest delegationId targetId contactId message = do
+    delegation <- maybe (corrupt "An ExternalEffect Delegation is missing.") Right (Map.lookup delegationId (stateDelegations state))
+    unless (delegationTarget delegation == targetId) $ corrupt "An ExternalEffect target differs from its Delegation."
+    when (Text.null (Text.strip message)) $ corrupt "A Delegation effect message cannot be empty."
+    traverse_ (requireContact targetId) contactId
+  requireContact targetId identity = do
+    contact <- maybe (corrupt "An ExternalEffect ContactPoint is missing.") Right (Map.lookup identity (stateContactPoints state))
+    unless (contactPointOwner contact == targetId && contactPointActive contact) $
+      corrupt "An ExternalEffect ContactPoint is not an active binding of its target."
+
+validateEffectAdapterCustody :: EffectAdapterCustody -> Either AppError ()
+validateEffectAdapterCustody custody = do
+  when (effectAdapterContractMajor custody < 1) $ corrupt "An effect adapter contract major must be positive."
+  when (any (Text.null . Text.strip) requiredText) $ corrupt "An effect adapter custody field cannot be empty."
+  traverse_ validateDigestField digests
+ where
+  requiredText =
+    [ effectAdapterComponentId custody
+    , effectAdapterProviderAccount custody
+    , effectAdapterCredentialBinding custody
+    , effectAdapterPackPublisher custody
+    , effectAdapterPackName custody
+    , effectAdapterPackVersion custody
+    ]
+  digests =
+    [ effectAdapterPackManifestDigest custody
+    , effectAdapterPackArchiveDigest custody
+    , effectAdapterSignerFingerprint custody
+    ]
+  validateDigestField value = unless (validSha256 value) $ corrupt "An effect adapter custody digest is invalid."
+
+validateEffectRevision :: ExternalEffect -> ExternalEffect -> Either AppError ()
+validateEffectRevision previous current
+  | externalEffectRevision current == externalEffectRevision previous =
+      unless (immutableRevision current == immutableRevision previous) $
+        corrupt "An ExternalEffect state transition changed immutable revision facts."
+  | externalEffectRevision current == externalEffectRevision previous + 1 = do
+      unless (externalEffectStatus current == EffectProposed) $ corrupt "A new ExternalEffect payload revision must return to proposed."
+      unless (externalEffectStatus previous `elem` [EffectProposed, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown]) $
+        corrupt "This ExternalEffect state cannot create a corrected payload revision."
+      unless (isNothing (externalEffectApprovalGrant current) && isNothing (externalEffectApprovedDigest current)) $
+        corrupt "A new ExternalEffect payload revision cannot inherit approval."
+  | otherwise = corrupt "An ExternalEffect payload revision is not contiguous."
+ where
+  immutableRevision effect =
+    ( externalEffectRequest effect
+    , externalEffectRedactedPreview effect
+    , externalEffectPayloadDigest effect
+    , externalEffectOriginatingCommand effect
+    , externalEffectOriginatingCursor effect
+    , externalEffectIdempotencyKey effect
+    )
+
+effectTransitionAllowed :: ExternalEffect -> ExternalEffect -> Bool
+effectTransitionAllowed previous current
+  | externalEffectRevision current == externalEffectRevision previous + 1 = externalEffectStatus current == EffectProposed
+  | otherwise = case externalEffectStatus previous of
+      EffectProposed -> externalEffectStatus current `elem` [EffectProposed, EffectRejected, EffectWithdrawn]
+      EffectApproved -> externalEffectStatus current `elem` [EffectDispatching, EffectRejected, EffectWithdrawn]
+      EffectFailedRetryable -> externalEffectStatus current `elem` [EffectApproved, EffectWithdrawn]
+      EffectFailedTerminal -> externalEffectStatus current == EffectWithdrawn
+      EffectOutcomeUnknown -> externalEffectStatus current == EffectWithdrawn
+      _ -> False
+
+validateEffectApprovalCustody :: ExternalEffect -> Either AppError ()
+validateEffectApprovalCustody effect
+  | externalEffectStatus effect `elem` [EffectApproved, EffectDispatching, EffectSucceeded, EffectFailedRetryable, EffectFailedTerminal, EffectOutcomeUnknown] =
+      unless
+        ( isJust (externalEffectApprovalGrant effect)
+            && externalEffectApprovedDigest effect == Just (externalEffectConsentDigest effect)
+        )
+        $ corrupt "An approved or dispatched ExternalEffect requires its exact approval grant and digest."
+  | otherwise =
+      unless (isNothing (externalEffectApprovalGrant effect) && isNothing (externalEffectApprovedDigest effect)) $
+        corrupt "A proposed, rejected, or withdrawn ExternalEffect cannot retain approval custody."
 
 applyDependencyAdded :: State -> PersistedEvent -> DependencyAdded -> Either AppError State
 applyDependencyAdded state event payload = do
@@ -2874,6 +3022,7 @@ payloadValue = \case
   WaitSuccessorDeclaredV1 payload -> object ["successor" .= waitSuccessorValue (declaredWaitSuccessor payload)]
   DelegationChangedV1 payload -> delegationValue (changedDelegation payload)
   ExternalEffectChangedV1 payload -> externalEffectValue (changedExternalEffect payload)
+  ExternalEffectApprovalGrantedV1 payload -> externalEffectApprovalGrantValue (grantedExternalEffectApproval payload)
   ExternalEffectReceiptRecordedV1 payload -> externalEffectReceiptValue (recordedExternalEffectReceipt payload)
  where
   uuid = renderUUIDv7
@@ -3095,6 +3244,7 @@ parsePayload eventType version payload = case (eventType, version) of
   ("wait_successor_declared", 1) -> WaitSuccessorDeclaredV1 <$> withObject "wait_successor_declared@1" (\value -> WaitSuccessorDeclared <$> (value .: "successor" >>= parseWaitSuccessor)) payload
   ("delegation_changed", 1) -> DelegationChangedV1 . DelegationChanged <$> parseDelegation payload
   ("external_effect_changed", 1) -> ExternalEffectChangedV1 . ExternalEffectChanged <$> parseExternalEffect payload
+  ("external_effect_approval_granted", 1) -> ExternalEffectApprovalGrantedV1 . ExternalEffectApprovalGranted <$> parseExternalEffectApprovalGrant payload
   ("external_effect_receipt_recorded", 1) -> ExternalEffectReceiptRecordedV1 . ExternalEffectReceiptRecorded <$> parseExternalEffectReceipt payload
   (_, bad) -> fail ("unknown event version: " <> show bad <> " for " <> Text.unpack eventType)
  where
@@ -4435,68 +4585,284 @@ parseDelegationStatus = \case
   "reassigned" -> pure DelegationReassigned
   value -> fail ("unknown Delegation status: " <> Text.unpack value)
 
+externalEffectRequestDigest :: ExternalEffectRequest -> Text
+externalEffectRequestDigest = digestJson . externalEffectRequestValue
+
+externalEffectConsentDigest :: ExternalEffect -> Text
+externalEffectConsentDigest effect =
+  digestJson $
+    object $
+      [ "effect_id" .= renderUUIDv7 (externalEffectId effect)
+      , "request" .= externalEffectRequestValue (externalEffectRequest effect)
+      , "purpose" .= externalEffectPurposeText (externalEffectPurpose effect)
+      , "revision" .= externalEffectRevision effect
+      , "redacted_preview" .= externalEffectRedactedPreview effect
+      , "payload_digest" .= externalEffectPayloadDigest effect
+      , "originating_command" .= renderUUIDv7 (externalEffectOriginatingCommand effect)
+      , "originating_cursor" .= externalEffectOriginatingCursor effect
+      ]
+        <> maybe [] (pure . ("idempotency_key" .=)) (externalEffectIdempotencyKey effect)
+
+digestJson :: Value -> Text
+digestJson = TextEncoding.decodeUtf8 . Base16.encode . SHA256.hash . LazyByteString.toStrict . encode
+
+allUnique :: (Ord value) => [value] -> Bool
+allUnique values = Set.size (Set.fromList values) == length values
+
+validSha256 :: Text -> Bool
+validSha256 digest = Text.length digest == 64 && Text.all lowerHex digest
+ where
+  lowerHex character = isAscii character && (isDigit character || (character >= 'a' && character <= 'f'))
+
 externalEffectValue :: ExternalEffect -> Value
 externalEffectValue effect =
   object $
     [ "effect_id" .= renderUUIDv7 (externalEffectId effect)
-    , "delegation_id" .= renderUUIDv7 (externalEffectDelegation effect)
+    , "request" .= externalEffectRequestValue (externalEffectRequest effect)
     , "purpose" .= externalEffectPurposeText (externalEffectPurpose effect)
     , "revision" .= externalEffectRevision effect
-    , "target_id" .= renderUUIDv7 (externalEffectTarget effect)
-    , "message" .= externalEffectMessage effect
+    , "record_version" .= externalEffectRecordVersion effect
+    , "redacted_preview" .= externalEffectRedactedPreview effect
+    , "payload_digest" .= externalEffectPayloadDigest effect
+    , "originating_command" .= renderUUIDv7 (externalEffectOriginatingCommand effect)
+    , "originating_cursor" .= externalEffectOriginatingCursor effect
     , "status" .= externalEffectStatusText (externalEffectStatus effect)
     ]
-      <> maybe [] (pure . ("contact_id" .=) . renderUUIDv7) (externalEffectContactPoint effect)
-      <> maybe [] (pure . ("adapter" .=)) (externalEffectAdapter effect)
+      <> maybe [] (pure . ("idempotency_key" .=)) (externalEffectIdempotencyKey effect)
       <> maybe [] (pure . ("review_not_before" .=) . zonedInstantValue) (externalEffectReviewNotBefore effect)
+      <> maybe [] (pure . ("approval_grant_id" .=) . renderUUIDv7) (externalEffectApprovalGrant effect)
       <> maybe [] (pure . ("approved_digest" .=)) (externalEffectApprovedDigest effect)
 
 parseExternalEffect :: Value -> Parser ExternalEffect
-parseExternalEffect = withObject "ExternalEffect" $ \value ->
-  ExternalEffect
-    <$> (value .: "effect_id" >>= parseId)
-    <*> (value .: "delegation_id" >>= parseId)
-    <*> (value .: "purpose" >>= parseExternalEffectPurpose)
-    <*> value .: "revision"
-    <*> (value .: "target_id" >>= parseId)
-    <*> (value .:? "contact_id" >>= traverse parseId)
-    <*> value .:? "adapter"
-    <*> value .: "message"
-    <*> (value .: "status" >>= parseExternalEffectStatus)
-    <*> (value .:? "review_not_before" >>= traverse parseZonedInstant)
-    <*> value .:? "approved_digest"
+parseExternalEffect = withObject "ExternalEffect" $ \value -> do
+  request <- value .: "request" >>= parseExternalEffectRequest
+  declaredPurpose <- value .: "purpose" >>= parseExternalEffectPurpose
+  effect <-
+    ExternalEffect
+      <$> (value .: "effect_id" >>= parseId)
+      <*> pure request
+      <*> value .: "revision"
+      <*> value .: "record_version"
+      <*> value .: "redacted_preview"
+      <*> value .: "payload_digest"
+      <*> (value .: "originating_command" >>= parseId)
+      <*> value .: "originating_cursor"
+      <*> value .:? "idempotency_key"
+      <*> (value .: "status" >>= parseExternalEffectStatus)
+      <*> (value .:? "review_not_before" >>= traverse parseZonedInstant)
+      <*> (value .:? "approval_grant_id" >>= traverse parseId)
+      <*> value .:? "approved_digest"
+  unless (externalEffectPurpose effect == declaredPurpose) $ fail "ExternalEffect purpose differs from its typed request"
+  pure effect
+
+externalEffectRequestValue :: ExternalEffectRequest -> Value
+externalEffectRequestValue = \case
+  DelegationDeliveryRequest delegationId reason targetId contactId adapter message ->
+    object $
+      [ "kind" .= ("delegation_delivery" :: Text)
+      , "delegation_id" .= renderUUIDv7 delegationId
+      , "reason" .= delegationDeliveryReasonText reason
+      , "target_id" .= renderUUIDv7 targetId
+      , "message" .= message
+      ]
+        <> maybe [] (pure . ("contact_id" .=) . renderUUIDv7) contactId
+        <> maybe [] (pure . ("adapter" .=)) adapter
+  DelegationTakeBackNoticeRequest delegationId targetId contactId adapter message ->
+    object $
+      [ "kind" .= ("delegation_take_back_notice" :: Text)
+      , "delegation_id" .= renderUUIDv7 delegationId
+      , "target_id" .= renderUUIDv7 targetId
+      , "message" .= message
+      ]
+        <> maybe [] (pure . ("contact_id" .=) . renderUUIDv7) contactId
+        <> maybe [] (pure . ("adapter" .=)) adapter
+  SourceCleanupItemRequest custody target ->
+    object
+      [ "kind" .= ("source_cleanup_item" :: Text)
+      , "adapter" .= effectAdapterCustodyValue custody
+      , "target" .= sourceCleanupItemTargetValue target
+      ]
+  SourceCleanupContainerRequest custody target ->
+    object
+      [ "kind" .= ("source_cleanup_container" :: Text)
+      , "adapter" .= effectAdapterCustodyValue custody
+      , "target" .= sourceCleanupContainerTargetValue target
+      ]
+
+parseExternalEffectRequest :: Value -> Parser ExternalEffectRequest
+parseExternalEffectRequest = withObject "ExternalEffectRequest" $ \value -> do
+  kind <- value .: "kind" :: Parser Text
+  case kind of
+    "delegation_delivery" ->
+      DelegationDeliveryRequest
+        <$> (value .: "delegation_id" >>= parseId)
+        <*> (value .: "reason" >>= parseDelegationDeliveryReason)
+        <*> (value .: "target_id" >>= parseId)
+        <*> (value .:? "contact_id" >>= traverse parseId)
+        <*> value .:? "adapter"
+        <*> value .: "message"
+    "delegation_take_back_notice" ->
+      DelegationTakeBackNoticeRequest
+        <$> (value .: "delegation_id" >>= parseId)
+        <*> (value .: "target_id" >>= parseId)
+        <*> (value .:? "contact_id" >>= traverse parseId)
+        <*> value .:? "adapter"
+        <*> value .: "message"
+    "source_cleanup_item" -> SourceCleanupItemRequest <$> (value .: "adapter" >>= parseEffectAdapterCustody) <*> (value .: "target" >>= parseSourceCleanupItemTarget)
+    "source_cleanup_container" -> SourceCleanupContainerRequest <$> (value .: "adapter" >>= parseEffectAdapterCustody) <*> (value .: "target" >>= parseSourceCleanupContainerTarget)
+    _ -> fail ("unknown ExternalEffect request kind: " <> Text.unpack kind)
+
+effectAdapterCustodyValue :: EffectAdapterCustody -> Value
+effectAdapterCustodyValue custody =
+  object
+    [ "component_id" .= effectAdapterComponentId custody
+    , "contract_major" .= effectAdapterContractMajor custody
+    , "provider_account" .= effectAdapterProviderAccount custody
+    , "credential_binding" .= effectAdapterCredentialBinding custody
+    , "pack_publisher" .= effectAdapterPackPublisher custody
+    , "pack_name" .= effectAdapterPackName custody
+    , "pack_version" .= effectAdapterPackVersion custody
+    , "pack_manifest_digest" .= effectAdapterPackManifestDigest custody
+    , "pack_archive_digest" .= effectAdapterPackArchiveDigest custody
+    , "signer_fingerprint" .= effectAdapterSignerFingerprint custody
+    ]
+
+parseEffectAdapterCustody :: Value -> Parser EffectAdapterCustody
+parseEffectAdapterCustody = withObject "EffectAdapterCustody" $ \value ->
+  EffectAdapterCustody
+    <$> value .: "component_id"
+    <*> value .: "contract_major"
+    <*> value .: "provider_account"
+    <*> value .: "credential_binding"
+    <*> value .: "pack_publisher"
+    <*> value .: "pack_name"
+    <*> value .: "pack_version"
+    <*> value .: "pack_manifest_digest"
+    <*> value .: "pack_archive_digest"
+    <*> value .: "signer_fingerprint"
+
+sourceCleanupItemTargetValue :: SourceCleanupItemTarget -> Value
+sourceCleanupItemTargetValue target =
+  object $
+    [ "import_invocation_id" .= renderUUIDv7 (cleanupItemImportInvocation target)
+    , "source_binding_id" .= renderUUIDv7 (cleanupItemSourceBinding target)
+    , "raw_id" .= renderUUIDv7 (cleanupItemRaw target)
+    , "external_identity" .= cleanupItemExternalIdentity target
+    , "locator" .= cleanupItemLocator target
+    ]
+      <> maybe [] (pure . ("container_identity" .=)) (cleanupItemContainerIdentity target)
+
+parseSourceCleanupItemTarget :: Value -> Parser SourceCleanupItemTarget
+parseSourceCleanupItemTarget = withObject "SourceCleanupItemTarget" $ \value ->
+  SourceCleanupItemTarget
+    <$> (value .: "import_invocation_id" >>= parseId)
+    <*> (value .: "source_binding_id" >>= parseId)
+    <*> (value .: "raw_id" >>= parseId)
+    <*> value .: "external_identity"
+    <*> value .: "locator"
+    <*> value .:? "container_identity"
+
+sourceCleanupContainerTargetValue :: SourceCleanupContainerTarget -> Value
+sourceCleanupContainerTargetValue target =
+  object
+    [ "import_profile_id" .= renderUUIDv7 (cleanupContainerImportProfile target)
+    , "external_identity" .= cleanupContainerExternalIdentity target
+    , "label" .= cleanupContainerLabel target
+    ]
+
+parseSourceCleanupContainerTarget :: Value -> Parser SourceCleanupContainerTarget
+parseSourceCleanupContainerTarget = withObject "SourceCleanupContainerTarget" $ \value ->
+  SourceCleanupContainerTarget
+    <$> (value .: "import_profile_id" >>= parseId)
+    <*> value .: "external_identity"
+    <*> value .: "label"
 
 externalEffectPurposeText :: ExternalEffectPurpose -> Text
 externalEffectPurposeText DelegationDeliveryEffect = "delegation_delivery"
-externalEffectPurposeText DelegationFollowUpEffect = "delegation_follow_up"
-externalEffectPurposeText DelegationTakeBackEffect = "delegation_take_back"
+externalEffectPurposeText DelegationTakeBackNoticeEffect = "delegation_take_back_notice"
+externalEffectPurposeText SourceCleanupItemEffect = "source_cleanup_item"
+externalEffectPurposeText SourceCleanupContainerEffect = "source_cleanup_container"
+externalEffectPurposeText CalendarCreateEffect = "calendar_create"
+externalEffectPurposeText CalendarUpdateEffect = "calendar_update"
+externalEffectPurposeText CalendarCancelEffect = "calendar_cancel"
 
 parseExternalEffectPurpose :: Text -> Parser ExternalEffectPurpose
 parseExternalEffectPurpose "delegation_delivery" = pure DelegationDeliveryEffect
-parseExternalEffectPurpose "delegation_follow_up" = pure DelegationFollowUpEffect
-parseExternalEffectPurpose "delegation_take_back" = pure DelegationTakeBackEffect
+parseExternalEffectPurpose "delegation_take_back_notice" = pure DelegationTakeBackNoticeEffect
+parseExternalEffectPurpose "source_cleanup_item" = pure SourceCleanupItemEffect
+parseExternalEffectPurpose "source_cleanup_container" = pure SourceCleanupContainerEffect
+parseExternalEffectPurpose "calendar_create" = pure CalendarCreateEffect
+parseExternalEffectPurpose "calendar_update" = pure CalendarUpdateEffect
+parseExternalEffectPurpose "calendar_cancel" = pure CalendarCancelEffect
 parseExternalEffectPurpose value = fail ("unknown ExternalEffect purpose: " <> Text.unpack value)
+
+delegationDeliveryReasonText :: DelegationDeliveryReason -> Text
+delegationDeliveryReasonText InitialDelegationDelivery = "initial"
+delegationDeliveryReasonText FollowUpDelegationDelivery = "follow_up"
+
+parseDelegationDeliveryReason :: Text -> Parser DelegationDeliveryReason
+parseDelegationDeliveryReason "initial" = pure InitialDelegationDelivery
+parseDelegationDeliveryReason "follow_up" = pure FollowUpDelegationDelivery
+parseDelegationDeliveryReason value = fail ("unknown Delegation delivery reason: " <> Text.unpack value)
 
 externalEffectStatusText :: ExternalEffectStatus -> Text
 externalEffectStatusText = \case
-  EffectPendingApproval -> "pending_approval"
+  EffectProposed -> "proposed"
   EffectApproved -> "approved"
   EffectDispatching -> "dispatching"
   EffectSucceeded -> "succeeded"
-  EffectFailed -> "failed"
+  EffectFailedRetryable -> "failed_retryable"
+  EffectFailedTerminal -> "failed_terminal"
   EffectOutcomeUnknown -> "outcome_unknown"
   EffectRejected -> "rejected"
+  EffectWithdrawn -> "withdrawn"
 
 parseExternalEffectStatus :: Text -> Parser ExternalEffectStatus
 parseExternalEffectStatus = \case
-  "pending_approval" -> pure EffectPendingApproval
+  "proposed" -> pure EffectProposed
   "approved" -> pure EffectApproved
   "dispatching" -> pure EffectDispatching
   "succeeded" -> pure EffectSucceeded
-  "failed" -> pure EffectFailed
+  "failed_retryable" -> pure EffectFailedRetryable
+  "failed_terminal" -> pure EffectFailedTerminal
   "outcome_unknown" -> pure EffectOutcomeUnknown
   "rejected" -> pure EffectRejected
+  "withdrawn" -> pure EffectWithdrawn
   value -> fail ("unknown ExternalEffect status: " <> Text.unpack value)
+
+externalEffectApprovalGrantValue :: ExternalEffectApprovalGrant -> Value
+externalEffectApprovalGrantValue grant =
+  object
+    [ "grant_id" .= renderUUIDv7 (externalEffectApprovalGrantId grant)
+    , "items" .= fmap externalEffectApprovalItemValue (externalEffectApprovalItems grant)
+    , "approved_at" .= externalEffectApprovalAt grant
+    , "command_id" .= renderUUIDv7 (externalEffectApprovalCommand grant)
+    , "dataset_cursor" .= externalEffectApprovalCursor grant
+    ]
+
+externalEffectApprovalItemValue :: ExternalEffectApprovalItem -> Value
+externalEffectApprovalItemValue item =
+  object
+    [ "effect_id" .= renderUUIDv7 (approvedEffectId item)
+    , "revision" .= approvedEffectRevision item
+    , "digest" .= approvedEffectDigest item
+    ]
+
+parseExternalEffectApprovalGrant :: Value -> Parser ExternalEffectApprovalGrant
+parseExternalEffectApprovalGrant = withObject "ExternalEffectApprovalGrant" $ \value ->
+  ExternalEffectApprovalGrant
+    <$> (value .: "grant_id" >>= parseId)
+    <*> (value .: "items" >>= traverse parseExternalEffectApprovalItem)
+    <*> value .: "approved_at"
+    <*> (value .: "command_id" >>= parseId)
+    <*> value .: "dataset_cursor"
+
+parseExternalEffectApprovalItem :: Value -> Parser ExternalEffectApprovalItem
+parseExternalEffectApprovalItem = withObject "ExternalEffectApprovalItem" $ \value ->
+  ExternalEffectApprovalItem
+    <$> (value .: "effect_id" >>= parseId)
+    <*> value .: "revision"
+    <*> value .: "digest"
 
 externalEffectReceiptValue :: ExternalEffectReceipt -> Value
 externalEffectReceiptValue receipt =
