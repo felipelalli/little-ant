@@ -7,7 +7,16 @@ Removed implementation, Allium, and generated-test artifacts are historical
 evidence only. This changelog summarizes the intended release; it does not
 replace the specification.
 
-## 1.0.0
+## 1.0.0-alpha.1 (unreleased)
+
+The first alpha narrows the release gate to the local dumb daily loop and a
+safe, staged migration of the author's observed v0 dataset. Existing Packs,
+vault, provider, Calendar, and advanced time capabilities remain available for
+experimental testing but are not alpha compatibility promises. Assisted mode,
+the v1 Skill, local web, complete migration breadth, and public packaging move
+to the beta backlog.
+
+## 1.0.0 (target)
 
 Little Ant 1.0 replaces the v0 lifecycle with a smaller Brick model, makes
 human importance order the organizing spine of the system, and introduces a

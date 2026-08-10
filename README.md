@@ -7,9 +7,11 @@
 > *One brick at a time. Inch by inch, anything's a cinch.*
 
 > [!IMPORTANT]
-> Little Ant 1.0 has a complete, frozen product specification. The greenfield
-> implementation has not shipped yet. This README describes the target release,
-> not an installable binary.
+> Little Ant 1.0 is being delivered incrementally. The local `1.0.0-alpha.1`
+> supports the dumb daily loop and safe migration from the author's real v0
+> dataset; integrations and assisted surfaces remain experimental. See the
+> [alpha contract](implementation/releases/v1-alpha.md) and
+> [beta backlog](implementation/releases/v1-beta.md).
 
 ## TL;DR
 

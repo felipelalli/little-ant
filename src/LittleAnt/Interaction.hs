@@ -4067,10 +4067,10 @@ feedCommand :: CommandOption
 feedCommand = CommandOption "feed" "/feed" "Feed Little Ant"
 
 importCommand :: CommandOption
-importCommand = CommandOption "import" "/import" "Choose a source and import mode"
+importCommand = CommandOption "import" "/import" "Experimental: choose a source and import mode"
 
 packsCommand :: CommandOption
-packsCommand = CommandOption "packs" "/packs" "Inspect Packs and installation state"
+packsCommand = CommandOption "packs" "/packs" "Experimental: inspect Packs and installation state"
 
 helpCommand :: CommandOption
 helpCommand = CommandOption "help" "/help" "Open Little Ant help"

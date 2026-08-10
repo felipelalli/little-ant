@@ -1,0 +1,72 @@
+# Little Ant 1.0 alpha contract
+
+Status: **implementation in progress**
+
+The alpha exists to put the dumb REPL and migrated real v0 data into daily use
+as early as possible. It is a local, single-user release rather than a claim
+that every 1.0 integration and assisted surface is finished.
+
+## Supported alpha surface
+
+The alpha gate covers:
+
+- immediate Feed into durable Raw and lazy triage into Work, lists, shelves,
+  hierarchy, and Domains;
+- sibling importance ordering, deterministic weighted `next`, blocker
+  forwarding, Focus, pause, done, skip diagnosis, decomposition, archive, and
+  restore;
+- search, show, history, undo, redo, dataset replay, `doctor`, typed errors,
+  and global dry-run;
+- guided title and attached-description revision;
+- safe migration of the user's observed signed-v0.1 event vocabulary into an
+  empty selected v1 profile; and
+- local Nix installation as `lant 1.0.0-alpha.1`.
+
+Commands outside this list remain visible because their implementation is
+useful for testing, but their help and documentation mark them experimental.
+An experimental command is not an alpha compatibility promise.
+
+## Migration boundary
+
+The default legacy source is
+`~/.local/share/little-ant/events.jsonl`; an explicit path may override it.
+Preflight is harmless by default. Candidate construction is isolated, cutover
+requires separate human consent, and the source remains byte-for-byte
+untouched.
+
+The alpha accepts exactly the event types observed in the user's current log:
+
+```text
+brick_captured         brick_enriched        brick_described
+seed_promoted          brick_ready           brick_regressed
+brick_started          brick_stopped         brick_completed
+brick_killed           brick_superseded      dependency_added
+comparison_recorded    wait_recorded         party_registered
+requester_attributed   source_attached       source_checked
+fed                    seeds_extracted       skip_taken
+order_sanity_proposed  flow_opened           focus_served
+wip_flagged
+```
+
+All source lines must still satisfy the signed `v0.1.0` schema and shipped
+upcasts. A new event type or version stops before mutation and points to the
+beta migration work; it is never skipped. The original archive and historical
+fields remain inspectable even when they do not become current v1 semantics.
+
+The selected v1 target must be empty. Merging into existing v1 data and
+interactive repair of ambiguous legacy structure are beta capabilities.
+
+## Alpha promotion gate
+
+The alpha is ready for daily use only when:
+
+1. a sanitized fixture covers all 25 accepted legacy event types;
+2. preflight against a private copy of the real source reports no unsupported
+   or blocking issue without committing personal data to Git;
+3. failed, cancelled, dry-run, and interrupted migration leave source and live
+   target unchanged;
+4. the candidate replays from zero with its recorded projection and identity
+   hashes;
+5. a migrated Brick can be searched, ordered, selected, focused, skipped,
+   decomposed, completed, and recovered after restart; and
+6. the full existing test suite plus the alpha end-to-end simulation passes.

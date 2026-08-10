@@ -1,6 +1,11 @@
 # Little Ant 1.0 implementation plan
 
-Status: **implementation in progress; S00-S08 implemented, S09 in progress**
+Status: **v1-alpha implementation in progress**
+
+The immediate delivery boundary is the
+[`v1-alpha contract`](releases/v1-alpha.md). All remaining obligations stay
+visible in the [`v1-beta backlog`](releases/v1-beta.md) without blocking daily
+testing of the dumb core. The canonical 1.0 product contract remains unchanged.
 
 The canonical product contract remains
 [`spec/little-ant-1.0.md`](../spec/little-ant-1.0.md). This directory describes
@@ -87,14 +92,14 @@ in [`difficult-decisions.md`](difficult-decisions.md).
 
 ## Current checkpoint
 
-Current slice: **S09 — Sources, imports, Packs, Calendar, exports, and repair.**
+Current release: **1.0.0-alpha.1 — daily dumb loop plus v0 migration.**
 
-S00-S08 are implemented in core paths already covered by prior commits, with remaining
-S08 closure details visible in `implementation/HANDOFF.md`. S09 adds external-source reliability,
-adapter integration hooks, import/repair ergonomics, and source-aware command coverage.
+S00-S08 and much of S09 are already executable. No further Pack, vault,
+provider, Calendar, local-web, or assisted-surface breadth belongs on the alpha
+critical path. Existing implementations remain available as experimental
+features while the alpha closes its daily loop and migration.
 
-To resume in a fresh context:
+To resume alpha implementation in a fresh context:
 
-    Read implementation/README.md, then implementation/slices/09-sources-packs-and-adapters.md,
-    and follow only its required canonical references. Implement S09 and nothing
-    from later slices.
+    Read implementation/README.md and implementation/releases/v1-alpha.md,
+    then follow only canonical references needed by the active alpha milestone.

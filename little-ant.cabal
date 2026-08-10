@@ -29,6 +29,7 @@ extra-source-files:
   conformance/*.tsv
   implementation/*.md
   implementation/coverage.tsv
+  implementation/releases/*.md
   implementation/slices/*.md
   packs/official/README.md
   packs/official-connectors/official-connectors.lantpack

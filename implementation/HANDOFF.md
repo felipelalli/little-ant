@@ -1,8 +1,9 @@
 # Implementation handoff
 
-Current slice and gate: **S09 — Sources, Packs, imports, and repair; implementation in progress.**
-S00-S08 are executable and mostly stable; S08 closure items remain open below.
-Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
+Current release gate: **1.0.0-alpha.1 — dumb daily use plus safe v0 migration.**
+The supported boundary lives in `implementation/releases/v1-alpha.md`; the
+remaining S08-S11 obligations live in `implementation/releases/v1-beta.md`.
+Coverage labels stay conservative until executable evidence is reconciled.
 
 
 Baseline at the start of the current milestone: **b484d5b**
@@ -607,7 +608,7 @@ Before marking the slice verified, close these deliberately visible gaps:
 
 ## Next work
 
-Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, complete the remaining official connector adapters. Explicit Pack
-update acceptance/remove/GC, Google Calendar write-back, and the local web UIAdapter also
-remain. The complete S09 gate still precedes `verified`.
+Stop integration breadth. Close the supported dumb daily loop, implement the
+bounded real-v0 migration, and pass the alpha promotion gate. Calendar
+write-back, local web, assisted surfaces, and remaining closure work are beta
+items and do not precede alpha use.

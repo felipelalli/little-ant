@@ -717,7 +717,7 @@ commandParser =
           "translate"
           ( info
               (TranslateCli . fmap Text.pack <$> many (strArgument (metavar "BRICK_OR_RAW")))
-              (progDesc "Run the interruptible English-normalization review queue")
+              (experimentalDescription "Run the interruptible English-normalization review queue")
           )
         <> command
           "focus"
@@ -741,19 +741,19 @@ commandParser =
           "impact"
           ( info
               (ImpactCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")))
-              (progDesc "Classify the expected impact of one composition root")
+              (experimentalDescription "Classify the expected impact of one composition root")
           )
         <> command
           "effort"
           ( info
               (EffortCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")))
-              (progDesc "Classify total effort for one Brick scope")
+              (experimentalDescription "Classify total effort for one Brick scope")
           )
         <> command
           "phase"
           ( info
               (PhaseCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")))
-              (progDesc "Review the optional descriptive phase of one Brick")
+              (experimentalDescription "Review the optional descriptive phase of one Brick")
           )
         <> command
           "update"
@@ -765,13 +765,13 @@ commandParser =
           "merge"
           ( info
               (MergeCli <$> (Text.pack <$> strArgument (metavar "SURVIVOR")) <*> (Text.pack <$> strArgument (metavar "ABSORBED")))
-              (progDesc "Merge two Bricks keeping the survivor identity")
+              (experimentalDescription "Merge two Bricks keeping the survivor identity")
           )
         <> command
           "supersede"
           ( info
               (SupersedeCli <$> (Text.pack <$> strArgument (metavar "OLD")) <*> (Text.pack <$> strArgument (metavar "NEW")))
-              (progDesc "Mark one Brick as superseded by another")
+              (experimentalDescription "Mark one Brick as superseded by another")
           )
         <> command
           "import"
@@ -790,7 +790,7 @@ commandParser =
                     )
                   <*> switch (long "erase-after-import" <> help "Delete imported entries from source as a migration aid")
               )
-              (progDesc "Import external data into your Lant dataset")
+              (experimentalDescription "Import external data into your Lant dataset")
           )
         <> command
           "migrate"
@@ -831,18 +831,18 @@ commandParser =
                         )
                     )
               )
-              (progDesc "Run one installed read-only exporter")
+              (experimentalDescription "Run one installed read-only exporter")
           )
-        <> command "web" (info (pure WebCli) (progDesc "Start or inspect the web service mode"))
+        <> command "web" (info (pure WebCli) (experimentalDescription "Unavailable in alpha: start the local web mirror"))
         <> command
           "packs"
           ( info
               (packParser <|> pure PacksListCli)
-              (progDesc "Manage packs (extensions, adapters, templates)")
+              (experimentalDescription "Manage Packs, adapters, and exporters")
           )
         <> command "doctor" (info (pure DoctorCli) (progDesc "Run a dataset consistency diagnostic"))
-        <> command "repair" (info (pure RepairCli) (progDesc "Apply safe deterministic repair recipes"))
-        <> command "editor" (info (pure EditorCli) (progDesc "Open a $EDITOR-assisted raw editing workflow"))
+        <> command "repair" (info (pure RepairCli) (experimentalDescription "Apply safe deterministic repair recipes"))
+        <> command "editor" (info (pure EditorCli) (experimentalDescription "Unavailable in alpha: open a $EDITOR-assisted workflow"))
         <> command "pause" (info (pure PauseCli) (progDesc "Clear current focus while retaining WIP"))
         <> command
           "break"
@@ -880,8 +880,8 @@ commandParser =
         <> command "undo" (info (pure UndoCli) (progDesc "Compensate the latest reversible command"))
         <> command "redo" (info (pure RedoCli) (progDesc "Reapply the currently redoable command"))
         <> command "grammar" (info (pure GrammarCli) (progDesc "Inspect the closed screen-grammar registry"))
-        <> command "tick" (info (pure TickCli) (progDesc "Advance due recurrence and habit state explicitly"))
-        <> command "notices" (info (pure NoticesCli) (progDesc "Inspect current, snoozed, and acknowledged temporal notices"))
+        <> command "tick" (info (pure TickCli) (experimentalDescription "Advance due recurrence and habit state explicitly"))
+        <> command "notices" (info (pure NoticesCli) (experimentalDescription "Inspect current, snoozed, and acknowledged temporal notices"))
         <> command
           "history"
           (info (HistoryCli <$> optional (argument auto (metavar "LIMIT" <> help "Show only the last N command records"))) (progDesc "List recent command history"))
@@ -890,8 +890,8 @@ commandParser =
           (info profileParser (progDesc "List, inspect, create, or select one non-merging profile"))
         <> command
           "config"
-          (info configParser (progDesc "Inspect or validate typed configuration"))
-        <> command "vault" (info vaultParser (progDesc "Manage profile-scoped encrypted credentials"))
+          (info configParser (experimentalDescription "Inspect or validate integration configuration"))
+        <> command "vault" (info vaultParser (experimentalDescription "Manage profile-scoped encrypted credentials"))
     )
     <|> (VaultAgentCli <$> option auto (long "vault-agent-internal" <> hidden <> internal))
 
@@ -976,4 +976,7 @@ viewReader = eitherReader $ \case
   value -> Left ("unknown projection depth: " <> value)
 
 versionOption :: Parser (a -> a)
-versionOption = infoOption "lant 1.0.0.0" (long "version" <> help "Show version")
+versionOption = infoOption "lant 1.0.0-alpha.1" (long "version" <> help "Show version")
+
+experimentalDescription :: String -> InfoMod command
+experimentalDescription description = progDesc ("EXPERIMENTAL — " <> description)
