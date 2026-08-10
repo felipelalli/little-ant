@@ -6,7 +6,6 @@ import Data.List (nub)
 import Data.Text qualified as Text
 import Graphics.Vty (Event (EvResize))
 import LittleAnt.Foundation
-import LittleAnt.REPL (directQuitRequested)
 import LittleAnt.Surface
 import LittleAnt.Terminal
 import Test.Tasty
@@ -46,10 +45,6 @@ tests =
           @?= EditorState "" "" Nothing
     , testCase "Vty resize is a presentation input" $
         eventToInput (EvResize 80 24) @?= Just (Resized 80 24)
-    , testCase "q quits only outside text-accepting screens" $ do
-        directQuitRequested False (Printable 'q' []) @?= True
-        directQuitRequested True (Printable 'q' []) @?= False
-        directQuitRequested False (Printable 'Q' []) @?= False
     , testCase "display width handles wide and accented text" $ do
         displayWidth "ação" @?= 4
         displayWidth "界" @?= 2

@@ -976,7 +976,7 @@ viewReader = eitherReader $ \case
   value -> Left ("unknown projection depth: " <> value)
 
 versionOption :: Parser (a -> a)
-versionOption = infoOption "lant 1.0.0-alpha.2" (long "version" <> help "Show version")
+versionOption = infoOption "lant 1.0.0-alpha.1" (long "version" <> help "Show version")
 
 experimentalDescription :: String -> InfoMod command
 experimentalDescription description = progDesc ("EXPERIMENTAL — " <> description)

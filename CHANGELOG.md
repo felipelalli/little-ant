@@ -7,14 +7,6 @@ Removed implementation, Allium, and generated-test artifacts are historical
 evidence only. This changelog summarizes the intended release; it does not
 replace the specification.
 
-## 1.0.0-alpha.2 (2026-08-10)
-
-The dumb REPL now exposes `[q] quit` beside `[/] more...`. Lowercase `q`
-closes finite-choice and read-only screens, while remaining literal input in
-editors and searchable selectors. `Escape` continues to walk back through
-uncommitted navigation and closes the presentation session when it reaches the
-root. These exits are presentation-only and append no event.
-
 ## 1.0.0-alpha.1 (2026-08-10)
 
 The first alpha narrows the release gate to the local dumb daily loop and a

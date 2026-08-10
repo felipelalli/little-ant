@@ -42,15 +42,6 @@ tests =
         let plain = renderPlain (paletteModel envelope "/f" 0)
         assertBool "palette has stable cursor" ("> /feed" `Text.isInfixOf` plain)
         assertBool "palette has exact navigation hint" ("↑/↓ select · Enter run · Esc back" `Text.isInfixOf` plain)
-    , testCase "the reference REPL frame exposes a direct quit gesture" $ do
-        identity <- fixtureIdentity
-        let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
-            wide = renderPlain (replEnvelopeModelAtWidth 80 envelope)
-            narrowLines = fmap plainLine (screenLines (replEnvelopeModelAtWidth 20 envelope))
-            narrowQuitLines = filter ("[q] quit" `Text.isInfixOf`) narrowLines
-        assertBool "wide frame must place quit beside more" ("[/] more...   [q] quit" `Text.isInfixOf` wide)
-        assertBool "narrow frame must retain quit" (not (null narrowQuitLines))
-        assertBool "narrow quit control must not overflow" (all ((<= 20) . Text.length) narrowQuitLines)
     , testCase "loading splash reports factual counts without a six-digit ceiling" $ do
         let small = renderPlain (progressModel 7)
             large = renderPlain (progressModel 1000000)

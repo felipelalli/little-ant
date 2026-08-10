@@ -46,7 +46,7 @@ Work:
 Focus?
 
 [y]es    [s]kip    [?] I don't know
-[/] more...   [q] quit
+[/] more...
 
 ────────────────────────────────────────
 . #rs "Rock Splitter"
@@ -59,10 +59,7 @@ Focus?
 
 The automatically served envelope, secondary-command escape, contextual facts,
 and stacked footer are all part of REPL UX. `[?] I don't know` belongs to
-the current Focus decision, while `[/] more...` opens UX-M01 and `[q] quit`
-ends only the presentation session. `Escape` returns through local navigation
-and exits at its root. In editable or searchable input, `q` remains literal
-text. Adaptive or
+the current Focus decision, while `[/] more...` opens UX-M01. Adaptive or
 narrow-terminal rendering may fold regions but cannot test only the inner
 envelope and call that a REPL simulation.
 

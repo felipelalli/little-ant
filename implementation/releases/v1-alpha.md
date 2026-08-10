@@ -20,7 +20,7 @@ The alpha gate covers:
 - guided title and attached-description revision;
 - safe migration of the user's observed signed-v0.1 event vocabulary into an
   empty selected v1 profile; and
-- local Nix installation as `lant 1.0.0-alpha.2`.
+- local Nix installation as `lant 1.0.0-alpha.1`.
 
 Commands outside this list remain visible because their implementation is
 useful for testing, but their help and documentation mark them experimental.
@@ -111,4 +111,4 @@ The alpha is ready for daily use only when:
 All six conditions were satisfied on 2026-08-10. The private v0 preflight and
 candidate build were exercised only in isolated temporary XDG roots; no
 personal titles or event payloads entered the repository. The installed
-artifact reports `lant 1.0.0-alpha.2`.
+artifact reports `lant 1.0.0-alpha.1`.
