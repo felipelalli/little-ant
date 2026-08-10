@@ -34,6 +34,34 @@ events, planning projects, tracking habits, or chatting with an AI. Little Ant
 connects those parts without hiding judgment inside an opaque score. See
 [Alternatives](#alternatives) for the trade-offs.
 
+## Install the local alpha
+
+[Nix](https://nixos.org/download/) builds the release and keeps its runtime
+dependencies isolated:
+
+```sh
+git clone https://github.com/felipelalli/little-ant.git
+cd little-ant
+git switch v1
+nix profile install path:.#little-ant
+~/.nix-profile/bin/lant --version
+```
+
+The last command prints `lant 1.0.0-alpha.1`. Run `lant` for the one-key dumb
+REPL or use the same engine directly, for example:
+
+```sh
+lant feed "buy milk"
+lant next
+lant search milk
+lant order
+```
+
+If an older `lant` appears earlier in `PATH`, invoke
+`~/.nix-profile/bin/lant` explicitly or adjust `PATH` before migrating. The
+[alpha contract](implementation/releases/v1-alpha.md) lists the supported
+surface and the deliberately deferred beta work.
+
 ## Why Little Ant?
 
 A normal task list slowly becomes a museum of good intentions:

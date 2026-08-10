@@ -7,7 +7,7 @@ Removed implementation, Allium, and generated-test artifacts are historical
 evidence only. This changelog summarizes the intended release; it does not
 replace the specification.
 
-## 1.0.0-alpha.1 (unreleased)
+## 1.0.0-alpha.1 (2026-08-10)
 
 The first alpha narrows the release gate to the local dumb daily loop and a
 safe, staged migration of the author's observed v0 dataset. Existing Packs,
@@ -15,6 +15,13 @@ vault, provider, Calendar, and advanced time capabilities remain available for
 experimental testing but are not alpha compatibility promises. Assisted mode,
 the v1 Skill, local web, complete migration breadth, and public packaging move
 to the beta backlog.
+
+The supported alpha includes guided title and Raw-backed description updates,
+strict preflight of the 25 observed legacy event types, isolated candidate
+replay, exact source custody, and resumable atomic cutover into an empty v1
+profile. A sanitized end-to-end simulation exercises ordering, weighted next,
+focus, skip diagnosis, decomposition, completion, restart, search, and doctor
+against migrated data.
 
 ## 1.0.0 (target)
 

@@ -30,6 +30,8 @@
           lant_age_ffi = ageFfi;
         };
         pkg = pkgBase.overrideAttrs (old: {
+          __intentionallyOverridingVersion = true;
+          version = "1.0.0-alpha.1";
           nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ pkgs.taskjuggler ];
           postInstall = (old.postInstall or "") + ''
             mkdir -p $out/libexec/little-ant

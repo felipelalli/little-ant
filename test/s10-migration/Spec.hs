@@ -1,19 +1,27 @@
 module Main (main) where
 
+import Control.Monad (forM_)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson
 import Data.Aeson.KeyMap qualified as KeyMap
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as LazyByteString
+import Data.IORef
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
+import LittleAnt.Application
 import LittleAnt.Error
+import LittleAnt.Export (emptyExportPort)
+import LittleAnt.Id
+import LittleAnt.Import (emptyImportPort)
+import LittleAnt.Interaction
 import LittleAnt.Migration.V0
 import LittleAnt.Model
+import LittleAnt.Result
 import LittleAnt.Store
 import System.Directory
 import System.FilePath (takeDirectory, takeFileName, (</>))
@@ -33,6 +41,7 @@ tests =
     , testCase "unknown event versions block before mutation" unknownVersionBlocks
     , testCase "a nonempty v1 target is never merged" nonemptyTargetBlocks
     , testCase "cutover resumes after the atomic exchange boundary" interruptedCutoverResumes
+    , testCase "a migrated Brick completes the alpha daily loop after restart" migratedDailyLoop
     ]
 
 inspectAndDryRun :: Assertion
@@ -153,6 +162,155 @@ interruptedCutoverResumes = withFixture $ \fixture -> do
   loadedCursor backupDataset @?= Genesis
   pendingExists <- doesFileExist pending
   pendingExists @?= False
+
+migratedDailyLoop :: Assertion
+migratedDailyLoop = withSystemTempDirectory "lant-migration-daily" $ \root -> do
+  let store = StoreConfig (root </> "dataset") 5000000 25000
+      source = root </> "events.jsonl"
+  initializeDataset store
+  ByteString.writeFile source dailyLoopFixture
+  _ <- migrate (Fixture store source) False MigrationBuild
+  _ <- migrate (Fixture store source) False MigrationCutover
+  environment <- dailyLoopEnvironment store 1000
+
+  before <- loadHealthy store
+  let migrated = Map.elems (stateBricks (loadedState before))
+  length migrated @?= 3
+
+  scope <- run environment (OrderCommand Nothing) >>= interactionOf
+  ordered <- answer environment scope "order.all" >>= finishOrdering environment
+  proposal <- answer environment ordered "next"
+  selectedId <- case envelopeOpportunity proposal of
+    FocusProposalOpportunity identity _ -> pure identity
+    other -> assertFailure ("expected a migrated focus proposal, got " <> show other) >> fail "unreachable"
+  assertBool "next selected a non-migrated Brick" (selectedId `elem` fmap brickId migrated)
+
+  let selected = stateBricks (loadedState before) Map.! selectedId
+      selectedReference = "#" <> unHandle (brickHandle selected)
+  searched <- run environment (SearchCommand (brickTitle selected))
+  case searched of
+    SearchResult{resultSearchHits} -> assertBool "search lost the migrated Brick" (brickTitle selected `elem` fmap searchHitTitle resultSearchHits)
+    other -> assertFailure ("expected search results, got " <> show other)
+
+  focused <- answer environment proposal "focus.accept"
+  envelopeOpportunity focused @?= CurrentFocusOpportunity selectedId
+  symptoms <- answer environment focused "focus.skip"
+  tired <- answer environment symptoms "work.symptom.tired"
+  skipped <- answer environment tired "work.reaction.skip"
+  case envelopeOpportunity skipped of
+    WorkSkipAcknowledgedOpportunity identity TiredSymptom SkipAnywayReaction -> identity @?= selectedId
+    other -> assertFailure ("expected a typed skip receipt, got " <> show other)
+
+  nature <- run environment (BreakCommand selectedReference) >>= interactionOf
+  draft <- answer environment nature "work.break.nature.project"
+  firstPart <- submitBreak environment draft "Inspect the route"
+  secondPart <- submitBreak environment firstPart "Carry the first load"
+  preview <- submitBreak environment secondPart ""
+  broken <- answer environment preview "work.break.accept"
+  childIds <- case envelopeOpportunity broken of
+    WorkBreakResultOpportunity identity children -> do
+      identity @?= selectedId
+      length children @?= 2
+      pure children
+    other -> assertFailure ("expected decomposition result, got " <> show other) >> fail "unreachable"
+
+  afterBreak <- loadHealthy store
+  forM_ childIds $ \childId -> do
+    let child = stateBricks (loadedState afterBreak) Map.! childId
+    _ <- run environment (DoneCommand (Just ("#" <> unHandle (brickHandle child))))
+    pure ()
+  _ <- run environment (DoneCommand (Just selectedReference))
+
+  restarted <- dailyLoopEnvironment store 5000
+  recovered <- loadHealthy (appStore restarted)
+  brickStatus (stateBricks (loadedState recovered) Map.! selectedId) @?= BrickDone
+  fmap (brickStatus . (stateBricks (loadedState recovered) Map.!)) childIds @?= [BrickDone, BrickDone]
+  replayedSearch <- run restarted (SearchCommand (brickTitle selected))
+  case replayedSearch of
+    SearchResult{resultSearchHits} -> assertBool "restart lost the completed migrated Brick" (brickTitle selected `elem` fmap searchHitTitle resultSearchHits)
+    other -> assertFailure ("expected search results after restart, got " <> show other)
+  doctor <- run restarted DoctorCommand
+  case doctor of
+    DoctorResult{resultDatasetHealthy} -> resultDatasetHealthy @?= True
+    other -> assertFailure ("expected doctor result, got " <> show other)
+
+dailyLoopFixture :: ByteString.ByteString
+dailyLoopFixture =
+  LazyByteString.toStrict . mconcat $
+    [ encode (eventValue at "brick_captured" 1 payload) <> "\n"
+    | (at, payload) <- zip times payloads
+    ]
+ where
+  start = readUtc "2026-08-02 09:00:00 UTC"
+  times = [addUTCTime (fromIntegral second) start | second <- [0 :: Int .. 2]]
+  payloads =
+    [ object ["brick" .= ("daily-one" :: Text), "title" .= ("Prepare the alpha notes" :: Text)]
+    , object ["brick" .= ("daily-two" :: Text), "title" .= ("Review the migration report" :: Text)]
+    , object ["brick" .= ("daily-three" :: Text), "title" .= ("Exercise the daily loop" :: Text)]
+    ]
+
+dailyLoopEnvironment :: StoreConfig -> Int -> IO AppEnv
+dailyLoopEnvironment store seed = do
+  identities <- traverse dailyLoopUuid [seed .. seed + 500]
+  available <- newIORef identities
+  pure
+    AppEnv
+      { appStore = store
+      , appActor = migrationActor
+      , appNow = pure fixtureNow
+      , appZonedNow = pure (utcToZonedTime utc fixtureNow)
+      , appAllocateUUID = atomicModifyIORef' available $ \case
+          identity : rest -> (rest, identity)
+          [] -> error "daily-loop UUID fixture exhausted"
+      , appExportPort = emptyExportPort
+      , appImportPort = emptyImportPort
+      , appImportPortProblem = Nothing
+      , appPackRegistryProblem = Nothing
+      , appOfficialPackRemote = Nothing
+      , appProviderConnectionRuntime = Nothing
+      }
+
+dailyLoopUuid :: Int -> IO UUIDv7
+dailyLoopUuid seed =
+  either (assertFailure . show) pure $
+    uuidV7FromEntropy
+      (0x0198f8a34c21 + fromIntegral seed)
+      (ByteString.replicate 10 (fromIntegral (seed `mod` 251 + 1)))
+
+run :: AppEnv -> AppCommand -> IO CommandResult
+run environment command =
+  runAppCommand environment False (const (pure ())) command >>= \case
+    Left problem -> assertFailure (show problem) >> fail "unreachable"
+    Right result -> pure result
+
+answer :: AppEnv -> InteractionEnvelope -> Text -> IO InteractionEnvelope
+answer environment envelope action =
+  run environment (RespondCommand (response envelope action)) >>= interactionOf
+
+submitBreak :: AppEnv -> InteractionEnvelope -> Text -> IO InteractionEnvelope
+submitBreak environment envelope submitted =
+  run environment (SubmitInteractionTextCommand (response envelope "work.break.submit") submitted) >>= interactionOf
+
+finishOrdering :: AppEnv -> InteractionEnvelope -> IO InteractionEnvelope
+finishOrdering environment envelope = case envelopeOpportunity envelope of
+  ImportanceReviewOpportunity{} -> answer environment envelope "importance.more" >>= finishOrdering environment
+  OrderResultOpportunity{} -> pure envelope
+  other -> assertFailure ("expected importance review or order result, got " <> show other) >> fail "unreachable"
+
+response :: InteractionEnvelope -> Text -> InteractionResponse
+response envelope action =
+  InteractionResponse
+    (envelopeInteractionId envelope)
+    (envelopeRevision envelope)
+    action
+    (envelopeIntegrityToken envelope)
+    (envelopeDatasetCursor envelope)
+
+interactionOf :: CommandResult -> IO InteractionEnvelope
+interactionOf = \case
+  NextResult{resultInteraction} -> pure resultInteraction
+  RespondResult{resultInteraction} -> pure resultInteraction
+  other -> assertFailure ("result has no interaction: " <> show other) >> fail "unreachable"
 
 data Fixture = Fixture
   { fixtureStore :: StoreConfig

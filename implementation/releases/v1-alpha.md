@@ -1,6 +1,6 @@
 # Little Ant 1.0 alpha contract
 
-Status: **migration implemented; final daily-loop and release gate in progress**
+Status: **implemented and validated for local daily use**
 
 The alpha exists to put the dumb REPL and migrated real v0 data into daily use
 as early as possible. It is a local, single-user release rather than a claim
@@ -100,3 +100,8 @@ The alpha is ready for daily use only when:
 5. a migrated Brick can be searched, ordered, selected, focused, skipped,
    decomposed, completed, and recovered after restart; and
 6. the full existing test suite plus the alpha end-to-end simulation passes.
+
+All six conditions were satisfied on 2026-08-10. The private v0 preflight and
+candidate build were exercised only in isolated temporary XDG roots; no
+personal titles or event payloads entered the repository. The installed
+artifact reports `lant 1.0.0-alpha.1`.
