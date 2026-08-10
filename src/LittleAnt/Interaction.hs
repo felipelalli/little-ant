@@ -22,6 +22,7 @@ module LittleAnt.Interaction (
   ScreenGrammar (..),
   WorkContext (..),
   EntitySelectionPurpose (..),
+  UpdateMeaningField (..),
   DelegationDraft (..),
   advanceEnvelope,
   envelopeIntegrityIsValid,
@@ -84,6 +85,10 @@ module LittleAnt.Interaction (
   makeRestorePreviewEnvelope,
   makeRestoreResultEnvelope,
   makeArchiveReviewEnvelope,
+  makeUpdateMeaningEnvelope,
+  makeUpdateTextEnvelope,
+  makeUpdatePreviewEnvelope,
+  makeUpdateResultEnvelope,
   makeCurrentFocusEnvelope,
   makeDomainSelectionEnvelope,
   makeDomainFocusEnvelope,
@@ -267,6 +272,9 @@ data TranslationQueue = TranslationQueue
 data EntitySelectionPurpose = WaitTargetPurpose | DelegationTargetPurpose
   deriving stock (Eq, Ord, Show)
 
+data UpdateMeaningField = UpdateTitle | UpdateDescription
+  deriving stock (Eq, Ord, Show)
+
 data DelegationDraft = DelegationDraft
   { delegationDraftBrick :: UUIDv7
   , delegationDraftSelection :: Maybe UUIDv7
@@ -411,6 +419,10 @@ data Opportunity
   | WorkCreatedResultOpportunity UUIDv7 UUIDv7
   | FocusProposalOpportunity UUIDv7 (Maybe UUIDv7)
   | CurrentFocusOpportunity UUIDv7
+  | UpdateMeaningOpportunity UUIDv7
+  | UpdateTextOpportunity UUIDv7 UpdateMeaningField Text Text
+  | UpdatePreviewOpportunity UUIDv7 UpdateMeaningField Text Text
+  | UpdateResultOpportunity UUIDv7 UpdateMeaningField
   | ChecklistRunOpportunity UUIDv7 (Maybe UUIDv7)
   | ChecklistRunResultOpportunity UUIDv7
   | RepeatableReturnOpportunity UUIDv7 UUIDv7
@@ -1997,7 +2009,7 @@ focusProposalEnvelope identity cursor precondition now state brick evidence =
     , Action "focus.assistance" "I don't know" "?" False "Clarify this Focus decision."
     , moreAction
     ]
-    [CommandOption "done" ("/done " <> brickCitation brick) "Complete this finite Work directly", feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
+    [CommandOption "done" ("/done " <> brickCitation brick) "Complete this finite Work directly", updateCommand brick, feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
     (Just "understand_focus")
     (brickFooter now state brick)
 
@@ -2610,9 +2622,98 @@ makeCurrentFocusEnvelope identity cursor precondition now state brick =
     , Action "focus.skip" "skip" "s" False "Explain what is getting in the way."
     , moreAction
     ]
-    [CommandOption "pause" "/pause" "Clear current focus while retaining WIP", feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
+    [CommandOption "pause" "/pause" "Clear current focus while retaining WIP", updateCommand brick, feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
     Nothing
     (brickFooter now state brick)
+
+makeUpdateMeaningEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
+makeUpdateMeaningEnvelope identity cursor precondition now state brick =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ChoiceGrammar
+    (UpdateMeaningOpportunity (brickId brick))
+    (EnvelopeContent "Update Work:" (Just (brickCitation brick)) [] (Just "What changed?"))
+    [ Action "update.title" "title" "t" False "Edit only the visible title; identity and structure remain unchanged."
+    , Action "update.description" "description" "d" False "Create or revise the one description Raw attached to this Brick."
+    , Action "update.unknown" "I don't know" "?" False "Explain the two alpha update routes."
+    , moreAction
+    ]
+    [showBrickCommand brick, helpCommand, exitCommand]
+    (Just "choose_update_field")
+    (brickFooter now state brick)
+
+makeUpdateTextEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> UpdateMeaningField -> Text -> Text -> InteractionEnvelope
+makeUpdateTextEnvelope previous now state brick field current draft =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      InputGrammar
+      (UpdateTextOpportunity (brickId brick) field current draft)
+      (EnvelopeContent ("Update " <> updateMeaningFieldText field) (Just (brickCitation brick)) [draft] Nothing)
+      [Action "update.text.submit" "review" "enter" False "Review the exact change before recording it."]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      Nothing
+      (brickFooter now state brick)
+
+makeUpdatePreviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> UpdateMeaningField -> Text -> Text -> InteractionEnvelope
+makeUpdatePreviewEnvelope previous now state brick field current proposed =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ConfirmationGrammar
+      (UpdatePreviewOpportunity (brickId brick) field current proposed)
+      ( EnvelopeContent
+          ("Update " <> updateMeaningFieldText field <> "?")
+          (Just (brickCitation brick))
+          ["Before: " <> updateDisplayValue current, "After:  " <> updateDisplayValue proposed]
+          Nothing
+      )
+      [ Action "update.accept" "yes" "y" False "Record this exact semantic revision."
+      , Action "update.edit" "edit" "e" False "Return to the selected text."
+      , Action "update.cancel" "cancel" "c" False "Return to the update hub without recording anything."
+      , Action "update.unknown" "I don't know" "?" False "Explain identity and Raw revision behavior."
+      , moreAction
+      ]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      (Just "confirm_update")
+      (brickFooter now state brick)
+
+makeUpdateResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> UpdateMeaningField -> InteractionEnvelope
+makeUpdateResultEnvelope identity cursor precondition now state brick field =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (UpdateResultOpportunity (brickId brick) field)
+    ("Updated " <> updateMeaningFieldText field <> ":")
+    [brickCitation brick]
+
+updateMeaningFieldText :: UpdateMeaningField -> Text
+updateMeaningFieldText = \case
+  UpdateTitle -> "title"
+  UpdateDescription -> "description"
+
+parseUpdateMeaningField :: Text -> Parser UpdateMeaningField
+parseUpdateMeaningField = \case
+  "title" -> pure UpdateTitle
+  "description" -> pure UpdateDescription
+  other -> fail ("unknown update field: " <> Text.unpack other)
+
+updateDisplayValue :: Text -> Text
+updateDisplayValue value
+  | Text.null value = "<none>"
+  | otherwise = "\"" <> value <> "\""
 
 makeCompletionResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeCompletionResultEnvelope identity cursor precondition now state brick =
@@ -3625,7 +3726,7 @@ makeArchiveReviewEnvelope identity cursor precondition now state brick review =
     )
     [ Action "archive-review.keep" "keep archived" "k" False "Resolve this one review without creating another reminder."
     , Action "archive-review.restore" "restore it" "r" False "Preview restoring the same Brick."
-    , Action "archive-review.update" "update and restore" "u" False "Enter semantic update before restoration."
+    , Action "archive-review.update" "update it" "u" False "Revise title or description; restoration remains a separate decision."
     , Action "archive-review.supersede" "newer Work replaced it" "n" False "Enter explicit supersession."
     , Action "archive-review.skip" "skip" "s" False "Keep the review pending with review pressure."
     , Action "archive-review.unknown" "I don't know" "?" False "Discover whether the Work remains relevant."
@@ -4081,6 +4182,9 @@ exitCommand = CommandOption "exit" "/exit" "Leave this presentation session"
 showBrickCommand :: Brick -> CommandOption
 showBrickCommand brick = CommandOption "show" ("/show " <> brickCitation brick) ("Inspect " <> brickCitation brick)
 
+updateCommand :: Brick -> CommandOption
+updateCommand brick = CommandOption "update" ("/update " <> brickCitation brick) ("Update title or description for " <> brickCitation brick)
+
 moreAction :: Action
 moreAction = Action "palette.open" "more..." "/" False "Open contextual commands."
 
@@ -4521,6 +4625,10 @@ opportunityValue = \case
           <> maybe [] (pure . ("selection_id" .=) . renderUUIDv7) selection
       )
   CurrentFocusOpportunity identity -> typed "current_focus" ["brick_id" .= renderUUIDv7 identity]
+  UpdateMeaningOpportunity identity -> typed "update_meaning" ["brick_id" .= renderUUIDv7 identity]
+  UpdateTextOpportunity identity field current draft -> typed "update_text" ["brick_id" .= renderUUIDv7 identity, "field" .= updateMeaningFieldText field, "current" .= current, "draft" .= draft]
+  UpdatePreviewOpportunity identity field current proposed -> typed "update_preview" ["brick_id" .= renderUUIDv7 identity, "field" .= updateMeaningFieldText field, "current" .= current, "proposed" .= proposed]
+  UpdateResultOpportunity identity field -> typed "update_result" ["brick_id" .= renderUUIDv7 identity, "field" .= updateMeaningFieldText field]
   ChecklistRunOpportunity identity selected ->
     typed "checklist_run" (["owner_id" .= renderUUIDv7 identity] <> maybe [] (pure . ("selected_entry_id" .=) . renderUUIDv7) selected)
   ChecklistRunResultOpportunity identity -> typed "checklist_run_result" ["owner_id" .= renderUUIDv7 identity]
@@ -4733,6 +4841,10 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "work_created_result" -> WorkCreatedResultOpportunity <$> uuidField value "raw_id" <*> uuidField value "brick_id"
     "focus_proposal" -> FocusProposalOpportunity <$> uuidField value "brick_id" <*> (value .:? "selection_id" >>= traverse parseUuid)
     "current_focus" -> CurrentFocusOpportunity <$> uuidField value "brick_id"
+    "update_meaning" -> UpdateMeaningOpportunity <$> uuidField value "brick_id"
+    "update_text" -> UpdateTextOpportunity <$> uuidField value "brick_id" <*> (value .: "field" >>= parseUpdateMeaningField) <*> value .: "current" <*> value .: "draft"
+    "update_preview" -> UpdatePreviewOpportunity <$> uuidField value "brick_id" <*> (value .: "field" >>= parseUpdateMeaningField) <*> value .: "current" <*> value .: "proposed"
+    "update_result" -> UpdateResultOpportunity <$> uuidField value "brick_id" <*> (value .: "field" >>= parseUpdateMeaningField)
     "checklist_run" -> ChecklistRunOpportunity <$> uuidField value "owner_id" <*> (value .:? "selected_entry_id" >>= traverse parseUuid)
     "checklist_run_result" -> ChecklistRunResultOpportunity <$> uuidField value "owner_id"
     "repeatable_return" -> RepeatableReturnOpportunity <$> uuidField value "owner_id" <*> uuidField value "review_id"

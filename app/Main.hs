@@ -759,7 +759,7 @@ commandParser =
           "update"
           ( info
               (UpdateCli . Text.pack <$> strArgument (metavar "REFERENCE") <*> optional (Text.pack <$> strArgument (metavar "SECTION")))
-              (progDesc "Patch metadata or status of one Brick")
+              (progDesc "Update the title or description of one Brick")
           )
         <> command
           "merge"

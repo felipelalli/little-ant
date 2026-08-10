@@ -303,6 +303,7 @@ loop environmentRef vty color width screen = do
       "break" -> runBrickCommand envelope command BreakCommand
       "archive" -> runBrickCommand envelope command ArchiveCommand
       "restore" -> runBrickCommand envelope command RestoreCommand
+      "update" -> runBrickCommand envelope command (\reference -> UpdateCommand reference Nothing)
       "translate" -> runSimpleCommand envelope (TranslateCommand Nothing)
       "tie-break" -> runSimpleCommand envelope TieBreakCommand
       _ -> pure (Just (EnvelopeScreen envelope (Just "That command is not implemented yet.")))
@@ -652,6 +653,7 @@ screenForEnvelope envelope = case envelopeOpportunity envelope of
   RepeatableReturnCenterOpportunity _ _ draft -> InteractionEditor envelope "return.center.submit" (selectedEditor draft) Nothing
   RepeatableReturnVariationOpportunity _ _ _ _ draft -> InteractionEditor envelope "return.variation.submit" (selectedEditor draft) Nothing
   RepeatableReturnZoneOpportunity _ _ _ _ _ draft -> InteractionEditor envelope "return.zone.submit" (selectedEditor draft) Nothing
+  UpdateTextOpportunity _ _ _ draft -> InteractionEditor envelope "update.text.submit" (selectedEditor draft) Nothing
   _ -> EnvelopeScreen envelope Nothing
 
 paletteReturnScreen :: InteractionEnvelope -> PaletteReturn -> ReplScreen

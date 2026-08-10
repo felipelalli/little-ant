@@ -25,6 +25,8 @@ module LittleAnt.Decision (
   decideDeferRawTriage,
   decideFeed,
   decideAppendRawRevision,
+  decideUpdateBrickDescription,
+  descriptionUpdateUUIDCount,
   decideAcceptEnglishNormalization,
   decideAcceptBrickTitleNormalization,
   decideAttachSourceBinding,
@@ -362,6 +364,62 @@ decideAppendRawRevision state actor rawId content provenance facts = do
   let payload = RawContentRevisionAppended rawId (rawRevision raw + 1) (Text.strip provenance) content (rawContentDigest content)
       event = makeDraft facts actor state allocated eventId commandId (RawContentRevisionAppendedV1 payload)
   pure (MutationDecision commandId Nothing (Just raw) [event])
+
+descriptionUpdateUUIDCount :: State -> UUIDv7 -> Either AppError Int
+descriptionUpdateUUIDCount state brickId = do
+  _ <- requirePreservedBrick state brickId
+  case descriptionRaws state brickId of
+    [] -> pure 6
+    [_] -> pure 2
+    _ -> Left (appError CorruptData "A Brick has more than one description Raw.")
+
+decideUpdateBrickDescription :: State -> Actor -> UUIDv7 -> Text -> RuntimeFacts -> Either AppError MutationDecision
+decideUpdateBrickDescription state actor brickId submitted facts = do
+  brick <- requirePreservedBrick state brickId
+  let description = Text.strip submitted
+  when (Text.null description) $
+    Left (appError InvalidInput "A Brick description cannot be empty in this alpha; archive or revise the existing Raw explicitly instead.")
+  case descriptionRaws state brickId of
+    [raw] -> do
+      current <- currentRawText state raw
+      when (current == description) $
+        Left (appError InvalidInput "The submitted description is unchanged.")
+      decideAppendRawRevision state actor (rawId raw) (RawTextContent description) "human:update-description" facts
+    [] -> do
+      allocated <- requireUUIDs 6 facts
+      (commandId, rawIdValue, feedEventId, linkId, linkEventId, dispositionEventId) <- case allocated of
+        [commandIdentity, rawIdentity, fedEvent, linkIdentity, linkedEvent, dispositionEvent] ->
+          Right (commandIdentity, rawIdentity, fedEvent, linkIdentity, linkedEvent, dispositionEvent)
+        _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      let handle = allocateHandle RawHandle (stateRetiredRawHandles state) (rawSeed description)
+          fed = RawFed rawIdValue handle description "human:update-description" (Just (RawTextContent description))
+          link = RawLinkAdded linkId rawIdValue (RawLinkBrick brickId) DescriptionRole
+          disposition = RawDispositionAccepted rawIdValue (RawAttachedTo brickId DescriptionRole)
+          events =
+            [ makeDraft facts actor state allocated feedEventId commandId (RawFedV1 fed)
+            , makeDraft facts actor state allocated linkEventId commandId (RawLinkAddedV1 link)
+            , makeDraft facts actor state allocated dispositionEventId commandId (RawDispositionAcceptedV1 disposition)
+            ]
+          raw = Raw rawIdValue handle description (runtimeNow facts) actor RawAwaitingReview 1 commandId
+      pure (MutationDecision commandId (Just brick) (Just raw) events)
+    _ -> Left (appError CorruptData "A Brick has more than one description Raw.")
+
+descriptionRaws :: State -> UUIDv7 -> [Raw]
+descriptionRaws state brickId =
+  [ raw
+  | link <- Map.elems (stateRawLinks state)
+  , rawLinkRole link == DescriptionRole
+  , rawLinkTarget link == RawLinkBrick brickId
+  , Just raw <- [Map.lookup (rawLinkRaw link) (stateRaws state)]
+  ]
+
+currentRawText :: State -> Raw -> Either AppError Text
+currentRawText state raw = do
+  revisionId <- maybe (Left (appError CorruptData "A description Raw has no current revision.")) Right (Map.lookup (rawId raw) (stateCurrentRawRevisions state))
+  revision <- maybe (Left (appError CorruptData "A description Raw points to a missing current revision.")) Right (Map.lookup revisionId (stateRawContentRevisions state))
+  case rawContentRevisionContent revision of
+    RawTextContent text -> pure text
+    _ -> Left (appError CorruptData "A Brick description must be text Raw material.")
 
 decideAcceptEnglishNormalization :: State -> Actor -> UUIDv7 -> Text -> NormalizationSource -> Maybe Text -> Maybe Fixed -> RuntimeFacts -> Either AppError MutationDecision
 decideAcceptEnglishNormalization state actor revisionId normalized source producer confidence facts = do
@@ -3072,6 +3130,10 @@ requireActiveBrick state identity =
   case Map.lookup identity (stateBricks state) of
     Just brick | brickStatus brick == BrickActive -> Right brick
     _ -> Left (appError NotFound "No active Brick matches the requested identity.")
+
+requirePreservedBrick :: State -> UUIDv7 -> Either AppError Brick
+requirePreservedBrick state identity =
+  maybe (Left (appError NotFound "No Brick matches the requested identity.")) Right (Map.lookup identity (stateBricks state))
 
 rawSeed :: Text -> Text
 rawSeed material = case filter (not . Text.null) (fmap Text.strip (Text.lines material)) of

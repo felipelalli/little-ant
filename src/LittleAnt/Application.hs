@@ -417,7 +417,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   ConfigPathsCommand -> runConfigPaths environment dryRun dataset
   ConfigValidateCommand -> runConfigValidate environment dryRun dataset
   ConfigConnectCommand source account label clientId -> runConfigConnect environment dryRun dataset source account label clientId
-  UpdateCommand reference section -> pure (unsupportedCommand "update")
+  UpdateCommand reference section -> runUpdate environment dryRun dataset reference section
   MergeCommand survivor absorbed -> pure (unsupportedCommand ("merge " <> survivor <> " " <> absorbed))
   SupersedeCommand oldBrick newBrick -> pure (unsupportedCommand ("supersede " <> oldBrick <> " " <> newBrick))
   ImportCommand source mode selectedContainers eraseAfterImport ->
@@ -2778,7 +2778,7 @@ helpEntries Nothing =
   , helpEntry "return-to-idle" "Return current focus to idle" "usage: lant return-to-idle [BRICK]"
   , helpEntry "pause" "Pause current focus" "usage: lant pause"
   , helpEntry "translate" "Review english-normalization opportunities" "usage: lant translate [TARGET]"
-  , helpEntry "update" "Patch one Brick metadata or section" "usage: lant update <BRICK> [SECTION]"
+  , helpEntry "update" "Update one Brick title or description" "usage: lant update <BRICK> [title|description]"
   , helpEntry "merge" "Merge two Bricks" "usage: lant merge <SURVIVOR> <ABSORBED>"
   , helpEntry "supersede" "Supersede a Brick with another" "usage: lant supersede <OLD> <NEW>"
   , helpEntry "import" "Import external source data" "usage: lant import <SOURCE> (--snapshot|--synchronize|--migrate) [--erase-after-import]"
@@ -2859,6 +2859,57 @@ runRestore environment dryRun dataset reference =
               envelope = makeRestorePreviewEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state brick
           saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
           pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+runUpdate :: AppEnv -> Bool -> LoadedDataset -> Text -> Maybe Text -> IO (Either AppError CommandResult)
+runUpdate environment dryRun dataset reference requestedField =
+  case resolveAnyBrickReference (loadedState dataset) reference of
+    Left problem -> pure (Left problem)
+    Right brick -> do
+      identity <- appAllocateUUID environment
+      now <- appZonedNow environment
+      let cursor = loadedCursor dataset
+          state = loadedState dataset
+          hub = makeUpdateMeaningEnvelope identity cursor (statePreconditionHash state) now state brick
+      case traverse parseUpdateField requestedField of
+        Left problem -> pure (Left problem)
+        Right field -> case field of
+          Nothing -> save hub
+          Just selected -> case currentBrickMeaning state brick selected of
+            Left problem -> pure (Left problem)
+            Right current -> save (makeUpdateTextEnvelope hub now state brick selected current current)
+ where
+  save envelope = do
+    saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+    pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+  parseUpdateField value = case Text.toLower (Text.strip value) of
+    "title" -> Right UpdateTitle
+    "description" -> Right UpdateDescription
+    _ ->
+      Left
+        (appError InvalidInput "The alpha update command supports only title or description.")
+          { appErrorRecovery = [RecoveryAction "choose-field" "Run `lant update BRICK` and choose title or description." Nothing]
+          }
+
+currentBrickMeaning :: State -> Brick -> UpdateMeaningField -> Either AppError Text
+currentBrickMeaning state brick = \case
+  UpdateTitle -> pure (brickTitle brick)
+  UpdateDescription -> case descriptionLinks of
+    [] -> pure ""
+    [link] -> do
+      revisionId <- maybe (Left (appError CorruptData "The description Raw has no current revision.")) Right (Map.lookup (rawLinkRaw link) (stateCurrentRawRevisions state))
+      revision <- maybe (Left (appError CorruptData "The description Raw points to a missing current revision.")) Right (Map.lookup revisionId (stateRawContentRevisions state))
+      case rawContentRevisionContent revision of
+        RawTextContent text -> pure text
+        _ -> Left (appError CorruptData "A Brick description must be text Raw material.")
+    _ -> Left (appError CorruptData "A Brick has more than one description Raw.")
+ where
+  descriptionLinks =
+    [ link
+    | link <- Map.elems (stateRawLinks state)
+    , rawLinkRole link == DescriptionRole
+    , rawLinkTarget link == RawLinkBrick (brickId brick)
+    ]
 
 runDomainFocus :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runDomainFocus environment dryRun dataset reference =
@@ -2982,6 +3033,39 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       case imported <> reused of
         rawId : _ -> withRaw rawId $ \raw -> local (advanceEnvelope current (makeRawTriageEnvelope (envelopeInteractionId current) cursor precondition now state raw))
         [] -> pure (Left (appError PreconditionFailed "This import result contains no Raw material to triage."))
+    (UpdateMeaningOpportunity brickId, "update.title", _) -> openUpdateText brickId UpdateTitle
+    (UpdateMeaningOpportunity brickId, "update.description", _) -> openUpdateText brickId UpdateDescription
+    (UpdateMeaningOpportunity{}, "update.unknown", _) ->
+      local (appendBody current "Title changes only the visible wording. Description creates or revises the one text Raw attached as this Brick's description. UUID, # handle, structure, importance, and history remain unchanged.")
+    (UpdateTextOpportunity brickId field original _, "update.text.submit", Just supplied) ->
+      withAnyBrick brickId $ \brick ->
+        let proposed = Text.strip supplied
+         in if Text.null proposed
+              then pure (Left (appError InvalidInput ("A Brick " <> updateFieldLabel field <> " cannot be empty in this alpha.")))
+              else
+                if proposed == original
+                  then pure (Left (appError InvalidInput ("The submitted " <> updateFieldLabel field <> " is unchanged.")))
+                  else local (makeUpdatePreviewEnvelope current now state brick field original proposed)
+    (UpdateTextOpportunity{}, "update.text.submit", Nothing) ->
+      pure (Left (appError InvalidInput "The update text submission is missing."))
+    (UpdatePreviewOpportunity brickId UpdateTitle _ proposed, "update.accept", _) ->
+      mutate
+        2
+        (decideAcceptBrickTitleNormalization state actor brickId proposed HumanNormalization Nothing Nothing)
+        (makeUpdated brickId UpdateTitle)
+    (UpdatePreviewOpportunity brickId UpdateDescription _ proposed, "update.accept", _) ->
+      case descriptionUpdateUUIDCount state brickId of
+        Left problem -> pure (Left problem)
+        Right count -> mutate count (decideUpdateBrickDescription state actor brickId proposed) (makeUpdated brickId UpdateDescription)
+    (UpdatePreviewOpportunity brickId field _ proposed, "update.edit", _) ->
+      withAnyBrick brickId $ \brick ->
+        case currentBrickMeaning state brick field of
+          Left problem -> pure (Left problem)
+          Right latest -> local (makeUpdateTextEnvelope current now state brick field latest proposed)
+    (UpdatePreviewOpportunity brickId _ _ _, "update.cancel", _) ->
+      withAnyBrick brickId $ \brick -> local (advanceEnvelope current (makeUpdateMeaningEnvelope (envelopeInteractionId current) cursor precondition now state brick))
+    (UpdatePreviewOpportunity{}, "update.unknown", _) ->
+      local (appendBody current "Accept records one append-only revision. A title revision preserves Brick identity and structure; a description revision preserves the same Raw identity after its first creation.")
     (ImportResultOpportunity invocationId _ _ True, "import.cleanup", _) -> beginSourceCleanup invocationId
     (ProviderConnectionOpportunity draft, "provider.connect.accept", _) -> acceptProviderConnection draft
     (ProviderConnectionOpportunity{}, "provider.connect.back", _) -> replaceWithFresh
@@ -3842,8 +3926,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       local (appendBody current "The Brick remains archived and this bounded relevance review remains pending.")
     (ArchiveReviewOpportunity{}, "archive-review.unknown", _) ->
       local (appendBody current "Keep archived when the Work still should not compete for focus. Restore only when it is again actionable; update or supersede when its meaning changed.")
-    (ArchiveReviewOpportunity{}, "archive-review.update", _) ->
-      local (appendBody current "Semantic update is not implemented in this slice yet; the archive review remains pending.")
+    (ArchiveReviewOpportunity brickId _, "archive-review.update", _) ->
+      withAnyBrick brickId $ \brick -> local (advanceEnvelope current (makeUpdateMeaningEnvelope (envelopeInteractionId current) cursor precondition now state brick))
     (ArchiveReviewOpportunity{}, "archive-review.supersede", _) ->
       local (appendBody current "Supersession is not implemented in this slice yet; the archive review remains pending.")
     (DomainFocusOpportunity domainId, action, _)
@@ -4907,6 +4991,20 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     Just brick | brickStatus brick == BrickActive -> continue brick
     Just _ -> pure (Left (appError PreconditionFailed "The Brick used by this interaction is no longer active."))
 
+  withAnyBrick identity continue = case Map.lookup identity (stateBricks state) of
+    Nothing -> pure (Left (appError NotFound "The Brick used by this interaction no longer exists."))
+    Just brick -> continue brick
+
+  openUpdateText brickId field =
+    withAnyBrick brickId $ \brick ->
+      case currentBrickMeaning state brick field of
+        Left problem -> pure (Left problem)
+        Right value -> local (makeUpdateTextEnvelope current now state brick field value value)
+
+  updateFieldLabel = \case
+    UpdateTitle -> "title"
+    UpdateDescription -> "description"
+
   withWait identity continue = case Map.lookup identity (stateWaits state) of
     Nothing -> pure (Left (appError NotFound "The Wait used by this interaction no longer exists."))
     Just gate
@@ -5745,6 +5843,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   makeArchiveReviewResult brickId message identity currentNow accepted _ = do
     brick <- maybe (Left (appError CorruptData "The archived Brick disappeared after review.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
     pure (makeArchiveReviewResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick message)
+
+  makeUpdated brickId field identity currentNow accepted _ = do
+    brick <- maybe (Left (appError CorruptData "The updated Brick disappeared after replay.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
+    pure (makeUpdateResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick field)
 
   makeDomainFocusResult domainId mode identity currentNow accepted _ = do
     domain <- maybe (Left (appError CorruptData "The focused Domain disappeared after replay.")) Right (Map.lookup domainId (stateDomains (loadedState accepted)))

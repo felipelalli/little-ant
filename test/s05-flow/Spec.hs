@@ -32,6 +32,8 @@ main =
       , testCase "mechanical discovery reaches an explicit confirmed leaf" mechanicalDiscovery
       , testCase "archive leaves Work inactive and releases one bounded relevance review" archiveReview
       , testCase "restore keeps identity and queues only local importance review" restoreWork
+      , testCase "title update preserves Brick identity and structure" updateTitle
+      , testCase "description update creates one Raw and then revises it in place" updateDescription
       ]
 
 provisionalSymptom :: Assertion
@@ -147,6 +149,60 @@ restoreWork = withHarness $ \environment -> do
     other -> assertFailure ("expected provisional restored placement, got " <> show other)
   fmap lazyReviewKind (Map.elems (stateLazyReviews (loadedState loaded))) @?= ["importance_run_review"]
 
+updateTitle :: Assertion
+updateTitle = withHarness $ \environment -> do
+  seedOneBrick environment
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  hub <- run environment (UpdateCommand "#rrsr" Nothing) >>= interactionOf
+  envelopeOpportunity hub @?= UpdateMeaningOpportunity brickIdValue
+  editor <- answer environment hub "update.title"
+  envelopeOpportunity editor @?= UpdateTextOpportunity brickIdValue UpdateTitle "Review Rock Splitter rules" "Review Rock Splitter rules"
+  preview <- submitAs environment editor "update.text.submit" "Review the Rock Splitter rules"
+  envelopeOpportunity preview @?= UpdatePreviewOpportunity brickIdValue UpdateTitle "Review Rock Splitter rules" "Review the Rock Splitter rules"
+  _ <- answer environment preview "update.accept"
+  updated <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let oldBrick = stateBricks (loadedState before) Map.! brickIdValue
+      changedBrick = stateBricks (loadedState updated) Map.! brickIdValue
+  brickTitle changedBrick @?= "Review the Rock Splitter rules"
+  brickId changedBrick @?= brickId oldBrick
+  brickHandle changedBrick @?= brickHandle oldBrick
+  brickParent changedBrick @?= brickParent oldBrick
+  brickDomains changedBrick @?= brickDomains oldBrick
+  brickSiblingPosition changedBrick @?= brickSiblingPosition oldBrick
+  Map.size (stateBrickTitleNormalizations (loadedState updated)) @?= 1
+
+updateDescription :: Assertion
+updateDescription = withHarness $ \environment -> do
+  seedOneBrick environment
+  firstHub <- run environment (UpdateCommand "#rrsr" (Just "description")) >>= interactionOf
+  envelopeOpportunity firstHub @?= UpdateTextOpportunity brickIdValue UpdateDescription "" ""
+  firstPreview <- submitAs environment firstHub "update.text.submit" "Check the fraud rules and their evidence."
+  _ <- answer environment firstPreview "update.accept"
+  first <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let descriptionLinks =
+        [ link
+        | link <- Map.elems (stateRawLinks (loadedState first))
+        , rawLinkRole link == DescriptionRole
+        , rawLinkTarget link == RawLinkBrick brickIdValue
+        ]
+  descriptionRawId <- case descriptionLinks of
+    [link] -> pure (rawLinkRaw link)
+    other -> assertFailure ("expected one description link, got " <> show other)
+  Map.lookup descriptionRawId (stateRawDispositions (loadedState first)) @?= Just (RawAttachedTo brickIdValue DescriptionRole)
+
+  secondHub <- run environment (UpdateCommand "#rrsr" (Just "description")) >>= interactionOf
+  envelopeOpportunity secondHub @?= UpdateTextOpportunity brickIdValue UpdateDescription "Check the fraud rules and their evidence." "Check the fraud rules and their evidence."
+  secondPreview <- submitAs environment secondHub "update.text.submit" "Check the current fraud rules and their evidence."
+  _ <- answer environment secondPreview "update.accept"
+  second <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState second
+      revisedRaw = stateRaws state Map.! descriptionRawId
+  Map.size (stateRaws state) @?= 2
+  length [link | link <- Map.elems (stateRawLinks state), rawLinkRole link == DescriptionRole] @?= 1
+  rawRevision revisedRaw @?= 2
+  currentRevisionId <- maybe (assertFailure "description current revision missing") pure (Map.lookup descriptionRawId (stateCurrentRawRevisions state))
+  rawContentRevisionContent (stateRawContentRevisions state Map.! currentRevisionId) @?= RawTextContent "Check the current fraud rules and their evidence."
+
 withFocusedProposal :: (AppEnv -> InteractionEnvelope -> IO a) -> IO a
 withFocusedProposal action =
   withHarness $ \environment -> do
@@ -224,6 +280,10 @@ answer environment envelope action =
 submit :: AppEnv -> InteractionEnvelope -> Text -> IO InteractionEnvelope
 submit environment envelope text =
   run environment (SubmitInteractionTextCommand (response envelope "work.other.submit") text) >>= interactionOf
+
+submitAs :: AppEnv -> InteractionEnvelope -> Text -> Text -> IO InteractionEnvelope
+submitAs environment envelope action text =
+  run environment (SubmitInteractionTextCommand (response envelope action) text) >>= interactionOf
 
 navigate :: AppEnv -> InteractionEnvelope -> Bool -> IO InteractionEnvelope
 navigate environment envelope backward =
