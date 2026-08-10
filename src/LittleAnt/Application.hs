@@ -54,11 +54,12 @@ import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Catalog
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Installed
+import LittleAnt.Pack.Lifecycle
 import LittleAnt.Pack.Official
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Runner (defaultPackRunnerClient)
 import LittleAnt.Pack.Standard (loadStandardPackAuthorization, standardPackIdentity)
-import LittleAnt.Pack.Store (PackStoreConfig (..), inspectStoredPack, storeAuthorizedPack)
+import LittleAnt.Pack.Store (PackStoreConfig (..), PackStoreEntry (..), inspectStoredPack, listPackStoreEntries, removePackStoreEntries, storeAuthorizedPack, withPackStoreLock)
 import LittleAnt.Pack.Transport
 import LittleAnt.Pack.Trust
 import LittleAnt.Pack.Update
@@ -430,11 +431,11 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   PacksInstallCommand archive -> runPacksInstall environment dryRun dataset archive
   PacksUpdatesCommand -> runPacksUpdates environment dryRun dataset
   PacksUpdateCommand pack -> runPacksUpdate environment dryRun dataset pack
-  PacksRemoveCommand pack -> pure (unsupportedCommand ("packs remove " <> pack))
+  PacksRemoveCommand pack -> runPacksRemove environment dryRun dataset pack
   PacksRefreshCommand -> runPacksRefresh environment dryRun dataset
   PacksTrustCommand keyFile -> runPacksTrust environment dryRun dataset keyFile
   PacksUntrustCommand pack -> pure (unsupportedCommand ("packs untrust " <> pack))
-  PacksGcCommand -> pure (unsupportedCommand "packs gc")
+  PacksGcCommand -> runPacksGc environment dryRun dataset
   DoctorCommand -> runDoctor environment dryRun (const (pure ()))
   RepairCommand -> runRepair environment dryRun (const (pure ()))
   EditorCommand -> pure (unsupportedCommand "editor")
@@ -814,6 +815,61 @@ renderPackUpdateInspection draft =
       KeepInstalledRelease -> "keep installed"
       BindingUnavailable -> "unavailable"
 
+renderPackRemovalInspection :: PackRemovalDraft -> Text
+renderPackRemovalInspection draft =
+  Text.unlines
+    ( [ "Complete Pack removal reference plan:"
+      , artifactName artifact <> " " <> artifactVersion artifact <> " · " <> artifactArchiveDigest artifact
+      , ""
+      ]
+        <> (if null references then ["  no live or reproducibility references"] else fmap renderReference references)
+        <> ["", "This operation removes only the preferred profile pin. Garbage collection is always separate."]
+    )
+ where
+  artifact = pinArtifact (packRemovalPin draft)
+  references = packRemovalReferences draft
+  renderReference reference =
+    "  "
+      <> removalReferenceKind reference
+      <> " "
+      <> removalReferenceName reference
+      <> maybe "" (" · " <>) (removalReferenceComponent reference)
+      <> " · "
+      <> disposition
+      <> " · "
+      <> removalReferenceReason reference
+   where
+    disposition = case removalReferenceDisposition reference of
+      RemovalRetained -> "retained"
+      RemovalMustResolve -> "must resolve"
+
+renderPackGcInspection :: PackGcDraft -> Text
+renderPackGcInspection draft =
+  Text.unlines
+    ( [ "Complete unreferenced Pack archive plan:"
+      , "Store: " <> Text.pack (packGcStoreRoot draft)
+      , "Profiles checked: " <> Text.pack (show (Map.size (packGcProfileRevisions draft)))
+      , ""
+      ]
+        <> fmap renderCandidate (packGcCandidates draft)
+        <> [ ""
+           , "Total: " <> Text.pack (show (length (packGcCandidates draft))) <> " archives · " <> Text.pack (show (packGcTotalBytes draft)) <> " bytes"
+           ]
+    )
+ where
+  renderCandidate candidate =
+    let artifact = packGcCandidateArtifact candidate
+     in "  "
+          <> artifactName artifact
+          <> " "
+          <> artifactVersion artifact
+          <> " · "
+          <> artifactArchiveDigest artifact
+          <> " · "
+          <> Text.pack (show (packGcCandidateByteCount candidate))
+          <> " bytes · "
+          <> Text.pack (packGcCandidatePath candidate)
+
 runPacksList :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runPacksList environment dryRun dataset =
   loadProfilePackProjections environment >>= \case
@@ -854,6 +910,98 @@ runPacksUpdate environment dryRun dataset requested = do
             Left problem -> pure (Left problem)
             Right profile -> makePackUpdatePreview environment dryRun dataset profile candidate
     else runOfficialPackUpdate environment dryRun dataset normalized
+
+runPacksRemove :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runPacksRemove environment dryRun dataset requested =
+  loadPackProfileSnapshot environment >>= \case
+    Left problem -> pure (Left problem)
+    Right profile ->
+      preparePackRemovalDraft profile (loadedState dataset) (Text.strip requested) >>= \case
+        Left problem -> pure (Left problem)
+        Right draft -> do
+          identity <- appAllocateUUID environment
+          now <- appZonedNow environment
+          let state = loadedState dataset
+              envelope = makePackRemovalEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state draft
+          saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+          pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+preparePackRemovalDraft :: PackProfileSnapshot -> State -> Text -> IO (Either AppError PackRemovalDraft)
+preparePackRemovalDraft profile state name =
+  case Map.lookup name (Profile.installedComponents (packProfileIntegrations profile)) of
+    Nothing ->
+      pure . Left $
+        (appError NotFound "The requested preferred Pack is not installed in this profile.")
+          { appErrorSubject = Just name
+          , appErrorRecovery = [RecoveryAction "list-packs" "Inspect exact installed Pack names." (Just "lant packs list")]
+          }
+    Just pin -> do
+      inspected <- inspectStoredPack (PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))) (artifactArchiveDigest (pinArtifact pin))
+      let displayName = case inspected of
+            Right authenticated -> packDisplayName (structurallyValidManifest (authenticatedStructuralPack authenticated))
+            Left _ -> artifactName (pinArtifact pin)
+      pure . Right $ buildPackRemovalDraft (packProfileRevision profile) displayName (packProfileIntegrations profile) state pin
+
+runPacksGc :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
+runPacksGc environment dryRun dataset =
+  loadPackGcDraft environment dataset >>= \case
+    Left problem -> pure (Left problem)
+    Right draft -> do
+      identity <- appAllocateUUID environment
+      now <- appZonedNow environment
+      let state = loadedState dataset
+          cursor = loadedCursor dataset
+          precondition = statePreconditionHash state
+      if null (packGcCandidates draft)
+        then
+          pure . Right $
+            NextResult cursor (makePackGcResultEnvelope identity cursor precondition now state False 0 0) dryRun
+        else do
+          let envelope = makePackGcEnvelope identity cursor precondition now state draft
+          saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+          pure (Right (NextResult cursor envelope dryRun))
+
+loadPackGcDraft :: AppEnv -> LoadedDataset -> IO (Either AppError PackGcDraft)
+loadPackGcDraft environment selectedDataset = do
+  roots <- Profile.resolveXdgRoots
+  Profile.listProfiles roots >>= \case
+    Left problem -> pure (Left problem)
+    Right names -> do
+      observed <- traverse (loadRetention roots) names
+      case sequence observed of
+        Left problem -> pure (Left problem)
+        Right profiles ->
+          case Profile.profilePaths roots selectedProfile of
+            Left problem -> pure (Left problem)
+            Right selectedPaths -> do
+              let storeRoot = Profile.packStoreDirectory selectedPaths
+              listPackStoreEntries (PackStoreConfig storeRoot) >>= \case
+                Left problem -> pure (Left problem)
+                Right entries -> pure (Right (buildPackGcDraft storeRoot profiles entries))
+ where
+  selectedProfile = actorProfile (appActor environment)
+  loadRetention roots name =
+    case Profile.profilePaths roots name of
+      Left problem -> pure (Left problem)
+      Right expectedPaths ->
+        Profile.integrationsConfigRevision expectedPaths >>= \case
+          Left problem -> pure (Left problem)
+          Right beforeRevision ->
+            Profile.loadProfile roots name >>= \case
+              Left problem -> pure (Left problem)
+              Right (paths, _, _, _, integrations) ->
+                Profile.integrationsConfigRevision paths >>= \case
+                  Left problem -> pure (Left problem)
+                  Right afterRevision
+                    | beforeRevision /= afterRevision -> pure (Left packProfileChanged)
+                    | otherwise -> do
+                        loaded <-
+                          if name == selectedProfile
+                            then pure (Right selectedDataset)
+                            else loadDataset (StoreConfig (Profile.datasetDirectory paths) 2_000_000 20_000) (const (pure ()))
+                        pure $
+                          (\dataset -> profilePackRetention name afterRevision (loadedCursor dataset) integrations (loadedState dataset))
+                            <$> loaded
 
 runOfficialPackUpdate :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runOfficialPackUpdate environment dryRun dataset requested = case appOfficialPackRemote environment of
@@ -2852,6 +3000,16 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (PackUpdateOpportunity draft, "pack.update.inspect", _) -> local (appendBody current (renderPackUpdateInspection draft))
     (PackUpdateOpportunity{}, "pack.update.unknown", _) ->
       local (appendBody current "The preferred release serves new configuration. Existing accounts keep their exact installed release unless this complete plan explicitly rebinds them. OAuth accounts and bindings with unresolved authority stay on the installed release.")
+    (PackRemovalOpportunity draft, "pack.remove.accept", _) -> acceptPackRemoval draft
+    (PackRemovalOpportunity draft, "pack.remove.keep", _) -> finishPackRemoval draft False
+    (PackRemovalOpportunity draft, "pack.remove.inspect", _) -> local (appendBody current (renderPackRemovalInspection draft))
+    (PackRemovalOpportunity{}, "pack.remove.unknown", _) ->
+      local (appendBody current "Removing a Pack deactivates only its preferred pin for new configuration. Exact provider accounts can retain their reviewed release; unresolved source, delivery, or pending-effect authority must be handled first. Archive deletion is always a separate global garbage-collection consent.")
+    (PackGcOpportunity draft, "pack.gc.accept", _) -> acceptPackGc draft
+    (PackGcOpportunity draft, "pack.gc.keep", _) -> finishPackGc draft False
+    (PackGcOpportunity draft, "pack.gc.inspect", _) -> local (appendBody current (renderPackGcInspection draft))
+    (PackGcOpportunity{}, "pack.gc.unknown", _) ->
+      local (appendBody current "Garbage collection checks every profile, preferred and exact account pin, nonterminal effect, and accepted import provenance. It can remove only the exact archives shown here and never changes canonical or profile data.")
     (PackTrustOpportunity draft, "pack.trust.accept", _) -> acceptPackTrust draft
     (PackTrustOpportunity draft, "pack.trust.back", _) -> backFromPackTrust draft
     (PackTrustOpportunity{}, "pack.trust.unknown", _) ->
@@ -4429,20 +4587,22 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                           Right authorized
                             | dryRun ->
                                 local (appendBody current "Dry run revalidated the exact archive, signer trust, component authority, and profile revision. No archive was stored and no pin changed.")
-                            | otherwise ->
-                                storeAuthorizedPack (PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))) authorized >>= \case
-                                  Left problem -> pure (Left problem)
-                                  Right _ -> do
-                                    let pin = installAuthorizedPin authorized
-                                        integrations = packProfileIntegrations profile
-                                        changed = integrations{Profile.installedComponents = Map.insert (artifactName (pinArtifact pin)) pin (Profile.installedComponents integrations)}
-                                    Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packInstallProfileRevision draft) changed >>= \case
-                                      Left problem -> pure (Left problem)
-                                      Right True -> finishPackInstall (pinArtifact pin)
-                                      Right False ->
-                                        loadPackProfileSnapshot environment >>= \case
-                                          Left problem -> pure (Left problem)
-                                          Right refreshed -> refreshPackInstall candidate refreshed "The profile changed before the pin could be stored. Nothing was overwritten; the unreferenced archive is safe to collect. Review the refreshed plan."
+                            | otherwise -> do
+                                let store = PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))
+                                withPackStoreLock store $
+                                  storeAuthorizedPack store authorized >>= \case
+                                    Left problem -> pure (Left problem)
+                                    Right _ -> do
+                                      let pin = installAuthorizedPin authorized
+                                          integrations = packProfileIntegrations profile
+                                          changed = integrations{Profile.installedComponents = Map.insert (artifactName (pinArtifact pin)) pin (Profile.installedComponents integrations)}
+                                      Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packInstallProfileRevision draft) changed >>= \case
+                                        Left problem -> pure (Left problem)
+                                        Right True -> finishPackInstall (pinArtifact pin)
+                                        Right False ->
+                                          loadPackProfileSnapshot environment >>= \case
+                                            Left problem -> pure (Left problem)
+                                            Right refreshed -> refreshPackInstall candidate refreshed "The profile changed before the pin could be stored. Nothing was overwritten; the unreferenced archive is safe to collect. Review the refreshed plan."
 
   acceptPackUpdate draft
     | not (packUpdateCanApply draft) =
@@ -4470,28 +4630,30 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                               Right authorized
                                 | dryRun ->
                                     local (appendBody current "Dry run revalidated the exact candidate, signed difference, binding plan, and profile revision. No archive, preferred pin, or binding changed.")
-                                | otherwise ->
-                                    storeAuthorizedPack (PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))) authorized >>= \case
-                                      Left problem -> pure (Left problem)
-                                      Right _ -> do
-                                        let candidatePin = installAuthorizedPin authorized
-                                            integrations = packProfileIntegrations profile
-                                            withPreferred =
-                                              integrations
-                                                { Profile.installedComponents =
-                                                    Map.insert (artifactName (pinArtifact candidatePin)) candidatePin (Profile.installedComponents integrations)
-                                                }
-                                            changed = updateReboundAccounts candidatePin draft withPreferred
-                                        case Profile.validateIntegrationsConfig changed of
-                                          Left problem -> pure (Left problem)
-                                          Right () ->
-                                            Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packUpdateProfileRevision draft) changed >>= \case
-                                              Left problem -> pure (Left problem)
-                                              Right True -> finishPackUpdate draft True
-                                              Right False ->
-                                                loadPackProfileSnapshot environment >>= \case
-                                                  Left problem -> pure (Left problem)
-                                                  Right refreshed -> refreshPackUpdate candidate installedPin installed refreshed "The profile changed before the update plan could be stored. Nothing was overwritten; review the refreshed plan."
+                                | otherwise -> do
+                                    let store = PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))
+                                    withPackStoreLock store $
+                                      storeAuthorizedPack store authorized >>= \case
+                                        Left problem -> pure (Left problem)
+                                        Right _ -> do
+                                          let candidatePin = installAuthorizedPin authorized
+                                              integrations = packProfileIntegrations profile
+                                              withPreferred =
+                                                integrations
+                                                  { Profile.installedComponents =
+                                                      Map.insert (artifactName (pinArtifact candidatePin)) candidatePin (Profile.installedComponents integrations)
+                                                  }
+                                              changed = updateReboundAccounts candidatePin draft withPreferred
+                                          case Profile.validateIntegrationsConfig changed of
+                                            Left problem -> pure (Left problem)
+                                            Right () ->
+                                              Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packUpdateProfileRevision draft) changed >>= \case
+                                                Left problem -> pure (Left problem)
+                                                Right True -> finishPackUpdate draft True
+                                                Right False ->
+                                                  loadPackProfileSnapshot environment >>= \case
+                                                    Left problem -> pure (Left problem)
+                                                    Right refreshed -> refreshPackUpdate candidate installedPin installed refreshed "The profile changed before the update plan could be stored. Nothing was overwritten; review the refreshed plan."
 
   keepPackCurrent draft = finishPackUpdate draft False
 
@@ -4534,6 +4696,99 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         rebound = length [() | plan <- packUpdateBindings draft, updateBindingDisposition plan == RebindToCandidate]
         result = makePackUpdateResultEnvelope (envelopeInteractionId current) cursor precondition now state installed candidate applied (if applied then rebound else 0)
     local (advanceEnvelope current result)
+
+  acceptPackRemoval draft
+    | not (packRemovalCanApply draft) =
+        local (appendBody current "This exact plan still has references that must be resolved. Inspect them or keep the preferred Pack unchanged.")
+    | otherwise =
+        loadPackProfileSnapshot environment >>= \case
+          Left problem -> pure (Left problem)
+          Right profile ->
+            refreshableRemovalDraft profile draft >>= \case
+              Left problem -> pure (Left problem)
+              Right refreshedDraft
+                | refreshedDraft /= draft ->
+                    refreshPackRemoval refreshedDraft "The profile or Pack references changed after the prior preview. Review this refreshed removal plan before continuing."
+                | dryRun ->
+                    local (appendBody current "Dry run revalidated the exact preferred pin, profile revision, and reference plan. No pin, archive, binding, or canonical data changed.")
+                | otherwise -> do
+                    let artifact = pinArtifact (packRemovalPin draft)
+                        integrations = packProfileIntegrations profile
+                        changed = integrations{Profile.installedComponents = Map.delete (artifactName artifact) (Profile.installedComponents integrations)}
+                    Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packRemovalProfileRevision draft) changed >>= \case
+                      Left problem -> pure (Left problem)
+                      Right True -> finishPackRemoval draft True
+                      Right False ->
+                        loadPackProfileSnapshot environment >>= \case
+                          Left problem -> pure (Left problem)
+                          Right newer ->
+                            refreshableRemovalDraft newer draft >>= \case
+                              Left problem -> pure (Left problem)
+                              Right newerDraft -> refreshPackRemoval newerDraft "The profile changed before the preferred pin could be removed. Nothing was overwritten; review the refreshed plan."
+
+  refreshableRemovalDraft profile draft =
+    preparePackRemovalDraft profile state (artifactName (pinArtifact (packRemovalPin draft)))
+
+  refreshPackRemoval draft message = do
+    let candidateEnvelope = makePackRemovalEnvelope (envelopeInteractionId current) cursor precondition now state draft
+    local (appendBody (advanceEnvelope current candidateEnvelope) message)
+
+  finishPackRemoval draft removed = do
+    let artifact = pinArtifact (packRemovalPin draft)
+        retained = length [() | reference <- packRemovalReferences draft, removalReferenceDisposition reference == RemovalRetained]
+        result = makePackRemovalResultEnvelope (envelopeInteractionId current) cursor precondition now state artifact removed retained
+    local (advanceEnvelope current result)
+
+  acceptPackGc draft =
+    let config = PackStoreConfig (packGcStoreRoot draft)
+     in withPackStoreLock config (recomputeAndCollect config) >>= \case
+          Left problem -> pure (Left problem)
+          Right (Left refreshed) -> refreshPackGc refreshed "A profile, dataset, or archive changed after the prior preview. Review this refreshed collection plan before continuing."
+          Right (Right ())
+            | dryRun -> local (appendBody current "Dry run revalidated every profile cursor, profile revision, archive identity, and exact byte count. No archive was removed.")
+            | otherwise -> finishPackGc draft True
+   where
+    recomputeAndCollect config =
+      loadPackGcDraft environment dataset >>= \case
+        Left problem -> pure (Left problem)
+        Right refreshed
+          | refreshed /= draft -> pure (Right (Left refreshed))
+          | dryRun -> pure (Right (Right ()))
+          | otherwise ->
+              removePackStoreEntries config (gcEntries draft) >>= \case
+                Left problem -> pure (Left problem)
+                Right () -> pure (Right (Right ()))
+
+  refreshPackGc draft message =
+    if null (packGcCandidates draft)
+      then do
+        let result = makePackGcResultEnvelope (envelopeInteractionId current) cursor precondition now state False 0 0
+        local (appendBody (advanceEnvelope current result) message)
+      else do
+        let candidateEnvelope = makePackGcEnvelope (envelopeInteractionId current) cursor precondition now state draft
+        local (appendBody (advanceEnvelope current candidateEnvelope) message)
+
+  finishPackGc draft collected = do
+    let result =
+          makePackGcResultEnvelope
+            (envelopeInteractionId current)
+            cursor
+            precondition
+            now
+            state
+            collected
+            (length (packGcCandidates draft))
+            (packGcTotalBytes draft)
+    local (advanceEnvelope current result)
+
+  gcEntries draft =
+    [ PackStoreEntry
+        (packGcCandidatePath candidate)
+        (packGcCandidateArtifact candidate)
+        (packGcCandidateSignerFingerprint candidate)
+        (packGcCandidateByteCount candidate)
+    | candidate <- packGcCandidates draft
+    ]
 
   backFromPackTrust draft = case packTrustReturnToInstall draft of
     Nothing -> replaceWithFresh

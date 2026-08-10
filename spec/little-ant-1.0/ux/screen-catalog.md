@@ -5248,6 +5248,71 @@ cannot dispatch. Replacing or pausing uses one complete affected-binding
 preview. Manual alternatives never claim an external outcome. Canonical data,
 history, and Pack-free replay remain available.
 
+## UX-PACK03 — Preferred Pack removal
+
+The Pack manager's remove shortcut and `lant packs remove <pack>` enter the same
+persisted no-default consent. The dumb REPL renders an applicable plan as:
+
+```text
+Remove Pack?
+
+Little Ant Connectors
+Preferred: 1.1.0 · sha256:a53d…9b71
+
+This removes only the preferred profile pin.
+It deletes no archive, canonical data, Raw material, or history.
+Exact retained references: 2
+References to resolve first: 0
+
+[r]emove preferred    [k]eep current
+[i]nspect references  [?] I don't know
+
+[/] more...
+```
+
+Inspect lists every exact reference and labels it `retained` or `must resolve`
+with a plain-language reason. Exact ProviderAccounts and accepted import
+manifests are retained. Active sources without matching exact provider
+authority, component-only delivery bindings, and nonterminal effects must be
+resolved in their owning flow. If any must-resolve reference exists, the
+remove action is absent; there is no force route. Acceptance rereads the
+profile and regenerates the whole plan. Drift returns a fresh unapproved
+screen. A successful result says only that the preferred pin was removed and
+directs storage reclamation to the separate garbage-collection flow.
+
+## UX-PACK04 — Global Pack archive collection
+
+The Pack manager's collect shortcut and `lant packs gc` scan the shared store
+and every local profile before opening this no-default consent:
+
+```text
+Collect unused Pack archives?
+
+2 unreferenced archives · 4.8 MiB
+Profiles checked: 3
+
+Little Ant Connectors 1.0.0 · sha256:91c6…4a20
+Community Exporters 0.8.2 · sha256:21fb…930c
+
+Only these content-addressed archive bytes will be removed.
+No profile, canonical data, Raw material, trust, or history will change.
+
+[c]ollect archives    [k]eep archives
+[i]nspect exact plan  [?] I don't know
+
+[/] more...
+```
+
+Inspect shows exact artifact identity, signer fingerprint, canonical store
+path, and byte count for every candidate. Acceptance holds the shared store
+lock, reloads all profile revisions and dataset cursors, reauthenticates all
+candidate bytes, and regenerates the plan. Any drift returns a new unapproved
+preview or a typed failure. The retained set includes preferred pins, exact
+ProviderAccount pins, every accepted ImportInvocation archive digest, and
+nonterminal-effect custody. Collection never runs automatically and never
+changes a profile or canonical event. If no archives qualify, the command ends
+with a useful read-only result instead of asking an empty consent question.
+
 ## UX-D01 — Delegation strategy review
 
 When an ordinary-lottery internal review reaches the configured soft cap:

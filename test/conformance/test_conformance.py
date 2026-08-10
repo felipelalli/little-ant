@@ -19,9 +19,9 @@ class CatalogTests(unittest.TestCase):
         cls.catalog = conformance.discover_catalog(ROOT / "spec")
 
     def test_complete_catalog_is_unique(self) -> None:
-        self.assertEqual(1180, len(self.catalog))
-        self.assertEqual(893, sum(item.catalog == "rule" for item in self.catalog.values()))
-        self.assertEqual(215, sum(item.catalog == "screen" for item in self.catalog.values()))
+        self.assertEqual(1183, len(self.catalog))
+        self.assertEqual(894, sum(item.catalog == "rule" for item in self.catalog.values()))
+        self.assertEqual(217, sum(item.catalog == "screen" for item in self.catalog.values()))
         self.assertEqual(72, sum(item.catalog == "scenario" for item in self.catalog.values()))
 
     def test_canonical_ranges_expand_exactly(self) -> None:
@@ -117,7 +117,7 @@ class GuardTests(unittest.TestCase):
     def test_full_audit_reports_exact_inventory(self) -> None:
         report = conformance.full_audit(ROOT)
         self.assertEqual(
-            {"definitions": 1180, "rules": 893, "screens": 215, "scenarios": 72, "flows": 65},
+            {"definitions": 1183, "rules": 894, "screens": 217, "scenarios": 72, "flows": 65},
             report,
         )
 

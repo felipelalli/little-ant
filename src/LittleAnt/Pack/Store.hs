@@ -1,7 +1,11 @@
 module LittleAnt.Pack.Store (
   PackStoreConfig (..),
   StoredPackArtifact (..),
+  PackStoreEntry (..),
   packArchivePath,
+  listPackStoreEntries,
+  removePackStoreEntries,
+  withPackStoreLock,
   inspectStoredPack,
   storeAuthorizedPack,
   loadPinnedPack,
@@ -13,6 +17,8 @@ import Control.Monad (unless, when)
 import Data.Bits ((.&.))
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.List (sort)
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (UTCTime)
@@ -21,6 +27,7 @@ import LittleAnt.Pack.Format
 import LittleAnt.Pack.Trust
 import LittleAnt.Store (sha256Hex)
 import System.Directory hiding (isSymbolicLink)
+import System.FileLock (SharedExclusive (Exclusive), withFileLock)
 import System.FilePath ((</>))
 import System.IO (hClose, hFlush, openBinaryTempFile)
 import System.IO.Error (isAlreadyExistsError, isDoesNotExistError)
@@ -38,6 +45,14 @@ data StoredPackArtifact = StoredPackArtifact
   , storedPackArchiveDigest :: Text
   , storedPackManifestDigest :: Text
   , storedPackByteCount :: Integer
+  }
+  deriving stock (Eq, Show)
+
+data PackStoreEntry = PackStoreEntry
+  { packStoreEntryPath :: FilePath
+  , packStoreEntryArtifact :: PackArtifactIdentity
+  , packStoreEntrySignerFingerprint :: Text
+  , packStoreEntryByteCount :: Integer
   }
   deriving stock (Eq, Show)
 
@@ -113,6 +128,76 @@ inspectStoredPack config digest = handlePackStoreIo $ do
     bytes <- verifyStoredFile path digest
     pure (validatePackArchive bytes >>= authenticatePack)
 
+listPackStoreEntries :: PackStoreConfig -> IO (Either AppError [PackStoreEntry])
+listPackStoreEntries config = handlePackStoreIo $ do
+  exists <- doesDirectoryExist (packStoreRoot config)
+  if not exists
+    then pure (Right [])
+    else do
+      status <- getSymbolicLinkStatus (packStoreRoot config)
+      unless (isDirectory status && not (isSymbolicLink status)) (ioError (userError "Pack store root is not a real directory"))
+      names <- sort <$> listDirectory (packStoreRoot config)
+      entries <- traverse inspectName (filter ((== ".lantpack") . suffix) names)
+      pure (sequence entries)
+ where
+  suffix name = reverse (take 9 (reverse name))
+  inspectName name =
+    let digest = Text.pack (take (length name - 9) name)
+        path = packStoreRoot config </> name
+     in if not (validDigest digest)
+          then pure . Left $ unsafeStoreEntry path "A Pack archive filename is not one lowercase SHA-256 digest."
+          else
+            inspectStoredPack config digest >>= \case
+              Left problem -> pure (Left problem{appErrorSubject = Just (Text.pack path)})
+              Right authenticated -> do
+                fileStatus <- getSymbolicLinkStatus path
+                let identity = authenticatedPackIdentity authenticated
+                pure $
+                  if artifactArchiveDigest identity /= digest
+                    then Left (unsafeStoreEntry path "A stored Pack identity does not match its content-addressed filename.")
+                    else
+                      Right
+                        PackStoreEntry
+                          { packStoreEntryPath = path
+                          , packStoreEntryArtifact = identity
+                          , packStoreEntrySignerFingerprint = authenticatedSignerFingerprint authenticated
+                          , packStoreEntryByteCount = fromIntegral (fileSize fileStatus)
+                          }
+
+removePackStoreEntries :: PackStoreConfig -> [PackStoreEntry] -> IO (Either AppError ())
+removePackStoreEntries config expected = handlePackStoreIo $ do
+  observed <- listPackStoreEntries config
+  case observed of
+    Left problem -> pure (Left problem)
+    Right entries ->
+      let byPath = Map.fromList [(packStoreEntryPath entry, entry) | entry <- entries]
+       in case mapM_ (verifyExpected byPath) expected of
+            Left problem -> pure (Left problem)
+            Right () -> do
+              mapM_ (removeFile . packStoreEntryPath) expected
+              unless (null expected) (syncDirectory (packStoreRoot config))
+              pure (Right ())
+ where
+  verifyExpected observed candidate =
+    case Map.lookup (packStoreEntryPath candidate) observed of
+      Just current | current == candidate -> Right ()
+      _ ->
+        Left
+          ( (appError Conflict "A Pack archive changed after the garbage-collection preview.")
+              { appErrorSubject = Just (Text.pack (packStoreEntryPath candidate))
+              , appErrorRetrySafety = RetryAfterRefresh
+              , appErrorRecovery = [RecoveryAction "refresh" "Review a freshly computed garbage-collection plan." (Just "lant packs gc")]
+              }
+          )
+
+withPackStoreLock :: PackStoreConfig -> IO (Either AppError value) -> IO (Either AppError value)
+withPackStoreLock config action = handlePackStoreIo $ do
+  ensurePackStore config
+  let lockPath = packStoreRoot config </> ".store.lock"
+  withFileLock lockPath Exclusive $ \_ -> do
+    setFileMode lockPath 0o600
+    action
+
 ensurePackStore :: PackStoreConfig -> IO ()
 ensurePackStore config = do
   createDirectoryIfMissing True (packStoreRoot config)
@@ -145,6 +230,18 @@ verifyStoredFile path expectedDigest = do
 
 maxStoredArchiveBytes :: Integer
 maxStoredArchiveBytes = 72 * 1024 * 1024
+
+validDigest :: Text -> Bool
+validDigest digest =
+  Text.length digest == 64
+    && Text.all (\character -> character >= '0' && character <= '9' || character >= 'a' && character <= 'f') digest
+
+unsafeStoreEntry :: FilePath -> Text -> AppError
+unsafeStoreEntry path message =
+  (appError CorruptData message)
+    { appErrorSubject = Just (Text.pack path)
+    , appErrorRecovery = [RecoveryAction "diagnose" "Inspect the Pack store without deleting unknown bytes." (Just "lant doctor")]
+    }
 
 syncDirectory :: FilePath -> IO ()
 syncDirectory path = do

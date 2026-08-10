@@ -143,6 +143,12 @@ dry-run, profile revision, and immutable-byte custody defined by UX-PACK00.
 `.lantpack` candidate from an already trusted publisher and applies only the
 complete reviewed UX-PACK01 pin and binding plan.
 
+`lant packs remove <pack>` opens UX-PACK03 and removes only the selected
+profile's preferred pin after exact references are classified. `lant packs gc`
+opens the separate UX-PACK04 global archive plan. Neither has a default,
+deletes canonical data, or performs implicit binding recovery; collection is
+never automatic.
+
 ## CLI-only administration
 
 These operations are intentionally absent from the ordinary slash palette:

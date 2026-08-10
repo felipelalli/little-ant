@@ -2476,6 +2476,15 @@ assistance-label, and no-emoji rendering.
   pause, manual fallback, and inspection reuse existing binding flows. A stale
   official catalog warns on the Pack manager and blocks only new official
   installation/update. Its uncertainty route is UX-196 `reaction_choice`.
+- **UX-286 [standard] — Pack deactivation and byte collection remain separate.**
+  UX-PACK03 removes only one selected profile's preferred pin after showing
+  every exact retained reference and every must-resolve reference. It never
+  force-removes, pauses, rebinds, deletes an archive, or changes canonical data.
+  UX-PACK04 separately previews authenticated unreferenced archives across all
+  profiles with their exact total byte count. Acceptance reloads all profile
+  revisions, dataset cursors, and archive identities under the shared store
+  lock; drift never carries consent. Neither screen has a default, and assisted
+  modes cannot accept either consequential action.
 - **UX-273 [core] — Migration begins with evidence, not a promise.** UX-MIG00
   is the dumb `/migrate` entry and the visual form of `MIG-035`. It shows the
   exact source and target, verified event/object counts, the four mapping

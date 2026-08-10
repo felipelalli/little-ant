@@ -125,6 +125,10 @@ module LittleAnt.Interaction (
   makePackInstallResultEnvelope,
   makePackUpdateEnvelope,
   makePackUpdateResultEnvelope,
+  makePackRemovalEnvelope,
+  makePackRemovalResultEnvelope,
+  makePackGcEnvelope,
+  makePackGcResultEnvelope,
   makePackTrustEnvelope,
   makePackTrustResultEnvelope,
   makeRawAttachmentEnvelope,
@@ -186,6 +190,7 @@ import LittleAnt.Model
 import LittleAnt.Notice
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Format
+import LittleAnt.Pack.Lifecycle
 import LittleAnt.Pack.Trust
 import LittleAnt.Pack.Update
 import LittleAnt.Profile (credentialBindingScheme, credentialBindingSlot, providerAccountLabel)
@@ -349,6 +354,10 @@ data Opportunity
   | PackTrustOpportunity PackTrustDraft
   | PackInstallResultOpportunity PackArtifactIdentity
   | PackUpdateResultOpportunity PackArtifactIdentity PackArtifactIdentity Bool Int
+  | PackRemovalOpportunity PackRemovalDraft
+  | PackRemovalResultOpportunity PackArtifactIdentity Bool Int
+  | PackGcOpportunity PackGcDraft
+  | PackGcResultOpportunity Bool Int Integer
   | PackTrustResultOpportunity TrustedCommunityPublisher
   | RawDestinationOpportunity UUIDv7 Int
   | RawGroupDiscoveryOpportunity UUIDv7
@@ -1259,6 +1268,124 @@ makePackUpdateResultEnvelope identity cursor precondition now state installed ca
           ]
         else [artifactName installed <> " " <> artifactVersion installed, "No profile pin or binding changed."]
     )
+
+makePackRemovalEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackRemovalDraft -> InteractionEnvelope
+makePackRemovalEnvelope identity cursor precondition now state draft =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (PackRemovalOpportunity draft)
+    ( EnvelopeContent
+        "Remove Pack?"
+        (Just (artifactName artifact))
+        ( [ packRemovalDisplayName draft
+          , "Preferred: " <> artifactVersion artifact <> " · sha256:" <> abbreviatedDigest (artifactArchiveDigest artifact)
+          , ""
+          , "This removes only the preferred profile pin. It deletes no archive, canonical data, Raw material, or history."
+          , "Exact retained references: " <> count retained
+          , "References to resolve first: " <> count blocked
+          ]
+            <> blockedSummary
+        )
+        Nothing
+    )
+    actions
+    [CommandOption "packs" "/packs" "Inspect Packs and exact live references", helpCommand, exitCommand]
+    (Just "binary_consent")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  artifact = pinArtifact (packRemovalPin draft)
+  retained = length [() | reference <- packRemovalReferences draft, removalReferenceDisposition reference == RemovalRetained]
+  blocked = length [() | reference <- packRemovalReferences draft, removalReferenceDisposition reference == RemovalMustResolve]
+  count = Text.pack . show
+  blockedSummary =
+    if packRemovalCanApply draft
+      then []
+      else ["", "Removal is unavailable until every must-resolve reference is handled in its owning flow."]
+  actions =
+    [Action "pack.remove.accept" "remove preferred" "r" False "Deactivate only this preferred profile pin." | packRemovalCanApply draft]
+      <> [ Action "pack.remove.keep" "keep current" "k" False "Leave the preferred pin and every reference unchanged."
+         , Action "pack.remove.inspect" "inspect references" "i" False "Show every retained and must-resolve reference in this exact plan."
+         , Action "pack.remove.unknown" "I don't know" "?" False "Explain preferred pins, exact retained releases, and separate garbage collection."
+         , moreAction
+         ]
+
+makePackRemovalResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackArtifactIdentity -> Bool -> Int -> InteractionEnvelope
+makePackRemovalResultEnvelope identity cursor precondition now state artifact removed retained =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (PackRemovalResultOpportunity artifact removed retained)
+    (if removed then "Preferred Pack removed." else "Pack kept current.")
+    ( if removed
+        then
+          [ artifactName artifact <> " " <> artifactVersion artifact
+          , Text.pack (show retained) <> " exact reference(s) continue to retain their reviewed release."
+          , "No archive or canonical data was deleted. Run /packs garbage collection separately to review truly unreferenced bytes."
+          ]
+        else [artifactName artifact <> " " <> artifactVersion artifact, "The preferred pin, exact references, and archives remain unchanged."]
+    )
+
+makePackGcEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackGcDraft -> InteractionEnvelope
+makePackGcEnvelope identity cursor precondition now state draft =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (PackGcOpportunity draft)
+    ( EnvelopeContent
+        "Collect unused Pack archives?"
+        Nothing
+        ( [ Text.pack (show (length candidates)) <> " unreferenced archive(s)"
+          , Text.pack (show (packGcTotalBytes draft)) <> " exact bytes"
+          , "Across " <> Text.pack (show (Map.size (packGcProfileRevisions draft))) <> " profile(s)"
+          , ""
+          ]
+            <> fmap candidateLine shown
+            <> ["  … " <> Text.pack (show hidden) <> " more; inspect changes shows the complete set." | hidden > 0]
+            <> ["", "Collection deletes only these content-addressed archive files. Profiles, canonical data, trust, and history remain unchanged."]
+        )
+        Nothing
+    )
+    [ Action "pack.gc.accept" "collect" "c" False "Recompute the global reference set and delete only this unchanged exact archive set."
+    , Action "pack.gc.keep" "keep archives" "k" False "Leave every archive unchanged."
+    , Action "pack.gc.inspect" "inspect changes" "i" False "Show every exact artifact, digest, path, and byte count."
+    , Action "pack.gc.unknown" "I don't know" "?" False "Explain global Pack references and why collection is always separate."
+    , moreAction
+    ]
+    [CommandOption "packs" "/packs" "Inspect Packs and exact live references", helpCommand, exitCommand]
+    (Just "binary_consent")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  candidates = packGcCandidates draft
+  shown = take 5 candidates
+  hidden = length candidates - length shown
+  candidateLine candidate =
+    let artifact = packGcCandidateArtifact candidate
+     in "  " <> artifactName artifact <> " " <> artifactVersion artifact <> " · sha256:" <> abbreviatedDigest (artifactArchiveDigest artifact) <> " · " <> Text.pack (show (packGcCandidateByteCount candidate)) <> " bytes"
+
+makePackGcResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Bool -> Int -> Integer -> InteractionEnvelope
+makePackGcResultEnvelope identity cursor precondition now state collected removed bytes =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (PackGcResultOpportunity collected removed bytes)
+    (if removed == 0 then "No unused Pack archives." else if collected then "Unused Pack archives collected." else "Pack archives kept.")
+    [ Text.pack (show removed) <> " archive(s) " <> if collected then "removed" else "left unchanged"
+    , Text.pack (show bytes) <> " bytes " <> if collected then "released" else "retained"
+    , "No profile, canonical data, trust decision, or history changed."
+    ]
 
 makePackTrustResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> TrustedCommunityPublisher -> InteractionEnvelope
 makePackTrustResultEnvelope identity cursor precondition now state publisher =
@@ -4329,9 +4456,13 @@ opportunityValue = \case
   ProviderConnectionResultOpportunity source accountName label -> typed "provider_connection_result" ["source" .= source, "account_name" .= accountName, "label" .= label]
   PackInstallOpportunity draft -> typed "pack_install" ["draft" .= draft]
   PackUpdateOpportunity draft -> typed "pack_update" ["draft" .= draft]
+  PackRemovalOpportunity draft -> typed "pack_removal" ["draft" .= draft]
+  PackGcOpportunity draft -> typed "pack_gc" ["draft" .= draft]
   PackTrustOpportunity draft -> typed "pack_trust" ["draft" .= draft]
   PackInstallResultOpportunity artifact -> typed "pack_install_result" ["artifact" .= artifact]
   PackUpdateResultOpportunity installed candidate applied rebound -> typed "pack_update_result" ["installed" .= installed, "candidate" .= candidate, "applied" .= applied, "rebound_bindings" .= rebound]
+  PackRemovalResultOpportunity artifact removed retained -> typed "pack_removal_result" ["artifact" .= artifact, "removed" .= removed, "retained_references" .= retained]
+  PackGcResultOpportunity collected removed bytes -> typed "pack_gc_result" ["collected" .= collected, "archive_count" .= removed, "byte_count" .= bytes]
   PackTrustResultOpportunity publisher -> typed "pack_trust_result" ["publisher" .= publisher]
   RawDestinationOpportunity identity page -> typed "raw_destination" ["raw_id" .= renderUUIDv7 identity, "page" .= page]
   RawGroupDiscoveryOpportunity rawId -> typed "raw_group_discovery" ["raw_id" .= renderUUIDv7 rawId]
@@ -4542,9 +4673,13 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "provider_connection_result" -> ProviderConnectionResultOpportunity <$> value .: "source" <*> value .: "account_name" <*> value .: "label"
     "pack_install" -> PackInstallOpportunity <$> value .: "draft"
     "pack_update" -> PackUpdateOpportunity <$> value .: "draft"
+    "pack_removal" -> PackRemovalOpportunity <$> value .: "draft"
+    "pack_gc" -> PackGcOpportunity <$> value .: "draft"
     "pack_trust" -> PackTrustOpportunity <$> value .: "draft"
     "pack_install_result" -> PackInstallResultOpportunity <$> value .: "artifact"
     "pack_update_result" -> PackUpdateResultOpportunity <$> value .: "installed" <*> value .: "candidate" <*> value .: "applied" <*> value .: "rebound_bindings"
+    "pack_removal_result" -> PackRemovalResultOpportunity <$> value .: "artifact" <*> value .: "removed" <*> value .: "retained_references"
+    "pack_gc_result" -> PackGcResultOpportunity <$> value .: "collected" <*> value .: "archive_count" <*> value .: "byte_count"
     "pack_trust_result" -> PackTrustResultOpportunity <$> value .: "publisher"
     "raw_destination" -> RawDestinationOpportunity <$> uuidField value "raw_id" <*> value .: "page"
     "raw_group_discovery" -> RawGroupDiscoveryOpportunity <$> uuidField value "raw_id"

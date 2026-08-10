@@ -373,6 +373,15 @@ commits.
   available. The read-only manager structurally inspects each pin and renders
   missing, corrupt, revoked, untrusted, or colliding registry state as
   unavailable rather than granting partial execution.
+- `lant packs remove <pack>` now previews one exact reference plan and removes
+  only the selected profile's preferred pin. Exact ProviderAccounts and
+  accepted import manifests remain valid; component-only live authority blocks
+  removal rather than being silently rebound or paused. `lant packs gc` is the
+  separate global byte-reclamation consent: it scans every profile, retains
+  exact live/effect/provenance custody, reauthenticates candidates under the
+  shared store lock, and deletes only an unchanged reviewed set. Dry-run,
+  stale-profile refresh, dumb `/packs` navigation, and cross-profile retention
+  are covered by the S09 administration suite.
 - `lant packs trust <key-file>` and `lant packs install <archive>` now use the
   shared persisted Interaction contract. Community trust shows the complete
   validated fingerprint and returns to a still-unapproved installation

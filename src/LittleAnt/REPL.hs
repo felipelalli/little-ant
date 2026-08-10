@@ -505,6 +505,8 @@ loop environmentRef vty color width screen = do
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable 's' [] -> showSelectedPack envelope packs problem selected
     Printable 'u' [] -> updateSelectedPack envelope packs problem selected
+    Printable 'm' [] -> removeSelectedPack envelope packs problem selected
+    Printable 'g' [] -> collectPackGarbage envelope packs problem selected
     Printable 'i' [] -> pure (Just (PackPathEditor envelope InstallPackArchive (EditorState "" "" Nothing) Nothing))
     Printable 'r' [] -> refreshPackCatalog envelope packs problem selected
     Printable 't' [] -> pure (Just (PackPathEditor envelope TrustPublisherKey (EditorState "" "" Nothing) Nothing))
@@ -546,6 +548,21 @@ loop environmentRef vty color width screen = do
           runCurrent (PacksUpdateCommand (projectedPackName pack)) >>= \case
             Left failure -> pure (Just (PackManagerScreen envelope packs problem selected (Just (appErrorMessage failure))))
             Right result -> screenFromResult envelope result
+
+  removeSelectedPack envelope packs problem selected = case safeIndex selected packs of
+    Nothing -> pure (Just (PackManagerScreen envelope packs problem selected (Just "No Pack is selected.")))
+    Just pack
+      | projectedPackTrustClass pack == "built in" ->
+          pure (Just (PackManagerScreen envelope packs problem selected (Just "The bundled Pack is part of Little Ant itself and has no profile pin to remove.")))
+      | otherwise ->
+          runCurrent (PacksRemoveCommand (projectedPackName pack)) >>= \case
+            Left failure -> pure (Just (PackManagerScreen envelope packs problem selected (Just (appErrorMessage failure))))
+            Right result -> screenFromResult envelope result
+
+  collectPackGarbage envelope packs problem selected =
+    runCurrent PacksGcCommand >>= \case
+      Left failure -> pure (Just (PackManagerScreen envelope packs problem selected (Just (appErrorMessage failure))))
+      Right result -> screenFromResult envelope result
 
   packPathInput envelope purpose editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -619,6 +636,7 @@ refreshesPackRegistry = \case
   PackInstallResultOpportunity{} -> True
   PackUpdateOpportunity{} -> True
   PackUpdateResultOpportunity{} -> True
+  PackRemovalResultOpportunity _ True _ -> True
   PackTrustResultOpportunity{} -> True
   ProviderConnectionResultOpportunity{} -> True
   _ -> False
@@ -716,19 +734,21 @@ packManagerModelAtWidth requestedWidth envelope packs problem selected message =
         ]
           <> [[Span Normal "  ", Span selectedRole continuation] | continuation <- drop 1 titleLines]
           <> [[Span Dim "    ", Span Dim detail] | detail <- detailLines]
-  joinedActions =
-    actionSpans "s" "show"
-      <> [Span Normal "   "]
-      <> actionSpans "u" "update"
-      <> [Span Normal "   "]
-      <> actionSpans "i" "install..."
-      <> [Span Normal "   "]
-      <> actionSpans "r" "refresh catalog"
-      <> [Span Normal "   "]
-      <> actionSpans "t" "trust publisher..."
-  actionRows
-    | Text.length (plainLine joinedActions) <= width = [joinedActions, actionSpans "/" "more..."]
-    | otherwise = [actionSpans "s" "show", actionSpans "u" "update", actionSpans "i" "install...", actionSpans "r" "refresh catalog", actionSpans "t" "trust publisher...", actionSpans "/" "more..."]
+  actionRows =
+    concatMap
+      fitActionGroup
+      [ [("s", "show"), ("u", "update"), ("m", "remove")]
+      , [("i", "install..."), ("r", "refresh catalog"), ("t", "trust publisher...")]
+      , [("g", "collect garbage"), ("/", "more...")]
+      ]
+  fitActionGroup actions =
+    let joined = joinActionSpans actions
+     in if Text.length (plainLine joined) <= width
+          then [joined]
+          else [actionSpans shortcut label | (shortcut, label) <- actions]
+  joinActionSpans = intercalateSpans [Span Normal "   "] . fmap (uncurry actionSpans)
+  intercalateSpans _ [] = []
+  intercalateSpans separator (first : rest) = first <> foldMap (separator <>) rest
   warningRows warning = [] : fmap (pure . Span Warning) (wrapWords width warning)
 
 importSourceChoices :: AppEnv -> [ImportCatalogChoice]

@@ -26,7 +26,7 @@ Generate all owning-row references plus the complete data/integration chapter,
 [`pack-format-and-trust.md`](../../spec/little-ant-1.0/pack-format-and-trust.md),
 the command catalog, DAT-011..023, DAT-028..043, DAT-046..050,
 DAT-068..093, and UX-RA00..RA04, UX-IMP00..IMP02,
-UX-CAL00..CAL01, UX-PACK00..PACK02, UX-EXP00.
+UX-CAL00..CAL01, UX-PACK00..PACK04, UX-EXP00.
 
 ## Work
 
@@ -161,7 +161,12 @@ local trusted-publisher archive. It records the complete signed difference and
 per-binding disposition, revalidates both archives and the whole plan at
 acceptance, preserves OAuth and pending-effect bindings on the old release,
 and atomically changes the preferred pin plus only compatible displayed static
-bindings. Removal/GC remain open. Live ProviderAccounts retain one exact Pack pin.
+bindings. Live ProviderAccounts retain one exact Pack pin. Preferred-pin
+removal and shared-store garbage collection are now separate no-default
+protocols: removal preserves exact live/provenance references and blocks
+ambiguous component-only authority, while collection authenticates candidates
+and recomputes retention across every profile under one store lock before
+deleting only unchanged unreferenced archives.
 The runtime separately indexes preferred components and exact retained
 components, so changing the preferred release cannot silently upgrade an
 existing provider binding.

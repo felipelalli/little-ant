@@ -426,11 +426,17 @@ that cryptographic format.
   The updates view is read-only and there is no automatic update timer.
 - **DAT-091 [standard] — Removal preserves meaning.** Removing a Pack through
   `/packs` or `lant packs remove`
-  deactivates a profile pin only after every affected binding, pending effect,
-  and UIAdapter is re-bound, paused, rejected, or explicitly left unavailable.
-  Existing Brick Nature snapshots and historical provenance remain valid.
-  Explicit `lant packs gc` removes only unreferenced archives after an exact byte
-  preview; no ordinary startup, update, or uninstall runs garbage collection.
+  deactivates only the selected profile's preferred pin. Exact ProviderAccounts
+  and accepted import manifests retain their release. Active unpinned sources,
+  component-only delivery bindings, and nonterminal effects block removal until
+  resolved through their owning flow; removal has no force, implicit rebind, or
+  implicit pause. Existing Brick Nature snapshots, canonical data, Raw material,
+  and historical provenance remain valid. Explicit `lant packs gc` scans every
+  profile and removes only authenticated archives outside the union of preferred
+  pins, exact account pins, accepted import manifests, and nonterminal-effect
+  custody. It previews exact bytes, revalidates the global plan under a store
+  lock, changes no profile, and never runs during ordinary startup, update, or
+  removal.
 
 ## Planning reproducibility
 

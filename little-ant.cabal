@@ -106,6 +106,7 @@ library
     LittleAnt.Pack.Format
     LittleAnt.Pack.Http
     LittleAnt.Pack.Installed
+    LittleAnt.Pack.Lifecycle
     LittleAnt.Pack.Official
     LittleAnt.Pack.Registry
     LittleAnt.Pack.Runner

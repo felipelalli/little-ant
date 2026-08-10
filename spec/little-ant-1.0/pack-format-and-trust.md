@@ -412,12 +412,21 @@ recomputes the complete plan against the current profile and dataset cursor;
 drift always returns to an unapproved preview. Candidate publication precedes
 one atomic preferred-pin and selected-binding profile update.
 
-`lant packs remove` deactivates a profile pin only after affected SourceBindings,
-DeliveryBindings, pending effects, and configured UIAdapters are re-bound,
-paused, rejected, or explicitly left unavailable. It deletes no canonical
-data. `lant packs gc` may delete only archives with no active pin, binding,
-pending effect, or retained reproducibility manifest; it previews the exact
-bytes and never runs automatically.
+`lant packs remove <pack>` deactivates only the selected profile's preferred
+pin. Exact ProviderAccounts and accepted import manifests retain their signed
+release; an active unpinned SourceBinding, component-only DeliveryBinding, or
+nonterminal effect must be resolved in its owning flow before removal. There is
+no force route, implicit pause/rebind, or deletion of archives or canonical
+data.
+
+`lant packs gc` is a separate no-default consent. It authenticates the shared
+content-addressed store and scans every profile, retaining preferred pins,
+exact ProviderAccount pins, accepted ImportInvocation manifests, and
+nonterminal-effect custody. The preview names the exact candidate archives and
+byte count. Acceptance locks the store, reloads every profile and dataset, and
+rebuilds the plan; drift returns to an unapproved preview or fails closed. It
+deletes only unchanged unreferenced archives, changes no profile or canonical
+state, and never runs automatically.
 
 [Semantic Versioning 2.0.0](https://semver.org/) labels releases, but trust and
 identity always use the exact signed digests rather than a version range.

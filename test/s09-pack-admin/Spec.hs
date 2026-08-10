@@ -29,6 +29,7 @@ import LittleAnt.Model (SourceMode (..), emptyState)
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Format
+import LittleAnt.Pack.Lifecycle
 import LittleAnt.Pack.Official
 import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
@@ -88,6 +89,12 @@ main =
       , testCase "Pack update dry-run arms no checkpoint and changes no preferred pin" packUpdateDryRun
       , testCase "profile drift regenerates the complete Pack update plan without accepting it" packUpdateProfileDrift
       , testCase "candidate-byte drift invalidates the Pack update checkpoint" packUpdateArchiveDrift
+      , testCase "Pack removal deactivates only the preferred pin and leaves collection separate" removeThenCollectPack
+      , testCase "an exact provider account survives preferred Pack removal and retains its archive" retainedProviderSurvivesRemoval
+      , testCase "component-only delivery authority blocks Pack removal" deliveryBindingBlocksRemoval
+      , testCase "profile drift refreshes Pack removal without carrying consent" packRemovalProfileDrift
+      , testCase "Pack garbage-collection dry-run changes no profile, checkpoint, or archive" packGcDryRun
+      , testCase "garbage collection retains archives referenced by another profile" gcScansEveryProfile
       ]
 
 listBuiltIn :: Assertion
@@ -987,6 +994,203 @@ packUpdateArchiveDrift = withHarness $ \environment ->
     observedAfter <- loadCurrentIntegrations
     fmap pinArtifact (Map.lookup updateFixtureName (Profile.installedComponents observedAfter)) @?= Just oldIdentity
 
+removeThenCollectPack :: Assertion
+removeThenCollectPack = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-remove-collect" $ \directory -> do
+    (archive, artifact) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    let path = directory </> "pack.lantpack"
+    ByteString.writeFile path archive
+    installCommunityPack environment path
+    paths <- currentProfilePaths
+    let stored = packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) (artifactArchiveDigest artifact)
+    doesFileExist stored >>= (@?= True)
+
+    keepPreview <- run environment False (PacksRemoveCommand updateFixtureName) >>= expectNextInteraction
+    case envelopeOpportunity keepPreview of
+      PackRemovalOpportunity draft -> do
+        packRemovalCanApply draft @?= True
+        packRemovalReferences draft @?= []
+      other -> assertFailure ("expected Pack removal preview, got: " <> show other)
+    kept <- respond environment False keepPreview (guidedAction "k" keepPreview) >>= expectRespondInteraction
+    case envelopeOpportunity kept of
+      PackRemovalResultOpportunity observed False 0 -> observed @?= artifact
+      other -> assertFailure ("expected keep-current removal result, got: " <> show other)
+    current <- loadCurrentIntegrations
+    fmap pinArtifact (Map.lookup updateFixtureName (Profile.installedComponents current)) @?= Just artifact
+
+    removePreview <- run environment False (PacksRemoveCommand updateFixtureName) >>= expectNextInteraction
+    removed <- respond environment False removePreview (guidedAction "r" removePreview) >>= expectRespondInteraction
+    case envelopeOpportunity removed of
+      PackRemovalResultOpportunity observed True 0 -> observed @?= artifact
+      other -> assertFailure ("expected Pack removal result, got: " <> show other)
+    afterRemoval <- loadCurrentIntegrations
+    Map.lookup updateFixtureName (Profile.installedComponents afterRemoval) @?= Nothing
+    doesFileExist stored >>= (@?= True)
+
+    keepGcPreview <- run environment False PacksGcCommand >>= expectNextInteraction
+    case envelopeOpportunity keepGcPreview of
+      PackGcOpportunity draft -> do
+        fmap packGcCandidateArtifact (packGcCandidates draft) @?= [artifact]
+        packGcTotalBytes draft @?= fromIntegral (ByteString.length archive)
+      other -> assertFailure ("expected Pack GC preview, got: " <> show other)
+    keptGc <- respond environment False keepGcPreview (guidedAction "k" keepGcPreview) >>= expectRespondInteraction
+    case envelopeOpportunity keptGc of
+      PackGcResultOpportunity False 1 bytes -> bytes @?= fromIntegral (ByteString.length archive)
+      other -> assertFailure ("expected keep-archives result, got: " <> show other)
+    doesFileExist stored >>= (@?= True)
+
+    collectPreview <- run environment False PacksGcCommand >>= expectNextInteraction
+    collected <- respond environment False collectPreview (guidedAction "c" collectPreview) >>= expectRespondInteraction
+    case envelopeOpportunity collected of
+      PackGcResultOpportunity True 1 bytes -> bytes @?= fromIntegral (ByteString.length archive)
+      other -> assertFailure ("expected collected-archives result, got: " <> show other)
+    doesFileExist stored >>= (@?= False)
+    loadCurrentIntegrations >>= (@?= afterRemoval)
+
+retainedProviderSurvivesRemoval :: Assertion
+retainedProviderSurvivesRemoval = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-remove-retained" $ \directory -> do
+    (archive, artifact) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    let path = directory </> "pack.lantpack"
+    ByteString.writeFile path archive
+    installCommunityPack environment path
+    integrations <- loadCurrentIntegrations
+    pin <- maybe (assertFailure "fixture Pack pin missing" >> fail "unreachable") pure (Map.lookup updateFixtureName (Profile.installedComponents integrations))
+    let account = Profile.ProviderAccount pin "demo_export" "demo" "demo-account" "Demo account" (object [])
+        withAccount = integrations{Profile.providerAccounts = Map.singleton "demo" account}
+    paths <- currentProfilePaths
+    Profile.writeIntegrationsConfig paths withAccount >>= either (assertFailure . show) pure
+
+    preview <- run environment False (PacksRemoveCommand updateFixtureName) >>= expectNextInteraction
+    case envelopeOpportunity preview of
+      PackRemovalOpportunity draft -> do
+        packRemovalCanApply draft @?= True
+        fmap removalReferenceDisposition (packRemovalReferences draft) @?= [RemovalRetained]
+      other -> assertFailure ("expected retained-reference removal preview, got: " <> show other)
+    result <- respond environment False preview (guidedAction "r" preview) >>= expectRespondInteraction
+    case envelopeOpportunity result of
+      PackRemovalResultOpportunity observed True 1 -> observed @?= artifact
+      other -> assertFailure ("expected retained-reference removal result, got: " <> show other)
+    afterRemovalConfig <- loadCurrentIntegrations
+    Map.lookup updateFixtureName (Profile.installedComponents afterRemovalConfig) @?= Nothing
+    fmap (pinArtifact . Profile.providerAccountPackPin) (Map.lookup "demo" (Profile.providerAccounts afterRemovalConfig)) @?= Just artifact
+    noGarbage <- run environment False PacksGcCommand >>= expectNextInteraction
+    case envelopeOpportunity noGarbage of
+      PackGcResultOpportunity False 0 0 -> pure ()
+      other -> assertFailure ("expected no garbage while an exact account retains the archive, got: " <> show other)
+    doesFileExist (packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) (artifactArchiveDigest artifact)) >>= (@?= True)
+
+deliveryBindingBlocksRemoval :: Assertion
+deliveryBindingBlocksRemoval = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-remove-delivery" $ \directory -> do
+    (archive, artifact) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    let path = directory </> "pack.lantpack"
+    ByteString.writeFile path archive
+    installCommunityPack environment path
+    integrations <- loadCurrentIntegrations
+    paths <- currentProfilePaths
+    let withDelivery = integrations{Profile.deliveryBindings = Map.singleton "daily" "demo_export"}
+    Profile.writeIntegrationsConfig paths withDelivery >>= either (assertFailure . show) pure
+    preview <- run environment False (PacksRemoveCommand updateFixtureName) >>= expectNextInteraction
+    case envelopeOpportunity preview of
+      PackRemovalOpportunity draft -> do
+        assertBool "an unpinned delivery binding allowed removal" (not (packRemovalCanApply draft))
+        fmap removalReferenceDisposition (packRemovalReferences draft) @?= [RemovalMustResolve]
+        assertBool "blocked removal still exposed acceptance" (all ((/= "pack.remove.accept") . actionId) (envelopeActions preview))
+      other -> assertFailure ("expected blocked Pack removal preview, got: " <> show other)
+    inspected <- respond environment False preview (guidedAction "i" preview) >>= expectRespondInteraction
+    kept <- respond environment False inspected (guidedAction "k" inspected) >>= expectRespondInteraction
+    case envelopeOpportunity kept of
+      PackRemovalResultOpportunity observed False 0 -> observed @?= artifact
+      other -> assertFailure ("expected blocked keep-current result, got: " <> show other)
+    loadCurrentIntegrations >>= (@?= withDelivery)
+
+packRemovalProfileDrift :: Assertion
+packRemovalProfileDrift = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-remove-profile-drift" $ \directory -> do
+    (archive, artifact) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    let path = directory </> "pack.lantpack"
+    ByteString.writeFile path archive
+    installCommunityPack environment path
+    preview <- run environment False (PacksRemoveCommand updateFixtureName) >>= expectNextInteraction
+    oldRevision <- case envelopeOpportunity preview of
+      PackRemovalOpportunity draft -> pure (packRemovalProfileRevision draft)
+      other -> assertFailure ("expected Pack removal preview, got: " <> show other) >> fail "unreachable"
+    paths <- currentProfilePaths
+    integrations <- loadCurrentIntegrations
+    let externalChange = integrations{Profile.deliveryBindings = Map.singleton "unrelated" "some_other_component"}
+    Profile.writeIntegrationsConfig paths externalChange >>= either (assertFailure . show) pure
+    refreshed <- respond environment False preview (guidedAction "r" preview) >>= expectRespondInteraction
+    case envelopeOpportunity refreshed of
+      PackRemovalOpportunity draft -> do
+        assertBool "profile drift retained the old removal revision" (packRemovalProfileRevision draft /= oldRevision)
+        assertBool "the refreshed removal acquired a default" (not (any actionDefault (envelopeActions refreshed)))
+      other -> assertFailure ("expected refreshed Pack removal preview, got: " <> show other)
+    observed <- loadCurrentIntegrations
+    fmap pinArtifact (Map.lookup updateFixtureName (Profile.installedComponents observed)) @?= Just artifact
+    Profile.deliveryBindings observed @?= Profile.deliveryBindings externalChange
+
+packGcDryRun :: Assertion
+packGcDryRun = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-gc-dry-run" $ \directory -> do
+    (archive, artifact) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    let path = directory </> "pack.lantpack"
+    ByteString.writeFile path archive
+    installCommunityPack environment path
+    removal <- run environment False (PacksRemoveCommand updateFixtureName) >>= expectNextInteraction
+    _ <- respond environment False removal (guidedAction "r" removal) >>= expectRespondInteraction
+    paths <- currentProfilePaths
+    let stored = packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) (artifactArchiveDigest artifact)
+        checkpoint = Profile.datasetDirectory paths </> "checkpoints" </> "pending-envelope.json"
+    integrationsBefore <- loadCurrentIntegrations
+    checkpointBefore <- ByteString.readFile checkpoint
+    preview <- run environment True PacksGcCommand >>= expectNextInteraction
+    case envelopeOpportunity preview of
+      PackGcOpportunity draft -> fmap packGcCandidateArtifact (packGcCandidates draft) @?= [artifact]
+      other -> assertFailure ("expected dry-run Pack GC preview, got: " <> show other)
+    loadCurrentIntegrations >>= (@?= integrationsBefore)
+    ByteString.readFile checkpoint >>= (@?= checkpointBefore)
+    doesFileExist stored >>= (@?= True)
+
+gcScansEveryProfile :: Assertion
+gcScansEveryProfile = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-gc-profiles" $ \directory -> do
+    (archive, artifact) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    let path = directory </> "pack.lantpack"
+    ByteString.writeFile path archive
+    installCommunityPack environment path
+    defaultIntegrations <- loadCurrentIntegrations
+    pin <- maybe (assertFailure "fixture Pack pin missing" >> fail "unreachable") pure (Map.lookup updateFixtureName (Profile.installedComponents defaultIntegrations))
+    roots <- Profile.resolveXdgRoots
+    workPaths <- Profile.createProfile roots "work" gcProfileId >>= either (assertFailure . show) pure
+    let workIntegrations =
+          Profile.IntegrationsConfig
+            (Map.singleton updateFixtureName pin)
+            Map.empty
+            Map.empty
+            Map.empty
+            (Profile.trustedPublishers defaultIntegrations)
+    Profile.writeIntegrationsConfig workPaths workIntegrations >>= either (assertFailure . show) pure
+
+    removal <- run environment False (PacksRemoveCommand updateFixtureName) >>= expectNextInteraction
+    _ <- respond environment False removal (guidedAction "r" removal) >>= expectRespondInteraction
+    retained <- run environment False PacksGcCommand >>= expectNextInteraction
+    case envelopeOpportunity retained of
+      PackGcResultOpportunity False 0 0 -> pure ()
+      other -> assertFailure ("expected the second profile to retain the archive, got: " <> show other)
+
+    Profile.writeIntegrationsConfig workPaths workIntegrations{Profile.installedComponents = Map.empty} >>= either (assertFailure . show) pure
+    preview <- run environment False PacksGcCommand >>= expectNextInteraction
+    case envelopeOpportunity preview of
+      PackGcOpportunity draft -> do
+        Map.keys (packGcProfileRevisions draft) @?= ["default", "work"]
+        fmap packGcCandidateArtifact (packGcCandidates draft) @?= [artifact]
+      other -> assertFailure ("expected global Pack GC preview, got: " <> show other)
+    collected <- respond environment False preview (guidedAction "c" preview) >>= expectRespondInteraction
+    case envelopeOpportunity collected of
+      PackGcResultOpportunity True 1 _ -> pure ()
+      other -> assertFailure ("expected global Pack GC result, got: " <> show other)
+
 updateGrant :: Text -> Text -> OfficialReleaseGrant
 updateGrant version digestCharacter =
   OfficialReleaseGrant
@@ -1068,6 +1272,9 @@ updateFixtureFingerprint = sha256Hex updateFixturePublicKeyBytes
 
 fixtureCredentialId :: UUIDv7
 fixtureCredentialId = either (error . Text.unpack) id (parseUUIDv7 "019fe436-5e25-7ee2-9eaf-eff23cfb54fc")
+
+gcProfileId :: UUIDv7
+gcProfileId = either (error . Text.unpack) id (parseUUIDv7 "019fe436-5e25-7ee2-9eaf-eff23cfb54fd")
 
 cryptoPassed :: CryptoFailable value -> value
 cryptoPassed = \case
