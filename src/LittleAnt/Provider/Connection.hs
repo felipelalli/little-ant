@@ -4,6 +4,7 @@ module LittleAnt.Provider.Connection (
   prepareProviderConnectionDraft,
   applyProviderConnectionDraft,
   connectionOAuthClient,
+  connectionUsesStaticCredential,
 )
 where
 
@@ -36,7 +37,7 @@ data ProviderConnectionDraft = ProviderConnectionDraft
   , providerConnectionAccount :: ProviderAccount
   , providerConnectionBindingName :: Text
   , providerConnectionBinding :: CredentialBinding
-  , providerConnectionClientId :: Text
+  , providerConnectionClientId :: Maybe Text
   , providerConnectionArtifact :: PackArtifactIdentity
   , providerConnectionScopes :: Set Text
   , providerConnectionProfileRevision :: Text
@@ -51,7 +52,11 @@ data OAuthDescriptor
   = PkceDescriptor OAuthAuthorizationCodePkcePermission
   | DeviceDescriptor OAuthDeviceAuthorizationPermission
 
-prepareProviderConnectionDraft :: [ProviderSourceDefinition] -> PackRegistry -> IntegrationsConfig -> Text -> Text -> Text -> Text -> Text -> UUIDv7 -> Either AppError ProviderConnectionDraft
+data ConnectionDescriptor
+  = OAuthConnection OAuthDescriptor
+  | StaticConnection CredentialSlot Vault.CredentialScheme
+
+prepareProviderConnectionDraft :: [ProviderSourceDefinition] -> PackRegistry -> IntegrationsConfig -> Text -> Text -> Text -> Text -> Maybe Text -> UUIDv7 -> Either AppError ProviderConnectionDraft
 prepareProviderConnectionDraft definitions registry integrations revision requestedSource requestedAccount requestedLabel clientId allocatedVaultEntry = do
   let source = Text.strip requestedSource
       accountName = Text.strip requestedAccount
@@ -68,19 +73,39 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
   registered <- lookupPackComponent source registry
   unless (componentKind (componentCommon (registeredComponent registered)) == SourceAdapterComponent) $
     Left (connectionProblem PreconditionFailed "The selected Pack component is not a SourceAdapter." [source])
-  authorization <- soleOAuthAuthorization registered
-  let slot = descriptorSlot authorization
-      scheme = descriptorScheme authorization
+  authorization <- soleConnectionAuthorization registered
+  let slot = connectionDescriptorSlot authorization
+      scheme = connectionDescriptorScheme authorization
   existingAccount <- compatibleExistingAccount definition accountName integrations
+  (configuration, scopes, fingerprint, publicClientId) <- case authorization of
+    OAuthConnection oauth -> do
+      supplied <- case Text.strip <$> clientId of
+        Just value | not (Text.null value) -> Right value
+        _ -> Left (connectionProblem InvalidInput "The public OAuth client ID is required by this signed connector." [source])
+      let configured = insertClientId (descriptorClientIdKey oauth) supplied (providerAccountConfiguration <$> existingAccount)
+      accountForClient <-
+        pure
+          ProviderAccount
+            { providerAccountComponent = source
+            , providerAccountProvider = providerDefinitionNamespace definition
+            , providerAccountExternalId = maybe accountName providerAccountExternalId existingAccount
+            , providerAccountLabel = label
+            , providerAccountConfiguration = configured
+            }
+      client <- resolveProviderOAuthClient registered accountForClient oauth
+      pure (configured, providerOAuthScopes client, Just (providerOAuthFingerprint client), Just supplied)
+    StaticConnection _ _ -> do
+      unless (maybe True (Text.null . Text.strip) clientId) $
+        Left (connectionProblem InvalidInput "This signed connector uses a static credential and accepts no OAuth client ID." [source])
+      pure (maybe (Object KeyMap.empty) providerAccountConfiguration existingAccount, Set.empty, Nothing, Nothing)
   let account =
         ProviderAccount
           { providerAccountComponent = source
           , providerAccountProvider = providerDefinitionNamespace definition
           , providerAccountExternalId = maybe accountName providerAccountExternalId existingAccount
           , providerAccountLabel = label
-          , providerAccountConfiguration = insertClientId (descriptorClientIdKey authorization) clientId (providerAccountConfiguration <$> existingAccount)
+          , providerAccountConfiguration = configuration
           }
-  client <- resolveProviderOAuthClient registered account authorization
   (bindingName, vaultEntry) <- existingBinding source accountName slot scheme allocatedVaultEntry integrations
   let binding =
         CredentialBinding
@@ -89,7 +114,7 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
           , credentialBindingAccount = accountName
           , credentialBindingScheme = scheme
           , credentialBindingVaultEntry = vaultEntry
-          , credentialBindingAuthorizationFingerprint = Just (providerOAuthFingerprint client)
+          , credentialBindingAuthorizationFingerprint = fingerprint
           , credentialBindingPurposes = Set.singleton "source_read"
           }
       draft =
@@ -100,9 +125,9 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
           , providerConnectionAccount = account
           , providerConnectionBindingName = bindingName
           , providerConnectionBinding = binding
-          , providerConnectionClientId = clientId
+          , providerConnectionClientId = publicClientId
           , providerConnectionArtifact = registeredPackIdentity registered
-          , providerConnectionScopes = providerOAuthScopes client
+          , providerConnectionScopes = scopes
           , providerConnectionProfileRevision = revision
           }
   _ <- applyProviderConnectionDraft integrations draft
@@ -134,17 +159,51 @@ connectionOAuthClient registry draft = do
     (Left (connectionProblem PermissionRequired "The signed provider authorization changed after the connection preview." [providerConnectionSource draft]))
   pure client
 
-soleOAuthAuthorization :: RegisteredPackComponent -> Either AppError OAuthDescriptor
-soleOAuthAuthorization registered = case registeredComponent registered of
-  ExecutableComponent _ _ permissions -> case candidates permissions of
-    [authorization] -> Right authorization
-    [] -> Left (connectionProblem PreconditionFailed "The selected provider declares no supported OAuth authorization." [])
-    _ -> Left (connectionProblem Conflict "The selected provider declares more than one OAuth authorization; choose an explicit connection profile." [])
+connectionUsesStaticCredential :: ProviderConnectionDraft -> Bool
+connectionUsesStaticCredential draft =
+  credentialBindingScheme (providerConnectionBinding draft) `elem` [Vault.BearerCredential, Vault.ApiKeyCredential]
+
+soleConnectionAuthorization :: RegisteredPackComponent -> Either AppError ConnectionDescriptor
+soleConnectionAuthorization registered = case registeredComponent registered of
+  ExecutableComponent _ _ permissions ->
+    case oauthCandidates permissions of
+      [authorization] -> Right (OAuthConnection authorization)
+      [] -> case staticCandidates permissions of
+        [(slot, scheme)] -> Right (StaticConnection slot scheme)
+        [] -> Left (connectionProblem PreconditionFailed "The selected provider declares no supported credential connection." [])
+        _ -> Left (connectionProblem Conflict "The selected provider declares more than one static credential slot; choose an explicit connection profile." [])
+      _ -> Left (connectionProblem Conflict "The selected provider declares more than one OAuth authorization; choose an explicit connection profile." [])
   _ -> Left (connectionProblem PreconditionFailed "A declarative component cannot connect a provider account." [])
  where
-  candidates permissions =
+  oauthCandidates permissions =
     (PkceDescriptor <$> permissionOAuthAuthorizationCodePkce permissions)
       <> (DeviceDescriptor <$> permissionOAuthDeviceAuthorizations permissions)
+  oauthSlots permissions = Set.fromList (descriptorSlot <$> oauthCandidates permissions)
+  staticCandidates permissions =
+    [ (slot, scheme)
+    | slot <- permissionCredentialSlots permissions
+    , credentialSlotId slot `Set.notMember` oauthSlots permissions
+    , scheme <- case credentialSlotScheme slot of
+        BearerToken -> [Vault.BearerCredential]
+        ApiKey -> [Vault.ApiKeyCredential]
+        _ -> []
+    ]
+
+soleOAuthAuthorization :: RegisteredPackComponent -> Either AppError OAuthDescriptor
+soleOAuthAuthorization registered =
+  soleConnectionAuthorization registered >>= \case
+    OAuthConnection authorization -> Right authorization
+    StaticConnection _ _ -> Left (connectionProblem PreconditionFailed "The selected provider uses a static credential rather than OAuth." [])
+
+connectionDescriptorSlot :: ConnectionDescriptor -> Text
+connectionDescriptorSlot = \case
+  OAuthConnection authorization -> descriptorSlot authorization
+  StaticConnection slot _ -> credentialSlotId slot
+
+connectionDescriptorScheme :: ConnectionDescriptor -> Vault.CredentialScheme
+connectionDescriptorScheme = \case
+  OAuthConnection authorization -> descriptorScheme authorization
+  StaticConnection _ scheme -> scheme
 
 descriptorSlot :: OAuthDescriptor -> Text
 descriptorSlot = \case
@@ -228,18 +287,18 @@ visibleLabelCharacter character = character >= ' ' && character /= '\DEL'
 
 instance ToJSON ProviderConnectionDraft where
   toJSON draft =
-    object
+    object $
       [ "source" .= providerConnectionSource draft
       , "display_name" .= providerConnectionDisplayName draft
       , "account_name" .= providerConnectionAccountName draft
       , "account" .= providerConnectionAccount draft
       , "binding_name" .= providerConnectionBindingName draft
       , "binding" .= providerConnectionBinding draft
-      , "client_id" .= providerConnectionClientId draft
       , "artifact" .= providerConnectionArtifact draft
-      , "scopes" .= Set.toAscList (providerConnectionScopes draft)
       , "profile_revision" .= providerConnectionProfileRevision draft
       ]
+        <> maybe [] (pure . ("client_id" .=)) (providerConnectionClientId draft)
+        <> [("scopes" .= Set.toAscList (providerConnectionScopes draft)) | not (Set.null (providerConnectionScopes draft))]
 
 instance FromJSON ProviderConnectionDraft where
   parseJSON = withObject "ProviderConnectionDraft" $ \fields -> do
@@ -251,9 +310,9 @@ instance FromJSON ProviderConnectionDraft where
       <*> fields .: "account"
       <*> fields .: "binding_name"
       <*> fields .: "binding"
-      <*> fields .: "client_id"
+      <*> fields .:? "client_id"
       <*> fields .: "artifact"
-      <*> (Set.fromList <$> fields .: "scopes")
+      <*> (Set.fromList <$> fields .:? "scopes" .!= [])
       <*> fields .: "profile_revision"
 
 rejectUnknown :: Object -> [Text] -> Parser ()

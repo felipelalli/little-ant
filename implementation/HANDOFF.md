@@ -5,13 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **f40e164**
-(`feat(import): persist exact remote container scope`). The current milestone
-ships the missing official GitHub Issues adapter and advances the signed
-official catalog to sequence 2. Guided static-credential connection is kept as
-the next separate milestone, so `/import` does not advertise a `connect...`
-choice that still assumes OAuth. This file stays editable between milestone
-commits.
+Baseline at the start of the current milestone: **6042e3e**
+(`feat(import): observe GitHub issues`). The current milestone adds the generic
+guided static-credential boundary that makes the installed GitHub adapter
+honestly connectable without deforming it into OAuth. This file stays editable
+between milestone commits.
 
 ## Implementation now available
 
@@ -309,8 +307,9 @@ commits.
   task list. The archive and official catalog identities were rebuilt and
   signed reproducibly.
 - The exact official connector Pack now also contains an observe-only
-  `github_issues` SourceAdapter. It declares one repository-confined bearer
-  credential slot and only `GET https://api.github.com/issues`, supports
+  `github_issues` SourceAdapter. It declares one bearer credential slot for a
+  repository-confined fine-grained token and only
+  `GET https://api.github.com/issues`, supports
   snapshot and synchronization, includes open issues by default, keeps closed
   issues an explicit opt-in, and omits pull requests returned by GitHub's
   shared endpoint. Stable GitHub node identities anchor issue and repository
@@ -395,10 +394,19 @@ commits.
   than one account exists.
 - an installed online source without an account appears as `connect...` rather
   than importable. The REPL collects the lowercase account key, optional human
-  label, and public client ID, then delegates to the canonical no-default
-  provider connection envelope. Success rebuilds the production environment
-  and returns to that exact account's no-default mode screen. It transfers no
-  consent and runs neither preflight nor import automatically.
+  label, and public client ID when the signed authorization requires one, then
+  delegates to the canonical no-default provider connection envelope. Success
+  rebuilds the production environment and returns to that exact account's
+  no-default mode screen. It transfers no consent and runs neither preflight
+  nor import automatically.
+- a signed provider component with exactly one otherwise-unclaimed
+  `bearer_token` or `api_key` slot can use the same connection envelope without
+  inventing OAuth. The preview contains exact Pack/slot/scheme authority but no
+  secret and omits inapplicable client-ID/scope fields. Only after acceptance
+  and an unlocked Vault does the CLI open echo-disabled input or the Vty REPL
+  open its masked editor. The host wipes the transient bytes, persists the
+  credential before typed profile configuration, and never exposes it to Pack,
+  checkpoint, event, JSON, YAML, transcript, or diagnostics.
 - canonical import acceptance now consumes the common signed SourceAdapter
   materialization contract rather than an adapter-name whitelist. The real
   Microsoft To Do Pack and broker can therefore preserve its complete
@@ -509,7 +517,7 @@ The S08 responsibility suite now also proves that payload revision and record
 version are distinct, one approval grant covers only its exact finite effect
 set, dispatch requires that durable grant, and provider receipts cannot appear
 before durable dispatch intent.
-The dedicated Pack-administration suite has 18 focused cases for exact
+The dedicated Pack-administration suite has 19 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,
 no-default previews, dry-run custody, closed canonical key transport,
@@ -565,10 +573,6 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, add the generic guided static-credential connection needed to make the
-installed GitHub Issues adapter honestly appear as `connect...`: no-echo token
-capture must enter the Vault before typed profile configuration, and the
-no-default preview must be bound to the signed bearer slot. Then complete the
-remaining official connector adapters. Explicit Pack update/remove/GC, Google
-Calendar write-back, and the local web UIAdapter also remain. The complete S09
-gate still precedes `verified`.
+Next, complete the remaining official connector adapters. Explicit Pack
+update/remove/GC, Google Calendar write-back, and the local web UIAdapter also
+remain. The complete S09 gate still precedes `verified`.

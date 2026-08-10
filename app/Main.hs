@@ -79,7 +79,7 @@ data CliCommand
   | ConfigShowCli
   | ConfigPathsCli
   | ConfigValidateCli
-  | ConfigConnectCli Text Text (Maybe Text) Text
+  | ConfigConnectCli Text Text (Maybe Text) (Maybe Text)
   | VaultAgentCli Int
   | VaultStatusCli
   | VaultCreateCli (Maybe FilePath) Bool
@@ -960,7 +960,7 @@ configParser =
                   <$> (Text.pack <$> strArgument (metavar "SOURCE"))
                   <*> (Text.pack <$> strOption (long "account" <> metavar "NAME" <> help "Lowercase local account key"))
                   <*> optional (Text.pack <$> strOption (long "label" <> metavar "LABEL" <> help "Human account label (defaults to the account key)"))
-                  <*> (Text.pack <$> strOption (long "client-id" <> metavar "PUBLIC-ID" <> help "Public OAuth client ID required by the signed provider authorization"))
+                  <*> optional (Text.pack <$> strOption (long "client-id" <> metavar "PUBLIC-ID" <> help "Public OAuth client ID when required by the signed provider authorization"))
               )
               (progDesc "Preview one provider account connection without importing data")
           )

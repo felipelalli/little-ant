@@ -923,6 +923,7 @@ microsoftTodoDefinition =
     , providerDefinitionDisplayName = "Microsoft To Do"
     , providerDefinitionModes = [SourceSnapshot, SourceSynchronize, SourceMigrate]
     , providerDefinitionRequiresContainerSelection = False
+    , providerDefinitionRequiresClientId = True
     }
 
 connectorRuntime :: IO (PackRunnerClient, PackRegistry)

@@ -12,11 +12,12 @@ where
 
 import Control.Applicative ((<|>))
 import Control.Concurrent (threadDelay)
-import Control.Exception (IOException, SomeException, catch, displayException, try)
+import Control.Exception (IOException, SomeException, bracket_, catch, displayException, finally, try)
 import Control.Monad (foldM, replicateM, unless, void, when)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Char8 qualified as ByteStringChar8
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.Either (isRight)
@@ -75,7 +76,7 @@ import System.Directory
 import System.Entropy qualified as Entropy
 import System.Environment (lookupEnv)
 import System.FilePath (takeExtension, (</>))
-import System.IO (stderr)
+import System.IO (hIsTerminalDevice, hSetEcho, stderr, stdin)
 import System.IO.Error (isDoesNotExistError)
 
 data ViewDepth = SummaryView | OperationalView | RelationshipsView | HistoryView | CompleteView | GuidedView
@@ -125,7 +126,7 @@ data AppCommand
   | ConfigShowCommand
   | ConfigPathsCommand
   | ConfigValidateCommand
-  | ConfigConnectCommand Text Text Text Text
+  | ConfigConnectCommand Text Text Text (Maybe Text)
   | UpdateCommand Text (Maybe Text)
   | MergeCommand Text Text
   | SupersedeCommand Text Text
@@ -169,6 +170,7 @@ data ProviderConnectionRuntime = ProviderConnectionRuntime
   , providerConnectionPkceRuntime :: OAuthAuthorizationCodeRuntime
   , providerConnectionPresentPrompt :: DeviceAuthorizationPrompt -> IO ()
   , providerConnectionWaitSeconds :: Int -> IO ()
+  , providerConnectionAcquireCredential :: Text -> IO (Either AppError ByteString)
   }
 
 data PresentationCheckpoint = PresentationCheckpoint
@@ -273,6 +275,7 @@ productionAppEnv explicitProfile = do
                                           }
                                     , providerConnectionPresentPrompt = presentDeviceAuthorizationPrompt
                                     , providerConnectionWaitSeconds = \seconds -> threadDelay (seconds * 1_000_000)
+                                    , providerConnectionAcquireCredential = acquireCredentialFromTerminal
                                     }
                             }
 
@@ -300,6 +303,21 @@ presentAuthorizationCodeUrl url =
       , ""
       , "Little Ant is listening only on 127.0.0.1 and waiting for the provider."
       ]
+
+acquireCredentialFromTerminal :: Text -> IO (Either AppError ByteString)
+acquireCredentialFromTerminal label = do
+  interactive <- hIsTerminalDevice stdin
+  if not interactive
+    then pure . Left $ appError PermissionRequired "Credential input requires an interactive terminal with echo disabled."
+    else
+      catch
+        ( do
+            TextIO.hPutStr stderr (label <> ": ")
+            value <- bracket_ (hSetEcho stdin False) (hSetEcho stdin True) (ByteStringChar8.hGetLine stdin)
+            TextIO.hPutStrLn stderr ""
+            pure (Right value)
+        )
+        (\problem -> pure . Left $ (appError ExternalFailure "Little Ant could not read the credential securely."){appErrorDetails = [Text.pack (displayException (problem :: IOException))]})
 
 resolveProfileName :: Maybe Text -> IO (Either AppError Text)
 resolveProfileName explicit = do
@@ -1219,7 +1237,7 @@ data ConnectionProfileSnapshot = ConnectionProfileSnapshot
   , connectionProfileRegistry :: PackRegistry
   }
 
-runConfigConnect :: AppEnv -> Bool -> LoadedDataset -> Text -> Text -> Text -> Text -> IO (Either AppError CommandResult)
+runConfigConnect :: AppEnv -> Bool -> LoadedDataset -> Text -> Text -> Text -> Maybe Text -> IO (Either AppError CommandResult)
 runConfigConnect environment dryRun dataset source account label clientId =
   case appProviderConnectionRuntime environment of
     Nothing -> pure . Left $ providerConnectionUnavailable "This host cannot run provider connection flows."
@@ -2644,8 +2662,11 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (ImportResultOpportunity invocationId _ _ True, "import.cleanup", _) -> beginSourceCleanup invocationId
     (ProviderConnectionOpportunity draft, "provider.connect.accept", _) -> acceptProviderConnection draft
     (ProviderConnectionOpportunity{}, "provider.connect.back", _) -> replaceWithFresh
-    (ProviderConnectionOpportunity{}, "provider.connect.unknown", _) ->
-      local (appendBody current "The signed Pack fixes the provider endpoints and requested scopes. The public client ID and account label are non-secret profile configuration; device codes stay only in this running host, and tokens go only to the encrypted vault. Connecting imports nothing.")
+    (ProviderConnectionOpportunity draft, "provider.connect.unknown", _) ->
+      local . appendBody current $
+        if connectionUsesStaticCredential draft
+          then "The signed Pack fixes the exact credential slot and provider route. The credential is collected only after acceptance with echo disabled, stored only in the encrypted vault, and never enters the Pack, profile, event log, or interaction checkpoint. Connecting imports nothing."
+          else "The signed Pack fixes the provider endpoints and requested scopes. The public client ID and account label are non-secret profile configuration; transient authorization state stays only in this running host, and tokens go only to the encrypted vault. Connecting imports nothing."
     (PackInstallOpportunity draft, "pack.install.trust", _) -> beginPackTrust draft
     (PackInstallOpportunity draft, "pack.install.accept", _) -> acceptPackInstall draft
     (PackInstallOpportunity{}, "pack.install.back", _) -> replaceWithFresh
@@ -3990,40 +4011,29 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                         "The profile or signed provider authority changed after the prior preview. Review this refreshed connection before authorizing."
                     )
               | dryRun ->
-                  local (appendBody current "Dry run revalidated the profile, Pack, account, binding, client ID, and signed scopes. No OAuth request ran and no configuration or vault entry changed.")
+                  local (appendBody current "Dry run revalidated the profile, Pack, account, binding, and signed credential authority. No authorization or credential input ran, and no configuration or vault entry changed.")
               | otherwise ->
                   ensureConnectionVaultUnlocked (connectionProfilePaths profile) >>= \case
                     Left problem -> pure (Left problem)
-                    Right () -> case connectionOAuthClient (connectionProfileRegistry profile) draft of
-                      Left problem -> pure (Left problem)
-                      Right client ->
-                        runProviderAuthorization environment runtime client >>= \case
+                    Right () ->
+                      persistProviderConnectionCredential runtime profile draft >>= \case
+                        Left problem -> pure (Left problem)
+                        Right () -> case applyProviderConnectionDraft (connectionProfileIntegrations profile) draft of
                           Left problem -> pure (Left problem)
-                          Right tokenSet ->
-                            persistProviderTokenSet
-                              (Profile.vaultSocket (connectionProfilePaths profile))
-                              client
-                              (providerConnectionBinding draft)
-                              (providerConnectionDisplayName draft <> " · " <> Profile.providerAccountLabel (providerConnectionAccount draft))
-                              tokenSet
+                          Right changed ->
+                            Profile.writeIntegrationsConfigIfRevision
+                              (connectionProfilePaths profile)
+                              (providerConnectionProfileRevision draft)
+                              changed
                               >>= \case
                                 Left problem -> pure (Left problem)
-                                Right () -> case applyProviderConnectionDraft (connectionProfileIntegrations profile) draft of
-                                  Left problem -> pure (Left problem)
-                                  Right changed ->
-                                    Profile.writeIntegrationsConfigIfRevision
-                                      (connectionProfilePaths profile)
-                                      (providerConnectionProfileRevision draft)
-                                      changed
-                                      >>= \case
-                                        Left problem -> pure (Left problem)
-                                        Right True -> finishProviderConnection draft
-                                        Right False ->
-                                          pure . Left $
-                                            (appError Conflict "The profile changed after provider authorization; the new vault entry remains safe but is not yet referenced.")
-                                              { appErrorRetrySafety = RetryAfterRefresh
-                                              , appErrorRecovery = [RecoveryAction "review-again" "Run the same connection command again to build a fresh preview; no source data changed." Nothing]
-                                              }
+                                Right True -> finishProviderConnection draft
+                                Right False ->
+                                  pure . Left $
+                                    (appError Conflict "The profile changed after provider authorization; the new vault entry remains safe but is not yet referenced.")
+                                      { appErrorRetrySafety = RetryAfterRefresh
+                                      , appErrorRecovery = [RecoveryAction "review-again" "Run the same connection command again to build a fresh preview; no source data changed." Nothing]
+                                      }
 
   refreshProviderConnectionDraft runtime profile draft =
     prepareProviderConnectionDraft
@@ -4036,6 +4046,42 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       (Profile.providerAccountLabel (providerConnectionAccount draft))
       (providerConnectionClientId draft)
       (Profile.credentialBindingVaultEntry (providerConnectionBinding draft))
+
+  persistProviderConnectionCredential runtime profile draft
+    | connectionUsesStaticCredential draft = do
+        let binding = providerConnectionBinding draft
+            label = providerConnectionDisplayName draft <> " · " <> Profile.providerAccountLabel (providerConnectionAccount draft)
+            metadata =
+              Map.fromList
+                [ ("account", Profile.credentialBindingAccount binding)
+                , ("component", Profile.credentialBindingComponent binding)
+                ]
+        providerConnectionAcquireCredential runtime label >>= \case
+          Left problem -> pure (Left problem)
+          Right secret ->
+            finally
+              ( sendVaultAgentRequest
+                  (Profile.vaultSocket (connectionProfilePaths profile))
+                  (agentPutRequest (Profile.credentialBindingVaultEntry binding) (Profile.credentialBindingScheme binding) label metadata secret)
+                  >>= pure . (>>= acknowledgeStaticCredential)
+              )
+              (wipeAgentSecret secret)
+    | otherwise = case connectionOAuthClient (connectionProfileRegistry profile) draft of
+        Left problem -> pure (Left problem)
+        Right client ->
+          runProviderAuthorization environment runtime client >>= \case
+            Left problem -> pure (Left problem)
+            Right tokenSet ->
+              persistProviderTokenSet
+                (Profile.vaultSocket (connectionProfilePaths profile))
+                client
+                (providerConnectionBinding draft)
+                (providerConnectionDisplayName draft <> " · " <> Profile.providerAccountLabel (providerConnectionAccount draft))
+                tokenSet
+
+  acknowledgeStaticCredential reply
+    | agentReplySucceeded reply = Right ()
+    | otherwise = Left (appError ExternalFailure "The vault agent returned an unexpected credential mutation reply.")
 
   finishProviderConnection draft = do
     let result =

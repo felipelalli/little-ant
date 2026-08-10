@@ -94,8 +94,11 @@ GitHub Issues adapter with stable node identities, page-number pagination,
 explicit closed-issue inclusion, pull-request omission, and complete structured
 Raw custody. Its exact least-authority route is
 `GET https://api.github.com/issues`; cleanup and issue mutation remain
-unsupported. Guided no-echo static-token connection, Calendar write-back, the
-remaining connector breadth, and the local-web UIAdapter remain in this slice.
+unsupported. Generic guided static credentials now bind an explicitly signed
+bearer/API-key slot to no-echo post-consent Vault input before typed profile
+configuration, so GitHub can appear honestly in the dumb source selector.
+Calendar write-back, the remaining connector breadth, and the local-web
+UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a

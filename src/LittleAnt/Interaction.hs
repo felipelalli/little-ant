@@ -185,10 +185,11 @@ import LittleAnt.Notice
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Trust
-import LittleAnt.Profile (providerAccountLabel)
+import LittleAnt.Profile (credentialBindingScheme, credentialBindingSlot, providerAccountLabel)
 import LittleAnt.Provider.Connection
 import LittleAnt.Source
 import LittleAnt.Store
+import LittleAnt.Vault (credentialSchemeName)
 
 data ScreenGrammar
   = FocusGrammar
@@ -1001,16 +1002,21 @@ makeProviderConnectionEnvelope identity cursor precondition now state draft =
     ( EnvelopeContent
         "Connect provider?"
         (Just (providerConnectionDisplayName draft <> " · " <> providerAccountLabel (providerConnectionAccount draft)))
-        [ "Account key: " <> providerConnectionAccountName draft
-        , "Pack: " <> artifactName (providerConnectionArtifact draft) <> " " <> artifactVersion (providerConnectionArtifact draft)
-        , "Public client ID: " <> providerConnectionClientId draft
-        , "Access requested: " <> Text.intercalate ", " (Set.toAscList (providerConnectionScopes draft))
-        , ""
-        , "Connecting stores the resulting token only in this profile's encrypted vault. It does not import or change provider data."
-        ]
+        ( [ "Account key: " <> providerConnectionAccountName draft
+          , "Pack: " <> artifactName (providerConnectionArtifact draft) <> " " <> artifactVersion (providerConnectionArtifact draft)
+          ]
+            <> maybe [] (pure . ("Public client ID: " <>)) (providerConnectionClientId draft)
+            <> ["Access requested: " <> Text.intercalate ", " (Set.toAscList (providerConnectionScopes draft)) | not (Set.null (providerConnectionScopes draft))]
+            <> [ "Credential: " <> credentialSchemeName (credentialBindingScheme (providerConnectionBinding draft)) <> " · " <> credentialBindingSlot (providerConnectionBinding draft)
+               , ""
+               , if connectionUsesStaticCredential draft
+                   then "Acceptance opens one no-echo credential input and stores it only in this profile's encrypted vault. It does not import or change provider data."
+                   else "Connecting stores the resulting token only in this profile's encrypted vault. It does not import or change provider data."
+               ]
+        )
         Nothing
     )
-    [ Action "provider.connect.accept" "connect" "c" False "Start the exact signed OAuth Device Authorization in this host."
+    [ Action "provider.connect.accept" "connect" "c" False (if connectionUsesStaticCredential draft then "Open one no-echo credential input for the exact signed slot." else "Start the exact signed OAuth authorization in this host.")
     , Action "provider.connect.back" "back" "b" False "Leave the provider account unconfigured."
     , Action "provider.connect.unknown" "I don't know" "?" False "Explain the connection boundary before authorizing."
     , moreAction

@@ -68,6 +68,7 @@ main =
       , testCase "an official name installs the exact catalog release without publisher trust" officialCatalogInstall
       , testCase "official refresh dry-run persists no accepted authority" officialCatalogRefreshDryRun
       , testCase "provider connection keeps OAuth transient and enables the production import source" providerConnectionEnablesImport
+      , testCase "static provider connection captures one token only after reviewed consent" staticProviderConnectionEnablesImport
       ]
 
 listBuiltIn :: Assertion
@@ -459,7 +460,7 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   let connectableChoices = importSourceChoices connectedBase
       connectableScreen = renderPlain (importSourceModel owner connectableChoices "micro" 0 Nothing)
   fmap providerDefinitionAdapterId [definition | ConnectImportSource definition <- connectableChoices]
-    @?= ["google_calendar", "google_tasks", "microsoft_todo"]
+    @?= ["github_issues", "google_calendar", "google_tasks", "microsoft_todo"]
   assertBool "the searchable source selector omitted the unconfigured connector" ("Microsoft To Do · connect..." `Text.isInfixOf` connectableScreen)
   assertBool "the ordinary palette omitted /import" (not (null (filteredCommands owner "/import")))
   paths <- currentProfilePaths
@@ -488,7 +489,7 @@ providerConnectionEnablesImport = withHarness $ \base -> do
       environment = connectedBase{appProviderConnectionRuntime = Just runtime}
 
   preview <-
-    run environment False (ConfigConnectCommand "microsoft_todo" "personal" "Personal account" "11111111-1111-1111-1111-111111111111")
+    run environment False (ConfigConnectCommand "microsoft_todo" "personal" "Personal account" (Just "11111111-1111-1111-1111-111111111111"))
       >>= expectNextInteraction
   case envelopeOpportunity preview of
     ProviderConnectionOpportunity draft -> do
@@ -536,6 +537,85 @@ providerConnectionEnablesImport = withHarness $ \base -> do
       assertBool "migration was omitted from the dumb mode selector" ("[m]igrate" `Text.isInfixOf` modeScreen)
       assertBool "the dumb mode selector introduced an Enter default" (not ("Enter" `Text.isInfixOf` modeScreen))
     other -> assertFailure ("expected one exact connected import target, got: " <> show other)
+
+  sendVaultAgentRequest (Profile.vaultSocket paths) agentShutdownRequest >>= either (assertFailure . show) assertAgentSuccess
+  takeMVar stopped >>= either (assertFailure . show) pure
+
+staticProviderConnectionEnablesImport :: Assertion
+staticProviderConnectionEnablesImport = withHarness $ \base -> do
+  remote <- publishedRemote
+  let catalogEnvironment = base{appOfficialPackRemote = Just remote}
+  _ <- run catalogEnvironment False PacksRefreshCommand
+  installPreview <- run catalogEnvironment False (PacksInstallCommand connectorPackName) >>= expectNextInteraction
+  _ <- respond catalogEnvironment False installPreview "pack.install.accept"
+
+  connectedBase <- productionAppEnv Nothing >>= either (assertFailure . show) pure
+  paths <- currentProfilePaths
+  passphrase <- either (assertFailure . show) pure (makePassphrase "static provider fixture")
+  vaultIdentity <- appAllocateUUID connectedBase
+  Vault.writeVault (Profile.vaultFile paths) passphrase (Vault.emptyVault vaultIdentity) >>= either (assertFailure . show) pure
+  stopped <- newEmptyMVar
+  _ <- forkIO (runVaultAgent (Profile.vaultSocket paths) (Profile.vaultFile paths) 60 >>= putMVar stopped)
+  waitForPath (Profile.vaultSocket paths) 100
+
+  credentialPrompts <- newIORef []
+  let runtime =
+        case appProviderConnectionRuntime connectedBase of
+          Nothing -> error "production provider connection runtime is unavailable"
+          Just value ->
+            value
+              { providerConnectionAcquireCredential = \label -> do
+                  modifyIORef' credentialPrompts (<> [label])
+                  pure (Right "PRIVATE-GITHUB-TOKEN")
+              }
+      environment = connectedBase{appProviderConnectionRuntime = Just runtime}
+  preview <-
+    run environment False (ConfigConnectCommand "github_issues" "github" "Personal GitHub" Nothing)
+      >>= expectNextInteraction
+  case envelopeOpportunity preview of
+    ProviderConnectionOpportunity draft -> do
+      providerConnectionSource draft @?= "github_issues"
+      providerConnectionClientId draft @?= Nothing
+      providerConnectionScopes draft @?= Set.empty
+      Profile.credentialBindingScheme (providerConnectionBinding draft) @?= Vault.BearerCredential
+      Profile.credentialBindingSlot (providerConnectionBinding draft) @?= "github"
+      let serialized = LazyByteString.unpack (encode preview)
+      assertBool "static preview leaked the supplied token" (not ("PRIVATE-GITHUB-TOKEN" `isInfixOf` serialized))
+      assertBool "sparse static preview retained a null client ID" (not ("client_id" `isInfixOf` serialized))
+    other -> assertFailure ("expected static provider connection preview, got: " <> show other)
+
+  locked <- runAppCommand environment False silentProgress (RespondCommand (responseFor preview "provider.connect.accept"))
+  case locked of
+    Left problem -> appErrorCode problem @?= PermissionRequired
+    Right result -> assertFailure ("locked vault unexpectedly requested a static credential: " <> show result)
+  readIORef credentialPrompts >>= (@?= [])
+
+  sendVaultAgentRequest (Profile.vaultSocket paths) (agentUnlockRequest "static provider fixture") >>= either (assertFailure . show) assertAgentSuccess
+  accepted <- respond environment False preview "provider.connect.accept" >>= expectRespondInteraction
+  case envelopeOpportunity accepted of
+    ProviderConnectionResultOpportunity "github_issues" "github" "Personal GitHub" -> pure ()
+    other -> assertFailure ("expected static provider connection result, got: " <> show other)
+  readIORef credentialPrompts >>= (@?= ["GitHub Issues · Personal GitHub"])
+
+  configured <- loadCurrentIntegrations
+  Map.keys (Profile.providerAccounts configured) @?= ["github"]
+  Map.keys (Profile.credentialBindings configured) @?= ["github_issues-github"]
+  inventoryReply <- sendVaultAgentRequest (Profile.vaultSocket paths) agentInventoryRequest >>= either (assertFailure . show) pure
+  case agentReplyInventory inventoryReply of
+    Just [entry] -> do
+      Vault.inventoryScheme entry @?= Vault.BearerCredential
+      Vault.inventoryRedactedSuffix entry @?= Just "OKEN"
+    other -> assertFailure ("expected one redacted bearer credential, got: " <> show other)
+
+  restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
+  let restartedChoices = importSourceChoices restarted
+      githubDescriptors = [descriptor | ReadyImportSource descriptor <- restartedChoices, importSourceId descriptor == "github_issues"]
+  assertBool "the connected GitHub provider remained connectable" (null [() | ConnectImportSource definition <- restartedChoices, providerDefinitionAdapterId definition == "github_issues"])
+  case githubDescriptors of
+    [descriptor] -> do
+      importSourceDisplayName descriptor @?= "GitHub Issues · Personal GitHub"
+      importSourceModes descriptor @?= [SourceSnapshot, SourceSynchronize]
+    other -> assertFailure ("expected one exact GitHub import target, got: " <> show other)
 
   sendVaultAgentRequest (Profile.vaultSocket paths) agentShutdownRequest >>= either (assertFailure . show) assertAgentSuccess
   takeMVar stopped >>= either (assertFailure . show) pure

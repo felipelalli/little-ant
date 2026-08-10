@@ -35,17 +35,27 @@ data ProviderSourceDefinition = ProviderSourceDefinition
   , providerDefinitionDisplayName :: Text
   , providerDefinitionModes :: [SourceMode]
   , providerDefinitionRequiresContainerSelection :: Bool
+  , providerDefinitionRequiresClientId :: Bool
   }
   deriving stock (Eq, Show)
 
 standardProviderSourceDefinitions :: [ProviderSourceDefinition]
 standardProviderSourceDefinitions =
   [ ProviderSourceDefinition
+      { providerDefinitionAdapterId = "github_issues"
+      , providerDefinitionNamespace = "github_issues"
+      , providerDefinitionDisplayName = "GitHub Issues"
+      , providerDefinitionModes = [SourceSnapshot, SourceSynchronize]
+      , providerDefinitionRequiresContainerSelection = False
+      , providerDefinitionRequiresClientId = False
+      }
+  , ProviderSourceDefinition
       { providerDefinitionAdapterId = "microsoft_todo"
       , providerDefinitionNamespace = "microsoft_todo"
       , providerDefinitionDisplayName = "Microsoft To Do"
       , providerDefinitionModes = [SourceSnapshot, SourceSynchronize, SourceMigrate]
       , providerDefinitionRequiresContainerSelection = False
+      , providerDefinitionRequiresClientId = True
       }
   , ProviderSourceDefinition
       { providerDefinitionAdapterId = "google_tasks"
@@ -53,6 +63,7 @@ standardProviderSourceDefinitions =
       , providerDefinitionDisplayName = "Google Tasks"
       , providerDefinitionModes = [SourceSnapshot, SourceSynchronize, SourceMigrate]
       , providerDefinitionRequiresContainerSelection = False
+      , providerDefinitionRequiresClientId = True
       }
   , ProviderSourceDefinition
       { providerDefinitionAdapterId = "google_calendar"
@@ -60,6 +71,7 @@ standardProviderSourceDefinitions =
       , providerDefinitionDisplayName = "Google Calendar"
       , providerDefinitionModes = [SourceSnapshot, SourceSynchronize]
       , providerDefinitionRequiresContainerSelection = True
+      , providerDefinitionRequiresClientId = True
       }
   ]
 

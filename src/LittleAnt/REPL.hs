@@ -20,6 +20,8 @@ module LittleAnt.REPL (
 import Control.Applicative ((<|>))
 import Control.Exception (bracket)
 import Control.Monad (void)
+import Data.ByteString qualified as ByteString
+import Data.Char (ord)
 import Data.IORef
 import Data.List (find, sortOn)
 import Data.Map.Strict qualified as Map
@@ -44,6 +46,7 @@ import LittleAnt.Result
 import LittleAnt.Source (SourceContainer (..))
 import LittleAnt.Surface
 import LittleAnt.Terminal
+import LittleAnt.Vault.Agent (wipeAgentSecret)
 import System.Environment (lookupEnv)
 import System.IO (hIsTerminalDevice, stdin, stdout)
 
@@ -107,8 +110,14 @@ runReplWithCommand environment initialCommand = do
       Right result -> Text.putStrLn (renderCommandResult result)
   runInteractive vty = do
     color <- terminalColorMode
-    environmentRef <- newIORef environment
-    result <- runAppCommand environment False (showProgress vty color) initialCommand
+    let interactiveEnvironment =
+          environment
+            { appProviderConnectionRuntime =
+                (\runtime -> runtime{providerConnectionAcquireCredential = acquireCredentialWithVty vty color})
+                  <$> appProviderConnectionRuntime environment
+            }
+    environmentRef <- newIORef interactiveEnvironment
+    result <- runAppCommand interactiveEnvironment False (showProgress vty color) initialCommand
     case result of
       Left problem -> paint vty color (errorModel problem) >> waitForExit vty
       Right NextResult{resultInteraction} -> loop environmentRef vty color 80 (screenForEnvelope resultInteraction)
@@ -274,7 +283,7 @@ loop environmentRef vty color width screen = do
                   EnvelopeScreen
                     envelope
                     (Just ("Pack state changed, but this REPL could not reload its component registry: " <> appErrorMessage problem))
-              Right refreshed -> writeIORef environmentRef refreshed >> pure (Just (screenForEnvelope envelope))
+              Right refreshed -> writeIORef environmentRef (withInteractiveCredentialInput refreshed) >> pure (Just (screenForEnvelope envelope))
       | otherwise -> pure (Just (screenForEnvelope envelope))
 
   runPaletteCommand envelope query selected target = case safeIndex selected (filteredCommands envelope query) of
@@ -461,15 +470,24 @@ loop environmentRef vty color width screen = do
     ProviderAccountLabel account ->
       let entered = Text.strip (editorText editor)
           label = if Text.null entered then account else entered
-       in pure . Just $ ProviderConnectionEditor envelope definition (ProviderClientId account label) (EditorState "" "" Nothing) Nothing
+       in if providerDefinitionRequiresClientId definition
+            then pure . Just $ ProviderConnectionEditor envelope definition (ProviderClientId account label) (EditorState "" "" Nothing) Nothing
+            else beginProviderConnection envelope definition account label Nothing
     ProviderClientId account label ->
       let clientId = Text.strip (editorText editor)
        in if Text.null clientId
             then pure . Just $ ProviderConnectionEditor envelope definition stage editor (Just "The public OAuth client ID is required by this signed connector.")
             else
-              runCurrent (ConfigConnectCommand (providerDefinitionAdapterId definition) account label clientId) >>= \case
-                Left problem -> pure . Just $ ProviderConnectionEditor envelope definition stage editor (Just (appErrorMessage problem))
-                Right result -> screenFromResult envelope result
+              beginProviderConnection envelope definition account label (Just clientId)
+
+  beginProviderConnection envelope definition account label clientId =
+    runCurrent (ConfigConnectCommand (providerDefinitionAdapterId definition) account label clientId) >>= \case
+      Left problem -> pure . Just $ ProviderConnectionEditor envelope definition (fallbackStage account label) (EditorState "" "" Nothing) (Just (appErrorMessage problem))
+      Right result -> screenFromResult envelope result
+   where
+    fallbackStage account' label'
+      | providerDefinitionRequiresClientId definition = ProviderClientId account' label'
+      | otherwise = ProviderAccountLabel account'
 
   backFromProviderConnectionField envelope definition = \case
     ProviderAccountKey -> openImportSourceSelector envelope Nothing
@@ -569,7 +587,14 @@ loop environmentRef vty color width screen = do
     readIORef environmentRef >>= \current ->
       productionAppEnv (Just (actorProfile (appActor current))) >>= \case
         Left problem -> pure (Left problem)
-        Right refreshed -> writeIORef environmentRef refreshed >> pure (Right ())
+        Right refreshed -> writeIORef environmentRef (withInteractiveCredentialInput refreshed) >> pure (Right ())
+
+  withInteractiveCredentialInput refreshed =
+    refreshed
+      { appProviderConnectionRuntime =
+          (\runtime -> runtime{providerConnectionAcquireCredential = acquireCredentialWithVty vty color})
+            <$> appProviderConnectionRuntime refreshed
+      }
 
 isRepairScreen :: InteractionEnvelope -> Bool
 isRepairScreen envelope = case envelopeOpportunity envelope of
@@ -1000,6 +1025,45 @@ errorModel = textModel . renderError
 
 waitForExit :: Vty -> IO ()
 waitForExit vty = void (nextEvent vty)
+
+acquireCredentialWithVty :: Vty -> ColorMode -> Text -> IO (Either AppError ByteString.ByteString)
+acquireCredentialWithVty vty color label = collect ByteString.empty Nothing
+ where
+  collect secret message = do
+    paint vty color (credentialInputModel label (ByteString.length secret) message)
+    nextEvent vty >>= \event -> case eventToInput event of
+      Just (Printable 'c' modifiers) | MCtrl `elem` modifiers -> cancel secret
+      Just (Printable character [])
+        | character >= '!' && character <= '~' -> collect (ByteString.snoc secret (fromIntegral (ord character))) Nothing
+      Just (Backspace _)
+        | ByteString.null secret -> collect secret Nothing
+        | otherwise -> collect (ByteString.init secret) Nothing
+      Just (Enter _)
+        | ByteString.null secret -> collect secret (Just "The credential cannot be empty.")
+        | otherwise -> pure (Right secret)
+      Just (Escape _) -> cancel secret
+      Just (ArrowLeft _) -> collect secret Nothing
+      Just (ArrowRight _) -> collect secret Nothing
+      _ -> collect secret message
+  cancel secret = do
+    wipeAgentSecret secret
+    pure . Left $ appError PreconditionFailed "Credential input was cancelled; the provider remains unconfigured."
+
+credentialInputModel :: Text -> Int -> Maybe Text -> ScreenModel
+credentialInputModel label length' message =
+  ScreenModel
+    ( [ [Span Normal "Connect provider — credential"]
+      , []
+      , [Span Normal label]
+      , []
+      , [Span Normal "› ", Span Accent (Text.replicate length' "•")]
+      , []
+      , [Span Dim "Input is hidden. The credential goes only to this profile's encrypted vault."]
+      ]
+        <> maybe [] (\problem -> [[], [Span Warning problem]]) message
+        <> [[], [Span Dim "Enter continue · Esc cancel"]]
+    )
+    Nothing
 
 helpText :: Text
 helpText = "Little Ant shows one useful opportunity at a time.\n\nUse the visible keys or return with Escape."
