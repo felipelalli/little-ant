@@ -2465,6 +2465,10 @@ assistance-label, and no-emoji rendering.
   but cannot trust a key, install, update, rebind, remove, refresh, or collect
   archives. Update uses UX-196 `binary_consent`; inspect changes is its bounded
   evidence view.
+  OAuth bindings, changed configuration-schema content, and nonterminal effects
+  retain their installed exact release until a later explicit recovery or
+  reconnect. The complete plan is regenerated before acceptance; stale review
+  never transfers.
 - **UX-272 [standard] — Revocation is a sober unavailable state.** UX-PACK02
   names the Pack, signer/digest, affected components and bindings, catalog
   sequence, and plain recovery choices. It never offers run anyway, ignore,

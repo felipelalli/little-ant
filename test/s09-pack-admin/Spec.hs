@@ -2,13 +2,18 @@ module Main (main) where
 
 import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar, threadDelay)
 import Control.Exception (bracket)
+import Crypto.Error (CryptoFailable (..))
+import Crypto.PubKey.Ed25519 qualified as Ed25519
 import Data.Aeson (Value (Object), encode, object, toJSON, (.=))
 import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Bits ((.&.))
+import Data.ByteArray (convert)
+import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Base64.URL qualified as Base64Url
 import Data.ByteString.Lazy.Char8 qualified as LazyByteString
 import Data.IORef
-import Data.List (isInfixOf)
+import Data.List (find, isInfixOf)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust, isNothing)
 import Data.Set qualified as Set
@@ -17,11 +22,13 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import LittleAnt.Application
 import LittleAnt.Error
+import LittleAnt.Id (UUIDv7, parseUUIDv7)
 import LittleAnt.Import
 import LittleAnt.Interaction
-import LittleAnt.Model (SourceMode (..))
+import LittleAnt.Model (SourceMode (..), emptyState)
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Admin
+import LittleAnt.Pack.Format
 import LittleAnt.Pack.Official
 import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
@@ -34,7 +41,7 @@ import LittleAnt.REPL
 import LittleAnt.Result
 import LittleAnt.SemVer
 import LittleAnt.Source (SourceContainer (..))
-import LittleAnt.Store (DatasetCursor (Genesis))
+import LittleAnt.Store (DatasetCursor (Genesis), sha256Hex)
 import LittleAnt.Surface
 import LittleAnt.Vault qualified as Vault
 import LittleAnt.Vault.Age (makePassphrase)
@@ -74,6 +81,13 @@ main =
       , testCase "Pack update discovery chooses the newest signed SemVer release" discoverNewestOfficialUpdate
       , testCase "Pack update ordering follows SemVer prerelease precedence" semVerUpdatePrecedence
       , testCase "Pack update inspection is read-only and performs no network request" packUpdatesStayReadOnly
+      , testCase "a reviewed local update keeps or replaces the preferred pin without deleting either release" reviewedLocalPackUpdate
+      , testCase "the update plan rebinds compatible static accounts but retains artifact-bound OAuth accounts" selectiveProviderRebinding
+      , testCase "a changed configuration schema retains the exact installed provider release" changedSchemaRetainsProvider
+      , testCase "an unpinned delivery binding blocks an ambiguous Pack update" unpinnedDeliveryBlocksUpdate
+      , testCase "Pack update dry-run arms no checkpoint and changes no preferred pin" packUpdateDryRun
+      , testCase "profile drift regenerates the complete Pack update plan without accepting it" packUpdateProfileDrift
+      , testCase "candidate-byte drift invalidates the Pack update checkpoint" packUpdateArchiveDrift
       ]
 
 listBuiltIn :: Assertion
@@ -338,6 +352,7 @@ replPackManager = withHarness $ \environment -> do
           trustEditor = renderPlain (packPathEditorModel owner TrustPublisherKey (EditorState "" "" Nothing) Nothing)
       assertBool "the selected Pack is visible" ("> Little Ant Standard Pack 1.0.0" `Text.isInfixOf` manager)
       assertBool "the manager exposes Pack navigation" ("[s]how" `Text.isInfixOf` manager && "[i]nstall..." `Text.isInfixOf` manager)
+      assertBool "the manager exposes explicit selected-Pack update" ("[u]pdate" `Text.isInfixOf` manager)
       assertBool "the manager exposes explicit catalog refresh" ("[r]efresh catalog" `Text.isInfixOf` manager)
       assertBool "the manager keeps publisher trust separate" ("[t]rust publisher..." `Text.isInfixOf` manager)
       assertBool "the ordinary palette remains reachable" ("[/] more..." `Text.isInfixOf` manager)
@@ -703,6 +718,275 @@ packUpdatesStayReadOnly = withHarness $ \base -> do
       assertBool "read-only update discovery exposed a command id" (not (KeyMap.member "command_id" fields))
     other -> assertFailure ("expected object JSON, got: " <> show other)
 
+reviewedLocalPackUpdate :: Assertion
+reviewedLocalPackUpdate = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-local-update" $ \directory -> do
+    (oldBytes, oldIdentity) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    (newBytes, newIdentity) <- updateFixtureArchive "1.1.0" "return { version = 2 }\n"
+    let oldPath = directory </> "old.lantpack"
+        newPath = directory </> "new.lantpack"
+    ByteString.writeFile oldPath oldBytes
+    ByteString.writeFile newPath newBytes
+
+    installPreview <- run environment False (PacksInstallCommand (Text.pack oldPath)) >>= expectNextInteraction
+    trustPreview <- respond environment False installPreview (guidedAction "t" installPreview) >>= expectRespondInteraction
+    returnedInstall <- respond environment False trustPreview (guidedAction "t" trustPreview) >>= expectRespondInteraction
+    _ <- respond environment False returnedInstall (guidedAction "i" returnedInstall)
+
+    keepPreview <- run environment False (PacksUpdateCommand (Text.pack newPath)) >>= expectNextInteraction
+    case envelopeOpportunity keepPreview of
+      PackUpdateOpportunity draft -> do
+        packUpdateInstalledPin draft @?= PackPin oldIdentity updateFixtureFingerprint PinTrustedPublisher (Set.singleton "demo_export")
+        packUpdateCandidateArtifact draft @?= newIdentity
+        assertBool "the signed payload change was not visible" (not (null (packUpdateChanges draft)))
+        assertBool "an update without live bindings should be applicable" (packUpdateCanApply draft)
+        packUpdateBindings draft @?= []
+      other -> assertFailure ("expected Pack update preview, got: " <> show other)
+    kept <- respond environment False keepPreview (guidedAction "k" keepPreview) >>= expectRespondInteraction
+    case envelopeOpportunity kept of
+      PackUpdateResultOpportunity installed candidate False 0 -> do
+        installed @?= oldIdentity
+        candidate @?= newIdentity
+      other -> assertFailure ("expected keep-current result, got: " <> show other)
+    profileAfterKeep <- loadCurrentIntegrations
+    fmap pinArtifact (Map.lookup updateFixtureName (Profile.installedComponents profileAfterKeep)) @?= Just oldIdentity
+
+    updatePreview <- run environment False (PacksUpdateCommand (Text.pack newPath)) >>= expectNextInteraction
+    inspected <- respond environment False updatePreview (guidedAction "i" updatePreview) >>= expectRespondInteraction
+    updated <- respond environment False inspected (guidedAction "u" inspected) >>= expectRespondInteraction
+    case envelopeOpportunity updated of
+      PackUpdateResultOpportunity installed candidate True 0 -> do
+        installed @?= oldIdentity
+        candidate @?= newIdentity
+      other -> assertFailure ("expected applied update result, got: " <> show other)
+    profileAfterUpdate <- loadCurrentIntegrations
+    fmap pinArtifact (Map.lookup updateFixtureName (Profile.installedComponents profileAfterUpdate)) @?= Just newIdentity
+    paths <- currentProfilePaths
+    doesFileExist (packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) (artifactArchiveDigest oldIdentity)) >>= (@?= True)
+    doesFileExist (packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) (artifactArchiveDigest newIdentity)) >>= (@?= True)
+
+selectiveProviderRebinding :: Assertion
+selectiveProviderRebinding = do
+  oldCandidate <- readPackArchiveCandidate connectorArchive >>= either (assertFailure . show) pure
+  let oldPack = packCandidateAuthenticated oldCandidate
+      oldIdentity = authenticatedPackIdentity oldPack
+      candidateIdentity =
+        oldIdentity
+          { artifactVersion = "1.1.0"
+          , artifactManifestDigest = Text.replicate 64 "a"
+          , artifactArchiveDigest = Text.replicate 64 "b"
+          }
+      candidatePack = oldPack{authenticatedPackIdentity = candidateIdentity}
+      enabled = Set.fromList [componentId (componentCommon component) | component <- packComponents (structurallyValidManifest (authenticatedStructuralPack oldPack))]
+      oldPin = PackPin oldIdentity (authenticatedSignerFingerprint oldPack) PinTrustedPublisher enabled
+      githubAccount =
+        Profile.ProviderAccount
+          oldPin
+          "github_issues"
+          "github"
+          "github-personal"
+          "Personal GitHub"
+          (object [])
+      microsoftAccount =
+        Profile.ProviderAccount
+          oldPin
+          "microsoft_todo"
+          "microsoft_todo"
+          "microsoft-personal"
+          "Personal Microsoft"
+          (object ["client_id" .= ("public-client" :: Text)])
+      githubBinding =
+        Profile.CredentialBinding
+          "github_issues"
+          "github"
+          "github"
+          Vault.BearerCredential
+          fixtureCredentialId
+          Nothing
+          (Set.singleton "source_read")
+      microsoftBinding =
+        Profile.CredentialBinding
+          "microsoft_todo"
+          "microsoft"
+          "microsoft"
+          Vault.OAuthDeviceAuthorization
+          fixtureCredentialId
+          (Just (Text.replicate 64 "c"))
+          (Set.singleton "source_read")
+      integrations =
+        Profile.IntegrationsConfig
+          (Map.singleton connectorPackName oldPin)
+          (Map.fromList [("github", githubAccount), ("microsoft", microsoftAccount)])
+          (Map.fromList [("github-binding", githubBinding), ("microsoft-binding", microsoftBinding)])
+          Map.empty
+          Set.empty
+  draft <-
+    assertRight
+      ( buildPackUpdateDraft
+          "/tmp/candidate.lantpack"
+          (Text.replicate 64 "b")
+          "trusted publisher"
+          "profile-revision"
+          integrations
+          emptyState
+          oldPin
+          oldPack
+          candidatePack
+      )
+  fmap (\plan -> (updateBindingName plan, updateBindingDisposition plan)) (packUpdateBindings draft)
+    @?= [("github", RebindToCandidate), ("microsoft", KeepInstalledRelease)]
+  let candidatePin = oldPin{pinArtifact = candidateIdentity}
+      changed = updateReboundAccounts candidatePin draft integrations
+  fmap (pinArtifact . Profile.providerAccountPackPin) (Map.lookup "github" (Profile.providerAccounts changed)) @?= Just candidateIdentity
+  fmap (pinArtifact . Profile.providerAccountPackPin) (Map.lookup "microsoft" (Profile.providerAccounts changed)) @?= Just oldIdentity
+
+changedSchemaRetainsProvider :: Assertion
+changedSchemaRetainsProvider = do
+  (oldPack, candidatePack, oldPin, integrations) <- providerUpdateFixture
+  let structural = authenticatedStructuralPack candidatePack
+      changedCandidate =
+        candidatePack
+          { authenticatedStructuralPack =
+              structural
+                { structurallyValidPayload =
+                    Map.adjust
+                      (const "{\"additionalProperties\":false,\"properties\":{\"new\":{\"type\":\"string\"}},\"type\":\"object\"}")
+                      "sources/github_issues/config.schema.json"
+                      (structurallyValidPayload structural)
+                }
+          }
+  draft <- buildUpdateDraft oldPin integrations oldPack changedCandidate
+  dispositionFor "github" draft @?= Just KeepInstalledRelease
+
+unpinnedDeliveryBlocksUpdate :: Assertion
+unpinnedDeliveryBlocksUpdate = do
+  (oldPack, candidatePack, oldPin, integrations) <- providerUpdateFixture
+  let withDelivery = integrations{Profile.deliveryBindings = Map.singleton "daily-summary" "github_issues"}
+  draft <- buildUpdateDraft oldPin withDelivery oldPack candidatePack
+  dispositionFor "daily-summary" draft @?= Just BindingUnavailable
+  assertBool "the ambiguous delivery binding allowed the update" (not (packUpdateCanApply draft))
+
+providerUpdateFixture :: IO (AuthenticatedPack, AuthenticatedPack, PackPin, Profile.IntegrationsConfig)
+providerUpdateFixture = do
+  oldCandidate <- readPackArchiveCandidate connectorArchive >>= either (assertFailure . show) pure
+  let oldPack = packCandidateAuthenticated oldCandidate
+      oldIdentity = authenticatedPackIdentity oldPack
+      candidateIdentity =
+        oldIdentity
+          { artifactVersion = "1.1.0"
+          , artifactManifestDigest = Text.replicate 64 "a"
+          , artifactArchiveDigest = Text.replicate 64 "b"
+          }
+      candidatePack = oldPack{authenticatedPackIdentity = candidateIdentity}
+      enabled = Set.fromList [componentId (componentCommon component) | component <- packComponents (structurallyValidManifest (authenticatedStructuralPack oldPack))]
+      oldPin = PackPin oldIdentity (authenticatedSignerFingerprint oldPack) PinTrustedPublisher enabled
+      githubAccount =
+        Profile.ProviderAccount oldPin "github_issues" "github" "github-personal" "Personal GitHub" (object [])
+      githubBinding =
+        Profile.CredentialBinding "github_issues" "github" "github" Vault.BearerCredential fixtureCredentialId Nothing (Set.singleton "source_read")
+      integrations =
+        Profile.IntegrationsConfig
+          (Map.singleton connectorPackName oldPin)
+          (Map.singleton "github" githubAccount)
+          (Map.singleton "github-binding" githubBinding)
+          Map.empty
+          Set.empty
+  pure (oldPack, candidatePack, oldPin, integrations)
+
+buildUpdateDraft :: PackPin -> Profile.IntegrationsConfig -> AuthenticatedPack -> AuthenticatedPack -> IO PackUpdateDraft
+buildUpdateDraft oldPin integrations oldPack candidatePack =
+  assertRight
+    ( buildPackUpdateDraft
+        "/tmp/candidate.lantpack"
+        (Text.replicate 64 "b")
+        "trusted publisher"
+        "profile-revision"
+        integrations
+        emptyState
+        oldPin
+        oldPack
+        candidatePack
+    )
+
+dispositionFor :: Text -> PackUpdateDraft -> Maybe PackUpdateDisposition
+dispositionFor name draft =
+  updateBindingDisposition <$> find ((== name) . updateBindingName) (packUpdateBindings draft)
+
+packUpdateDryRun :: Assertion
+packUpdateDryRun = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-update-dry-run" $ \directory -> do
+    (oldBytes, oldIdentity) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    (newBytes, newIdentity) <- updateFixtureArchive "1.1.0" "return { version = 2 }\n"
+    let oldPath = directory </> "old.lantpack"
+        newPath = directory </> "new.lantpack"
+    ByteString.writeFile oldPath oldBytes
+    ByteString.writeFile newPath newBytes
+    installCommunityPack environment oldPath
+    before <- loadCurrentIntegrations
+    paths <- currentProfilePaths
+    let checkpoint = Profile.datasetDirectory paths </> "checkpoints" </> "pending-envelope.json"
+    checkpointBefore <- ByteString.readFile checkpoint
+    preview <- run environment True (PacksUpdateCommand (Text.pack newPath)) >>= expectNextInteraction
+    case envelopeOpportunity preview of
+      PackUpdateOpportunity draft -> do
+        pinArtifact (packUpdateInstalledPin draft) @?= oldIdentity
+        packUpdateCandidateArtifact draft @?= newIdentity
+      other -> assertFailure ("expected dry-run Pack update preview, got: " <> show other)
+    loadCurrentIntegrations >>= (@?= before)
+    ByteString.readFile checkpoint >>= (@?= checkpointBefore)
+    storedCandidate <- doesFileExist (packArchivePath (PackStoreConfig (Profile.packStoreDirectory paths)) (artifactArchiveDigest newIdentity))
+    assertBool "dry-run published the candidate archive" (not storedCandidate)
+
+packUpdateProfileDrift :: Assertion
+packUpdateProfileDrift = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-update-profile-drift" $ \directory -> do
+    (oldBytes, oldIdentity) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    (newBytes, _) <- updateFixtureArchive "1.1.0" "return { version = 2 }\n"
+    let oldPath = directory </> "old.lantpack"
+        newPath = directory </> "new.lantpack"
+    ByteString.writeFile oldPath oldBytes
+    ByteString.writeFile newPath newBytes
+    installCommunityPack environment oldPath
+    preview <- run environment False (PacksUpdateCommand (Text.pack newPath)) >>= expectNextInteraction
+    oldRevision <- case envelopeOpportunity preview of
+      PackUpdateOpportunity draft -> pure (packUpdateProfileRevision draft)
+      other -> assertFailure ("expected Pack update preview, got: " <> show other) >> fail "unreachable"
+    paths <- currentProfilePaths
+    integrations <- loadCurrentIntegrations
+    let externalChange = integrations{Profile.deliveryBindings = Map.singleton "unrelated" "some_other_component"}
+    Profile.writeIntegrationsConfig paths externalChange >>= either (assertFailure . show) pure
+    refreshed <- respond environment False preview (guidedAction "u" preview) >>= expectRespondInteraction
+    case envelopeOpportunity refreshed of
+      PackUpdateOpportunity draft -> do
+        assertBool "profile drift retained the old draft revision" (packUpdateProfileRevision draft /= oldRevision)
+        assertBool "the refreshed plan acquired a default" (not (any actionDefault (envelopeActions refreshed)))
+      other -> assertFailure ("expected refreshed Pack update preview, got: " <> show other)
+    observedAfter <- loadCurrentIntegrations
+    fmap pinArtifact (Map.lookup updateFixtureName (Profile.installedComponents observedAfter)) @?= Just oldIdentity
+    Profile.deliveryBindings observedAfter @?= Profile.deliveryBindings externalChange
+
+packUpdateArchiveDrift :: Assertion
+packUpdateArchiveDrift = withHarness $ \environment ->
+  withSystemTempDirectory "little-ant-update-archive-drift" $ \directory -> do
+    (oldBytes, oldIdentity) <- updateFixtureArchive "1.0.0" "return { version = 1 }\n"
+    (newBytes, _) <- updateFixtureArchive "1.1.0" "return { version = 2 }\n"
+    let oldPath = directory </> "old.lantpack"
+        newPath = directory </> "new.lantpack"
+    ByteString.writeFile oldPath oldBytes
+    ByteString.writeFile newPath newBytes
+    installCommunityPack environment oldPath
+    preview <- run environment False (PacksUpdateCommand (Text.pack newPath)) >>= expectNextInteraction
+    ByteString.writeFile newPath "changed after preview"
+    observed <- runAppCommand environment False silentProgress (RespondCommand (responseFor preview "pack.update.accept"))
+    case observed of
+      Left problem -> appErrorCode problem @?= Conflict
+      Right result -> assertFailure ("expected update drift rejection, got: " <> show result)
+    paths <- currentProfilePaths
+    pending <- doesFileExist (Profile.datasetDirectory paths </> "checkpoints" </> "pending-envelope.json")
+    assertBool "candidate drift retained the Pack update consent" (not pending)
+    observedAfter <- loadCurrentIntegrations
+    fmap pinArtifact (Map.lookup updateFixtureName (Profile.installedComponents observedAfter)) @?= Just oldIdentity
+
 updateGrant :: Text -> Text -> OfficialReleaseGrant
 updateGrant version digestCharacter =
   OfficialReleaseGrant
@@ -715,6 +999,80 @@ updateGrant version digestCharacter =
     , officialGrantManifestDigest = Text.replicate 64 digestCharacter
     , officialGrantArchiveDigest = Text.replicate 64 digestCharacter
     }
+
+updateFixtureArchive :: Text -> ByteString -> IO (ByteString, PackArtifactIdentity)
+updateFixtureArchive version lua = do
+  let payload =
+        Map.fromList
+          [ ("exporters/demo/config.schema.json", "{\"additionalProperties\":false,\"type\":\"object\"}")
+          , ("exporters/demo/main.lua", lua)
+          ]
+      manifest =
+        PackManifest
+          { packName = updateFixtureName
+          , packVersion = version
+          , packDisplayName = "Update Fixture"
+          , packPublisher = "org.example"
+          , packLittleAntMajor = 1
+          , packComponents = [updateFixtureComponent]
+          , packFiles = fmap updatePayloadRecord (Map.toAscList payload)
+          , packLinks = Nothing
+          }
+  manifestBytes <- assertRight (encodePackManifest manifest)
+  signatureBytes <- assertRight (encodePackSignature (updateSignatureDocument manifestBytes))
+  archive <- assertRight (buildCanonicalPackArchive manifestBytes signatureBytes payload)
+  authenticated <- assertRight (validatePackArchive archive >>= authenticatePack)
+  pure (archive, authenticatedPackIdentity authenticated)
+
+updateFixtureComponent :: PackComponent
+updateFixtureComponent =
+  ExecutableComponent
+    ComponentCommon
+      { componentId = "demo_export"
+      , componentKind = ReadOnlyExporterComponent
+      , componentContractMajor = 1
+      , componentRoot = "exporters/demo"
+      , componentConfigurationSchema = "config.schema.json"
+      }
+    "main.lua"
+    (ComponentPermissions [] [] [] [] [] ["little-ant/structure@1"] [])
+
+updatePayloadRecord :: (Text, ByteString) -> PayloadFile
+updatePayloadRecord (path, bytes) =
+  PayloadFile
+    path
+    (fromIntegral (ByteString.length bytes))
+    (if ".lua" `Text.isSuffixOf` path then "text/x-lua; charset=utf-8" else "application/schema+json")
+    (sha256Hex bytes)
+
+updateSignatureDocument :: ByteString -> PackSignatureDocument
+updateSignatureDocument manifestBytes =
+  PackSignatureDocument
+    { packSignaturePublicKey = TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded updateFixturePublicKeyBytes)
+    , packSignatureKeyFingerprint = updateFixtureFingerprint
+    , packSignatureValue = TextEncoding.decodeUtf8 (Base64Url.encodeUnpadded (convert (Ed25519.sign updateFixtureSecretKey updateFixturePublicKey manifestBytes)))
+    }
+
+updateFixtureSecretKey :: Ed25519.SecretKey
+updateFixtureSecretKey = cryptoPassed (Ed25519.secretKey (ByteString.pack [96 .. 127]))
+
+updateFixturePublicKey :: Ed25519.PublicKey
+updateFixturePublicKey = Ed25519.toPublic updateFixtureSecretKey
+
+updateFixturePublicKeyBytes :: ByteString
+updateFixturePublicKeyBytes = convert updateFixturePublicKey
+
+updateFixtureName, updateFixtureFingerprint :: Text
+updateFixtureName = "org.example.update-fixture"
+updateFixtureFingerprint = sha256Hex updateFixturePublicKeyBytes
+
+fixtureCredentialId :: UUIDv7
+fixtureCredentialId = either (error . Text.unpack) id (parseUUIDv7 "019fe436-5e25-7ee2-9eaf-eff23cfb54fc")
+
+cryptoPassed :: CryptoFailable value -> value
+cryptoPassed = \case
+  CryptoPassed value -> value
+  CryptoFailed problem -> error (show problem)
 
 deviceAuthorizationResponse :: OAuthFormResponse
 deviceAuthorizationResponse =
@@ -792,6 +1150,14 @@ expectRespondInteraction = \case
 
 respond :: AppEnv -> Bool -> InteractionEnvelope -> Text -> IO CommandResult
 respond environment dryRun envelope action = run environment dryRun (RespondCommand (responseFor envelope action))
+
+installCommunityPack :: AppEnv -> FilePath -> Assertion
+installCommunityPack environment path = do
+  installPreview <- run environment False (PacksInstallCommand (Text.pack path)) >>= expectNextInteraction
+  trustPreview <- respond environment False installPreview (guidedAction "t" installPreview) >>= expectRespondInteraction
+  returnedInstall <- respond environment False trustPreview (guidedAction "t" trustPreview) >>= expectRespondInteraction
+  _ <- respond environment False returnedInstall (guidedAction "i" returnedInstall)
+  pure ()
 
 responseFor :: InteractionEnvelope -> Text -> InteractionResponse
 responseFor envelope action =
@@ -876,3 +1242,6 @@ run environment dryRun command =
 
 silentProgress :: Integer -> IO ()
 silentProgress _ = pure ()
+
+assertRight :: (Show left) => Either left right -> IO right
+assertRight = either (assertFailure . show) pure

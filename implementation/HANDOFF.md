@@ -353,6 +353,15 @@ commits.
   reauthorized on every load, so changing the preferred release cannot
   silently upgrade an account and missing, revoked, or untrusted retained
   authority fails closed.
+- `lant packs update` now turns either the newest accepted official release or
+  one local trusted-publisher archive into a persisted no-default UX-PACK01
+  plan. The preview records exact archive custody, semantic component and
+  authority changes, and every affected binding disposition. Acceptance
+  reopens both releases and recomputes the plan; profile or byte drift returns
+  to fresh review. Compatible static accounts may rebind, while OAuth,
+  schema/contract drift, removed credentials, and nonterminal effects retain
+  the old exact pin. Candidate publication and one compare-and-swap profile
+  update leave old archives and historical provenance intact.
 - `lant packs list` and exact-name `lant packs show` now expose one sparse,
   typed `little-ant/packs@1` projection. It includes display and signed
   identities, trust/status, full signer and archive digests, enabled component
@@ -528,7 +537,7 @@ The S08 responsibility suite now also proves that payload revision and record
 version are distinct, one approval grant covers only its exact finite effect
 set, dispatch requires that durable grant, and provider receipts cannot appear
 before durable dispatch intent.
-The dedicated Pack-administration suite has 22 focused cases for exact
+The dedicated Pack-administration suite has 29 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,
 no-default previews, dry-run custody, closed canonical key transport,
@@ -541,6 +550,9 @@ and the no-default mode projection. Read-only update discovery selects the
 newest exact signed release with SemVer rather than lexical ordering, emits a
 sparse machine projection, performs no network request, and changes neither
 profile nor canonical state.
+The reviewed update paths cover keep-current, applied side-by-side replacement,
+selective static/OAuth rebinding, dry-run isolation, profile-plan regeneration,
+and candidate-byte invalidation.
 The suite proves the dumb `/packs` manager's bounded rendering,
 ordinary-palette reachability, official-name/local-path input, explicit catalog
 refresh, published-root tamper rejection, dry-run isolation, exact official

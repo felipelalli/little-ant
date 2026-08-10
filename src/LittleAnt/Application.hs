@@ -429,7 +429,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   PacksShowCommand pack -> runPacksShow environment dryRun dataset pack
   PacksInstallCommand archive -> runPacksInstall environment dryRun dataset archive
   PacksUpdatesCommand -> runPacksUpdates environment dryRun dataset
-  PacksUpdateCommand pack -> pure (unsupportedCommand ("packs update " <> pack))
+  PacksUpdateCommand pack -> runPacksUpdate environment dryRun dataset pack
   PacksRemoveCommand pack -> pure (unsupportedCommand ("packs remove " <> pack))
   PacksRefreshCommand -> runPacksRefresh environment dryRun dataset
   PacksTrustCommand keyFile -> runPacksTrust environment dryRun dataset keyFile
@@ -771,6 +771,49 @@ packProfileChanged =
     , appErrorRecovery = [RecoveryAction "retry" "Retry to build a preview from one stable profile revision." Nothing]
     }
 
+renderPackUpdateInspection :: PackUpdateDraft -> Text
+renderPackUpdateInspection draft =
+  Text.unlines
+    ( [ "Complete signed difference:"
+      , "Installed: " <> artifactVersion installed <> " · " <> artifactArchiveDigest installed
+      , "Candidate: " <> artifactVersion candidate <> " · " <> artifactArchiveDigest candidate
+      , "Signer: " <> packUpdateCandidateSignerFingerprint draft
+      , ""
+      , "Changes:"
+      ]
+        <> (if null changes then ["  none"] else fmap renderChange changes)
+        <> ["", "Binding plan:"]
+        <> (if null bindings then ["  no live bindings"] else fmap renderBinding bindings)
+    )
+ where
+  installed = pinArtifact (packUpdateInstalledPin draft)
+  candidate = packUpdateCandidateArtifact draft
+  changes = packUpdateChanges draft
+  bindings = packUpdateBindings draft
+  renderChange change =
+    "  "
+      <> updateChangeSubject change
+      <> " · "
+      <> updateChangeCategory change
+      <> ": "
+      <> maybe "absent" id (updateChangeBefore change)
+      <> " → "
+      <> maybe "absent" id (updateChangeAfter change)
+  renderBinding plan =
+    "  "
+      <> updateBindingKind plan
+      <> " "
+      <> updateBindingName plan
+      <> " · "
+      <> disposition
+      <> " · "
+      <> updateBindingReason plan
+   where
+    disposition = case updateBindingDisposition plan of
+      RebindToCandidate -> "use candidate"
+      KeepInstalledRelease -> "keep installed"
+      BindingUnavailable -> "unavailable"
+
 runPacksList :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runPacksList environment dryRun dataset =
   loadProfilePackProjections environment >>= \case
@@ -797,6 +840,123 @@ runPacksUpdates environment dryRun dataset =
               (packProfileTrustPolicy profile)
           )
           dryRun
+
+runPacksUpdate :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runPacksUpdate environment dryRun dataset requested = do
+  let normalized = Text.strip requested
+  pathExists <- doesPathExist (Text.unpack normalized)
+  if pathExists || looksLikePackPath normalized
+    then
+      readPackArchiveCandidate (Text.unpack normalized) >>= \case
+        Left problem -> pure (Left problem)
+        Right candidate ->
+          loadPackProfileSnapshot environment >>= \case
+            Left problem -> pure (Left problem)
+            Right profile -> makePackUpdatePreview environment dryRun dataset profile candidate
+    else runOfficialPackUpdate environment dryRun dataset normalized
+
+runOfficialPackUpdate :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runOfficialPackUpdate environment dryRun dataset requested = case appOfficialPackRemote environment of
+  Nothing -> pure . Left $ officialRemoteUnavailable "update"
+  Just remote ->
+    loadPackProfileSnapshot environment >>= \case
+      Left problem -> pure (Left problem)
+      Right profile -> case selectUpdateCandidate requested profile of
+        Left problem -> pure (Left problem)
+        Right update ->
+          fetchOfficialPackArchive remote (artifactArchiveDigest (updateCandidateArtifact update)) >>= \case
+            Left problem -> pure (Left problem)
+            Right bytes -> do
+              let candidateIdentity = updateCandidateArtifact update
+                  dryRunSource = "official-update:" <> Text.unpack (artifactName candidateIdentity) <> "@" <> Text.unpack (artifactVersion candidateIdentity)
+              cached <-
+                if dryRun
+                  then pure (Right dryRunSource)
+                  else cacheOfficialPackArchive (Profile.profileStateDirectory (packProfilePaths profile)) (artifactArchiveDigest candidateIdentity) bytes
+              case cached of
+                Left problem -> pure (Left problem)
+                Right sourcePath -> case packArchiveCandidateFromBytes sourcePath bytes of
+                  Left problem -> pure (Left problem)
+                  Right candidate
+                    | authenticatedPackIdentity (packCandidateAuthenticated candidate) /= candidateIdentity
+                        || authenticatedSignerFingerprint (packCandidateAuthenticated candidate) /= updateCandidateSignerFingerprint update ->
+                        pure . Left $
+                          (appError CorruptData "The downloaded Pack update does not match the accepted signed catalog release.")
+                            { appErrorSubject = Just (artifactName candidateIdentity)
+                            , appErrorDetails = [artifactArchiveDigest candidateIdentity, artifactArchiveDigest (authenticatedPackIdentity (packCandidateAuthenticated candidate))]
+                            }
+                    | otherwise -> makePackUpdatePreview environment dryRun dataset profile candidate
+
+selectUpdateCandidate :: Text -> PackProfileSnapshot -> Either AppError PackUpdateCandidate
+selectUpdateCandidate requested profile =
+  let normalized = Text.strip requested
+      available =
+        [ update
+        | update <- discoverOfficialPackUpdates (Profile.installedComponents integrations) (packProfileTrustPolicy profile)
+        , artifactName (updateInstalledArtifact update) == normalized
+        ]
+   in case available of
+        [update] -> Right update
+        [] ->
+          Left
+            ( (appError NotFound "No newer verified official release is available for this installed Pack.")
+                { appErrorSubject = Just normalized
+                , appErrorRecovery = [RecoveryAction "inspect-updates" "Inspect the accepted catalog update list or refresh the catalog explicitly." (Just "lant packs updates")]
+                }
+            )
+        _ -> Left (appError Conflict "The accepted catalog produced more than one update for one installed Pack name.")
+ where
+  integrations = packProfileIntegrations profile
+
+makePackUpdatePreview :: AppEnv -> Bool -> LoadedDataset -> PackProfileSnapshot -> PackArchiveCandidate -> IO (Either AppError CommandResult)
+makePackUpdatePreview environment dryRun dataset profile candidate =
+  loadPreferredPackForUpdate profile (artifactName (authenticatedPackIdentity (packCandidateAuthenticated candidate))) >>= \case
+    Left problem -> pure (Left problem)
+    Right (installedPin, installed) ->
+      case preparePackUpdateDraft profile (loadedState dataset) installedPin installed candidate of
+        Left problem -> pure (Left problem)
+        Right draft -> do
+          identity <- appAllocateUUID environment
+          now <- appZonedNow environment
+          let state = loadedState dataset
+              envelope = makePackUpdateEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state draft
+          saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+          pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+
+loadPreferredPackForUpdate :: PackProfileSnapshot -> Text -> IO (Either AppError (PackPin, AuthenticatedPack))
+loadPreferredPackForUpdate profile name = case Map.lookup name (Profile.installedComponents (packProfileIntegrations profile)) of
+  Nothing ->
+    pure . Left $
+      (appError NotFound "The requested Pack is not installed in this profile.")
+        { appErrorSubject = Just name
+        , appErrorRecovery = [RecoveryAction "list-packs" "Inspect exact installed Pack names." (Just "lant packs list")]
+        }
+  Just pin ->
+    inspectStoredPack (PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))) (artifactArchiveDigest (pinArtifact pin)) >>= \case
+      Left problem -> pure (Left problem)
+      Right installed
+        | authenticatedPackIdentity installed /= pinArtifact pin || authenticatedSignerFingerprint installed /= pinSignerFingerprint pin ->
+            pure (Left (appError CorruptData "The preferred Pack pin does not match its stored signed archive."))
+        | otherwise -> pure (Right (pin, installed))
+
+preparePackUpdateDraft :: PackProfileSnapshot -> State -> PackPin -> AuthenticatedPack -> PackArchiveCandidate -> Either AppError PackUpdateDraft
+preparePackUpdateDraft profile state installedPin installed candidate = do
+  let authenticated = packCandidateAuthenticated candidate
+      manifest = structurallyValidManifest (authenticatedStructuralPack authenticated)
+      enabled = Set.fromList (componentId . componentCommon <$> packComponents manifest)
+  validatePackInstallCandidate (packProfileTrustPolicy profile) enabled authenticated
+  assessment <- assessPackTrust (packProfileObservedAt profile) (packProfileTrustPolicy profile) authenticated
+  void (authorizePackInstall (packProfileObservedAt profile) (packProfileScope profile) (packProfileTrustPolicy profile) enabled authenticated)
+  buildPackUpdateDraft
+    (packCandidateCanonicalPath candidate)
+    (packCandidateSourceSha256 candidate)
+    (packTrustClassText (assessedTrustClass assessment))
+    (packProfileRevision profile)
+    (packProfileIntegrations profile)
+    state
+    installedPin
+    installed
+    authenticated
 
 runPacksShow :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runPacksShow environment dryRun dataset requested =
@@ -2687,6 +2847,11 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (PackInstallOpportunity{}, "pack.install.back", _) -> replaceWithFresh
     (PackInstallOpportunity{}, "pack.install.unknown", _) ->
       local (appendBody current "Publisher trust authorizes one exact signing key for this profile. Installation is a separate decision that pins only the displayed signed archive and components. Neither decision grants undeclared authority.")
+    (PackUpdateOpportunity draft, "pack.update.accept", _) -> acceptPackUpdate draft
+    (PackUpdateOpportunity draft, "pack.update.keep", _) -> keepPackCurrent draft
+    (PackUpdateOpportunity draft, "pack.update.inspect", _) -> local (appendBody current (renderPackUpdateInspection draft))
+    (PackUpdateOpportunity{}, "pack.update.unknown", _) ->
+      local (appendBody current "The preferred release serves new configuration. Existing accounts keep their exact installed release unless this complete plan explicitly rebinds them. OAuth accounts and bindings with unresolved authority stay on the installed release.")
     (PackTrustOpportunity draft, "pack.trust.accept", _) -> acceptPackTrust draft
     (PackTrustOpportunity draft, "pack.trust.back", _) -> backFromPackTrust draft
     (PackTrustOpportunity{}, "pack.trust.unknown", _) ->
@@ -4278,6 +4443,97 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                                         loadPackProfileSnapshot environment >>= \case
                                           Left problem -> pure (Left problem)
                                           Right refreshed -> refreshPackInstall candidate refreshed "The profile changed before the pin could be stored. Nothing was overwritten; the unreferenced archive is safe to collect. Review the refreshed plan."
+
+  acceptPackUpdate draft
+    | not (packUpdateCanApply draft) =
+        local (appendBody current "This exact plan contains an unavailable binding and cannot be applied. Keep the current release or inspect the binding plan.")
+    | otherwise =
+        reacquirePackUpdate draft >>= \case
+          Left problem -> invalidatePackCheckpoint problem
+          Right (candidate, installedPin, installed) ->
+            loadPackProfileSnapshot environment >>= \case
+              Left problem -> pure (Left problem)
+              Right profile
+                | packProfileRevision profile /= packUpdateProfileRevision draft ->
+                    refreshPackUpdate candidate installedPin installed profile "The profile changed after the prior preview. Review this refreshed update plan before continuing."
+                | otherwise ->
+                    case preparePackUpdateDraft profile state installedPin installed candidate of
+                      Left problem -> pure (Left problem)
+                      Right refreshedDraft
+                        | refreshedDraft /= draft ->
+                            refreshPackUpdate candidate installedPin installed profile "The signed difference or binding plan changed after the prior preview. Review the refreshed plan before updating."
+                        | otherwise -> do
+                            let authenticated = packCandidateAuthenticated candidate
+                                enabled = Set.fromList (packUpdateCandidateEnabledComponents draft)
+                            case authorizePackInstall (packProfileObservedAt profile) (packProfileScope profile) (packProfileTrustPolicy profile) enabled authenticated of
+                              Left problem -> pure (Left problem)
+                              Right authorized
+                                | dryRun ->
+                                    local (appendBody current "Dry run revalidated the exact candidate, signed difference, binding plan, and profile revision. No archive, preferred pin, or binding changed.")
+                                | otherwise ->
+                                    storeAuthorizedPack (PackStoreConfig (Profile.packStoreDirectory (packProfilePaths profile))) authorized >>= \case
+                                      Left problem -> pure (Left problem)
+                                      Right _ -> do
+                                        let candidatePin = installAuthorizedPin authorized
+                                            integrations = packProfileIntegrations profile
+                                            withPreferred =
+                                              integrations
+                                                { Profile.installedComponents =
+                                                    Map.insert (artifactName (pinArtifact candidatePin)) candidatePin (Profile.installedComponents integrations)
+                                                }
+                                            changed = updateReboundAccounts candidatePin draft withPreferred
+                                        case Profile.validateIntegrationsConfig changed of
+                                          Left problem -> pure (Left problem)
+                                          Right () ->
+                                            Profile.writeIntegrationsConfigIfRevision (packProfilePaths profile) (packUpdateProfileRevision draft) changed >>= \case
+                                              Left problem -> pure (Left problem)
+                                              Right True -> finishPackUpdate draft True
+                                              Right False ->
+                                                loadPackProfileSnapshot environment >>= \case
+                                                  Left problem -> pure (Left problem)
+                                                  Right refreshed -> refreshPackUpdate candidate installedPin installed refreshed "The profile changed before the update plan could be stored. Nothing was overwritten; review the refreshed plan."
+
+  keepPackCurrent draft = finishPackUpdate draft False
+
+  reacquirePackUpdate draft =
+    readPackArchiveCandidate (packUpdateSourcePath draft) >>= \case
+      Left problem ->
+        pure . Left $
+          (packInputChanged "The Pack update archive changed or became unreadable after the preview." (packUpdateSourcePath draft))
+            { appErrorDetails = appErrorMessage problem : appErrorDetails problem
+            }
+      Right candidate ->
+        loadPackProfileSnapshot environment >>= \case
+          Left problem -> pure (Left problem)
+          Right profile ->
+            loadPreferredPackForUpdate profile (artifactName (pinArtifact (packUpdateInstalledPin draft))) >>= \case
+              Left problem -> pure (Left problem)
+              Right (installedPin, installed) ->
+                let authenticated = packCandidateAuthenticated candidate
+                    matches =
+                      packCandidateCanonicalPath candidate == packUpdateSourcePath draft
+                        && packCandidateSourceSha256 candidate == packUpdateSourceSha256 draft
+                        && authenticatedPackIdentity authenticated == packUpdateCandidateArtifact draft
+                        && authenticatedSignerFingerprint authenticated == packUpdateCandidateSignerFingerprint draft
+                        && installedPin == packUpdateInstalledPin draft
+                 in pure $
+                      if matches
+                        then Right (candidate, installedPin, installed)
+                        else Left (packInputChanged "The Pack update candidate or installed release changed after the preview." (packUpdateSourcePath draft))
+
+  refreshPackUpdate candidate installedPin installed profile message =
+    case preparePackUpdateDraft profile state installedPin installed candidate of
+      Left problem -> invalidatePackCheckpoint problem
+      Right refreshedDraft -> do
+        let candidateEnvelope = makePackUpdateEnvelope (envelopeInteractionId current) cursor precondition now state refreshedDraft
+        local (appendBody (advanceEnvelope current candidateEnvelope) message)
+
+  finishPackUpdate draft applied = do
+    let installed = pinArtifact (packUpdateInstalledPin draft)
+        candidate = packUpdateCandidateArtifact draft
+        rebound = length [() | plan <- packUpdateBindings draft, updateBindingDisposition plan == RebindToCandidate]
+        result = makePackUpdateResultEnvelope (envelopeInteractionId current) cursor precondition now state installed candidate applied (if applied then rebound else 0)
+    local (advanceEnvelope current result)
 
   backFromPackTrust draft = case packTrustReturnToInstall draft of
     Nothing -> replaceWithFresh

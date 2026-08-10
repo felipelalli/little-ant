@@ -419,6 +419,10 @@ that cryptographic format.
   components, permissions, configuration changes, and affected bindings before
   changing a profile pin. Updates remain side by side. Existing bindings use
   their pinned version until the same preview explicitly rebinds them.
+  OAuth authority and nonterminal effects retain their exact old pin; compatible
+  static ProviderAccounts may move only when the displayed plan says so. The
+  complete plan is regenerated at acceptance, and any drift requires fresh
+  review.
   The updates view is read-only and there is no automatic update timer.
 - **DAT-091 [standard] — Removal preserves meaning.** Removing a Pack through
   `/packs` or `lant packs remove`

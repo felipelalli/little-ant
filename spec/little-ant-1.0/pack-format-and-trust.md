@@ -392,13 +392,25 @@ loads such referenced releases into an exact, non-default registry view;
 component discovery and new bindings continue to use only the preferred view.
 
 There is no background or automatic update. `lant packs updates` is read-only.
-`lant packs update` downloads and verifies one candidate, then shows signer,
+`lant packs update <pack>` downloads a candidate from the accepted official
+catalog; `lant packs update <archive.lantpack>` verifies a local candidate from
+an already trusted publisher. Both then show signer,
 version/digests, component additions/removals, permission and host-allowlist
 changes, configuration-schema changes, and affected bindings. Acceptance may
 activate the new pin and explicitly rebind the listed integrations; otherwise
 old bindings retain their old installed version. Existing Bricks retain their
 resolved Nature snapshot and existing accepted results retain their recorded
 component provenance.
+
+The displayed update plan classifies every affected binding as `rebind`,
+`keep installed`, or `unavailable`. OAuth authorization, a changed component
+contract or configuration-schema content, a removed credential contract, and
+nonterminal effects retain the old exact ProviderAccount pin. A binding type
+that cannot retain an exact old pin makes the plan inapplicable rather than
+floating to the preferred release. Acceptance reopens both archives and
+recomputes the complete plan against the current profile and dataset cursor;
+drift always returns to an unapproved preview. Candidate publication precedes
+one atomic preferred-pin and selected-binding profile update.
 
 `lant packs remove` deactivates a profile pin only after affected SourceBindings,
 DeliveryBindings, pending effects, and configured UIAdapters are re-bound,

@@ -139,6 +139,9 @@ accepted signed catalog or one local `.lantpack` path. `lant packs refresh` is
 the only catalog-network operation; it verifies the fixed official publication
 and never installs or updates code. Both forms preserve the no-default consent,
 dry-run, profile revision, and immutable-byte custody defined by UX-PACK00.
+`lant packs update` accepts one installed official Pack name or one local
+`.lantpack` candidate from an already trusted publisher and applies only the
+complete reviewed UX-PACK01 pin and binding plan.
 
 ## CLI-only administration
 

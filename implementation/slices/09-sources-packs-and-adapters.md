@@ -156,7 +156,12 @@ catalog refresh, and refreshes its runtime registry after accepted authority
 changes. `lant packs updates` now inspects only the already accepted signed
 catalog, performs no network request, mutates no profile or dataset state, and
 selects the newest release with complete SemVer precedence. Update acceptance
-and removal/GC remain open. Live ProviderAccounts now retain one exact Pack pin.
+is now one persisted no-default plan over an official catalog candidate or a
+local trusted-publisher archive. It records the complete signed difference and
+per-binding disposition, revalidates both archives and the whole plan at
+acceptance, preserves OAuth and pending-effect bindings on the old release,
+and atomically changes the preferred pin plus only compatible displayed static
+bindings. Removal/GC remain open. Live ProviderAccounts retain one exact Pack pin.
 The runtime separately indexes preferred components and exact retained
 components, so changing the preferred release cannot silently upgrade an
 existing provider binding.

@@ -123,6 +123,8 @@ module LittleAnt.Interaction (
   makeProviderConnectionResultEnvelope,
   makePackInstallEnvelope,
   makePackInstallResultEnvelope,
+  makePackUpdateEnvelope,
+  makePackUpdateResultEnvelope,
   makePackTrustEnvelope,
   makePackTrustResultEnvelope,
   makeRawAttachmentEnvelope,
@@ -185,6 +187,7 @@ import LittleAnt.Notice
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Format
 import LittleAnt.Pack.Trust
+import LittleAnt.Pack.Update
 import LittleAnt.Profile (credentialBindingScheme, credentialBindingSlot, providerAccountLabel)
 import LittleAnt.Provider.Connection
 import LittleAnt.Source
@@ -342,8 +345,10 @@ data Opportunity
   | ProviderConnectionOpportunity ProviderConnectionDraft
   | ProviderConnectionResultOpportunity Text Text Text
   | PackInstallOpportunity PackInstallDraft
+  | PackUpdateOpportunity PackUpdateDraft
   | PackTrustOpportunity PackTrustDraft
   | PackInstallResultOpportunity PackArtifactIdentity
+  | PackUpdateResultOpportunity PackArtifactIdentity PackArtifactIdentity Bool Int
   | PackTrustResultOpportunity TrustedCommunityPublisher
   | RawDestinationOpportunity UUIDv7 Int
   | RawGroupDiscoveryOpportunity UUIDv7
@@ -1161,6 +1166,99 @@ makePackInstallResultEnvelope identity cursor precondition now state artifact =
     (PackInstallResultOpportunity artifact)
     "Pack installed."
     [artifactName artifact <> " " <> artifactVersion artifact, "sha256:" <> abbreviatedDigest (artifactArchiveDigest artifact)]
+
+makePackUpdateEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackUpdateDraft -> InteractionEnvelope
+makePackUpdateEnvelope identity cursor precondition now state draft =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ConfirmationGrammar
+    (PackUpdateOpportunity draft)
+    ( EnvelopeContent
+        "Update Pack?"
+        (Just (artifactName candidate))
+        ( [ packUpdateDisplayName draft
+          , "Installed: " <> artifactVersion installed <> " · sha256:" <> abbreviatedDigest (artifactArchiveDigest installed)
+          , "Candidate: " <> artifactVersion candidate <> " · sha256:" <> abbreviatedDigest (artifactArchiveDigest candidate)
+          , "Publisher: " <> artifactPublisher candidate <> " · " <> packUpdateCandidateTrustClass draft
+          , ""
+          , ""
+          ]
+            <> changeSummary
+            <> bindingSummary
+            <> blockedSummary
+        )
+        Nothing
+    )
+    actions
+    [CommandOption "packs" "/packs" "Inspect Packs and installation state", helpCommand, exitCommand]
+    (Just "binary_consent")
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+ where
+  installed = pinArtifact (packUpdateInstalledPin draft)
+  candidate = packUpdateCandidateArtifact draft
+  rebound = length [() | plan <- packUpdateBindings draft, updateBindingDisposition plan == RebindToCandidate]
+  retained = length [() | plan <- packUpdateBindings draft, updateBindingDisposition plan == KeepInstalledRelease]
+  unavailable = length [() | plan <- packUpdateBindings draft, updateBindingDisposition plan == BindingUnavailable]
+  changes = packUpdateChanges draft
+  componentAdded = length [() | change <- changes, updateChangeCategory change == "component", updateChangeBefore change == Nothing]
+  componentRemoved = length [() | change <- changes, updateChangeCategory change == "component", updateChangeAfter change == Nothing]
+  componentChanged =
+    Set.size
+      ( Set.fromList
+          [ updateChangeSubject change
+          | change <- changes
+          , updateChangeCategory change /= "component"
+          ]
+      )
+  changeSummary =
+    [ "Components: +" <> count componentAdded <> " · -" <> count componentRemoved <> " · " <> count componentChanged <> " changed"
+    , categorySummary "HTTP" "HTTP"
+    , categorySummary "Credentials" "credentials"
+    , categorySummary "External effects" "external effects"
+    , categorySummary "Configuration" "configuration"
+    ]
+  categorySummary label category =
+    let changed = length [() | change <- changes, updateChangeCategory change == category]
+     in label <> ": " <> if changed == 0 then "unchanged" else count changed <> " changed"
+  count = Text.pack . show
+  bindingSummary =
+    [ "Bindings:"
+    , "  " <> Text.pack (show rebound) <> " will use the candidate release"
+    , "  " <> Text.pack (show retained) <> " will keep the installed release"
+    ]
+      <> ["  " <> Text.pack (show unavailable) <> " cannot be represented safely" | unavailable > 0]
+  blockedSummary =
+    if packUpdateCanApply draft
+      then []
+      else ["", "This plan cannot be applied until every unavailable binding has an exact version strategy."]
+  actions =
+    [Action "pack.update.accept" "update" "u" False "Store the exact candidate and apply only this displayed pin and binding plan." | packUpdateCanApply draft]
+      <> [ Action "pack.update.keep" "keep current" "k" False "Leave the preferred pin and every binding unchanged."
+         , Action "pack.update.inspect" "inspect changes" "i" False "Show the complete signed component, authority, configuration, and binding difference."
+         , Action "pack.update.unknown" "I don't know" "?" False "Explain preferred releases, retained bindings, and explicit rebinding."
+         , moreAction
+         ]
+
+makePackUpdateResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackArtifactIdentity -> PackArtifactIdentity -> Bool -> Int -> InteractionEnvelope
+makePackUpdateResultEnvelope identity cursor precondition now state installed candidate applied rebound =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (PackUpdateResultOpportunity installed candidate applied rebound)
+    (if applied then "Pack updated." else "Pack kept current.")
+    ( if applied
+        then
+          [ artifactName candidate <> " " <> artifactVersion candidate
+          , Text.pack (show rebound) <> " binding(s) moved to the candidate release; every other binding retained its exact installed release."
+          ]
+        else [artifactName installed <> " " <> artifactVersion installed, "No profile pin or binding changed."]
+    )
 
 makePackTrustResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> TrustedCommunityPublisher -> InteractionEnvelope
 makePackTrustResultEnvelope identity cursor precondition now state publisher =
@@ -4230,8 +4328,10 @@ opportunityValue = \case
   ProviderConnectionOpportunity draft -> typed "provider_connection" ["draft" .= draft]
   ProviderConnectionResultOpportunity source accountName label -> typed "provider_connection_result" ["source" .= source, "account_name" .= accountName, "label" .= label]
   PackInstallOpportunity draft -> typed "pack_install" ["draft" .= draft]
+  PackUpdateOpportunity draft -> typed "pack_update" ["draft" .= draft]
   PackTrustOpportunity draft -> typed "pack_trust" ["draft" .= draft]
   PackInstallResultOpportunity artifact -> typed "pack_install_result" ["artifact" .= artifact]
+  PackUpdateResultOpportunity installed candidate applied rebound -> typed "pack_update_result" ["installed" .= installed, "candidate" .= candidate, "applied" .= applied, "rebound_bindings" .= rebound]
   PackTrustResultOpportunity publisher -> typed "pack_trust_result" ["publisher" .= publisher]
   RawDestinationOpportunity identity page -> typed "raw_destination" ["raw_id" .= renderUUIDv7 identity, "page" .= page]
   RawGroupDiscoveryOpportunity rawId -> typed "raw_group_discovery" ["raw_id" .= renderUUIDv7 rawId]
@@ -4441,8 +4541,10 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "provider_connection" -> ProviderConnectionOpportunity <$> value .: "draft"
     "provider_connection_result" -> ProviderConnectionResultOpportunity <$> value .: "source" <*> value .: "account_name" <*> value .: "label"
     "pack_install" -> PackInstallOpportunity <$> value .: "draft"
+    "pack_update" -> PackUpdateOpportunity <$> value .: "draft"
     "pack_trust" -> PackTrustOpportunity <$> value .: "draft"
     "pack_install_result" -> PackInstallResultOpportunity <$> value .: "artifact"
+    "pack_update_result" -> PackUpdateResultOpportunity <$> value .: "installed" <*> value .: "candidate" <*> value .: "applied" <*> value .: "rebound_bindings"
     "pack_trust_result" -> PackTrustResultOpportunity <$> value .: "publisher"
     "raw_destination" -> RawDestinationOpportunity <$> uuidField value "raw_id" <*> value .: "page"
     "raw_group_discovery" -> RawGroupDiscoveryOpportunity <$> uuidField value "raw_id"

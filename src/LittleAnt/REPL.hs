@@ -504,6 +504,7 @@ loop environmentRef vty color width screen = do
   packManagerInput envelope packs problem selected _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable 's' [] -> showSelectedPack envelope packs problem selected
+    Printable 'u' [] -> updateSelectedPack envelope packs problem selected
     Printable 'i' [] -> pure (Just (PackPathEditor envelope InstallPackArchive (EditorState "" "" Nothing) Nothing))
     Printable 'r' [] -> refreshPackCatalog envelope packs problem selected
     Printable 't' [] -> pure (Just (PackPathEditor envelope TrustPublisherKey (EditorState "" "" Nothing) Nothing))
@@ -535,6 +536,16 @@ loop environmentRef vty color width screen = do
       runCurrent (PacksShowCommand (projectedPackName pack)) >>= \case
         Left failure -> pure (Just (PackManagerScreen envelope packs problem selected (Just (appErrorMessage failure))))
         Right result -> pure (Just (PackDetailScreen envelope packs problem selected (renderCommandResult result)))
+
+  updateSelectedPack envelope packs problem selected = case safeIndex selected packs of
+    Nothing -> pure (Just (PackManagerScreen envelope packs problem selected (Just "No Pack is selected.")))
+    Just pack
+      | projectedPackTrustClass pack == "built in" ->
+          pure (Just (PackManagerScreen envelope packs problem selected (Just "The bundled Pack is updated only with Little Ant itself.")))
+      | otherwise ->
+          runCurrent (PacksUpdateCommand (projectedPackName pack)) >>= \case
+            Left failure -> pure (Just (PackManagerScreen envelope packs problem selected (Just (appErrorMessage failure))))
+            Right result -> screenFromResult envelope result
 
   packPathInput envelope purpose editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -606,6 +617,8 @@ refreshesPackRegistry :: Opportunity -> Bool
 refreshesPackRegistry = \case
   PackInstallOpportunity{} -> True
   PackInstallResultOpportunity{} -> True
+  PackUpdateOpportunity{} -> True
+  PackUpdateResultOpportunity{} -> True
   PackTrustResultOpportunity{} -> True
   ProviderConnectionResultOpportunity{} -> True
   _ -> False
@@ -706,6 +719,8 @@ packManagerModelAtWidth requestedWidth envelope packs problem selected message =
   joinedActions =
     actionSpans "s" "show"
       <> [Span Normal "   "]
+      <> actionSpans "u" "update"
+      <> [Span Normal "   "]
       <> actionSpans "i" "install..."
       <> [Span Normal "   "]
       <> actionSpans "r" "refresh catalog"
@@ -713,7 +728,7 @@ packManagerModelAtWidth requestedWidth envelope packs problem selected message =
       <> actionSpans "t" "trust publisher..."
   actionRows
     | Text.length (plainLine joinedActions) <= width = [joinedActions, actionSpans "/" "more..."]
-    | otherwise = [actionSpans "s" "show", actionSpans "i" "install...", actionSpans "r" "refresh catalog", actionSpans "t" "trust publisher...", actionSpans "/" "more..."]
+    | otherwise = [actionSpans "s" "show", actionSpans "u" "update", actionSpans "i" "install...", actionSpans "r" "refresh catalog", actionSpans "t" "trust publisher...", actionSpans "/" "more..."]
   warningRows warning = [] : fmap (pure . Span Warning) (wrapWords width warning)
 
 importSourceChoices :: AppEnv -> [ImportCatalogChoice]
