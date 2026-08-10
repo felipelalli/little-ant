@@ -19,9 +19,11 @@ to the beta backlog.
 The supported alpha includes guided title and Raw-backed description updates,
 strict preflight of the 25 observed legacy event types, isolated candidate
 replay, exact source custody, and resumable atomic cutover into an empty v1
-profile. A sanitized end-to-end simulation exercises ordering, weighted next,
-focus, skip diagnosis, decomposition, completion, restart, search, and doctor
-against migrated data.
+profile. Migration boots through a recovery-only environment, so stale optional
+integration, Pack, vault, or provider configuration cannot prevent v0
+inspection and recovery. A sanitized end-to-end simulation exercises ordering,
+weighted next, focus, skip diagnosis, decomposition, completion, restart,
+search, and doctor against migrated data.
 
 ## 1.0.0 (target)
 

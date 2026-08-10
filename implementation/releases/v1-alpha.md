@@ -51,6 +51,13 @@ dataset with that exact candidate and retains the former empty target as a
 named backup. Global `--dry-run` never creates a candidate or performs the
 exchange.
 
+Migration uses a recovery-only startup path. It resolves and validates the
+selected profile and its canonical dataset location, but does not parse or
+initialize preferences, calibration, integrations, Packs, vaults, providers,
+or network transports. A stale optional subsystem therefore cannot block v0
+inspection, candidate construction, or cutover. Ordinary commands continue to
+validate the complete profile.
+
 The candidate contains the exact source bytes, a machine-readable identity
 map, a build receipt, and canonical v1 events. A durable adjacent journal makes
 an interruption immediately after atomic exchange resumable. A failed build

@@ -5,6 +5,7 @@ module LittleAnt.Application (
   ViewDepth (..),
   natureBranch,
   productionAppEnv,
+  productionMigrationEnv,
   resolveProfileName,
   runAppCommand,
 )
@@ -184,7 +185,109 @@ data PresentationCheckpoint = PresentationCheckpoint
   deriving stock (Eq, Show)
 
 productionAppEnv :: Maybe Text -> IO (Either AppError AppEnv)
-productionAppEnv explicitProfile = do
+productionAppEnv explicitProfile =
+  prepareProductionProfile explicitProfile >>= \case
+    Left problem -> pure (Left problem)
+    Right (roots, profile, _) ->
+      Profile.loadProfile roots profile >>= \case
+        Left problem -> pure (Left problem)
+        Right (loadedPaths, config, _, _, integrations) -> case mkProfileScope profile of
+          Left problem -> pure (Left problem)
+          Right scope -> do
+            now <- getCurrentTime
+            case compiledOfficialCatalogRoot of
+              Left problem -> pure (Left problem)
+              Right root -> do
+                registry <- loadProfilePackRegistry now scope loadedPaths integrations (OfficialCatalogCompiledRoot root)
+                runner <- defaultPackRunnerClient
+                remote <- newOfficialPackRemote
+                providerHttp <- newTlsPackHttpTransport
+                oauthTransport <- newTlsOAuthFormTransport
+                loopbackReceiver <- newLoopbackReceiver
+                let providerSources =
+                      registry >>= \available ->
+                        configuredProviderImportSources
+                          standardProviderSourceDefinitions
+                          integrations
+                          available
+                          ( providerAccessTokenResolver
+                              standardProviderSourceDefinitions
+                              available
+                              integrations
+                              (Profile.vaultSocket loadedPaths)
+                              getCurrentTime
+                              oauthTransport
+                          )
+                          providerHttp
+                    registryProblem = either Just (const Nothing) registry
+                    importProblem = either Just (const Nothing) (registry >> providerSources)
+                    installedProviderDefinitions =
+                      case registry of
+                        Left _ -> []
+                        Right available -> filter (\definition -> isRight (lookupPackComponent (providerDefinitionAdapterId definition) available)) standardProviderSourceDefinitions
+                pure . Right $
+                  AppEnv
+                    { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
+                    , appActor = Actor "human" profile
+                    , appNow = getCurrentTime
+                    , appZonedNow = getZonedTime
+                    , appAllocateUUID = generateUUIDv7
+                    , appExportPort = either (const emptyExportPort) (packRegistryExportPort runner) registry
+                    , appImportPort =
+                        case (registry, providerSources) of
+                          (Right available, Right providers) -> packRegistryImportPortWithProviders runner available providers
+                          (Right available, Left _) -> packRegistryImportPort runner available
+                          (Left _, _) -> emptyImportPort
+                    , appImportPortProblem = importProblem
+                    , appPackRegistryProblem = registryProblem
+                    , appOfficialPackRemote = Just remote
+                    , appProviderConnectionRuntime =
+                        Just
+                          ProviderConnectionRuntime
+                            { providerConnectionDefinitions = standardProviderSourceDefinitions
+                            , providerConnectionInstalledDefinitions = installedProviderDefinitions
+                            , providerConnectionOAuthTransport = oauthTransport
+                            , providerConnectionPkceRuntime =
+                                OAuthAuthorizationCodeRuntime
+                                  { oauthPkceEntropy = Entropy.getEntropy
+                                  , oauthPkceLoopbackReceiver = loopbackReceiver
+                                  , oauthPkcePresentAuthorizationUrl = presentAuthorizationCodeUrl
+                                  , oauthPkceCurrentTime = getCurrentTime
+                                  }
+                            , providerConnectionPresentPrompt = presentDeviceAuthorizationPrompt
+                            , providerConnectionWaitSeconds = \seconds -> threadDelay (seconds * 1_000_000)
+                            , providerConnectionAcquireCredential = acquireCredentialFromTerminal
+                            }
+                    }
+
+-- Migration is a recovery boundary. It intentionally starts without parsing
+-- optional preferences, calibration, integrations, Packs, vaults, or provider
+-- configuration, any of which may be stale while a v0 dataset is being moved.
+productionMigrationEnv :: Maybe Text -> IO (Either AppError AppEnv)
+productionMigrationEnv explicitProfile =
+  prepareProductionProfile explicitProfile >>= \case
+    Left problem -> pure (Left problem)
+    Right (roots, profile, _) ->
+      Profile.loadProfileConfig roots profile >>= \case
+        Left problem -> pure (Left problem)
+        Right (_, config) ->
+          pure . Right $
+            AppEnv
+              { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
+              , appActor = Actor "human" profile
+              , appNow = getCurrentTime
+              , appZonedNow = getZonedTime
+              , appAllocateUUID = generateUUIDv7
+              , appExportPort = emptyExportPort
+              , appImportPort = emptyImportPort
+              , appImportPortProblem = Nothing
+              , appPackRegistryProblem = Nothing
+              , appOfficialPackRemote = Nothing
+              , appProviderConnectionRuntime = Nothing
+              }
+
+prepareProductionProfile :: Maybe Text -> IO (Either AppError (Profile.XdgRoots, Text, Profile.ProfilePaths))
+prepareProductionProfile explicitProfile = do
   roots <- Profile.resolveXdgRoots
   resolveProfileName explicitProfile >>= \case
     Left problem -> pure (Left problem)
@@ -208,79 +311,7 @@ productionAppEnv explicitProfile = do
                         , appErrorRecovery = [RecoveryAction "create-profile" "Create it explicitly before selection." (Just ("lant profile create " <> profile))]
                         }
 
-          case prepared of
-            Left problem -> pure (Left problem)
-            Right () ->
-              Profile.loadProfile roots profile >>= \case
-                Left problem -> pure (Left problem)
-                Right (loadedPaths, config, _, _, integrations) -> case mkProfileScope profile of
-                  Left problem -> pure (Left problem)
-                  Right scope -> do
-                    now <- getCurrentTime
-                    case compiledOfficialCatalogRoot of
-                      Left problem -> pure (Left problem)
-                      Right root -> do
-                        registry <- loadProfilePackRegistry now scope loadedPaths integrations (OfficialCatalogCompiledRoot root)
-                        runner <- defaultPackRunnerClient
-                        remote <- newOfficialPackRemote
-                        providerHttp <- newTlsPackHttpTransport
-                        oauthTransport <- newTlsOAuthFormTransport
-                        loopbackReceiver <- newLoopbackReceiver
-                        let providerSources =
-                              registry >>= \available ->
-                                configuredProviderImportSources
-                                  standardProviderSourceDefinitions
-                                  integrations
-                                  available
-                                  ( providerAccessTokenResolver
-                                      standardProviderSourceDefinitions
-                                      available
-                                      integrations
-                                      (Profile.vaultSocket loadedPaths)
-                                      getCurrentTime
-                                      oauthTransport
-                                  )
-                                  providerHttp
-                            registryProblem = either Just (const Nothing) registry
-                            importProblem = either Just (const Nothing) (registry >> providerSources)
-                            installedProviderDefinitions =
-                              case registry of
-                                Left _ -> []
-                                Right available -> filter (\definition -> isRight (lookupPackComponent (providerDefinitionAdapterId definition) available)) standardProviderSourceDefinitions
-                        pure . Right $
-                          AppEnv
-                            { appStore = StoreConfig (Profile.configuredDataset config) 2000000 20000
-                            , appActor = Actor "human" profile
-                            , appNow = getCurrentTime
-                            , appZonedNow = getZonedTime
-                            , appAllocateUUID = generateUUIDv7
-                            , appExportPort = either (const emptyExportPort) (packRegistryExportPort runner) registry
-                            , appImportPort =
-                                case (registry, providerSources) of
-                                  (Right available, Right providers) -> packRegistryImportPortWithProviders runner available providers
-                                  (Right available, Left _) -> packRegistryImportPort runner available
-                                  (Left _, _) -> emptyImportPort
-                            , appImportPortProblem = importProblem
-                            , appPackRegistryProblem = registryProblem
-                            , appOfficialPackRemote = Just remote
-                            , appProviderConnectionRuntime =
-                                Just
-                                  ProviderConnectionRuntime
-                                    { providerConnectionDefinitions = standardProviderSourceDefinitions
-                                    , providerConnectionInstalledDefinitions = installedProviderDefinitions
-                                    , providerConnectionOAuthTransport = oauthTransport
-                                    , providerConnectionPkceRuntime =
-                                        OAuthAuthorizationCodeRuntime
-                                          { oauthPkceEntropy = Entropy.getEntropy
-                                          , oauthPkceLoopbackReceiver = loopbackReceiver
-                                          , oauthPkcePresentAuthorizationUrl = presentAuthorizationCodeUrl
-                                          , oauthPkceCurrentTime = getCurrentTime
-                                          }
-                                    , providerConnectionPresentPrompt = presentDeviceAuthorizationPrompt
-                                    , providerConnectionWaitSeconds = \seconds -> threadDelay (seconds * 1_000_000)
-                                    , providerConnectionAcquireCredential = acquireCredentialFromTerminal
-                                    }
-                            }
+          pure $ (\() -> (roots, profile, paths)) <$> prepared
 
 presentDeviceAuthorizationPrompt :: DeviceAuthorizationPrompt -> IO ()
 presentDeviceAuthorizationPrompt prompt =

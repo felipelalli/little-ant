@@ -14,6 +14,7 @@ module LittleAnt.Profile (
   validateIntegrationsConfig,
   createProfile,
   listProfiles,
+  loadProfileConfig,
   loadProfile,
   integrationsConfigRevision,
   writeIntegrationsConfig,
@@ -232,6 +233,17 @@ listProfiles roots = handleProfileIO $ do
       else do
         status <- getSymbolicLinkStatus path
         pure (if isDirectory status && not (isSymbolicLink status) then Just name else Nothing)
+
+loadProfileConfig :: XdgRoots -> Text -> IO (Either AppError (ProfilePaths, ProfileConfig))
+loadProfileConfig roots name =
+  case profilePaths roots name of
+    Left problem -> pure (Left problem)
+    Right paths -> handleProfileIO $ do
+      profile <- Yaml.decodeFileEither (profileFile paths)
+      pure $ do
+        decodedProfile <- yamlResult "profile.yaml" profile
+        validateProfileReferences paths decodedProfile
+        Right (paths, decodedProfile)
 
 loadProfile :: XdgRoots -> Text -> IO (Either AppError (ProfilePaths, ProfileConfig, PreferencesConfig, CalibrationConfig, IntegrationsConfig))
 loadProfile roots name =

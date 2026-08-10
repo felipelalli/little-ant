@@ -122,9 +122,12 @@ main = do
           { appErrorDetails = ["Supported schema majors: 1"]
           }
     else
-      productionAppEnv (optionProfile options) >>= \case
-        Left problem -> emitError (optionJson options) problem
-        Right environment -> run environment options
+      let prepareEnvironment = case optionCommand options of
+            MigrateCli _ _ -> productionMigrationEnv (optionProfile options)
+            _ -> productionAppEnv (optionProfile options)
+       in prepareEnvironment >>= \case
+            Left problem -> emitError (optionJson options) problem
+            Right environment -> run environment options
 
 run :: AppEnv -> Options -> IO ()
 run environment options = case optionCommand options of

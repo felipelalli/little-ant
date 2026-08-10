@@ -1,5 +1,6 @@
 module Main (main) where
 
+import Control.Exception (bracket)
 import Control.Monad (forM_)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson
@@ -21,9 +22,11 @@ import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Migration.V0
 import LittleAnt.Model
+import LittleAnt.Profile qualified as Profile
 import LittleAnt.Result
 import LittleAnt.Store
 import System.Directory
+import System.Environment (lookupEnv, setEnv, unsetEnv)
 import System.FilePath (takeDirectory, takeFileName, (</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
@@ -37,6 +40,7 @@ tests =
   testGroup
     "v0 migration"
     [ testCase "inspect and dry-run are read-only" inspectAndDryRun
+    , testCase "migration starts even when optional integrations are invalid" invalidIntegrationsDoNotBlockMigration
     , testCase "all 25 observed types build and cut over with exact custody" buildAndCutover
     , testCase "unknown event versions block before mutation" unknownVersionBlocks
     , testCase "a nonempty v1 target is never merged" nonemptyTargetBlocks
@@ -64,6 +68,24 @@ inspectAndDryRun = withFixture $ \fixture -> do
   loadedCursor live @?= Genesis
   afterDryRun <- ByteString.readFile (fixtureSource fixture)
   afterDryRun @?= before
+
+invalidIntegrationsDoNotBlockMigration :: Assertion
+invalidIntegrationsDoNotBlockMigration = withSystemTempDirectory "lant-migration-bootstrap" $ \root ->
+  withEnvironment (xdgAssignments root) $ do
+    _ <- productionMigrationEnv Nothing >>= requireRight "create migration profile"
+    roots <- Profile.resolveXdgRoots
+    paths <- either (assertFailure . show) pure (Profile.profilePaths roots "default")
+    ByteString.writeFile (Profile.integrationsFile paths) "not: [valid: typed: yaml"
+    let source = root </> "events.jsonl"
+    ByteString.writeFile source sanitizedObservedFixture
+
+    environment <- productionMigrationEnv Nothing >>= requireRight "restart migration environment"
+    inspected <- runAppCommand environment False (const (pure ())) (MigrateCommand (Just source) MigrationInspect)
+    _ <- requireRight "inspect through migration environment" inspected
+
+    productionAppEnv Nothing >>= \case
+      Left problem -> appErrorCode problem @?= CorruptData
+      Right _ -> assertFailure "the regular environment unexpectedly accepted invalid integrations"
 
 buildAndCutover :: Assertion
 buildAndCutover = withFixture $ \fixture -> do
@@ -345,6 +367,27 @@ loadHealthy store =
 
 requireJust :: String -> Maybe value -> IO value
 requireJust label = maybe (assertFailure (label <> " is missing")) pure
+
+requireRight :: String -> Either AppError value -> IO value
+requireRight label = either (\problem -> assertFailure (label <> ": " <> show problem)) pure
+
+xdgAssignments :: FilePath -> [(String, String)]
+xdgAssignments root =
+  [ ("XDG_CONFIG_HOME", root </> "config")
+  , ("XDG_DATA_HOME", root </> "data")
+  , ("XDG_STATE_HOME", root </> "state")
+  , ("XDG_RUNTIME_DIR", root </> "runtime")
+  , ("LANT_PROFILE", "default")
+  ]
+
+withEnvironment :: [(String, String)] -> IO value -> IO value
+withEnvironment assignments action = bracket save restore (const (setAll >> action))
+ where
+  save = traverse (\(name, _) -> (name,) <$> lookupEnv name) assignments
+  restore = mapM_ restoreOne
+  restoreOne (name, Just value) = setEnv name value
+  restoreOne (name, Nothing) = unsetEnv name
+  setAll = mapM_ (uncurry setEnv) assignments
 
 assertCode :: ErrorCode -> Either AppError value -> Assertion
 assertCode expected = \case
