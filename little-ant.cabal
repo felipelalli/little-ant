@@ -21,7 +21,7 @@ data-files:
   packs/official/catalog-root.json
   packs/official/catalog-signature.json
   packs/official/catalog.json
-  packs/official/releases/9349deb470969bddbe2dff4137c5efa2a87308128b366ccd362b04665eead5ad.lantpack
+  packs/official/releases/5099f106d1defd27962509b19f2b5d8028a00630f1ed85ccbcc1e07f5ebe8dc1.lantpack
   packs/standard/standard.lantpack
 
 extra-source-files:

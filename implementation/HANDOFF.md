@@ -5,13 +5,13 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **aa9fce8**
-(`feat(import): ship Google Tasks connector`). The current milestone establishes
-the generic exact-container authority boundary needed by observe-only Google
-Calendar: a provider declares whether selection is mandatory, the host discovers
-containers without accepting source objects, and every scoped preflight and
-materialization receives and verifies the exact selected set. This file stays
-editable between milestone commits.
+Baseline at the start of the current milestone: **f40e164**
+(`feat(import): persist exact remote container scope`). The current milestone
+ships the missing official GitHub Issues adapter and advances the signed
+official catalog to sequence 2. Guided static-credential connection is kept as
+the next separate milestone, so `/import` does not advertise a `connect...`
+choice that still assumes OAuth. This file stays editable between milestone
+commits.
 
 ## Implementation now available
 
@@ -308,6 +308,15 @@ editable between milestone commits.
   list empty immediately before deletion and never deletes Google's default
   task list. The archive and official catalog identities were rebuilt and
   signed reproducibly.
+- The exact official connector Pack now also contains an observe-only
+  `github_issues` SourceAdapter. It declares one repository-confined bearer
+  credential slot and only `GET https://api.github.com/issues`, supports
+  snapshot and synchronization, includes open issues by default, keeps closed
+  issues an explicit opt-in, and omits pull requests returned by GitHub's
+  shared endpoint. Stable GitHub node identities anchor issue and repository
+  custody; every accepted issue becomes complete structured Raw while sparse
+  preflight retains no issue body. Cleanup, closing, editing, and deletion are
+  unsupported.
 - production now builds one registry from the exact standard Pack plus every
   selected-profile pin loaded in deterministic Pack-name order from the
   content-addressed store. Missing, unsafe, untrusted, revoked, mismatched, or
@@ -321,7 +330,7 @@ editable between milestone commits.
   unavailable and refuses both official pins and pre-existing catalog state;
   it never treats absence as an empty revocation set.
 - production now compiles the published generation-zero Ed25519 catalog root,
-  and the repository ships canonical sequence-1 metadata plus its detached
+  and the repository ships canonical sequence-2 metadata plus its detached
   signature and digest-named official connector archive. The private root is
   held outside Git; the maintainer tool rejects unsafe custody, stale sequence,
   expired publication, root mismatch, and revocation loss.
@@ -466,7 +475,7 @@ no events, recognizes repeated `--container` flags while refusing them for a
 file source, and covers a compressed Notesnook-shaped ZIP. It also selects
 Markdown and Evernote ENEX by file suffix, exposes the exact media type, and
 keeps both preflights read-only.
-The dedicated official-connectors suite has 11 cases covering exact archive
+The dedicated official-connectors suite has 13 cases covering exact archive
 reconstruction and official trust, least-authority manifest permissions,
 adaptive Microsoft Graph list/task pagination, canonical provider identity and
 URL encoding, sparse-preview privacy, complete structured-Raw materialization,
@@ -477,7 +486,9 @@ completed/hidden inclusion, complete structured Raw, exact item cleanup,
 default-list protection, and verified empty custom-list cleanup.
 It also proves that Google Calendar discovery observes no events, a scoped
 read preserves exact selected event truth, and an absent selected calendar is
-rejected.
+rejected. GitHub coverage proves bounded page-number pagination, pull-request
+omission, sparse-body privacy, complete structured Raw materialization, stable
+repository/issue identity, and explicit closed-issue inclusion.
 The dedicated provider-host suite has 19 cases covering typed integration-state
 round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
@@ -554,6 +565,10 @@ Before marking the slice verified, close these deliberately visible gaps:
 ## Next work
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
-Next, complete the remaining official connector adapters. Explicit Pack
-update/remove/GC, Google Calendar write-back, and the local web UIAdapter also
-remain. The complete S09 gate still precedes `verified`.
+Next, add the generic guided static-credential connection needed to make the
+installed GitHub Issues adapter honestly appear as `connect...`: no-echo token
+capture must enter the Vault before typed profile configuration, and the
+no-default preview must be bound to the signed bearer slot. Then complete the
+remaining official connector adapters. Explicit Pack update/remove/GC, Google
+Calendar write-back, and the local web UIAdapter also remain. The complete S09
+gate still precedes `verified`.

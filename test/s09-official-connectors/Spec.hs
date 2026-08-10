@@ -35,6 +35,8 @@ main =
     testGroup
       "S09 official connector Pack"
       [ testCase "the committed connector tree reconstructs one exact signed official artifact" canonicalArchive
+      , testCase "GitHub Issues paginates repositories into sparse structured Raw previews" githubIssuesSnapshot
+      , testCase "closed GitHub issues remain an explicit import choice" githubClosedIssueChoice
       , testCase "Microsoft To Do paginates lists and tasks into sparse structured Raw previews" microsoftTodoSnapshot
       , testCase "completed tasks remain an explicit import choice" completedTaskChoice
       , testCase "migration refuses unmaterialized attachment bodies without explicit acknowledgment" attachmentMigrationGuard
@@ -61,7 +63,17 @@ canonicalArchive = do
   identity @?= connectorIdentity
   registry <- officialRegistry authenticated
   let registered = registryComponents registry
-  Set.fromList (componentId . componentCommon . registeredComponent <$> registered) @?= Set.fromList [googleCalendarComponentId, googleTasksComponentId, microsoftTodoComponentId]
+  Set.fromList (componentId . componentCommon . registeredComponent <$> registered) @?= Set.fromList [githubIssuesComponentId, googleCalendarComponentId, googleTasksComponentId, microsoftTodoComponentId]
+  github <- assertRight (lookupPackComponent githubIssuesComponentId registry)
+  case registeredComponent github of
+    ExecutableComponent common _ permissions -> do
+      componentKind common @?= SourceAdapterComponent
+      permissionCredentialSlots permissions @?= [CredentialSlot "github" BearerToken]
+      permissionOAuthDeviceAuthorizations permissions @?= []
+      permissionOAuthAuthorizationCodePkce permissions @?= []
+      permissionHttp permissions @?= [HttpPermission ["GET"] "api.github.com" "/issues" (Just "github")]
+      permissionEffectPurposes permissions @?= []
+    component -> assertFailure ("unexpected GitHub Issues component: " <> show component)
   microsoft <- assertRight (lookupPackComponent microsoftTodoComponentId registry)
   case registeredComponent microsoft of
     ExecutableComponent common _ permissions -> do
@@ -112,6 +124,64 @@ canonicalArchive = do
       permissionHttp permissions @?= [HttpPermission ["GET"] "www.googleapis.com" "/calendar/v3" (Just "google_calendar_read")]
       permissionEffectPurposes permissions @?= []
     component -> assertFailure ("unexpected Google Calendar component: " <> show component)
+
+githubIssuesSnapshot :: Assertion
+githubIssuesSnapshot = do
+  (client, registered) <- connectorRuntimeFor githubIssuesComponentId
+  calls <- newIORef []
+  (input, preflight) <- invokePackSourcePreflightHttp client (githubBroker calls) registered SourceSnapshot githubSourceLabel githubOpenSource >>= assertRight
+  sourcePreflightAdapterId preflight @?= githubIssuesComponentId
+  sourcePreflightInputDigest preflight @?= sha256Hex (sourceInputBytes input)
+  let observation = sourcePreflightObservation preflight
+  observedSourceLabel observation @?= "GitHub Issues"
+  observedAccountLabel observation @?= Just "Personal GitHub"
+  observedSupportedModes observation @?= [SourceSnapshot, SourceSynchronize]
+  observedCleanupSupported observation @?= False
+  observedIdentity observation
+    @?= Map.fromList
+      [ ("account_id", "github-user-42")
+      , ("closed_issue_count", "0")
+      , ("included_issue_count", "2")
+      , ("omitted_pull_request_count", "99")
+      , ("open_issue_count", "2")
+      , ("provider", "github_issues")
+      , ("repository_count", "2")
+      ]
+  (sourceContainerExternalId <$> observedContainers observation) @?= ["repository:R_repo_one", "repository:R_repo_two"]
+  (sourceObjectExternalId <$> observedObjects observation) @?= ["issue:I_issue_one", "issue:I_issue_two"]
+  (sourceObjectCompleted <$> observedObjects observation) @?= [False, False]
+  case observedObjects observation of
+    firstObject : _ -> do
+      sourceObjectShape firstObject @?= SourceTaskShape
+      sourceObjectContainerId firstObject @?= Just "repository:R_repo_one"
+      case sourceObjectMaterial firstObject of
+        SourceMaterialSummary SourceStructuredKind _ _ preview -> assertBool "GitHub structured preview omitted its schema" ("github/issue" `Text.isInfixOf` preview)
+        material -> assertFailure ("unexpected GitHub issue material: " <> show material)
+    [] -> assertFailure "GitHub Issues returned no source objects"
+  assertBool "omitted pull requests were not reported" (any ("99 pull request" `Text.isInfixOf`) (observedUnsupportedFields observation))
+  preflightBytes <- assertRight (canonicalJsonBytes (toJSON preflight))
+  assertBool "private GitHub issue body escaped sparse preflight" (not ("::PRIVATE_GITHUB_BODY::" `ByteString.isInfixOf` preflightBytes))
+  readIORef calls >>= \observed -> fmap brokerHttpUrl observed @?= [githubOpenPageOneUrl, githubOpenPageTwoUrl]
+
+  materialCalls <- newIORef []
+  (_, materializedPreflight, materialization) <- invokePackSourceMaterializeHttp client (githubBroker materialCalls) registered SourceSnapshot githubSourceLabel githubOpenSource >>= assertRight
+  materializedPreflight @?= preflight
+  case Map.lookup "issue:I_issue_one" (materializedObjects materialization) of
+    Just (SourceStructuredMaterial schema encoded) -> do
+      schema @?= "github/issue@1"
+      assertBool "structured GitHub Raw omitted the complete issue body" ("::PRIVATE_GITHUB_BODY::" `Text.isInfixOf` encoded)
+      assertBool "structured GitHub Raw omitted repository custody" ("felipelalli/little-ant" `Text.isInfixOf` encoded)
+    material -> assertFailure ("unexpected materialized GitHub issue: " <> show material)
+
+githubClosedIssueChoice :: Assertion
+githubClosedIssueChoice = do
+  (client, registered) <- connectorRuntimeFor githubIssuesComponentId
+  calls <- newIORef []
+  (_, preflight) <- invokePackSourcePreflightHttp client (githubBroker calls) registered SourceSynchronize githubSourceLabel githubAllSource >>= assertRight
+  let objects = observedObjects (sourcePreflightObservation preflight)
+  (sourceObjectExternalId <$> objects) @?= ["issue:I_issue_closed", "issue:I_issue_one"]
+  (sourceObjectCompleted <$> objects) @?= [True, False]
+  readIORef calls >>= \observed -> fmap brokerHttpUrl observed @?= [githubAllPageOneUrl]
 
 microsoftTodoSnapshot :: Assertion
 microsoftTodoSnapshot = do
@@ -434,18 +504,30 @@ officialRegistry authenticated = do
         PackTrustPolicy
           { trustSupportedLittleAntMajor = 1
           , trustBuiltInArtifacts = Set.empty
-          , trustOfficialCatalogSequence = Just 1
+          , trustOfficialCatalogSequence = Just 2
           , trustOfficialCatalogExpiresAt = Just (read "2027-01-01 00:00:00 UTC")
           , trustOfficialReleaseGrants = Set.singleton grant
-          , trustOfficialPinAuthorizations = Set.singleton (officialPinAuthorizationFromGrant 1 grant)
+          , trustOfficialPinAuthorizations = Set.singleton (officialPinAuthorizationFromGrant 2 grant)
           , trustCommunityPublishers = Set.empty
           , trustRevokedKeyFingerprints = Set.empty
           , trustRevokedArchiveDigests = Set.empty
           }
-  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.fromList [googleCalendarComponentId, googleTasksComponentId, microsoftTodoComponentId]) authenticated)
+  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.fromList [githubIssuesComponentId, googleCalendarComponentId, googleTasksComponentId, microsoftTodoComponentId]) authenticated)
   assessedTrustClass (installAuthorizedAssessment install) @?= VerifiedOfficialTrust
   execution <- assertRight (authorizePinnedPackExecution fixtureTime scope policy (installAuthorizedPin install) authenticated)
   assertRight (buildPackRegistry scope [execution])
+
+githubBroker :: IORef [BrokerHttpRequest] -> PackHttpBroker
+githubBroker calls = PackHttpBroker $ \permission request -> do
+  httpPermissionCredentialSlot permission @?= Just "github"
+  modifyIORef' calls (<> [request])
+  pure $ case brokerHttpUrl request of
+    url
+      | url == githubOpenPageOneUrl ->
+          Right . jsonResponse . toJSON $ githubIssueOne : replicate 99 githubPullRequest
+      | url == githubOpenPageTwoUrl -> Right (jsonResponse (toJSON [githubIssueTwo]))
+      | url == githubAllPageOneUrl -> Right (jsonResponse (toJSON [githubIssueOne, githubClosedIssue]))
+      | otherwise -> Left ((appError ExternalFailure "The fake GitHub provider received an unexpected URL."){appErrorDetails = [url]})
 
 graphBroker :: Bool -> IORef [BrokerHttpRequest] -> PackHttpBroker
 graphBroker maliciousNextLink calls = PackHttpBroker $ \permission request -> do
@@ -537,6 +619,32 @@ googleContainerBroker targetIsDefault calls = PackHttpBroker $ \permission reque
 
 jsonResponse :: Value -> BrokerHttpResponse
 jsonResponse = BrokerHttpResponse 200 (Map.singleton "content-type" "application/json")
+
+githubIssueOne, githubIssueTwo, githubClosedIssue, githubPullRequest :: Value
+githubIssueOne = githubIssueObject "I_issue_one" 41 "Fix import custody" "open" "R_repo_one" "felipelalli/little-ant" "::PRIVATE_GITHUB_BODY::"
+githubIssueTwo = githubIssueObject "I_issue_two" 7 "Review API limits" "open" "R_repo_two" "orbit/rock-splitter" "Rate-limit notes"
+githubClosedIssue = githubIssueObject "I_issue_closed" 40 "Retire old importer" "closed" "R_repo_one" "felipelalli/little-ant" "Already shipped"
+githubPullRequest = object ["pull_request" .= object ["url" .= ("https://api.github.com/repos/felipelalli/little-ant/pulls/99" :: Text)]]
+
+githubIssueObject :: Text -> Int -> Text -> Text -> Text -> Text -> Text -> Value
+githubIssueObject nodeId number title state repositoryNodeId fullName body =
+  object
+    [ "id" .= (100000 + number)
+    , "node_id" .= nodeId
+    , "number" .= number
+    , "state" .= state
+    , "title" .= title
+    , "body" .= body
+    , "html_url" .= ("https://github.com/" <> fullName <> "/issues/" <> Text.pack (show number))
+    , "updated_at" .= ("2026-08-09T12:00:00Z" :: Text)
+    , "repository"
+        .= object
+          [ "id" .= (200000 + number)
+          , "node_id" .= repositoryNodeId
+          , "full_name" .= fullName
+          , "private" .= True
+          ]
+    ]
 
 listObject :: Text -> Text -> Value
 listObject identifier label =
@@ -676,6 +784,19 @@ googleCalendarSource =
     , "account_label" .= ("Personal Calendar" :: Text)
     ]
 
+githubOpenSource, githubAllSource :: Value
+githubOpenSource = githubSourceValue False
+githubAllSource = githubSourceValue True
+
+githubSourceValue :: Bool -> Value
+githubSourceValue includeClosed =
+  object
+    [ "provider" .= ("github_issues" :: Text)
+    , "account_id" .= ("github-user-42" :: Text)
+    , "account_label" .= ("Personal GitHub" :: Text)
+    , "include_closed" .= includeClosed
+    ]
+
 hasObjectKey :: Text -> Value -> Bool
 hasObjectKey key = \case
   Object fields -> KeyMap.member (Key.fromText key) fields
@@ -723,6 +844,13 @@ listsPageTwoUrl = listsUrl <> "?page=2"
 tasksListOneUrl = "https://graph.microsoft.com/v1.0/me/todo/lists/list%2Bone%3D/tasks"
 tasksListTwoUrl = "https://graph.microsoft.com/v1.0/me/todo/lists/list-two/tasks"
 
+githubSourceLabel, githubIssuesComponentId, githubOpenPageOneUrl, githubOpenPageTwoUrl, githubAllPageOneUrl :: Text
+githubSourceLabel = "GitHub Issues · Personal GitHub"
+githubIssuesComponentId = "github_issues"
+githubOpenPageOneUrl = "https://api.github.com/issues?direction=desc&filter=all&page=1&per_page=100&sort=updated&state=open"
+githubOpenPageTwoUrl = "https://api.github.com/issues?direction=desc&filter=all&page=2&per_page=100&sort=updated&state=open"
+githubAllPageOneUrl = "https://api.github.com/issues?direction=desc&filter=all&page=1&per_page=100&sort=updated&state=all"
+
 googleSourceLabel, googleTasksComponentId, googleTasksScope, googleListsUrl, googleListsPageTwoUrl, googleTasksListOneOpenUrl, googleTasksListTwoOpenUrl, googleTasksListOneCompleteUrl, googleTasksListTwoCompleteUrl, googleTaskOneUrl, googleTaskOneLocator, googleListOneUrl, googleDefaultListUrl, googleContainerTasksUrl :: Text
 googleSourceLabel = "Google Tasks · Personal Google account"
 googleTasksComponentId = "google_tasks"
@@ -758,6 +886,6 @@ connectorIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.official-connectors"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "7aaf954377d5c67e10807bf72d962b7e81399457687a159eea2ab38cfc5a2ccc"
-    , artifactArchiveDigest = "9349deb470969bddbe2dff4137c5efa2a87308128b366ccd362b04665eead5ad"
+    , artifactManifestDigest = "5d47de9338c3f9e6d2a049652748534cbf0eb9ee9f49ae64f91a92937ce38da6"
+    , artifactArchiveDigest = "5099f106d1defd27962509b19f2b5d8028a00630f1ed85ccbcc1e07f5ebe8dc1"
     }

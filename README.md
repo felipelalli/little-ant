@@ -307,6 +307,7 @@ The 1.0 release includes:
 |---|---|---|
 | **Offline standard Pack** | Notesnook exports, Evernote ENEX, Markdown, HTML, JSON, CSV, Org | Snapshot/import and migration from exported files |
 | **Official connector Pack** | Microsoft To Do, Google Tasks | Snapshot, synchronization, migration, and supported reviewed cleanup |
+| **Official connector Pack** | GitHub Issues | Snapshot and synchronization; no cleanup or issue mutation |
 | **Official connector Pack** | Google Calendar | Observation plus separately reviewed event write-back |
 | **Offline exporters** | Tree, table, CSV, Org, HTML, TaskJuggler | Read-only bytes with safe destination handling |
 | **UIAdapter** | `local_web` | Loopback-only mirror of the same interaction protocol |

@@ -89,8 +89,13 @@ implemented. Microsoft To Do item cleanup is now separately proposed only
 after local Raw verification, approved as one exact finite set, and dispatched
 item by item with durable intent and receipts. Empty source containers now have
 a separate fresh inspection, approval, pre-delete recheck, and unknown-outcome
-reconciliation path. Calendar write-back, the remaining connector breadth, and
-the local-web UIAdapter remain in this slice.
+reconciliation path. The signed connector Pack now also carries an observe-only
+GitHub Issues adapter with stable node identities, page-number pagination,
+explicit closed-issue inclusion, pull-request omission, and complete structured
+Raw custody. Its exact least-authority route is
+`GET https://api.github.com/issues`; cleanup and issue mutation remain
+unsupported. Guided no-echo static-token connection, Calendar write-back, the
+remaining connector breadth, and the local-web UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
