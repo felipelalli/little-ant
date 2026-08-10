@@ -454,13 +454,16 @@ output, and supplies `tj3` to its isolated contract test. The installed
 `tj3 --check-syntax --no-reports`.
 The final source distribution metadata also passes `cabal check` without
 warnings.
-The dedicated S09 import suite has 11 deterministic application cases covering
+The dedicated S09 import suite has 12 deterministic application cases covering
 read-only preview, canonical custody, exact retry, Pack-upgrade reuse, changed
 file snapshots, stable-identity conflict, stale-preview regeneration,
 unsupported authority, dry-run, atomic multiobject preservation, and
-materialization drift before mutation. The CLI E2E also rejects omitted modes
+materialization drift before mutation. It also proves exact remote-container
+selection, event-free scope reuse, explicit profile revision, and immutable
+per-invocation scope. The CLI E2E also rejects omitted modes
 and the removed `--mode` form while proving explicit snapshot previews record
-no events, including for a compressed Notesnook-shaped ZIP. It also selects
+no events, recognizes repeated `--container` flags while refusing them for a
+file source, and covers a compressed Notesnook-shaped ZIP. It also selects
 Markdown and Evernote ENEX by file suffix, exposes the exact media type, and
 keeps both preflights read-only.
 The dedicated official-connectors suite has 11 cases covering exact archive
@@ -495,7 +498,7 @@ The S08 responsibility suite now also proves that payload revision and record
 version are distinct, one approval grant covers only its exact finite effect
 set, dispatch requires that durable grant, and provider receipts cannot appear
 before durable dispatch intent.
-The dedicated Pack-administration suite has 17 focused cases for exact
+The dedicated Pack-administration suite has 18 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,
 no-default previews, dry-run custody, closed canonical key transport,
@@ -508,7 +511,8 @@ and the no-default mode projection.
 The suite proves the dumb `/packs` manager's bounded rendering,
 ordinary-palette reachability, official-name/local-path input, explicit catalog
 refresh, published-root tamper rejection, dry-run isolation, exact official
-pinning, and the `t → t → i` community keyboard consent sequence. Full
+pinning, the bounded no-default remote-container selector, and the
+`t → t → i` community keyboard consent sequence. Full
 milestone gates are recorded immediately before each signed milestone commit.
 
 The provider host now also carries a generic exact-container selection contract.
@@ -518,9 +522,14 @@ network access. The Pack runner projects selected container identifiers in
 deterministic order, and the host rejects observations that omit a selected
 container or return an object outside the allowlist. Google Calendar is the
 first shipped scoped provider: its observe-only adapter discovers calendars
-without reading events and preserves complete selected event truth. Durable
-profile/invocation scope and the dumb multi-select screen remain the next
-milestone.
+without reading events and preserves complete selected event truth. The exact
+allowlist is now durable in revisioned `ImportProfile` state, immutable in each
+`ImportInvocation`, and carried by the pending preflight envelope. Repeating an
+import without `--container` reuses one unambiguous active scope; an explicit
+different scope revises that profile without rewriting prior invocations. The
+CLI accepts repeated `--container ID`, while the dumb REPL discovers available
+containers and presents an arrow-key, Space-toggle, no-default multi-select
+screen whose state survives contextual-palette navigation.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 

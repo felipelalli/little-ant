@@ -85,9 +85,9 @@ acceptsRawFirstEvidence :: Assertion
 acceptsRawFirstEvidence = do
   bytes <- fixtureSource [(taskOne, ["  actual:effortdone 2.5h"]), (taskTwo, ["  actual:effortleft 0h"])]
   preflight <- fixturePreflight bytes
-  count <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference preflight)
+  count <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference Set.empty preflight)
   count @?= 11
-  decision <- assertRight (decideAcceptImport fixtureState fixtureActor fixtureReference (fixtureInput bytes) preflight (fixtureMaterials bytes preflight) (facts 1 count))
+  decision <- assertRight (decideAcceptImport fixtureState fixtureActor fixtureReference Set.empty (fixtureInput bytes) preflight (fixtureMaterials bytes preflight) (facts 1 count))
   fmap (eventTypeName . draftPayload) (importAcceptanceEvents decision)
     @?= [ "import_profile_changed"
         , "raw_fed"
@@ -103,9 +103,9 @@ acceptsRawFirstEvidence = do
   let evidence = Map.elems (stateEffortActualEvidence accepted)
   assertBool "present zero was lost" (any ((== Just 0) . effortActualRemainingMicrohours) evidence)
   assertBool "missing remaining became zero" (any ((== Nothing) . effortActualRemainingMicrohours) evidence)
-  retryCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference preflight)
+  retryCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference Set.empty preflight)
   retryCount @?= 0
-  retry <- assertRight (decideAcceptImport accepted fixtureActor fixtureReference (fixtureInput bytes) preflight (fixtureMaterials bytes preflight) (facts 50 0))
+  retry <- assertRight (decideAcceptImport accepted fixtureActor fixtureReference Set.empty (fixtureInput bytes) preflight (fixtureMaterials bytes preflight) (facts 50 0))
   importAcceptanceCommandId retry @?= Nothing
   importAcceptanceEvents retry @?= []
 
@@ -113,21 +113,21 @@ rejectsUnsafeEvidence :: Assertion
 rejectsUnsafeEvidence = do
   initialBytes <- fixtureSource [(taskOne, ["  actual:effortleft 4h"]), (taskTwo, ["  actual:effortdone 1h"])]
   initialPreflight <- fixturePreflight initialBytes
-  initialCount <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference initialPreflight)
-  initialDecision <- assertRight (decideAcceptImport fixtureState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (fixtureMaterials initialBytes initialPreflight) (facts 1 initialCount))
+  initialCount <- assertRight (importAcceptanceUUIDCount fixtureState fixtureReference Set.empty initialPreflight)
+  initialDecision <- assertRight (decideAcceptImport fixtureState fixtureActor fixtureReference Set.empty (fixtureInput initialBytes) initialPreflight (fixtureMaterials initialBytes initialPreflight) (facts 1 initialCount))
   accepted <- applyEvents fixtureState (importAcceptanceEvents initialDecision)
 
   let equalChanged = TextEncoding.encodeUtf8 (Text.replace "actual:effortleft 4h" "actual:effortleft 3h" (TextEncoding.decodeUtf8 initialBytes))
       older = TextEncoding.encodeUtf8 (Text.replace "now 2026-08-09-12:00" "now 2026-08-09-11:59" (TextEncoding.decodeUtf8 initialBytes))
   equalPreflight <- fixturePreflight equalChanged
   olderPreflight <- fixturePreflight older
-  assertCode Conflict (importAcceptanceUUIDCount accepted fixtureReference equalPreflight)
-  olderCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference olderPreflight)
-  assertCode Conflict (decideAcceptImport accepted fixtureActor fixtureReference (fixtureInput older) olderPreflight (fixtureMaterials older olderPreflight) (facts 80 olderCount))
+  assertCode Conflict (importAcceptanceUUIDCount accepted fixtureReference Set.empty equalPreflight)
+  olderCount <- assertRight (importAcceptanceUUIDCount accepted fixtureReference Set.empty olderPreflight)
+  assertCode Conflict (decideAcceptImport accepted fixtureActor fixtureReference Set.empty (fixtureInput older) olderPreflight (fixtureMaterials older olderPreflight) (facts 80 olderCount))
 
   let missingBrickState = fixtureState{stateBricks = Map.delete brickTwo (stateBricks fixtureState)}
-  missingCount <- assertRight (importAcceptanceUUIDCount missingBrickState fixtureReference initialPreflight)
-  assertCode NotFound (decideAcceptImport missingBrickState fixtureActor fixtureReference (fixtureInput initialBytes) initialPreflight (fixtureMaterials initialBytes initialPreflight) (facts 110 missingCount))
+  missingCount <- assertRight (importAcceptanceUUIDCount missingBrickState fixtureReference Set.empty initialPreflight)
+  assertCode NotFound (decideAcceptImport missingBrickState fixtureActor fixtureReference Set.empty (fixtureInput initialBytes) initialPreflight (fixtureMaterials initialBytes initialPreflight) (facts 110 missingCount))
 
 fixtureSource :: [(Text, [Text])] -> IO ByteString
 fixtureSource taskActuals = do

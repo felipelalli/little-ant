@@ -4,6 +4,8 @@ module LittleAnt.REPL (
   PackPathPurpose (..),
   connectedProviderImportSelection,
   filteredCommands,
+  importContainerModel,
+  importContainerModelAtWidth,
   importModeModel,
   importSourceChoices,
   importSourceModel,
@@ -22,6 +24,7 @@ import Data.IORef
 import Data.List (find, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isNothing)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
@@ -38,6 +41,7 @@ import LittleAnt.Projection
 import LittleAnt.Protocol
 import LittleAnt.Provider
 import LittleAnt.Result
+import LittleAnt.Source (SourceContainer (..))
 import LittleAnt.Surface
 import LittleAnt.Terminal
 import System.Environment (lookupEnv)
@@ -54,6 +58,7 @@ data ReplScreen
   | ImportSourceScreen InteractionEnvelope [ImportCatalogChoice] Text Int (Maybe Text)
   | ImportPathEditor InteractionEnvelope ImportSourceDescriptor EditorState (Maybe Text)
   | ImportModeScreen InteractionEnvelope ImportSelection (Maybe Text)
+  | ImportContainerScreen InteractionEnvelope ImportSelection SourceMode [SourceContainer] Int (Set.Set Text) (Maybe Text)
   | ProviderConnectionEditor InteractionEnvelope ProviderSourceDefinition ProviderConnectionInput EditorState (Maybe Text)
   | ReadOnlyScreen InteractionEnvelope Text
 
@@ -83,6 +88,7 @@ data PaletteReturn
   = ReturnToEnvelope
   | ReturnToPackManager [PackProjection] (Maybe AppError) Int
   | ReturnToImportMode ImportSelection
+  | ReturnToImportContainers ImportSelection SourceMode [SourceContainer] Int (Set.Set Text)
 
 runRepl :: AppEnv -> IO ()
 runRepl environment = runReplWithCommand environment NextCommand
@@ -131,6 +137,7 @@ loop environmentRef vty color width screen = do
     ImportSourceScreen envelope choices query selected message -> importSourceInput envelope choices query selected message input
     ImportPathEditor envelope descriptor editor message -> importPathInput envelope descriptor editor message input
     ImportModeScreen envelope selection message -> importModeInput envelope selection message input
+    ImportContainerScreen envelope selection mode containers selected chosen message -> importContainerInput envelope selection mode containers selected chosen message input
     ProviderConnectionEditor envelope definition stage editor message -> providerConnectionInput envelope definition stage editor message input
     ReadOnlyScreen envelope _ -> case input of
       Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -377,9 +384,58 @@ loop environmentRef vty color width screen = do
     | mode `notElem` importSourceModes (importSelectionDescriptor selection) =
         pure . Just $ ImportModeScreen envelope selection (Just "That mode is not declared by this SourceAdapter.")
     | otherwise =
-        runCurrent (ImportCommand (importSelectionReference selection) mode False) >>= \case
-          Left problem -> pure . Just $ ImportModeScreen envelope selection (Just (appErrorMessage problem))
+        runCurrent (ImportCommand (importSelectionReference selection) mode [] False) >>= \case
+          Left problem
+            | importSourceRequiresContainerSelection (importSelectionDescriptor selection)
+            , any ((== "select-containers") . recoveryActionId) (appErrorRecovery problem) ->
+                openImportContainerSelector envelope selection mode
+            | otherwise -> pure . Just $ ImportModeScreen envelope selection (Just (appErrorMessage problem))
           Right result -> screenFromResult envelope result
+
+  openImportContainerSelector envelope selection mode = do
+    current <- readIORef environmentRef
+    importPortDiscoverContainers (appImportPort current) (importSelectionReference selection) >>= \case
+      Left problem -> pure . Just $ ImportModeScreen envelope selection (Just (appErrorMessage problem))
+      Right Nothing -> pure . Just $ ImportModeScreen envelope selection (Just "This SourceAdapter does not expose selectable remote containers.")
+      Right (Just []) -> pure . Just $ ImportModeScreen envelope selection (Just "No selectable remote container is available.")
+      Right (Just containers) ->
+        pure . Just $ ImportContainerScreen envelope selection mode (sortOn sourceContainerExternalId containers) 0 Set.empty Nothing
+
+  importContainerInput envelope selection mode containers selected chosen _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable ' ' [] ->
+      case safeIndex selected containers of
+        Nothing -> pure . Just $ ImportContainerScreen envelope selection mode containers selected chosen (Just "No container is selected by the cursor.")
+        Just container ->
+          let identity = sourceContainerExternalId container
+              changed = if identity `Set.member` chosen then Set.delete identity chosen else Set.insert identity chosen
+           in pure . Just $ ImportContainerScreen envelope selection mode containers selected changed Nothing
+    Printable 'i' []
+      | Set.null chosen -> pure . Just $ ImportContainerScreen envelope selection mode containers selected chosen (Just "Select at least one container before importing.")
+      | otherwise ->
+          runCurrent (ImportCommand (importSelectionReference selection) mode (Set.toAscList chosen) False) >>= \case
+            Left problem -> pure . Just $ ImportContainerScreen envelope selection mode containers selected chosen (Just (appErrorMessage problem))
+            Right result -> screenFromResult envelope result
+    Printable '?' [] ->
+      pure . Just $
+        ImportContainerScreen
+          envelope
+          selection
+          mode
+          containers
+          selected
+          chosen
+          (Just "Only checked containers are observed. Space toggles the highlighted row; importing records this exact allowlist and grants no authority over another container.")
+    Printable '/' [] -> pure . Just $ PaletteScreen envelope "/" 0 (ReturnToImportContainers selection mode containers selected chosen)
+    ArrowUp _ -> pure . Just $ ImportContainerScreen envelope selection mode containers (max 0 (selected - 1)) chosen Nothing
+    ArrowDown _ ->
+      pure . Just $
+        ImportContainerScreen envelope selection mode containers (min (max 0 (length containers - 1)) (selected + 1)) chosen Nothing
+    Enter _ -> pure . Just $ ImportContainerScreen envelope selection mode containers selected chosen (Just "Use Space to check containers, then [i] import selected.")
+    Escape _ -> pure (Just (ImportModeScreen envelope selection Nothing))
+    Backspace _ -> pure (Just (ImportModeScreen envelope selection Nothing))
+    ArrowLeft _ -> pure (Just (ImportModeScreen envelope selection Nothing))
+    _ -> pure (Just screen)
 
   providerConnectionInput envelope definition stage editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -547,12 +603,14 @@ paletteReturnScreen envelope = \case
   ReturnToEnvelope -> screenForEnvelope envelope
   ReturnToPackManager packs problem selected -> PackManagerScreen envelope packs problem selected Nothing
   ReturnToImportMode selection -> ImportModeScreen envelope selection Nothing
+  ReturnToImportContainers selection mode containers selected chosen -> ImportContainerScreen envelope selection mode containers selected chosen Nothing
 
 paletteReadOnlyScreen :: InteractionEnvelope -> PaletteReturn -> Text -> ReplScreen
 paletteReadOnlyScreen envelope target text = case target of
   ReturnToEnvelope -> ReadOnlyScreen envelope text
   ReturnToPackManager packs problem selected -> PackDetailScreen envelope packs problem selected text
   ReturnToImportMode selection -> ImportModeScreen envelope selection (Just text)
+  ReturnToImportContainers selection mode containers selected chosen -> ImportContainerScreen envelope selection mode containers selected chosen (Just text)
 
 interactionResponse :: InteractionEnvelope -> Text -> InteractionResponse
 interactionResponse envelope action =
@@ -576,6 +634,7 @@ modelFor width = \case
   ImportSourceScreen envelope choices query selected message -> importSourceModelAtWidth width envelope choices query selected message
   ImportPathEditor envelope descriptor editor message -> importPathEditorModelAtWidth width envelope descriptor editor message
   ImportModeScreen envelope selection message -> importModeModelAtWidth width envelope selection message
+  ImportContainerScreen envelope selection mode containers selected chosen message -> importContainerModelAtWidth width envelope selection mode containers selected chosen message
   ProviderConnectionEditor envelope definition stage editor message -> providerConnectionEditorModelAtWidth width envelope definition stage editor message
   ReadOnlyScreen envelope text ->
     ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return."], []] <> footerFrom width envelope) Nothing
@@ -725,6 +784,47 @@ importModeModelAtWidth width envelope selection message =
     [ actionSpans (sourceModeShortcut mode) (sourceModeAction mode)
     , [Span Dim "     ", Span Dim (sourceModeExplanation mode)]
     ]
+
+importContainerModel :: InteractionEnvelope -> ImportSelection -> SourceMode -> [SourceContainer] -> Int -> Set.Set Text -> Maybe Text -> ScreenModel
+importContainerModel = importContainerModelAtWidth 80
+
+importContainerModelAtWidth :: Int -> InteractionEnvelope -> ImportSelection -> SourceMode -> [SourceContainer] -> Int -> Set.Set Text -> Maybe Text -> ScreenModel
+importContainerModelAtWidth width envelope selection mode containers selected chosen message =
+  ScreenModel
+    ( (pure . Span Normal <$> wrapWords width heading)
+        <> (pure . Span Dim <$> wrapWords width (importSourceDisplayName (importSelectionDescriptor selection)))
+        <> [[]]
+        <> concat (zipWith renderContainer [0 ..] containers)
+        <> maybe [] (\note -> [] : fmap (pure . Span Normal) (wrapWords width note)) message
+        <> [[]]
+        <> actionRows
+        <> [actionSpans "?" "I don't know", actionSpans "/" "more...", []]
+        <> footerFrom width envelope
+    )
+    Nothing
+ where
+  heading = case mode of
+    SourceSnapshot -> "Snapshot which containers?"
+    SourceSynchronize -> "Keep synchronizing from which containers?"
+    SourceMigrate -> "Migrate which containers?"
+  renderContainer index container =
+    let identity = sourceContainerExternalId container
+        checked = identity `Set.member` chosen
+        active = index == selected
+        role = if active then Selected else Normal
+        cursor = if active then "> " else "  "
+        mark = if checked then "x" else " "
+        labelLines = wrapWords (max 1 (width - 6)) (sourceContainerLabel container)
+        identityLines = Text.chunksOf (max 1 (width - 6)) identity
+        firstLabel = fromMaybe "" (safeIndex 0 labelLines)
+     in [[Span Normal cursor, Span Dim "[", Span Accent mark, Span Dim "] ", Span role firstLabel]]
+          <> [[Span Normal "      ", Span role line] | line <- drop 1 labelLines]
+          <> [[Span Dim "      ", Span Dim line] | line <- identityLines]
+  spaceAction = [Span Dim "[", Span Accent "space", Span Dim "]", Span Normal " toggle"]
+  combinedActions = spaceAction <> [Span Normal "   "] <> actionSpans "i" "import selected"
+  actionRows
+    | Text.length (plainLine combinedActions) <= width = [combinedActions]
+    | otherwise = [spaceAction, actionSpans "i" "import selected"]
 
 providerConnectionEditorModelAtWidth :: Int -> InteractionEnvelope -> ProviderSourceDefinition -> ProviderConnectionInput -> EditorState -> Maybe Text -> ScreenModel
 providerConnectionEditorModelAtWidth width envelope definition stage =

@@ -100,6 +100,11 @@ if lant_at "$import_root" import "$plain_source" --mode snapshot >"$test_root/im
   exit 1
 fi
 grep -q -- '--mode' "$test_root/import-alias.err"
+if lant_at "$import_root" import "$plain_source" --snapshot --container 'calendar:personal@example.com' --container 'calendar:work@example.com' >"$test_root/import-container.out" 2>"$test_root/import-container.err"; then
+  echo "file import unexpectedly accepted remote containers" >&2
+  exit 1
+fi
+grep -q -- 'file SourceAdapter cannot receive remote-container selection' "$test_root/import-container.err"
 import_json="$(lant_at "$import_root" --json import "$plain_source" --snapshot)"
 python3 -c '
 import json,sys

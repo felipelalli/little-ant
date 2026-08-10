@@ -1900,6 +1900,8 @@ applyBrickTitleNormalizationAccepted state event payload = do
 applyImportProfileChanged :: State -> ImportProfile -> Either AppError State
 applyImportProfileChanged state profile = do
   when (any (Text.null . Text.strip) requiredText) $ corrupt "An ImportProfile contains an empty source-scope field."
+  when (any (Text.null . Text.strip) (Set.toList (importProfileSelectedContainers profile))) $
+    corrupt "An ImportProfile contains an empty selected-container identity."
   case Map.lookup (importProfileId profile) (stateImportProfiles state) of
     Nothing -> unless (importProfileRevision profile == 1) $ corrupt "A new ImportProfile must start at revision one."
     Just previous -> do
@@ -1926,12 +1928,15 @@ applyImportInvocationRecorded state event invocation = do
   when (any (Text.null . Text.strip) requiredText) $ corrupt "An ImportInvocation contains an empty custody field."
   when (importInvocationContractMajor invocation < 1) $ corrupt "An ImportInvocation contract major must be positive."
   when (importInvocationInputByteCount invocation < 0) $ corrupt "An ImportInvocation input byte count cannot be negative."
+  when (any (Text.null . Text.strip) (Set.toList (importInvocationSelectedContainers invocation))) $
+    corrupt "An ImportInvocation contains an empty selected-container identity."
   traverse_ requireDigest digestFields
   when (null mappings) $ corrupt "An ImportInvocation must attribute at least one source object."
   unless (unique (importObjectExternalIdentity <$> mappings)) $ corrupt "An ImportInvocation repeats one external identity."
   unless
     ( importProfileAdapterId profile == importInvocationComponentId invocation
         && importProfileMode profile == importInvocationMode invocation
+        && importProfileSelectedContainers profile == importInvocationSelectedContainers invocation
     )
     $ corrupt "An ImportInvocation does not match its ImportProfile scope."
   traverse_ validateMapping mappings
@@ -3422,6 +3427,7 @@ parsePayload eventType version payload = case (eventType, version) of
       <*> value .: "source_label"
       <*> value .:? "account_label"
       <*> value .: "input_reference"
+      <*> (Set.fromList <$> value .:? "selected_containers" .!= [])
       <*> (value .: "mode" >>= parseSourceMode)
       <*> value .: "cleanup_supported"
       <*> (value .: "lifecycle" >>= parseImportProfileLifecycle)
@@ -3450,6 +3456,7 @@ parsePayload eventType version payload = case (eventType, version) of
       <*> value .: "input_digest"
       <*> value .: "input_byte_count"
       <*> (value .: "mode" >>= parseSourceMode)
+      <*> (Set.fromList <$> value .:? "selected_containers" .!= [])
       <*> value .: "pack_publisher"
       <*> value .: "pack_name"
       <*> value .: "pack_version"
@@ -3604,6 +3611,7 @@ importProfileValue profile =
     , "revision" .= importProfileRevision profile
     ]
       <> maybe [] (pure . ("account_label" .=)) (importProfileAccountLabel profile)
+      <> sparseSet "selected_containers" (importProfileSelectedContainers profile)
 
 importObjectDispositionText :: ImportObjectDisposition -> Text
 importObjectDispositionText = \case ImportCreatedRaw -> "created_raw"; ImportReusedRaw -> "reused_raw"
@@ -3618,7 +3626,7 @@ importObjectMappingValue mapping =
 
 importInvocationValue :: ImportInvocation -> Value
 importInvocationValue invocation =
-  object
+  object $
     [ "import_invocation_id" .= renderUUIDv7 (importInvocationId invocation)
     , "import_profile_id" .= renderUUIDv7 (importInvocationProfileId invocation)
     , "component_id" .= importInvocationComponentId invocation
@@ -3637,6 +3645,12 @@ importInvocationValue invocation =
     , "signer_fingerprint" .= importInvocationSignerFingerprint invocation
     , "mappings" .= fmap importObjectMappingValue (importInvocationMappings invocation)
     ]
+      <> sparseSet "selected_containers" (importInvocationSelectedContainers invocation)
+
+sparseSet :: (ToJSON value) => Key -> Set.Set value -> [Pair]
+sparseSet key values
+  | Set.null values = []
+  | otherwise = [key .= Set.toAscList values]
 
 sourceLifecycleText :: SourceBindingLifecycle -> Text
 sourceLifecycleText = \case SourceBindingActive -> "active"; SourceBindingPaused -> "paused"; SourceBindingDetached -> "detached"

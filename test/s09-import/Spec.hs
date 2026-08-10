@@ -1,5 +1,6 @@
 module Main (main) where
 
+import Control.Monad (unless, when)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.IORef
@@ -39,6 +40,7 @@ main =
       , testCase "a later file snapshot reuses its profile without overwriting Raw truth" changedSnapshot
       , testCase "changed material under one provider identity requires reconciliation" stableIdentityConflict
       , testCase "changed source bytes regenerate preflight without mutation" stalePreflight
+      , testCase "exact remote scope persists, reuses, and revises one profile" exactContainerScope
       , testCase "unsupported modes and cleanup requests fail before mutation" unsupportedAuthority
       , testCase "dry-run verifies the decision without persisting it" dryRunAcceptance
       ]
@@ -47,7 +49,7 @@ multiObjectAcceptance :: Assertion
 multiObjectAcceptance = withHarness $ \environment _ -> do
   let source = "notesnook.zip"
       importedEnvironment = environment{appImportPort = multiObjectImportPort}
-  preview <- run importedEnvironment False (ImportCommand source SourceMigrate False) >>= interactionOf
+  preview <- run importedEnvironment False (ImportCommand source SourceMigrate [] False) >>= interactionOf
   result <- run importedEnvironment False (RespondCommand (response preview "import.accept"))
   envelope <- interactionOf result
   imported <- case envelopeOpportunity envelope of
@@ -64,7 +66,7 @@ multiObjectAcceptance = withHarness $ \environment _ -> do
   let invocation = only "ImportInvocation" (Map.elems (stateImportInvocations state))
   Set.fromList (importObjectExternalIdentity <$> importInvocationMappings invocation) @?= Set.fromList ["path:Inbox/Same title.md", "path:Projects/Same title.md"]
 
-  secondPreview <- run importedEnvironment False (ImportCommand source SourceMigrate False) >>= interactionOf
+  secondPreview <- run importedEnvironment False (ImportCommand source SourceMigrate [] False) >>= interactionOf
   second <- run importedEnvironment False (RespondCommand (response secondPreview "import.accept"))
   secondEnvelope <- interactionOf second
   case envelopeOpportunity secondEnvelope of
@@ -84,7 +86,7 @@ materializationDrift = withHarness $ \environment _ -> do
               pure (ImportMaterialization readValue (Map.delete "path:Projects/Same title.md" multiMaterials))
           }
       driftedEnvironment = environment{appImportPort = driftedPort}
-  preview <- run driftedEnvironment False (ImportCommand source SourceMigrate False) >>= interactionOf
+  preview <- run driftedEnvironment False (ImportCommand source SourceMigrate [] False) >>= interactionOf
   runAppCommand driftedEnvironment False silentProgress (RespondCommand (response preview "import.accept")) >>= assertError Conflict
   dataset <- load driftedEnvironment
   loadedEventCount dataset @?= 0
@@ -92,11 +94,12 @@ materializationDrift = withHarness $ \environment _ -> do
 
 readOnlyPreflight :: Assertion
 readOnlyPreflight = withHarness $ \environment _ -> do
-  result <- run environment False (ImportCommand fixtureReference SourceSnapshot False)
+  result <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False)
   envelope <- interactionOf result
   case envelopeOpportunity envelope of
-    ImportPreflightOpportunity source preflight False -> do
+    ImportPreflightOpportunity source selectedContainers preflight False -> do
       source @?= fixtureReference
+      selectedContainers @?= Set.empty
       sourcePreflightMode preflight @?= SourceSnapshot
       observedSourceLabel (sourcePreflightObservation preflight) @?= "Plain text fixture"
     opportunity -> assertFailure ("unexpected preflight opportunity: " <> show opportunity)
@@ -111,7 +114,7 @@ readOnlyPreflight = withHarness $ \environment _ -> do
 
 acceptancePreservesRawTruth :: Assertion
 acceptancePreservesRawTruth = withHarness $ \environment _ -> do
-  preview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  preview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   result <- run environment False (RespondCommand (response preview "import.accept"))
   envelope <- interactionOf result
   importedRaw <- case envelopeOpportunity envelope of
@@ -152,13 +155,13 @@ acceptancePreservesRawTruth = withHarness $ \environment _ -> do
 
 repeatedAcceptance :: Assertion
 repeatedAcceptance = withHarness $ \environment _ -> do
-  firstPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  firstPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   firstResult <- run environment False (RespondCommand (response firstPreview "import.accept")) >>= interactionOf
   firstRaw <- case envelopeOpportunity firstResult of
     ImportResultOpportunity _ [identity] [] False -> pure identity
     opportunity -> assertFailure ("unexpected first import result: " <> show opportunity) >> fail "unreachable"
   before <- load environment
-  secondPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  secondPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   secondResult <- run environment False (RespondCommand (response secondPreview "import.accept"))
   secondEnvelope <- interactionOf secondResult
   case envelopeOpportunity secondEnvelope of
@@ -175,10 +178,10 @@ repeatedAcceptance = withHarness $ \environment _ -> do
 
 changedAdapterInvocation :: Assertion
 changedAdapterInvocation = withHarness $ \environment bytesRef -> do
-  firstPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  firstPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   _ <- run environment False (RespondCommand (response firstPreview "import.accept"))
   let upgraded = environment{appImportPort = fixtureImportPortWithIdentity fixturePackIdentityV2 bytesRef}
-  secondPreview <- run upgraded False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  secondPreview <- run upgraded False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   secondResult <- run upgraded False (RespondCommand (response secondPreview "import.accept")) >>= interactionOf
   case envelopeOpportunity secondResult of
     ImportResultOpportunity _ [] [_] False -> pure ()
@@ -192,10 +195,10 @@ changedAdapterInvocation = withHarness $ \environment bytesRef -> do
 
 changedSnapshot :: Assertion
 changedSnapshot = withHarness $ \environment bytesRef -> do
-  firstPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  firstPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   _ <- run environment False (RespondCommand (response firstPreview "import.accept"))
   writeIORef bytesRef "a genuinely new snapshot\n"
-  secondPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  secondPreview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   secondResult <- run environment False (RespondCommand (response secondPreview "import.accept")) >>= interactionOf
   case envelopeOpportunity secondResult of
     ImportResultOpportunity _ [_] [] False -> pure ()
@@ -210,10 +213,10 @@ stableIdentityConflict :: Assertion
 stableIdentityConflict = withHarness $ \environment bytesRef -> do
   let stablePort = fixtureImportPortWithExternalIdentity "provider-note-42" bytesRef
       stableEnvironment = environment{appImportPort = stablePort}
-  firstPreview <- run stableEnvironment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  firstPreview <- run stableEnvironment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   _ <- run stableEnvironment False (RespondCommand (response firstPreview "import.accept"))
   writeIORef bytesRef "provider changed the same note\n"
-  secondPreview <- run stableEnvironment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  secondPreview <- run stableEnvironment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   runAppCommand stableEnvironment False silentProgress (RespondCommand (response secondPreview "import.accept")) >>= assertError Conflict
   dataset <- load stableEnvironment
   loadedEventCount dataset @?= 4
@@ -223,12 +226,13 @@ stableIdentityConflict = withHarness $ \environment bytesRef -> do
 
 stalePreflight :: Assertion
 stalePreflight = withHarness $ \environment bytesRef -> do
-  preview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  preview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   writeIORef bytesRef "changed after preview\n"
   refreshedResult <- run environment False (RespondCommand (response preview "import.accept"))
   refreshed <- interactionOf refreshedResult
   case envelopeOpportunity refreshed of
-    ImportPreflightOpportunity _ preflight False ->
+    ImportPreflightOpportunity _ selectedContainers preflight False -> do
+      selectedContainers @?= Set.empty
       sourcePreflightInputDigest preflight @?= sha256Hex "changed after preview\n"
     opportunity -> assertFailure ("stale source did not regenerate preflight: " <> show opportunity)
   assertBodyContains "The source or its signed adapter changed after the prior preview." refreshed
@@ -236,18 +240,66 @@ stalePreflight = withHarness $ \environment bytesRef -> do
   loadedEventCount dataset @?= 0
   Map.size (stateRaws (loadedState dataset)) @?= 0
 
+exactContainerScope :: Assertion
+exactContainerScope = withHarness $ \environment _ -> do
+  calls <- newIORef ([] :: [Set.Set Text])
+  let source = "scoped_calendar@personal"
+      scopedEnvironment = environment{appImportPort = scopedImportPort calls}
+      personal = Set.singleton "calendar:personal"
+      work = Set.singleton "calendar:work"
+
+  runAppCommand scopedEnvironment False silentProgress (ImportCommand source SourceSnapshot [] False) >>= assertError PreconditionFailed
+  runAppCommand scopedEnvironment False silentProgress (ImportCommand source SourceSnapshot ["", "calendar:personal"] False) >>= assertError InvalidInput
+  runAppCommand scopedEnvironment False silentProgress (ImportCommand source SourceSnapshot ["calendar:personal", "calendar:personal"] False) >>= assertError InvalidInput
+
+  firstPreview <- run scopedEnvironment False (ImportCommand source SourceSnapshot ["calendar:personal"] False) >>= interactionOf
+  case envelopeOpportunity firstPreview of
+    ImportPreflightOpportunity canonical selected _ False -> do
+      canonical @?= source
+      selected @?= personal
+    opportunity -> assertFailure ("unexpected scoped preflight: " <> show opportunity)
+  _ <- run scopedEnvironment False (RespondCommand (response firstPreview "import.accept"))
+
+  reusedPreview <- run scopedEnvironment False (ImportCommand source SourceSnapshot [] False) >>= interactionOf
+  case envelopeOpportunity reusedPreview of
+    ImportPreflightOpportunity _ selected _ False -> selected @?= personal
+    opportunity -> assertFailure ("stored scope was not reused: " <> show opportunity)
+  reusedResult <- run scopedEnvironment False (RespondCommand (response reusedPreview "import.accept"))
+  resultMutationCommandId reusedResult @?= Nothing
+
+  changedPreview <- run scopedEnvironment False (ImportCommand source SourceSnapshot ["calendar:work"] False) >>= interactionOf
+  case envelopeOpportunity changedPreview of
+    ImportPreflightOpportunity _ selected _ False -> selected @?= work
+    opportunity -> assertFailure ("changed scope was not previewed: " <> show opportunity)
+  _ <- run scopedEnvironment False (RespondCommand (response changedPreview "import.accept"))
+
+  dataset <- load scopedEnvironment
+  let state = loadedState dataset
+      profile = only "ImportProfile" (Map.elems (stateImportProfiles state))
+      invocations = Map.elems (stateImportInvocations state)
+  importProfileSelectedContainers profile @?= work
+  importProfileRevision profile @?= 2
+  Set.fromList (importInvocationSelectedContainers <$> invocations) @?= Set.fromList [personal, work]
+  Map.size (stateImportProfiles state) @?= 1
+  Map.size (stateImportInvocations state) @?= 2
+  Map.size (stateRaws state) @?= 2
+  Map.size (stateSourceBindings state) @?= 2
+  loadedEventCount dataset @?= 8
+  observedCalls <- readIORef calls
+  observedCalls @?= [Set.empty, personal, personal, personal, personal, work, work]
+
 unsupportedAuthority :: Assertion
 unsupportedAuthority = withHarness $ \environment _ -> do
-  runAppCommand environment False silentProgress (ImportCommand fixtureReference SourceSynchronize False) >>= assertError Unsupported
-  runAppCommand environment False silentProgress (ImportCommand fixtureReference SourceSnapshot True) >>= assertError Unsupported
-  runAppCommand environment False silentProgress (ImportCommand fixtureReference SourceMigrate True) >>= assertError Unsupported
+  runAppCommand environment False silentProgress (ImportCommand fixtureReference SourceSynchronize [] False) >>= assertError Unsupported
+  runAppCommand environment False silentProgress (ImportCommand fixtureReference SourceSnapshot [] True) >>= assertError Unsupported
+  runAppCommand environment False silentProgress (ImportCommand fixtureReference SourceMigrate [] True) >>= assertError Unsupported
   dataset <- load environment
   loadedEventCount dataset @?= 0
   loadedState dataset @?= emptyState
 
 dryRunAcceptance :: Assertion
 dryRunAcceptance = withHarness $ \environment _ -> do
-  preview <- run environment False (ImportCommand fixtureReference SourceSnapshot False) >>= interactionOf
+  preview <- run environment False (ImportCommand fixtureReference SourceSnapshot [] False) >>= interactionOf
   result <- run environment True (RespondCommand (response preview "import.accept"))
   resultDryRun result @?= True
   envelope <- interactionOf result
@@ -347,6 +399,76 @@ multiObjectImportPort =
   materialize source mode selected = pure $ do
     readValue <- ImportRead source selected multiInput <$> multiPreflight mode
     pure (ImportMaterialization readValue multiMaterials)
+
+scopedImportPort :: IORef [Set.Set Text] -> ImportPort
+scopedImportPort calls =
+  ImportPort
+    [ImportSourceDescriptor "scoped_calendar@personal" "Scoped calendar fixture" [] [SourceSnapshot] True]
+    (\_ -> pure (Right (Just scopedContainers)))
+    (\source mode selected -> fmap (fmap fst) (readScoped source mode selected))
+    (\source mode selected -> fmap (fmap (uncurry ImportMaterialization)) (readScoped source mode selected))
+    (importPortCleanupCustody emptyImportPort)
+    (importPortCleanupItem emptyImportPort)
+    (importPortVerifyCleanupItem emptyImportPort)
+    (importPortInspectCleanupContainer emptyImportPort)
+    (importPortCleanupContainer emptyImportPort)
+    (importPortVerifyCleanupContainer emptyImportPort)
+ where
+  readScoped source mode selected = do
+    modifyIORef' calls (<> [selected])
+    pure $ do
+      when (Set.null selected) $
+        Left
+          ( (appError PreconditionFailed "Choose at least one calendar.")
+              { appErrorRecovery = [RecoveryAction "select-containers" "Select exact calendars." Nothing]
+              }
+          )
+      unless (selected `Set.isSubsetOf` Set.fromList (sourceContainerExternalId <$> scopedContainers)) $
+        Left (appError NotFound "A selected calendar does not exist.")
+      let bytes = TextEncoding.encodeUtf8 (Text.intercalate "\n" (Set.toAscList selected))
+          input = SourceInput "scoped calendar fixture" "application/json" bytes
+          objects = scopedObject <$> Set.toAscList selected
+          observation =
+            SourceAdapterObservation
+              "Scoped calendar fixture"
+              (Just "Personal")
+              (Map.singleton "selected_count" (Text.pack (show (Set.size selected))))
+              [SourceSnapshot]
+              False
+              [container | container <- scopedContainers, sourceContainerExternalId container `Set.member` selected]
+              objects
+              []
+              []
+      preflight <-
+        makeSourcePreflight
+          "scoped_calendar"
+          fixturePackIdentity
+          fixtureSigner
+          1
+          fixturePermissions
+          mode
+          input
+          observation
+      let readValue = ImportRead source selected input preflight
+          materials = Map.fromList [(sourceObjectExternalId object, SourceTextMaterial (sourceObjectTitle object)) | object <- objects]
+      Right (readValue, materials)
+
+  scopedObject container =
+    SourceObject
+      ("event:" <> container)
+      ("fixture://" <> container)
+      (Just container)
+      ("Event in " <> container)
+      SourceOtherShape
+      False
+      0
+      (summarizeSourceMaterial (SourceTextMaterial ("Event in " <> container)))
+      ["scoped:" <> container]
+
+  scopedContainers =
+    [ SourceContainer "calendar:personal" "Personal"
+    , SourceContainer "calendar:work" "Work"
+    ]
 
 multiPreflight :: SourceMode -> Either AppError SourcePreflight
 multiPreflight mode =

@@ -175,10 +175,11 @@ remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root ->
           Nothing
           Nothing
           Nothing
-  previewResult <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate True) >>= assertRight
+  previewResult <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate [] True) >>= assertRight
   preview <- interactionOf previewResult
   case envelopeOpportunity preview of
-    ImportPreflightOpportunity "microsoft_todo@personal" preflight True -> do
+    ImportPreflightOpportunity "microsoft_todo@personal" selectedContainers preflight True -> do
+      selectedContainers @?= Set.empty
       sourcePreflightAdapterId preflight @?= "microsoft_todo"
       observedCleanupSupported (sourcePreflightObservation preflight) @?= True
     other -> assertFailure ("unexpected provider import preview: " <> show other)
@@ -206,7 +207,7 @@ remoteAcceptance = withSystemTempDirectory "lant-provider-acceptance" $ \root ->
       assertBool "the accepted Raw omitted the complete task body" ("Keep the token private" `Text.isInfixOf` body)
     other -> assertFailure ("provider material was not preserved as structured Raw truth: " <> show other)
   let acceptedEventCount = loadedEventCount dataset
-  repeatedPreview <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate True) >>= assertRight >>= interactionOf
+  repeatedPreview <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate [] True) >>= assertRight >>= interactionOf
   repeatedResult <- runAppCommand environment False silentProgress (RespondCommand (response repeatedPreview "import.accept")) >>= assertRight
   repeated <- interactionOf repeatedResult
   case envelopeOpportunity repeated of
@@ -615,7 +616,7 @@ providerEnvironment root seed runner registry transport = do
 
 prepareCleanup :: AppEnv -> IO InteractionEnvelope
 prepareCleanup environment = do
-  preview <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate True) >>= assertRight >>= interactionOf
+  preview <- runAppCommand environment False silentProgress (ImportCommand "microsoft_todo" SourceMigrate [] True) >>= assertRight >>= interactionOf
   imported <- runAppCommand environment False silentProgress (RespondCommand (response preview "import.accept")) >>= assertRight >>= interactionOf
   runAppCommand environment False silentProgress (RespondCommand (response imported "import.cleanup")) >>= assertRight >>= interactionOf
 

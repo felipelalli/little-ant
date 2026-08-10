@@ -209,6 +209,7 @@ data ImportProfile = ImportProfile
   , importProfileSourceLabel :: Text
   , importProfileAccountLabel :: Maybe Text
   , importProfileInputReference :: Text
+  , importProfileSelectedContainers :: Set Text
   , importProfileMode :: SourceMode
   , importProfileCleanupSupported :: Bool
   , importProfileLifecycle :: ImportProfileLifecycle
@@ -237,6 +238,7 @@ data ImportInvocation = ImportInvocation
   , importInvocationInputDigest :: Text
   , importInvocationInputByteCount :: Int
   , importInvocationMode :: SourceMode
+  , importInvocationSelectedContainers :: Set Text
   , importInvocationPackPublisher :: Text
   , importInvocationPackName :: Text
   , importInvocationPackVersion :: Text

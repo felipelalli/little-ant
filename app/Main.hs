@@ -94,7 +94,7 @@ data CliCommand
   | UpdateCli Text (Maybe Text)
   | MergeCli Text Text
   | SupersedeCli Text Text
-  | ImportCli Text SourceMode Bool
+  | ImportCli Text SourceMode [Text] Bool
   | MigrateCli Text Text Text
   | ExportCli Text (Maybe Text) (Maybe FilePath)
   | WebCli
@@ -203,8 +203,8 @@ run environment options = case optionCommand options of
   UpdateCli reference section -> execute environment options (UpdateCommand reference section)
   MergeCli survivor absorbed -> execute environment options (MergeCommand survivor absorbed)
   SupersedeCli oldBrick newBrick -> execute environment options (SupersedeCommand oldBrick newBrick)
-  ImportCli source mode eraseAfterImport ->
-    execute environment options (ImportCommand source mode eraseAfterImport)
+  ImportCli source mode selectedContainers eraseAfterImport ->
+    execute environment options (ImportCommand source mode selectedContainers eraseAfterImport)
   MigrateCli sourcePath targetPath mode ->
     execute environment options (MigrateCommand sourcePath targetPath mode)
   ExportCli exporter scope outputPath ->
@@ -780,6 +780,14 @@ commandParser =
                   . Text.pack
                   <$> strArgument (metavar "SOURCE")
                   <*> importModeParser
+                  <*> many
+                    ( Text.pack
+                        <$> strOption
+                          ( long "container"
+                              <> metavar "ID"
+                              <> help "Select one exact remote container; repeat for multiple containers"
+                          )
+                    )
                   <*> switch (long "erase-after-import" <> help "Delete imported entries from source as a migration aid")
               )
               (progDesc "Import external data into your Lant dataset")

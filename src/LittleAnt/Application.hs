@@ -129,7 +129,7 @@ data AppCommand
   | UpdateCommand Text (Maybe Text)
   | MergeCommand Text Text
   | SupersedeCommand Text Text
-  | ImportCommand Text SourceMode Bool
+  | ImportCommand Text SourceMode [Text] Bool
   | MigrateCommand Text Text Text
   | ExportCommand Text (Maybe Text) (Maybe FilePath)
   | WebCommand
@@ -400,8 +400,8 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   UpdateCommand reference section -> pure (unsupportedCommand "update")
   MergeCommand survivor absorbed -> pure (unsupportedCommand ("merge " <> survivor <> " " <> absorbed))
   SupersedeCommand oldBrick newBrick -> pure (unsupportedCommand ("supersede " <> oldBrick <> " " <> newBrick))
-  ImportCommand source mode eraseAfterImport ->
-    runImport environment dryRun dataset source mode eraseAfterImport
+  ImportCommand source mode selectedContainers eraseAfterImport ->
+    runImport environment dryRun dataset source mode selectedContainers eraseAfterImport
   MigrateCommand sourcePath targetPath mode ->
     pure $ unsupportedCommand ("migrate " <> sourcePath <> " " <> targetPath <> " mode=" <> mode)
   ExportCommand exporter scope outputPath -> runExport environment dryRun dataset exporter scope outputPath
@@ -2083,36 +2083,64 @@ runReturnToIdle environment dryRun dataset maybeReference =
   runPauseLike state actor env dryRun' dataset' identity =
     runDirectMutation env dryRun' dataset' 2 (decidePauseFocus state actor identity)
 
-runImport :: AppEnv -> Bool -> LoadedDataset -> Text -> SourceMode -> Bool -> IO (Either AppError CommandResult)
-runImport environment dryRun dataset source mode eraseAfterImport =
+runImport :: AppEnv -> Bool -> LoadedDataset -> Text -> SourceMode -> [Text] -> Bool -> IO (Either AppError CommandResult)
+runImport environment dryRun dataset source mode requestedContainers eraseAfterImport =
   case appPackRegistryProblem environment <|> appImportPortProblem environment of
     Just problem -> pure (Left problem)
-    Nothing ->
-      importPortPreflight (appImportPort environment) source mode mempty >>= \case
-        Left problem -> pure (Left problem)
-        Right imported ->
-          case validateImportCleanupRequest mode eraseAfterImport preflight of
-            Left problem -> pure (Left problem)
-            Right () -> do
-              identity <- appAllocateUUID environment
-              now <- appZonedNow environment
-              let state = loadedState dataset
-                  cursor = loadedCursor dataset
-                  envelope =
-                    makeImportPreflightEnvelope
-                      identity
-                      cursor
-                      (statePreconditionHash state)
-                      now
-                      state
-                      (actorProfile (appActor environment))
-                      (importReadSourceReference imported)
-                      eraseAfterImport
-                      preflight
-              saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
-              pure (Right (NextResult cursor envelope dryRun))
-         where
-          preflight = importReadPreflight imported
+    Nothing -> case resolveImportContainers (loadedState dataset) source mode requestedContainers of
+      Left problem -> pure (Left problem)
+      Right selectedContainers ->
+        importPortPreflight (appImportPort environment) source mode selectedContainers >>= \case
+          Left problem -> pure (Left problem)
+          Right imported
+            | importReadSelectedContainers imported /= selectedContainers ->
+                pure . Left $ appError CorruptData "The SourceAdapter changed the exact selected-container scope."
+            | otherwise ->
+                let preflight = importReadPreflight imported
+                 in case validateImportCleanupRequest mode eraseAfterImport preflight of
+                      Left problem -> pure (Left problem)
+                      Right () -> do
+                        identity <- appAllocateUUID environment
+                        now <- appZonedNow environment
+                        let state = loadedState dataset
+                            cursor = loadedCursor dataset
+                            envelope =
+                              makeImportPreflightEnvelope
+                                identity
+                                cursor
+                                (statePreconditionHash state)
+                                now
+                                state
+                                (actorProfile (appActor environment))
+                                (importReadSourceReference imported)
+                                selectedContainers
+                                eraseAfterImport
+                                preflight
+                        saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+                        pure (Right (NextResult cursor envelope dryRun))
+
+resolveImportContainers :: State -> Text -> SourceMode -> [Text] -> Either AppError (Set.Set Text)
+resolveImportContainers state source mode requested = do
+  let normalized = Text.strip <$> requested
+  when (any Text.null normalized) $
+    Left (appError InvalidInput "--container requires a nonempty external container identity.")
+  when (Set.size (Set.fromList normalized) /= length normalized) $
+    Left (appError InvalidInput "Each --container identity may be selected only once.")
+  if null normalized
+    then case matchingProfiles of
+      [] -> Right Set.empty
+      [profile] -> Right (importProfileSelectedContainers profile)
+      _ -> Left (appError CorruptData "Several active ImportProfiles claim the same source reference and mode.")
+    else Right (Set.fromList normalized)
+ where
+  reference = Text.strip source
+  matchingProfiles =
+    [ profile
+    | profile <- Map.elems (stateImportProfiles state)
+    , importProfileInputReference profile == reference
+    , importProfileMode profile == mode
+    , importProfileLifecycle profile == ImportProfileActive
+    ]
 
 validateImportCleanupRequest :: SourceMode -> Bool -> SourcePreflight -> Either AppError ()
 validateImportCleanupRequest mode eraseAfterImport preflight
@@ -2605,7 +2633,7 @@ dispatchResponseAt :: ZonedTime -> AppEnv -> Bool -> LoadedDataset -> Presentati
 dispatchResponseAt now environment dryRun dataset checkpoint response submitted =
   case (envelopeOpportunity current, responseActionId response, submitted) of
     (_, "next", _) -> replaceWithRecordedForecast
-    (ImportPreflightOpportunity source expected eraseAfterImport, "import.accept", _) -> acceptImport source expected eraseAfterImport
+    (ImportPreflightOpportunity source selectedContainers expected eraseAfterImport, "import.accept", _) -> acceptImport source selectedContainers expected eraseAfterImport
     (ImportPreflightOpportunity{}, "import.back", _) -> replaceWithRecordedForecast
     (ImportPreflightOpportunity{}, "import.unknown", _) ->
       local (appendBody current "Import preserves each selected object as Raw material before any Work adoption. Acceptance reruns this read-only preview; source cleanup, when supported, always needs a later separate approval.")
@@ -4022,14 +4050,16 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             (Profile.providerAccountLabel (providerConnectionAccount draft))
     local (advanceEnvelope current result)
 
-  acceptImport source expected eraseAfterImport =
-    importPortMaterialize (appImportPort environment) source (sourcePreflightMode expected) mempty >>= \case
+  acceptImport source selectedContainers expected eraseAfterImport =
+    importPortMaterialize (appImportPort environment) source (sourcePreflightMode expected) selectedContainers >>= \case
       Left problem -> pure (Left problem)
       Right materialization ->
         let reread = importMaterializationRead materialization
          in case validateImportCleanupRequest (sourcePreflightMode expected) eraseAfterImport (importReadPreflight reread) of
               Left problem -> pure (Left problem)
               Right ()
+                | importReadSelectedContainers reread /= selectedContainers ->
+                    pure . Left $ appError CorruptData "The SourceAdapter changed the exact selected-container scope during acceptance."
                 | importReadSourceReference reread /= source || importReadPreflight reread /= expected -> do
                     let refreshed =
                           makeImportPreflightEnvelope
@@ -4040,16 +4070,17 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                             state
                             (actorProfile actor)
                             (importReadSourceReference reread)
+                            selectedContainers
                             eraseAfterImport
                             (importReadPreflight reread)
                         staleEnvelope = appendBody (advanceEnvelope current refreshed) "The source or its signed adapter changed after the prior preview. Review this refreshed preflight before importing."
                     local staleEnvelope
                 | otherwise ->
-                    case importAcceptanceUUIDCount state source expected of
+                    case importAcceptanceUUIDCount state source selectedContainers expected of
                       Left problem -> pure (Left problem)
                       Right count -> do
                         facts <- runtimeFacts environment count cursor
-                        case decideAcceptImport state actor source (importReadInput reread) expected (importMaterializationObjects materialization) facts of
+                        case decideAcceptImport state actor source selectedContainers (importReadInput reread) expected (importMaterializationObjects materialization) facts of
                           Left problem -> pure (Left problem)
                           Right decision -> do
                             acceptedResult <-

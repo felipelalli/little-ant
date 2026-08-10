@@ -336,7 +336,7 @@ data Opportunity
   | SourceRelocatePreviewOpportunity UUIDv7 Text
   | SourceLifecyclePreviewOpportunity UUIDv7 SourceBindingLifecycle
   | SourceResultOpportunity UUIDv7 Text
-  | ImportPreflightOpportunity Text SourcePreflight Bool
+  | ImportPreflightOpportunity Text (Set.Set Text) SourcePreflight Bool
   | ImportResultOpportunity UUIDv7 [UUIDv7] [UUIDv7] Bool
   | ProviderConnectionOpportunity ProviderConnectionDraft
   | ProviderConnectionResultOpportunity Text Text Text
@@ -900,15 +900,15 @@ makeSourceResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> Stat
 makeSourceResultEnvelope identity cursor precondition now state raw result =
   sealed identity 1 cursor precondition ChoiceGrammar (SourceResultOpportunity (rawId raw) result) (EnvelopeContent "Origin updated." (Just (rawCitation raw)) [result] Nothing) [Action "source.result.back" "back to Raw" "enter" True "Return to Raw detail.", Action "next" "next" "n" False "Return to the ordinary opportunity forecast.", moreAction] (rawCommands raw) Nothing (rawFooter now state raw)
 
-makeImportPreflightEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> Text -> Bool -> SourcePreflight -> InteractionEnvelope
-makeImportPreflightEnvelope identity cursor precondition now state profileName sourceReference eraseAfterImport preflight =
+makeImportPreflightEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> Text -> Set.Set Text -> Bool -> SourcePreflight -> InteractionEnvelope
+makeImportPreflightEnvelope identity cursor precondition now state profileName sourceReference selectedContainers eraseAfterImport preflight =
   sealed
     identity
     1
     cursor
     precondition
     ConfirmationGrammar
-    (ImportPreflightOpportunity sourceReference preflight eraseAfterImport)
+    (ImportPreflightOpportunity sourceReference selectedContainers preflight eraseAfterImport)
     ( EnvelopeContent
         "Import preview:"
         Nothing
@@ -4214,7 +4214,12 @@ opportunityValue = \case
   SourceRelocatePreviewOpportunity identity locator -> typed "source_relocate_preview" ["binding_id" .= renderUUIDv7 identity, "locator" .= locator]
   SourceLifecyclePreviewOpportunity identity lifecycle -> typed "source_lifecycle_preview" ["binding_id" .= renderUUIDv7 identity, "lifecycle" .= sourceLifecycleLabel lifecycle]
   SourceResultOpportunity identity result -> typed "source_result" ["raw_id" .= renderUUIDv7 identity, "result" .= result]
-  ImportPreflightOpportunity source preflight eraseAfterImport -> typed "import_preflight" ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
+  ImportPreflightOpportunity source selectedContainers preflight eraseAfterImport ->
+    typed
+      "import_preflight"
+      ( ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
+          <> if Set.null selectedContainers then [] else ["selected_containers" .= Set.toAscList selectedContainers]
+      )
   ImportResultOpportunity invocationId imported reused cleanupReady -> typed "import_result" ["import_invocation_id" .= renderUUIDv7 invocationId, "imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
   ProviderConnectionOpportunity draft -> typed "provider_connection" ["draft" .= draft]
   ProviderConnectionResultOpportunity source accountName label -> typed "provider_connection_result" ["source" .= source, "account_name" .= accountName, "label" .= label]
@@ -4420,7 +4425,12 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "source_relocate_preview" -> SourceRelocatePreviewOpportunity <$> uuidField value "binding_id" <*> value .: "locator"
     "source_lifecycle_preview" -> SourceLifecyclePreviewOpportunity <$> uuidField value "binding_id" <*> (value .: "lifecycle" >>= parseSourceLifecycleLabel)
     "source_result" -> SourceResultOpportunity <$> uuidField value "raw_id" <*> value .: "result"
-    "import_preflight" -> ImportPreflightOpportunity <$> value .: "source" <*> value .: "preflight" <*> value .: "erase_after_import"
+    "import_preflight" ->
+      ImportPreflightOpportunity
+        <$> value .: "source"
+        <*> (Set.fromList <$> value .:? "selected_containers" .!= [])
+        <*> value .: "preflight"
+        <*> value .: "erase_after_import"
     "import_result" -> ImportResultOpportunity <$> uuidField value "import_invocation_id" <*> (value .: "imported_raw_ids" >>= traverse parseUuid) <*> (value .: "reused_raw_ids" >>= traverse parseUuid) <*> value .: "cleanup_ready"
     "provider_connection" -> ProviderConnectionOpportunity <$> value .: "draft"
     "provider_connection_result" -> ProviderConnectionResultOpportunity <$> value .: "source" <*> value .: "account_name" <*> value .: "label"

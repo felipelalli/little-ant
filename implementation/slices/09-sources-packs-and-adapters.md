@@ -89,8 +89,8 @@ implemented. Microsoft To Do item cleanup is now separately proposed only
 after local Raw verification, approved as one exact finite set, and dispatched
 item by item with durable intent and receipts. Empty source containers now have
 a separate fresh inspection, approval, pre-delete recheck, and unknown-outcome
-reconciliation path. The remaining connector adapters, Calendar, and local-web
-UIAdapter remain in this slice.
+reconciliation path. Calendar write-back, the remaining connector breadth, and
+the local-web UIAdapter remain in this slice.
 
 The trusted provider host now has typed ProviderAccount and CredentialBinding
 configuration, unambiguous single/multi-account source references, a
@@ -124,8 +124,13 @@ through the vault agent before the broker may use the replacement access
 token. The Pack also ships an observe-only `google_calendar` adapter with
 read-only PKCE authority, discovery that reads no events, exact nonempty
 calendar allowlists, bounded opaque pagination, and complete structured event
-custody. Durable allowlist persistence and the dumb selector are the next
-milestone; reviewed Calendar write-back remains a later separate authority.
+custody. Exact allowlists are durable in revisioned import profiles, immutable
+in import invocations, and retained in pending consent. Repeated CLI
+`--container ID` flags select scope explicitly; omission reuses one
+unambiguous active scope, while a changed set revises that profile without
+rewriting history. The dumb REPL discovers containers and exposes a bounded,
+arrow-key, Space-toggle, no-default selector. Reviewed Calendar write-back
+remains a later separate authority.
 
 The public read-only Pack manager now exposes `lant packs list` and exact-name
 `lant packs show` through one sparse `little-ant/packs@1` projection. It shows

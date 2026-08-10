@@ -19,6 +19,7 @@ import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Import
 import LittleAnt.Interaction
+import LittleAnt.Model (SourceMode (..))
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Official
@@ -30,6 +31,7 @@ import LittleAnt.Provider
 import LittleAnt.Provider.Connection
 import LittleAnt.REPL
 import LittleAnt.Result
+import LittleAnt.Source (SourceContainer (..))
 import LittleAnt.Store (DatasetCursor (Genesis))
 import LittleAnt.Surface
 import LittleAnt.Vault qualified as Vault
@@ -61,6 +63,7 @@ main =
       , testCase "profile compare-and-swap never clobbers a newer integration revision" profileCompareAndSwap
       , testCase "publisher-key transport requires its closed canonical schema" strictPublisherKeyDocument
       , testCase "the dumb REPL Pack manager stays navigational and keyboard-first" replPackManager
+      , testCase "the dumb scoped-import selector has exact checkboxes and no default" replScopedImportSelector
       , testCase "the published root refreshes once and rejects catalog equivocation" officialCatalogRefresh
       , testCase "an official name installs the exact catalog release without publisher trust" officialCatalogInstall
       , testCase "official refresh dry-run persists no accepted authority" officialCatalogRefreshDryRun
@@ -337,6 +340,25 @@ replPackManager = withHarness $ \environment -> do
       assertBool "trust explains profile-local custody" ("Trust is profile-local" `Text.isInfixOf` trustEditor && "installs nothing." `Text.isInfixOf` trustEditor)
       mapM_ (assertWidth 80) [packManagerModel owner packs problem 0 Nothing, packPathEditorModel owner InstallPackArchive (EditorState "" "" Nothing) Nothing, packPathEditorModel owner TrustPublisherKey (EditorState "" "" Nothing) Nothing]
     other -> assertFailure ("expected Pack list, got: " <> show other)
+
+replScopedImportSelector :: Assertion
+replScopedImportSelector = withHarness $ \environment -> do
+  envelope <- run environment False NextCommand >>= expectNextInteraction
+  let descriptor = ImportSourceDescriptor "google_calendar@personal" "Google Calendar · Personal" [] [SourceSnapshot, SourceSynchronize] True
+      selection = ImportSelection descriptor "google_calendar@personal"
+      containers =
+        [ SourceContainer "calendar:personal@example.com" "Personal"
+        , SourceContainer "calendar:a-very-long-team-calendar-identity@group.calendar.google.com" "Rock Splitter team"
+        ]
+      model = importContainerModelAtWidth 46 envelope selection SourceSynchronize containers 1 (Set.singleton "calendar:personal@example.com") Nothing
+      rendered = renderPlain model
+  assertBool "the scoped selector omitted its plain-language question" ("Keep synchronizing from which containers?" `Text.isInfixOf` rendered)
+  assertBool "the checked container was not visible" ("[x] Personal" `Text.isInfixOf` rendered)
+  assertBool "the cursor did not identify the active row" ("> [ ] Rock Splitter team" `Text.isInfixOf` rendered)
+  assertBool "the toggle instruction was omitted" ("[space] toggle" `Text.isInfixOf` rendered)
+  assertBool "the explicit continuation was omitted" ("[i]mport selected" `Text.isInfixOf` rendered)
+  assertBool "the selector introduced a default" (not ("*" `Text.isInfixOf` rendered))
+  assertWidth 46 model
 
 officialCatalogRefresh :: Assertion
 officialCatalogRefresh = withHarness $ \base -> do

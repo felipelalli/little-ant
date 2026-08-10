@@ -399,30 +399,31 @@ decideAttachSourceBinding state actor rawId kind importProfile externalIdentity 
       event = makeDraft facts actor state allocated eventId commandId (SourceBindingChangedV1 (SourceBindingChanged binding))
   pure (MutationDecision commandId Nothing (Just raw) [event])
 
-importAcceptanceUUIDCount :: State -> Text -> SourcePreflight -> Either AppError Int
-importAcceptanceUUIDCount state sourceReference preflight = do
+importAcceptanceUUIDCount :: State -> Text -> Set Text -> SourcePreflight -> Either AppError Int
+importAcceptanceUUIDCount state sourceReference selectedContainers preflight = do
   (sourceObjects, _) <- validateImportAcceptance sourceReference preflight
   evidenceCount <- preflightActualEvidenceCount preflight
   profile <- uniqueMatchingProfile state sourceReference preflight
   case profile of
     Nothing -> pure (5 + 4 * length sourceObjects + evidenceCount)
     Just existingProfile -> do
-      invocation <- uniqueMatchingInvocation state (importProfileId existingProfile) preflight
+      invocation <- uniqueMatchingInvocation state (importProfileId existingProfile) selectedContainers preflight
       case invocation of
         Just prior -> validateExistingInvocation state sourceObjects prior >> pure 0
         Nothing -> do
           existing <- traverse (existingImportedRaw state (Just (importProfileId existingProfile)) preflight) sourceObjects
-          pure (3 + 4 * length (filter (not . isJust) existing) + evidenceCount)
+          let profileRevisionCount = if importProfileNeedsRevision existingProfile selectedContainers preflight then 1 else 0
+          pure (3 + profileRevisionCount + 4 * length (filter (not . isJust) existing) + evidenceCount)
 
-decideAcceptImport :: State -> Actor -> Text -> SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
-decideAcceptImport state actor sourceReference input preflight materials facts = do
+decideAcceptImport :: State -> Actor -> Text -> Set Text -> SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
+decideAcceptImport state actor sourceReference selectedContainers input preflight materials facts = do
   (sourceObjects, identity) <- validateImportAcceptance sourceReference preflight
   contents <- validateInputCustody input preflight materials
   actuals <- acceptedTaskJugglerActuals input preflight
   profileMatch <- uniqueMatchingProfile state sourceReference preflight
   priorInvocation <- case profileMatch of
     Nothing -> pure Nothing
-    Just profile -> uniqueMatchingInvocation state (importProfileId profile) preflight
+    Just profile -> uniqueMatchingInvocation state (importProfileId profile) selectedContainers preflight
   case (profileMatch, priorInvocation) of
     (Just profile, Just invocation) -> do
       raws <- validateExistingInvocation state sourceObjects invocation
@@ -438,7 +439,10 @@ decideAcceptImport state actor sourceReference input preflight materials facts =
         Nothing -> pure (replicate (length sourceObjects) Nothing)
         Just profile -> traverse (existingImportedRaw state (Just (importProfileId profile)) preflight) sourceObjects
       let newObjectCount = length (filter (not . isJust) existing)
-          baseAllocationCount = 3 + (if isJust profileMatch then 0 else 2) + 4 * newObjectCount
+          profileAllocationCount = case profileMatch of
+            Nothing -> 2
+            Just profile -> if importProfileNeedsRevision profile selectedContainers preflight then 1 else 0
+          baseAllocationCount = 3 + profileAllocationCount + 4 * newObjectCount
           evidenceCount = maybe 0 (length . actualsRecords) actuals
           allocationCount = baseAllocationCount + evidenceCount
       allocated <- requireUUIDs allocationCount facts
@@ -456,7 +460,22 @@ decideAcceptImport state actor sourceReference input preflight materials facts =
         [] -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
  where
   allocateProfile allocated commandId remainder profileMatch = case profileMatch of
-    Just profile -> pure (profile, [], remainder)
+    Just profile
+      | importProfileNeedsRevision profile selectedContainers preflight -> case remainder of
+          profileEventId : objectAllocations -> do
+            let observation = sourcePreflightObservation preflight
+                revised =
+                  profile
+                    { importProfileSourceLabel = observedSourceLabel observation
+                    , importProfileAccountLabel = observedAccountLabel observation
+                    , importProfileSelectedContainers = selectedContainers
+                    , importProfileCleanupSupported = observedCleanupSupported observation
+                    , importProfileRevision = importProfileRevision profile + 1
+                    }
+                event = makeDraft facts actor state allocated profileEventId commandId (ImportProfileChangedV1 (ImportProfileChanged revised))
+            pure (revised, [event], objectAllocations)
+          _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
+      | otherwise -> pure (profile, [], remainder)
     Nothing -> case remainder of
       profileId : profileEventId : objectAllocations -> do
         let observation = sourcePreflightObservation preflight
@@ -467,6 +486,7 @@ decideAcceptImport state actor sourceReference input preflight materials facts =
                 (observedSourceLabel observation)
                 (observedAccountLabel observation)
                 (Text.strip sourceReference)
+                selectedContainers
                 (sourcePreflightMode preflight)
                 (observedCleanupSupported observation)
                 ImportProfileActive
@@ -526,6 +546,7 @@ decideAcceptImport state actor sourceReference input preflight materials facts =
       (sourcePreflightInputDigest preflight)
       (sourcePreflightInputByteCount preflight)
       (sourcePreflightMode preflight)
+      selectedContainers
       (artifactPublisher packIdentity)
       (artifactName packIdentity)
       (artifactVersion packIdentity)
@@ -691,8 +712,8 @@ uniqueMatchingProfile state sourceReference preflight =
       && importProfileMode profile == sourcePreflightMode preflight
       && importProfileLifecycle profile == ImportProfileActive
 
-uniqueMatchingInvocation :: State -> UUIDv7 -> SourcePreflight -> Either AppError (Maybe ImportInvocation)
-uniqueMatchingInvocation state profileId preflight =
+uniqueMatchingInvocation :: State -> UUIDv7 -> Set Text -> SourcePreflight -> Either AppError (Maybe ImportInvocation)
+uniqueMatchingInvocation state profileId selectedContainers preflight =
   case filter matches (Map.elems (stateImportInvocations state)) of
     [] -> Right Nothing
     [invocation] -> Right (Just invocation)
@@ -709,12 +730,21 @@ uniqueMatchingInvocation state profileId preflight =
       && importInvocationInputDigest invocation == sourcePreflightInputDigest preflight
       && importInvocationInputByteCount invocation == sourcePreflightInputByteCount preflight
       && importInvocationMode invocation == sourcePreflightMode preflight
+      && importInvocationSelectedContainers invocation == selectedContainers
       && importInvocationPackPublisher invocation == artifactPublisher identity
       && importInvocationPackName invocation == artifactName identity
       && importInvocationPackVersion invocation == artifactVersion identity
       && importInvocationPackManifestDigest invocation == artifactManifestDigest identity
       && importInvocationPackArchiveDigest invocation == artifactArchiveDigest identity
       && importInvocationSignerFingerprint invocation == sourcePreflightSignerFingerprint preflight
+
+importProfileNeedsRevision :: ImportProfile -> Set Text -> SourcePreflight -> Bool
+importProfileNeedsRevision profile selectedContainers preflight =
+  let observation = sourcePreflightObservation preflight
+   in importProfileSourceLabel profile /= observedSourceLabel observation
+        || importProfileAccountLabel profile /= observedAccountLabel observation
+        || importProfileSelectedContainers profile /= selectedContainers
+        || importProfileCleanupSupported profile /= observedCleanupSupported observation
 
 validateExistingInvocation :: State -> [SourceObject] -> ImportInvocation -> Either AppError [Raw]
 validateExistingInvocation state sourceObjects invocation = do
