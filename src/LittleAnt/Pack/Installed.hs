@@ -7,6 +7,7 @@ module LittleAnt.Pack.Installed (
 where
 
 import Control.Exception (IOException, try)
+import Control.Monad (foldM)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -27,8 +28,21 @@ data OfficialCatalogAuthority
 
 loadProfilePackRegistry :: UTCTime -> ProfileScope -> ProfilePaths -> IntegrationsConfig -> OfficialCatalogAuthority -> IO (Either AppError PackRegistry)
 loadProfilePackRegistry now scope paths integrations authority = do
-  loadProfileAuthorizedPacks now scope paths integrations authority
-    >>= pure . (>>= buildPackRegistry scope)
+  standard <- loadStandardPackAuthorization now scope
+  policy <- loadProfileTrustPolicy now paths integrations authority
+  case (standard, policy, retainedPackPins integrations) of
+    (Left problem, _, _) -> pure (Left problem)
+    (_, Left problem, _) -> pure (Left problem)
+    (_, _, Left problem) -> pure (Left problem)
+    (Right builtIn, Right trusted, Right retainedPins) -> do
+      active <- loadConfiguredPacks now scope paths trusted (Map.toAscList (installedComponents integrations))
+      let activeArtifacts = Set.fromList (standardPackIdentity : (pinArtifact <$> Map.elems (installedComponents integrations)))
+          retained = filter ((`Set.notMember` activeArtifacts) . pinArtifact) retainedPins
+      retainedAuthorized <- loadConfiguredPacks now scope paths trusted [(artifactArchiveDigest (pinArtifact pin), pin) | pin <- retained]
+      pure $ do
+        activeAuthorized <- active
+        olderAuthorized <- retainedAuthorized
+        buildPackRegistryWithRetained scope (builtIn : activeAuthorized) olderAuthorized
 
 loadProfileAuthorizedPacks :: UTCTime -> ProfileScope -> ProfilePaths -> IntegrationsConfig -> OfficialCatalogAuthority -> IO (Either AppError [ExecutionAuthorizedPack])
 loadProfileAuthorizedPacks now scope paths integrations authority = do
@@ -63,7 +77,7 @@ loadProfileTrustPolicy now paths integrations = \case
           catalogState
       let officialPins =
             [ name
-            | (name, pin) <- Map.toAscList (installedComponents integrations)
+            | (name, pin) <- allConfiguredPins integrations
             , PinVerifiedOfficial _ <- [pinTrustOrigin pin]
             ]
       if present || not (null officialPins)
@@ -91,6 +105,39 @@ loadConfiguredPacks now scope paths policy = go []
     loadPinnedPack store now scope policy pin >>= \case
       Left problem -> pure (Left problem)
       Right authorized -> go (authorized : loaded) remaining
+
+allConfiguredPins :: IntegrationsConfig -> [(Text, PackPin)]
+allConfiguredPins integrations =
+  Map.toAscList (installedComponents integrations)
+    <> [ (accountName <> ":" <> artifactVersion (pinArtifact pin), pin)
+       | (accountName, account) <- Map.toAscList (providerAccounts integrations)
+       , let pin = providerAccountPackPin account
+       ]
+
+retainedPackPins :: IntegrationsConfig -> Either AppError [PackPin]
+retainedPackPins integrations =
+  Map.elems <$> foldM insertPin Map.empty (providerAccountPackPin <$> Map.elems (providerAccounts integrations))
+ where
+  insertPin pins candidate =
+    let identity = pinArtifact candidate
+     in case Map.lookup identity pins of
+          Nothing -> Right (Map.insert identity candidate pins)
+          Just existing
+            | pinSignerFingerprint existing == pinSignerFingerprint candidate
+                && pinTrustOrigin existing == pinTrustOrigin candidate ->
+                Right
+                  ( Map.insert
+                      identity
+                      existing{pinEnabledComponents = pinEnabledComponents existing `Set.union` pinEnabledComponents candidate}
+                      pins
+                  )
+            | otherwise ->
+                Left
+                  ( (appError CorruptData "Configured bindings disagree about the trust identity of one exact Pack artifact.")
+                      { appErrorSubject = Just (artifactName identity)
+                      , appErrorDetails = [artifactVersion identity, artifactArchiveDigest identity]
+                      }
+                  )
 
 officialAuthorityProblem :: ProfilePaths -> [Text] -> Bool -> AppError
 officialAuthorityProblem paths pins statePresent =

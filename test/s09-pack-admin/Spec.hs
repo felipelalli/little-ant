@@ -526,6 +526,9 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   configured <- loadCurrentIntegrations
   Map.keys (Profile.providerAccounts configured) @?= ["personal"]
   Map.keys (Profile.credentialBindings configured) @?= ["microsoft_todo-personal"]
+  case Map.lookup "personal" (Profile.providerAccounts configured) of
+    Just account -> pinArtifact (Profile.providerAccountPackPin account) @?= connectorIdentity
+    Nothing -> assertFailure "the connected provider account was not retained"
 
   restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
   assertBool "connected provider made the production adapter registry unavailable" (isNothing (appPackRegistryProblem restarted))
@@ -605,6 +608,9 @@ staticProviderConnectionEnablesImport = withHarness $ \base -> do
   configured <- loadCurrentIntegrations
   Map.keys (Profile.providerAccounts configured) @?= ["github"]
   Map.keys (Profile.credentialBindings configured) @?= ["github_issues-github"]
+  case Map.lookup "github" (Profile.providerAccounts configured) of
+    Just account -> pinArtifact (Profile.providerAccountPackPin account) @?= connectorIdentity
+    Nothing -> assertFailure "the connected provider account was not retained"
   inventoryReply <- sendVaultAgentRequest (Profile.vaultSocket paths) agentInventoryRequest >>= either (assertFailure . show) pure
   case agentReplyInventory inventoryReply of
     Just [entry] -> do

@@ -36,6 +36,7 @@ main =
       , testCase "official pins and catalog state fail explicitly without a compiled root" officialTrustUnavailable
       , testCase "accepted catalog history authorizes an exact official pin offline" officialHistoryLoads
       , testCase "a later known revocation disables the previously accepted pin" knownRevocationWins
+      , testCase "an exact retained Pack version coexists without replacing the active default" retainedVersionCoexists
       ]
 
 communityPinLoads :: Assertion
@@ -50,6 +51,31 @@ communityPinLoads = withProfile "lant-installed-community" $ \paths scope -> do
   _ <- assertRight (lookupPackComponent "tree" registry)
   connector <- assertRight (lookupPackComponent "microsoft_todo" registry)
   registeredPackIdentity connector @?= authenticatedPackIdentity authenticated
+
+retainedVersionCoexists :: Assertion
+retainedVersionCoexists = do
+  authenticated <- connectorPack
+  scope <- assertRight (mkProfileScope "default")
+  let publisher = trustedCommunityPublisher authenticated
+      policy = emptyPolicy{trustCommunityPublishers = Set.singleton publisher}
+  installed <- assertRight (authorizePackInstall fixtureNow scope policy connectorComponents authenticated)
+  active <- assertRight (authorizePinnedPackExecution fixtureNow scope policy (installAuthorizedPin installed) authenticated)
+  let activeIdentity = authenticatedPackIdentity authenticated
+      retainedIdentity =
+        activeIdentity
+          { artifactVersion = "0.9.0"
+          , artifactManifestDigest = Text.replicate 64 "a"
+          , artifactArchiveDigest = Text.replicate 64 "b"
+          }
+      retainedPack = authenticated{authenticatedPackIdentity = retainedIdentity}
+      retainedPin = (executionAuthorizedPin active){pinArtifact = retainedIdentity}
+      retained = active{executionAuthorizedPack = retainedPack, executionAuthorizedPin = retainedPin}
+  registry <- assertRight (buildPackRegistryWithRetained scope [active] [retained])
+  selected <- assertRight (lookupPackComponent "microsoft_todo" registry)
+  registeredPackIdentity selected @?= activeIdentity
+  older <- assertRight (lookupPackComponentForArtifact retainedIdentity "microsoft_todo" registry)
+  registeredPackIdentity older @?= retainedIdentity
+  length (registryComponents registry) @?= 1
 
 missingArchiveFails :: Assertion
 missingArchiveFails = withProfile "lant-installed-missing" $ \paths scope -> do

@@ -156,7 +156,10 @@ catalog refresh, and refreshes its runtime registry after accepted authority
 changes. `lant packs updates` now inspects only the already accepted signed
 catalog, performs no network request, mutates no profile or dataset state, and
 selects the newest release with complete SemVer precedence. Update acceptance
-and removal/GC remain open.
+and removal/GC remain open. Live ProviderAccounts now retain one exact Pack pin.
+The runtime separately indexes preferred components and exact retained
+components, so changing the preferred release cannot silently upgrade an
+existing provider binding.
 
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or

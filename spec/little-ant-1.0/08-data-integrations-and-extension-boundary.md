@@ -209,6 +209,11 @@ support them honestly.
   component, slot, endpoints, client ID, and scopes. A mismatch requires fresh
   reviewed consent rather than silently reusing a grant. A DeliveryBinding
   follows MOD-092.
+  Each ProviderAccount also carries the exact Pack pin that supplies its
+  component. The preferred profile pin is used for new configuration only;
+  an update cannot move an existing account until the reviewed update plan
+  rewrites that exact binding. Runtime lookup therefore distinguishes the
+  preferred component ID from `(Pack artifact identity, component ID)`.
   Config inspection and diagnostics render only binding name, scheme,
   component/account, purposes, readiness, and redacted last four characters
   when the scheme defines them. Moving or copying an integration manifest

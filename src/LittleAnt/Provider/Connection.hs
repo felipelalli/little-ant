@@ -74,6 +74,7 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
   unless (componentKind (componentCommon (registeredComponent registered)) == SourceAdapterComponent) $
     Left (connectionProblem PreconditionFailed "The selected Pack component is not a SourceAdapter." [source])
   authorization <- soleConnectionAuthorization registered
+  packPin <- activePackPin registered integrations
   let slot = connectionDescriptorSlot authorization
       scheme = connectionDescriptorScheme authorization
   existingAccount <- compatibleExistingAccount definition accountName integrations
@@ -86,7 +87,8 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
       accountForClient <-
         pure
           ProviderAccount
-            { providerAccountComponent = source
+            { providerAccountPackPin = packPin
+            , providerAccountComponent = source
             , providerAccountProvider = providerDefinitionNamespace definition
             , providerAccountExternalId = maybe accountName providerAccountExternalId existingAccount
             , providerAccountLabel = label
@@ -100,7 +102,8 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
       pure (maybe (Object KeyMap.empty) providerAccountConfiguration existingAccount, Set.empty, Nothing, Nothing)
   let account =
         ProviderAccount
-          { providerAccountComponent = source
+          { providerAccountPackPin = packPin
+          , providerAccountComponent = source
           , providerAccountProvider = providerDefinitionNamespace definition
           , providerAccountExternalId = maybe accountName providerAccountExternalId existingAccount
           , providerAccountLabel = label
@@ -162,6 +165,22 @@ connectionOAuthClient registry draft = do
 connectionUsesStaticCredential :: ProviderConnectionDraft -> Bool
 connectionUsesStaticCredential draft =
   credentialBindingScheme (providerConnectionBinding draft) `elem` [Vault.BearerCredential, Vault.ApiKeyCredential]
+
+activePackPin :: RegisteredPackComponent -> IntegrationsConfig -> Either AppError PackPin
+activePackPin registered integrations =
+  case [ pin
+       | pin <- Map.elems (installedComponents integrations)
+       , pinArtifact pin == registeredPackIdentity registered
+       , componentId `Set.member` pinEnabledComponents pin
+       ] of
+    [pin] -> Right pin
+    [] -> Left (connectionProblem PreconditionFailed "The selected provider component has no exact active Pack pin." [componentId])
+    _ -> Left (connectionProblem Conflict "The selected provider component resolves to more than one active Pack pin." [componentId])
+ where
+  componentId = providerComponentId registered
+
+providerComponentId :: RegisteredPackComponent -> Text
+providerComponentId = componentId . componentCommon . registeredComponent
 
 soleConnectionAuthorization :: RegisteredPackComponent -> Either AppError ConnectionDescriptor
 soleConnectionAuthorization registered = case registeredComponent registered of

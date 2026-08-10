@@ -25,6 +25,7 @@ import LittleAnt.OAuth.AuthorizationCode
 import LittleAnt.OAuth.Device
 import LittleAnt.Pack.Registry
 import LittleAnt.Pack.Transport
+import LittleAnt.Pack.Trust (PackPin (pinArtifact))
 import LittleAnt.Profile
 import LittleAnt.Vault qualified as Vault
 import LittleAnt.Vault.Agent
@@ -124,7 +125,11 @@ providerAccessTokenResolver definitions registry integrations socketPath current
       _ -> Left (providerProblem CorruptData "The provider definition catalog is ambiguous during OAuth refresh." [credentialBindingComponent binding])
     unless (providerAccountProvider account == providerDefinitionNamespace definition) $
       Left (providerProblem CorruptData "The provider account has the wrong namespace during OAuth refresh." [providerAccountProvider account])
-    registered <- lookupPackComponent (credentialBindingComponent binding) registry
+    registered <-
+      lookupPackComponentForArtifact
+        (pinArtifact (providerAccountPackPin account))
+        (credentialBindingComponent binding)
+        registry
     client <- case credentialBindingScheme binding of
       Vault.OAuthAuthorizationCodePKCE -> ProviderRefreshPkce <$> resolveOAuthPkceClient registered account (credentialBindingSlot binding)
       Vault.OAuthDeviceAuthorization -> ProviderRefreshDevice <$> resolveOAuthDeviceClient registered account (credentialBindingSlot binding)
@@ -149,8 +154,12 @@ configuredProviderImportSources definitions integrations registry resolver trans
     if null matchingAccounts
       then pure []
       else do
-        registered <- lookupPackComponent (providerDefinitionAdapterId definition) registry
         forM matchingAccounts $ \(accountName, account) -> do
+          registered <-
+            lookupPackComponentForArtifact
+              (pinArtifact (providerAccountPackPin account))
+              (providerDefinitionAdapterId definition)
+              registry
           unless (providerAccountProvider account == providerDefinitionNamespace definition) $
             Left (providerProblem CorruptData "A configured provider account has the wrong provider namespace." [accountName, providerAccountProvider account])
           (bindingReference, binding) <- exactBinding integrations definition accountName

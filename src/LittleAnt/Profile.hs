@@ -99,7 +99,8 @@ newtype CalibrationConfig = CalibrationConfig
   deriving stock (Eq, Show)
 
 data ProviderAccount = ProviderAccount
-  { providerAccountComponent :: Text
+  { providerAccountPackPin :: PackPin
+  , providerAccountComponent :: Text
   , providerAccountProvider :: Text
   , providerAccountExternalId :: Text
   , providerAccountLabel :: Text
@@ -375,7 +376,8 @@ instance FromJSON CalibrationConfig where
 instance ToJSON ProviderAccount where
   toJSON account =
     object
-      [ "component" .= providerAccountComponent account
+      [ "pack_pin" .= providerAccountPackPin account
+      , "component" .= providerAccountComponent account
       , "provider" .= providerAccountProvider account
       , "external_id" .= providerAccountExternalId account
       , "label" .= providerAccountLabel account
@@ -384,9 +386,10 @@ instance ToJSON ProviderAccount where
 
 instance FromJSON ProviderAccount where
   parseJSON = withObject "ProviderAccount" $ \fields -> do
-    rejectUnknown fields ["component", "provider", "external_id", "label", "configuration"]
+    rejectUnknown fields ["pack_pin", "component", "provider", "external_id", "label", "configuration"]
     ProviderAccount
-      <$> fields .: "component"
+      <$> fields .: "pack_pin"
+      <*> fields .: "component"
       <*> fields .: "provider"
       <*> fields .: "external_id"
       <*> fields .: "label"
@@ -450,14 +453,6 @@ validateIntegrationsConfig integrations = do
     (all (\(name, pin) -> name == artifactName (pinArtifact pin)) (Map.toList (installedComponents integrations)))
     (Left (appError CorruptData "An installed Pack map key must equal its signed Pack name."))
   mapM_ (uncurry validateProviderAccount) (Map.toList (providerAccounts integrations))
-  let enabledComponents = Set.unions (pinEnabledComponents <$> Map.elems (installedComponents integrations))
-  mapM_
-    ( \(name, account) ->
-        unless
-          (providerAccountComponent account `Set.member` enabledComponents)
-          (invalid "A provider account must reference an enabled installed component." name)
-    )
-    (Map.toList (providerAccounts integrations))
   mapM_ (uncurry (validateCredentialBinding (providerAccounts integrations))) (Map.toList (credentialBindings integrations))
   let bindingCoordinates =
         [ (credentialBindingComponent binding, credentialBindingSlot binding, credentialBindingAccount binding)
@@ -469,6 +464,7 @@ validateIntegrationsConfig integrations = do
 
 validateProviderAccount :: Text -> ProviderAccount -> Either AppError ()
 validateProviderAccount name account = do
+  validatePackPin (providerAccountPackPin account)
   unless (validIntegrationName name) (invalid "A provider-account name must be a lowercase local identifier." name)
   mapM_
     (\(label, value) -> unless (nonempty value) (invalid ("A provider account needs a nonempty " <> label <> ".") name))
@@ -477,6 +473,9 @@ validateProviderAccount name account = do
     , ("external identity", providerAccountExternalId account)
     , ("label", providerAccountLabel account)
     ]
+  unless
+    (providerAccountComponent account `Set.member` pinEnabledComponents (providerAccountPackPin account))
+    (invalid "A provider account component must be enabled by its exact Pack pin." name)
   case providerAccountConfiguration account of
     Object configuration -> rejectSensitiveConfiguration name configuration
     _ -> invalid "Provider-account configuration must be one JSON object." name

@@ -385,6 +385,11 @@ exactly `publisher`, `name`, `version`, `manifest_sha256`, and
 `catalog_sequence`. `trusted_publishers` is an array of objects containing
 exactly `publisher`, `public_key`, and `fingerprint`. Pins and approved keys
 are validated while reading and before an atomic configuration write.
+Each ProviderAccount contains exactly one additional `pack_pin` with the same
+closed pin schema. It identifies the release that actually serves that live
+account even when `installed_components` prefers a newer release. The runtime
+loads such referenced releases into an exact, non-default registry view;
+component discovery and new bindings continue to use only the preferred view.
 
 There is no background or automatic update. `lant packs updates` is read-only.
 `lant packs update` downloads and verifies one candidate, then shows signer,

@@ -5,11 +5,11 @@ S00-S08 are executable and mostly stable; S08 closure items remain open below.
 Coverage labels stay conservative until every required recovery, uncertainty, and paired-surface row is fully evidenced.
 
 
-Baseline at the start of the current milestone: **6042e3e**
-(`feat(import): observe GitHub issues`). The current milestone adds the generic
-guided static-credential boundary that makes the installed GitHub adapter
-honestly connectable without deforming it into OAuth. This file stays editable
-between milestone commits.
+Baseline at the start of the current milestone: **b484d5b**
+(`feat(packs): discover signed updates`). The current milestone binds every
+live ProviderAccount to its exact Pack artifact while retaining one preferred
+release per Pack name for new work. This file stays editable between milestone
+commits.
 
 ## Implementation now available
 
@@ -342,6 +342,17 @@ between milestone commits.
   custody privately, and enters the existing no-default installation
   Interaction. Acceptance reopens and reauthorizes those bytes, then records
   `PinVerifiedOfficial(sequence)` without adding community publisher trust.
+- `lant packs updates` compares preferred pins with the accepted signed
+  catalog using complete SemVer precedence. It is a sparse read-only discovery
+  surface: it neither performs network access nor changes profile or Pack
+  state.
+- every live ProviderAccount carries the exact Pack pin that established its
+  provider contract. The runtime registry exposes a collision-checked
+  preferred component view for new work and a second exact-artifact view for
+  existing bindings. Referenced older archives are reauthenticated and
+  reauthorized on every load, so changing the preferred release cannot
+  silently upgrade an account and missing, revoked, or untrusted retained
+  authority fails closed.
 - `lant packs list` and exact-name `lant packs show` now expose one sparse,
   typed `little-ant/packs@1` projection. It includes display and signed
   identities, trust/status, full signer and archive digests, enabled component

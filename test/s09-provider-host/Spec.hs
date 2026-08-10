@@ -808,7 +808,7 @@ bindingAuthority = do
   let resolver = AccessTokenResolver (const (pure (Right token)))
       transport = PackHttpTransport (const (pure (Left (appError ExternalFailure "unused"))))
       wrongScheme = (fixtureBinding "personal" fixtureVaultEntry){credentialBindingScheme = Vault.BearerCredential}
-      integrations = fixtureIntegrations [("personal", fixtureAccount "account-personal" "Personal", wrongScheme)]
+  integrations <- assertRight (authorizedIntegrations registry [("personal", fixtureAccount "account-personal" "Personal", wrongScheme)])
   assertError PreconditionFailed (configuredProviderImportSources [microsoftTodoDefinition] integrations registry resolver transport)
 
 brokerDefenseInDepth :: Assertion
@@ -865,9 +865,12 @@ jsonResponse :: Value -> BrokerHttpResponse
 jsonResponse = BrokerHttpResponse 200 (Map.singleton "content-type" "application/json")
 
 fixtureIntegrations :: [(Text, ProviderAccount, CredentialBinding)] -> IntegrationsConfig
-fixtureIntegrations entries =
+fixtureIntegrations = fixtureIntegrationsWithPin connectorPin
+
+fixtureIntegrationsWithPin :: PackPin -> [(Text, ProviderAccount, CredentialBinding)] -> IntegrationsConfig
+fixtureIntegrationsWithPin pin entries =
   IntegrationsConfig
-    { installedComponents = Map.singleton "org.littleant.official-connectors" connectorPin
+    { installedComponents = Map.singleton "org.littleant.official-connectors" pin
     , providerAccounts = Map.fromList [(name, account) | (name, account, _) <- entries]
     , credentialBindings = Map.fromList [(name <> "-credential", binding) | (name, _, binding) <- entries]
     , deliveryBindings = Map.empty
@@ -877,7 +880,8 @@ fixtureIntegrations entries =
 fixtureAccount :: Text -> Text -> ProviderAccount
 fixtureAccount externalId label =
   ProviderAccount
-    { providerAccountComponent = "microsoft_todo"
+    { providerAccountPackPin = connectorPin
+    , providerAccountComponent = "microsoft_todo"
     , providerAccountProvider = "microsoft_todo"
     , providerAccountExternalId = externalId
     , providerAccountLabel = label
@@ -909,11 +913,22 @@ authorizedIntegrations :: PackRegistry -> [(Text, ProviderAccount, CredentialBin
 authorizedIntegrations registry entries = do
   registered <- lookupPackComponent "microsoft_todo" registry
   authorized <- traverse (authorize registered) entries
-  pure (fixtureIntegrations authorized)
+  let exactPin =
+        connectorPin
+          { pinArtifact = registeredPackIdentity registered
+          , pinSignerFingerprint = registeredSignerFingerprint registered
+          }
+  pure (fixtureIntegrationsWithPin exactPin authorized)
  where
   authorize registered (name, account, binding) = do
-    client <- resolveOAuthDeviceClient registered account (credentialBindingSlot binding)
-    pure (name, account, binding{credentialBindingAuthorizationFingerprint = Just (oauthDeviceAuthorizationFingerprint client)})
+    let exactPin =
+          (providerAccountPackPin account)
+            { pinArtifact = registeredPackIdentity registered
+            , pinSignerFingerprint = registeredSignerFingerprint registered
+            }
+        exactAccount = account{providerAccountPackPin = exactPin}
+    client <- resolveOAuthDeviceClient registered exactAccount (credentialBindingSlot binding)
+    pure (name, exactAccount, binding{credentialBindingAuthorizationFingerprint = Just (oauthDeviceAuthorizationFingerprint client)})
 
 microsoftTodoDefinition :: ProviderSourceDefinition
 microsoftTodoDefinition =

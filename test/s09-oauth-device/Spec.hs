@@ -348,7 +348,14 @@ providerAutomaticRefresh = withSystemTempDirectory "lant-provider-refresh" $ \ro
 
   registry <- googleConnectorRegistry
   registered <- assertRight (lookupPackComponent "google_tasks" registry)
-  client <- assertRight (resolveOAuthPkceClient registered fixturePkceAccount "google")
+  let exactPin =
+        fixturePkcePackPin
+          { pinArtifact = registeredPackIdentity registered
+          , pinSignerFingerprint = registeredSignerFingerprint registered
+          , pinTrustOrigin = PinVerifiedOfficial 1
+          }
+      exactAccount = fixturePkceAccount{providerAccountPackPin = exactPin}
+  client <- assertRight (resolveOAuthPkceClient registered exactAccount "google")
   let binding =
         CredentialBinding
           { credentialBindingComponent = "google_tasks"
@@ -370,7 +377,7 @@ providerAutomaticRefresh = withSystemTempDirectory "lant-provider-refresh" $ \ro
       integrations =
         IntegrationsConfig
           { installedComponents = Map.empty
-          , providerAccounts = Map.singleton "personal" fixturePkceAccount
+          , providerAccounts = Map.singleton "personal" exactAccount
           , credentialBindings = Map.singleton "google_tasks-personal" binding
           , deliveryBindings = Map.empty
           , trustedPublishers = Set.empty
@@ -460,7 +467,8 @@ fixtureTokenSet client refresh =
 fixtureAccount :: ProviderAccount
 fixtureAccount =
   ProviderAccount
-    { providerAccountComponent = "microsoft_todo"
+    { providerAccountPackPin = fixturePackPin
+    , providerAccountComponent = "microsoft_todo"
     , providerAccountProvider = "microsoft_todo"
     , providerAccountExternalId = "account-personal"
     , providerAccountLabel = "Personal"
@@ -470,11 +478,30 @@ fixtureAccount =
 fixturePkceAccount :: ProviderAccount
 fixturePkceAccount =
   ProviderAccount
-    { providerAccountComponent = "google_tasks"
+    { providerAccountPackPin = fixturePkcePackPin
+    , providerAccountComponent = "google_tasks"
     , providerAccountProvider = "google_tasks"
     , providerAccountExternalId = "google-personal"
     , providerAccountLabel = "Personal"
     , providerAccountConfiguration = object ["client_id" .= ("example.apps.googleusercontent.com" :: Text)]
+    }
+
+fixturePackPin :: PackPin
+fixturePackPin =
+  PackPin
+    { pinArtifact = registeredPackIdentity fixtureRegistered
+    , pinSignerFingerprint = registeredSignerFingerprint fixtureRegistered
+    , pinTrustOrigin = PinTrustedPublisher
+    , pinEnabledComponents = Set.singleton "microsoft_todo"
+    }
+
+fixturePkcePackPin :: PackPin
+fixturePkcePackPin =
+  PackPin
+    { pinArtifact = registeredPackIdentity fixturePkceRegistered
+    , pinSignerFingerprint = registeredSignerFingerprint fixturePkceRegistered
+    , pinTrustOrigin = PinTrustedPublisher
+    , pinEnabledComponents = Set.singleton "google_tasks"
     }
 
 fixtureBinding :: Maybe Text -> CredentialBinding
