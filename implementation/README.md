@@ -92,7 +92,7 @@ in [`difficult-decisions.md`](difficult-decisions.md).
 
 ## Current checkpoint
 
-Current release: **1.0.0-alpha.1 — daily dumb loop plus v0 migration.**
+Current release: **1.0.0-alpha.2 — daily dumb loop plus v0 migration and direct REPL exit.**
 
 S00-S08 and much of S09 are already executable. No further Pack, vault,
 provider, Calendar, local-web, or assisted-surface breadth belongs on the alpha

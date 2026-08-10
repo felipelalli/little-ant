@@ -3,6 +3,7 @@ module LittleAnt.REPL (
   ImportSelection (..),
   PackPathPurpose (..),
   connectedProviderImportSelection,
+  directQuitRequested,
   filteredCommands,
   importContainerModel,
   importContainerModelAtWidth,
@@ -13,6 +14,7 @@ module LittleAnt.REPL (
   packPathEditorModel,
   paletteModel,
   progressModel,
+  replEnvelopeModelAtWidth,
   runRepl,
   runReplWithCommand,
 ) where
@@ -133,27 +135,29 @@ loop environmentRef vty color width screen = do
     Just (Resized nextWidth _) -> loop environmentRef vty color nextWidth screen
     Just input -> transition input >>= maybe (pure ()) (loop environmentRef vty color width)
  where
-  transition input = case screen of
-    EnvelopeScreen envelope _ -> envelopeInput envelope input
-    FeedEditor envelope editor message -> feedEditorInput envelope editor message input
-    InteractionEditor envelope action editor message -> interactionEditorInput envelope action editor message input
-    PaletteScreen envelope query selected target -> paletteInput envelope query selected target input
-    PackManagerScreen envelope packs problem selected message -> packManagerInput envelope packs problem selected message input
-    PackPathEditor envelope purpose editor message -> packPathInput envelope purpose editor message input
-    PackDetailScreen envelope packs problem selected _ -> case input of
-      Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
-      _ -> pure (Just (PackManagerScreen envelope packs problem selected Nothing))
-    ImportSourceScreen envelope choices query selected message -> importSourceInput envelope choices query selected message input
-    ImportPathEditor envelope descriptor editor message -> importPathInput envelope descriptor editor message input
-    ImportModeScreen envelope selection message -> importModeInput envelope selection message input
-    ImportContainerScreen envelope selection mode containers selected chosen message -> importContainerInput envelope selection mode containers selected chosen message input
-    ProviderConnectionEditor envelope definition stage editor message -> providerConnectionInput envelope definition stage editor message input
-    ReadOnlyScreen envelope _ -> case input of
-      Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
-      Escape _ -> pure (Just (screenForEnvelope envelope))
-      Backspace _ -> pure (Just (screenForEnvelope envelope))
-      ArrowLeft _ -> pure (Just (screenForEnvelope envelope))
-      _ -> pure (Just (screenForEnvelope envelope))
+  transition input
+    | directQuitRequested (screenAcceptsTextInput screen) input = pure Nothing
+    | otherwise = case screen of
+        EnvelopeScreen envelope _ -> envelopeInput envelope input
+        FeedEditor envelope editor message -> feedEditorInput envelope editor message input
+        InteractionEditor envelope action editor message -> interactionEditorInput envelope action editor message input
+        PaletteScreen envelope query selected target -> paletteInput envelope query selected target input
+        PackManagerScreen envelope packs problem selected message -> packManagerInput envelope packs problem selected message input
+        PackPathEditor envelope purpose editor message -> packPathInput envelope purpose editor message input
+        PackDetailScreen envelope packs problem selected _ -> case input of
+          Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+          _ -> pure (Just (PackManagerScreen envelope packs problem selected Nothing))
+        ImportSourceScreen envelope choices query selected message -> importSourceInput envelope choices query selected message input
+        ImportPathEditor envelope descriptor editor message -> importPathInput envelope descriptor editor message input
+        ImportModeScreen envelope selection message -> importModeInput envelope selection message input
+        ImportContainerScreen envelope selection mode containers selected chosen message -> importContainerInput envelope selection mode containers selected chosen message input
+        ProviderConnectionEditor envelope definition stage editor message -> providerConnectionInput envelope definition stage editor message input
+        ReadOnlyScreen envelope _ -> case input of
+          Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+          Escape _ -> pure (Just (screenForEnvelope envelope))
+          Backspace _ -> pure (Just (screenForEnvelope envelope))
+          ArrowLeft _ -> pure (Just (screenForEnvelope envelope))
+          _ -> pure (Just (screenForEnvelope envelope))
 
   envelopeInput envelope = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -161,14 +165,14 @@ loop environmentRef vty color width screen = do
     Enter [] -> dispatchShortcut envelope "*"
     Escape _ | isRepairScreen envelope -> pure Nothing
     Escape _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
-    Escape _ -> navigate envelope True
+    Escape _ -> navigate envelope True True
     Backspace _ | isRepairScreen envelope -> pure Nothing
     Backspace _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
-    Backspace _ -> navigate envelope True
+    Backspace _ -> navigate envelope True False
     ArrowLeft _ | isRepairScreen envelope -> pure Nothing
     ArrowLeft _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
-    ArrowLeft _ -> navigate envelope True
-    ArrowRight _ -> navigate envelope False
+    ArrowLeft _ -> navigate envelope True False
+    ArrowRight _ -> navigate envelope False False
     _ -> pure (Just screen)
 
   dispatchShortcut envelope shortcut =
@@ -189,11 +193,13 @@ loop environmentRef vty color width screen = do
         | action == "provider.connect.back" -> openImportSourceSelector resultInteraction Nothing
       Right result -> screenFromResult envelope result
 
-  navigate envelope backward =
+  navigate envelope backward exitAtBoundary =
     let response = interactionResponse envelope (if backward then "navigation.back" else "navigation.forward")
         command = if backward then NavigateBackCommand response else NavigateForwardCommand response
      in runCurrent command >>= \case
           Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
+          Right RespondResult{resultInteraction}
+            | exitAtBoundary && resultInteraction == envelope -> pure Nothing
           Right result -> screenFromResult envelope result
 
   feedEditorInput envelope editor _ = \case
@@ -213,9 +219,9 @@ loop environmentRef vty color width screen = do
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable character [] -> pure . Just $ InteractionEditor envelope action (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
     Enter [] -> submitInteractionText envelope action editor
-    Escape _ -> navigate envelope True
+    Escape _ -> navigate envelope True False
     Backspace _
-      | Text.null (editorText editor) -> navigate envelope True
+      | Text.null (editorText editor) -> navigate envelope True False
       | otherwise -> pure . Just $ InteractionEditor envelope action (applyEditorCommand DeleteBackward editor) Nothing
     Delete _ -> pure . Just $ InteractionEditor envelope action (applyEditorCommand DeleteForward editor) Nothing
     ArrowLeft _ -> pure . Just $ InteractionEditor envelope action (applyEditorCommand MoveEditorLeft editor) Nothing
@@ -681,7 +687,7 @@ interactionResponse envelope action =
 
 modelFor :: Int -> ReplScreen -> ScreenModel
 modelFor width = \case
-  EnvelopeScreen envelope message -> prependMessage message (renderEnvelopeAtWidth width envelope)
+  EnvelopeScreen envelope message -> prependMessage message (replEnvelopeModelAtWidth width envelope)
   FeedEditor envelope editor message -> editorModel width envelope "Feed Little Ant" "Tip: prefer English for consistent titles and search." editor message
   InteractionEditor envelope _ editor message -> editorModel width envelope (contentHeading (envelopeContent envelope)) "Tip: write Brick titles in English." editor message
   PaletteScreen envelope query selected _ -> paletteModelAtWidth width envelope query selected
@@ -696,6 +702,46 @@ modelFor width = \case
   ProviderConnectionEditor envelope definition stage editor message -> providerConnectionEditorModelAtWidth width envelope definition stage editor message
   ReadOnlyScreen envelope text ->
     ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return."], []] <> footerFrom width envelope) Nothing
+
+replEnvelopeModelAtWidth :: Int -> InteractionEnvelope -> ScreenModel
+replEnvelopeModelAtWidth requestedWidth envelope =
+  let width = max 20 requestedWidth
+      model = renderEnvelopeAtWidth width envelope
+   in model{screenLines = addQuitControl width (screenLines model)}
+
+addQuitControl :: Int -> [ScreenLine] -> [ScreenLine]
+addQuitControl _ [] = []
+addQuitControl width (line : rest)
+  | "[/] more..." `Text.isInfixOf` plainLine line =
+      let inline = line <> [Span Normal "   "] <> quitControl False
+       in if displayWidth (plainLine inline) <= width
+            then inline : rest
+            else line : quitControl True : rest
+  | otherwise = line : addQuitControl width rest
+ where
+  quitControl leading =
+    [ Span Normal (if leading then " " else "")
+    , Span Dim "["
+    , Span Accent "q"
+    , Span Dim "]"
+    , Span Normal " quit"
+    ]
+
+directQuitRequested :: Bool -> TerminalInput -> Bool
+directQuitRequested acceptsText = \case
+  Printable 'q' [] -> not acceptsText
+  _ -> False
+
+screenAcceptsTextInput :: ReplScreen -> Bool
+screenAcceptsTextInput = \case
+  FeedEditor{} -> True
+  InteractionEditor{} -> True
+  PaletteScreen{} -> True
+  PackPathEditor{} -> True
+  ImportSourceScreen{} -> True
+  ImportPathEditor{} -> True
+  ProviderConnectionEditor{} -> True
+  _ -> False
 
 packManagerModel :: InteractionEnvelope -> [PackProjection] -> Maybe AppError -> Int -> Maybe Text -> ScreenModel
 packManagerModel = packManagerModelAtWidth 80

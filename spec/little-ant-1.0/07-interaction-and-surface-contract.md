@@ -155,7 +155,13 @@ assistance-label, and no-emoji rendering.
   action and ask `Redo the last undone action?` with the same grammar. With no
   eligible action, the arrow is a no-op with one concise educational hint.
   Thus arrows provide contextual discovery without making provisional
-  navigation and semantic reversal the same core operation.
+  navigation and semantic reversal the same core operation. In the REPL,
+  `Escape` after local backward navigation is exhausted ends the presentation
+  session without a domain event. Lowercase `q` is the equivalent direct exit
+  on finite-choice and read-only screens; it remains ordinary text inside
+  editors, searchable selectors, and the command palette. The visible REPL
+  frame places `[q] quit` beside `[/] more...`. `/exit` remains the explicit
+  command equivalent.
 - **UX-020 [core] — Semantic undo.** `C-_` and `/undo` append a typed
   compensating event for the latest reversible action in the current
   interaction; they never delete history or consume a new draw. Confirming the

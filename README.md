@@ -7,7 +7,7 @@
 > *One brick at a time. Inch by inch, anything's a cinch.*
 
 > [!IMPORTANT]
-> Little Ant 1.0 is being delivered incrementally. The local `1.0.0-alpha.1`
+> Little Ant 1.0 is being delivered incrementally. The local `1.0.0-alpha.2`
 > supports the dumb daily loop and safe migration from the author's real v0
 > dataset; integrations and assisted surfaces remain experimental. See the
 > [alpha contract](implementation/releases/v1-alpha.md) and
@@ -47,7 +47,7 @@ nix profile install path:.#little-ant
 ~/.nix-profile/bin/lant --version
 ```
 
-The last command prints `lant 1.0.0-alpha.1`. Run `lant` for the one-key dumb
+The last command prints `lant 1.0.0-alpha.2`. Run `lant` for the one-key dumb
 REPL or use the same engine directly, for example:
 
 ```sh

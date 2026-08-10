@@ -22,8 +22,8 @@ tests =
         assertBool "retired executable must not exist" (not ("executable la\n" `isInfixOf` cabalFile))
         assertBool "the private runner component must exist" ("executable lant-pack-runner" `isInfixOf` cabalFile)
         assertBool "the release package must relocate the runner out of bin" ("mv $out/bin/lant-pack-runner $out/libexec/little-ant/lant-pack-runner" `isInfixOf` flakeFile)
-        assertBool "the Nix artifact must carry the alpha release identity" ("version = \"1.0.0-alpha.1\"" `isInfixOf` flakeFile)
-        assertBool "the CLI must report the same alpha release identity" ("lant 1.0.0-alpha.1" `isInfixOf` mainFile)
+        assertBool "the Nix artifact must carry the alpha release identity" ("version = \"1.0.0-alpha.2\"" `isInfixOf` flakeFile)
+        assertBool "the CLI must report the same alpha release identity" ("lant 1.0.0-alpha.2" `isInfixOf` mainFile)
     , testCase "the CLI E2E scripts cover Feed, migration, and durable restart" $ do
         root <- findProjectRoot
         doesFileExist (root </> "test/e2e/s01-cli.sh") >>= assertBool "S01 CLI E2E script must exist"

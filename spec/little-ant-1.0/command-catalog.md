@@ -124,7 +124,7 @@ reinterprets the view. Neither `/importance` nor `/forecast` is an alias.
 | `/packs` | `lant packs list\|show\|install\|updates\|update\|remove\|refresh\|trust\|untrust\|gc` | Manage verified Packs, trust, explicit catalog refresh, versions, and unreferenced archives. |
 | `/editor` | host-mediated contextual action | Open only the current supported text draft in the configured external editor. |
 | `/help [command]` | `lant help [command]` | Inspect canonical grammar and contextual recovery; it is distinct from `[?] I don't know`. |
-| `/exit` | REPL only | End the presentation session without changing domain state. |
+| `/exit` | REPL only | End the presentation session without changing domain state; root `Escape` and finite-choice `[q] quit` are direct equivalents. |
 
 An exporter's Lua code only returns validated bytes and metadata. With no
 `--output`, the trusted host writes bytes to stdout. With `--output`, it may

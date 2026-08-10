@@ -1,6 +1,6 @@
 # Implementation handoff
 
-Current release gate: **1.0.0-alpha.1 — dumb daily use plus safe v0 migration.**
+Current release gate: **1.0.0-alpha.2 — dumb daily use, safe v0 migration, and direct REPL exit.**
 The supported boundary lives in `implementation/releases/v1-alpha.md`; the
 remaining S08-S11 obligations live in `implementation/releases/v1-beta.md`.
 Coverage labels stay conservative until executable evidence is reconciled.

@@ -11,7 +11,7 @@
       "UX-048": "sha256:cc1d197d873ba3d93c127fd3a10f53132ac1bb7330aaa27727de64e7abfe4a83",
       "UX-049": "sha256:b807052b5abeefd158851d73c7b27b09d16034cb24700af834d39c85fc894d0c",
       "UX-E00": "sha256:5815acc63ed3d6c431be877882c297855902c66a50857c40dfa68a6b667fe8e6",
-      "UX-R00": "sha256:61b411816ef9fd6ec883ee8c8918907770797fb785d7cca49f7923c318159be4",
+      "UX-R00": "sha256:077637f3cab75e2d6b24953dcd7e57032c80ba6b91bc047c0a149edafb4ed105",
       "UX-R01": "sha256:43ae875865673429e759cfea27e8657305e391021af89a7ef24398a283f9394a"
     },
     "obligations": ["negative", "gate", "boundary"]
@@ -81,7 +81,19 @@
     "kind": "e2e",
     "spec_hashes": {
       "UX-046": "sha256:0e677febcd83c849a7f459d22b481642c1f7fab1e09ac3dfa612d9434c37fcd7",
-      "UX-R00": "sha256:61b411816ef9fd6ec883ee8c8918907770797fb785d7cca49f7923c318159be4"
+      "UX-R00": "sha256:077637f3cab75e2d6b24953dcd7e57032c80ba6b91bc047c0a149edafb4ed105"
+    },
+    "obligations": ["negative", "gate", "boundary"]
+  },
+  {
+    "evidence_id": "S01-repl-direct-exit",
+    "rules": ["UX-019"],
+    "screens": ["UX-R00"],
+    "flow": "Direct presentation exit",
+    "kind": "e2e",
+    "spec_hashes": {
+      "UX-019": "sha256:265772479cc3533394ae90b175a470e29cac56a74d9682d5bf07e092596dd4dc",
+      "UX-R00": "sha256:077637f3cab75e2d6b24953dcd7e57032c80ba6b91bc047c0a149edafb4ed105"
     },
     "obligations": ["negative", "gate", "boundary"]
   },

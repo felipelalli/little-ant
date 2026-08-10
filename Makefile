@@ -12,6 +12,7 @@ test:
 
 cli-test: build
 	./test/e2e/s01-cli.sh
+	./test/e2e/repl-exit.sh
 
 python-test:
 	$(PYTHON) -m unittest discover -s test/conformance -t .
