@@ -46,6 +46,7 @@ import LittleAnt.Interaction
 import LittleAnt.Judgment
 import LittleAnt.JudgmentDecision
 import LittleAnt.JudgmentUI
+import LittleAnt.Migration.V0
 import LittleAnt.Model
 import LittleAnt.Notice
 import LittleAnt.OAuth.AuthorizationCode
@@ -133,7 +134,7 @@ data AppCommand
   | MergeCommand Text Text
   | SupersedeCommand Text Text
   | ImportCommand Text SourceMode [Text] Bool
-  | MigrateCommand Text Text Text
+  | MigrateCommand (Maybe FilePath) MigrationStage
   | ExportCommand Text (Maybe Text) (Maybe FilePath)
   | WebCommand
   | PacksListCommand
@@ -337,6 +338,14 @@ resolveProfileName explicit = do
 runAppCommand :: AppEnv -> Bool -> (Integer -> IO ()) -> AppCommand -> IO (Either AppError CommandResult)
 runAppCommand environment dryRun progress DoctorCommand = runDoctor environment dryRun progress
 runAppCommand environment dryRun progress RepairCommand = runRepair environment dryRun progress
+runAppCommand environment dryRun _ (MigrateCommand source stage) =
+  runV0Migration (appStore environment) (appActor environment) (appNow environment) dryRun source stage >>= \case
+    Left problem -> pure (Left problem)
+    Right report -> do
+      loaded <- loadDataset (appStore environment) (const (pure ()))
+      pure $ case loaded of
+        Left problem -> Left problem
+        Right dataset -> Right (migrationCommandResult (loadedCursor dataset) report)
 runAppCommand environment dryRun progress command =
   loadDataset (appStore environment) progress >>= \case
     Left problem -> case command of
@@ -422,8 +431,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   SupersedeCommand oldBrick newBrick -> pure (unsupportedCommand ("supersede " <> oldBrick <> " " <> newBrick))
   ImportCommand source mode selectedContainers eraseAfterImport ->
     runImport environment dryRun dataset source mode selectedContainers eraseAfterImport
-  MigrateCommand sourcePath targetPath mode ->
-    pure $ unsupportedCommand ("migrate " <> sourcePath <> " " <> targetPath <> " mode=" <> mode)
+  MigrateCommand _ _ -> pure (unsupportedCommand "migrate")
   ExportCommand exporter scope outputPath -> runExport environment dryRun dataset exporter scope outputPath
   WebCommand -> pure (unsupportedCommand "web")
   PacksListCommand -> runPacksList environment dryRun dataset
@@ -448,6 +456,33 @@ unsupportedCommand detail =
           [RecoveryAction "implementation-roadmap" "Implement this command path in a later milestone." (Just "lant help commands")]
       , appErrorDetails = ["checkpoint: v1 command-surface alignment"]
       }
+
+migrationCommandResult :: DatasetCursor -> MigrationReport -> CommandResult
+migrationCommandResult cursor report =
+  ConfigurationResult
+    cursor
+    ("migrate-v0-" <> migrationStageName (migrationStage report))
+    Nothing
+    []
+    ( Map.fromList $
+        [ ("source", Text.pack (migrationSourcePath report))
+        , ("source_sha256", migrationSourceDigest report)
+        , ("legacy_events", Text.pack (show (migrationLegacyEventCount report)))
+        , ("legacy_bricks", Text.pack (show (migrationLegacyBrickCount report)))
+        , ("legacy_raws", Text.pack (show (migrationLegacyRawCount report)))
+        , ("supported_types", Text.pack (show (length (migrationSupportedTypes report))))
+        , ("cutover_complete", if migrationCutoverComplete report then "true" else "false")
+        ]
+          <> maybe [] (\path -> [("candidate", Text.pack path)]) (migrationCandidatePath report)
+          <> maybe [] (\path -> [("backup", Text.pack path)]) (migrationBackupPath report)
+          <> maybe [] (\candidateCursor -> [("candidate_cursor", renderCursor candidateCursor)]) (migrationCandidateCursor report)
+    )
+    (migrationDryRun report)
+ where
+  migrationStageName = \case
+    MigrationInspect -> "inspect"
+    MigrationBuild -> "build"
+    MigrationCutover -> "cutover"
 
 data PackProfileSnapshot = PackProfileSnapshot
   { packProfilePaths :: Profile.ProfilePaths

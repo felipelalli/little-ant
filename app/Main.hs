@@ -1,6 +1,5 @@
 module Main (main) where
 
-import Control.Applicative ((<|>))
 import Control.Concurrent (threadDelay)
 import Control.Exception (IOException, bracket_, try)
 import Control.Monad (when)
@@ -17,6 +16,7 @@ import Data.Text.IO qualified as Text
 import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Id (parseUUIDv7, renderUUIDv7)
+import LittleAnt.Migration.V0 (MigrationStage (..))
 import LittleAnt.Model (SourceMode (..), actorProfile)
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
@@ -95,7 +95,7 @@ data CliCommand
   | MergeCli Text Text
   | SupersedeCli Text Text
   | ImportCli Text SourceMode [Text] Bool
-  | MigrateCli Text Text Text
+  | MigrateCli (Maybe FilePath) MigrationStage
   | ExportCli Text (Maybe Text) (Maybe FilePath)
   | WebCli
   | PacksListCli
@@ -205,8 +205,8 @@ run environment options = case optionCommand options of
   SupersedeCli oldBrick newBrick -> execute environment options (SupersedeCommand oldBrick newBrick)
   ImportCli source mode selectedContainers eraseAfterImport ->
     execute environment options (ImportCommand source mode selectedContainers eraseAfterImport)
-  MigrateCli sourcePath targetPath mode ->
-    execute environment options (MigrateCommand sourcePath targetPath mode)
+  MigrateCli sourcePath stage ->
+    execute environment options (MigrateCommand sourcePath stage)
   ExportCli exporter scope outputPath ->
     execute environment options (ExportCommand exporter scope outputPath)
   WebCli -> execute environment options WebCommand
@@ -796,18 +796,16 @@ commandParser =
           "migrate"
           ( info
               ( MigrateCli
-                  <$> (Text.pack <$> strArgument (metavar "SOURCE"))
-                  <*> (Text.pack <$> strArgument (metavar "TARGET"))
-                  <*> option
-                    (strOptionMode ["inspect", "build", "cutover"])
-                    ( long "mode"
-                        <> metavar "inspect|build|cutover"
-                        <> value "inspect"
-                        <> showDefault
-                        <> help "Migration strategy"
+                  <$> optional
+                    ( strOption
+                        ( long "from-v0"
+                            <> metavar "EVENTS.jsonl"
+                            <> help "Override the default ~/.local/share/little-ant/events.jsonl source"
+                        )
                     )
+                  <*> migrationStageParser
               )
-              (progDesc "Migrate state between formats or adapters")
+              (progDesc "Inspect, build, or atomically adopt a Little Ant v0 event log")
           )
         <> command
           "export"
@@ -895,12 +893,11 @@ commandParser =
     )
     <|> (VaultAgentCli <$> option auto (long "vault-agent-internal" <> hidden <> internal))
 
-strOptionMode :: [String] -> ReadM Text
-strOptionMode options =
-  eitherReader $ \value ->
-    if value `elem` options
-      then Right (Text.pack value)
-      else Left $ "unsupported value " <> value <> ". Supported: " <> Text.unpack (Text.intercalate ", " (map Text.pack options))
+migrationStageParser :: Parser MigrationStage
+migrationStageParser =
+  flag' MigrationBuild (long "build" <> help "Build and replay an isolated v1 candidate; do not change the selected profile")
+    <|> flag' MigrationCutover (long "cutover" <> help "Atomically adopt the previously validated candidate and retain a backup")
+    <|> pure MigrationInspect
 
 importModeParser :: Parser SourceMode
 importModeParser =

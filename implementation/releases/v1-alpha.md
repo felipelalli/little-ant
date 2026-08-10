@@ -1,6 +1,6 @@
 # Little Ant 1.0 alpha contract
 
-Status: **implementation in progress**
+Status: **migration implemented; final daily-loop and release gate in progress**
 
 The alpha exists to put the dumb REPL and migrated real v0 data into daily use
 as early as possible. It is a local, single-user release rather than a claim
@@ -34,6 +34,30 @@ Preflight is harmless by default. Candidate construction is isolated, cutover
 requires separate human consent, and the source remains byte-for-byte
 untouched.
 
+The local alpha uses three deliberately small commands against the selected
+empty profile:
+
+```sh
+lant migrate
+lant migrate --build
+lant migrate --cutover
+```
+
+`--from-v0 EVENTS.jsonl` overrides the default source in any stage. The bare
+command performs strict inspection only. `--build` writes and fully replays a
+content-addressed sibling candidate. A later, separately typed `--cutover`
+invocation is the alpha's explicit consent: it atomically exchanges the live
+dataset with that exact candidate and retains the former empty target as a
+named backup. Global `--dry-run` never creates a candidate or performs the
+exchange.
+
+The candidate contains the exact source bytes, a machine-readable identity
+map, a build receipt, and canonical v1 events. A durable adjacent journal makes
+an interruption immediately after atomic exchange resumable. A failed build
+may be quarantined beside the target and rebuilt; neither it nor inspection
+changes the live profile. The original v0 file is never renamed, rewritten,
+or deleted.
+
 The alpha accepts exactly the event types observed in the user's current log:
 
 ```text
@@ -49,9 +73,13 @@ wip_flagged
 ```
 
 All source lines must still satisfy the signed `v0.1.0` schema and shipped
-upcasts. A new event type or version stops before mutation and points to the
-beta migration work; it is never skipped. The original archive and historical
-fields remain inspectable even when they do not become current v1 semantics.
+upcasts. The v0 administrative migrator preserved intrinsic IDs while renaming
+`raw_captured` to `fed`, `energy` to `weight`, and `session` to `flow`; strict
+preflight recognizes only those recorded canonical lineages in addition to
+the current v0.1 wire shapes. A new event type or version stops before mutation
+and points to the beta migration work; it is never skipped. The original
+archive and historical fields remain inspectable even when they do not become
+current v1 semantics.
 
 The selected v1 target must be empty. Merging into existing v1 data and
 interactive repair of ambiguous legacy structure are beta capabilities.
@@ -63,8 +91,10 @@ The alpha is ready for daily use only when:
 1. a sanitized fixture covers all 25 accepted legacy event types;
 2. preflight against a private copy of the real source reports no unsupported
    or blocking issue without committing personal data to Git;
-3. failed, cancelled, dry-run, and interrupted migration leave source and live
-   target unchanged;
+3. failed preflight/build and dry-run leave source and live target unchanged;
+   cutover interruption either leaves the old target in place or a fully
+   replayed candidate live, and a retry deterministically finishes the retained
+   backup;
 4. the candidate replays from zero with its recorded projection and identity
    hashes;
 5. a migrated Brick can be searched, ordered, selected, focused, skipped,

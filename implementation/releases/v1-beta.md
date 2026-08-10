@@ -10,6 +10,9 @@ use of the dumb alpha.
 - Generalize migration to every event type delivered by signed `v0.1.0`,
   nonempty v1 targets, reviewed merges, typed repair choices, and handle
   conflicts.
+- Replace the alpha's explicit staged flags with the complete durable-plan,
+  guided preview/consent, stable allocation-reuse, inspection, and REPL route
+  required by the final migration contract.
 - Complete Wait activation and follow-up, Delegation strategy and
   reconciliation, message editing and delivery, effect recovery,
   compensation, and duplicate-risk handling.

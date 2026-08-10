@@ -1,11 +1,18 @@
 # S10 — v0.1 migration and cutover
 
-Status: **planned**
+Status: **alpha subset implemented; complete v1 route deferred to beta**
 
 ## Outcome
 
 Implement the exact signed-v0.1 preflight, isolated candidate, full validation,
 and atomic cutover without consulting or reviving the failed v1 rewrite.
+
+The alpha subset is bounded by
+[`implementation/releases/v1-alpha.md`](../releases/v1-alpha.md): it accepts
+the 25 event types observed in the private real dataset, requires an empty v1
+target, preserves the exact source, replays an isolated candidate, and supports
+resumable atomic cutover. The broader signed-v0.1 vocabulary, immutable plan
+UI, allocation reuse, and nonempty-target review remain beta work.
 
 ## Canonical flow row owned
 

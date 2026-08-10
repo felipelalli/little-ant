@@ -8,6 +8,7 @@ module LittleAnt.Event (
   DependencyAdded (..),
   DependencyResolution (..),
   DomainFocusChanged (..),
+  DomainRegistered (..),
   EventDraft (..),
   EventPayload (..),
   ForecastSelected (..),
@@ -343,6 +344,11 @@ data DomainFocusChanged = DomainFocusChanged
   }
   deriving stock (Eq, Show)
 
+newtype DomainRegistered = DomainRegistered
+  { registeredDomain :: Domain
+  }
+  deriving stock (Eq, Show)
+
 data BrickNatureChanged = BrickNatureChanged
   { natureChangedBrick :: UUIDv7
   , natureChangedFrom :: BrickNature
@@ -621,6 +627,7 @@ data EventPayload
   | DependencyAddedV1 DependencyAdded
   | DependencyResolvedV1 DependencyResolution
   | DomainFocusChangedV1 DomainFocusChanged
+  | DomainRegisteredV1 DomainRegistered
   | ExternalEntityRegisteredV1 ExternalEntityRegistered
   | ContactPointRegisteredV1 ContactPointRegistered
   | WaitChangedV1 WaitChanged
@@ -714,6 +721,7 @@ eventTypeName = \case
   DependencyAddedV1 _ -> "dependency_added"
   DependencyResolvedV1 _ -> "dependency_resolved"
   DomainFocusChangedV1 _ -> "domain_focus_changed"
+  DomainRegisteredV1 _ -> "domain_registered"
   ExternalEntityRegisteredV1 _ -> "external_entity_registered"
   ContactPointRegisteredV1 _ -> "contact_point_registered"
   WaitChangedV1 _ -> "wait_changed"
@@ -762,6 +770,27 @@ applyDomainFocusChanged state payload =
     case Map.lookup identity (stateDomains state) of
       Just domain | domainActive domain -> Right domain
       _ -> corrupt "A Domain focus event references a missing or inactive Domain."
+
+applyDomainRegistered :: State -> Domain -> Either AppError State
+applyDomainRegistered state domain = do
+  when (Map.member (domainId domain) (stateDomains state)) $
+    corrupt "A Domain UUID is repeated in canonical history."
+  when (Text.null (Text.strip (domainName domain))) $
+    corrupt "A Domain name cannot be empty."
+  unless (domainActive domain) $
+    corrupt "A newly registered Domain must be active."
+  case domainParent domain of
+    Nothing -> pure ()
+    Just parentId -> case Map.lookup parentId (stateDomains state) of
+      Just parent | domainActive parent -> pure ()
+      _ -> corrupt "A Domain parent is missing or inactive."
+  when
+    ( any
+        (\existing -> domainParent existing == domainParent domain && Text.toCaseFold (domainName existing) == Text.toCaseFold (domainName domain))
+        (Map.elems (stateDomains state))
+    )
+    (corrupt "Sibling Domains cannot repeat the same normalized name.")
+  pure . bump $ state{stateDomains = Map.insert (domainId domain) domain (stateDomains state)}
 
 applyEvent :: State -> PersistedEvent -> Either AppError State
 applyEvent state event = case persistedPayload event of
@@ -821,6 +850,7 @@ applyEvent state event = case persistedPayload event of
   DependencyAddedV1 payload -> applyDependencyAdded state event payload
   DependencyResolvedV1 payload -> applyDependencyResolved state payload
   DomainFocusChangedV1 payload -> applyDomainFocusChanged state payload
+  DomainRegisteredV1 payload -> applyDomainRegistered state (registeredDomain payload)
   ExternalEntityRegisteredV1 payload -> applyExternalEntityRegistered state (registeredExternalEntity payload)
   ContactPointRegisteredV1 payload -> applyContactPointRegistered state (registeredContactPoint payload)
   WaitChangedV1 payload -> applyWaitChanged state payload
@@ -3055,6 +3085,14 @@ payloadValue = \case
     object $
       ["mode" .= changedDomainFocusMode payload]
         <> maybe [] (pure . ("domain_id" .=) . renderUUIDv7) (changedDomainFocusTarget payload)
+  DomainRegisteredV1 payload ->
+    let domain = registeredDomain payload
+     in object $
+          [ "domain_id" .= renderUUIDv7 (domainId domain)
+          , "name" .= domainName domain
+          , "active" .= domainActive domain
+          ]
+            <> maybe [] (pure . ("parent_id" .=) . renderUUIDv7) (domainParent domain)
   ExternalEntityRegisteredV1 payload -> externalEntityValue (registeredExternalEntity payload)
   ContactPointRegisteredV1 payload -> contactPointValue' (registeredContactPoint payload)
   WaitChangedV1 payload -> object ["wait" .= waitGateValue (changedWaitGate payload), "observation" .= waitObservationValue (changedWaitObservation payload)]
@@ -3179,6 +3217,18 @@ parsePayload eventType version payload = case (eventType, version) of
       <$> withObject
         "domain_focus_changed@1"
         (\value -> DomainFocusChanged <$> (value .:? "domain_id" >>= traverse parseId) <*> value .: "mode")
+        payload
+  ("domain_registered", 1) ->
+    DomainRegisteredV1 . DomainRegistered
+      <$> withObject
+        "domain_registered@1"
+        ( \value ->
+            Domain
+              <$> (value .: "domain_id" >>= parseId)
+              <*> value .: "name"
+              <*> (value .:? "parent_id" >>= traverse parseId)
+              <*> value .: "active"
+        )
         payload
   ("brick_child_created", 1) ->
     BrickChildCreatedV1

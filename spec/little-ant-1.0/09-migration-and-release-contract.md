@@ -188,6 +188,14 @@
 - **MIG-017 [standard] — External-source cleanup.** Provider deletion after a
   migration is a later approved adapter effect under `DAT-016`, never part of
   the atomic local cutover.
+
+> **Alpha delivery boundary.** The complete contract below remains the v1
+> target. `1.0.0-alpha.1` implements the smaller staged, empty-target route in
+> [`implementation/releases/v1-alpha.md`](../../implementation/releases/v1-alpha.md):
+> harmless bare inspection, isolated `--build`, and separately invoked atomic
+> `--cutover`. Durable plan UI, allocation reuse, guided consent, the remaining
+> signed-v0.1 vocabulary, and nonempty-target review are beta obligations.
+
 - **MIG-035 [core] — Preflight is the harmless default.**
   `lant migrate --from <v0-jsonl> --into <v1-dataset>` performs only validated
   preflight and emits a sparse mapping report plus one content-addressed

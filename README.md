@@ -240,6 +240,29 @@ The complete screen grammar lives in the
 [interaction contract](spec/little-ant-1.0/07-interaction-and-surface-contract.md)
 and [screen catalog](spec/little-ant-1.0/ux/screen-catalog.md).
 
+### Migrating a v0 dataset
+
+The alpha migrator is staged so inspection cannot accidentally replace the
+selected profile:
+
+```sh
+# Inspect ~/.local/share/little-ant/events.jsonl. No candidate is created.
+lant migrate
+
+# Build and replay an isolated candidate beside the empty selected profile.
+lant migrate --build
+
+# Separately adopt that exact candidate and retain the former target as backup.
+lant migrate --cutover
+```
+
+Use `--from-v0 EVENTS.jsonl` to override the source and global `--dry-run` to
+validate a later stage without writing it. The source is kept byte-for-byte in
+place and copied into the candidate as migration evidence. The alpha accepts
+the exact 25-type boundary described in the
+[alpha contract](implementation/releases/v1-alpha.md); broader and merged
+migrations remain [beta work](implementation/releases/v1-beta.md).
+
 ## Dumb first, assistance second
 
 ```mermaid
@@ -338,10 +361,11 @@ and [Pack trust contract](spec/little-ant-1.0/pack-format-and-trust.md).
 
 ## Project status and specification
 
-The 1.0 product contract is complete. All 65 UX routes are semantically
-specified; implementation verification begins only after code exists. Removed
-v0 code, the failed Allium rewrite, and generated tests are historical evidence
-rather than implementation authority.
+The 1.0 product contract is complete and the first local alpha is being closed
+around the dumb daily loop plus safe migration of the author's real v0
+dataset. Broader integrations and assisted surfaces remain visible but
+experimental. Removed v0 code, the failed Allium rewrite, and generated tests
+are historical evidence rather than implementation authority.
 
 Start here:
 
@@ -352,8 +376,9 @@ Start here:
 - [v0 → v1 capability matrix](spec/little-ant-1.0/v0-v1-capability-matrix.md)
 - [Changelog](CHANGELOG.md)
 
-The next separately authorized phase is the implementation plan, followed by
-inspected obligations, high-level tests, and greenfield product code.
+Release boundaries and current evidence live in the
+[alpha contract](implementation/releases/v1-alpha.md) and
+[beta backlog](implementation/releases/v1-beta.md).
 
 Little Ant is BSD-3-Clause licensed. See [LICENSE](LICENSE).
 
