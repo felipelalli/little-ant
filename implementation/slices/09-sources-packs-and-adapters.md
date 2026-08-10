@@ -121,7 +121,11 @@ structured-Raw materialization, completed/hidden opt-in, exact item cleanup,
 and nondefault empty-list cleanup all use the generic provider host. Expired
 OAuth grants are refreshed from the exact signed component and persisted
 through the vault agent before the broker may use the replacement access
-token. Google Calendar remains a separate observe/write integration.
+token. The Pack also ships an observe-only `google_calendar` adapter with
+read-only PKCE authority, discovery that reads no events, exact nonempty
+calendar allowlists, bounded opaque pagination, and complete structured event
+custody. Durable allowlist persistence and the dumb selector are the next
+milestone; reviewed Calendar write-back remains a later separate authority.
 
 The public read-only Pack manager now exposes `lant packs list` and exact-name
 `lant packs show` through one sparse `little-ant/packs@1` projection. It shows

@@ -44,7 +44,7 @@ compiledOfficialCatalogRoot :: Either AppError CatalogRoot
 compiledOfficialCatalogRoot =
   catalogRootFromPublicKey
     0
-    "u4wmqY3lv0vsi7bJV0CErkRxFAPEqY5xDuuE2A_FpzA"
+    "VDmoMgvtG1tSN0bEhIz9VQ3lfXGGYQZQIe7jPV-oAk0"
 
 newOfficialPackRemote :: IO OfficialPackRemote
 newOfficialPackRemote = do

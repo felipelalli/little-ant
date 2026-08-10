@@ -463,7 +463,7 @@ and the removed `--mode` form while proving explicit snapshot previews record
 no events, including for a compressed Notesnook-shaped ZIP. It also selects
 Markdown and Evernote ENEX by file suffix, exposes the exact media type, and
 keeps both preflights read-only.
-The dedicated official-connectors suite has 8 cases covering exact archive
+The dedicated official-connectors suite has 11 cases covering exact archive
 reconstruction and official trust, least-authority manifest permissions,
 adaptive Microsoft Graph list/task pagination, canonical provider identity and
 URL encoding, sparse-preview privacy, complete structured-Raw materialization,
@@ -472,7 +472,10 @@ provider-controlled `nextLink` before a second broker call. It additionally
 covers Google Tasks pagination with encoded opaque tokens, explicit
 completed/hidden inclusion, complete structured Raw, exact item cleanup,
 default-list protection, and verified empty custom-list cleanup.
-The dedicated provider-host suite has 18 cases covering typed integration-state
+It also proves that Google Calendar discovery observes no events, a scoped
+read preserves exact selected event truth, and an absent selected calendar is
+rejected.
+The dedicated provider-host suite has 19 cases covering typed integration-state
 round trips, secret-key rejection, closed OAuth token custody and expiry,
 credential injection after authorization only, transcript privacy, locked-vault
 short-circuiting, multi-account references, signed slot/scheme matching, and
@@ -513,9 +516,11 @@ File and ordinary provider sources reject unexpected scope; scoped providers
 reject an empty set with typed `select-containers` recovery before credential or
 network access. The Pack runner projects selected container identifiers in
 deterministic order, and the host rejects observations that omit a selected
-container or return an object outside the allowlist. Google Calendar is declared
-as the first scoped provider, while its adapter, persistence, and dumb selector
-remain the next milestone.
+container or return an object outside the allowlist. Google Calendar is the
+first shipped scoped provider: its observe-only adapter discovers calendars
+without reading events and preserves complete selected event truth. Durable
+profile/invocation scope and the dumb multi-select screen remain the next
+milestone.
 
 ## Remaining S08 closure (carried forward from prior checkpoint)
 

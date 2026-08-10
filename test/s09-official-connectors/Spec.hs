@@ -42,6 +42,9 @@ main =
       , testCase "Google Tasks paginates opaque tokens into sparse structured Raw previews" googleTasksSnapshot
       , testCase "Google Tasks completed and hidden tasks remain an explicit import choice" googleCompletedTaskChoice
       , testCase "Google Tasks cleanup verifies exact items and protects the default list" googleCleanupSafety
+      , testCase "Google Calendar discovers readable containers without observing events" googleCalendarDiscovery
+      , testCase "Google Calendar preserves exact selected event truth read-only" googleCalendarSnapshot
+      , testCase "Google Calendar rejects a selected container absent from discovery" googleCalendarMissingSelection
       ]
 
 canonicalArchive :: Assertion
@@ -58,7 +61,7 @@ canonicalArchive = do
   identity @?= connectorIdentity
   registry <- officialRegistry authenticated
   let registered = registryComponents registry
-  Set.fromList (componentId . componentCommon . registeredComponent <$> registered) @?= Set.fromList [googleTasksComponentId, microsoftTodoComponentId]
+  Set.fromList (componentId . componentCommon . registeredComponent <$> registered) @?= Set.fromList [googleCalendarComponentId, googleTasksComponentId, microsoftTodoComponentId]
   microsoft <- assertRight (lookupPackComponent microsoftTodoComponentId registry)
   case registeredComponent microsoft of
     ExecutableComponent common _ permissions -> do
@@ -92,6 +95,23 @@ canonicalArchive = do
       permissionHttp permissions @?= [HttpPermission ["GET", "DELETE"] "tasks.googleapis.com" "/tasks/v1" (Just "google")]
       permissionEffectPurposes permissions @?= [SourceCleanupItemPermission, SourceCleanupContainerPermission]
     component -> assertFailure ("unexpected Google Tasks component: " <> show component)
+  calendar <- assertRight (lookupPackComponent googleCalendarComponentId registry)
+  case registeredComponent calendar of
+    ExecutableComponent common _ permissions -> do
+      componentKind common @?= SourceAdapterComponent
+      permissionCredentialSlots permissions @?= [CredentialSlot "google_calendar_read" OAuthAuthorizationCodePkce]
+      permissionOAuthAuthorizationCodePkce permissions
+        @?= [ OAuthAuthorizationCodePkcePermission
+                "google_calendar_read"
+                "https://accounts.google.com/o/oauth2/v2/auth"
+                "https://oauth2.googleapis.com/token"
+                "client_id"
+                (Set.singleton googleCalendarScope)
+                (Map.fromList [("access_type", "offline"), ("prompt", "consent")])
+            ]
+      permissionHttp permissions @?= [HttpPermission ["GET"] "www.googleapis.com" "/calendar/v3" (Just "google_calendar_read")]
+      permissionEffectPurposes permissions @?= []
+    component -> assertFailure ("unexpected Google Calendar component: " <> show component)
 
 microsoftTodoSnapshot :: Assertion
 microsoftTodoSnapshot = do
@@ -263,6 +283,125 @@ googleCleanupSafety = do
   sourceCleanupOutcome deleted @?= SourceCleanupSucceeded
   readIORef emptyCalls >>= \calls -> assertBool "verified empty Google list was not deleted" (any (\request -> brokerHttpMethod request == "DELETE" && brokerHttpUrl request == googleListOneUrl) calls)
 
+googleCalendarDiscovery :: Assertion
+googleCalendarDiscovery = do
+  (client, registered) <- connectorRuntimeFor googleCalendarComponentId
+  calls <- newIORef []
+  (_, preflight) <-
+    invokePackSourcePreflightHttpScoped
+      client
+      (googleCalendarBroker calls)
+      registered
+      SourceSnapshot
+      googleCalendarSourceLabel
+      googleCalendarSource
+      Set.empty
+      >>= assertRight
+  let observation = sourcePreflightObservation preflight
+  observedSourceLabel observation @?= "Google Calendar"
+  observedAccountLabel observation @?= Just "Personal Calendar"
+  observedSupportedModes observation @?= [SourceSnapshot, SourceSynchronize]
+  observedCleanupSupported observation @?= False
+  observedIdentity observation
+    @?= Map.fromList
+      [ ("account_id", "calendar-account-42")
+      , ("all_day_event_count", "0")
+      , ("calendar_count", "2")
+      , ("cancelled_event_count", "0")
+      , ("discovery", "true")
+      , ("event_count", "0")
+      , ("provider", "google_calendar")
+      , ("recurring_event_count", "0")
+      ]
+  (sourceContainerExternalId <$> observedContainers observation) @?= ["calendar:cal+one=", "calendar:cal-two"]
+  observedObjects observation @?= []
+  readIORef calls >>= \observed -> fmap brokerHttpUrl observed @?= [googleCalendarListUrl, googleCalendarListPageTwoUrl]
+
+googleCalendarSnapshot :: Assertion
+googleCalendarSnapshot = do
+  (client, registered) <- connectorRuntimeFor googleCalendarComponentId
+  calls <- newIORef []
+  let selected = Set.fromList ["calendar:cal+one=", "calendar:cal-two"]
+  (input, preflight) <-
+    invokePackSourcePreflightHttpScoped
+      client
+      (googleCalendarBroker calls)
+      registered
+      SourceSynchronize
+      googleCalendarSourceLabel
+      googleCalendarSource
+      selected
+      >>= assertRight
+  sourcePreflightAdapterId preflight @?= googleCalendarComponentId
+  sourcePreflightInputDigest preflight @?= sha256Hex (sourceInputBytes input)
+  let observation = sourcePreflightObservation preflight
+  observedIdentity observation
+    @?= Map.fromList
+      [ ("account_id", "calendar-account-42")
+      , ("all_day_event_count", "1")
+      , ("calendar_count", "2")
+      , ("cancelled_event_count", "1")
+      , ("discovery", "false")
+      , ("event_count", "3")
+      , ("provider", "google_calendar")
+      , ("recurring_event_count", "1")
+      ]
+  Set.fromList (sourceContainerExternalId <$> observedContainers observation) @?= selected
+  let expectedIdentities =
+        [ calendarEventIdentity "cal-two" "event-2" "" "" "" ""
+        , calendarEventIdentity "cal+one=" "instance-1" "series-1" "date_time" "2026-08-12T14:00:00-03:00" "America/Montevideo"
+        , calendarEventIdentity "cal+one=" "event-1" "" "" "" ""
+        ]
+  (sourceObjectExternalId <$> observedObjects observation) @?= expectedIdentities
+  (sourceObjectCompleted <$> observedObjects observation) @?= [False, False, False]
+  (sourceObjectAttachmentCount <$> observedObjects observation) @?= [0, 0, 1]
+  assertBool "calendar object escaped its selected container" (all ((`Set.member` selected) . maybe "" id . sourceObjectContainerId) (observedObjects observation))
+  preflightBytes <- assertRight (canonicalJsonBytes (toJSON preflight))
+  assertBool "private Calendar description escaped sparse preflight" (not ("::PRIVATE_CALENDAR_BODY::" `ByteString.isInfixOf` preflightBytes))
+  observedCalls <- readIORef calls
+  fmap brokerHttpUrl observedCalls
+    @?= [ googleCalendarListUrl
+        , googleCalendarListPageTwoUrl
+        , googleCalendarOneEventsUrl
+        , googleCalendarOneEventsPageTwoUrl
+        , googleCalendarTwoEventsUrl
+        ]
+
+  materialCalls <- newIORef []
+  (_, materializedPreflight, materialization) <-
+    invokePackSourceMaterializeHttpScoped
+      client
+      (googleCalendarBroker materialCalls)
+      registered
+      SourceSynchronize
+      googleCalendarSourceLabel
+      googleCalendarSource
+      selected
+      >>= assertRight
+  materializedPreflight @?= preflight
+  case Map.lookup (calendarEventIdentity "cal+one=" "event-1" "" "" "" "") (materializedObjects materialization) of
+    Just (SourceStructuredMaterial schema encoded) -> do
+      schema @?= "google-calendar/event@1"
+      assertBool "structured Calendar Raw omitted the complete event" ("::PRIVATE_CALENDAR_BODY::" `Text.isInfixOf` encoded)
+      assertBool "structured Calendar Raw omitted time-zone identity" ("America/Montevideo" `Text.isInfixOf` encoded)
+    material -> assertFailure ("unexpected materialized Calendar event: " <> show material)
+
+googleCalendarMissingSelection :: Assertion
+googleCalendarMissingSelection = do
+  (client, registered) <- connectorRuntimeFor googleCalendarComponentId
+  calls <- newIORef []
+  result <-
+    invokePackSourcePreflightHttpScoped
+      client
+      (googleCalendarBroker calls)
+      registered
+      SourceSnapshot
+      googleCalendarSourceLabel
+      googleCalendarSource
+      (Set.singleton "calendar:missing")
+  assertError ExternalFailure result
+  readIORef calls >>= \observed -> fmap brokerHttpUrl observed @?= [googleCalendarListUrl, googleCalendarListPageTwoUrl]
+
 connectorRuntime :: IO (PackRunnerClient, RegisteredPackComponent)
 connectorRuntime = connectorRuntimeFor microsoftTodoComponentId
 
@@ -303,7 +442,7 @@ officialRegistry authenticated = do
           , trustRevokedKeyFingerprints = Set.empty
           , trustRevokedArchiveDigests = Set.empty
           }
-  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.fromList [googleTasksComponentId, microsoftTodoComponentId]) authenticated)
+  install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.fromList [googleCalendarComponentId, googleTasksComponentId, microsoftTodoComponentId]) authenticated)
   assessedTrustClass (installAuthorizedAssessment install) @?= VerifiedOfficialTrust
   execution <- assertRight (authorizePinnedPackExecution fixtureTime scope policy (installAuthorizedPin install) authenticated)
   assertRight (buildPackRegistry scope [execution])
@@ -358,6 +497,32 @@ googleBroker includeCompleted calls = PackHttpBroker $ \permission request -> do
  where
   expectedListOne = if includeCompleted then googleTasksListOneCompleteUrl else googleTasksListOneOpenUrl
   expectedListTwo = if includeCompleted then googleTasksListTwoCompleteUrl else googleTasksListTwoOpenUrl
+
+googleCalendarBroker :: IORef [BrokerHttpRequest] -> PackHttpBroker
+googleCalendarBroker calls = PackHttpBroker $ \permission request -> do
+  httpPermissionCredentialSlot permission @?= Just "google_calendar_read"
+  modifyIORef' calls (<> [request])
+  pure $ case brokerHttpUrl request of
+    url
+      | url == googleCalendarListUrl ->
+          Right . jsonResponse $
+            object
+              [ "items" .= [googleCalendarObject "cal-two" "Work" "Europe/Lisbon"]
+              , "nextPageToken" .= ("next &=calendar" :: Text)
+              ]
+      | url == googleCalendarListPageTwoUrl ->
+          Right (jsonResponse (object ["items" .= [googleCalendarObject "cal+one=" "Personal" "America/Montevideo"]]))
+      | url == googleCalendarOneEventsUrl ->
+          Right . jsonResponse $
+            object
+              [ "items" .= [googleTimedEvent]
+              , "nextPageToken" .= ("events &=next" :: Text)
+              ]
+      | url == googleCalendarOneEventsPageTwoUrl ->
+          Right (jsonResponse (object ["items" .= [googleCancelledInstance]]))
+      | url == googleCalendarTwoEventsUrl ->
+          Right (jsonResponse (object ["items" .= [googleAllDayEvent]]))
+      | otherwise -> Left ((appError ExternalFailure "The fake Google Calendar provider received an unexpected URL."){appErrorDetails = [url]})
 
 googleContainerBroker :: Bool -> IORef [BrokerHttpRequest] -> PackHttpBroker
 googleContainerBroker targetIsDefault calls = PackHttpBroker $ \permission request -> do
@@ -417,6 +582,62 @@ googleTaskObject identifier title status notes =
     , "position" .= ("00000000000000000000" :: Text)
     ]
 
+googleCalendarObject :: Text -> Text -> Text -> Value
+googleCalendarObject identifier summary timeZone =
+  object
+    [ "kind" .= ("calendar#calendarListEntry" :: Text)
+    , "id" .= identifier
+    , "summary" .= summary
+    , "accessRole" .= ("owner" :: Text)
+    , "timeZone" .= timeZone
+    ]
+
+googleTimedEvent, googleCancelledInstance, googleAllDayEvent :: Value
+googleTimedEvent =
+  object
+    [ "kind" .= ("calendar#event" :: Text)
+    , "id" .= ("event-1" :: Text)
+    , "status" .= ("confirmed" :: Text)
+    , "summary" .= ("Review release" :: Text)
+    , "description" .= ("::PRIVATE_CALENDAR_BODY::" :: Text)
+    , "start" .= object ["dateTime" .= ("2026-08-11T09:00:00-03:00" :: Text), "timeZone" .= ("America/Montevideo" :: Text)]
+    , "end" .= object ["dateTime" .= ("2026-08-11T10:00:00-03:00" :: Text), "timeZone" .= ("America/Montevideo" :: Text)]
+    , "attachments" .= [object ["fileUrl" .= ("https://drive.google.com/file/d/one" :: Text), "title" .= ("Release notes" :: Text)]]
+    ]
+googleCancelledInstance =
+  object
+    [ "kind" .= ("calendar#event" :: Text)
+    , "id" .= ("instance-1" :: Text)
+    , "status" .= ("cancelled" :: Text)
+    , "recurringEventId" .= ("series-1" :: Text)
+    , "originalStartTime"
+        .= object
+          [ "dateTime" .= ("2026-08-12T14:00:00-03:00" :: Text)
+          , "timeZone" .= ("America/Montevideo" :: Text)
+          ]
+    ]
+googleAllDayEvent =
+  object
+    [ "kind" .= ("calendar#event" :: Text)
+    , "id" .= ("event-2" :: Text)
+    , "status" .= ("confirmed" :: Text)
+    , "summary" .= ("Conference" :: Text)
+    , "start" .= object ["date" .= ("2026-08-20" :: Text)]
+    , "end" .= object ["date" .= ("2026-08-21" :: Text)]
+    ]
+
+calendarEventIdentity :: Text -> Text -> Text -> Text -> Text -> Text -> Text
+calendarEventIdentity calendarId eventId recurringId originalKind originalValue originalZone =
+  "event:"
+    <> frame calendarId
+    <> frame eventId
+    <> frame recurringId
+    <> frame originalKind
+    <> frame originalValue
+    <> frame originalZone
+ where
+  frame value = Text.pack (show (Text.length value)) <> ":" <> value
+
 sourceWithoutCompleted, sourceWithCompleted, sourceAllowingIncompleteAttachments :: Value
 sourceWithoutCompleted = sourceValue False False
 sourceWithCompleted = sourceValue True False
@@ -445,6 +666,14 @@ googleSourceValue includeCompleted =
     , "account_label" .= ("Personal Google account" :: Text)
     , "include_completed" .= includeCompleted
     , "list_ids" .= ([] :: [Text])
+    ]
+
+googleCalendarSource :: Value
+googleCalendarSource =
+  object
+    [ "provider" .= ("google_calendar" :: Text)
+    , "account_id" .= ("calendar-account-42" :: Text)
+    , "account_label" .= ("Personal Calendar" :: Text)
     ]
 
 hasObjectKey :: Text -> Value -> Bool
@@ -510,6 +739,16 @@ googleListOneUrl = "https://tasks.googleapis.com/tasks/v1/users/@me/lists/list%2
 googleDefaultListUrl = "https://tasks.googleapis.com/tasks/v1/users/@me/lists/@default"
 googleContainerTasksUrl = "https://tasks.googleapis.com/tasks/v1/lists/list%2Bone%3D/tasks?maxResults=100&showAssigned=true&showCompleted=true&showDeleted=false&showHidden=true"
 
+googleCalendarSourceLabel, googleCalendarComponentId, googleCalendarScope, googleCalendarListUrl, googleCalendarListPageTwoUrl, googleCalendarOneEventsUrl, googleCalendarOneEventsPageTwoUrl, googleCalendarTwoEventsUrl :: Text
+googleCalendarSourceLabel = "Google Calendar · Personal Calendar"
+googleCalendarComponentId = "google_calendar"
+googleCalendarScope = "https://www.googleapis.com/auth/calendar.readonly"
+googleCalendarListUrl = "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250&minAccessRole=reader&showDeleted=false&showHidden=true"
+googleCalendarListPageTwoUrl = googleCalendarListUrl <> "&pageToken=next%20%26%3Dcalendar"
+googleCalendarOneEventsUrl = "https://www.googleapis.com/calendar/v3/calendars/cal%2Bone%3D/events?maxResults=2500&showDeleted=true&showHiddenInvitations=false&singleEvents=false"
+googleCalendarOneEventsPageTwoUrl = googleCalendarOneEventsUrl <> "&pageToken=events%20%26%3Dnext"
+googleCalendarTwoEventsUrl = "https://www.googleapis.com/calendar/v3/calendars/cal-two/events?maxResults=2500&showDeleted=true&showHiddenInvitations=false&singleEvents=false"
+
 fixtureTime :: UTCTime
 fixtureTime = read "2026-08-09 09:00:00 UTC"
 
@@ -519,6 +758,6 @@ connectorIdentity =
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.official-connectors"
     , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "23ec374a45ccf8ac839db91ec1b590b86ef042c832275b8e9025aeda95747cd6"
-    , artifactArchiveDigest = "8722c8879e6534523d1b8fcb15aecd8f667f750096e28c9c28339b80ddd5b24d"
+    , artifactManifestDigest = "7aaf954377d5c67e10807bf72d962b7e81399457687a159eea2ab38cfc5a2ccc"
+    , artifactArchiveDigest = "9349deb470969bddbe2dff4137c5efa2a87308128b366ccd362b04665eead5ad"
     }

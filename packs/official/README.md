@@ -30,3 +30,13 @@ cabal exec runghc -- -XGHC2021 -XDerivingStrategies -XLambdaCase \
 The signer carries every previously published revocation forward so a new
 installation never needs older catalog files to learn known withdrawals.
 Review and commit only the public files after `verify` succeeds.
+
+## Pre-release root history
+
+On 2026-08-09, before any stable V1 release, the development catalog was
+re-created at sequence 1 because the private seed for its prior experimental
+root was unavailable. The current generation-zero fingerprint is
+`94b65c2ca1e00a846a8470152c67b3fcd1aff5c8fc7735cf8e510687186d9c50`.
+This was an explicitly approved pre-release re-genesis, not a supported root
+rotation procedure. Once V1 is released, replacing the compiled root requires
+the authenticated transition protocol; `re-genesis` must not be used.
