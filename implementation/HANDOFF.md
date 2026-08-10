@@ -517,7 +517,7 @@ The S08 responsibility suite now also proves that payload revision and record
 version are distinct, one approval grant covers only its exact finite effect
 set, dispatch requires that durable grant, and provider receipts cannot appear
 before durable dispatch intent.
-The dedicated Pack-administration suite has 19 focused cases for exact
+The dedicated Pack-administration suite has 22 focused cases for exact
 built-in list/detail projection, sparse read-only recovery, the complete
 community trust/install journey, separate standalone publisher trust,
 no-default previews, dry-run custody, closed canonical key transport,
@@ -526,7 +526,10 @@ compare-and-swap. It also covers the public provider-connection preview,
 locked-vault recovery before network access, transient Device Authorization,
 typed account/binding persistence, production import-source discovery, the
 installed-but-unconfigured source selector, exact connected-account return,
-and the no-default mode projection.
+and the no-default mode projection. Read-only update discovery selects the
+newest exact signed release with SemVer rather than lexical ordering, emits a
+sparse machine projection, performs no network request, and changes neither
+profile nor canonical state.
 The suite proves the dumb `/packs` manager's bounded rendering,
 ordinary-palette reachability, official-name/local-path input, explicit catalog
 refresh, published-root tamper rejection, dry-run isolation, exact official
@@ -574,5 +577,5 @@ Before marking the slice verified, close these deliberately visible gaps:
 
 Finish S09 from [`slices/09-sources-packs-and-adapters.md`](slices/09-sources-packs-and-adapters.md) before continuing to S10.
 Next, complete the remaining official connector adapters. Explicit Pack
-update/remove/GC, Google Calendar write-back, and the local web UIAdapter also
+update acceptance/remove/GC, Google Calendar write-back, and the local web UIAdapter also
 remain. The complete S09 gate still precedes `verified`.

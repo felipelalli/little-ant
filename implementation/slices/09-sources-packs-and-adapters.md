@@ -153,7 +153,10 @@ publication, and atomic profile pinning. The contextual dumb `/packs` REPL
 manager now keeps list/detail/input collection non-consequential, hands trust
 and installation to those same canonical envelopes, exposes explicit signed
 catalog refresh, and refreshes its runtime registry after accepted authority
-changes. Updates and removal/GC remain open.
+changes. `lant packs updates` now inspects only the already accepted signed
+catalog, performs no network request, mutates no profile or dataset state, and
+selects the newest release with complete SemVer precedence. Update acceptance
+and removal/GC remain open.
 
 Provider-backed SourceAdapters now have a bounded host-brokered HTTP kernel.
 Lua receives a synchronous-looking JSON request function but no network or

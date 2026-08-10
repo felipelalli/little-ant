@@ -61,6 +61,7 @@ import LittleAnt.Pack.Standard (loadStandardPackAuthorization, standardPackIdent
 import LittleAnt.Pack.Store (PackStoreConfig (..), inspectStoredPack, storeAuthorizedPack)
 import LittleAnt.Pack.Transport
 import LittleAnt.Pack.Trust
+import LittleAnt.Pack.Update
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Provider
@@ -427,7 +428,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   PacksListCommand -> runPacksList environment dryRun dataset
   PacksShowCommand pack -> runPacksShow environment dryRun dataset pack
   PacksInstallCommand archive -> runPacksInstall environment dryRun dataset archive
-  PacksUpdatesCommand -> pure (unsupportedCommand "packs updates")
+  PacksUpdatesCommand -> runPacksUpdates environment dryRun dataset
   PacksUpdateCommand pack -> pure (unsupportedCommand ("packs update " <> pack))
   PacksRemoveCommand pack -> pure (unsupportedCommand ("packs remove " <> pack))
   PacksRefreshCommand -> runPacksRefresh environment dryRun dataset
@@ -781,6 +782,20 @@ runPacksList environment dryRun dataset =
           "list"
           packs
           (appPackRegistryProblem environment)
+          dryRun
+
+runPacksUpdates :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
+runPacksUpdates environment dryRun dataset =
+  loadPackProfileSnapshot environment >>= \case
+    Left problem -> pure (Left problem)
+    Right profile ->
+      pure . Right $
+        PackUpdatesResult
+          (loadedCursor dataset)
+          ( discoverOfficialPackUpdates
+              (Profile.installedComponents (packProfileIntegrations profile))
+              (packProfileTrustPolicy profile)
+          )
           dryRun
 
 runPacksShow :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)

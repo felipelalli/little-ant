@@ -63,6 +63,7 @@ import Data.Text.Encoding qualified as Text
 import Data.Text.Normalize qualified as Unicode
 import Data.Word
 import LittleAnt.Error
+import LittleAnt.SemVer (validSemVer)
 import LittleAnt.Store (sha256Hex)
 import Network.URI (URI (..), URIAuth (..), parseURI)
 import Numeric (showHex)
@@ -1037,28 +1038,6 @@ validLocalId value =
     && Text.length value <= 64
     && isAsciiLower (Text.head value)
     && Text.all (\character -> isAsciiLower character || isDigit character || character `elem` ("._-" :: String)) value
-
-validSemVer :: Text -> Bool
-validSemVer value = case Text.breakOn "+" value of
-  (withoutBuild, buildWithPlus) ->
-    let build = Text.drop 1 buildWithPlus
-        buildValid = Text.null buildWithPlus || validIdentifiers False build
-        (core, preWithHyphen) = Text.breakOn "-" withoutBuild
-        pre = Text.drop 1 preWithHyphen
-        preValid = Text.null preWithHyphen || validIdentifiers True pre
-     in buildValid && preValid && validCore core
- where
-  validCore core = case Text.splitOn "." core of
-    [major, minor, patch] -> all validNumeric [major, minor, patch]
-    _ -> False
-  validNumeric part = not (Text.null part) && Text.all isDigit part && (Text.length part == 1 || Text.head part /= '0')
-  validIdentifiers numericRule text =
-    let parts = Text.splitOn "." text
-     in not (null parts) && all (validIdentifier numericRule) parts
-  validIdentifier numericRule part =
-    not (Text.null part)
-      && Text.all (\character -> isAscii character && (isAsciiLower character || isAsciiUpper character || isDigit character || character == '-')) part
-      && (not numericRule || not (Text.all isDigit part) || Text.length part == 1 || Text.head part /= '0')
 
 validAbsolutePathPrefix :: Text -> Bool
 validAbsolutePathPrefix path =

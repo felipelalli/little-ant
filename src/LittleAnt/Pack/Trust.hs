@@ -57,6 +57,7 @@ import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime)
 import LittleAnt.Error
 import LittleAnt.Pack.Format
+import LittleAnt.SemVer (validSemVer)
 import LittleAnt.Store (sha256Hex)
 
 data PackArtifactIdentity = PackArtifactIdentity
@@ -467,7 +468,7 @@ validateArtifactIdentity :: PackArtifactIdentity -> Either AppError ()
 validateArtifactIdentity identity = do
   unless (validReverseDns (artifactPublisher identity)) (Left (trustDataProblem "A trusted Pack publisher ID is invalid." []))
   unless (validReverseDns (artifactName identity)) (Left (trustDataProblem "A trusted Pack name is invalid." []))
-  when (Text.null (artifactVersion identity)) (Left (trustDataProblem "A trusted Pack version is empty." []))
+  unless (validSemVer (artifactVersion identity)) (Left (trustDataProblem "A trusted Pack version is not complete SemVer 2.0.0." []))
   validateDigest "A trusted Pack manifest digest" (artifactManifestDigest identity)
   validateDigest "A trusted Pack archive digest" (artifactArchiveDigest identity)
 
@@ -500,6 +501,7 @@ validateOfficialGrant grant = do
   unless (validReverseDns (officialGrantPublisher grant)) (Left (invalid "An official publisher ID is invalid." []))
   unless (validReverseDnsPrefix (officialGrantNamePrefix grant)) (Left (invalid "An official Pack name prefix is invalid." []))
   unless (officialGrantNamePrefix grant `Text.isPrefixOf` officialGrantName grant) (Left (invalid "An official release is outside its delegated Pack name prefix." []))
+  unless (validSemVer (officialGrantVersion grant)) (Left (invalid "An official release version is not complete SemVer 2.0.0." []))
   validateDigest "An official manifest digest" (officialGrantManifestDigest grant)
   validateDigest "An official archive digest" (officialGrantArchiveDigest grant)
  where

@@ -23,6 +23,7 @@ import LittleAnt.Export
 import LittleAnt.Id
 import LittleAnt.Interaction
 import LittleAnt.Model
+import LittleAnt.Pack.Update
 import LittleAnt.Store
 
 data UndoClass = CreateUndo
@@ -202,6 +203,11 @@ data CommandResult
       , resultPacksProblem :: Maybe AppError
       , resultDryRun :: Bool
       }
+  | PackUpdatesResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultPackUpdates :: [PackUpdateCandidate]
+      , resultDryRun :: Bool
+      }
   deriving stock (Eq, Show)
 
 resultCursor :: CommandResult -> DatasetCursor
@@ -372,6 +378,13 @@ instance ToJSON CommandResult where
         , "packs" .= packs
         ]
           <> maybe [] (pure . ("problem" .=)) problem
+          <> dryRunPair dryRun
+    PackUpdatesResult cursor updates dryRun ->
+      object $
+        [ "schema" .= ("little-ant/pack-updates@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "updates" .= updates
+        ]
           <> dryRunPair dryRun
     RespondResult cursor interaction commandId dryRun ->
       object $

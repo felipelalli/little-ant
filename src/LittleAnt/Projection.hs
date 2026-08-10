@@ -15,6 +15,8 @@ import LittleAnt.Export
 import LittleAnt.Id
 import LittleAnt.Interaction
 import LittleAnt.Model
+import LittleAnt.Pack.Trust
+import LittleAnt.Pack.Update
 import LittleAnt.Result
 import LittleAnt.Surface
 
@@ -166,6 +168,8 @@ renderCommandResult = \case
       <> (if null warnings then "" else "\nWarnings:\n" <> Text.unlines ["- " <> warning | warning <- warnings])
   PacksResult _ action packs problem dryRun ->
     dryRunFact dryRun <> renderPacks action packs <> maybe "" ("\nPack registry unavailable: " <>) (appErrorMessage <$> problem)
+  PackUpdatesResult _ updates dryRun ->
+    dryRunFact dryRun <> renderPackUpdates updates
   GrammarResult _ names dryRun ->
     dryRunFact dryRun
       <> "Screen grammars:\n"
@@ -277,6 +281,26 @@ renderPacks _ packs =
     <> if null packs
       then "\n  (none)"
       else "\n" <> Text.unlines (renderPackSummary <$> packs)
+
+renderPackUpdates :: [PackUpdateCandidate] -> Text
+renderPackUpdates updates =
+  "Pack updates:"
+    <> if null updates
+      then "\n  No verified official updates are available in the accepted catalog."
+      else "\n" <> Text.unlines (renderPackUpdate <$> updates)
+
+renderPackUpdate :: PackUpdateCandidate -> Text
+renderPackUpdate candidate =
+  let installed = updateInstalledArtifact candidate
+      available = updateCandidateArtifact candidate
+   in "- "
+        <> artifactName installed
+        <> " "
+        <> artifactVersion installed
+        <> " → "
+        <> artifactVersion available
+        <> " · verified official · catalog "
+        <> Text.pack (show (updateCatalogSequence candidate))
 
 renderPackSummary :: PackProjection -> Text
 renderPackSummary pack =

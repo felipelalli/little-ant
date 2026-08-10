@@ -43,7 +43,7 @@ import Data.Bits ((.&.))
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Base64.URL qualified as Base64Url
-import Data.Char (isAscii, isAsciiLower, isAsciiUpper, isDigit)
+import Data.Char (isAsciiLower, isDigit)
 import Data.Foldable (traverse_)
 import Data.List (maximumBy)
 import Data.Map.Strict qualified as Map
@@ -58,6 +58,7 @@ import Data.Time (UTCTime)
 import LittleAnt.Error
 import LittleAnt.Pack.Format (canonicalJsonBytes)
 import LittleAnt.Pack.Trust
+import LittleAnt.SemVer (validSemVer)
 import LittleAnt.Store (sha256Hex)
 import System.Directory hiding (isSymbolicLink)
 import System.FileLock (SharedExclusive (Exclusive), withFileLock)
@@ -768,28 +769,6 @@ validDnsLabel label =
     && Text.all (\character -> lowerDigit character || character == '-') label
  where
   lowerDigit character = isAsciiLower character || isDigit character
-
-validSemVer :: Text -> Bool
-validSemVer value = case Text.breakOn "+" value of
-  (withoutBuild, buildWithPlus) ->
-    let build = Text.drop 1 buildWithPlus
-        buildValid = Text.null buildWithPlus || validIdentifiers False build
-        (core, preWithHyphen) = Text.breakOn "-" withoutBuild
-        pre = Text.drop 1 preWithHyphen
-        preValid = Text.null preWithHyphen || validIdentifiers True pre
-     in buildValid && preValid && validCore core
- where
-  validCore core = case Text.splitOn "." core of
-    [major, minor, patch] -> all validNumeric [major, minor, patch]
-    _ -> False
-  validNumeric part = not (Text.null part) && Text.all isDigit part && (Text.length part == 1 || Text.head part /= '0')
-  validIdentifiers numericRule text =
-    let parts = Text.splitOn "." text
-     in not (null parts) && all (validIdentifier numericRule) parts
-  validIdentifier numericRule part =
-    not (Text.null part)
-      && Text.all (\character -> isAscii character && (isAsciiLower character || isAsciiUpper character || isDigit character || character == '-')) part
-      && (not numericRule || not (Text.all isDigit part) || Text.length part == 1 || Text.head part /= '0')
 
 uniqueOn :: (Ord key) => (value -> key) -> [value] -> Bool
 uniqueOn project values = uniqueList (project <$> values)

@@ -113,6 +113,7 @@ library
     LittleAnt.Pack.Store
     LittleAnt.Pack.Transport
     LittleAnt.Pack.Trust
+    LittleAnt.Pack.Update
     LittleAnt.Planning
     LittleAnt.Profile
     LittleAnt.Projection
@@ -124,6 +125,7 @@ library
     LittleAnt.REPL
     LittleAnt.Result
     LittleAnt.Schedule
+    LittleAnt.SemVer
     LittleAnt.Source
     LittleAnt.Store
     LittleAnt.Surface

@@ -25,12 +25,14 @@ import LittleAnt.Pack.Admin
 import LittleAnt.Pack.Official
 import LittleAnt.Pack.Store
 import LittleAnt.Pack.Trust
+import LittleAnt.Pack.Update
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Protocol
 import LittleAnt.Provider
 import LittleAnt.Provider.Connection
 import LittleAnt.REPL
 import LittleAnt.Result
+import LittleAnt.SemVer
 import LittleAnt.Source (SourceContainer (..))
 import LittleAnt.Store (DatasetCursor (Genesis))
 import LittleAnt.Surface
@@ -69,6 +71,9 @@ main =
       , testCase "official refresh dry-run persists no accepted authority" officialCatalogRefreshDryRun
       , testCase "provider connection keeps OAuth transient and enables the production import source" providerConnectionEnablesImport
       , testCase "static provider connection captures one token only after reviewed consent" staticProviderConnectionEnablesImport
+      , testCase "Pack update discovery chooses the newest signed SemVer release" discoverNewestOfficialUpdate
+      , testCase "Pack update ordering follows SemVer prerelease precedence" semVerUpdatePrecedence
+      , testCase "Pack update inspection is read-only and performs no network request" packUpdatesStayReadOnly
       ]
 
 listBuiltIn :: Assertion
@@ -619,6 +624,91 @@ staticProviderConnectionEnablesImport = withHarness $ \base -> do
 
   sendVaultAgentRequest (Profile.vaultSocket paths) agentShutdownRequest >>= either (assertFailure . show) assertAgentSuccess
   takeMVar stopped >>= either (assertFailure . show) pure
+
+discoverNewestOfficialUpdate :: Assertion
+discoverNewestOfficialUpdate = do
+  let installedIdentity = connectorIdentity{artifactVersion = "1.9.0", artifactManifestDigest = Text.replicate 64 "1", artifactArchiveDigest = Text.replicate 64 "2"}
+      installedPin = PackPin installedIdentity connectorSignerFingerprint (PinVerifiedOfficial 4) (Set.singleton "github_issues")
+      candidates =
+        [ updateGrant "1.9.1" "3"
+        , updateGrant "1.10.0-alpha.1" "4"
+        , updateGrant "1.10.0" "5"
+        , (updateGrant "9.0.0" "6"){officialGrantName = "org.littleant.unrelated"}
+        ]
+      policy =
+        PackTrustPolicy
+          { trustSupportedLittleAntMajor = 1
+          , trustBuiltInArtifacts = Set.empty
+          , trustOfficialCatalogSequence = Just 8
+          , trustOfficialCatalogExpiresAt = Just (read "2028-08-09 00:00:00 UTC")
+          , trustOfficialReleaseGrants = Set.fromList candidates
+          , trustOfficialPinAuthorizations = Set.empty
+          , trustCommunityPublishers = Set.empty
+          , trustRevokedKeyFingerprints = Set.empty
+          , trustRevokedArchiveDigests = Set.empty
+          }
+  case discoverOfficialPackUpdates (Map.singleton connectorPackName installedPin) policy of
+    [candidate] -> do
+      updateInstalledArtifact candidate @?= installedIdentity
+      artifactVersion (updateCandidateArtifact candidate) @?= "1.10.0"
+      updateCandidateSignerFingerprint candidate @?= connectorSignerFingerprint
+      updateCatalogSequence candidate @?= 8
+    other -> assertFailure ("expected one newest update, got: " <> show other)
+
+semVerUpdatePrecedence :: Assertion
+semVerUpdatePrecedence = do
+  let ordered =
+        [ "1.0.0-alpha"
+        , "1.0.0-alpha.1"
+        , "1.0.0-alpha.beta"
+        , "1.0.0-beta"
+        , "1.0.0-beta.2"
+        , "1.0.0-beta.11"
+        , "1.0.0-rc.1"
+        , "1.0.0"
+        ]
+  mapM_
+    (\(left, right) -> compareSemVer left right @?= Just LT)
+    (zip ordered (drop 1 ordered))
+  compareSemVer "1.10.0" "1.9.9" @?= Just GT
+  compareSemVer "1.0.0+build.1" "1.0.0+build.2" @?= Just EQ
+  assertBool "a prerelease numeric identifier accepted a leading zero" (not (validSemVer "1.0.0-alpha.01"))
+  assertBool "an incomplete release was accepted" (not (validSemVer "1.0"))
+
+packUpdatesStayReadOnly :: Assertion
+packUpdatesStayReadOnly = withHarness $ \base -> do
+  requested <- newIORef False
+  let forbiddenRemote =
+        OfficialPackRemote
+          { fetchOfficialCatalog = writeIORef requested True >> pure (Left (appError ExternalFailure "unexpected catalog request"))
+          , fetchOfficialPackArchive = \_ -> writeIORef requested True >> pure (Left (appError ExternalFailure "unexpected archive request"))
+          }
+      environment = base{appOfficialPackRemote = Just forbiddenRemote}
+  before <- loadCurrentIntegrations
+  observed <- run environment False PacksUpdatesCommand
+  case observed of
+    PackUpdatesResult Genesis [] False -> pure ()
+    other -> assertFailure ("unexpected Pack updates result: " <> show other)
+  readIORef requested >>= (@?= False)
+  loadCurrentIntegrations >>= (@?= before)
+  case toJSON observed of
+    Object fields -> do
+      KeyMap.lookup "schema" fields @?= Just "little-ant/pack-updates@1"
+      assertBool "read-only update discovery exposed a command id" (not (KeyMap.member "command_id" fields))
+    other -> assertFailure ("expected object JSON, got: " <> show other)
+
+updateGrant :: Text -> Text -> OfficialReleaseGrant
+updateGrant version digestCharacter =
+  OfficialReleaseGrant
+    { officialGrantPublisher = "org.littleant.project"
+    , officialGrantNamePrefix = "org.littleant."
+    , officialGrantPublicKey = connectorPublicKey
+    , officialGrantKeyFingerprint = connectorSignerFingerprint
+    , officialGrantName = connectorPackName
+    , officialGrantVersion = version
+    , officialGrantManifestDigest = Text.replicate 64 digestCharacter
+    , officialGrantArchiveDigest = Text.replicate 64 digestCharacter
+    }
 
 deviceAuthorizationResponse :: OAuthFormResponse
 deviceAuthorizationResponse =
