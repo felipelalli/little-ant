@@ -6,12 +6,12 @@
     "flow": "Shared frame and footer",
     "kind": "golden",
     "spec_hashes": {
-      "UX-025": "sha256:8df1d85c138dd83051273662268b7fe199105cc1568567113961ccf8659bb906",
+      "UX-025": "sha256:db356acff906a46c0d8787aec27e920054b2d079854c6bb6d51687ede1326181",
       "UX-045": "sha256:400a7bd31343c379e76ab85e93043af27a9e349dabb67bc458e9317e68c28dcb",
       "UX-048": "sha256:cc1d197d873ba3d93c127fd3a10f53132ac1bb7330aaa27727de64e7abfe4a83",
       "UX-049": "sha256:b807052b5abeefd158851d73c7b27b09d16034cb24700af834d39c85fc894d0c",
       "UX-E00": "sha256:5815acc63ed3d6c431be877882c297855902c66a50857c40dfa68a6b667fe8e6",
-      "UX-R00": "sha256:61b411816ef9fd6ec883ee8c8918907770797fb785d7cca49f7923c318159be4",
+      "UX-R00": "sha256:d9b7b2bb53fd533e892de092bd636ed9f1b9b58a7092d2ec9abb2bfe66aa2c61",
       "UX-R01": "sha256:43ae875865673429e759cfea27e8657305e391021af89a7ef24398a283f9394a"
     },
     "obligations": ["negative", "gate", "boundary"]
@@ -40,7 +40,7 @@
       "UX-023": "sha256:fc7ab4d2dcda498051519d32ba2babffb8e7ba77920426d6665fcf5011efc798",
       "UX-024": "sha256:36da5914942bc7839cc15a3f0e50cd87a0b09c94d3ab0b3b0a5097450f1cb5cd",
       "UX-047": "sha256:cb2a162757b6c7bc3f6125eca20c689e72c69c8049e7ef4196e333491ad3502d",
-      "UX-M01": "sha256:d16a1457fc00c9d2bb328d9ce3c2f28621068fc39229381ea72b4082d8b3819e"
+      "UX-M01": "sha256:0f9141b4820eba839350063b8926f10ef0dc48e516cb0081607d1f312a3efcf6"
     },
     "obligations": ["negative", "gate", "boundary"]
   },
@@ -81,7 +81,7 @@
     "kind": "e2e",
     "spec_hashes": {
       "UX-046": "sha256:0e677febcd83c849a7f459d22b481642c1f7fab1e09ac3dfa612d9434c37fcd7",
-      "UX-R00": "sha256:61b411816ef9fd6ec883ee8c8918907770797fb785d7cca49f7923c318159be4"
+      "UX-R00": "sha256:d9b7b2bb53fd533e892de092bd636ed9f1b9b58a7092d2ec9abb2bfe66aa2c61"
     },
     "obligations": ["negative", "gate", "boundary"]
   },
