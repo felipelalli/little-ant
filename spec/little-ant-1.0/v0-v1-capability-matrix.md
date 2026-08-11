@@ -12,7 +12,7 @@ evidence that the capability survived.
 ## Evidence boundary
 
 The final implementation-first v0 baseline is signed tag `v0.1.0`, which
-resolves to commit `57abe09`, immediately before the 1.0 conceptual-design
+resolves to commit `50f9b4c`, immediately before the 1.0 conceptual-design
 work. Evidence strength is:
 
 ```text
@@ -25,11 +25,11 @@ D    design statement or aspiration, not delivered v0 behavior
 Primary evidence is recoverable from:
 
 ```text
-57abe09:app/Main.hs
-57abe09:src/LittleAnt/
-57abe09:test/Spec.hs
-57abe09:skills/little-ant/SKILL.md
-57abe09:spec/little-ant.allium
+50f9b4c:app/Main.hs
+50f9b4c:src/LittleAnt/
+50f9b4c:test/Spec.hs
+50f9b4c:skills/little-ant/SKILL.md
+50f9b4c:spec/little-ant.allium
 ```
 
 The July 10 pre-rewrite bundle ends at an older checkpoint and is not the
@@ -52,7 +52,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
 | Deterministic offline core with judgment outside it | `I+T`, state/command tests; `O`, skill | **strengthened** | `PRD-006..009`, `DAT-001..005` | synthetic-week replay |
-| `feed` is the only ingress word; natural-language synonyms stay outside the core | `I+T`, `08badc9`, `Command.hs`; `O` | **retained** | `PRD-013`, `FED-001..009` | `SCN-FED-001..004` |
+| `feed` is the only ingress word; natural-language synonyms stay outside the core | `I+T`, `7f5c678`, `Command.hs`; `O` | **retained** | `PRD-013`, `FED-001..009` | `SCN-FED-001..004` |
 | Core-owned grammar, stable answer letters, `*`, `?`, and contextual `[l]ater` | `I+T`, `Grammar.hs`; `O` | **strengthened** | `UX-012..018`, `UX-022..024` | interaction-vocabulary gate |
 | Finite choices execute with one key and no Enter | `O`; partly terminal-tested | **retained** | `UX-011..014` | exact dumb-REPL transcript |
 | A full command word can interrupt a pending one-key question | `O`; partial parser behavior | **replaced** | explicit `[/] more...` palette suspends the pending interaction under `UX-022`, `UX-047`, and `UX-M01`; bare hidden aliases are rejected by `UX-062` | palette navigation, mutation, Escape, and stale-revalidation simulation |
@@ -96,8 +96,8 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Pairwise binary insertion | `I+T`, `7183e3d`, placement tests | **strengthened** | sibling-only importance plus honest uncertainty, pair-local `either_order`, and deterministic provisional placement under `IMP-001..010`, `IMP-040..044` | `SCN-IMP-001`, `SCN-IMP-002`, and `SCN-IMP-004` |
-| Adaptive `org-sort-tasks` maintenance: short-run insertion, adaptive merge, ordered-halves shortcut, and known transitive answers | `I+T`, `500e316`, `Order.mergeSortStep` | **retained** | `IMP-005`, `IMP-031..032` | resumable bulk-order transcript through lottery and scoped `/order` cadences |
+| Pairwise binary insertion | `I+T`, `666f6b8`, placement tests | **strengthened** | sibling-only importance plus honest uncertainty, pair-local `either_order`, and deterministic provisional placement under `IMP-001..010`, `IMP-040..044` | `SCN-IMP-001`, `SCN-IMP-002`, and `SCN-IMP-004` |
+| Adaptive `org-sort-tasks` maintenance: short-run insertion, adaptive merge, ordered-halves shortcut, and known transitive answers | `I+T`, `95d50d3`, `Order.mergeSortStep` | **retained** | `IMP-005`, `IMP-031..032` | resumable bulk-order transcript through lottery and scoped `/order` cadences |
 | One unresolved pair per core maintenance step; persisted answers make interruption safe | `I+T`, ordering tests | **retained and clarified** | `IMP-005`, `IMP-031..032`, `FOC-041`, `UX-091..092`, `UX-O01..O02` | one-pair lottery result, stop/resume transcript, scoped continuous `/order`, and no cross-parent pairs |
 | Human evidence outranks AI pre-ordering | `I+T` | **strengthened** | temporal and provenance-aware evidence under `IMP-011..015`, `IMP-033..037` | assisted insertion, stale reversal, bounded fresh-cycle resolution, and unresolved confidence |
 | Adjacent question rounds, stale comparisons, and burst/time sanity triggers | `I+T`, `Order.hs`, `Tick.hs` | **replaced** | derived review opportunities, not meta-Bricks, under `IMP-014..016`, `IMP-033..037`, `FOC-009`, `FOC-042..043` | ordering maintenance, provocative validation, and segment recalibration routes |
@@ -142,11 +142,11 @@ unresolved            no trustworthy 1.0 disposition yet
 
 | V0 capability | Evidence | 1.0 disposition | Canonical destination | Acceptance route |
 |---|---|---|---|---|
-| Tree, aligned table, CSV, Org, and self-contained HTML projections | `I+T`, `88c59c1`, `d5239ee` | **retained through boundary change** | standard Lua ReadOnlyExporters under `DAT-028..033` | exporter fixtures, including offline HTML |
-| Compact one-line Brick rendering | `I+T`, `80a90e7` | **retained** | complete Brick citation under `MOD-010`; summary projection under DAT-051..053 | list/show rendering |
-| TaskJuggler export includes dependencies, order, estimates, and visible gaps | `I+T`, `7183e3d` | **strengthened** | planning cut, EffortProfile, immutable manifest, Lua exporter, separate actuals under `DAT-030..037` | planning-manifest replay |
+| Tree, aligned table, CSV, Org, and self-contained HTML projections | `I+T`, `834db3b`, `844ec79` | **retained through boundary change** | standard Lua ReadOnlyExporters under `DAT-028..033` | exporter fixtures, including offline HTML |
+| Compact one-line Brick rendering | `I+T`, `f5e4118` | **retained** | complete Brick citation under `MOD-010`; summary projection under DAT-051..053 | list/show rendering |
+| TaskJuggler export includes dependencies, order, estimates, and visible gaps | `I+T`, `666f6b8` | **strengthened** | planning cut, EffortProfile, immutable manifest, Lua exporter, separate actuals under `DAT-030..037` | planning-manifest replay |
 | `show`, `ls`, `status`, grammar, and event audit support inspection | `I`; some view tests | **strengthened** | sparse depth, negotiated projections, and filtered semantic history under `DAT-006..010`, `DAT-051..054`, `UX-023`, `UX-025..028` | inspection/history route |
-| Event versions, upcasting, dry-run migration, and backup | `I+T`, `bd382a3` | **strengthened** | `MIG-001..044`, `DAT-055..056` | `SCN-MIG-001` plus corruption/backup replay |
+| Event versions, upcasting, dry-run migration, and backup | `I+T`, `f32f248` | **strengthened** | `MIG-001..044`, `DAT-055..056` | `SCN-MIG-001` plus corruption/backup replay |
 | Append-only JSONL can be synchronized by event-set union, archived by rotation, and queried through snapshots | `D`, README roadmap; not delivered | **explicitly deferred beyond 1.0** | 1.0 provides local backup/rebuild and reviewed dataset merge under `DAT-055..056` and `MIG-023`; event-set-union device sync and automatic rotation are not release capabilities | no 1.0 acceptance route |
 
 ## Regression closure
