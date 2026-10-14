@@ -4,7 +4,9 @@ module LittleAnt.SemVer (
 )
 where
 
+import Control.Monad qualified
 import Data.Char (isAscii, isAsciiLower, isAsciiUpper, isDigit)
+import Data.Maybe qualified
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read qualified as Text
@@ -30,7 +32,7 @@ instance Ord SemVer where
       <> comparePrerelease (semVerPrerelease left) (semVerPrerelease right)
 
 validSemVer :: Text -> Bool
-validSemVer = maybe False (const True) . parseSemVer
+validSemVer = Data.Maybe.isJust . parseSemVer
 
 compareSemVer :: Text -> Text -> Maybe Ordering
 compareSemVer left right = compare <$> parseSemVer left <*> parseSemVer right
@@ -39,7 +41,9 @@ parseSemVer :: Text -> Maybe SemVer
 parseSemVer value = do
   let (withoutBuild, buildSuffix) = Text.breakOn "+" value
       build = Text.drop 1 buildSuffix
-  if Text.null buildSuffix || validIdentifiers False build then pure () else Nothing
+  Control.Monad.unless
+    (Text.null buildSuffix || validIdentifiers False build)
+    Nothing
   let (core, prereleaseSuffix) = Text.breakOn "-" withoutBuild
       prerelease = Text.drop 1 prereleaseSuffix
   prereleaseIdentifiers <-
@@ -70,7 +74,7 @@ parseNumeric part
       _ -> Nothing
 
 validIdentifiers :: Bool -> Text -> Bool
-validIdentifiers numericLeadingZeroRule text = maybe False (const True) (identifierParts numericLeadingZeroRule text)
+validIdentifiers numericLeadingZeroRule text = Data.Maybe.isJust (identifierParts numericLeadingZeroRule text)
 
 identifierParts :: Bool -> Text -> Maybe [Text]
 identifierParts numericLeadingZeroRule text =

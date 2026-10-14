@@ -80,7 +80,10 @@ common warnings
 library
   import:          language, warnings
   autogen-modules: Paths_little_ant
-  other-modules:   Paths_little_ant
+  other-modules:
+    LittleAnt.Store.Codec
+    Paths_little_ant
+
   exposed-modules:
     LittleAnt.Application
     LittleAnt.Catalog
@@ -98,6 +101,7 @@ library
     LittleAnt.Judgment
     LittleAnt.JudgmentDecision
     LittleAnt.JudgmentUI
+    LittleAnt.Markdown
     LittleAnt.Migration.V0
     LittleAnt.Model
     LittleAnt.Notice
@@ -136,6 +140,7 @@ library
     LittleAnt.Temporal
     LittleAnt.Terminal
     LittleAnt.Time
+    LittleAnt.Tree
     LittleAnt.Vault
     LittleAnt.Vault.Age
     LittleAnt.Vault.Agent
@@ -494,12 +499,15 @@ test-suite little-ant-s09-provider-host-test
     , bytestring   >=0.12 && <0.13
     , containers   >=0.7  && <0.8
     , filepath     >=1.5  && <1.6
+    , http-client  >=0.7  && <0.8
     , little-ant
+    , network      >=3.2  && <3.3
     , tasty        >=1.5  && <1.6
     , tasty-hunit  >=0.10 && <0.11
     , temporary    >=1.3  && <1.4
     , text         >=2.1  && <2.2
     , time         >=1.12 && <1.13
+    , zlib         >=0.6  && <0.8
 
 test-suite little-ant-s09-oauth-device-test
   import:         language, warnings
@@ -561,9 +569,11 @@ test-suite little-ant-s04-flow-test
   main-is:        Spec.hs
   hs-source-dirs: test/s04-flow
   build-depends:
+    , aeson        >=2.2  && <2.3
     , base         >=4.20 && <5
     , bytestring   >=0.12 && <0.13
     , containers   >=0.7  && <0.8
+    , filepath     >=1.5  && <1.6
     , little-ant
     , tasty        >=1.5  && <1.6
     , tasty-hunit  >=0.10 && <0.11
@@ -703,9 +713,11 @@ test-suite little-ant-s02-daily-loop-test
   main-is:        Spec.hs
   hs-source-dirs: test/s02-flow
   build-depends:
+    , aeson        >=2.2  && <2.3
     , base         >=4.20 && <5
     , bytestring   >=0.12 && <0.13
     , containers   >=0.7  && <0.8
+    , filepath     >=1.5  && <1.6
     , little-ant
     , tasty        >=1.5  && <1.6
     , tasty-hunit  >=0.10 && <0.11

@@ -21,6 +21,7 @@ import Data.Aeson.Types (Parser)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.List (isPrefixOf, isSuffixOf, sort)
+import Data.Maybe qualified
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
@@ -31,7 +32,7 @@ import LittleAnt.Error
 import LittleAnt.Store
 import System.Directory hiding (isSymbolicLink)
 import System.FileLock (SharedExclusive (Exclusive), withFileLock)
-import System.FilePath (takeDirectory, takeFileName, (</>))
+import System.FilePath (makeRelative, takeDirectory, takeFileName, (</>))
 import System.IO (IOMode (WriteMode), hFlush, openBinaryFile)
 import System.IO.Error (isDoesNotExistError)
 import System.Posix.Files (FileStatus, deviceID, fileID, getFileStatus, getSymbolicLinkStatus, isDirectory, isSymbolicLink, setFileMode)
@@ -215,46 +216,48 @@ planFileNameRepair :: StoreConfig -> DatasetDiagnosis -> AppError -> IO (Either 
 planFileNameRepair store diagnosis problem =
   case appErrorSubject problem of
     Nothing -> pure (Left (appError CorruptData "The filename repair diagnostic omitted its segment."))
-    Just subject
-      | takeFileName (Text.unpack subject) /= Text.unpack subject ->
-          pure (Left (appError CorruptData "The filename repair diagnostic contains an unsafe path."))
-      | otherwise -> handleRepairIo $ do
-          let dataset = diagnosedDataset diagnosis
-              originalName = Text.unpack subject
-              originalPath = storeRoot store </> "events" </> originalName
-              sequenceNumber = nextSegmentSequence (loadedCursor dataset)
-          bytes <- ByteString.readFile originalPath
-          let digest = sha256Hex bytes
-              replacementName = segmentFileName sequenceNumber digest
-              material =
-                Text.intercalate
-                  "\n"
-                  [ "filename_hash_mismatch@1"
-                  , Text.pack (storeRoot store)
-                  , renderCursor (loadedCursor dataset)
-                  , Text.pack (show (loadedEventCount dataset))
-                  , subject
-                  , Text.pack replacementName
-                  , digest
-                  ]
-              planHash = sha256Hex (Text.encodeUtf8 material)
-              candidateRoot =
-                takeDirectory (storeRoot store)
-                  </> (takeFileName (storeRoot store) <> ".repair-" <> Text.unpack (Text.take 16 planHash))
-          if originalName == replacementName
-            then pure (Left (appError CorruptData "The filename repair would make no change."))
-            else
-              pure . Right $
-                RepairPlan
-                  planHash
-                  (storeRoot store)
-                  (loadedCursor dataset)
-                  (loadedEventCount dataset)
-                  problem
-                  originalName
-                  replacementName
-                  digest
-                  candidateRoot
+    Just subject -> handleRepairIo $ do
+      files <- canonicalSegmentFiles store
+      originalPath <- case files of
+        Left problem' -> ioError (userError (Text.unpack (appErrorMessage problem')))
+        Right paths -> case [path | path <- paths, Text.pack (if takeDirectory path == storeRoot store </> "events" then takeFileName path else makeRelative (storeRoot store) path) == subject] of
+          [path] -> pure path
+          _ -> ioError (userError "the diagnosed canonical segment is missing or ambiguous")
+      let dataset = diagnosedDataset diagnosis
+          originalName = takeFileName originalPath
+          sequenceNumber = nextSegmentSequence (loadedCursor dataset)
+      bytes <- ByteString.readFile originalPath
+      let digest = sha256Hex bytes
+          replacementName = segmentFileName sequenceNumber digest
+          material =
+            Text.intercalate
+              "\n"
+              [ "filename_hash_mismatch@1"
+              , Text.pack (storeRoot store)
+              , renderCursor (loadedCursor dataset)
+              , Text.pack (show (loadedEventCount dataset))
+              , subject
+              , Text.pack replacementName
+              , digest
+              ]
+          planHash = sha256Hex (Text.encodeUtf8 material)
+          candidateRoot =
+            takeDirectory (storeRoot store)
+              </> (takeFileName (storeRoot store) <> ".repair-" <> Text.unpack (Text.take 16 planHash))
+      if originalName == replacementName
+        then pure (Left (appError CorruptData "The filename repair would make no change."))
+        else
+          pure . Right $
+            RepairPlan
+              planHash
+              (storeRoot store)
+              (loadedCursor dataset)
+              (loadedEventCount dataset)
+              problem
+              originalName
+              replacementName
+              digest
+              candidateRoot
 
 buildRepairCandidate :: StoreConfig -> RepairPlan -> IO (Either AppError RepairCandidate)
 buildRepairCandidate store plan = handleRepairIo $ do
@@ -284,7 +287,7 @@ buildFreshCandidate source plan = do
       replacementPath = candidateEvents </> repairPlanReplacementSegment plan
   createDirectory (storeRoot candidateStore)
   initializeDataset candidateStore
-  copiedEvents <- copyCanonicalEvents (storeRoot source </> "events") candidateEvents
+  copiedEvents <- copyCanonicalEvents source candidateEvents
   case copiedEvents of
     Left problem -> pure (Left problem)
     Right () -> do
@@ -521,13 +524,13 @@ observeCutover plan = do
   candidate <- directoryIdentityMaybe (cutoverCandidateRoot plan)
   backup <- directoryIdentityMaybe (cutoverBackupRoot plan)
   pure $
-    if live == Just (cutoverSourceIdentity plan) && candidate == Just (cutoverCandidateIdentity plan) && backup == Nothing
+    if live == Just (cutoverSourceIdentity plan) && candidate == Just (cutoverCandidateIdentity plan) && Data.Maybe.isNothing backup
       then CutoverBeforeExchange
       else
-        if live == Just (cutoverCandidateIdentity plan) && candidate == Just (cutoverSourceIdentity plan) && backup == Nothing
+        if live == Just (cutoverCandidateIdentity plan) && candidate == Just (cutoverSourceIdentity plan) && Data.Maybe.isNothing backup
           then CutoverAfterExchange
           else
-            if live == Just (cutoverCandidateIdentity plan) && candidate == Nothing && backup == Just (cutoverSourceIdentity plan)
+            if live == Just (cutoverCandidateIdentity plan) && Data.Maybe.isNothing candidate && backup == Just (cutoverSourceIdentity plan)
               then CutoverNamesComplete
               else
                 CutoverAmbiguous
@@ -679,10 +682,19 @@ cutoverPlanDigest plan =
       , Text.pack (show (cutoverCandidateEventCount plan))
       ]
 
-copyCanonicalEvents :: FilePath -> FilePath -> IO (Either AppError ())
-copyCanonicalEvents source destination = do
-  names <- sort <$> listDirectory source
-  copyFiles source destination (filter (not . isPrefixOf ".") names)
+copyCanonicalEvents :: StoreConfig -> FilePath -> IO (Either AppError ())
+copyCanonicalEvents source destination =
+  canonicalSegmentFiles source >>= \case
+    Left problem -> pure (Left problem)
+    Right paths -> copySegments paths
+ where
+  copySegments [] = pure (Right ())
+  copySegments (path : rest) = do
+    symbolic <- pathIsSymbolicLink path
+    regular <- doesFileExist path
+    if symbolic || not regular
+      then pure (Left (unsafeSourcePath path))
+      else copyFile path (destination </> takeFileName path) >> copySegments rest
 
 copyTreeIfPresent :: FilePath -> FilePath -> IO (Either AppError ())
 copyTreeIfPresent source destination = do
@@ -712,17 +724,6 @@ copyTreeIfPresent source destination = do
             if regular
               then copyFile sourcePath destinationPath >> copyEntries rest
               else pure (Left (unsafeSourcePath sourcePath))
-
-copyFiles :: FilePath -> FilePath -> [FilePath] -> IO (Either AppError ())
-copyFiles _ _ [] = pure (Right ())
-copyFiles source destination (name : rest) = do
-  let sourcePath = source </> name
-      destinationPath = destination </> name
-  symbolic <- pathIsSymbolicLink sourcePath
-  regular <- doesFileExist sourcePath
-  if symbolic || not regular
-    then pure (Left (unsafeSourcePath sourcePath))
-    else copyFile sourcePath destinationPath >> copyFiles source destination rest
 
 unsafeSourcePath :: FilePath -> AppError
 unsafeSourcePath path =

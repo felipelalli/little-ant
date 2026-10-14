@@ -136,6 +136,7 @@ restoreWork = withHarness $ \environment -> do
   seedOneBrick environment
   preview <- run environment (ArchiveCommand "#rrsr") >>= interactionOf
   _ <- answer environment preview "archive.accept"
+  _ <- assertRight =<< compactDataset (appStore environment)
   restore <- run environment (RestoreCommand "#rrsr") >>= interactionOf
   envelopeOpportunity restore @?= RestorePreviewOpportunity brickIdValue
   receipt <- answer environment restore "restore.accept"
@@ -223,9 +224,10 @@ seedOneBrick environment = do
       eventIds = fmap fixtureUuid [11 .. 14]
       precondition = statePreconditionHash emptyState
       replay = rawIdValue : brickIdValue : command : eventIds
-      draft eventId payload = EventDraft eventId command actor fixedTime precondition replay payload
+      draft eventId =
+        EventDraft eventId command actor fixedTime precondition replay
       events =
-        [ draft (eventIds !! 0) (RawFedV1 (RawFed rawIdValue (Handle "rrsr") "Review Rock Splitter rules" "test" Nothing))
+        [ draft (head eventIds) (RawFedV1 (RawFed rawIdValue (Handle "rrsr") "Review Rock Splitter rules" "test" Nothing))
         , draft
             (eventIds !! 1)
             ( BrickCreatedV1

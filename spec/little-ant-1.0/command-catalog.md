@@ -11,7 +11,8 @@ language, but they render and invoke one command from this registry rather
 than inventing another verb.
 
 Any public command absent from this catalog does not exist in 1.0. In
-particular, there are no compatibility aliases. A rejected spelling receives
+particular, there are no compatibility aliases except the explicitly declared
+REPL-only `/quit` spelling for `/exit`. A rejected spelling receives
 an educational error with the nearest canonical command and performs no
 mutation.
 
@@ -54,7 +55,7 @@ mutation.
 | `/return-to-idle [#brick]` | `lant return-to-idle <#brick>` | Clear focus/WIP without claiming an outcome. |
 | `/done [#brick]` | `lant done <#brick>` | Record the Nature-owned truthful completion outcome. |
 | `/finish [#brick]` | `lant finish <#brick>` | Finish only an active checklist run; it is unavailable elsewhere. |
-| `/archive [#brick]` | `lant archive <#brick>` | Stop pursuing Work without claiming completion. |
+| `/archive [#brick]` | `lant archive <#brick>` | Stop pursuing Work after previewing removal of its affected dependencies, without claiming completion. |
 | `/restore [#brick]` | `lant restore <#brick>` | Restore archived Work through its lifecycle preview. |
 | `/break [#brick]` | `lant break <#brick>` | Enter the accepted decomposition flow without fabricating a `big` symptom. |
 | `/order [scope]` | `lant order [scope]` | Run continuous human importance ordering for all groups, one sibling group, or one Domain. |
@@ -78,34 +79,51 @@ human shortcut for its focus behavior.
 | `/effort [#brick]` | `lant effort set|clear|show <#brick>` | Review or inspect subjective effort without storing hours as truth. |
 | `/list [importance\|forecast] [scope]` | `lant list importance\|forecast [scope]` | View the human importance tree or the read-only current Focus forecast. |
 | `/show [reference]` | `lant show <reference>` | Inspect one canonical object through its sparse summary/detail projection. |
-| `/search [query]` | `lant search <query>` | Search globally across typed references; `Ctrl-F` opens the same REPL route. |
+| `/search [query]` | `lant search <query>` | Search globally across typed references; `Ctrl-F` opens this route outside `/list`, where it searches the current list. |
 | `/history [filters]` | `lant history [filters]` | Search bounded semantic history rather than dump the event log. |
 | `/notices` | `lant notices` | Inspect current, acknowledged, and snoozed temporal notices. |
 | `/translate [scope]` | `lant translate [scope]` | Run the interruptible English-normalization review queue. |
 | `/undo [command-id]` | `lant undo [command-id]` | Append the declared compensation for one reversible action. |
 | `/redo` | `lant redo` | Reapply the currently redoable intent when its preconditions still hold. |
 
-`/list` has no default because its two views answer different questions. It
-opens this dumb choice and then returns a bounded, pageable read-only view:
+`/list` opens importance order directly in the REPL. The CLI still requires
+an explicit `importance` or `forecast` name. The REPL pins these controls above
+the ordinary product footer, even while paging:
 
 ```text
-List:
-
-[i]mportance order
-    The strict sibling tree settled by human judgment.
-
-[f]ocus forecast
-    Current chances and reasons used by next.
-
-[?] I don't know
-
-[/] more...
+[v] forecast · [t] categories on · Ctrl+F search
+↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
+`v` alternates importance and forecast, retaining the query, scope, grouping,
+and selected Brick where it exists in the other view. `t` toggles a combined
+category and composition tree; forecast rows keep the same chances. Direct
+category membership is never inherited from a project. Unclassified parts can
+appear inside their classified project's branch as composition context, with
+that absence of direct classification disclosed. A multiply classified Brick
+can appear in several branches as references to the same object, never as
+additional probability mass. Context-only forecast ancestors have no invented
+chance. Dependencies retain a separate view rather than masquerading as parts.
+
+Ctrl+F searches the current list. While the search owns input, `v`, `t`, and
+slash are literal text. Ctrl+F again finishes typing and keeps the query so
+view/grouping controls can operate on the filtered results. Matching parts retain ancestors; matching branches
+retain their parts. Enter inspects the selected item; Escape clears the search
+and restores the complete list before a subsequent Escape returns to the
+suspended interaction. `/search` remains available for global discovery.
+
 `importance` never renders a fake global score: it renders the composition
-tree and strict order within each sibling group. `forecast` renders each
+tree and strict order within each sibling group, using `├──`, `│`, and `└──`
+connectors. Searching that tree retains the ancestors of matching parts, and
+a matching project retains its parts. Scoped trees start at their visible
+roots; a hidden parent never attaches a child to an unrelated visible Brick.
+`forecast` renders each
 admitted attention subject's current positive chance, opportunity variant,
-age, strongest signal, effective Domain path, and blocker endpoint. Neither
+age, strongest signal, effective Domain path, and blocker endpoint. Brick rows
+also show their sibling-local importance position, parent, and the confidence
+used for importance weighting. A percentage is the marginal chance of reaching
+that attention subject in a new flexible draw by `next`, after dependency
+forwarding; it is not completion progress or a global importance score. Neither
 view consumes randomness or changes importance. Pagination is stable for its
 dataset cursor; direct reference or Domain scope narrows rather than
 reinterprets the view. Neither `/importance` nor `/forecast` is an alias.
@@ -123,8 +141,24 @@ reinterprets the view. Neither `/importance` nor `/forecast` is an alias.
 | `/vault` | `lant vault unlock\|lock\|inventory\|add\|update\|remove\|rotate\|backup\|diagnose` | Manage the encrypted local credential vault without exposing plaintext. |
 | `/packs` | `lant packs list\|show\|install\|updates\|update\|remove\|refresh\|trust\|untrust\|gc` | Manage verified Packs, trust, explicit catalog refresh, versions, and unreferenced archives. |
 | `/editor` | host-mediated contextual action | Open only the current supported text draft in the configured external editor. |
-| `/help [command]` | `lant help [command]` | Inspect canonical grammar and contextual recovery; it is distinct from `[?] I don't know`. |
+| `/help [command]` | `lant help [command]` | Inspect canonical grammar and contextual recovery; it is distinct from `I don't [k]now`. |
 | `/exit` | REPL only | End the presentation session without changing domain state. |
+
+The exact REPL spelling `/quit` invokes `/exit`; it does not introduce a CLI
+command or accept arguments. Outside editable input and filtering selectors,
+an unmodified `q` is an undisplayed exit gesture when no current action owns
+that shortcut. On the main opportunity screen, `Escape` returns through any
+uncommitted local navigation first, then exits at its root. In editors,
+palettes, lists, and nested previews it retains its cancel/back behavior.
+Exiting retains the durable pending interaction and current focus; it does
+not mean pause, done, or archive.
+
+In the interactive REPL, `/done` and the current-focus `done` action advance
+the committed completion result through its ordinary `next` continuation.
+The successor shows `✓ Completed: <Brick citation>` until the next user
+interaction; resize preserves it. A Work offer still requires Focus consent.
+Repeatable return-policy questions retain their own continuation. The
+noninteractive command returns its completion result without another draw.
 
 An exporter's Lua code only returns validated bytes and metadata. With no
 `--output`, the trusted host writes bytes to stdout. With `--output`, it may

@@ -12,9 +12,10 @@ where
 
 import Control.Exception (bracket)
 import Data.Text qualified as Text
-import Graphics.Text.Width (safeWcswidth)
+import Data.Text.Encoding qualified as TextEncoding
 import Graphics.Vty (
   Attr,
+  Button (..),
   Event (..),
   Image,
   Key (..),
@@ -27,10 +28,12 @@ import Graphics.Vty (
   dim,
   emptyImage,
   horizCat,
+  italic,
   picForImage,
   reverseVideo,
   shutdown,
   string,
+  underline,
   update,
   vertCat,
   withForeColor,
@@ -53,6 +56,13 @@ data TerminalInput
   | ArrowRight [Modifier]
   | ArrowUp [Modifier]
   | ArrowDown [Modifier]
+  | PageUp [Modifier]
+  | PageDown [Modifier]
+  | Home [Modifier]
+  | End [Modifier]
+  | WheelUp [Modifier]
+  | WheelDown [Modifier]
+  | Pasted Text.Text
   | Resized Int Int
   deriving stock (Eq, Show)
 
@@ -67,11 +77,18 @@ eventToInput = \case
   EvKey KRight modifiers -> Just (ArrowRight modifiers)
   EvKey KUp modifiers -> Just (ArrowUp modifiers)
   EvKey KDown modifiers -> Just (ArrowDown modifiers)
+  EvKey KPageUp modifiers -> Just (PageUp modifiers)
+  EvKey KPageDown modifiers -> Just (PageDown modifiers)
+  EvKey KHome modifiers -> Just (Home modifiers)
+  EvKey KEnd modifiers -> Just (End modifiers)
+  EvMouseDown _ _ BScrollUp modifiers -> Just (WheelUp modifiers)
+  EvMouseDown _ _ BScrollDown modifiers -> Just (WheelDown modifiers)
+  EvPaste bytes -> either (const Nothing) (Just . Pasted) (TextEncoding.decodeUtf8' bytes)
   EvResize width height -> Just (Resized width height)
   _ -> Nothing
 
 displayWidth :: Text.Text -> Int
-displayWidth = safeWcswidth . Text.unpack
+displayWidth = textDisplayWidth
 
 roleAttribute :: ColorMode -> SemanticRole -> Attr
 roleAttribute mode role =
@@ -84,6 +101,15 @@ roleAttribute mode role =
         Monochrome -> defAttr `withStyle` bold
     Selected -> defAttr `withStyle` reverseVideo
     Warning -> defAttr `withStyle` bold
+    Heading -> roleAttribute mode Accent
+    Strong -> defAttr `withStyle` bold
+    Emphasis -> defAttr `withStyle` italic
+    Code -> case mode of
+      ColorEnabled -> defAttr `withForeColor` cyan
+      Monochrome -> defAttr `withStyle` underline
+    Link -> case mode of
+      ColorEnabled -> (defAttr `withForeColor` cyan) `withStyle` underline
+      Monochrome -> defAttr `withStyle` underline
 
 spanImage :: ColorMode -> Span -> Image
 spanImage mode (Span role text)
@@ -92,7 +118,9 @@ spanImage mode (Span role text)
   | otherwise = string (roleAttribute mode role) (Text.unpack text)
 
 lineImage :: ColorMode -> ScreenLine -> Image
-lineImage mode = horizCat . fmap (spanImage mode)
+lineImage mode spans
+  | all (Text.null . spanText) spans = char defAttr ' '
+  | otherwise = horizCat (fmap (spanImage mode) spans)
 
 screenImage :: ColorMode -> ScreenModel -> Image
 screenImage mode = vertCat . fmap (lineImage mode) . screenLines

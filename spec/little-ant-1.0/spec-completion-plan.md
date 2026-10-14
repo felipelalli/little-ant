@@ -91,7 +91,7 @@ Decisions:
 - minimum `InteractionEnvelope` identity, revision, provenance, commands,
   valid actions, and bounded context;
 - shared chrome: stacked footer, warnings, and secondary command
-  escape, `*`, `[?] I don't know`, palette `/help`, `/`, Escape, semantic
+  escape, `*`, `I don't [k]now`, palette `/help`, `/`, Escape, semantic
   undo/redo, stale response, and bounded contextual personality;
 - canonical executable and reference grammar;
 - hard temporary Domain scope versus soft Domain continuity.
@@ -154,7 +154,7 @@ Close:
 - importance first skip, nearby comparator, second skip, provisional
   placement, `tie-break for me`, contradiction, and recalibration;
 - contextual honest-answer trees and palette `/help`;
-- one declared honest-answer tree for every visible `[?] I don't know`, with
+- one declared honest-answer tree for every visible `I don't [k]now`, with
   either an existing canonical answer, a concrete recovery, or an honestly
   unresolved leaf;
 - every served-work symptom and its bounded reaction screen;

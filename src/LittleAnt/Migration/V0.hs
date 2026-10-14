@@ -10,6 +10,7 @@ where
 import Control.Applicative ((<|>))
 import Control.Exception (IOException, bracket, catch)
 import Control.Monad (foldM, replicateM, unless, when, (>=>))
+import Control.Monad qualified
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
@@ -20,6 +21,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Char8 qualified as ByteStringChar8
 import Data.ByteString.Lazy qualified as LazyByteString
+import Data.Either qualified
 import Data.Foldable (toList, traverse_)
 import Data.List (sortOn)
 import Data.Map.Strict (Map)
@@ -389,9 +391,9 @@ validatePayloadShape event =
   optText :: Text -> Parser ()
   optText key = optionalField key >>= traverse_ (nonempty key)
   reqInt :: Text -> Parser ()
-  reqInt key = (() <$ (field key :: Parser Int))
+  reqInt key = Control.Monad.void (field key :: Parser Int)
   optNumber :: Text -> Parser ()
-  optNumber key = (() <$ (optionalField key :: Parser (Maybe Double)))
+  optNumber key = Control.Monad.void (optionalField key :: Parser (Maybe Double))
   reqEnum :: Text -> [Text] -> Parser ()
   reqEnum key choices = field key >>= enumValue key choices
   optEnum :: Text -> [Text] -> Parser ()
@@ -404,7 +406,7 @@ validatePayloadShape event =
     Just Null -> pure Nothing
     Just value -> Just <$> parseJSON value
   nonempty :: Text -> Text -> Parser ()
-  nonempty key value = unless (not (Text.null (Text.strip value))) (fail (Text.unpack key <> " cannot be empty"))
+  nonempty key value = when (Text.null (Text.strip value)) (fail (Text.unpack key <> " cannot be empty"))
   enumValue :: Text -> [Text] -> Text -> Parser ()
   enumValue key choices value = unless (value `elem` choices) (fail (Text.unpack key <> " has an unsupported value"))
   brickAndTitle :: Parser ()
@@ -456,7 +458,14 @@ applyType projection event = case legacyEventType event of
     rawIdentity <- textField event "raw"
     raw <- requireMap "raw" rawIdentity (legacyRaws projection)
     seeds <- seedsField event
-    withRaw <- pure projection{legacyRaws = Map.insert rawIdentity raw{legacyRawExtracted = True} (legacyRaws projection)}
+    let withRaw =
+          projection
+            { legacyRaws =
+                Map.insert
+                  rawIdentity
+                  raw{legacyRawExtracted = True}
+                  (legacyRaws projection)
+            }
     foldM (\current (identity, title) -> createLegacyBrick current event identity title) withRaw seeds
   "seed_promoted" -> touchStage projection event LegacyActive
   "brick_ready" -> touchStage projection event LegacyActive
@@ -545,8 +554,8 @@ applyType projection event = case legacyEventType event of
       , legacyBrickAtomicity = optional "atomicity" <|> legacyBrickAtomicity brick
       , legacyBrickEstimateHours = optionalNumber "estimate_hours" <|> legacyBrickEstimateHours brick
       }
-  optional key = either (const Nothing) id (optionalTextField event key)
-  optionalNumber key = either (const Nothing) id (optionalDoubleField event key)
+  optional key = Data.Either.fromRight Nothing (optionalTextField event key)
+  optionalNumber key = Data.Either.fromRight Nothing (optionalDoubleField event key)
 
 createBrickFromFields :: LegacyProjection -> LegacyEvent -> Text -> Text -> Either AppError LegacyProjection
 createBrickFromFields projection event identityKey titleKey = do
@@ -675,7 +684,7 @@ validateLegacyProjection projection = do
   pure projection
 
 acyclicDependencies :: Set (Text, Text) -> Bool
-acyclicDependencies edges = all (not . reachesSelf) nodes
+acyclicDependencies edges = (not . any reachesSelf) nodes
  where
   nodes = Set.toList (Set.fromList (concatMap (\(a, b) -> [a, b]) (Set.toList edges)))
   reachesSelf origin = go Set.empty origin origin
@@ -877,20 +886,33 @@ migrationPaths targetStore digest =
         (parent </> (stem <> ".complete.json"))
 
 reportFor :: MigrationStage -> FilePath -> Text -> ByteString -> LegacyProjection -> MigrationPaths -> Maybe DatasetCursor -> Bool -> Bool -> MigrationReport
-reportFor stage sourcePath sourceDigest _sourceBytes projection paths candidateCursor complete dryRun =
-  MigrationReport
-    stage
-    sourcePath
-    sourceDigest
-    (length (legacyEvents projection))
-    (Map.size (legacyBricks projection))
-    (Map.size (legacyRaws projection))
-    (Map.keys supportedVersions)
-    (if stage == MigrationInspect then Nothing else Just (migrationCandidateRoot paths))
-    (if stage == MigrationCutover then Just (migrationBackupRoot paths) else Nothing)
-    candidateCursor
-    complete
-    dryRun
+reportFor
+  stage
+  sourcePath
+  sourceDigest
+  _sourceBytes
+  projection
+  paths =
+    MigrationReport
+      stage
+      sourcePath
+      sourceDigest
+      (length (legacyEvents projection))
+      (Map.size (legacyBricks projection))
+      (Map.size (legacyRaws projection))
+      (Map.keys supportedVersions)
+      ( if stage == MigrationInspect
+          then
+            Nothing
+          else
+            Just (migrationCandidateRoot paths)
+      )
+      ( if stage == MigrationCutover
+          then
+            Just (migrationBackupRoot paths)
+          else
+            Nothing
+      )
 
 requireEmptyTarget :: MigrationPaths -> LoadedDataset -> Either AppError ()
 requireEmptyTarget paths dataset =
@@ -1163,14 +1185,24 @@ buildCandidate store actor now projection = do
 
   buildLifecycle current =
     foldBuild current lifecycle $ \state brick -> do
-      facts <- migrationFacts now 2 (builtDataset state)
+      let completedDependencies =
+            [ dependency
+            | legacyBrickStage brick == LegacyDone
+            , dependency <- Map.elems (stateDependencies (loadedState (builtDataset state)))
+            , dependencyStatus dependency == DependencyActive
+            , Just (dependencyBlockerBrick dependency) == Map.lookup (legacyBrickId brick) (builtBrickIds state)
+            ]
+      facts <- migrationFacts now (2 + length completedDependencies) (builtDataset state)
       pure $ do
         brickId <- mapped "lifecycle Brick" (legacyBrickId brick) (builtBrickIds state)
         allocated <- factsUUIDs facts
-        (commandId, eventId) <- exactlyTwoIds allocated
+        (commandId, eventId, resolutionIds) <- case allocated of
+          commandIdentity : eventIdentity : remaining -> Right (commandIdentity, eventIdentity, remaining)
+          _ -> Left (migrationError PreconditionFailed "The migration lifecycle UUID allocation count changed unexpectedly.")
         payload <- lifecyclePayload brickId brick
         let event = directDraft actor (loadedState (builtDataset state)) facts commandId eventId payload
-        Right ([event], state)
+            resolutions = zipWith (\identity dependency -> directDraft actor (loadedState (builtDataset state)) facts commandId identity (DependencyResolvedV1 (DependencyResolution (dependencyId dependency)))) resolutionIds completedDependencies
+        Right (event : resolutions, state)
    where
     lifecycle = [brick | brick <- sortOn legacyBrickCreatedOrder (Map.elems (legacyBricks projection)), legacyBrickStage brick /= LegacyActive]
 
@@ -1220,8 +1252,14 @@ exactlyThreeIds [first, second, third] = Right (first, second, third)
 exactlyThreeIds _ = Left (migrationError PreconditionFailed "The migration UUID allocation count changed unexpectedly.")
 
 directDraft :: Actor -> State -> RuntimeFacts -> UUIDv7 -> UUIDv7 -> EventPayload -> EventDraft
-directDraft actor state facts commandId eventId payload =
-  EventDraft eventId commandId actor (runtimeNow facts) (statePreconditionHash state) (either (const []) id (factsUUIDs facts)) payload
+directDraft actor state facts commandId eventId =
+  EventDraft
+    eventId
+    commandId
+    actor
+    (runtimeNow facts)
+    (statePreconditionHash state)
+    (Data.Either.fromRight [] (factsUUIDs facts))
 
 eventRegisteredEntityId :: [EventDraft] -> Either AppError UUIDv7
 eventRegisteredEntityId events = case [externalEntityId entity | EventDraft{draftPayload = ExternalEntityRegisteredV1 (ExternalEntityRegistered entity)} <- events] of

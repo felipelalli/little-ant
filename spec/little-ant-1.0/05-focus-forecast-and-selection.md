@@ -24,10 +24,14 @@
   [deterministic calculation profile](deterministic-calculation-profile.md).
   A caller cannot supply a custom scorer or reorder the recorded candidates.
 - **FOC-065 [core] — Importance is strong but not absolute.** The local sibling
-  rank, its effective confidence, and the factory bottom/neutral curve produce
-  the importance factor. A Raw or subject without active importance uses the
-  neutral factor. Bounded pressure and context may change chance, but no
-  admitted candidate receives zero weight.
+  position, its effective confidence, and the factory Forte+ head/tail curve
+  produce the importance factor. With full confidence and otherwise equal
+  admitted siblings, the top receives approximately 60% of the local draw;
+  the rest follow a softer geometric decline with uniform exploration. Low
+  confidence blends each factor toward neutral. A Raw or subject without
+  active importance uses the neutral factor. Bounded pressure and context may
+  change chance, but no admitted candidate receives zero weight. The exact
+  defaults and rounding belong to the deterministic calculation profile.
 - **FOC-066 [core] — Strongest signal remains explainable.** Typed positive
   signals consolidate by correlation key, the maximum signal anchors pressure,
   and independent extras use the profile's bounded complement-product bonus.
@@ -204,7 +208,7 @@ version.
   a replay-deterministic local tie draw chooses one and records every tied path.
   The Focus proposal displays the chosen complete path; accepting it activates
   that path under FOC-017. No pre-dialog asks the human to choose a Domain, no
-  membership creates another subject ticket, and question mark may inspect all
+  membership creates another subject ticket, and the uncertainty shortcut may inspect all
   tied paths without redrawing.
 - **FOC-057 [core] — Hard Domain scope is separate and visible.** `lant domain
   focus <path>` offers `one suggestion`, `stay within`, or `prefer`. One
@@ -237,7 +241,7 @@ version.
   immediate blockers, reuse the focus-forecast weighting function in a local
   replay-deterministic subdraw. Every admitted branch has positive chance.
 - **FOC-023 [core] — Truthful provenance.** The draw records the complete
-  selected path. Compact UI may show a folded explanation; `?` exposes the
+  selected path. Compact UI may show a folded explanation; `k` exposes the
   full chain and unchosen blocker alternatives without another draw.
 - **FOC-024 [standard] — Non-Brick endpoint.** If resolution reaches an
   external wait, temporal gate, missing permission, or corrupt dependency,
@@ -494,47 +498,45 @@ version.
   continuity applies. Rejecting or leaving the proposal changes no active
   Domain. All other Domains retain positive probability after the scoped draw;
   FOC-060 owns no-target, no-Domain, and multi-membership recovery.
-- **FOC-048 [core] — Focus uncertainty is consent assistance.** Question mark
-  on an ordinary Focus proposal asks one question per screen and follows this
-  bounded tree for the proposed Brick:
+- **FOC-048 [core] — Focus uncertainty is consent assistance.** The uncertainty shortcut
+  on an ordinary Focus proposal opens the proposed Brick's complete existing
+  context immediately. It asks no understanding or sufficiency question before
+  the user can read that context. The bounded route is:
 
   ```text
-  Q0. Do you understand what this Brick asks you to do?
-  ├─ yes → Q2
-  └─ no or unknown
-     Q1. Would reviewing its existing context and linked material be enough?
-     ├─ yes → inspect through /show, then ask whether it is now enough
-     │  ├─ yes → Q2
-     │  └─ no  → confirm vague through UX-S34
-     └─ no  → confirm vague through UX-S34
+  Q0. Inspect the existing /show context (read-only).
+  ├─ continue → Q1
+  ├─ optional "why this appeared" → recorded explanation → Q1 or back to Q0
+  └─ back → restore the original Focus proposal
 
-  Q2. Do you understand why Little Ant selected this Brick?
+  Q1. Is it clear now what to do and where to start?
   ├─ yes → Q4
-  └─ no or unknown
-     Q3. Would reviewing the selection evidence help you decide?
-     ├─ yes → inspect the recorded forecast explanation, then continue to Q4
-     └─ no  → Q4
+  ├─ no → confirm vague through UX-S34
+  └─ unknown → alternate probe; repeated uncertainty remains pending
 
   Q4. Start focusing this Brick?
   ├─ yes → accept the original Focus proposal
   └─ no or unknown → open UX-S33 symptom discovery
   ```
 
-  Q0, Q2, and Q4 permit uncertainty to reach the same recovery as `no`
-  because neither supplies the confident understanding or consent required by
-  the `yes` branch. This navigation is not a negative answer or skip. Q1 and
-  Q3 use alternate probes under UX-017; repeated uncertainty remains pending.
+  Understanding the task and understanding the draw are separate concerns.
+  Forecast inspection is optional and never a toll before Focus consent. Q1
+  uses an alternate probe under UX-017; uncertainty never confirms `vague`.
+  Q4 uncertainty reaches the same recovery as `no` without becoming a negative
+  answer or skip. Q4 remains a separate explicit decision even after Q1 `yes`.
 - **FOC-049 [core] — Forecast explanation is the recorded draw.** The Focus
   aid's explanation reads the immutable selection record from FOC-002 and
   FOC-005: the proposed Brick, strongest signal, bounded additional signals,
   admitted-set size, final subject and local opportunity choices, Domain or
   blocker path when applicable, and replay identity. It never redraws,
   recomputes against later state, invents a causal story, or exposes a hidden
-  score as human importance. The read-only screen continues to Q4 or returns
-  to Q2. Its nested uncertainty follows UX-196 `understand_subject` and never
-  recomputes or answers the Focus decision.
+  score as human importance. The read-only screen continues to the post-reading
+  clarity question Q1 or returns to context Q0. Its nested uncertainty follows
+  UX-196 `understand_subject` and never bypasses the clarity question,
+  recomputes the draw, or answers the Focus decision.
 - **FOC-050 [core] — Assistance preserves the prior attention state.** Every
-  Q0..Q4 answer, `/show` view, forecast explanation, symptom question, and
+  context view, clarity answer, consent question, forecast explanation,
+  symptom question, and
   unaccepted reaction preserves the proposal, random cursor, active Domain,
   WIP set, and any previous current focus. Only Q4 `yes` accepts the original
   proposal and performs the ordinary FOC-017 focus or Domain transition. A

@@ -25,6 +25,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Base64.URL qualified as Base64Url
 import Data.ByteString.Char8 qualified as ByteString8
+import Data.Functor qualified
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
@@ -107,18 +108,23 @@ runAuthorizationCodePkce runtime transport client = do
   case buildSecrets verifierEntropy stateEntropy of
     Left problem -> pure (Left problem)
     Right (verifier, challenge, state) ->
-      ( withOAuthLoopbackReceiver (oauthPkceLoopbackReceiver runtime) $ \redirectUri -> do
-          let url = authorizationUrl client redirectUri challenge state
-          oauthPkcePresentAuthorizationUrl runtime url
-          pure (Right ())
-      )
+      withOAuthLoopbackReceiver
+        (oauthPkceLoopbackReceiver runtime)
+        ( \redirectUri ->
+            do
+              let url = authorizationUrl client redirectUri challenge state
+              oauthPkcePresentAuthorizationUrl runtime url
+              pure (Right ())
+        )
         >>= \case
           Left problem -> pure (Left problem)
-          Right (redirectUri, callback) -> case authorizationCode state callback of
-            Left problem -> pure (Left problem)
-            Right code -> do
-              now <- oauthPkceCurrentTime runtime
-              exchangeCode transport now client verifier code redirectUri
+          Right (redirectUri, callback) ->
+            case authorizationCode state callback of
+              Left problem -> pure (Left problem)
+              Right code ->
+                do
+                  now <- oauthPkceCurrentTime runtime
+                  exchangeCode transport now client verifier code redirectUri
 
 refreshOAuthPkceTokenSet :: OAuthFormTransport -> UTCTime -> OAuthPkceClient -> OAuthTokenSet -> IO (Either AppError OAuthTokenSet)
 refreshOAuthPkceTokenSet transport now client previous
@@ -161,13 +167,16 @@ persistOAuthPkceTokenSet socketPath client binding label tokenSet = case validat
                 label
                 ( Map.fromList
                     [ ("account", credentialBindingAccount binding)
-                    , ("authorization_fingerprint", oauthAuthorizationFingerprint tokenSet)
+                    ,
+                      ( "authorization_fingerprint"
+                      , oauthAuthorizationFingerprint tokenSet
+                      )
                     , ("component", credentialBindingComponent binding)
                     ]
                 )
                 encoded
             )
-            >>= pure . (>>= acknowledged)
+            Data.Functor.<&> (>>= acknowledged)
         )
         (wipeAgentSecret encoded)
  where
@@ -209,7 +218,9 @@ receiveLoopback begin = bracket open close $ \listener -> do
 receiveRequest :: Socket -> SockAddr -> Text -> IO (Either AppError (Map Text Text))
 receiveRequest connection peer expectedHost
   | not (isLoopbackPeer peer) = pure . Left $ oauthProblem PermissionRequired "The OAuth callback did not originate from loopback." []
-  | otherwise = readHeaders connection >>= pure . (>>= parseCallback expectedHost)
+  | otherwise =
+      readHeaders connection
+        Data.Functor.<&> (>>= parseCallback expectedHost)
 
 readHeaders :: Socket -> IO (Either AppError ByteString)
 readHeaders connection = go ByteString.empty
@@ -289,7 +300,8 @@ exchangeCode transport now client verifier code redirectUri = do
               , ("redirect_uri", redirectUri)
               ]
           )
-  runOAuthFormTransport transport request >>= pure . (>>= parseTokenResponse now client Nothing True)
+  runOAuthFormTransport transport request
+    Data.Functor.<&> (>>= parseTokenResponse now client Nothing True)
 
 parseTokenResponse :: UTCTime -> OAuthPkceClient -> Maybe OAuthTokenSet -> Bool -> OAuthFormResponse -> Either AppError OAuthTokenSet
 parseTokenResponse now client previous requireNewRefresh response

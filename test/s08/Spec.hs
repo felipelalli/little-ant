@@ -167,7 +167,7 @@ vaultWrongPassphrase = do
     Left problem -> do
       assertBool "error must be present" (not (null (show problem)))
       let rendered = Text.pack (show problem)
-      assertBool "error must not contain either passphrase" (all (not . (`Text.isInfixOf` rendered)) ["correct horse battery staple", "not the passphrase"])
+      assertBool "error must not contain either passphrase" ((not . any (`Text.isInfixOf` rendered)) ["correct horse battery staple", "not the passphrase"])
     Right _ -> assertFailure "a wrong passphrase decrypted the vault"
 
 waitLifecycle :: Assertion
@@ -504,9 +504,10 @@ seedGuidedBrick environment = do
       linkId = fixtureUuid 506
       precondition = statePreconditionHash emptyState
       replayIds = rawIdentity : mainBrickId : commandId : linkId : eventIds
-      draft eventId payload = EventDraft eventId commandId testActor now precondition replayIds payload
+      draft eventId =
+        EventDraft eventId commandId testActor now precondition replayIds
       events =
-        [ draft (eventIds !! 0) (RawFedV1 (RawFed rawIdentity (Handle "work") "Work" "test" Nothing))
+        [ draft (head eventIds) (RawFedV1 (RawFed rawIdentity (Handle "work") "Work" "test" Nothing))
         , draft
             (eventIds !! 1)
             ( BrickCreatedV1

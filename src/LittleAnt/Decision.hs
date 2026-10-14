@@ -108,11 +108,14 @@ where
 
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, unless, when)
+import Control.Monad qualified
 import Data.ByteString qualified as ByteString
+import Data.Either qualified
 import Data.Foldable (traverse_)
 import Data.List (maximumBy, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe)
+import Data.Maybe qualified
 import Data.Ord (comparing)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -471,7 +474,7 @@ importAcceptanceUUIDCount state sourceReference selectedContainers preflight = d
         Nothing -> do
           existing <- traverse (existingImportedRaw state (Just (importProfileId existingProfile)) preflight) sourceObjects
           let profileRevisionCount = if importProfileNeedsRevision existingProfile selectedContainers preflight then 1 else 0
-          pure (3 + profileRevisionCount + 4 * length (filter (not . isJust) existing) + evidenceCount)
+          pure (3 + profileRevisionCount + 4 * length (filter Data.Maybe.isNothing existing) + evidenceCount)
 
 decideAcceptImport :: State -> Actor -> Text -> Set Text -> SourceInput -> SourcePreflight -> Map.Map Text SourceMaterial -> RuntimeFacts -> Either AppError ImportAcceptanceDecision
 decideAcceptImport state actor sourceReference selectedContainers input preflight materials facts = do
@@ -496,7 +499,7 @@ decideAcceptImport state actor sourceReference selectedContainers input prefligh
       existing <- case profileMatch of
         Nothing -> pure (replicate (length sourceObjects) Nothing)
         Just profile -> traverse (existingImportedRaw state (Just (importProfileId profile)) preflight) sourceObjects
-      let newObjectCount = length (filter (not . isJust) existing)
+      let newObjectCount = length (filter Data.Maybe.isNothing existing)
           profileAllocationCount = case profileMatch of
             Nothing -> 2
             Just profile -> if importProfileNeedsRevision profile selectedContainers preflight then 1 else 0
@@ -962,8 +965,8 @@ sourceObservationIsReconciled state observationId =
 rawContentHumanLabel :: RawContent -> Text
 rawContentHumanLabel = \case
   RawTextContent text -> Text.strip text
-  RawUriContent locator label -> fromMaybe locator (Text.strip <$> label)
-  RawBlobContent digest _ _ filename -> fromMaybe ("blob " <> Text.take 12 digest) (Text.strip <$> filename)
+  RawUriContent locator label -> maybe locator Text.strip label
+  RawBlobContent digest _ _ filename -> maybe ("blob " <> Text.take 12 digest) Text.strip filename
   RawStructuredContent schema _ -> "structured " <> schema
 
 validateSourceBindingInput :: Text -> Text -> SourceCheckPolicy -> Either AppError ()
@@ -1343,7 +1346,7 @@ decideSetScheduledInterval state actor ownerId startsAt endsAt facts = do
     Left (appError PreconditionFailed "Only a scheduled-commitment Brick owns an exact interval.")
   unless (zonedInstantUtc endsAt > zonedInstantUtc startsAt) $
     Left (appError InvalidInput "A scheduled commitment must end after it starts.")
-  unless (all (not . Text.null . Text.strip . zonedInstantZone) [startsAt, endsAt]) $
+  unless ((not . any (Text.null . Text.strip . zonedInstantZone)) [startsAt, endsAt]) $
     Left (appError InvalidInput "Both scheduled endpoints need named IANA display zones.")
   allocated <- requireUUIDs 2 facts
   (commandId, eventId) <- exactlyTwo allocated
@@ -1803,7 +1806,7 @@ decideBreakBrick state actor draft facts = do
   if length titles >= minimumParts
     then pure ()
     else Left (appError InvalidInput ("This decomposition needs at least " <> Text.pack (show minimumParts) <> " part titles."))
-  if all (not . Text.null) titles
+  if (not . any Text.null) titles
     then pure ()
     else Left (appError InvalidInput "A part title cannot be empty.")
   let normalized = fmap normalizeTitle titles
@@ -1816,7 +1819,7 @@ decideBreakBrick state actor draft facts = do
           | child <- Map.elems (stateBricks state)
           , brickParent child == Just (brickId parent)
           ]
-  if all (not . flip Set.member existingTitles) normalized
+  if (not . any (`Set.member` existingTitles)) normalized
     then pure ()
     else Left (appError InvalidInput "A proposed part matches an existing child title; review duplicate intent first.")
   let hasReaction = isJust (breakDraftSymptom draft)
@@ -2063,7 +2066,7 @@ dependencyReaches state start target = go Set.empty start
           (go (Set.insert current visited) . dependencyBlockerBrick)
           [ dependency
           | dependency <- Map.elems (stateDependencies state)
-          , dependencyStatus dependency == DependencyActive
+          , dependencyIsBlocking state dependency
           , dependencyBlockedBrick dependency == current
           ]
 
@@ -2154,7 +2157,7 @@ decideCompleteBrick state actor identity facts = do
                   _ -> []
               )
               successors
-              (either (const []) id (chunksOfExactly 2 successorIds))
+              (Data.Either.fromRight [] (chunksOfExactly 2 successorIds))
         resolutions =
           zipWith
             (\resolutionEventId dependency -> makeDraft facts actor state allocated resolutionEventId commandId (DependencyResolvedV1 (DependencyResolution (dependencyId dependency))))
@@ -2939,14 +2942,32 @@ successfulSourceCleanupRetirement state current outcome =
 sourceCleanupRetirements :: State -> Map.Map UUIDv7 ExternalEffectStatus -> [ImportProfile]
 sourceCleanupRetirements state overrides =
   Map.elems . Map.fromList $
-    [ (importProfileId profile, profile{importProfileLifecycle = ImportProfileRetired, importProfileRevision = importProfileRevision profile + 1})
+    [ ( importProfileId profile
+      , profile
+          { importProfileLifecycle = ImportProfileRetired
+          , importProfileRevision = importProfileRevision profile + 1
+          }
+      )
     | effect <- Map.elems (stateExternalEffects state)
-    , SourceCleanupItemRequest _ target <- [externalEffectRequest effect]
     , externalEffectId effect `Map.member` overrides
-    , Just invocation <- [Map.lookup (cleanupItemImportInvocation target) (stateImportInvocations state)]
-    , Just profile <- [Map.lookup (importInvocationProfileId invocation) (stateImportProfiles state)]
+    , SourceCleanupItemRequest _ target <-
+        [ externalEffectRequest
+            effect
+        ]
+    , Just invocation <-
+        [ Map.lookup
+            (cleanupItemImportInvocation target)
+            (stateImportInvocations state)
+        ]
+    , Just profile <-
+        [ Map.lookup
+            (importInvocationProfileId invocation)
+            (stateImportProfiles state)
+        ]
     , importProfileLifecycle profile == ImportProfileActive
-    , all (mappingTerminal invocation) (importInvocationMappings invocation)
+    , all
+        (mappingTerminal invocation)
+        (importInvocationMappings invocation)
     ]
  where
   mappingTerminal invocation mapping =
@@ -3024,7 +3045,7 @@ runtimeCursor facts = fromMaybe "genesis" (filesystemCursor (runtimeFilesystem f
 
 validateWaitKind :: State -> WaitKind -> Either AppError ()
 validateWaitKind state = \case
-  HumanResponseWait entityId -> () <$ requireActiveEntity state entityId
+  HumanResponseWait entityId -> Control.Monad.void (requireActiveEntity state entityId)
   ExternalConditionWait condition -> unless (not (Text.null (Text.strip condition))) $ Left (appError InvalidInput "A waiting condition cannot be empty.")
 
 hasActiveWait :: State -> UUIDv7 -> Bool

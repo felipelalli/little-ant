@@ -7,6 +7,33 @@ Removed implementation, Allium, and generated-test artifacts are historical
 evidence only. This changelog summarizes the intended release; it does not
 replace the specification.
 
+## 1.0.0-alpha.2 (2026-10-14)
+
+- Improve the guided REPL with direct exit gestures, task-context assistance,
+  explicit navigation, and automatic advance after completion.
+- Open importance order directly with `/list`; pin view controls, support local
+  Ctrl+F search, and compose categories with projects and subtasks. Keep a
+  scrolling margin around the selected title.
+- Render Markdown with readable wrapping and styling, and support mouse-wheel
+  scrolling in paginated screens.
+- Adopt Forte+ for the factory importance forecast: approximately 60% for the
+  first fully confident sibling and a softer geometric tail, with uniform
+  exploration. Preserve confidence dilution and recorded historical draws.
+- Add rebuildable fold snapshots and immutable quarterly archives; validate the
+  complete historical event chain during diagnostics and repair.
+- Stop retired Work from blocking active dependents, and disclose dependency
+  removal before archival.
+- Align the offline HTML explorer with category/project/part trees while
+  retaining separate composition and dependency sections.
+- Fix the reviewed import, OAuth, Pack, and vault boundary cases, and add real
+  terminal regression coverage.
+
+This prerelease retains the alpha scope. Powered-up mode, the v1 Skill, local
+web, and the remaining beta obligations are still pending. Older executables
+that read only the hot event directory cannot replay rotated archives; retain
+a complete backup and use the updated executable with these datasets. See the
+[alpha.2 release notes](implementation/releases/v1-alpha.2.md).
+
 ## 1.0.0-alpha.1 (2026-08-10)
 
 The first alpha narrows the release gate to the local dumb daily loop and a
@@ -132,7 +159,7 @@ deterministic REPL, typed history, recurrence, and bounded extension Packs.
 #### Interaction
 
 - One-key REPL choices without requiring Enter.
-- `/` command palette and contextual `?` help.
+- `/` command palette and contextual uncertainty assistance.
 - Revision-scoped interactions that reject stale keypresses.
 - Deterministic dumb mode and validated powered-up mode.
 - Stdin-only powered-up model requests with bounded structured output.

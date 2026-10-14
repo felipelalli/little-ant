@@ -109,6 +109,12 @@ The complete fixed-point selection and confidence defaults live in the
 Those values are part of the factory calibration profile and obey CAL-001..008
 exactly like the table above.
 
+Factory selection profile revision 2 adopts Forte+: a 60% fully confident
+local head, a 0.70 geometric tail ratio, and a 0.02 uniform share within that
+tail. Confidence keeps its existing neutral interpolation. This explicit
+calibration affects new calculations; old draws and pending suggestions keep
+their recorded profile and evidence.
+
 `time.operational_timezone` is required profile data rather than a universal
 factory value. It is an IANA identifier such as `America/Montevideo`. A
 habit-specific schedule may override `time.habit_day_starts_at`; there is no

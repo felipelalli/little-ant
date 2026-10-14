@@ -11,6 +11,14 @@
 - **DAT-003 [core] — Rebuildable projections.** Databases, search indexes,
   caches, rendered views, forecasts, and status summaries are disposable and
   reproducible from canonical data.
+  A checksummed fold snapshot may accelerate startup by seeding replay at its
+  accepted segment cursor. Covered immutable command-group segments may move
+  to quarterly cold storage only after that snapshot is durable, preserving
+  their bytes, names, and hash chain. Removing or rejecting the cache replays
+  hot and cold history from zero. Complete diagnostics and history inspection
+  always validate the canonical history, including cold segments. Physical
+  rotation never changes an entity's status, prunes identity or closed-cycle
+  evidence, or prevents a later restore.
 - **DAT-004 [core] — UI checkpoints are separate.** Surface checkpoints recover
   presentation only. They never become the source of a comparison, Brick
   field, completion, or other domain answer.

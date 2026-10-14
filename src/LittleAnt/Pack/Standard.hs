@@ -9,6 +9,7 @@ where
 import Control.Exception (IOException, try)
 import Control.Monad (filterM, unless)
 import Data.ByteString qualified as ByteString
+import Data.Functor qualified
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -28,9 +29,9 @@ standardPackIdentity =
   PackArtifactIdentity
     { artifactPublisher = "org.littleant.project"
     , artifactName = "org.littleant.standard"
-    , artifactVersion = "1.0.0"
-    , artifactManifestDigest = "9cb38686872b0880f3f12f7e111a8c2c8c9d0e5ed7e57c0befe7d6cd22fdc761"
-    , artifactArchiveDigest = "1c5881822b33b23b353731b9ac26b2c20b31e467091aac8acecb883d5b545380"
+    , artifactVersion = "1.0.2"
+    , artifactManifestDigest = "561007e1c0fb11d0ee26edbf490ed38eaf9362abb1252f7f0bfbdde463eca078"
+    , artifactArchiveDigest = "111c8c0dd6db835d56c81348ccf2294433aae3a0aab8f9415bf92966baf336e7"
     }
 
 standardPackComponentIds :: Set Text
@@ -52,7 +53,8 @@ standardPackComponentIds =
 
 loadStandardPackRegistry :: UTCTime -> ProfileScope -> IO (Either AppError PackRegistry)
 loadStandardPackRegistry now scope =
-  loadStandardPackAuthorization now scope >>= pure . (>>= buildPackRegistry scope . pure)
+  loadStandardPackAuthorization now scope
+    Data.Functor.<&> (>>= buildPackRegistry scope . pure)
 
 loadStandardPackAuthorization :: UTCTime -> ProfileScope -> IO (Either AppError ExecutionAuthorizedPack)
 loadStandardPackAuthorization now scope = do

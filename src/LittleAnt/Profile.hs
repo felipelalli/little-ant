@@ -34,6 +34,7 @@ import Data.ByteString qualified as ByteString
 import Data.Char (isAsciiLower, isDigit)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe qualified
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -223,7 +224,7 @@ listProfiles roots = handleProfileIO $ do
     else do
       names <- listDirectory parent
       accepted <- traverse (inspect parent) names
-      pure (Right (Set.toAscList (Set.fromList [name | Just name <- accepted])))
+      pure (Right (Set.toAscList (Set.fromList (Data.Maybe.catMaybes accepted))))
  where
   inspect parent component = do
     let name = Text.pack component
@@ -323,13 +324,12 @@ writeIntegrationsConfigIfRevision paths expectedRevision integrations = case val
           else atomicWrite (integrationsFile paths) (Yaml.encode integrations) >> pure (Right True)
 
 profileValue :: ProfilePaths -> Text -> ProfileConfig
-profileValue paths name =
+profileValue paths =
   ProfileConfig
     (datasetDirectory paths)
     (preferencesFile paths)
     (calibrationFile paths)
     (integrationsFile paths)
-    name
 
 newtype Selection = Selection Text
 
@@ -561,7 +561,7 @@ requireSchema fields expected = do
 rejectUnknown :: Object -> [Text] -> Parser ()
 rejectUnknown fields allowed =
   let accepted = Set.fromList allowed
-      unknown = filter (\key -> Set.notMember key accepted) (fmap Key.toText (KeyMap.keys fields))
+      unknown = filter (`Set.notMember` accepted) (fmap Key.toText (KeyMap.keys fields))
    in unless (null unknown) (fail ("unknown keys: " <> Text.unpack (Text.intercalate ", " unknown)))
 
 validateProfileReferences :: ProfilePaths -> ProfileConfig -> Either AppError ()

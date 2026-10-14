@@ -7,10 +7,11 @@
 > *One brick at a time. Inch by inch, anything's a cinch.*
 
 > [!IMPORTANT]
-> Little Ant 1.0 is being delivered incrementally. The local `1.0.0-alpha.1`
+> Little Ant 1.0 is being delivered incrementally. The local `1.0.0-alpha.2`
 > supports the dumb daily loop and safe migration from the author's real v0
 > dataset; integrations and assisted surfaces remain experimental. See the
-> [alpha contract](implementation/releases/v1-alpha.md) and
+> [alpha contract](implementation/releases/v1-alpha.md),
+> [alpha.2 release notes](implementation/releases/v1-alpha.2.md), and
 > [beta backlog](implementation/releases/v1-beta.md).
 
 ## TL;DR
@@ -42,12 +43,12 @@ dependencies isolated:
 ```sh
 git clone https://github.com/felipelalli/little-ant.git
 cd little-ant
-git switch v1
+git switch main
 nix profile install path:.#little-ant
 ~/.nix-profile/bin/lant --version
 ```
 
-The last command prints `lant 1.0.0-alpha.1`. Run `lant` for the one-key dumb
+The last command prints `lant 1.0.0-alpha.2`. Run `lant` for the one-key dumb
 REPL or use the same engine directly, for example:
 
 ```sh
@@ -171,19 +172,23 @@ Is
 #icr "Investigate customer reports"
 ?
 
-[m]ore important   [l]ess important   [s]kip   [?] I don't know
+[m]ore important   [l]ess important   [s]kip   I don't [k]now
 ```
 
 Skip is not equality. Little Ant tries a nearby comparison and may eventually
 keep a provisional strict position that will return for validation.
 
 <p align="center">
-  <img src="assets/importance-curve.svg" alt="Importance factor by sibling position and confidence" width="920">
+  <img src="assets/importance-curve.svg" alt="Forte+ selection chances among 53 siblings at different order-confidence levels" width="920">
 </p>
 
-The factory curve is intentionally simple. At fully reviewed confidence, the
-top sibling receives a 20:1 importance factor over the bottom sibling before
-other bounded signals. Every eligible candidate retains positive probability.
+The factory **Forte+** curve gives the first sibling approximately 60% of its
+local draw at full confidence with otherwise equal, admitted siblings. The
+remaining 40% follows a softer decline: 98% uses a geometric ratio of 0.70,
+and 2% is shared uniformly. Low confidence still blends toward neutral;
+context, pressure, gates, and hierarchy can change the final forecast.
+Every eligible candidate retains positive probability. New draws identify the
+revised profile; historical selections keep their original evidence.
 The exact fixed-point formula and reference vectors are
 [normative and inspectable](spec/little-ant-1.0/deterministic-calculation-profile.md).
 
@@ -224,7 +229,7 @@ Work:
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 ```
 
@@ -238,6 +243,96 @@ Current focus:
 [d]one    [s]kip    [/] more...
 ```
 
+To browse your work, type `/list` to open importance order directly. Press `v`
+for forecast chances, `t` for categories with projects and subtasks, and Ctrl+F
+to search the current list. While searching, letters are ordinary text; Escape
+clears search before leaving the list. Ctrl+F again keeps the query and resumes
+view shortcuts. Use arrows to select and Enter to inspect
+a Brick; Escape restores the same list. Its detail view includes status, Nature,
+Domains, children, blockers, checklist items, and attached material. From a
+Brick detail, `f` proposes focus and `u` opens its guided update.
+
+Read-only documents render Markdown headings, emphasis, code, and visible link
+destinations. Ordinary paragraphs reflow and justify inside a reading width of
+up to 96 terminal cells; lists, metadata, and code remain left aligned. The
+stored material and CLI/JSON projections retain their original text.
+
+The uncertainty shortcut on a Focus proposal opens that Brick's complete existing context
+directly, with its title shown once. Use `[d]ecide about focus` to review
+clarity and consent, `[b]ack to suggestion` to return to the proposal, or
+`[w]hy this appeared` to inspect the draw; that explanation offers
+`[t]ask context` to return. After reading, it asks whether the task and starting point are clear;
+`yes` reaches a separate Focus confirmation. `why this appeared` optionally
+shows the recorded draw. These views preserve the draw and any current focus;
+only the final explicit confirmation starts Focus. Powered-up mode remains beta work.
+
+In the REPL, `done` and `/done` advance to the next opportunity with a
+`✓ Completed: #brick "Title"` confirmation above it. The confirmation stays
+until your next interaction and survives terminal resizing. A new Work still
+asks for Focus consent; an empty forecast shows the safe-empty screen.
+Noninteractive `done` returns its completion result without another draw.
+Repeatable Work retains its return-policy questions.
+
+Archiving previews the prerequisites and dependents whose relationships will
+be removed. Historical edges remain inspectable and do not reactivate when
+Work is restored. Archived or superseded prerequisites cannot keep active
+Work blocked. Older snapshots rebuild from the original events automatically.
+
+`Ctrl-F` opens global search, including completed and archived work. Escape
+returns through the results to the exact screen or unfinished draft you left.
+Use the mouse wheel, Page Up/Page Down, Home/End, or the arrow keys to scroll
+paginated detail, help, and task-context views. The wheel also moves through
+paginated selectors without activating an item. The footer stays visible on smaller terminals. On the main screen,
+Escape returns through pending navigation and then exits. Outside text input
+and filtering selectors, `q` exits without adding a main-screen action.
+`/exit`, its exact `/quit` spelling, and Ctrl-C also exit. The pending question
+and current focus are retained.
+
+The Store creates a disposable fold snapshot and rotates covered command
+segments into `archive/YYYY-QN/` after 128 accepted command groups. Startup
+then reads the snapshot and hot suffix. The canonical event bytes stay intact;
+`doctor`, repair, and history inspect both hot and cold segments. A missing or
+corrupt `projections/fold-snapshot.json` falls back to full replay. Physical
+rotation preserves current focus, handles, closed cycles, and later restores.
+
+Forecast percentages describe the chance of reaching an item in a new flexible
+`next` draw. Many eligible items naturally have small absolute percentages;
+an imported provisional order has less influence until human comparisons
+provide evidence. Brick rows show their importance position, parent, and
+importance confidence separately from this chance. Positions are sibling-local
+and use the same zero-based order keys as the importance view, including any
+gaps preserved by migration.
+
+The offline HTML exporter uses the same category/part organization, with native
+collapsible branches and separate composition and dependency sections.
+
+Exiting and reopening resumes the same pending question or Focus proposal
+while its dataset state remains current. It does not record a skip or draw
+again. The dataset keeps one random seed and advances persistent counters for
+new draws, making the sequence reproducible from the same seed, counters, and
+state. Reopening a retained proposal does not advance those counters.
+
+The CLI exposes the same read-only views:
+
+```sh
+lant list importance
+lant list forecast
+lant list importance '#parent'
+lant search '#brick'
+lant show '#brick' --view complete
+lant export tree
+lant export html --output little-ant.html
+```
+
+The text tree shows composition (parents and children) in importance order.
+The self-contained HTML explorer opens with the actual Domain hierarchy,
+collapsible category branches, and clickable Brick references. It also shows
+composition and unresolved prerequisites, including scope boundaries and
+shared blockers. All views work offline with native HTML controls.
+Export accepts a new output path and does not
+overwrite an existing file. Domain scope is available with `--scope 'Full › Path'`.
+The live `/web` mirror remains unfinished.
+
 Skip is treated as a symptom, not a failure:
 
 ```text
@@ -248,7 +343,7 @@ What's getting in the way?
 🥱 [t]ired / 😐 bo[r]ed / 😨 [f]ear
 ⬇️ [l]ess important
 🧩 [o]ther
-❓ [?] I don't know
+❓ I don't [k]now
 
 Already finished?
 
@@ -260,7 +355,7 @@ learn first, focus a blocker, wait honestly, try a Pomodoro, choose easier
 work, change subject, or update stale meaning. Repeated friction becomes
 inspectable evidence; it never becomes an automatic psychological diagnosis.
 
-Escape, Left Arrow, and empty-buffer Backspace navigate back. Semantic changes
+Inside a flow, Escape, Left Arrow, and empty-buffer Backspace navigate back. Semantic changes
 use explicit undo and redo. `/` opens a contextual command palette, while
 `Ctrl-F` opens global typed search.
 
@@ -354,7 +449,7 @@ an exact flight, meeting, or appointment instant.
 Little Ant is offline by default. Extensions use closed, versioned Pack
 contracts; there are no arbitrary lifecycle hooks or hidden selection plugins.
 
-The 1.0 release includes:
+The 1.0 specification calls for these capabilities:
 
 | Distribution | Examples | Honest capability |
 |---|---|---|
@@ -364,6 +459,13 @@ The 1.0 release includes:
 | **Official connector Pack** | Google Calendar | Observation plus separately reviewed event write-back |
 | **Offline exporters** | Tree, table, CSV, Org, HTML, TaskJuggler | Read-only bytes with safe destination handling |
 | **UIAdapter** | `local_web` | Loopback-only mirror of the same interaction protocol |
+
+These rows describe the target release. In the current alpha, provider
+integrations remain experimental and the local-web adapter is still planned.
+Microsoft To Do imports preserve upstream tasks as local Raw; local Brick
+edits and completion are not written back to To Do. Periodic source checks
+and full reconciliation remain beta work. Migration cleanup is a separate,
+explicitly reviewed operation.
 
 Every imported object first becomes Raw with source provenance. Upstream
 deletion or completion is evidence, never silent local deletion or completion.
@@ -407,6 +509,9 @@ Start here:
 Release boundaries and current evidence live in the
 [alpha contract](implementation/releases/v1-alpha.md) and
 [beta backlog](implementation/releases/v1-beta.md).
+
+The [2026-10-10 spec and REPL review](implementation/reviews/2026-10-10-spec-and-repl.md)
+records the browsing fixes, validation, and remaining gaps.
 
 Little Ant is BSD-3-Clause licensed. See [LICENSE](LICENSE).
 

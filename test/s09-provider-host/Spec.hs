@@ -1,6 +1,9 @@
 module Main (main) where
 
-import Control.Monad (replicateM)
+import Codec.Compression.GZip qualified as GZip
+import Control.Concurrent (forkIO)
+import Control.Exception (bracket)
+import Control.Monad (replicateM, void)
 import Data.Aeson (Value, encode, object, toJSON, (.=))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
@@ -9,6 +12,7 @@ import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as TextEncoding
 import Data.Time (UTCTime, addUTCTime, utc, utcToZonedTime)
 import LittleAnt.Application
 import LittleAnt.Decision
@@ -32,6 +36,9 @@ import LittleAnt.Result
 import LittleAnt.Source
 import LittleAnt.Store
 import LittleAnt.Vault qualified as Vault
+import Network.HTTP.Client qualified as Http
+import Network.Socket qualified as Socket
+import Network.Socket.ByteString qualified as SocketBytes
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
@@ -61,7 +68,39 @@ main =
       , testCase "multiple accounts receive explicit unambiguous import references" multipleAccountReferences
       , testCase "binding scheme and component must match the signed SourceAdapter" bindingAuthority
       , testCase "a direct broker call rechecks the signed route before resolving credentials" brokerDefenseInDepth
+      , testCase "the production HTTP transport decodes gzip JSON and bounds the expanded body" compressedProviderResponse
       ]
+
+compressedProviderResponse :: Assertion
+compressedProviderResponse = do
+  decoded <- serveCompressedResponse (object ["value" .= ([] :: [Value])])
+  case decoded of
+    Right response -> brokerHttpResponseJson response @?= object ["value" .= ([] :: [Value])]
+    Left problem -> assertFailure ("gzip JSON was rejected: " <> show problem)
+  oversized <- serveCompressedResponse (object ["value" .= Text.replicate (17 * 1024 * 1024) "x"])
+  case oversized of
+    Left problem -> appErrorCode problem @?= PreconditionFailed
+    Right _ -> assertFailure "the transport accepted an oversized expanded response"
+
+serveCompressedResponse :: Value -> IO (Either AppError BrokerHttpResponse)
+serveCompressedResponse value =
+  bracket (Socket.socket Socket.AF_INET Socket.Stream Socket.defaultProtocol) Socket.close $ \server -> do
+    Socket.bind server (Socket.SockAddrInet 0 (Socket.tupleToHostAddress (127, 0, 0, 1)))
+    Socket.listen server 1
+    port <-
+      Socket.getSocketName server >>= \case
+        Socket.SockAddrInet assigned _ -> pure assigned
+        _ -> assertFailure "the fixture did not bind an IPv4 socket"
+    let compressed = LazyByteString.toStrict (GZip.compress (encode value))
+        headers = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Encoding: gzip\r\nContent-Length: " <> TextEncoding.encodeUtf8 (Text.pack (show (ByteString.length compressed))) <> "\r\nConnection: close\r\n\r\n"
+    void . forkIO $ bracket (fst <$> Socket.accept server) Socket.close $ \client -> do
+      _ <- SocketBytes.recv client 8192
+      SocketBytes.sendAll client (headers <> compressed)
+    let settings = Http.defaultManagerSettings{Http.managerModifyRequest = \request -> pure request{Http.host = "127.0.0.1", Http.port = fromIntegral port, Http.secure = False}}
+    bracket (Http.newManager settings) Http.closeManager $ \manager -> do
+      token <- assertRight (accessTokenFromBytes "fixture-token")
+      let request = BrokerHttpRequest "GET" "https://graph.microsoft.com/v1.0/me/todo/lists" Map.empty Nothing
+      runPackHttpTransport (packHttpTransportWithManager manager) (CredentialedHttpRequest request token)
 
 oauthTokenCustody :: Assertion
 oauthTokenCustody = do
@@ -119,7 +158,16 @@ credentialBoundary = do
   (providerImportCanonicalReference <$> providers) @?= ["microsoft_todo@personal"]
   assertBool
     "host-only OAuth client ID escaped into Lua configuration"
-    (all (not . ("client_id" `ByteString.isInfixOf`) . LazyByteString.toStrict . encode . providerImportConfiguration) providers)
+    ( ( not
+          . any
+            ( ("client_id" `ByteString.isInfixOf`)
+                . LazyByteString.toStrict
+                . encode
+                . providerImportConfiguration
+            )
+      )
+        providers
+    )
   let importPort = packRegistryImportPortWithProviders runner registry providers
   imported <- importPortPreflight importPort "microsoft_todo" SourceSnapshot Set.empty >>= assertRight
   importReadSourceReference imported @?= "microsoft_todo@personal"

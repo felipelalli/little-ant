@@ -3,6 +3,7 @@ module Main (main) where
 import Codec.Archive.Zip qualified as Zip
 import Control.Monad (forM_)
 import Data.Aeson (Value (..), eitherDecodeStrict', encode, object, toJSON, (.=))
+import Data.Aeson.KeyMap qualified as KeyMap
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Char8 qualified as ByteString8
@@ -44,6 +45,7 @@ main =
       [ testCase "the committed source tree reconstructs the exact signed archive" canonicalArchive
       , testCase "the exact compiled identity grants six exporters and six SourceAdapters" builtInRegistry
       , testCase "tree, Org, and self-contained HTML match reviewed fixtures" reviewedFixtures
+      , testCase "HTML exposes collapsible categories, composition, and scoped prerequisites" htmlExplorer
       , testCase "aligned table and RFC 4180 CSV preserve structural data" structuredTextFormats
       , testCase "the core planning cut produces valid TaskJuggler syntax" taskJugglerPlanningCut
       , testCase "the plain-text SourceAdapter summarizes one whole file for Raw preservation" plainTextSourceAdapter
@@ -343,6 +345,41 @@ reviewedFixtures = do
   html <- artifactBytes client registry projection "html"
   assertBool "HTML fetched an external resource" (not ("http://" `ByteString.isInfixOf` html || "https://" `ByteString.isInfixOf` html))
   assertBool "HTML included executable script" (not ("<script" `ByteString.isInfixOf` html))
+
+htmlExplorer :: Assertion
+htmlExplorer = do
+  (client, registry, projection) <- fixtureRuntime
+  fields <- case projection of Object value -> pure value; other -> assertFailure (show other)
+  payload <- case KeyMap.lookup "payload" fields of Just (Object value) -> pure value; other -> assertFailure (show other)
+  let parent = "019fe080-4344-763f-b110-53cb7aefd0d4" :: Text
+      child = "019fe080-4345-7e0a-8c0e-dc2f3340d228" :: Text
+      dependencies = toJSON [object ["blocked_brick_id" .= child, "blocker_brick_id" .= parent], object ["blocked_brick_id" .= child, "blocker_brick_id" .= ("outside" :: Text)]]
+      withDependencies = Object (KeyMap.insert "payload" (Object (KeyMap.insert "dependencies" dependencies payload)) fields)
+  bytes <- artifactBytes client registry withDependencies "html"
+  mapM_
+    (\fragment -> assertBool ("missing HTML explorer feature: " <> show fragment) (fragment `ByteString.isInfixOf` bytes))
+    [ "id=\"categories\""
+    , "Categories + parts"
+    , "data-brick-id=\"019fe080-4344-763f-b110-53cb7aefd0d4\""
+    , "data-brick-id=\"019fe080-4345-7e0a-8c0e-dc2f3340d228\""
+    , "id=\"composition\""
+    , "id=\"dependencies\""
+    , "<details open><summary"
+    , "href=\"#brick-019fe080-4344-763f-b110-53cb7aefd0d4\""
+    , "needs 2 prerequisites"
+    , "Prerequisite outside this export"
+    , "&lt;all&gt;"
+    ]
+  -- The child belongs directly to a different Domain. It is also shown as a
+  -- part inside its parent's branch, retaining one canonical composition ID.
+  let document = TextEncoding.decodeUtf8 bytes
+  Text.count "data-brick-id=\"019fe080-4345-7e0a-8c0e-dc2f3340d228\"" document @?= 2
+  Text.count "id=\"brick-019fe080-4345-7e0a-8c0e-dc2f3340d228\"" document @?= 1
+  let emptyPayload = object ["bricks" .= ([] :: [Value]), "domains" .= ([] :: [Value])]
+      emptyProjection = Object (KeyMap.insert "payload" emptyPayload fields)
+  emptyBytes <- artifactBytes client registry emptyProjection "html"
+  assertBool "empty export has no explanation" ("No active Bricks in this export." `ByteString.isInfixOf` emptyBytes)
+  assertBool "empty dependencies have no explanation" ("No unresolved dependencies in this export." `ByteString.isInfixOf` emptyBytes)
 
 structuredTextFormats :: Assertion
 structuredTextFormats = do

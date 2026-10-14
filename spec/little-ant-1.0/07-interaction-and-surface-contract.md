@@ -45,7 +45,7 @@
 
 - **UX-007 [core] — Focus.** One served Brick renders the semantic type heading
   `Work:`, asks `Focus?`, and offers only the primary decision actions
-  `[y]es · [s]kip · [?] I don't know`. `Work:` covers every focusable Nature;
+  `[y]es · [s]kip · I don't [k]now`. `Work:` covers every focusable Nature;
   narrower `Task:` and technical `Execution suggestion:` are not canonical
   headings. Less-frequent actions such as direct completion and Feed remain
   reachable through `[/] more...`; they do not compete visually with the
@@ -55,7 +55,7 @@
   comparison is proposition-led: it begins directly with the natural question
   (`Is` for the canonical importance composition) and has no preceding
   `Next:`, `Importance:`, or generic `Comparison:` heading. Importance uses
-  `[m]ore important · [l]ess important · [s]kip · [?] I don't know`.
+  `[m]ore important · [l]ess important · [s]kip · I don't [k]now`.
   Other comparative namespaces use their own equally explicit relation words
   rather than inheriting `yes/no` mechanically.
 - **UX-009 [core] — Confirmation.** One complete proposed action or external
@@ -63,7 +63,7 @@
   clearer. A genuinely binary proposition may still use natural
   `[y]es · [n]o`; it never contorts `no` into an in-word shortcut such as
   `n[o]`. Optional contextual `[l]ater`, `[s]kip` when semantically valid, and
-  `[?]` remain available.
+  `I don't [k]now` remain available.
 - **UX-010 [core] — Choice.** Mutually exclusive domain choices show stable
   in-word shortcuts, an optional suggested default, and uncertainty.
 - **UX-011 [core] — Input.** Explicit text-editing mode uses Enter to submit
@@ -86,7 +86,7 @@ The normative reference renderings live in
 - **UX-014 [core] — Stable meanings.** When applicable:
 
   ```text
-  [n]ext | [y]es | [n]o | [d]one | [l]ater | [s]kip | [?] I don't know
+  [n]ext | [y]es | [n]o | [d]one | [l]ater | [s]kip | I don't [k]now
   ```
 
   Direct advance canonically renders `[n]ext`, and `/next` remains its textual
@@ -111,18 +111,18 @@ The normative reference renderings live in
   keep their editor grammar: `*` inserts text and Enter submits or advances as
   declared by UX-011. No evidence means no default unless the screen contract
   defines an explicit factory default, as UX-O02 does.
-- **UX-016 [core] — Honest-answer assistance.** `[?] I don't know` is visible
+- **UX-016 [core] — Honest-answer assistance.** `I don't [k]now` is visible
   in every finite decision and always means `help me reach an honest answer`.
   It opens a bounded, deterministic assistance tree without recording an
   answer, skip, diagnostic response, cooldown, or random consumption. The tree
   asks one consequence-oriented question per screen, normally with
-  `[y]es · [n]o · [?] I don't know`, and terminates in exactly one explicitly
+  `[y]es · [n]o · I don't [k]now`, and terminates in exactly one explicitly
   confirmed leaf. A classification leaf is an existing canonical choice; when
   the underlying answer requires missing information, judgment, authority, or
   consent, the leaf is instead one concrete recovery action or an honestly
   unresolved pending decision. Assistance never fabricates the original
   answer.
-- **UX-017 [core] — Help remains a command.** Question mark keeps the UX-016
+- **UX-017 [core] — Help remains a command.** The uncertainty shortcut keeps the UX-016
   meaning at every depth; it never changes into generic system help. Little
   Ant help is the contextual `/help` command reached through `[/] more...`.
   At a tree split, uncertainty shows one alternate consequence-oriented probe
@@ -147,15 +147,26 @@ assistance-label, and no-emoji rendering.
   universal cancel or return gesture. `Right Arrow` restores the next
   uncommitted checkpoint when one exists; choosing another branch discards
   that forward chain. After local backward navigation is exhausted,
-  `Escape` and empty-buffer `Backspace` stop at the commit boundary. `Left
-  Arrow` may instead preview the latest reversible recorded action and ask
-  `Undo the last recorded action? [y]es · [n]o · [?] I don't know`; it does
+  empty-buffer `Backspace` stops at the commit boundary. `Escape` at the root
+  main opportunity screen ends the presentation session, retaining its pending
+  interaction and current focus; elsewhere it stops at the commit boundary.
+  Main screens are pristine, safe-empty, Raw triage/duplicate, Focus proposal,
+  current Focus, and scheduled commitment/overlap. The undisplayed `q` exit
+  gesture is available on noneditable opportunity screens only when no action
+  owns that shortcut; it is literal input in editors and filtering selectors.
+  `Left Arrow` may instead preview the latest reversible recorded action and ask
+  `Undo the last recorded action? [y]es · [n]o · I don't [k]now`; it does
   not compensate the action until `yes`. Symmetrically, after local forward
   navigation is exhausted, `Right Arrow` may preview the currently redoable
   action and ask `Redo the last undone action?` with the same grammar. With no
   eligible action, the arrow is a no-op with one concise educational hint.
   Thus arrows provide contextual discovery without making provisional
   navigation and semantic reversal the same core operation.
+  On paginated read-only documents or opportunity content, the terminal may
+  capture vertical mouse-wheel events to scroll the viewport. In paginated
+  selectors, the wheel moves the selection without activating its item. Wheel movement
+  never answers a question, changes a draft, records an event, or redraws the
+  forecast; the ordinary footer remains visible.
 - **UX-020 [core] — Semantic undo.** `C-_` and `/undo` append a typed
   compensating event for the latest reversible action in the current
   interaction; they never delete history or consume a new draw. Confirming the
@@ -195,7 +206,8 @@ assistance-label, and no-emoji rendering.
   [canonical command catalog](command-catalog.md) is the complete 1.0 public
   vocabulary. Every current envelope draws its valid commands from that
   registry; an implementation, Pack, assisted surface, or documentation
-  example cannot add an alias or an unregistered action. A new public command
+  example cannot add an alias or an unregistered action beyond the catalog's
+  explicit REPL-only `/quit` spelling of `/exit`. A new public command
   requires an explicit specification revision, grammar entry, dumb route,
   typed errors, and conformance replay.
 - **UX-279 [core] — Slash and CLI are one semantic language.** REPL slash
@@ -204,11 +216,19 @@ assistance-label, and no-emoji rendering.
   do not create alternate meanings. Missing REPL arguments are guided, while
   missing noninteractive CLI arguments fail with exact usage. Neither surface
   guesses a target from recency.
-- **UX-280 [core] — One list command exposes the two lists.** `/list` asks
-  `importance order` or `focus forecast`, with no default. The first renders
-  the strict sibling tree; the second renders current positive chances and
-  their bounded explanations. Both are cursor-stable, scoped, read-only, and
-  consume no draw. `/forecast` and `/importance` are not aliases.
+- **UX-280 [core] — One list command exposes the two lists.** `/list` opens
+  importance order directly in the REPL; CLI usage still names `importance`
+  or `forecast`. Pinned `v` alternates the views and `t` toggles a combined
+  category/project/part tree. Positions remain sibling-local; forecast chances
+  are unchanged by grouping. Multiple category references denote the same
+  Brick, never extra probability mass. Parts do not inherit direct category
+  membership, and context-only forecast ancestors have no invented chance.
+  Ctrl-F opens local search; view keys become text until Ctrl-F finishes
+  typing (retaining the query) or Escape clears it.
+  Search retains ancestor context. Inspection/back and view changes preserve
+  scope, query, and the selected item where available. Both views are
+  cursor-stable, scoped, read-only, and consume no draw. `/forecast` and
+  `/importance` are not aliases.
 - **UX-281 [standard] — Administration stays out of the lazy-human path.**
   Explicit `lant tick`, grammar inspection, diagnostics, and repair are
   CLI-only. Every ordinary command still performs the canonical tick, so the
@@ -235,7 +255,7 @@ assistance-label, and no-emoji rendering.
   the later Raw's `duplicate_of` link to the canonical root and its triage
   disposition; no records revision-scoped negative evidence and returns the
   Raw to ordinary triage; skip applies the review cooldown without settling
-  either outcome. Question mark inspects both complete representations,
+  either outcome. The uncertainty shortcut inspects both complete representations,
   provenance, revisions, and existing direct relationships before returning
   to the same question. An exact compatible digest may mark yes as the
   mechanical default. Assisted semantic evidence may mark and explain one
@@ -315,7 +335,7 @@ assistance-label, and no-emoji rendering.
 - **UX-080 [core] — Stale focus remains a continuation.** At the first safe
   interaction boundary on or after the configured stale-focus threshold, the
   current-focus continuation asks `Still working on this?` and exposes
-  `[y]es · [s]kip · [?] I don't know · [d]one`, followed by `[/] more...`.
+  `[y]es · [s]kip · I don't [k]now · [d]one`, followed by `[/] more...`.
   It is not selected by `next`, does not consume randomness, and does not add
   a `focus_review` opportunity. `yes` records one explicit focus check-in,
   resets only the stale-focus clock, and returns to the sober current-focus
@@ -328,7 +348,7 @@ assistance-label, and no-emoji rendering.
 - **UX-081 [core] — Non-current WIP review grammar.** A selected `wip_review`
   uses the `Review:` heading, identifies the WIP Brick, states `This Brick is
   still in progress.`, and asks `What should happen?`. Its visible actions are
-  `[r]esume · [s]kip · [?] I don't know` followed by `[d]one · return to
+  `[r]esume · [s]kip · I don't [k]now` followed by `[d]one · return to
   [i]dle`, then `[/] more...`. `Last focused` appears in the temporal footer
   block above the current clock. `resume`, `done`, and `idle` follow
   `WRK-065`; `skip` is the typed lottery-review deferral and never opens the
@@ -349,14 +369,14 @@ assistance-label, and no-emoji rendering.
   primary temporal fact. The `list_entries` purpose states that no entry is
   open, reports resolved and cancelled counts separately, and uses `Last run`
   as its temporal fact. Both expose `[d]one · [a]dd more work`, followed by
-  `[s]kip · [?] I don't know` and `[/] more...`, without a default. Actions
+  `[s]kip · I don't [k]now` and `[/] more...`, without a default. Actions
   follow WRK-066; uncertainty and Escape preserve the pending review. The
   screen has no Nature label, project-only wording, completion inference, or
   decorative personality line.
 - **UX-084 [core] — Big-recovery grammar.** Selecting `bi[g]` on the served-work
   symptom screen opens a provisional reaction on the same Brick. It asks
   `What would help?` and exposes `[b]reak it into parts`, `[c]ollect more
-  context`, `[l]earn about the subject`, `[s]kip anyway`, `[?] I don't know`,
+  context`, `[l]earn about the subject`, `[s]kip anyway`, `I don't [k]now`,
   and `[/] more...`, in that order and without a default. Actions follow
   `WRK-067`. Escape, empty-buffer Backspace, or Left Arrow restores the exact
   symptom screen without evidence or mutation. The screen has no technical
@@ -378,7 +398,7 @@ assistance-label, and no-emoji rendering.
   supports a concrete decomposition, powered-up mode or the Skill may precede
   UX-085 with one English-language draft containing every suggested part and a
   concise attribution to the evidence used. The screen asks `Use this draft?`
-  and exposes `[y]es`, `[e]dit`, `[n]o`, `[?] I don't know`, and
+  and exposes `[y]es`, `[e]dit`, `[n]o`, `I don't [k]now`, and
   `[/] more...`, without `*`. `yes` advances to the ordinary complete UX-B01
   preview; `edit` opens UX-085 seeded with the suggestion; `no` discards it
   and opens empty UX-085; uncertainty explains the evidence and returns.
@@ -404,7 +424,7 @@ assistance-label, and no-emoji rendering.
   parts without not-yet-durable handles, and
   groups the deterministic `atomic_task` and entered-order lazy-review
   defaults. It asks `Apply this change?` and exposes `[y]es`, `[e]dit`, `[n]o`,
-  `[?] I don't know`, and `[/] more...`, without a default. `yes` performs the
+  `I don't [k]now`, and `[/] more...`, without a default. `yes` performs the
   one atomic mutation; `edit` restores UX-B00 with every draft; `no` discards
   the drafts, cancels decomposition, and restores its origin without evidence;
   uncertainty explains Nature, order, and provenance before returning.
@@ -432,8 +452,7 @@ assistance-label, and no-emoji rendering.
 - **UX-090 [core] — Nature-review grammar.** A selected `nature_review` uses
   `Review:`, identifies the Brick, shows `Current Nature:`, names the current
   Nature, and explains its source in natural language before asking `Is this
-  the right Nature?`. It exposes `[y]es`, `[c]hange`, `[s]kip`, `[?] I don't
-  know`, and `[/] more...`, in that order and without `*`. `yes` follows
+  the right Nature?`. It exposes `[y]es`, `[c]hange`, `[s]kip`, `I don't [k]now`, and `[/] more...`, in that order and without `*`. `yes` follows
   MOD-053 and reduces the unresolved-review count by one; `change` opens the
   canonical Nature choice for the existing Brick; `skip` is the typed review
   cooldown under FOC-040 and never opens served-work diagnosis. Uncertainty
@@ -522,7 +541,7 @@ assistance-label, and no-emoji rendering.
   IMP-034 freshness and confidence, the answer remains pending and UX-O06
   interrupts the current cadence before another pair or result. The screen
   lists each conflicting direct judgment with absolute local time and complete
-  Brick citations, then offers `[c]hanged`, `[m]istake`, and `[?] I don't know`
+  Brick citations, then offers `[c]hanged`, `[m]istake`, and `I don't [k]now`
   without a default or lottery `skip`. `changed` atomically activates the new
   direction and retires every older edge in the displayed conflicting path
   from current calculation. `mistake` retracts the pending answer and records
@@ -542,7 +561,7 @@ assistance-label, and no-emoji rendering.
 - **UX-099 [core] — Provocative validation surface.** An FOC-042
   `importance_validation` renders the exact ordinary UX-O01 proposition and
   actions, with no `Review:`, `Validation:`, inferred direction, `*`, or other
-  leading clue. Contextual `?` may reveal the applicable transitive path,
+  leading clue. Contextual `k` may reveal the applicable transitive path,
   effective confidence, and fact that the pair has no prior direct judgment;
   it never answers. A confirming direction uses the compact UX-O04 receipt. A
   contrary direction follows IMP-013 and UX-097 when the path is still fresh.
@@ -583,7 +602,7 @@ assistance-label, and no-emoji rendering.
   feels easiest to tackle now. Visible `[1]`, `[2]`, and `[3]` bindings select
   by stable screen position; finite choice does not need to manufacture a
   mnemonic from arbitrary titles. There is no `*`, hidden ranking, or effort
-  value. `[?] I don't know` explains the bounded comparison without choosing;
+  value. `I don't [k]now` explains the bounded comparison without choosing;
   reverse navigation restores UX-S07 without mutation. Selecting a candidate
   follows WRK-069 and then renders the normal `Work:`/`Focus?` proposal for
   that candidate. Differing effective Domains are shown beneath only the
@@ -630,7 +649,7 @@ assistance-label, and no-emoji rendering.
   approach might improve and offers `automate repetitive parts`, `simplify the
   process`, `learn another method`, `get help from someone`, and uncertainty.
   No free text or model is required to reach a choice. Each action creates the
-  corresponding editable FED-032 draft and opens UX-S14. `?` may ask the same
+  corresponding editable FED-032 draft and opens UX-S14. `k` may ask the same
   distinctions as bounded mechanical questions but cannot select one.
 - **UX-110 [core] — Better-way enabling preview.** UX-S14 shows the unallocated
   proposed title without a handle, the complete served Brick citation, the
@@ -801,7 +820,7 @@ assistance-label, and no-emoji rendering.
   and ordinary cooldown. Reverse navigation restores UX-S01 unchanged.
 - **UX-153 [core] — Archive relevance review is a bounded lazy screen.** When
   FOC-053 selects the marker, UX-S36 identifies the archived Brick, archive
-  reason, and archive instant, then offers `[k]eep archived`, `[r]estore it`,
+  reason, and archive instant, then offers `k[e]ep archived`, `[r]estore it`,
   `[u]pdate and restore`, `[n]ewer Work replaced it`, `[s]kip`, and
   uncertainty, without a default. The first four actions preview their exact
   forward mutation before commit; review skip follows WRK-100. Immediate
@@ -906,7 +925,7 @@ assistance-label, and no-emoji rendering.
   current Nature and explains its observable consequence before asking `How
   should this behave now?`. It reuses the example-backed canonical Nature
   list, marks the current row only with `current`, and assigns no `*` in dumb
-  mode. Choosing the current row follows WRK-106. Question mark enters the
+  mode. Choosing the current row follows WRK-106. The uncertainty shortcut enters the
   mechanical Nature tree and result confirmation; Escape restores UX-S37.
   Powered-up or Skill may mark at most one different Nature with an attributed
   reason, but rejection restores this exact dumb grammar.
@@ -1022,11 +1041,11 @@ assistance-label, and no-emoji rendering.
   never reaches this preview. Powered-up and Skill may annotate or rank the
   selector but cannot skip UX-S53, add a default, or accept the move.
 - **UX-173 [core] — Move uncertainty asks one human grouping question.** From
-  UX-S53, question mark opens UX-S54 and asks whether the user would expect to
+  UX-S53, the uncertainty shortcut opens UX-S54 and asks whether the user would expect to
   find the Brick within the proposed larger Work when organizing it; the root
   variant asks whether it belongs at top level. Yes returns to unchanged
   UX-S53, whose `[y]es` remains the sole commit action. No returns directly to
-  UX-S52 without a second confirmation. Question mark reveals one read-only
+  UX-S52 without a second confirmation. The uncertainty shortcut reveals one read-only
   consequence summary: the parent and new-sibling importance position may
   change and old/new scope may later need review, while identity, handle,
   meaning, Domains, blockers, waits, delegations, focus/WIP, and the internal
@@ -1074,10 +1093,10 @@ assistance-label, and no-emoji rendering.
   began there and otherwise to the exact prior checkpoint; only a served-work
   accepted break records `big`.
 - **UX-176 [core] — Parts uncertainty explains the focus-unit distinction.**
-  Question mark on UX-S55 opens UX-S56 and asks whether each intended item
+  The uncertainty shortcut on UX-S55 opens UX-S56 and asks whether each intended item
   should be able to appear separately as Work. Yes returns to unchanged
   UX-S55; no returns to UX-S50 so `list items` or another structure may be
-  chosen. Question mark shows one bounded consequence block: parts are child
+  chosen. The uncertainty shortcut shows one bounded consequence block: parts are child
   Bricks with their own importance, blockers, dates, and history; an active
   finite parent is not ordinarily suggested while unfinished parts remain;
   finishing them releases scope review rather than implicit completion; and
@@ -1092,12 +1111,12 @@ assistance-label, and no-emoji rendering.
   When MOD-062 says the current Nature cannot own parts, UX-S57 identifies the
   affected Brick and current Nature, then asks what happens after the current
   parts are finished. Its two consequence-first rows are `[f]inish one
-  outcome` and `[k]eep accepting parts`, mapping only to `project` and
+  outcome` and `keep accepting [p]arts`, mapping only to `project` and
   `collection`; there is no default or nine-Nature chooser. Selecting a row
   records nothing, checkpoints that target, completes every available WRK-112
   builder and reconciliation, then enters UX-B00 when the affected Brick is
   the Structure subject, or UX-S58 when it is the proposed parent and the
-  moving Brick itself supplies the first part. Question mark reuses the
+  moving Brick itself supplies the first part. The uncertainty shortcut reuses the
   existing FED-025 finite-versus-continuing probe over this existing Brick:
   yes maps to the displayed continuing row and no to the finite row. The
   combined UX-B01 preview is the classification confirmation, so no separate
@@ -1131,9 +1150,9 @@ assistance-label, and no-emoji rendering.
   builders. Actions are `[y]es`, conditional change-Domains, `[n]o`,
   uncertainty, and the palette, without a default. Yes follows WRK-116; no
   restores UX-S52 with its exact query; reverse restores the nearest parent
-  configuration checkpoint. Question mark opens UX-S59 and asks whether the
+  configuration checkpoint. The uncertainty shortcut opens UX-S59 and asks whether the
   proposed parent should become larger Work that owns the moving Brick as a
-  separate part. Yes restores UX-S58, no restores UX-S52, and question mark
+  separate part. Yes restores UX-S58, no restores UX-S52, and the uncertainty shortcut
   shows one complete two-subject consequence summary before repeating once; a
   second uncertainty returns unresolved to UX-S52. All three reverse gestures
   restore UX-S58 from either question. Powered-up and Skill may mark one
@@ -1167,7 +1186,7 @@ assistance-label, and no-emoji rendering.
   owner opens UX-L01 manager. An incompatible owner asks `Should this list
   remain available after all current items are closed?` with `[y]es`, `[n]o`,
   and uncertainty, mapping to `living_checklist` and `finite_checklist` before
-  WRK-112 reconciliation and one combined preview. Question mark asks whether
+  WRK-112 reconciliation and one combined preview. The uncertainty shortcut asks whether
   new items are expected after the current set: yes returns to the continuing
   row, no to the finite row, and a second uncertainty explains both
   consequences once before returning unresolved to Structure. Reverse
@@ -1232,7 +1251,7 @@ assistance-label, and no-emoji rendering.
   through FED-049 without a standalone receipt screen. A valid suspended Focus
   proposal or sober current-focus screen returns with one transient Feed fact;
   a stale proposal is recomputed, never accepted against an old revision. A
-  no-envelope Feed invokes `next`. UX-T01 question mark follows FED-050, and
+  no-envelope Feed invokes `next`. UX-T01 the uncertainty shortcut follows FED-050, and
   UX-T02 always exposes standalone Raw as a concrete disposition rather than
   using indefinite skip. An accepted non-Work disposition reached from the
   idle lottery renders one compact result with `[n]ext`; when a current focus
@@ -1348,9 +1367,9 @@ assistance-label, and no-emoji rendering.
   | `comparison` | use the relation's registered comparison aid; importance uses IMP-040..044 |
   | `reaction_choice` | ask which displayed consequence would help, eliminate choices one consequence at a time, then choose or remain pending |
 
-  A node's question mark shows its alternate probe; after every declared probe
-  has been used, another question mark leaves the original decision pending.
-  `?` may act like a negative branch only when that exact node asks whether the
+  A node's the uncertainty shortcut shows its alternate probe; after every declared probe
+  has been used, another the uncertainty shortcut leaves the original decision pending.
+  `k` may act like a negative branch only when that exact node asks whether the
   human already knows or can observe a fact; it is never globally equivalent
   to no. An explicit `either order`/`does not matter` leaf remains available
   only in the importance aid and never means uncertainty.
@@ -1440,7 +1459,7 @@ assistance-label, and no-emoji rendering.
   above the fixed footer: `Within Domain: <complete path> · until cleared`.
   It does not replace the subject's direct Domain line. A blocker redirect
   outside that path adds the concise primary-context fact `Needed for scoped
-  Work in: <path>` and the full chain remains under question mark.
+  Work in: <path>` and the full chain remains under the uncertainty shortcut.
 - **UX-207 [core] — Empty scope offers only real recoveries.** UX-DM01 names
   the complete scope and separately counts blocked, temporal, waiting,
   delegated, dormant, and absent Work when those counts are nonzero. It offers
@@ -1454,7 +1473,7 @@ assistance-label, and no-emoji rendering.
   review only when FOC-061 has a candidate, then skip anyway, back, and
   uncertainty. A no-Domain source uses ordinary target pages but receives no
   fatigue claim. A multi-Domain source displays the one path already recorded
-  by the draw; question mark may show the alternatives without changing it.
+  by the draw; the uncertainty shortcut may show the alternatives without changing it.
 - **UX-209 [standard] — Domain maintenance is consequence-first.** UX-DM03
   uses complete old/new paths and direct/descendant/unique counts for create,
   rename, move, merge, archive, and restore. Merge names the surviving identity
@@ -1487,7 +1506,7 @@ assistance-label, and no-emoji rendering.
 - **UX-213 [core] — Short-sprint custom input is bounded.** UX-S15A is a
   single numeric editor labeled `Minutes (1–120)`. Enter validates and opens a
   start preview containing duration and absolute end time; it does not start
-  focus. Escape or empty-buffer Backspace restores UX-S15. Question mark on
+  focus. Escape or empty-buffer Backspace restores UX-S15. The uncertainty shortcut on
   the duration menu explains the three factory choices and returns there; it
   never guesses a custom value.
 - **UX-214 [core] — Date/time input uses one portable component.** UX-DT00
@@ -1499,7 +1518,7 @@ assistance-label, and no-emoji rendering.
   the visible profile zone. There is no natural-language parser, silent
   operational-day rounding, or commit before UX-DT02.
 - **UX-215 [core] — Out-of-date uncertainty has one exact decision tree.**
-  Question mark on UX-S35 asks, one screen at a time:
+  The uncertainty shortcut on UX-S35 asks, one screen at a time:
 
   ```text
   Q0. Has the intended result already happened?
@@ -1521,10 +1540,10 @@ assistance-label, and no-emoji rendering.
 
   Every action leaf is confirmed in the ordinary UX-S01 or UX-S35 grammar
   before a mutation. The final no is an event-free classification result, not
-  `other` evidence. Question mark at a node uses UX-196's alternate probe
+  `other` evidence. The uncertainty shortcut at a node uses UX-196's alternate probe
   once; repeated uncertainty leaves the original decision pending.
 - **UX-216 [core] — Update uncertainty tests observable consequences.**
-  Question mark on UX-S37 asks this exact sequence until one purpose remains:
+  The uncertainty shortcut on UX-S37 asks this exact sequence until one purpose remains:
 
   ```text
   Q0. Is its short name or explanation stale?              yes → meaning
@@ -1565,8 +1584,7 @@ assistance-label, and no-emoji rendering.
   replacement.** UX-LC01 asks how two existing Bricks are related and offers
   merge as `the same Work was recorded twice`, supersede as `newer Work
   replaced older Work`, and keep separate. The shortcut and explanation are
-  stable across direct, duplicate-review, Raw, and import origins. Question
-  mark uses one observable test: whether completing either record would have
+  stable across direct, duplicate-review, Raw, and import origins. Uncertainty uses one observable test: whether completing either record would have
   fulfilled the same intention at the time both were active.
 - **UX-221 [core] — Lifecycle previews lead with human outcomes.** UX-LC02
   leads with survivor and absorbed Work, then combined, retained, selected,
@@ -1614,7 +1632,7 @@ assistance-label, and no-emoji rendering.
 - **UX-227 [standard] — Effort begins with a complete profile ladder.** UX-J04
   renders all eight IMP-024 classes and the realistic hours from the active
   profile. It asks for total current-scope effort from start to finish, labels
-  hours as planning references, and has no default. Question mark enters the
+  hours as planning references, and has no default. The uncertainty shortcut enters the
   exemplar route in UX-J06; when no suitable exemplar exists it explains that
   briefly and returns to the same unmodified ladder. Missing effort is never
   displayed as normal.
@@ -1656,7 +1674,7 @@ assistance-label, and no-emoji rendering.
   evidence, convert hours into canonical state, suppress contradiction review,
   or approve a judgment silently.
 - **UX-233 [core] — Judgment uncertainty is bounded and axis-specific.** On
-  UX-J02, question mark checks whether each outcome is understood, offers
+  UX-J02, the uncertainty shortcut checks whether each outcome is understood, offers
   read-only evidence inspection, then asks whether A, B, or neither has a
   materially larger expected effect; the last branch offers
   `about the same`, explicit investigation Work, or typed skip. On UX-J05 it
@@ -1814,13 +1832,15 @@ assistance-label, and no-emoji rendering.
   they choose a different decorative representation.
 - **UX-254 [core] — Shortcuts are unique per screen, not globally.** Within one
   pending finite screen, every visible one-key action has a distinct key. The
-  allocator first keeps canonical meanings from UX-014, then an unused natural
+  allocator reserves `k` for uncertainty, then keeps canonical meanings from
+  UX-014, then an unused natural
   initial, then an unused visible in-word letter. If wording can name the
   consequence more clearly, it changes the action label before taking an
   awkward in-word letter. Number keys belong to dense candidate lists, not to
   stable semantic verbs. Reuse on another screen is allowed and preferred when
-  the same obvious word returns. `?`, `/`, `*`, Enter, Escape, Backspace, and
-  arrows retain their declared control meanings and are never action letters.
+  the same obvious word returns. `k` retains its uncertainty meaning across
+  finite choices. `/`, `*`, Enter, Escape, Backspace, and arrows retain their
+  declared control meanings and are never answer letters.
 - **UX-255 [core] — Selection has one visible ASCII cursor.** Every
   arrow-navigable result or palette row reserves a two-cell prefix: `> ` for
   the selected row and two spaces for every other row. Capable ANSI rendering
@@ -1846,10 +1866,13 @@ assistance-label, and no-emoji rendering.
   Enter chooses it, and Escape returns. A screen cannot accept both arbitrary
   text and hidden one-key semantic actions in the same input state.
 - **UX-258 [core] — Assistance and navigation labels stay literal.** The
-  canonical finite uncertainty label is always `[?] I don't know`; product
+  canonical finite uncertainty label is always `I don't [k]now`. Reserve `k`
+  for uncertainty in finite choices, reassign competing actions visibly, and
+  treat it as ordinary text inside editors and filters. Product
   help is always `/help`; the global secondary escape is `[/] more...` except
   on UX-S09 and UX-T02, whose local candidate pagination requires the declared
-  `[/] menu...`; and an explicit local return is `[b]ack`. A candidate
+  `[/] menu...`; and an explicit local return names its destination when a bare `[b]ack`
+  would be ambiguous. A candidate
   paginator says `[m]ore options...`, `[m]ore matches...`, or another
   collection-specific literal already declared by its screen, so it cannot be
   confused with the command palette. Empty or terminal result screens name
@@ -1897,7 +1920,7 @@ assistance-label, and no-emoji rendering.
   Escape clears the whole buffer. Paste may be disabled by the terminal host;
   the canonical protocol never echoes length or characters.
 - **UX-130 [core] — Every uncertainty route is declared.** Every finite screen
-  that exposes `[?] I don't know` registers a bounded UX-016 tree in the same
+  that exposes `I don't [k]now` registers a bounded UX-016 tree in the same
   versioned interaction grammar as its ordinary choices. Each leaf identifies
   either one existing canonical answer or one concrete recovery; a free-form
   model answer, generic explanation page, silent default, and unbounded chat
@@ -1909,7 +1932,7 @@ assistance-label, and no-emoji rendering.
   bypass this tree and confirmation contract. UX-196 supplies the closed
   family registry for every remaining finite screen.
 - **UX-131 [core] — Served-work uncertainty uses mechanical discrimination.**
-  Question mark on UX-S01 opens UX-S33 and traverses the exact WRK-095 tree one
+  The uncertainty shortcut on UX-S01 opens UX-S33 and traverses the exact WRK-095 tree one
   binary question at a time. The questions seek the principal obstacle for
   this interaction; they do not assert that another symptom could never also
   apply. `yes` reaches the current node's leaf, `no` advances to the next
@@ -1917,7 +1940,7 @@ assistance-label, and no-emoji rendering.
   probabilistic classifier replaces this tree in dumb mode.
 - **UX-132 [core] — A symptom leaf is confirmed before reaction.** Reaching a
   symptom leaf opens UX-S34 with the symptom, its decisive behavioral reason,
-  and `[y]es · [n]o · [?] I don't know`. The mechanically derived `yes` is the
+  and `[y]es · [n]o · I don't [k]now`. The mechanically derived `yes` is the
   visible default. `yes` opens that symptom's existing reaction without yet
   recording evidence; for `other`, it opens UX-S31. `no` restores UX-S01 so
   the human can select directly. Uncertainty restarts UX-S33 at its first
@@ -1929,17 +1952,17 @@ assistance-label, and no-emoji rendering.
   collapse the tree into an unreviewed classification, add a branch, answer on
   behalf of the human, or turn model uncertainty into core evidence.
 - **UX-134 [core] — Importance uncertainty begins with understanding.**
-  Question mark on UX-O01 opens UX-O11 at IMP-040 Q0. Every Q0..Q8 screen
+  The uncertainty shortcut on UX-O01 opens UX-O11 at IMP-040 Q0. Every Q0..Q8 screen
   retains the two complete Brick citations and ordinary footer but shows only
   one binary question. It has no inferred direction, equality, urgency,
   impact, or model-selected answer. Reverse navigation restores the preceding
   question and, from Q0, the exact pending UX-O01 comparison.
 - **UX-135 [core] — Convergent navigation preserves meaning.** When IMP-041
-  permits question mark and `no` to reach the same next screen, the envelope
+  permits the uncertainty shortcut and `no` to reach the same next screen, the envelope
   preserves which local answer occurred even though neither becomes a domain
   event. A later branch may rely only on an explicit `yes`; it cannot reinterpret
   an earlier uncertainty as rejection. The UI keeps the ordinary
-  `[y]es · [n]o · [?] I don't know` grammar and does not disclose technical
+  `[y]es · [n]o · I don't [k]now` grammar and does not disclose technical
   transition-policy names.
 - **UX-136 [core] — Importance leaves preview their exact effect.** A direct
   A/B result opens UX-O12; `either_order` opens UX-O13; investigation opens
@@ -1961,29 +1984,36 @@ assistance-label, and no-emoji rendering.
   may suggest `either_order` when evidence supports indifference, but must
   traverse the same confirmation and cannot record a direction, symmetric
   evidence, provisional position, or investigation Brick automatically.
-- **UX-139 [core] — Focus uncertainty starts with the work itself.** Question
-  mark on UX-F01, UX-F02, or UX-F03 opens UX-F12 at FOC-048 Q0. Each question
+- **UX-139 [core] — Focus uncertainty starts with the work itself.** Uncertainty on UX-F01, UX-F02, or UX-F03 opens UX-F12 at FOC-048 Q0, showing the
+  complete existing `/show` context without a preliminary question. Its
+  citation appears once, in the screen header; all remaining `/show` fields
+  are preserved. `[d]ecide about focus` reaches Q1 and `[b]ack to suggestion`
+  restores the original proposal. Each screen
   retains the complete proposed Brick citation and ordinary footer while
   preserving cross-Domain and blocker-path context. Reverse navigation from
   Q0 restores the exact proposal without a draw or revision change.
-- **UX-140 [core] — Missing understanding reuses context and vague.** Q1
-  inspection opens the existing read-only `/show` projection for the proposed
-  Brick and then asks whether its goal, information, and starting point are
-  now understandable. A remaining explicit `no` opens UX-S34 with `vague` and
+- **UX-140 [core] — Missing understanding reuses context and vague.** After
+  Q0 inspection, Q1 asks `Is it clear now what to do and where to start?`.
+  An explicit `yes` reaches the separate Q4 consent question. Uncertainty uses
+  an alternate clarity probe and remains pending if repeated; it does not
+  predict sufficiency before reading or confirm a symptom. An explicit `no`
+  opens UX-S34 with `vague` and
   the reason that existing context was insufficient; confirmation opens the
   existing vague reaction but records nothing. Exact `/show` projection fields
   follow DAT-051..054 and are not duplicated by Focus.
-- **UX-141 [core] — Selection explanation is contextual evidence.** Q3 `yes`
+- **UX-141 [core] — Selection explanation is contextual evidence.** When a
+  recorded draw is attached, Q0 offers optional `[w]hy this appeared`, which
   opens UX-F13 with the immutable FOC-049 facts. Its primary actions are
-  `[c]ontinue · [b]ack · [?] I don't know`, avoiding a false yes/no question:
-  continue reaches Q4, back restores Q2, and uncertainty uses UX-196
+  `[d]ecide about focus · [t]ask context · I don't [k]now`, avoiding a
+  false yes/no question: decide reaches the post-reading clarity question Q1,
+  task context restores Q0, and uncertainty uses UX-196
   `understand_subject`: it explains the structured draw fields once, restates
   whether they are sufficient, then continues, returns, or remains pending.
   The explanation may be folded, expanded, or paraphrased without changing its
   structured facts.
 - **UX-142 [core] — Final Focus consent remains explicit.** FOC-048 Q4 renders
   UX-F14 with `Start focusing this Brick?` and
-  `[y]es · [n]o · [?] I don't know`. `yes` invokes the original Focus accept
+  `[y]es · [n]o · I don't [k]now`. `yes` invokes the original Focus accept
   transition immediately. `no` and uncertainty both open UX-S33 without
   recording a skip; their local answers remain distinct even though the
   recovery screen is the same. The symptom tree and final reaction own any
@@ -2089,7 +2119,8 @@ assistance-label, and no-emoji rendering.
 - **UX-151 [core] — Global search is always reachable.** `/search` is the one
   canonical global discovery command and is valid while any ordinary
   interaction is pending. `Ctrl-F` is the REPL accelerator for the same
-  command; it is not a second semantic action. Opening search suspends the
+  command outside a list; inside `/list`, it searches that list under UX-280.
+  Neither accelerator is a second semantic action. Opening global search suspends the
   exact InteractionEnvelope, including any draft buffer, selection, cursor,
   and navigation checkpoints. Escape restores that envelope unchanged, while
   selecting a result opens read-only inspection and can return to the same
@@ -2197,7 +2228,7 @@ assistance-label, and no-emoji rendering.
   `<no Domain>` so the footer never shifts shape. At most one selected warning
   plus its overflow count and concise subject-specific facts may appear above
   the footer. Technical selection provenance is available through contextual
-  `?`; it is not shown by default. Rendered Domain paths use `›` between
+  `k`; it is not shown by default. Rendered Domain paths use `›` between
   hierarchical segments.
 - **UX-046 [core] — Automatic opening opportunity.** Starting or restoring the
   REPL never lands on an idle command prompt. It first restores an exact
@@ -2223,7 +2254,7 @@ assistance-label, and no-emoji rendering.
   middle-dot separators:
 
   ```text
-  [y]es    [s]kip    [?] I don't know
+  [y]es    [s]kip    I don't [k]now
   [/] more...
   ```
 
@@ -2243,7 +2274,7 @@ assistance-label, and no-emoji rendering.
   Nature and Template never share one flat choice screen.
 - **UX-051 [core] — Assisted proposal consent.** Skill or powered-up mode may
   use the `UX-060` gateway to propose a Template that visibly resolves one
-  Nature. The proposal requires `[y]es · [n]o · [?]`; `no` returns to the
+  Nature. The proposal requires `[y]es · [n]o · I don't [k]now`; `no` returns to the
   unchanged dumb flow without accepting proposal evidence.
 - **UX-052 [core] — Example-backed Nature choice.** The direct factory Nature
   choice presents one Nature per line with one short, concrete example.
@@ -2308,10 +2339,10 @@ assistance-label, and no-emoji rendering.
   declare that Skill or powered-up mode can precede its dumb entry with one
   attributed confirmation of a complete canonical result reachable through
   that unchanged dumb flow. The preview exposes every consequential resolved
-  value and uses `[y]es · [n]o · [?]`. `yes` applies the same canonical
+  value and uses `[y]es · [n]o · I don't [k]now`. `yes` applies the same canonical
   validation and domain transition as the dumb route. `no` accepts no proposal
   evidence and enters the dumb flow at its original first question with input
-  and navigation checkpoint preserved. `?` explains the proposal and restores
+  and navigation checkpoint preserved. `k` explains the proposal and restores
   the same confirmation. A gateway is unavailable by default and cannot add a
   result, action, or semantic shortcut that the dumb path cannot express.
 - **UX-061 [core] — Clarification begins with human orientation.** The
@@ -2390,15 +2421,24 @@ assistance-label, and no-emoji rendering.
   bindings apply on every surface that renders this symptom namespace.
 - **UX-069 [core] — Current-focus done has no confirmation toll.** Pressing
   `[d]one` on the current-focus screen commits `WRK-049` immediately and
-  renders one `work_completed` result. That transition may use the
-  deterministic UX-064 personality catalog. The result waits with
-  `[n]ext · [/] more...`; it does not consume another draw automatically.
-  Pressing `n` invokes the same canonical pipeline as `/next`, and `/undo`
-  remains available through the contextual palette. Because completion closes
-  the prior provisional flow, `Left Arrow` on this result cannot navigate back
-  into its Focus screen; instead it offers the UX-019 undo preview for that
-  typed completion. The surface does not ask the user to confirm work they
-  have just declared complete.
+  renders one `work_completed` result. In the interactive REPL, `[d]one`
+  and `/done` then use that result's ordinary `next` continuation automatically.
+  The next opportunity shows `✓ Completed: <Brick citation>` above its normal
+  content until the next user interaction; terminal resize retains the fact,
+  and no timer dismisses it. A successor Work still requires its own Focus
+  consent; an empty forecast shows the safe-empty screen with the completion
+  fact. This advances at most once and records any new draw through the normal
+  forecast pipeline. Restart restores an already recorded successor without
+  another draw; a still-pending completion result resumes its continuation.
+  If continuation fails, the committed completion remains visible and `n`
+  retries only `next`. Repeatable return-policy questions retain their own
+  continuation and are not skipped. Noninteractive commands return the durable
+  completion result without advancing automatically; other surfaces may use
+  the deterministic UX-064 catalog and wait with `[n]ext · [/] more...`.
+  Completion closes the prior provisional flow, so backward navigation cannot
+  restore its Focus screen as an uncommitted choice; ordinary typed undo
+  preconditions still apply. The surface does not ask the user to confirm work
+  they have just declared complete.
 - **UX-265 [standard] — External consent shows the outside-world consequence.**
   UX-A01 is the shared approval grammar for every DAT-068 purpose. Its heading
   is a plain consequence question—send, delete, create, update, or cancel—and
@@ -2460,7 +2500,7 @@ assistance-label, and no-emoji rendering.
   UX-PACK01 compares installed and candidate version/digest, components,
   permissions, configuration, and every binding that would remain old, be
   rebound, or become unavailable. `[u]pdate` accepts only that complete plan;
-  `[k]eep current` changes nothing. An update with no visible difference still
+  `k[e]ep current` changes nothing. An update with no visible difference still
   requires the same approval. Powered-up and Skill may summarize or flag risk,
   but cannot trust a key, install, update, rebind, remove, refresh, or collect
   archives. Update uses UX-196 `binary_consent`; inspect changes is its bounded
@@ -2516,7 +2556,7 @@ assistance-label, and no-emoji rendering.
   or geofence.
 - **UX-277 [standard] — Place confirmation preserves the selected Work.**
   UX-PL01 leads with the complete selected Brick and required label, then asks
-  `Are you there now?` with `[y]es · [n]o · [?] I don't know`. Yes continues
+  `Are you there now?` with `[y]es · [n]o · I don't [k]now`. Yes continues
   to the exact pending `Focus?`; no performs WRK-159's local deferral and draws
   nothing until the next canonical `next` request. The screen has no default.
   Powered-up and Skill may explain the condition or mark a current trusted

@@ -14,11 +14,13 @@ import LittleAnt.Error
 import LittleAnt.Export
 import LittleAnt.Id
 import LittleAnt.Interaction
+import LittleAnt.Markdown
 import LittleAnt.Model
 import LittleAnt.Pack.Trust
 import LittleAnt.Pack.Update
 import LittleAnt.Result
 import LittleAnt.Surface
+import LittleAnt.Tree qualified as Tree
 
 rawProjection :: Bool -> Raw -> RawProjection
 rawProjection complete raw =
@@ -47,11 +49,15 @@ renderEnvelopeAtWidth requestedWidth envelope =
   width = max 20 requestedWidth
   content = envelopeContent envelope
   mainLines =
-    textBlock (contentHeading content)
-      <> maybe [] textBlock (contentSubject content)
-      <> concatMap textBlock (contentBody content)
-      <> maybe [] textBlock (contentQuestion content)
-  textBlock text = fmap (pure . normal) (wrapText width text) <> [blank]
+    textBlock Heading (contentHeading content)
+      <> maybe [] (textBlock Heading) (contentSubject content)
+      <> concatMap bodyBlock (contentBody content)
+      <> maybe [] (textBlock Strong) (contentQuestion content)
+  textBlock _ text | Text.null text = []
+  textBlock role text = fmap (pure . Span role) (wrapText width text) <> [blank]
+  bodyBlock text = case envelopeOpportunity envelope of
+    FocusAssistanceOpportunity _ _ FocusInspectContext _ -> markdownLines width text <> [blank]
+    _ -> textBlock Normal text
   actions = envelopeActions envelope
   primaryActions = filter ((/= "/") . actionShortcut) actions
   paletteActions = filter ((== "/") . actionShortcut) actions
@@ -60,7 +66,7 @@ renderEnvelopeAtWidth requestedWidth envelope =
     _ -> 4
   firstRow = joinActions firstRowSpacing primaryActions
   primaryRows
-    | Text.length (plainLine firstRow) <= width = [firstRow]
+    | textDisplayWidth (plainLine firstRow) <= width = [firstRow]
     | otherwise = fmap actionLine primaryActions
   actionLines = primaryRows <> fmap actionLine paletteActions
   footerLines =
@@ -94,7 +100,7 @@ renderFooterAtWidth width footer =
     , dim " reviews"
     ]
   countLines
-    | Text.length (plainLine completeCountLine) <= width = [completeCountLine]
+    | textDisplayWidth (plainLine completeCountLine) <= width = [completeCountLine]
     | otherwise =
         [
           [ dim ". "
@@ -116,6 +122,8 @@ renderCommandResult = \case
       <> rawCitation raw
       <> maybe "" ("\n\nOriginal:\n" <>) (projectedRawOriginal raw)
       <> maybe "" ("\nStatus: " <>) (projectedRawStatus raw)
+  ShowObjectResult _ kind reference title details dryRun ->
+    dryRunFact dryRun <> reference <> " \"" <> title <> "\"\n\nKind: " <> kind <> "\n" <> Text.unlines details
   SearchResult _ query hits dryRun ->
     dryRunFact dryRun
       <> "Search: "
@@ -132,13 +140,16 @@ renderCommandResult = \case
       <> (if wasRedo then "" else maybe "" (const "\nRedo is available.") redoToken)
       <> "\n\n"
       <> renderPlain (renderEnvelope interaction)
-  ListResult _ name rows dryRun ->
+  ListResult _ name rows _ dryRun ->
     dryRunFact dryRun
       <> name
       <> ":\n"
       <> ( if null rows
              then "  (empty)"
-             else Text.unlines ["- " <> renderListRow row | row <- rows]
+             else
+               if name == "importance"
+                 then Text.unlines [prefix <> listEntryHandle row <> " " <> Text.dropWhile (== ' ') (listEntryTitle row) <> (if Text.null (listEntryDetails row) then "" else " · " <> listEntryDetails row) | (prefix, _, row) <- Tree.treeRows (Tree.fromIndentedLabels listEntryTitle rows)]
+                 else Text.unlines ["- " <> renderListRow row | row <- rows]
          )
   DoctorResult _ healthy validated checks dryRun ->
     dryRunFact dryRun
@@ -160,14 +171,22 @@ renderCommandResult = \case
       <> "\nMedia type: "
       <> mediaType
       <> "\n"
-      <> maybe ("Suggested file: " <> Text.pack suggested) ("Created: " <>) (Text.pack <$> destination)
+      <> maybe
+        ("Suggested file: " <> Text.pack suggested)
+        (("Created: " <>) . Text.pack)
+        destination
       <> "\nBytes: "
       <> tshow byteCount
       <> "\nSHA-256: "
       <> digest
       <> (if null warnings then "" else "\nWarnings:\n" <> Text.unlines ["- " <> warning | warning <- warnings])
   PacksResult _ action packs problem dryRun ->
-    dryRunFact dryRun <> renderPacks action packs <> maybe "" ("\nPack registry unavailable: " <>) (appErrorMessage <$> problem)
+    dryRunFact dryRun
+      <> renderPacks action packs
+      <> maybe
+        ""
+        (("\nPack registry unavailable: " <>) . appErrorMessage)
+        problem
   PackUpdatesResult _ updates dryRun ->
     dryRunFact dryRun <> renderPackUpdates updates
   GrammarResult _ names dryRun ->
@@ -218,14 +237,13 @@ renderError problem =
     <> Text.concat ["\n- " <> recoveryActionLabel action | action <- appErrorRecovery problem]
 
 actionLine :: Action -> ScreenLine
-actionLine action = [normal (if actionDefault action then "*" else " "), dim "[", accent (actionShortcut action), dim "]", normal (labelSuffix action)]
+actionLine action = [normal (if actionDefault action then "*" else " ")] <> label
  where
-  labelSuffix current
-    | actionShortcut current == "/" = " " <> actionLabel current
-    | otherwise = case Text.breakOn (actionShortcut current) (actionLabel current) of
-        (before, after)
-          | Text.null after -> " " <> actionLabel current
-          | otherwise -> before <> Text.drop 1 after
+  shortcut = [dim "[", accent (actionShortcut action), dim "]"]
+  label = case Text.breakOn (actionShortcut action) (actionLabel action) of
+    (before, after)
+      | actionShortcut action == "/" || Text.null after -> shortcut <> [normal (" " <> actionLabel action)]
+      | otherwise -> [normal before] <> shortcut <> [normal (Text.drop (Text.length (actionShortcut action)) after)]
 
 joinActions :: Int -> [Action] -> ScreenLine
 joinActions spacing = intercalateSpans [normal (Text.replicate spacing " ")] . fmap actionLine
@@ -234,15 +252,7 @@ intercalateSpans _ [] = []
 intercalateSpans separator (first : rest) = first <> concatMap (separator <>) rest
 
 wrapText :: Int -> Text -> [Text]
-wrapText width text
-  | Text.length text <= width = [text]
-  | otherwise = go [] "" (Text.words text)
- where
-  go result current [] = result <> [current | not (Text.null current)]
-  go result current (word : rest)
-    | Text.null current = go result word rest
-    | Text.length current + 1 + Text.length word <= width = go result (current <> " " <> word) rest
-    | otherwise = go (result <> [current]) word rest
+wrapText = wrapDisplayText
 
 preview :: Text -> Text
 preview = Text.take 80 . Text.unwords . Text.words
@@ -275,7 +285,10 @@ renderPacks "show" [pack] =
     <> projectedPackSignerFingerprint pack
     <> "\nComponents:\n"
     <> Text.unlines (renderPackComponent <$> projectedPackComponents pack)
-    <> maybe "" ("Problem: " <>) (appErrorMessage <$> projectedPackProblem pack)
+    <> maybe
+      ""
+      (("Problem: " <>) . appErrorMessage)
+      (projectedPackProblem pack)
 renderPacks _ packs =
   "Packs:"
     <> if null packs

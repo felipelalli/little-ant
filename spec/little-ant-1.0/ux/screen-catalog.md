@@ -45,7 +45,7 @@ Work:
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -58,7 +58,7 @@ Focus?
 ```
 
 The automatically served envelope, secondary-command escape, contextual facts,
-and stacked footer are all part of REPL UX. `[?] I don't know` belongs to
+and stacked footer are all part of REPL UX. `I don't [k]now` belongs to
 the current Focus decision, while `[/] more...` opens UX-M01. Adaptive or
 narrow-terminal rendering may fold regions but cannot test only the inner
 envelope and call that a REPL simulation.
@@ -165,7 +165,7 @@ Internal identities will not change.
 
 Continue?
 
-[y]es   [n]o   [?] I don't know
+[y]es   [n]o   I don't [k]now
 ```
 
 The preview is deterministic for the same two inputs. Confirmation records an
@@ -219,7 +219,7 @@ More than one Work item matches "risk":
 [3] #rra "Review risk assumptions"
 
 [r]efine search    [s]how more    [c]ancel
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -227,7 +227,7 @@ More than one Work item matches "risk":
 The original query and suspended interaction remain intact. A number selects
 only the visible revisioned result; refine returns to the input with the query
 selected; show more pages the same deterministic ranking; cancel returns to
-the caller. Question mark explains the expected reference kind and may open
+the caller. The uncertainty shortcut explains the expected reference kind and may open
 read-only inspection before returning. It never chooses the first row.
 
 ## UX-ER01 — Typed educational failure
@@ -240,7 +240,7 @@ Expected: in progress
 Current: done
 
 [i]nspect current Work    [b]ack
-[?] I don't know
+I don't [k]now
 
 Code: precondition_failed
 [/] more...
@@ -261,7 +261,7 @@ Nothing was recorded.
 
 [c]ontinue with the updated question
 [i]nspect what changed
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -280,7 +280,7 @@ That completion can no longer be undone safely.
 Reason: later activity depends on the completed state
 
 [i]nspect later activity    [b]ack
-[?] I don't know
+I don't [k]now
 
 Code: conflict
 [/] more...
@@ -353,7 +353,7 @@ Work:
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -366,7 +366,7 @@ Focus?
   mode: dumb, focus: idle
 ```
 
-`yes` focuses and starts WIP. `skip` opens UX-S01. `?` enters UX-F12 without
+`yes` focuses and starts WIP. `skip` opens UX-S01. `k` enters UX-F12 without
 consuming another draw. Direct completion remains available as `/done` in
 UX-M01. Pressing unbound `n` gives the educational UX-062 result and restores
 this same opportunity without mutation. This exact composition also serves an
@@ -381,7 +381,7 @@ Work:
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -406,7 +406,7 @@ Work:
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -422,20 +422,25 @@ Focus?
 ```
 
 Long paths may fold visually, but every cited Brick retains its complete
-compact label. `?` enters UX-F12; its UX-F13 explanation shows the entire
+compact label. `k` enters UX-F12; its UX-F13 explanation shows the entire
 selected path, alternatives at branching nodes, and recorded probabilities
 without redrawing.
 
 ## UX-F12 — Guided Focus decision
 
-Question mark on an ordinary proposal begins with the work itself:
+The uncertainty shortcut on an ordinary proposal immediately shows its complete existing
+context. This abbreviated example uses synthetic stored material:
 
 ```text
+Existing context:
+
 #wtms "Write the migration specification"
 
-Do you understand what this Brick asks you to do?
+Description:
+Document the accepted migration steps and compatibility boundary.
 
-[y]es    [n]o    [?] I don't know
+[d]ecide about focus    [b]ack to suggestion
+I don't [k]now    [w]hy this appeared
 [/] more...
 
 ────────────────────────────────────────
@@ -447,16 +452,17 @@ Do you understand what this Brick asks you to do?
   mode: dumb, focus: idle
 ```
 
-Successive screens ask one FOC-048 Q0..Q4 question with the same proposal and
-footer. Q1 `yes` opens read-only `/show`; after inspection, an explicit `no`
-reuses UX-S34 to confirm `vague`. Q0, Q2, and Q4 may route uncertainty to the
-same recovery as `no` without turning it into negative evidence. Reverse
-navigation restores the preceding question and, from Q0, UX-F01, UX-F02, or
-UX-F03 exactly.
+The read-only Q0 view uses the complete `/show` projection, not a new or
+shortened description. The optional explanation action appears only when a
+recorded draw is attached. Continue asks Q1, `Is it clear now what to do and
+where to start?`, with `[y]es · [n]o · I don't [k]now`. An explicit `yes`
+reaches the separate Q4 consent question; `no` reuses UX-S34 to confirm `vague`.
+Uncertainty offers an alternate clarity probe and stays pending if repeated.
+Reverse navigation from Q0 restores UX-F01, UX-F02, or UX-F03 exactly.
 
 ## UX-F13 — Forecast explanation during Focus consent
 
-Q3 `yes` renders the recorded selection rather than drawing again:
+The optional `why this appeared` action renders the recorded selection:
 
 ```text
 Why this appeared:
@@ -477,7 +483,8 @@ Selection:
 1 of 18 admitted Bricks
 replay-deterministic draw
 
-[c]ontinue    [b]ack    [?] I don't know
+[d]ecide about focus    [t]ask context
+I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -492,7 +499,8 @@ replay-deterministic draw
 The displayed values are illustrative renderings of exact FOC-049 facts, not
 a fixed universal signal list. A cross-Domain result includes both paths; a
 blocker redirect includes the complete chosen chain and unchosen branch
-alternatives. Continue reaches Q4, back restores Q2, and uncertainty follows
+alternatives. Continue reaches the post-reading clarity question Q1, back
+restores context Q0, and uncertainty follows
 the UX-196 `understand_subject` explanation route. None consumes or recomputes
 the draw.
 
@@ -507,7 +515,7 @@ Work:
 
 Start focusing this Brick?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -593,7 +601,7 @@ Current focus:
 
 Still working on this?
 
-[y]es    [s]kip    [?] I don't know    [d]one
+[y]es    [s]kip    I don't [k]now    [d]one
 [/] more...
 
 ────────────────────────────────────────
@@ -609,7 +617,7 @@ Still working on this?
 does not claim continuous work or observed effort. `yes` records one
 replayable focus check-in and returns to UX-F05 without opening another focus
 interval or drawing. `skip` opens UX-S01 and records nothing until a reaction
-is accepted; `done` follows UX-F07; and `?` preserves this continuation. No
+is accepted; `done` follows UX-F07; and `k` preserves this continuation. No
 personality line competes with the check-in. Closing the REPL preserves the
 same pending continuation. A non-current WIP review is a different,
 ordinary-lottery route rendered by UX-F10.
@@ -627,7 +635,7 @@ This Brick is still in progress.
 
 What should happen?
 
-[r]esume    [s]kip    [?] I don't know
+[r]esume    [s]kip    I don't [k]now
 [d]one      return to [i]dle
 [/] more...
 
@@ -662,7 +670,7 @@ All 3 tracked parts are done.
 What should happen?
 
 [d]one    [a]dd more work
-[s]kip    [?] I don't know
+[s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -677,39 +685,50 @@ What should happen?
 `done` completes the parent directly. `add more work` opens Feed with this
 parent already resolved as the proposed owner; nothing changes until a new
 child is confirmed and locally inserted. `skip` defers only this review and
-never returns the parent as Work. `?` may inspect child history and completion
+never returns the parent as Work. `k` may inspect child history and completion
 context. Reopening a child, `archive`, and `supersede` remain contextual-palette
 routes. This composition is shared by every decomposed finite Brick and never
 branches merely because its Nature is `project`.
 
 ## UX-F07 — Immediate focused completion
 
-Pressing `d` on UX-F04 or UX-F05 does not open a confirmation:
+Pressing `d` on UX-F04 or UX-F05 does not open a confirmation. The REPL also
+uses the ordinary `next` continuation after `/done`. For example, when the
+following recorded opportunity offers another Work:
 
 ```text
-Done:
+✓ Completed: #rrsr "Review Rock Splitter rules"
 
-#rrsr "Review Rock Splitter rules"
+Work:
 
-🎉 Nice work. That Brick is in place.
+#wtms "Write the migration specification"
 
-[n]ext   [/] more...
+Focus?
+
+[y]es   [s]kip   I don't [k]now
+[/] more...
 
 ────────────────────────────────────────
-. #rs "Rock Splitter"
-  Orbit › R&D › Rock Splitter
+. #rlav2 "Recover Little Ant v1"
+  Personal › Little Ant
 . Workday: Mon, Aug 3
           Now: Mon, Aug 3, 09:32
-. 17 bricks, 7 raws, 3 reviews
+. 16 bricks, 7 raws, 3 reviews
   mode: dumb, focus: idle
 ```
 
-The phrase is one `work_completed` entry from the 16-phrase factory catalog.
-The contextual palette makes `/undo` available against the typed completion
-event, and `Left Arrow` opens UX-U01 because no provisional backward
-checkpoint remains. The REPL does not draw automatically from this result.
-Pressing `n` invokes the ordinary canonical `next` pipeline; closing the REPL
-instead leaves focus idle, and the next startup follows UX-046.
+The completion fact is secondary to the following opportunity and remains
+until the next user interaction; resize preserves it, and no timer removes it.
+The REPL advances the committed result exactly once through ordinary `next`.
+The next Work is offered for Focus consent; it is not started automatically.
+An empty result shows UX-E00 with the same completion fact. Restart restores
+the recorded successor without another draw. If the continuation fails, the
+completion result stays visible and `n` retries only the continuation.
+Repeatable Work keeps its return-policy questions. Noninteractive commands
+and other surfaces may return the standalone completion result; the
+deterministic UX-064 personality catalog remains available there. Undo keeps
+its ordinary typed preconditions, and backward navigation cannot reopen the
+completed Focus as an uncommitted choice.
 
 ## UX-F08 — Repeatable Work offer
 
@@ -723,7 +742,7 @@ Work:
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -738,7 +757,7 @@ Focus?
 `yes` starts another execution of the same Brick identity; it creates no
 occurrence Brick, replacement, or importance insertion. `skip` opens UX-S01;
 final deferral follows `WRK-062` and creates no missed window, overdue
-obligation, or terminal outcome. `?` may reveal execution history, source
+obligation, or terminal outcome. `k` may reveal execution history, source
 material, and the recorded return rule without changing the draw. The
 secondary history row does not rename the primary question or imply urgency.
 A completion count may later share that row under UX-079, but a repeatable
@@ -759,7 +778,7 @@ Run completed:
 
 What should happen next?
 
-*[k]eep this return
+*k[e]ep this return
     Around 6 months after completion, with ±3 months variation.
 
 [c]hange return...
@@ -769,7 +788,7 @@ What should happen next?
 [a]rchive
     Archive the standing Brick after this completed run.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -835,7 +854,7 @@ Undo the last recorded action?
 ✅ Completed:
 #rrsr "Review Rock Splitter rules"
 
-[y]es   [n]o   [?] I don't know
+[y]es   [n]o   I don't [k]now
 
 [/] more...
 
@@ -851,7 +870,7 @@ Undo the last recorded action?
 The preview identifies the typed action and its subject. `yes` invokes the
 same semantic compensation as `/undo`; it restores the prior Brick and focus
 state when preconditions still hold. `no`, Escape, or Backspace restores the
-screen from which the preview opened without mutation. `?` explains the
+screen from which the preview opened without mutation. `k` explains the
 projected changes and then restores this confirmation. If there is no eligible
 action, no confirmation is fabricated.
 
@@ -866,7 +885,7 @@ Redo the last undone action?
 ✅ Complete:
 #rrsr "Review Rock Splitter rules"
 
-[y]es   [n]o   [?] I don't know
+[y]es   [n]o   I don't [k]now
 
 [/] more...
 
@@ -950,7 +969,7 @@ Is
 #ipc "Interview prospective customers"
 ?
 
-*[m]ore important   [l]ess important   [s]kip   [?] I don't know
+*[m]ore important   [l]ess important   [s]kip   I don't [k]now
 
 ────────────────────────────────────────
 Suggestion: /bin/claude-fast.sh · importance insertion
@@ -978,7 +997,7 @@ What's getting in the way?
 🥱 [t]ired    😐 bo[r]ed    😨 [f]ear
 ⬇️ [l]ess important    🕰️ o[u]t of date
 🧩 [o]ther
-❓ [?] I don't know
+❓ I don't [k]now
 
 Already finished?
 
@@ -1023,7 +1042,7 @@ What needs to happen before you can continue?
 🗓️ wait [u]ntil a date or time
 📍 be at a [l]ocation
 🔔 an [e]vent or condition must occur
-❓ [?] I don't know
+❓ I don't [k]now
 
 Continue without identifying it?
 
@@ -1066,7 +1085,7 @@ Does the prerequisite already exist?
 
 🔎 [f]ind an existing Brick
 🧱 [c]reate an enabling Brick
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -1145,7 +1164,7 @@ Needs a response from:
 
 Has the request already been made?
 
-[y]es   [n]o   [?] I don't know
+[y]es   [n]o   I don't [k]now
 
 [/] more...
 
@@ -1160,7 +1179,7 @@ Has the request already been made?
 
 This binary question records nothing. `yes` enters UX-W00 before activating a
 Wait. `no` enters pending enabling-Brick input and previews the complete
-Dependency-to-Wait handoff under WRK-050 before one atomic commit. `?` explains
+Dependency-to-Wait handoff under WRK-050 before one atomic commit. `k` explains
 the difference between an outstanding human action and an external response
 without choosing. Reverse navigation restores UX-S02B with its target
 selection and input draft.
@@ -1182,7 +1201,7 @@ When may we start checking again?
 one [w]eek      (Mon, Aug 10 · 09:00)
 [c]hoose...
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1218,7 +1237,7 @@ When may this Work return?
  one [w]eek      Mon, Aug 10 · 06:00
  [c]hoose another...
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1234,7 +1253,7 @@ When may this Work return?
 The caller declares the presets and visible factory suggestion; this example
 uses the configured 06:00 workday start. `*` and Enter accept the same visible
 preset. Every row is already an absolute instant in the shown profile zone.
-Choose another opens UX-DT01. Question mark explains `not before` and the
+Choose another opens UX-DT01. The uncertainty shortcut explains `not before` and the
 displayed dates, then returns without choosing.
 
 ## UX-DT01 — Structured custom date and time
@@ -1278,7 +1297,7 @@ America/Montevideo · UTC−03:00
 
 This changes not before. Importance stays the same.
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 
@@ -1316,7 +1335,7 @@ What happened?
 
 [r]esponse received    [w]ait longer
 [f]ollow up             [c]hange what is blocking it
-[s]kip                  [?] I don't know
+[s]kip                  I don't [k]now
 
 [/] more...
 
@@ -1333,7 +1352,7 @@ What happened?
 the forecast when no other gate applies. `wait longer` enters review-policy
 selection through UX-W00. `follow up` enters an enabling-Brick flow and
 preserves the declared successor Wait. `change what is blocking it` returns to
-UX-S02 and replaces the old gate only after an explicit atomic preview. `?`
+UX-S02 and replaces the old gate only after an explicit atomic preview. `k`
 explains and may expose linked evidence without recording an outcome. `skip`
 leaves the Wait and `review_not_before` unchanged, records only the typed
 review deferral, and applies the review's cooldown and future pressure. It is
@@ -1356,10 +1375,10 @@ Alice replied in the tracked conversation.
 What happened?
 
 [r]esponse received
-[k]eep waiting
+k[e]ep waiting
 [i]nspect evidence
 [s]kip
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1406,7 +1425,7 @@ s[t]op waiting
     Remove this Wait without claiming a response.
 
 [s]kip
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1475,7 +1494,7 @@ Blocks: #rrsr "Review Rock Splitter rules"
 
 Use this structure?
 
-*[y]es    [n]o    [?] I don't know
+*[y]es    [n]o    I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -1490,7 +1509,7 @@ Use this structure?
 sibling importance insertion at the ordinary unresolved midpoint under
 IMP-004; the Dependency never supplies an importance answer or comparator
 anchor. `no` opens the canonical parent and Domain choices with the same draft
-and blocked target preserved. `?` explains composition, Domain, Dependency,
+and blocked target preserved. `k` explains composition, Domain, Dependency,
 and importance separately before restoring this confirmation. Reverse
 navigation restores the preceding pending builder checkpoint. The source Raw
 already exists after input submission, but no Brick, Dependency, symptom,
@@ -1553,7 +1572,7 @@ What would help?
 [c]ollect more context
 [l]earn about the subject
 [s]kip anyway
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1591,7 +1610,7 @@ You're tired. What would help?
 🔀 [c]hange subject
 🌙 [p]ause for now
 ⏭️ [s]kip anyway
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -1623,7 +1642,7 @@ Which one feels easiest to tackle right now?
 [2] #rei "Reply to Elena's invitation"
 [3] #dwd "Draft the weekly digest"
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1648,7 +1667,7 @@ Pressing a visible number accepts WRK-069 atomically and then opens the exact
 candidate in the ordinary UX-F01 focus proposal. The candidate is not focused
 until `yes`. The selection supplies strong contextual forecast evidence and
 weak relative-effort evidence under IMP-038; it assigns neither hours nor an
-EffortProfile class. `?` explains that distinction and returns. Escape,
+EffortProfile class. `k` explains that distinction and returns. Escape,
 empty-state Backspace, or Left Arrow restores UX-S07 with no symptom,
 cooldown, evidence, focus change, or draw. Once a number has committed the
 reaction, reverse navigation offers semantic undo under UX-019 rather than
@@ -1668,7 +1687,7 @@ What would help?
 🌙 [p]ause for now
 ⏭️ [s]kip anyway
 ↩️ [b]ack
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -1708,7 +1727,7 @@ Or choose a subject:
 
 [m]ore options...
 [s]kip anyway
-[?] I don't know
+I don't [k]now
 
 [/] menu...
 
@@ -1744,7 +1763,7 @@ positive probability elsewhere, while active Domain changes only after
 accepted focus. `Organize and review` instead follows WRK-075: one restricted
 meta-opportunity draw, then decaying interaction-family continuity, without a
 persistent mode. `Skip anyway` records only the carried `tired` or `bored`
-symptom and Brick cooldown. `?` explains these distinctions and returns.
+symptom and Brick cooldown. `k` explains these distinctions and returns.
 Escape, empty-state Backspace, or Left Arrow restores the originating UX-S07,
 UX-S11, or previous page without symptom, cooldown, signal, focus change,
 active-Domain change, or draw. UX-DM02 and FOC-060 define multi-Domain,
@@ -1766,7 +1785,7 @@ What should this change?
     Keep future draws inside this Domain until you leave.
 [p]refer it
     Make it the soft current subject without excluding anything.
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -1788,7 +1807,7 @@ Orbit › R&D › Rock Splitter
 [f]eed something for this Domain
 [c]hoose another Domain
 [l]eave this scope
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1817,7 +1836,7 @@ No other subject currently has executable Work.
 [o]rganize and review
 [s]kip anyway
 [b]ack
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -1840,7 +1859,7 @@ To:   Personal › Projects › Rock Splitter
 18 Bricks and 7 Raw records keep their direct memberships.
 Importance and Work structure stay unchanged.
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 ```
@@ -1902,7 +1921,7 @@ You're bored. What would help?
 [c]hange subject
 [m]ake it more interesting
 [s]kip anyway
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1917,7 +1936,7 @@ You're bored. What would help?
 
 `Change subject` opens UX-S09 carrying provisional `bored` evidence. `Make it
 more interesting` opens UX-S12. `Skip anyway` commits only `bored` and the
-served Brick's ordinary cooldown. `?` helps distinguish changing subject from
+served Brick's ordinary cooldown. `k` helps distinguish changing subject from
 changing method without choosing. Reverse navigation restores UX-S01 exactly;
 the screen has no default, mutation, or personality line.
 
@@ -1931,7 +1950,7 @@ How could we make this more interesting?
 ⏱️ [t]ry a short sprint
 🧩 [b]reak it into visible steps
 🔧 [f]ind a better way
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -1960,7 +1979,7 @@ How might the approach improve?
 [s]implify the process
 [l]earn another method
 [g]et help from someone
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -1974,7 +1993,7 @@ How might the approach improve?
 ```
 
 Each direct choice deterministically constructs the matching FED-032 editable
-draft without requiring free text or a model. `?` may ask the same bounded
+draft without requiring free text or a model. `k` may ask the same bounded
 mechanical distinctions and return; it cannot invent or accept a method.
 Reverse navigation restores UX-S12 with no draft or evidence.
 
@@ -1995,7 +2014,7 @@ Behaves as: atomic task · review later
 
 Create this enabling Brick?
 
-[y]es   [e]dit   [n]o   [?] I don't know
+[y]es   [e]dit   [n]o   I don't [k]now
 
 [/] more...
 
@@ -2034,7 +2053,7 @@ How long would you like to give it?
 *[3] 25 minutes  — a Pomodoro
  [c]ustom...
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -2074,8 +2093,7 @@ Enter review · Esc back
 ```
 
 Only digits enter the buffer. Enter on `40` previews `40 minutes` and `Ends:
-Mon, Aug 3, 09:40` with `[s]tart`, `[e]dit`, `[c]ancel`, and `[?] I don't
-know`; it starts nothing until `start`. Invalid input keeps this editor and
+Mon, Aug 3, 09:40` with `[s]tart`, `[e]dit`, `[c]ancel`, and `I don't [k]now`; it starts nothing until `start`. Invalid input keeps this editor and
 gives the one-line WRK-126 correction. Escape or empty-buffer Backspace
 restores UX-S15. Assisted modes may suggest one valid number in this same
 selected editor but cannot start it.
@@ -2118,7 +2136,7 @@ What would you like to do?
 
 [c]ontinue       [a]nother sprint
 [d]one           [p]ause
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -2148,7 +2166,7 @@ You're worried about this. What would help?
 🪜 [m]ake a safer first move
 🤝 [g]et support
 ⏭️ [s]kip anyway
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -2235,7 +2253,7 @@ Behaves as: atomic task · validation · review later
 
 Create this enabling Brick?
 
-[y]es   [e]dit   [n]o   [?] I don't know
+[y]es   [e]dit   [n]o   I don't [k]now
 
 [/] more...
 
@@ -2293,7 +2311,7 @@ How could @am "Alice Moreira" help?
 [a]sk for advice
 [w]ork together
 [d]elegate this Brick
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -2325,7 +2343,7 @@ This Brick is vague. What is missing?
 📚 [i]nformation  — more context is needed
 🧭 [f]irst step   — it is unclear how to begin
 ⏭️ [s]kip anyway
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -2384,7 +2402,7 @@ Proposed Description clarification:
 
 Apply this clarification?
 
-[y]es   [e]dit   [n]o   [?] I don't know
+[y]es   [e]dit   [n]o   I don't [k]now
 
 [/] more...
 
@@ -2414,7 +2432,7 @@ How should we find a first step?
 [l]earn about the subject
 [g]et help
 [s]kip anyway
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -2444,7 +2462,7 @@ This feels hard. What would help?
 🔧 [f]ind an easier approach
 🤝 [g]et help
 ⏭️ [s]kip anyway
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -2502,7 +2520,7 @@ What should change?
 🕒 [l]ater
 🧭 [c]hange subject
 ⏭️ [s]kip anyway
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -2559,7 +2577,7 @@ Skip this Brick for now because:
 
 "The office is too noisy"
 
-[y]es   [e]dit   [n]o   [?] I don't know
+[y]es   [e]dit   [n]o   I don't [k]now
 
 [/] more...
 
@@ -2580,14 +2598,14 @@ rejectable, and uncommitted.
 
 ## UX-S33 — Guided symptom discovery
 
-Question mark on UX-S01 begins with one mechanical split:
+The uncertainty shortcut on UX-S01 begins with one mechanical split:
 
 ```text
 #cdd "Configure database replication"
 
 Must something outside this Brick happen before you can continue?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -2601,7 +2619,7 @@ Must something outside this Brick happen before you can continue?
 ```
 
 Successive answers traverse the exact Q0..Q8 tree in WRK-095. Each screen asks
-only its current question with the same grammar. Question mark substitutes the
+only its current question with the same grammar. The uncertainty shortcut substitutes the
 alternate probe in WRK-096 for that split without choosing a branch; repeated
 uncertainty leaves the interaction pending. Escape, empty-buffer Backspace, or
 Left Arrow restores the immediately preceding question, and doing so from Q0
@@ -2622,7 +2640,7 @@ Because independently tracked parts would make this Brick manageable.
 
 Is this what is getting in the way?
 
-*[y]es    [n]o    [?] I don't know
+*[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -2658,7 +2676,7 @@ What does "out of date" mean here?
     The intention remains, but its content or structure is stale.
 
 ⏭️ [s]kip anyway
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -2673,9 +2691,11 @@ What does "out of date" mean here?
 
 No action is a default. Archive commits WRK-099 and then renders a concise
 result with `/undo` in the palette; it does not apply ordinary cooldown.
-Replacement and update remain uncommitted until their existing complete
-preview is accepted. Skip records only `out_of_date` and cooldown. Question
-mark distinguishes retirement, replacement, revision, and temporary deferral
+An archive preview lists the exact affected prerequisites and dependents,
+explains that those dependencies will be removed, and discloses that dependent
+Work may become executable. Those historical edges remain inspectable after
+archiving and do not reactivate on restoration. Replacement and update remain
+uncommitted until their existing complete preview is accepted. Skip records only `out_of_date` and cooldown. Uncertainty distinguishes retirement, replacement, revision, and temporary deferral
 through UX-S35A. Escape, Backspace, or Left Arrow restores UX-S01 without
 evidence.
 
@@ -2688,7 +2708,7 @@ Understand "out of date":
 
 Has the intended result already happened?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -2720,12 +2740,12 @@ Archived: Mon, Aug 3, 09:04
 
 What should happen now?
 
-[k]eep archived
+k[e]ep archived
 [r]estore it
 [u]pdate and restore
 [n]ewer Work replaced it
 [s]kip
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -2778,7 +2798,7 @@ What do you want to update?
 [v]iew everything
     Inspect the complete Brick without changing it.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -2823,7 +2843,7 @@ Find what needs updating:
 
 Is its short name or explanation stale?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -2864,7 +2884,7 @@ Update timing:
 [i]nterval
     Change an anchored commitment's start or end.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -2889,7 +2909,7 @@ Update context:
 [l]ocation
     Where it must or preferably should be done.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -2913,7 +2933,7 @@ Update source material:
 [e]xternal origin
     Inspect, check, relocate, pause, or detach one source binding.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -2978,7 +2998,7 @@ What part of its meaning is stale?
 [d]escription
     Longer context, intended result, and useful explanation.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -3040,7 +3060,7 @@ To:
 Reference:
 #rrsr · unchanged
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3056,7 +3076,7 @@ Reference:
 Yes follows WRK-104 and reaches UX-S38. Edit returns to UX-S40 with the draft
 selected; no discards it and returns to UX-S39. The UUID, handle, structural
 and importance context, lifecycle, WIP, and focus do not change, and the old
-title does not become an alias. Question mark explains those consequences and
+title does not become an alias. The uncertainty shortcut explains those consequences and
 restores this preview.
 
 ## UX-S42 — Description revision preview
@@ -3075,7 +3095,7 @@ Proposed:
 English normalization:
 will need review after this change
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3135,10 +3155,10 @@ returns either to this editor or to the same UX-S42/UX-S45 preview that
 ```text
 Leave description editor?
 
-*[k]eep the draft
+*k[e]ep the draft
  [d]iscard it
  [c]ontinue editing
- [?] I don't know
+ I don't [k]now
 
 ────────────────────────────────────────
 . #rs "Rock Splitter"
@@ -3166,7 +3186,7 @@ Remove description?
 The attached Raw material will be preserved.
 Its history and other links will remain unchanged.
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 ────────────────────────────────────────
 . #rs "Rock Splitter"
@@ -3179,7 +3199,7 @@ Its history and other links will remain unchanged.
 
 Yes detaches only `RawLink(role = description)` under WRK-105 and reaches
 UX-S38. Edit returns to the empty UX-S43 draft. No discards the draft and
-restores UX-S39. Question mark explains preservation and restores the preview.
+restores UX-S39. The uncertainty shortcut explains preservation and restores the preview.
 No option deletes or archives the Raw.
 
 ## UX-S46 — Existing-Brick Nature choice
@@ -3205,7 +3225,7 @@ How should this behave now?
 recurring [o]bligation  e.g. "Take required daily medication"
 [h]abit                 current
 [s]cheduled commitment  e.g. "Attend an appointment"
-[?] I don't know
+I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -3219,7 +3239,7 @@ recurring [o]bligation  e.g. "Take required daily medication"
 The current row is factual, not a default, and no row receives `*` in dumb
 mode. Selecting it produces no mutation or direct human reclassification
 claim. A different row begins target validation under MOD-059 and WRK-107;
-it does not mutate immediately. Question mark reuses UX-K02..K03 over this
+it does not mutate immediately. The uncertainty shortcut reuses UX-K02..K03 over this
 existing Brick. Escape restores UX-S37. Template provenance remains visible
 through `/show`, not editable here.
 
@@ -3256,7 +3276,7 @@ first occurrence: Fri, Aug 7 · 08:00
 
 Apply this change?
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -3270,7 +3290,7 @@ Apply this change?
 This is one concrete source-to-target example, not the complete matrix. Yes
 applies one reversible WRK-107 action and reaches UX-S38. Edit restores the
 typed schedule builder in this example; no discards the complete draft and
-restores UX-S46. Question mark explains the shown preservation and
+restores UX-S46. The uncertainty shortcut explains the shown preservation and
 consequences, then restores the preview. Previous habit outcomes remain typed
 history rather than being converted into obligation occurrences. A source
 with incompatible active state first completes UX-NAT01; no unresolved fact
@@ -3293,7 +3313,7 @@ These child Bricks cannot remain inside an atomic task.
 
 [m]ove them...
 [b]ack to behavior choices
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -3311,7 +3331,7 @@ for the next unresolved category. It does not convert, archive, complete, or
 detach a child. The corresponding category screens reuse the habit-outcome,
 occurrence-resolution, checklist, and temporal managers named by WRK-122.
 There is no generic `remove anyway` action. `back` discards the complete
-reclassification draft and restores UX-S46. Question mark enters the
+reclassification draft and restores UX-S46. The uncertainty shortcut enters the
 mechanical uncertainty family for the current distinction and returns here.
 When the final fact is resolved, UX-S47 shows the complete configuration,
 dispositions, focus effect, and resulting behavior before one atomic commit.
@@ -3334,7 +3354,7 @@ What do you want to change?
 [r]esponsibility
     Who should do it.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -3366,7 +3386,7 @@ What needs to happen before you can continue?
 🗓️ wait [u]ntil a date or time
 📍 be at a [l]ocation
 🔔 an [e]vent or condition must occur
-❓ [?] I don't know
+❓ I don't [k]now
 
 [/] more...
 
@@ -3404,7 +3424,7 @@ What do you want to organize?
 list [i]tems
     Add, change, resolve, or reopen entries shown together.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -3453,7 +3473,7 @@ Moving will not change the Brick's Domains.
 [y]es, keep current Domains
 [c]hange Domains...
 [n]o
-[?] I don't know
+I don't [k]now
 
 ────────────────────────────────────────
 . #rs "Rock Splitter"
@@ -3469,8 +3489,7 @@ disjointness, or absence from explicit direct memberships. Any unequal sets
 render their complete paths; `do not overlap` is a structural fact, not a
 semantic judgment. Yes changes only composition and preserves every current
 membership. Change Domains opens canonical context editing and returns to one
-combined preview. No restores the still-uncommitted parent selector. Question
-mark follows a bounded explanation or existing action without inventing the
+combined preview. No restores the still-uncommitted parent selector. Uncertainty follows a bounded explanation or existing action without inventing the
 human's desired context. Assistance may recommend change with an attributed
 semantic reason, but cannot alter this comparison or mutate silently.
 
@@ -3536,7 +3555,7 @@ To:
 Domains stay the same.
 An importance comparison comes next.
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3580,7 +3599,7 @@ available; the compact preview does not hide or duplicate Domain editing.
 Would you expect to find #rrsr "Review Rock Splitter rules"
 within #rsm "Rock Splitter migration" when organizing that Work?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3594,7 +3613,7 @@ within #rsm "Rock Splitter migration" when organizing that Work?
 ```
 
 Yes restores UX-S53 unchanged; the human must still press its `[y]es` to move.
-No restores UX-S52 directly. Question mark shows the bounded explanation:
+No restores UX-S52 directly. The uncertainty shortcut shows the bounded explanation:
 
 ```text
 Moving it may change:
@@ -3608,7 +3627,7 @@ delegations, focus state, and internal parts.
 
 After seeing this, would you expect to find it there?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3649,7 +3668,7 @@ Other:
 … 2 more inactive parts
 
 [a]dd parts    [o]rder active parts
-[?] I don't know
+I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -3685,7 +3704,7 @@ Parts are separate Bricks. Each one can appear as Work on its own.
 
 Should each intended item be able to appear separately as Work?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3699,7 +3718,7 @@ Should each intended item be able to appear separately as Work?
 ```
 
 Yes restores UX-S55. No restores UX-S50, where `list items` remains visible.
-Question mark shows the bounded distinction and repeats the question once:
+The uncertainty shortcut shows the bounded distinction and repeats the question once:
 
 ```text
 Each part has its own importance, blockers, dates, and history.
@@ -3711,7 +3730,7 @@ List items are different: they are shown together through one owner.
 
 Should each intended item be able to appear separately as Work?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3746,11 +3765,11 @@ What should happen after its planned parts are finished?
     Review the whole Work and complete it as one finite scope.
     e.g. "Migrate the website"
 
-[k]eep accepting parts
+keep accepting [p]arts
     Members may come and go without completing the larger Work.
     e.g. "Books to read"
 
-[?] I don't know
+I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -3769,12 +3788,12 @@ If a required reconciliation has no defined v1 choice, the route ends in its
 typed educational boundary and offers return; it never exposes a premature
 `yes`.
 
-Question mark uses the established finite-versus-continuing alternate probe:
+The uncertainty shortcut uses the established finite-versus-continuing alternate probe:
 
 ```text
 Should this Brick remain active after one complete set of parts is finished?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 ```
@@ -3824,7 +3843,7 @@ To:
 
 Domains stay the same.
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3853,7 +3872,7 @@ commits both subjects atomically under WRK-116.
 Should #rsm "Rock Splitter migration" become larger Work that owns
 #rrsr "Review Rock Splitter rules" as a separate part?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -3866,8 +3885,7 @@ Should #rsm "Rock Splitter migration" become larger Work that owns
   mode: dumb, focus: #rrsr
 ```
 
-Yes restores UX-S58 unchanged; no restores UX-S52 with its query. Question
-mark explains once that the parent changes behavior, the child moves, direct
+Yes restores UX-S58 unchanged; no restores UX-S52 with its query. Uncertainty explains once that the parent changes behavior, the child moves, direct
 Domains remain as shown, importance is local to the new siblings, and any
 listed focus, WIP, scope-review, or restoration consequence also applies. It
 then repeats the same question and actions. A second uncertainty response
@@ -3891,7 +3909,7 @@ How should this behave?
 recurring [o]bligation  e.g. "Pay the monthly rent"
 [h]abit                 e.g. "Walk three times a week"
 [s]cheduled commitment  e.g. "Take flight AD123 to Montevideo"
-[?] I don't know
+I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -3902,7 +3920,7 @@ recurring [o]bligation  e.g. "Pay the monthly rent"
   mode: dumb, focus: idle
 ```
 
-`?` opens UX-K02. This screen occurs only after Raw triage has chosen Work or
+`k` opens UX-K02. This screen occurs only after Raw triage has chosen Work or
 an explicit contextual builder has already chosen that result; ordinary Feed
 never opens it. No selection is a hidden fallback and no Template appears on
 this screen. Each example is illustrative UI copy, not input to
@@ -3915,7 +3933,7 @@ classification or Template selection.
 
 Will completing this once finish the whole intention?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -3942,7 +3960,7 @@ and no separately tracked parts are required.
 
 Is this right?
 
-*[y]es    [n]o    [?] I don't know
+*[y]es    [n]o    I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -3954,7 +3972,7 @@ Is this right?
 ```
 
 `yes` accepts the Nature and continues Work materialization. `no` returns to
-UX-K01 with the source Raw preserved. `?` restarts UX-K02 at Q0. Escape
+UX-K01 with the source Raw preserved. `k` restarts UX-K02 at Q0. Escape
 returns to the last decisive question. These are navigation and local
 classification changes, not domain events or semantic undo.
 
@@ -3969,7 +3987,7 @@ Source: software-development pack
 
 Use this setup?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -3996,7 +4014,7 @@ Choose an optional setup:
 
 [g]rocery list    e.g. "A reusable list shown all at once"
 [n]o template     keep only the living-checklist behavior
-[?] I don't know
+I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -4035,7 +4053,7 @@ e[x]am                   e.g. "Driver's license exam"
 [s]ervice window         e.g. "Internet technician visit"
 [h]otel stay             e.g. "Stay at Hotel Carrasco"
 [n]o template            keep only the scheduled-commitment behavior
-[?] I don't know
+I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -4111,7 +4129,7 @@ Suggested from the Brick's title and description.
 
 Use this draft?
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -4172,7 +4190,7 @@ Little Ant may review their Nature and importance later.
 
 Apply this change?
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -4199,7 +4217,7 @@ without silently completing or immediately refocusing the parent.
 for an existing-parts origin, UX-S50 for a no-existing-child Plan origin,
 UX-S06 for `big`, or the exact direct-command origin. It records no symptom,
 break, or other evidence. Escape, Backspace, and Left Arrow restore UX-B00 with the drafts
-under UX-019. `?` explains the project transition, reviewable default Natures,
+under UX-019. `k` explains the project transition, reviewable default Natures,
 provisional importance run, and any assisted provenance. The palette provides
 detail and dry-run inspection without competing with confirmation.
 
@@ -4246,7 +4264,7 @@ Little Ant may review their Nature and importance later.
 
 Apply this change?
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 [/] more...
 ```
 
@@ -4341,7 +4359,7 @@ Assigned automatically when
 
 Is this the right Nature?
 
-[y]es    [c]hange    [s]kip    [?] I don't know
+[y]es    [c]hange    [s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -4387,7 +4405,7 @@ Is
 ?
 
 [m]ore important    [l]ess important
-[s]kip              [?] I don't know
+[s]kip              I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -4409,7 +4427,7 @@ importance-maintenance opportunity is more likely but never guaranteed.
 
 The first `skip` may replace the comparator with one bounded nearby alternative
 under IMP-008. A second skip ends the interaction, retains provisional order,
-and applies review cooldown. `?` enters UX-O11; its read-only inspection may
+and applies review cooldown. `k` enters UX-O11; its read-only inspection may
 expose the complete sibling run, entered or assisted source, applicable
 evidence, and why this pair is unresolved without answering. Reverse
 navigation preserves the pending review.
@@ -4440,7 +4458,7 @@ Order what?
     4 groups · 7 unresolved
 
 [p]ick a Brick or Domain...
-[?] I don't know
+I don't [k]now
 [/] more...
 ```
 
@@ -4565,7 +4583,7 @@ If that relation also resolves the sibling run, the receipt becomes:
 
 The ordinary footer remains below either variant. The result repeats neither
 Brick, proposition, nor explanation; those remain available through
-contextual `?`, `/history`, and structured inspection. It contains no
+contextual `k`, `/history`, and structured inspection. It contains no
 personality phrase and performs no draw. `[n]ext` invokes the global forecast,
 where FOC-041 may favor another importance-maintenance opportunity without
 guaranteeing one. Left Arrow or contextual `/undo` can preview compensation of
@@ -4619,7 +4637,7 @@ What happened?
 [m]istake
     I meant A is more important than C.
 
-[?] I don't know
+I don't [k]now
     Help me compare all three.
 
 [/] more...
@@ -4645,7 +4663,7 @@ If only one of these could ever be done, which one should it be?
 [b] #b "B"
 [c] #c "C"
 
-[?] I still don't know
+I still don't [k]now
 [/] more...
 ```
 
@@ -4685,7 +4703,7 @@ contradict it.
 
 ## UX-O09 — Still-uncertain contradiction result
 
-Selecting `[?] I still don't know` on UX-O07 ends that bounded aid without
+Selecting `I still don't [k]now` on UX-O07 ends that bounded aid without
 forcing a winner:
 
 ```text
@@ -4726,7 +4744,7 @@ after cooldown if its ordinary configured sampling branch selects it.
 
 ## UX-O11 — Guided importance discovery
 
-Question mark on UX-O01 starts IMP-040 with the first displayed Brick:
+The uncertainty shortcut on UX-O01 starts IMP-040 with the first displayed Brick:
 
 ```text
 #a "Launch the landing page"
@@ -4735,7 +4753,7 @@ Question mark on UX-O01 starts IMP-040 with the first displayed Brick:
 Do you understand what result #a is meant to produce
 and what would be lost if it were never done?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -4771,7 +4789,7 @@ Because, if only one could ever be completed, you chose #a.
 
 Record this judgment?
 
-*[y]es    [n]o    [?] I don't know
+*[y]es    [n]o    I don't [k]now
 [/] more...
 ```
 
@@ -4795,7 +4813,7 @@ Either order is fine between
 
 Place them next to each other in either deterministic order?
 
-*[y]es    [n]o    [?] I don't know
+*[y]es    [n]o    I don't [k]now
 [/] more...
 ```
 
@@ -4842,7 +4860,7 @@ No honest direction was found.
 Keep a deterministic provisional position near the current comparator
 and review it later?
 
-*[y]es    [n]o    [?] I don't know
+*[y]es    [n]o    I don't [k]now
 [/] more...
 ```
 
@@ -4867,7 +4885,7 @@ Suggested message:
 #rrsr "Review Rock Splitter rules"?”
 
 [y]es    [e]dit    [n]o    [l]ater    [s]kip
-[?] I don't know
+I don't [k]now
 
 To: @bc "Bento Camargo"
 Reason: delegation follow-up · eligible for 2 days
@@ -4943,7 +4961,7 @@ What next?
  [v]erified outside Little Ant...
  [r]etry — it may happen twice
  [s]top
- [?] I don't know
+ I don't [k]now
 
 [/] more...
 ```
@@ -4991,7 +5009,7 @@ Access requested: Tasks.ReadWrite, offline_access
 Connecting stores the resulting token only in this profile's encrypted vault.
 It does not import or change provider data.
 
-[c]onnect    [b]ack    [?] I don't know
+[c]onnect    [b]ack    I don't [k]now
 
 [/] more...
 ```
@@ -5011,17 +5029,17 @@ Import Microsoft To Do:
 
 [s]napshot once
      Preserve what exists now without checking again.
-[k]eep synchronizing
+keep s[y]nchronizing
      Observe later source changes for review.
 [m]igrate
      Verify a local cutover and stop relying on the source.
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
 
 There is no default. The mode list contains only capabilities declared for the
-source. A file-only source therefore omits keep synchronizing. Question mark
+source. A file-only source therefore omits keep synchronizing. The uncertainty shortcut
 asks whether the human wants a one-time copy, continuing observation, or to
 leave the old system; it never chooses cleanup.
 
@@ -5043,7 +5061,7 @@ Unsupported fields: 2 reminders without a supported time zone
 
 Nothing will be deleted from Microsoft To Do.
 
-[i]mport    [b]ack    [?] I don't know
+[i]mport    [b]ack    I don't [k]now
 
 [/] more...
 ```
@@ -5087,8 +5105,8 @@ What should Little Ant adopt?
 
 [o]nly this occurrence
 [w]hole series...
-[k]eep as raw material
-[?] I don't know
+k[e]ep as raw material
+I don't [k]now
 
 [/] more...
 ```
@@ -5117,7 +5135,7 @@ What should Little Ant keep locally?
 [s]ource time
 [l]ocal time
 [d]etach from the calendar
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -5128,7 +5146,7 @@ reviewed write-back is available, it may then offer UX-A01 as a separate
 effect. Detach stops future source checks without editing either side.
 
 A missing or cancelled source variant asks `What should happen locally?` and
-offers `[k]eep and detach`, `[c]ancel the commitment`, `[r]ecreate on the
+offers `k[e]ep and detach`, `[c]ancel the commitment`, `[r]ecreate on the
 calendar`, and uncertainty, with no default. Recreate opens a separate effect
 preview. None records attended, missed, or done.
 
@@ -5179,7 +5197,7 @@ HTTP: graph.microsoft.com, tasks.googleapis.com,
 Credentials: Microsoft, Google, GitHub accounts when configured
 External effects: source cleanup, Calendar create/update/cancel
 
-[i]nstall    [b]ack    [?] I don't know
+[i]nstall    [b]ack    I don't [k]now
 
 [/] more...
 ```
@@ -5213,8 +5231,8 @@ Bindings:
   2 will use the new version
   1 will keep the installed version
 
-[u]pdate    [k]eep current
-[i]nspect changes    [?] I don't know
+[u]pdate    k[e]ep current
+[i]nspect changes    I don't [k]now
 
 [/] more...
 ```
@@ -5238,7 +5256,7 @@ Affects: 3 source bindings · 1 pending Calendar update
 [p]ause affected integrations
 [m]anual alternatives
 [i]nspect details
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -5264,8 +5282,8 @@ It deletes no archive, canonical data, Raw material, or history.
 Exact retained references: 2
 References to resolve first: 0
 
-[r]emove preferred    [k]eep current
-[i]nspect references  [?] I don't know
+[r]emove preferred    k[e]ep current
+[i]nspect references  I don't [k]now
 
 [/] more...
 ```
@@ -5297,8 +5315,8 @@ Community Exporters 0.8.2 · sha256:21fb…930c
 Only these content-addressed archive bytes will be removed.
 No profile, canonical data, Raw material, trust, or history will change.
 
-[c]ollect archives    [k]eep archives
-[i]nspect exact plan  [?] I don't know
+[c]ollect archives    k[e]ep archives
+[i]nspect exact plan  I don't [k]now
 
 [/] more...
 ```
@@ -5331,7 +5349,7 @@ What should change?
 [t]ake it back — return execution to you
 [r]eassign     — hand it off to someone else
 [e]scalate     — create explicit escalation work
-[s]kip         [?] I don't know
+[s]kip         I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -5362,7 +5380,7 @@ Who should do this work?
 
 [m]e
 [s]omeone else...
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -5384,7 +5402,7 @@ Delegate what to @bc "Bento Camargo"?
 [w]hole scope
     Bento owns this outcome and its current and future parts.
 
-[?] I don't know
+I don't [k]now
 ```
 
 Fixed Nature coverage skips this screen and appears as a fact later. A habit
@@ -5404,7 +5422,7 @@ How should Little Ant follow up?
 [n]o automatic follow-up
     Keep reviewing status without suggesting messages.
 
-[?] I don't know
+I don't [k]now
 ```
 
 No policy is preselected. Internal reviews continue under every row.
@@ -5416,7 +5434,7 @@ How long after a handoff should we check again?
 *[t]hree days
  one [w]eek
  [c]ustom...
- [?] I don't know
+ I don't [k]now
 ```
 
 `*` or Enter accepts three days. Custom accepts a positive integer plus
@@ -5428,7 +5446,7 @@ How will the handoff happen?
 
 [s]end using Work email
 [m]anually
-[?] I don't know
+I don't [k]now
 ```
 
 Only usable delivery bindings appear. With none, manual is the sole row and
@@ -5449,7 +5467,7 @@ Suggested message:
 “Hi Bento Camargo, could you take care of
 #rfr "Review the financial report"?”
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 ```
@@ -5509,7 +5527,7 @@ reported [c]omplete
 [r]efused
 [n]o response
 [t]ake it back
-[s]kip    [?] I don't know
+[s]kip    I don't [k]now
 
 [/] more...
 ```
@@ -5541,7 +5559,7 @@ What should happen?
 [r]eassign...
 [a]rchive or supersede Work...
 [l]ater
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -5559,7 +5577,7 @@ Human work becomes eligible again: yes
 Approved but undelivered messages rejected: 1
 Optional take-back message: not sent
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 ```
 
 After yes, an optional action may open a separately approved take-back effect.
@@ -5594,7 +5612,7 @@ What should be archived?
     Archive this Brick and every active descendant.
 
 [b]ack
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -5631,10 +5649,10 @@ How are these related?
 [s]upersede
     Newer Work replaced older Work; keep both identities and lineage.
 
-[k]eep separate
+k[e]ep separate
     They remain independent Work.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -5649,7 +5667,7 @@ How are these related?
 
 Merge next asks which complete Brick should survive, without a dumb default.
 Supersede next asks which is old and which is replacement. Keep separate
-resolves only this suspicion. Question mark follows UX-220 and returns one
+resolves only this suspicion. The uncertainty shortcut follows UX-220 and returns one
 marked suggestion for explicit selection; repeated uncertainty leaves the
 review pending.
 
@@ -5681,7 +5699,7 @@ Will remain separate:
 
 #rrsr becomes merged into #crsr.
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 
@@ -5721,7 +5739,7 @@ Where should those parts go?
     Keep them independent under #rs "Rock Splitter".
 
 [b]ack
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -5757,7 +5775,7 @@ What should happen now?
 [r]eview outcomes
 [a]dd more work
 [s]kip
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -5792,7 +5810,7 @@ What should happen?
 [u]nblock #dep
 [a]rchive or supersede #dep...
 [b]ack
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -5834,7 +5852,7 @@ expected to make?
 [6] critical
     Safety, legality, or essential continuity is at stake.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -5848,7 +5866,7 @@ expected to make?
 ```
 
 No class is selected in dumb mode. The semantic anchors are deliberately
-short and do not claim domain-specific arithmetic. Question mark offers
+short and do not claim domain-specific arithmetic. The uncertainty shortcut offers
 reviewed-root comparisons when available; with none it explains that the
 system has no basis and returns here without selecting `medium`. Invoking the
 route on a child replaces the question with its complete root citation and
@@ -5873,7 +5891,7 @@ What supports this estimate?
     Review attached material or completed validation Work.
 
 [b]ack
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -5899,7 +5917,7 @@ compared with
 Considering what is known, #rs is expected to have:
 
 [m]ore impact    [l]ess impact    [a]bout the same
-[s]kip           [?] I don't know
+[s]kip           I don't [k]now
 
 [/] more...
 
@@ -5913,7 +5931,7 @@ Considering what is known, #rs is expected to have:
 ```
 
 All three substantive answers are pair-local evidence. About the same means a
-similar public impact class, not equal importance. Question mark can inspect
+similar public impact class, not equal importance. The uncertainty shortcut can inspect
 outcomes and evidence, compare against another reviewed root, or propose one
 ordinary validation Brick under IMP-016; it never invents a class. A
 provocative comparison uses this exact primary composition without a label or
@@ -5933,7 +5951,7 @@ Evidence:
 
 Was the claimed result observed in its real intended setting?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 ```
@@ -5951,7 +5969,7 @@ Impact: HIGH
 Maturity: VALIDATED
 Relies on: +poc "Rock Splitter pilot results"
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 ```
@@ -5981,7 +5999,7 @@ How much total effort would the current scope take from start to finish?
 
 Hours are planning references from the active EffortProfile.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -5995,8 +6013,7 @@ Hours are planning references from the active EffortProfile.
 ```
 
 No row is selected. The values come from the profile version shown through
-contextual inspection; they are neither promises nor stored hours. Question
-mark enters UX-J06 when a comparable reviewed exemplar exists. Otherwise it
+contextual inspection; they are neither promises nor stored hours. Uncertainty enters UX-J06 when a comparable reviewed exemplar exists. Otherwise it
 states that no suitable example exists and returns here. A standing Brick
 must first identify one run, window, session, or occurrence as the unit.
 
@@ -6009,7 +6026,7 @@ Which one looks easiest to complete from start to finish?
 [2] #wd "Write the deployment note"
 [3] #fc "Fix the currency label"
 
-[s]kip    [?] I don't know
+[s]kip    I don't [k]now
 
 [/] more...
 
@@ -6025,7 +6042,7 @@ Which one looks easiest to complete from start to finish?
 The list contains two to four comparable units and no default. Choosing `3`
 records only that #fc appears easier than #rr and #wd for total scope; it does
 not classify any row or start it. The result is the compact `Effort comparison
-recorded.` receipt. Question mark distinguishes scope effort from fear,
+recorded.` receipt. The uncertainty shortcut distinguishes scope effort from fear,
 tiredness, boredom, remaining effort, and current preference, then returns.
 
 ## UX-J06 — Effort exemplar comparison
@@ -6043,7 +6060,7 @@ Effort: HARD (~48 work hours)
 #rs would require:
 
 [m]ore effort    [l]ess effort    [a]bout the same
-[s]kip           [?] I don't know
+[s]kip           I don't [k]now
 
 [/] more...
 ```
@@ -6077,7 +6094,7 @@ What happened?
 [r]evise answer
     Return to the comparison without recording the newest judgment.
 
-[?] I don't know
+I don't [k]now
     Compare all three without using urgency.
 
 [/] more...
@@ -6128,7 +6145,7 @@ America/Montevideo · UTC−03:00
 [o]pen Work
 [a]cknowledge this notice
 [s]nooze this notice
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -6157,7 +6174,7 @@ Work:
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 
 ────────────────────────────────────────
@@ -6250,7 +6267,7 @@ Prepare for:
     atomic task · best before 3 hours before departure
 
 ↑/↓ select · Space include/remove · [e]dit · [c]ontinue
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -6278,7 +6295,7 @@ Current focus:
 Attending now will leave the current Work in progress.
 
 [a]ttend now    [m]issed    [c]ancelled
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -6310,7 +6327,7 @@ The scheduled interval has ended.
 What happened?
 
 [a]ttended    [m]issed    [c]ancelled
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -6327,7 +6344,7 @@ During the interval, the sentence becomes `How is this commitment ending?`
 without claiming it ended. Each choice previews the complete terminal result;
 attended produces `Done: ... · attended`, while missed and cancelled use their
 own headings and statuses. All close commitment focus/WIP, draw nothing, and
-wait at `[n]ext    [/] more...`. Question mark inspects source, interval, and
+wait at `[n]ext    [/] more...`. The uncertainty shortcut inspects source, interval, and
 preparation history or leaves the outcome unresolved; it never chooses one.
 
 ## UX-SC04 — Overlapping commitments
@@ -6344,7 +6361,7 @@ preparation history or leaves the outcome unresolved; it never chooses one.
 Which one should we handle?
 
 [1] first commitment    [2] second commitment
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -6360,7 +6377,7 @@ Which one should we handle?
 There is no default or lottery. Choosing a row opens UX-SC02 or UX-SC03 for
 that exact commitment; resolving it returns here while another remains. More
 than six uses deterministic pages. During creation/reschedule, this family
-instead offers `[k]eep both`, `[e]dit interval`, `[c]ancel`, and uncertainty,
+instead offers `keep [b]oth`, `[e]dit interval`, `[c]ancel`, and uncertainty,
 also without a default. Keep both records the reviewed overlap but no order,
 importance, attendance, or cancellation.
 
@@ -6388,7 +6405,7 @@ Unchanged
 Attention
   #ta is WIP and remains eligible after this change.
 
-[y]es    [e]dit    [n]o    [?] I don't know
+[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 ```
@@ -6470,7 +6487,7 @@ Review raw material
 
 Is this something you could work on by itself?
 
-[y]es    [n]o    [s]kip    [?] I don't know
+[y]es    [n]o    [s]kip    I don't [k]now
 
 [/] more...
 
@@ -6487,7 +6504,7 @@ The `+` handle was allocated with the Raw at Feed time. It is not a `#` Brick
 handle and does not make the Raw Work. `yes` enters Nature, optional Template,
 structure, duplicate, and local importance settlement before creating Work.
 `no` opens UX-T02. `skip` records only a typed triage deferral and leaves the
-Raw in the Inbox. Question mark asks whether seeing this exact Raw alone under
+Raw in the Inbox. The uncertainty shortcut asks whether seeing this exact Raw alone under
 `Work:` would communicate a useful action such as doing, considering, or
 reading it. Yes returns to Work materialization and no to UX-T02. A second
 uncertainty may inspect the complete Raw once and repeat the question; another
@@ -6511,11 +6528,11 @@ Does +milk "milk" belong with any of these?
  [4] #ibbq "Implement BBQ on Rock Splitter"
      work
 
- [k]eep as standalone raw material
+ k[e]ep as standalone raw material
  [m]ore matches...
  [s]earch...
  [c]reate a new group...
- [?] I don't know
+ I don't [k]now
 
 [/] menu...
 
@@ -6567,7 +6584,7 @@ How should this group behave?
 [w]ork group
     Let its children appear independently in next.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -6596,7 +6613,7 @@ before its final preview.
 Should Little Ant suggest this independently as Work
 within #ibbq "Implement BBQ on Rock Splitter"?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 
@@ -6626,11 +6643,11 @@ Fed quantity: 1
 
 What should happen?
 
-*[k]eep it as is
+*k[e]ep it as is
  [a]dd the fed quantity        1 + 1 → 2
  [c]hange the quantity...
  [s]eparate item...
- [?] I don't know
+ I don't [k]now
 
 [/] more...
 
@@ -6661,7 +6678,7 @@ Suggested organization
 
 Add these as list items to #bg "Buy groceries"?
 
-*[y]es    [n]o    [s]kip    [?] I don't know
+*[y]es    [n]o    [s]kip    I don't [k]now
 
 Suggestion: powered up
 
@@ -6708,7 +6725,7 @@ Place this Work:
 *[1] within #ws "Website"
  [r]oot
  [s]earch...
- [?] I don't know
+ I don't [k]now
 ```
 
 Search uses ordinary Brick autocomplete and excludes invalid parents. A
@@ -6722,7 +6739,7 @@ Select zero or more Domains:
  [2] Personal › Projects
  [n]o Domain
  [s]earch...
- [?] I don't know
+ I don't [k]now
 
 [Enter] continue
 ```
@@ -6745,7 +6762,7 @@ Is this proposed Work
 ?
 
 [m]ore important    [l]ess important
-[s]kip              [?] I don't know
+[s]kip              I don't [k]now
 
 [/] more...
 ```
@@ -6771,14 +6788,14 @@ Would completing the existing Work also handle this intention?
 [u]se existing Work
 [c]reate separate Work
 [s]how differences
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
 
 Use existing attaches the preserved Raw as materialization source and creates
 no Brick, handle, or importance evidence. Create separate resumes the draft;
-equal titles remain allowed. Show differences is read-only. Question mark asks
+equal titles remain allowed. Show differences is read-only. The uncertainty shortcut asks
 the displayed completion question once after that inspection; repeated
 uncertainty leaves the materialization pending. No `merge` action appears
 because the proposed Brick does not yet exist.
@@ -6812,7 +6829,7 @@ Confidence: human comparison
 
 Raw material remains preserved.
 
-*[y]es    [e]dit    [n]o    [?] I don't know
+*[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 ```
@@ -6851,7 +6868,7 @@ Is
 +milk "milk"
 ?
 
-*[y]es    [n]o    [s]kip    [?] I don't know
+*[y]es    [n]o    [s]kip    I don't [k]now
 
 [/] more...
 ```
@@ -6864,7 +6881,7 @@ actions. Yes preserves both Raws, links `+milk2` to the canonical root
 Brick or ListEntry. Ordinary projections may render `+milk "milk" · 2
 receipts`; exact-handle, audit, and history views still expose both Raws. No
 records pair-specific negative evidence and continues at UX-T01. Skip leaves
-the question unresolved under review cooldown. Question mark shows a bounded
+the question unresolved under review cooldown. The uncertainty shortcut shows a bounded
 side-by-side view of both complete representations, revisions, provenance,
 sources, and direct relationships, then returns here without mutation.
 
@@ -6928,12 +6945,12 @@ Changed by: human
 Also used by: #fabow "Fix a bug on website"
 English normalization: will become stale
 
-*[y]es    [e]dit    [n]o    [?] I don't know
+*[y]es    [e]dit    [n]o    I don't [k]now
 
 [/] more...
 ```
 
-Yes appends one revision. No returns to UX-RA00 unchanged. Question mark first
+Yes appends one revision. No returns to UX-RA00 unchanged. The uncertainty shortcut first
 shows the bounded old/new difference and explains the affected direct
 consumers; repeated uncertainty leaves the draft pending.
 
@@ -6952,7 +6969,7 @@ How does +fabow "fix a bug on website" support something else?
     Record material that supports a judgment or claim.
 de[r]ived from
     Record which Raw material produced this Raw.
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -6974,7 +6991,7 @@ Translate what?
  [t]itles only                            4 candidates
  [r]aw material only                      8 candidates
  [i]nclude archived material
- [?] I don't know
+ I don't [k]now
 
 [Enter] continue    [/] more...
 ```
@@ -6993,7 +7010,7 @@ comprar leite
 
 Suggested by: powered-up · /bin/claude-fast.sh
 
-[Enter] preview    [s]kip    [?] I don't know
+[Enter] preview    [s]kip    I don't [k]now
 
 Progress: 3 of 12
 [/] more...
@@ -7023,7 +7040,7 @@ What does the observed content mean?
 *[u]pdate the same Raw
  [d]erive new Raw material
  [i]gnore as unrelated
- [?] I don't know
+ I don't [k]now
 
 [/] more...
 ```
@@ -7037,7 +7054,7 @@ applicable actions:
 We could not read this origin: unauthorized
 
 [r]etry    [p]ause checks    [m]ove origin
-[d]etach origin             [l]ater    [?] I don't know
+[d]etach origin             [l]ater    I don't [k]now
 
 [/] more...
 ```
@@ -7054,7 +7071,7 @@ not completed in its window and end a 2-occurrence streak.
 
 Continue?
 
-[y]es · *[n]o · [?] I don't know
+[y]es · *[n]o · I don't [k]now
 
 ────────────────────────────────────────
 [x][x][-][x][x] · current window ends Sunday
@@ -7117,9 +7134,9 @@ sc[h]edule
 [e]nabling work or blocker
 [p]ause the habit
 [a]rchive the habit
-[k]eep it unchanged
+k[e]ep it unchanged
 [s]kip
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -7147,13 +7164,13 @@ An incompatible Structure request first asks only the mechanical distinction:
 
 Should this list remain available after all current items are closed?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 
 [/] more...
 ```
 
 `yes` means a continuing `living_checklist`; `no` means one completable
-`finite_checklist`. Question mark asks `Do you expect to add new items after
+`finite_checklist`. The uncertainty shortcut asks `Do you expect to add new items after
 this current set?` and maps yes/no to the same two rows. A second uncertainty
 shows both consequences once, then returns unresolved to Structure. No choice
 has a dumb default.
@@ -7233,7 +7250,7 @@ Open items: 3
 
 Focus?
 
-[y]es    [s]kip    [?] I don't know
+[y]es    [s]kip    I don't [k]now
 [/] more...
 ```
 
@@ -7287,7 +7304,7 @@ Resolved: 8    Cancelled: 2
 What should happen?
 
 [d]one    [a]dd more work
-[s]kip    [?] I don't know
+[s]kip    I don't [k]now
 
 [/] more...
 ```
@@ -7339,7 +7356,7 @@ What next?
 [c]hange Domain
 [f]eed something
 [e]nd for now
-[?] I don't know
+I don't [k]now
 
 ────────────────────────────────────────
 4 active · 3 blocked · 1 not before tomorrow
@@ -7368,7 +7385,7 @@ Deliver to:
      You will send or tell Alice outside Little Ant.
  [e]mail · alice@example.com
      via Work Mail
- [?] I don't know
+ I don't [k]now
 
 [/] more...
 ```
@@ -7392,7 +7409,7 @@ Contact details:
 [p]hone
 [u]ri
 provider [r]ecipient
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -7416,7 +7433,7 @@ To: alice@example.com
 [u]nlock
 [c]hoose another method
 [l]ater
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -7450,7 +7467,7 @@ Configuration:
 [v]ault
 pro[f]ile
 [r]esolved paths
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -7479,7 +7496,7 @@ Which description fits the work now?
 🔨 [e]xecution   Being carried out.
 🧪 [v]alidation  Being tested or evaluated.
 [c]lear phase    Leave it unspecified.
-[?] I don't know
+I don't [k]now
 
 [/] more...
 
@@ -7507,7 +7524,7 @@ With `emoji_mode = never`, the primary rows are exactly:
 [e]xecution   Being carried out.
 [v]alidation  Being tested or evaluated.
 [c]lear phase Leave it unspecified.
-[?] I don't know
+I don't [k]now
 ```
 
 No alignment, shortcut, or explanation depends on the suppressed icons.
@@ -7536,7 +7553,7 @@ reordering them:
 ```text
 [y]es
 [s]kip
-[?] I don't know
+I don't [k]now
 [/] more...
 ────────────────────────
 . #rs "Rock Splitter"
@@ -7555,43 +7572,53 @@ mode never changes glyphs.
 
 ## UX-LIST00 — Importance and Focus views
 
-`/list` opens one selector with no default:
+`/list` opens importance order immediately. The default presentation shows
+composition with `├──`, `│`, and `└──`; `v` switches to the current forecast.
+`t` turns on the combined category and composition tree:
 
 ```text
-List:
+Importance order · Categories + parts
+Positions are local to each sibling group.
 
-[i]mportance order
-    The strict sibling tree settled by human judgment.
+  Work
+  └── Presentations
+      └── #talk Prepare presentation
+          ├── #outline Define outline
+          └── #slides Prepare slides
+              └── #diagram Draw diagram
 
-[f]ocus forecast
-    Current chances and reasons used by next.
-
-[?] I don't know
-
-[/] more...
+────────────────────────────────────────────────────
+[v] forecast · [t] categories off · Ctrl+F search
+↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
-Importance renders the composition tree and sibling order, pages large trees,
-and labels groups with unresolved placement without manufacturing a score.
-Focus forecast renders a bounded page like:
+Controls and the product footer remain visible while paging. Category labels
+are contextual branches rather than inspection targets. Rows show positions
+local to their sibling group. With forecast active, grouped rows retain their
+exact current chances and bounded reasons; context-only project ancestors
+show no chance. Category references never multiply the chance or the count of
+unique subjects. Direct membership stays explicit: a part inside its project's
+branch does not thereby acquire the project's category. A Brick can appear
+under several direct categories; uncategorized roots form their own branch.
+Dependencies are a separate relationship and never substitute for composition.
 
-```text
-Focus forecast:
+Ctrl-F opens a local search field. While it owns input, letters including `v`
+and `t` are query text. Ctrl-F again finishes typing and retains the query,
+allowing view/grouping controls to operate on those results. Matches preserve category/project ancestors; matching a
+branch retains its parts. Arrows select inspectable items, Enter opens read-only
+inspection, and Escape returns to exactly the prior results and selection.
+Escape in the list first clears search and restores all entries; another Escape
+returns to the suspended interaction. View/grouping changes preserve the query,
+scope, and selected item where it remains available. Mouse wheel, paging, and
+terminal resizing retain those same semantics. Narrow terminals wrap hints and
+tree labels without hiding the view/search controls.
 
-  18.4%  #rrsr "Review Rock Splitter rules"
-         Domain continuity · age 2d
-
-   7.1%  #bg "Buy groceries"
-         preferred place unavailable · age 4d
-
-[n]ext page    [s]cope...    [/] more...
-```
-
-The exact chance is diagnostic, not a target or promise. `scope` uses typed
-Brick or Domain autocomplete; back restores the prior page and query. The
-same cursor and scope reproduce the page without consuming a draw. The
-importance branch uses the same pagination and scope actions but never shows
-probability columns.
+Explicit `importance`/`forecast` and optional Brick or Domain scope use the same
+projections as CLI. The exact chance is diagnostic, not a target, global score,
+or promise. Browsing, local search, grouping, and inspecting consume no draw and
+make no importance judgment. A standalone HTML export reflects categories with
+nested parts and keeps composition and dependency sections separately reachable;
+native collapsible branches and browser find replace terminal key controls.
 
 ## UX-EXP00 — Read-only export
 
@@ -7611,7 +7638,7 @@ Enter review · Esc back
 ```
 
 Review shows exporter, projection/scope, media type, destination, and warnings,
-then offers `[e]xport · [c]hange file · [?] I don't know` with no default. The
+then offers `[e]xport · [c]hange file · I don't [k]now` with no default. The
 accepted result reports the created path, byte count, and digest. An existing,
 symlinked, missing-parent, or nonregular destination returns the typed
 precondition plus change-file recovery and preserves the preview. CLI stdout
@@ -7633,7 +7660,7 @@ How does location affect this Work?
 [p]referred
     Favor it when the place is currently confirmed.
 
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ```
@@ -7654,7 +7681,7 @@ Enter review · Esc back
 
 Previously used labels appear as completion suggestions but are not global
 objects. The review asks `Add this required place?`, shows the exact label and
-Focus consequence, and uses `[y]es · [n]o · [?] I don't know`; no row is
+Focus consequence, and uses `[y]es · [n]o · I don't [k]now`; no row is
 selected. Removing an existing condition uses the same consequence preview.
 
 ## UX-PL01 — Required-place confirmation
@@ -7670,7 +7697,7 @@ Required place: grocery store
 
 Are you there now?
 
-[y]es    [n]o    [?] I don't know
+[y]es    [n]o    I don't [k]now
 [/] more...
 ────────────────────────────────────────
 . <root>
@@ -7683,7 +7710,7 @@ Are you there now?
 
 Yes restores the already selected Brick through ordinary `Focus?` without a
 new draw. No records only the bounded place deferral and returns an ordinary
-no-draw result with `[n]ext · [/] more...`. Question mark explains the
+no-draw result with `[n]ext · [/] more...`. The uncertainty shortcut explains the
 condition and asks whether the human can observe their current place; repeated
 uncertainty leaves the same decision pending.
 
@@ -7715,7 +7742,7 @@ Old external effects will not run.
 [i]nspect mappings
 [b]uild candidate
 [c]ancel
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ────────────────────────────────────────
@@ -7750,7 +7777,7 @@ Candidate: lant-v1-candidate-7f31
 [c]utover preview
 [i]nspect report
 [d]iscard candidate
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ────────────────────────────────────────
@@ -7781,7 +7808,7 @@ No external action will run.
 
 [c]ut over
 [b]ack
-[?] I don't know
+I don't [k]now
 
 [/] more...
 ────────────────────────────────────────

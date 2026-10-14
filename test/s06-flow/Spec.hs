@@ -148,10 +148,17 @@ seedChecklist environment nature = do
       firstRaw = fixtureUuid 191
       secondRaw = fixtureUuid 192
       replay = [command, ownerRaw, firstRaw, secondRaw, parentId, entryOneId, entryTwoId] <> eventIds
-      draft eventId payload = EventDraft eventId command actor fixedTime (statePreconditionHash emptyState) replay payload
+      draft eventId =
+        EventDraft
+          eventId
+          command
+          actor
+          fixedTime
+          (statePreconditionHash emptyState)
+          replay
       one = Quantity 1 0 ""
       events =
-        [ draft (eventIds !! 0) (RawFedV1 (RawFed ownerRaw (Handle "groceries") "Buy groceries" "test" Nothing))
+        [ draft (head eventIds) (RawFedV1 (RawFed ownerRaw (Handle "groceries") "Buy groceries" "test" Nothing))
         , draft (eventIds !! 1) (BrickCreatedV1 (BrickCreated parentId (Handle "groceries") "Buy groceries" nature "factory@1" "human" Nothing Nothing Set.empty 0 (DeterministicPosition "singleton") ownerRaw))
         , draft (eventIds !! 2) (RawLinkAddedV1 (RawLinkAdded (fixtureUuid 220) ownerRaw (RawLinkBrick parentId) MaterializationSourceRole))
         , draft (eventIds !! 3) (RawDispositionAcceptedV1 (RawDispositionAccepted ownerRaw (RawMaterializedAsWork parentId)))
@@ -173,9 +180,16 @@ seedParent environment nature = do
       command = fixtureUuid 10
       eventIds = fmap fixtureUuid [11 .. 14]
       replay = rawIdValue : parentId : command : eventIds
-      draft eventId payload = EventDraft eventId command actor fixedTime (statePreconditionHash emptyState) replay payload
+      draft eventId =
+        EventDraft
+          eventId
+          command
+          actor
+          fixedTime
+          (statePreconditionHash emptyState)
+          replay
       events =
-        [ draft (eventIds !! 0) (RawFedV1 (RawFed rawIdValue (Handle "parent") "Carry this enormous stone" "test" Nothing))
+        [ draft (head eventIds) (RawFedV1 (RawFed rawIdValue (Handle "parent") "Carry this enormous stone" "test" Nothing))
         , draft
             (eventIds !! 1)
             (BrickCreatedV1 (BrickCreated parentId (Handle "parent") "Carry this enormous stone" nature "factory@1" "human" Nothing Nothing Set.empty 0 (DeterministicPosition "singleton") rawIdValue))

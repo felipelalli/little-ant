@@ -15,6 +15,7 @@ import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Aeson.Types (Parser)
 import Data.List (find)
 import Data.Map.Strict qualified as Map
+import Data.Maybe qualified
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -83,23 +84,27 @@ prepareProviderConnectionDraft definitions registry integrations revision reques
       supplied <- case Text.strip <$> clientId of
         Just value | not (Text.null value) -> Right value
         _ -> Left (connectionProblem InvalidInput "The public OAuth client ID is required by this signed connector." [source])
-      let configured = insertClientId (descriptorClientIdKey oauth) supplied (providerAccountConfiguration <$> existingAccount)
-      accountForClient <-
-        pure
-          ProviderAccount
-            { providerAccountPackPin = packPin
-            , providerAccountComponent = source
-            , providerAccountProvider = providerDefinitionNamespace definition
-            , providerAccountExternalId = maybe accountName providerAccountExternalId existingAccount
-            , providerAccountLabel = label
-            , providerAccountConfiguration = configured
-            }
+      configured <- applyComponentConfigurationDefaults registered (insertClientId (descriptorClientIdKey oauth) supplied (providerAccountConfiguration <$> existingAccount))
+      let accountForClient =
+            ProviderAccount
+              { providerAccountPackPin = packPin
+              , providerAccountComponent = source
+              , providerAccountProvider = providerDefinitionNamespace definition
+              , providerAccountExternalId =
+                  maybe
+                    accountName
+                    providerAccountExternalId
+                    existingAccount
+              , providerAccountLabel = label
+              , providerAccountConfiguration = configured
+              }
       client <- resolveProviderOAuthClient registered accountForClient oauth
       pure (configured, providerOAuthScopes client, Just (providerOAuthFingerprint client), Just supplied)
     StaticConnection _ _ -> do
       unless (maybe True (Text.null . Text.strip) clientId) $
         Left (connectionProblem InvalidInput "This signed connector uses a static credential and accepts no OAuth client ID." [source])
-      pure (maybe (Object KeyMap.empty) providerAccountConfiguration existingAccount, Set.empty, Nothing, Nothing)
+      configured <- applyComponentConfigurationDefaults registered (maybe (Object KeyMap.empty) providerAccountConfiguration existingAccount)
+      pure (configured, Set.empty, Nothing, Nothing)
   let account =
         ProviderAccount
           { providerAccountPackPin = packPin
@@ -154,7 +159,7 @@ connectionOAuthClient registry draft = do
   descriptor <- soleOAuthAuthorization registered
   client <- resolveProviderOAuthClient registered (providerConnectionAccount draft) descriptor
   unless
-    ( providerOAuthFingerprint client == maybe "" id (credentialBindingAuthorizationFingerprint (providerConnectionBinding draft))
+    ( providerOAuthFingerprint client == Data.Maybe.fromMaybe "" (credentialBindingAuthorizationFingerprint (providerConnectionBinding draft))
         && providerOAuthScopes client == providerConnectionScopes draft
         && descriptorSlot descriptor == credentialBindingSlot (providerConnectionBinding draft)
         && descriptorScheme descriptor == credentialBindingScheme (providerConnectionBinding draft)
@@ -317,7 +322,7 @@ instance ToJSON ProviderConnectionDraft where
       , "profile_revision" .= providerConnectionProfileRevision draft
       ]
         <> maybe [] (pure . ("client_id" .=)) (providerConnectionClientId draft)
-        <> [("scopes" .= Set.toAscList (providerConnectionScopes draft)) | not (Set.null (providerConnectionScopes draft))]
+        <> ["scopes" .= Set.toAscList (providerConnectionScopes draft) | not (Set.null (providerConnectionScopes draft))]
 
 instance FromJSON ProviderConnectionDraft where
   parseJSON = withObject "ProviderConnectionDraft" $ \fields -> do

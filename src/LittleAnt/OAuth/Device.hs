@@ -28,6 +28,7 @@ import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Aeson.Types (Parser, parseEither)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.Functor qualified
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
@@ -141,7 +142,8 @@ beginDeviceAuthorization transport now client = do
               , ("scope", renderScopes (oauthDeviceScopes permission))
               ]
           )
-  runOAuthFormTransport transport request >>= pure . (>>= parseDeviceAuthorization now)
+  runOAuthFormTransport transport request
+    Data.Functor.<&> (>>= parseDeviceAuthorization now)
 
 pollDeviceAuthorization :: OAuthFormTransport -> UTCTime -> OAuthDeviceClient -> DeviceAuthorizationSession -> IO (Either AppError DeviceAuthorizationPoll)
 pollDeviceAuthorization transport now client session
@@ -157,7 +159,8 @@ pollDeviceAuthorization transport now client session
                   , ("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
                   ]
               )
-      runOAuthFormTransport transport request >>= pure . (>>= parsePollResponse now client session)
+      runOAuthFormTransport transport request
+        Data.Functor.<&> (>>= parsePollResponse now client session)
 
 refreshOAuthTokenSet :: OAuthFormTransport -> UTCTime -> OAuthDeviceClient -> OAuthTokenSet -> IO (Either AppError OAuthTokenSet)
 refreshOAuthTokenSet transport now client previous
@@ -177,7 +180,8 @@ refreshOAuthTokenSet transport now client previous
                     , ("scope", renderScopes (oauthDeviceScopes permission))
                     ]
                 )
-        runOAuthFormTransport transport request >>= pure . (>>= parseRefreshResponse now client refreshToken)
+        runOAuthFormTransport transport request
+          Data.Functor.<&> (>>= parseRefreshResponse now client refreshToken)
 
 persistOAuthTokenSet :: FilePath -> OAuthDeviceClient -> CredentialBinding -> Text -> OAuthTokenSet -> IO (Either AppError ())
 persistOAuthTokenSet socketPath client binding label tokenSet = case validateTokenForClient client binding tokenSet of
@@ -194,13 +198,16 @@ persistOAuthTokenSet socketPath client binding label tokenSet = case validateTok
                 label
                 ( Map.fromList
                     [ ("account", credentialBindingAccount binding)
-                    , ("authorization_fingerprint", oauthAuthorizationFingerprint tokenSet)
+                    ,
+                      ( "authorization_fingerprint"
+                      , oauthAuthorizationFingerprint tokenSet
+                      )
                     , ("component", credentialBindingComponent binding)
                     ]
                 )
                 encoded
             )
-            >>= pure . (>>= acknowledged)
+            Data.Functor.<&> (>>= acknowledged)
         )
         (wipeAgentSecret encoded)
  where
@@ -252,7 +259,9 @@ prepareOAuthRequest request = do
       }
 
 readOAuthResponse :: Http.Response Http.BodyReader -> IO (Either AppError OAuthFormResponse)
-readOAuthResponse response = readBoundedOAuthBody (Http.responseBody response) >>= pure . (>>= decodeBody)
+readOAuthResponse response =
+  readBoundedOAuthBody (Http.responseBody response)
+    Data.Functor.<&> (>>= decodeBody)
  where
   decodeBody bytes = do
     value <- either (const (Left (oauthProblem ExternalFailure "The OAuth endpoint returned a non-JSON response." []))) Right (eitherDecodeStrict' bytes)

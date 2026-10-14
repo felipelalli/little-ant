@@ -96,7 +96,7 @@ cacheOfficialPackArchive profileStateDirectory expectedDigest bytes
     unless (observed == expected) (ioError (userError "content-addressed official Pack cache collision"))
 
 officialBaseUrl :: String
-officialBaseUrl = "https://raw.githubusercontent.com/felipelalli/little-ant/main/packs/official/"
+officialBaseUrl = "https://raw.githubusercontent.com/felipelalli/little-ant/v1/packs/official/"
 
 fetchBounded :: Http.Manager -> Text -> Int -> String -> IO (Either AppError ByteString)
 fetchBounded manager label limit url = do

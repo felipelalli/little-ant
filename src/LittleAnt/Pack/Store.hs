@@ -17,6 +17,7 @@ import Control.Monad (unless, when)
 import Data.Bits ((.&.))
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
+import Data.Char qualified
 import Data.List (sort)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
@@ -234,7 +235,7 @@ maxStoredArchiveBytes = 72 * 1024 * 1024
 validDigest :: Text -> Bool
 validDigest digest =
   Text.length digest == 64
-    && Text.all (\character -> character >= '0' && character <= '9' || character >= 'a' && character <= 'f') digest
+    && Text.all (\character -> Data.Char.isDigit character || character >= 'a' && character <= 'f') digest
 
 unsafeStoreEntry :: FilePath -> Text -> AppError
 unsafeStoreEntry path message =

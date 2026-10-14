@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-test_root="$(mktemp -d /tmp/lant-s01-cli.XXXXXX)"
+test_root="$(mktemp -d "${TMPDIR:-/tmp}/lant-s01-cli.XXXXXX")"
 trap 'rm -rf -- "$test_root"' EXIT
 
 lant_executable="$(cabal list-bin exe:lant)"

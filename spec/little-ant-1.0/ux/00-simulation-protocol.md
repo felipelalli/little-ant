@@ -13,7 +13,7 @@ may expose missing or contradictory rules.
   The user may press/type an action or critique wording, density, visibility,
   shortcut, default, context, or transition before state advances.
 - **SCN-002 — Hesitation is evidence.** Confusion between `yes`, `no`, `skip`,
-  `done`, `later`, or `?` is recorded as a UX defect or semantic question,
+  `done`, `later`, or `k` is recorded as a UX defect or semantic question,
   not explained away.
 - **SCN-003 — Fixed state.** Every synthetic run declares clock, timezone,
   configuration profile, random seed/cursor, active Domain, focus, and fixture
@@ -72,8 +72,8 @@ may expose missing or contradictory rules.
   event, draw, or random cursor. Verify the complete footer is dim and
   accent-color-free while only the exact semantic values named by `UX-071`
   return to normal intensity; stripping ANSI must preserve its six-line shape.
-- **SCN-016 — Every uncertainty route earns its question mark.** For every
-  finite screen, invoke `[?] I don't know` and replay its complete dumb
+- **SCN-016 — Every uncertainty route earns its assistance shortcut.** For every
+  finite screen, invoke `I don't [k]now` and replay its complete dumb
   honest-answer tree. Verify one question per screen, every leaf and reverse
   edge, the explicit confirmation boundary, no intermediate evidence, and an
   honest unresolved state when judgment or information cannot be derived.
@@ -119,7 +119,7 @@ A scenario passes only when:
 - the primary question is understandable without a prominent explanatory
   paragraph;
 - every visible action has one distinct consequence;
-- `?` can reveal sufficient context and return without mutation;
+- `k` can reveal sufficient context and return without mutation;
 - Escape/back and semantic undo are distinguishable;
 - the resulting state and next screen are predictable after explanation;
 - the three surface renderings preserve the approved composition;

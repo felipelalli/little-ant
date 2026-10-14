@@ -211,6 +211,11 @@ Domain.
   Global display order is the lexicographic traversal of sibling orders.
 - **MOD-021 [core] — Dependency is orthogonal.** A dependency says what must
   become actionable first. It neither reparents nor reorders either Brick.
+  An effective blocking edge connects active Work. Retiring either endpoint
+  removes the edge from active gating while retaining its UUID, source, and
+  endpoints in history; removal does not claim that its prerequisite was done.
+  Restoring Work does not reactivate a removed edge. A later explicit
+  prerequisite decision may create a new active edge.
 - **MOD-022 [core] — Multi-Domain membership.** A Brick may belong to several
   Domains. Membership does not duplicate the Brick or give it multiple
   top-level lottery tickets. MOD-073..076 define the single forest, lifecycle,
@@ -244,8 +249,7 @@ The factory library contains:
 | `scheduled_commitment` | one externally anchored interval that cannot be performed at an arbitrary time |
 
 - **MOD-025 [core] — Required Nature.** Every Brick receives exactly one
-  validated Nature at birth. There is no hidden fallback Nature. `[?] I don't
-  know` starts bounded capability questions whose `yes`, `no`, and uncertainty
+  validated Nature at birth. There is no hidden fallback Nature. `I don't [k]now` starts bounded capability questions whose `yes`, `no`, and uncertainty
   answers resolve an existing validated Nature. If uncertainty remains, the
   Raw-to-Work materialization remains pending and no Brick is created.
 - **MOD-026 [core] — Closed capabilities.** Nature definitions can compose only

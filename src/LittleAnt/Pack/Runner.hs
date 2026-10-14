@@ -42,6 +42,7 @@ import Data.List (find, sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust, isNothing)
+import Data.Maybe qualified
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -501,12 +502,22 @@ invokePackSourceCleanupContainerInspectHttp client broker registered source exte
       ]
 
 invokePackSourceCleanupContainerHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> Value -> Text -> IO (Either AppError SourceCleanupReceipt)
-invokePackSourceCleanupContainerHttp client broker registered source externalIdentity =
-  invokePackSourceCleanupContainerOperation client broker registered RunnerSourceCleanupContainer "little-ant/source-cleanup-container-request@1" source externalIdentity
+invokePackSourceCleanupContainerHttp client broker registered =
+  invokePackSourceCleanupContainerOperation
+    client
+    broker
+    registered
+    RunnerSourceCleanupContainer
+    "little-ant/source-cleanup-container-request@1"
 
 invokePackSourceCleanupContainerVerifyHttp :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> Value -> Text -> IO (Either AppError SourceCleanupReceipt)
-invokePackSourceCleanupContainerVerifyHttp client broker registered source externalIdentity =
-  invokePackSourceCleanupContainerOperation client broker registered RunnerSourceCleanupContainerVerify "little-ant/source-cleanup-container-verify-request@1" source externalIdentity
+invokePackSourceCleanupContainerVerifyHttp client broker registered =
+  invokePackSourceCleanupContainerOperation
+    client
+    broker
+    registered
+    RunnerSourceCleanupContainerVerify
+    "little-ant/source-cleanup-container-verify-request@1"
 
 invokePackSourceCleanupContainerOperation :: PackRunnerClient -> PackHttpBroker -> RegisteredPackComponent -> RunnerOperation -> Text -> Value -> Text -> IO (Either AppError SourceCleanupReceipt)
 invokePackSourceCleanupContainerOperation client broker registered operation schema source externalIdentity =
@@ -821,8 +832,8 @@ sourceContainerInspectionValue inspection =
     , "external_identity" .= inspectedContainerExternalIdentity inspection
     , "label" .= inspectedContainerLabel inspection
     , "outcome" .= sourceContainerInspectionOutcomeText (inspectedContainerOutcome inspection)
-    , "item_count" .= maybe (-1 :: Int) id (inspectedContainerItemCount inspection)
-    , "provider_version" .= maybe "" id (inspectedContainerProviderVersion inspection)
+    , "item_count" .= Data.Maybe.fromMaybe (-1 :: Int) (inspectedContainerItemCount inspection)
+    , "provider_version" .= Data.Maybe.fromMaybe "" (inspectedContainerProviderVersion inspection)
     , "redacted_detail" .= inspectedContainerRedactedDetail inspection
     ]
 
@@ -855,8 +866,8 @@ sourceCleanupReceiptValue receipt =
   object
     [ "schema" .= ("little-ant/source-cleanup-receipt@1" :: Text)
     , "outcome" .= sourceCleanupOutcomeText (sourceCleanupOutcome receipt)
-    , "provider_reference" .= maybe "" id (sourceCleanupProviderReference receipt)
-    , "redacted_detail" .= maybe "" id (sourceCleanupRedactedDetail receipt)
+    , "provider_reference" .= Data.Maybe.fromMaybe "" (sourceCleanupProviderReference receipt)
+    , "redacted_detail" .= Data.Maybe.fromMaybe "" (sourceCleanupRedactedDetail receipt)
     ]
 
 sourceCleanupOutcomeText :: SourceCleanupOutcome -> Text

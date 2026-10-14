@@ -249,7 +249,7 @@ scheduledOverlap = withHarness $ \environment -> do
   case envelopeOpportunity overlap of
     ScheduledOverlapOpportunity identities -> Set.fromList identities @?= Set.fromList [brickIdValue, secondId]
     other -> assertFailure ("expected scheduled overlap, got " <> show other)
-  assertBool "overlap acquired an unsafe default" (all (not . actionDefault) (envelopeActions overlap))
+  assertBool "overlap acquired an unsafe default" ((not . any actionDefault) (envelopeActions overlap))
   selected <- answer environment overlap ("commitment.overlap.select." <> renderUUIDv7 brickIdValue)
   _ <- answer environment selected "commitment.missed"
   remaining <- run environment NextCommand >>= interactionOf
@@ -267,9 +267,16 @@ seedBrickAs environment identity handle title nature base = do
       eventIds = fmap fixtureUuid [base + 2 .. base + 5]
       linkIdentity = fixtureUuid (base + 6)
       replay = command : rawIdentity : identity : linkIdentity : eventIds
-      draft eventId payload = EventDraft eventId command actor fixedTime (statePreconditionHash (loadedState loaded)) replay payload
+      draft eventId =
+        EventDraft
+          eventId
+          command
+          actor
+          fixedTime
+          (statePreconditionHash (loadedState loaded))
+          replay
       events =
-        [ draft (eventIds !! 0) (RawFedV1 (RawFed rawIdentity handle title "test" Nothing))
+        [ draft (head eventIds) (RawFedV1 (RawFed rawIdentity handle title "test" Nothing))
         , draft (eventIds !! 1) (BrickCreatedV1 (BrickCreated identity handle title nature "factory@1" "human" Nothing Nothing Set.empty 0 (DeterministicPosition "singleton") rawIdentity))
         , draft (eventIds !! 2) (RawLinkAddedV1 (RawLinkAdded linkIdentity rawIdentity (RawLinkBrick identity) MaterializationSourceRole))
         , draft (eventIds !! 3) (RawDispositionAcceptedV1 (RawDispositionAccepted rawIdentity (RawMaterializedAsWork identity)))

@@ -1,17 +1,17 @@
 {
   "schema": "little-ant/calculation-vectors@1",
-  "profile_sha256": "ad5146dacc8edee39d5235b1fc8dabcd19f1307fb6e5b8f573374e259fec1af4",
+  "profile_sha256": "5aa624134e6185ff936a0091f737458fe1daac00dc6127003508ab5f2352b84b",
   "vectors": [
     {
       "id": "weighted-choice/neutral-siblings",
       "operation": "weighted_choice",
       "input": {
         "ordered_candidates": ["A", "B", "C"],
-        "importance_factors": [1000000, 287500, 50000]
+        "importance_factors": [1000000, 390980, 275687]
       },
       "expected": {
-        "weights": [1000000, 287500, 50000],
-        "total": 1337500
+        "weights": [1000000, 390980, 275687],
+        "total": 1666667
       }
     },
     {
@@ -22,10 +22,25 @@
         "sample": 600000
       },
       "expected": {
-        "weights": [250000, 503125, 150000],
-        "total": 903125,
+        "weights": [250000, 684215, 827061],
+        "total": 1761276,
         "selected": "B"
       }
+    },
+    {
+      "id": "importance/forte-plus-53",
+      "operation": "importance_factor",
+      "input": { "sibling_count": 53, "confidence": 1000000 },
+      "expected": {
+        "first_five_factors": [1000000, 196257, 137457, 96297, 67485],
+        "all_factors_total": 1666684
+      }
+    },
+    {
+      "id": "importance/zero-confidence",
+      "operation": "importance_factor",
+      "input": { "sibling_count": 53, "confidence": 0 },
+      "expected": { "each_factor": 350000 }
     },
     {
       "id": "weighted-choice/singleton",

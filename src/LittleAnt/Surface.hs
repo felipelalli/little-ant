@@ -10,11 +10,15 @@ module LittleAnt.Surface (
   plainLine,
   renderPlain,
   selectedEditor,
+  textDisplayWidth,
+  wrapDisplayText,
+  wrapScreenLine,
 )
 where
 
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Graphics.Text.Width (safeWcswidth)
 
 data SemanticRole
   = Normal
@@ -22,6 +26,11 @@ data SemanticRole
   | Accent
   | Selected
   | Warning
+  | Heading
+  | Strong
+  | Emphasis
+  | Code
+  | Link
   deriving stock (Eq, Ord, Show)
 
 data Span = Span
@@ -99,3 +108,46 @@ plainLine = Text.concat . fmap spanText
 
 renderPlain :: ScreenModel -> Text
 renderPlain = Text.intercalate "\n" . fmap plainLine . screenLines
+
+textDisplayWidth :: Text -> Int
+textDisplayWidth = max 0 . safeWcswidth . Text.unpack
+
+-- Keep explicit line breaks and hard-wrap long words (handles, URLs, and CJK
+-- text) as well as ordinary prose. Layout is measured in terminal cells.
+wrapDisplayText :: Int -> Text -> [Text]
+wrapDisplayText requestedWidth = concatMap wrapLine . Text.splitOn "\n"
+ where
+  width = max 1 requestedWidth
+  wrapLine line
+    | textDisplayWidth line <= width = [line]
+    | otherwise =
+        let (chunk, rest) = splitCells width line
+            (beforeSpace, afterSpace) = Text.breakOnEnd " " chunk
+         in if not (Text.null beforeSpace) && not (Text.null (Text.strip beforeSpace))
+              then Text.stripEnd beforeSpace : wrapLine (afterSpace <> rest)
+              else chunk : wrapLine rest
+
+splitCells :: Int -> Text -> (Text, Text)
+splitCells width = go 0 ""
+ where
+  go cells prefix remaining = case Text.uncons remaining of
+    Nothing -> (prefix, "")
+    Just (character, rest)
+      | cells + textDisplayWidth (Text.singleton character) > width && not (Text.null prefix) -> (prefix, remaining)
+      | otherwise -> go (cells + textDisplayWidth (Text.singleton character)) (Text.snoc prefix character) rest
+
+wrapScreenLine :: Int -> ScreenLine -> [ScreenLine]
+wrapScreenLine requestedWidth spans = reverse (reverse current : completed)
+ where
+  width = max 1 requestedWidth
+  (completed, current, _) = foldl addSpan ([], [], 0) spans
+  addSpan state (Span role text) = Text.foldl' (addCharacter role) state text
+  addCharacter role (rows, line, cells) character
+    | character == '\n' = (reverse line : rows, [], 0)
+    | cells + charWidth > width && not (null line) = (reverse line : rows, [Span role (Text.singleton character)], charWidth)
+    | otherwise = (rows, appendCharacter line, cells + charWidth)
+   where
+    charWidth = textDisplayWidth (Text.singleton character)
+    appendCharacter (Span previousRole previousText : rest)
+      | previousRole == role = Span role (Text.snoc previousText character) : rest
+    appendCharacter previous = Span role (Text.singleton character) : previous

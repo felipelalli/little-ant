@@ -353,11 +353,12 @@ replPackManager = withHarness $ \environment -> do
   listed <- run environment False PacksListCommand
   case listed of
     PacksResult _ "list" packs problem False -> do
+      pack <- case packs of one : _ -> pure one; [] -> assertFailure "the built-in Pack is missing"
       fmap commandOptionId (filteredCommands owner "/packs") @?= ["packs"]
       let manager = renderPlain (packManagerModel owner packs problem 0 Nothing)
           installEditor = renderPlain (packPathEditorModel owner InstallPackArchive (EditorState "" "" Nothing) Nothing)
           trustEditor = renderPlain (packPathEditorModel owner TrustPublisherKey (EditorState "" "" Nothing) Nothing)
-      assertBool "the selected Pack is visible" ("> Little Ant Standard Pack 1.0.0" `Text.isInfixOf` manager)
+      assertBool "the selected Pack is visible" (("> Little Ant Standard Pack " <> projectedPackVersion pack) `Text.isInfixOf` manager)
       assertBool "the manager exposes Pack navigation" ("[s]how" `Text.isInfixOf` manager && "[i]nstall..." `Text.isInfixOf` manager)
       assertBool "the manager exposes explicit selected-Pack update" ("[u]pdate" `Text.isInfixOf` manager)
       assertBool "the manager exposes explicit catalog refresh" ("[r]efresh catalog" `Text.isInfixOf` manager)
@@ -549,7 +550,9 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   Map.keys (Profile.providerAccounts configured) @?= ["personal"]
   Map.keys (Profile.credentialBindings configured) @?= ["microsoft_todo-personal"]
   case Map.lookup "personal" (Profile.providerAccounts configured) of
-    Just account -> pinArtifact (Profile.providerAccountPackPin account) @?= connectorIdentity
+    Just account -> do
+      pinArtifact (Profile.providerAccountPackPin account) @?= connectorIdentity
+      Profile.providerAccountConfiguration account @?= object ["client_id" .= ("11111111-1111-1111-1111-111111111111" :: Text), "include_completed" .= False, "allow_incomplete_attachments" .= False, "list_ids" .= ([] :: [Text])]
     Nothing -> assertFailure "the connected provider account was not retained"
 
   restarted <- productionAppEnv Nothing >>= either (assertFailure . show) pure
@@ -563,7 +566,7 @@ providerConnectionEnablesImport = withHarness $ \base -> do
       importSourceDisplayName descriptor @?= "Microsoft To Do · Personal account"
       let modeScreen = renderPlain (importModeModel accepted (ImportSelection descriptor "microsoft_todo") Nothing)
       assertBool "snapshot was omitted from the dumb mode selector" ("[s]napshot once" `Text.isInfixOf` modeScreen)
-      assertBool "synchronization was omitted from the dumb mode selector" ("[k]eep synchronizing" `Text.isInfixOf` modeScreen)
+      assertBool "synchronization was omitted from the dumb mode selector" ("keep s[y]nchronizing" `Text.isInfixOf` modeScreen)
       assertBool "migration was omitted from the dumb mode selector" ("[m]igrate" `Text.isInfixOf` modeScreen)
       assertBool "the dumb mode selector introduced an Enter default" (not ("Enter" `Text.isInfixOf` modeScreen))
     other -> assertFailure ("expected one exact connected import target, got: " <> show other)
@@ -749,7 +752,7 @@ reviewedLocalPackUpdate = withHarness $ \environment ->
         assertBool "an update without live bindings should be applicable" (packUpdateCanApply draft)
         packUpdateBindings draft @?= []
       other -> assertFailure ("expected Pack update preview, got: " <> show other)
-    kept <- respond environment False keepPreview (guidedAction "k" keepPreview) >>= expectRespondInteraction
+    kept <- respond environment False keepPreview (guidedAction "e" keepPreview) >>= expectRespondInteraction
     case envelopeOpportunity kept of
       PackUpdateResultOpportunity installed candidate False 0 -> do
         installed @?= oldIdentity
@@ -1011,7 +1014,7 @@ removeThenCollectPack = withHarness $ \environment ->
         packRemovalCanApply draft @?= True
         packRemovalReferences draft @?= []
       other -> assertFailure ("expected Pack removal preview, got: " <> show other)
-    kept <- respond environment False keepPreview (guidedAction "k" keepPreview) >>= expectRespondInteraction
+    kept <- respond environment False keepPreview (guidedAction "e" keepPreview) >>= expectRespondInteraction
     case envelopeOpportunity kept of
       PackRemovalResultOpportunity observed False 0 -> observed @?= artifact
       other -> assertFailure ("expected keep-current removal result, got: " <> show other)
@@ -1033,7 +1036,7 @@ removeThenCollectPack = withHarness $ \environment ->
         fmap packGcCandidateArtifact (packGcCandidates draft) @?= [artifact]
         packGcTotalBytes draft @?= fromIntegral (ByteString.length archive)
       other -> assertFailure ("expected Pack GC preview, got: " <> show other)
-    keptGc <- respond environment False keepGcPreview (guidedAction "k" keepGcPreview) >>= expectRespondInteraction
+    keptGc <- respond environment False keepGcPreview (guidedAction "e" keepGcPreview) >>= expectRespondInteraction
     case envelopeOpportunity keptGc of
       PackGcResultOpportunity False 1 bytes -> bytes @?= fromIntegral (ByteString.length archive)
       other -> assertFailure ("expected keep-archives result, got: " <> show other)
@@ -1099,7 +1102,7 @@ deliveryBindingBlocksRemoval = withHarness $ \environment ->
         assertBool "blocked removal still exposed acceptance" (all ((/= "pack.remove.accept") . actionId) (envelopeActions preview))
       other -> assertFailure ("expected blocked Pack removal preview, got: " <> show other)
     inspected <- respond environment False preview (guidedAction "i" preview) >>= expectRespondInteraction
-    kept <- respond environment False inspected (guidedAction "k" inspected) >>= expectRespondInteraction
+    kept <- respond environment False inspected (guidedAction "e" inspected) >>= expectRespondInteraction
     case envelopeOpportunity kept of
       PackRemovalResultOpportunity observed False 0 -> observed @?= artifact
       other -> assertFailure ("expected blocked keep-current result, got: " <> show other)

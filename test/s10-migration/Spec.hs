@@ -93,7 +93,7 @@ buildAndCutover = withFixture $ \fixture -> do
   built <- migrate fixture False MigrationBuild
   candidatePath <- requireJust "candidate path" (migrationCandidatePath built)
   candidateCursor <- requireJust "candidate cursor" (migrationCandidateCursor built)
-  loadedCursor <$> loadHealthy (fixtureStore fixture) >>= (@?= Genesis)
+  loadHealthy (fixtureStore fixture) >>= (@?= Genesis) . loadedCursor
   candidate <- loadHealthy (StoreConfig candidatePath 5000000 25000)
   loadedCursor candidate @?= candidateCursor
   let state = loadedState candidate
@@ -101,6 +101,7 @@ buildAndCutover = withFixture $ \fixture -> do
   Map.size (stateDomains state) @?= 2
   Map.size (stateExternalEntities state) @?= 1
   Map.size (stateDependencies state) @?= 1
+  fmap dependencyStatus (Map.elems (stateDependencies state)) @?= [DependencyResolved]
   Map.size (statePairJudgments state) @?= 1
   Map.size (stateSourceBindings state) @?= 2
   Map.size (stateWaits state) @?= 1
@@ -128,7 +129,8 @@ buildAndCutover = withFixture $ \fixture -> do
   ByteString.readFile (fixtureSource fixture) >>= (@?= sourceBefore)
   cutoverAgain <- migrate fixture False MigrationCutover
   migrationCutoverComplete cutoverAgain @?= True
-  loadedCursor <$> loadHealthy (fixtureStore fixture) >>= (@?= candidateCursor)
+  loadHealthy (fixtureStore fixture)
+    >>= (@?= candidateCursor) . loadedCursor
 
 unknownVersionBlocks :: Assertion
 unknownVersionBlocks = withSystemTempDirectory "lant-migration-unknown" $ \root -> do
@@ -141,7 +143,7 @@ unknownVersionBlocks = withSystemTempDirectory "lant-migration-unknown" $ \root 
   ByteString.writeFile source (LazyByteString.toStrict (encode invalid <> "\n"))
   result <- runV0Migration store migrationActor (pure at) False (Just source) MigrationInspect
   assertCode CorruptData result
-  loadedCursor <$> loadHealthy store >>= (@?= Genesis)
+  loadHealthy store >>= (@?= Genesis) . loadedCursor
 
 nonemptyTargetBlocks :: Assertion
 nonemptyTargetBlocks = withFixture $ \fixture -> do
@@ -179,7 +181,8 @@ interruptedCutoverResumes = withFixture $ \fixture -> do
   ByteString.writeFile pending (LazyByteString.toStrict (encode journal <> "\n"))
   resumed <- migrate fixture False MigrationCutover
   migrationCutoverComplete resumed @?= True
-  loadedCursor <$> loadHealthy (fixtureStore fixture) >>= (@?= expectedCursor)
+  loadHealthy (fixtureStore fixture)
+    >>= (@?= expectedCursor) . loadedCursor
   backupDataset <- loadHealthy (StoreConfig backup 5000000 25000)
   loadedCursor backupDataset @?= Genesis
   pendingExists <- doesFileExist pending
@@ -403,7 +406,8 @@ sanitizedObservedFixture =
  where
   times = [addUTCTime (fromIntegral second) start | second <- [0 :: Int .. 24]]
   start = readUtc "2026-08-01 09:00:00 UTC"
-  wireValue at (eventType, version) payload = eventValue' at eventType version payload
+  wireValue at (eventType, version) =
+    eventValue' at eventType version
   typesAndVersions =
     [ ("party_registered", 1)
     , ("fed", 1)
@@ -478,4 +482,5 @@ intrinsicId at eventType payload =
     object ["at" .= at, "type" .= eventType, "data" .= payload]
 
 readUtc :: String -> UTCTime
-readUtc value = parseTimeOrError True defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z" value
+readUtc =
+  parseTimeOrError True defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"

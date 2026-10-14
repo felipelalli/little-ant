@@ -130,6 +130,7 @@ agentReplySecret = \case
 runVaultAgent :: FilePath -> FilePath -> Int -> IO (Either AppError ())
 runVaultAgent socketPath vaultPath idleSeconds
   | idleSeconds <= 0 = pure (Left (appError InvalidInput "The vault-agent idle timeout must be positive."))
+  | not (validSocketAddress socketPath) = pure (Left socketAddressProblem)
   | otherwise = handleAgentIO $ do
       prepareSocketDirectory socketPath
       rejectExistingSocketPath socketPath
@@ -162,20 +163,31 @@ runVaultAgent socketPath vaultPath idleSeconds
 sendVaultAgentRequest :: FilePath -> AgentRequest -> IO (Either AppError AgentReply)
 sendVaultAgentRequest socketPath request =
   finally
-    ( handleAgentIO $ do
-        validateSocketPath socketPath
-        bracket (socket AF_UNIX Stream defaultProtocol) close $ \client -> do
-          connect client (SockAddrUnix socketPath)
-          sendFrame client (encodeRequest request)
-          receiveFrame client >>= \case
-            Left problem -> pure (Left problem)
-            Right bytes ->
-              pure $ case decodeReply bytes of
-                Left problem -> Left problem
-                Right (ErrorReply problem) -> Left problem
-                Right reply -> Right reply
+    ( if not (validSocketAddress socketPath)
+        then pure (Left socketAddressProblem)
+        else handleAgentIO $ do
+          validateSocketPath socketPath
+          bracket (socket AF_UNIX Stream defaultProtocol) close $ \client -> do
+            connect client (SockAddrUnix socketPath)
+            sendFrame client (encodeRequest request)
+            receiveFrame client >>= \case
+              Left problem -> pure (Left problem)
+              Right bytes ->
+                pure $ case decodeReply bytes of
+                  Left problem -> Left problem
+                  Right (ErrorReply problem) -> Left problem
+                  Right reply -> Right reply
     )
     (wipeRequest request)
+
+validSocketAddress :: FilePath -> Bool
+validSocketAddress path = '\0' `notElem` path && ByteString.length (Text.encodeUtf8 (Text.pack path)) < 104
+
+socketAddressProblem :: AppError
+socketAddressProblem =
+  (appError InvalidInput "The vault-agent socket path exceeds the portable Unix-socket address limit.")
+    { appErrorRecovery = [RecoveryAction "shorter-runtime" "Choose a shorter XDG_RUNTIME_DIR, then retry." Nothing]
+    }
 
 handleRequest :: FilePath -> Int -> MVar AgentMemory -> AgentRequest -> IO (AgentReply, Bool)
 handleRequest vaultPath idleSeconds memory = \case

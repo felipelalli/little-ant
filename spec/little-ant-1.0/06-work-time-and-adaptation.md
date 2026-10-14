@@ -462,7 +462,7 @@
   The order is versioned and deterministic. `main` makes the result the one
   symptom being addressed in this interaction; it does not claim that every
   other symptom is false or erase earlier evidence.
-- **WRK-096 [core] — Uncertainty probes preserve each split.** Question mark
+- **WRK-096 [core] — Uncertainty probes preserve each split.** The uncertainty shortcut
   at Q0..Q8 does not choose a branch. It explains the current distinction with
   one example from each side and asks the corresponding alternate probe:
 
@@ -505,7 +505,12 @@
   ordinary skip cooldown because the Brick is no longer executable. The
   archive event is eligible for immediate semantic undo when its recorded
   preconditions still hold; later review-based restoration is a new forward
-  action and never erases the archive history.
+  action and never erases the archive history. Before consent, its preview
+  names every incoming and outgoing Dependency that will be removed and
+  discloses that dependent Work may become executable. The accepted lifecycle
+  event deactivates those edges atomically, retaining their identities and
+  distinguishing removal from completion. Historical retirement events fold
+  through the same rule; obsolete fold caches must not preserve old gating.
 - **WRK-100 [core] — Archive review has bounded forward outcomes.** A selected
   `archive_relevance_review` offers `keep archived`, `restore it`, `update and
   restore`, `newer Work replaced it`, typed review skip, and uncertainty.
@@ -1422,7 +1427,13 @@
   Work, removed with explicit disclosure that the dependent may become
   executable, or the dependent must enter its own archive/supersede preview.
   The core never leaves an active dependent behind an impossible terminal
-  prerequisite or rewrites importance to compensate.
+  prerequisite or rewrites importance to compensate. The ordinary single-Work
+  archive preview explicitly discloses removal of every affected edge; its
+  accepted lifecycle event also deactivates the retiring Work's prerequisites.
+  Archived, superseded, and merged endpoints cannot continue gating active
+  Work. Recorded dependency resolutions from older logs remain replayable
+  when their owner was already retired. Restoration preserves the removal;
+  reconnecting Work requires an explicit new prerequisite decision.
 - **WRK-130 [core] — Scope closure reports how the children ended.** A
   `scope_closure_review` released by MOD-083 renders done, archived,
   superseded, merged, missed, and cancelled direct-child counts separately.

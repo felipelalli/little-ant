@@ -4,7 +4,7 @@ import Control.Exception (SomeException, throwIO, try)
 import Data.IORef
 import Data.List (nub)
 import Data.Text qualified as Text
-import Graphics.Vty (Event (EvResize))
+import Graphics.Vty (Button (..), Event (..), imageHeight)
 import LittleAnt.Foundation
 import LittleAnt.Surface
 import LittleAnt.Terminal
@@ -30,6 +30,11 @@ tests =
         assertBool "color and monochrome attributes must differ" (roleAttribute ColorEnabled Accent /= roleAttribute Monochrome Accent)
     , testCase "selection uses a stable non-color role" $
         roleAttribute ColorEnabled Selected @?= roleAttribute Monochrome Selected
+    , testCase "empty lines occupy terminal rows and preserve document spacing" $ do
+        let model = ScreenModel [[Span Heading "Title"], [], [Span Normal "Body"], [Span Normal ""]] Nothing
+        imageHeight (screenImage ColorEnabled model) @?= length (screenLines model)
+        assertBool "headings need visible emphasis" (roleAttribute ColorEnabled Heading /= roleAttribute ColorEnabled Normal)
+        assertBool "code needs color-independent emphasis" (roleAttribute Monochrome Code /= roleAttribute Monochrome Normal)
     , testCase "selected input is replaced by the first printable text" $
         applyEditorCommand (InsertText "new") (selectedEditor "old")
           @?= EditorState "new" "" Nothing
@@ -45,6 +50,11 @@ tests =
           @?= EditorState "" "" Nothing
     , testCase "Vty resize is a presentation input" $
         eventToInput (EvResize 80 24) @?= Just (Resized 80 24)
+    , testCase "mouse wheel releases and clicks cannot become scrolling or answers" $ do
+        eventToInput (EvMouseDown 10 5 BScrollUp []) @?= Just (WheelUp [])
+        eventToInput (EvMouseDown 10 5 BScrollDown []) @?= Just (WheelDown [])
+        eventToInput (EvMouseUp 10 5 (Just BScrollDown)) @?= Nothing
+        eventToInput (EvMouseDown 10 5 BLeft []) @?= Nothing
     , testCase "display width handles wide and accented text" $ do
         displayWidth "ação" @?= 4
         displayWidth "界" @?= 2

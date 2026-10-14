@@ -174,7 +174,8 @@ configuredProviderImportSources definitions integrations registry resolver trans
               pure (Set.singleton (oauthDeviceClientConfigurationKey oauthClient))
             _ -> Right Set.empty
           broker <- credentialBoundPackHttpBroker registered binding resolver transport
-          configuration <- sourceConfiguration hostOnlyKeys accountName account
+          configured <- applyComponentConfigurationDefaults registered (providerAccountConfiguration account)
+          configuration <- sourceConfiguration hostOnlyKeys accountName account{providerAccountConfiguration = configured}
           let reference =
                 if qualify
                   then providerDefinitionAdapterId definition <> "@" <> accountName

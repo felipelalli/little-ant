@@ -121,7 +121,7 @@ makeImportanceAidEnvelope previous now state session triad =
     (ImportanceContradictionAidOpportunity session triad)
     (EnvelopeContent "Let's untangle this:" Nothing ["If only one of these could ever be done, which one should it be?"] Nothing)
     ( zipWith winner ["a", "b", "c"] triad
-        <> [Action "contradiction.unresolved" "I still don't know" "?" False "Keep the last coherent order and review the segment later.", more]
+        <> [Action "contradiction.unresolved" "I still don't know" "k" False "Keep the last coherent order and review the segment later.", more]
     )
     (commands (safeHead triad))
     (Just "resolve_three_way_contradiction")
@@ -615,7 +615,7 @@ more :: Action
 more = Action "palette.open" "more..." "/" False "Open contextual commands."
 
 assistance :: Text -> Text -> Action
-assistance identifier = Action identifier "I don't know" "?" False
+assistance identifier = Action identifier "I don't know" "k" False
 
 citation :: State -> UUIDv7 -> Text
 citation state identity = maybe ("<missing " <> renderUUIDv7 identity <> ">") (\brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"") (Map.lookup identity (stateBricks state))

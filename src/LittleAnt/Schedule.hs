@@ -8,6 +8,7 @@ where
 
 import Control.Monad (unless, when)
 import Data.List (nub, sort)
+import Data.Maybe qualified
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -31,7 +32,7 @@ validateCalendarRule rule = do
     invalid "A calendar recurrence needs one or more distinct local times."
   case calendarFamily rule of
     DailyRecurrence -> pure ()
-    WeeklyRecurrence -> unless (not (Set.null (calendarWeekdays rule))) (invalid "A weekly recurrence needs at least one weekday.")
+    WeeklyRecurrence -> when (Set.null (calendarWeekdays rule)) (invalid "A weekly recurrence needs at least one weekday.")
     MonthlyRecurrence -> validateDay
     YearlyRecurrence -> do
       validateDay
@@ -83,8 +84,8 @@ matches rule day =
   (year, month, gregorianDay) = toGregorian day
   (startYear, startMonth, _) = toGregorian (calendarStartsOn rule)
   monthDistance = fromIntegral ((year - startYear) * 12) + month - startMonth
-  intendedDay = maybe 1 id (calendarIntendedDay rule)
-  intendedMonth = maybe startMonth id (calendarIntendedMonth rule)
+  intendedDay = Data.Maybe.fromMaybe 1 (calendarIntendedDay rule)
+  intendedMonth = Data.Maybe.fromMaybe startMonth (calendarIntendedMonth rule)
 
 clippedDay :: Integer -> Int -> Int -> Int
 clippedDay year month intended = min intended (gregorianMonthLength year month)

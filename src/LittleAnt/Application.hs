@@ -22,6 +22,7 @@ import Data.ByteString.Char8 qualified as ByteStringChar8
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.Either (isRight)
+import Data.Functor qualified
 import Data.List (find, minimumBy, sort, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isJust, isNothing, mapMaybe)
@@ -76,10 +77,11 @@ import LittleAnt.Store
 import LittleAnt.Temporal
 import LittleAnt.Time
 import LittleAnt.Vault.Agent
+import Numeric (showFFloat)
 import System.Directory
 import System.Entropy qualified as Entropy
 import System.Environment (lookupEnv)
-import System.FilePath (takeExtension, (</>))
+import System.FilePath ((</>))
 import System.IO (hIsTerminalDevice, hSetEcho, stderr, stdin)
 import System.IO.Error (isDoesNotExistError)
 
@@ -303,7 +305,7 @@ prepareProductionProfile explicitProfile = do
                 if profile == "default"
                   then do
                     nonce <- generateUUIDv7
-                    fmap (const ()) <$> Profile.createProfile roots profile nonce
+                    Control.Monad.void <$> Profile.createProfile roots profile nonce
                   else
                     pure . Left $
                       (appError NotFound "The selected named profile does not exist.")
@@ -863,9 +865,9 @@ renderPackUpdateInspection draft =
       <> " · "
       <> updateChangeCategory change
       <> ": "
-      <> maybe "absent" id (updateChangeBefore change)
+      <> Data.Maybe.fromMaybe "absent" (updateChangeBefore change)
       <> " → "
-      <> maybe "absent" id (updateChangeAfter change)
+      <> Data.Maybe.fromMaybe "absent" (updateChangeAfter change)
   renderBinding plan =
     "  "
       <> updateBindingKind plan
@@ -1756,8 +1758,8 @@ persistProviderTokenSet socketPath client binding label tokenSet = case client o
   ProviderOAuthDeviceClient device -> persistOAuthTokenSet socketPath device binding label tokenSet
 
 configurationResult :: LoadedDataset -> Text -> Maybe Text -> Map.Map Text Text -> Bool -> CommandResult
-configurationResult dataset action selected facts =
-  ConfigurationResult (loadedCursor dataset) action selected [] facts
+configurationResult dataset action selected =
+  ConfigurationResult (loadedCursor dataset) action selected []
 
 profileFacts :: Profile.ProfilePaths -> Profile.ProfileConfig -> Map.Map Text Text
 profileFacts paths config =
@@ -1796,7 +1798,7 @@ runNotices environment dryRun dataset = do
 runHistory :: AppEnv -> Bool -> LoadedDataset -> Maybe Int -> IO (Either AppError CommandResult)
 runHistory environment dryRun dataset maybeLimit = do
   let store = appStore environment
-  loadedEvents <- readHistoryEvents store
+  loadedEvents <- readCanonicalEvents store
   case loadedEvents of
     Left problem -> pure (Left problem)
     Right events ->
@@ -1805,24 +1807,6 @@ runHistory environment dryRun dataset maybeLimit = do
           (loadedCursor dataset)
           (selectHistoryLimit maybeLimit (toHistoryEntries events))
           dryRun
-
-readHistoryEvents :: StoreConfig -> IO (Either AppError [PersistedEvent])
-readHistoryEvents store = do
-  let root = storeRoot store </> "events"
-  exists <- doesDirectoryExist root
-  if not exists
-    then pure (Right [])
-    else do
-      names <- sort <$> listDirectory root
-      let segmentFiles = [root </> name | name <- names, takeExtension name == ".jsonl"]
-      results <- traverse readSegmentEvents segmentFiles
-      pure (concat <$> sequence results)
-
-readSegmentEvents :: FilePath -> IO (Either AppError [PersistedEvent])
-readSegmentEvents path = do
-  bytes <- ByteString.readFile path
-  let linesInSegment = filter (not . ByteString.null) (ByteString.split 10 bytes)
-  pure (traverse decodeEvent linesInSegment)
 
 selectHistoryLimit :: Maybe Int -> [HistoryEntry] -> [HistoryEntry]
 selectHistoryLimit Nothing history = reverse history
@@ -1855,7 +1839,9 @@ applyNoticeFrameToResult environment dryRun fallback (Right result) = do
   framedState <-
     if dryRun
       then pure (loadedState fallback)
-      else loadDataset (appStore environment) (const (pure ())) >>= pure . either (const (loadedState fallback)) loadedState
+      else
+        loadDataset (appStore environment) (const (pure ()))
+          Data.Functor.<&> either (const (loadedState fallback)) loadedState
   now <- appZonedNow environment
   let framed = mapResultInteraction (decorateNoticeFrame framedState now) result
   case resultInteractionMaybe framed of
@@ -1902,7 +1888,11 @@ decorateNoticeFrame state now envelope
   clearNotice = resealEnvelope envelope{envelopeFooter = (envelopeFooter envelope){footerNotice = Nothing, footerNoticeCount = 0}}
 
 runDirectMutation :: AppEnv -> Bool -> LoadedDataset -> Int -> (RuntimeFacts -> Either AppError MutationDecision) -> IO (Either AppError CommandResult)
-runDirectMutation environment dryRun dataset count decide = do
+runDirectMutation environment dryRun dataset count decide =
+  runDirectMutationWithCheckpoint environment dryRun dataset count decide (\accepted _ -> freshCheckpoint environment accepted)
+
+runDirectMutationWithCheckpoint :: AppEnv -> Bool -> LoadedDataset -> Int -> (RuntimeFacts -> Either AppError MutationDecision) -> (LoadedDataset -> MutationDecision -> IO (Either AppError PresentationCheckpoint)) -> IO (Either AppError CommandResult)
+runDirectMutationWithCheckpoint environment dryRun dataset count decide makeCheckpoint = do
   facts <- runtimeFacts environment count (loadedCursor dataset)
   case decide facts of
     Left problem -> pure (Left problem)
@@ -1910,7 +1900,7 @@ runDirectMutation environment dryRun dataset count decide = do
       persistOrSimulate environment dryRun dataset (mutationDecisionEvents mutation) >>= \case
         Left problem -> pure (Left problem)
         Right accepted ->
-          freshCheckpoint environment accepted >>= \case
+          makeCheckpoint accepted mutation >>= \case
             Left problem -> pure (Left problem)
             Right checkpoint -> do
               saveUnlessDry environment dryRun checkpoint
@@ -1942,7 +1932,9 @@ runNext :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runNext environment dryRun dataset = do
   now <- appZonedNow environment
   if dryRun
-    then createRecordedForecastCheckpoint environment True dataset >>= pure . fmap result
+    then
+      createRecordedForecastCheckpoint environment True dataset
+        Data.Functor.<&> fmap result
     else
       if not (null (activeScheduledCommitments (loadedState dataset) (zonedTimeToUTC now)))
         then
@@ -1956,7 +1948,11 @@ runNext environment dryRun dataset = do
             Left problem -> pure (Left problem)
             Right (Just checkpoint)
               | checkpointIsFresh dataset checkpoint ->
-                  pure (Right (NextResult (loadedCursor dataset) (checkpointCurrent checkpoint) False))
+                  case upgradeFocusAssistanceCheckpoint now dataset checkpoint of
+                    Left problem -> pure (Left problem)
+                    Right resumed -> do
+                      when (resumed /= checkpoint) (savePendingCheckpoint environment resumed)
+                      pure (Right (NextResult (loadedCursor dataset) (checkpointCurrent resumed) False))
             Right _ ->
               createRecordedForecastCheckpoint environment False dataset >>= \case
                 Left problem -> pure (Left problem)
@@ -1990,7 +1986,7 @@ createRecordedForecastCheckpoint environment dryRun dataset = do
           pure . Right $ (dataset, PresentationCheckpoint (makePristineEnvelope interactionId cursor precondition now) [] [])
     _ -> do
       seed <- maybe (Entropy.getEntropy 32) pure (stateRandomSeed state)
-      let tickets = fmap supportedTicket (World.buildForecastWorld state (zonedTimeToUTC now))
+      let tickets = fmap supportedForecastTicket (World.buildForecastWorld state (zonedTimeToUTC now))
           purposeCursors =
             Map.fromList
               [ (purpose, Map.findWithDefault 0 (randomPurposeName purpose) (stateRandomCursors state))
@@ -2025,14 +2021,15 @@ createRecordedForecastCheckpoint environment dryRun dataset = do
             _ ->
               pure . Right $ (dataset, PresentationCheckpoint (makeSafeEmptyEnvelope interactionId cursor precondition now) [] [])
         Right selection -> persistForecastSelection environment dryRun dataset interactionId now seed selection
+supportedForecastTicket :: World.SubjectTicket -> World.SubjectTicket
+supportedForecastTicket ticket =
+  ticket
+    { World.ticketOpportunities =
+        filter
+          (isSupported . World.selectableKind)
+          (World.ticketOpportunities ticket)
+    }
  where
-  supportedTicket ticket =
-    ticket
-      { World.ticketOpportunities =
-          filter
-            (isSupported . World.selectableKind)
-            (World.ticketOpportunities ticket)
-      }
   isSupported kind =
     kind
       `elem` [ World.FiniteWorkOpportunity
@@ -2464,7 +2461,24 @@ runDone environment dryRun dataset maybeReference =
             Right brick -> runDoneByIdentity state actor environment dryRun dataset (brickId brick)
  where
   runDoneByIdentity state actor env dryRun' currentDataset identity =
-    runDirectMutation env dryRun' currentDataset (completionUUIDCount state identity) (decideCompleteBrick state actor identity)
+    runDirectMutationWithCheckpoint env dryRun' currentDataset (completionUUIDCount state identity) (decideCompleteBrick state actor identity) $ \accepted mutation -> do
+      interactionId <- appAllocateUUID env
+      now <- appZonedNow env
+      pure ((\envelope -> PresentationCheckpoint envelope [] []) <$> completedWorkEnvelope interactionId now accepted mutation)
+
+completedWorkEnvelope :: UUIDv7 -> ZonedTime -> LoadedDataset -> MutationDecision -> Either AppError InteractionEnvelope
+completedWorkEnvelope identity now accepted mutation = do
+  brick <- maybe (Left (appError CorruptData "The completed Brick is missing.")) Right (mutationDecisionBrick mutation)
+  case brickNature brick of
+    Repeatable ->
+      case [ review
+           | review <- Map.elems (stateLazyReviews (loadedState accepted))
+           , lazyReviewSubject review == brickId brick
+           , lazyReviewKind review == "repeatable_return_policy"
+           ] of
+        review : _ -> pure (makeRepeatableReturnEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) now (loadedState accepted) brick review)
+        [] -> Left (appError CorruptData "A completed repeatable run did not create its return-policy checkpoint.")
+    _ -> pure (makeCompletionResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) now (loadedState accepted) brick)
 
 runReturnToIdle :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runReturnToIdle environment dryRun dataset maybeReference =
@@ -2629,7 +2643,14 @@ resolveExportScope state (Just supplied)
 
 runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runList environment dryRun dataset maybeList =
-  let listName = fmap (Text.toLower . Text.strip) maybeList
+  let arguments = maybe [] Text.words maybeList
+      listName = case arguments of name : _ -> Just (Text.toLower name); _ -> Nothing
+      scope = case drop 1 arguments of [] -> Nothing; parts -> Just (Text.unwords parts)
+      result name rows = do
+        scoped <- scopeListRows (loadedState dataset) scope rows
+        context <- scopeListRows (loadedState dataset) scope (importanceListRows (loadedState dataset))
+        let visible = if name == "importance" then rebaseImportanceRows (loadedState dataset) scoped else scoped
+        pure (ListResult (loadedCursor dataset) name visible (categoryListTree (loadedState dataset) context visible) dryRun)
    in case listName of
         Nothing ->
           pure . Left $
@@ -2640,11 +2661,11 @@ runList environment dryRun dataset maybeList =
                   ]
               }
         Just "importance" ->
-          pure . Right . ListResult (loadedCursor dataset) "importance" (importanceListRows (loadedState dataset)) $ dryRun
+          pure (result "importance" (importanceListRows (loadedState dataset)))
         Just "forecast" -> do
           now <- appZonedNow environment
           let rows = forecastListRows (loadedState dataset) (zonedTimeToUTC now)
-          pure . Right . ListResult (loadedCursor dataset) "forecast" rows $ dryRun
+          pure (result "forecast" rows)
         Just unsupported ->
           pure . Left $
             (appError InvalidInput "Unknown list name.")
@@ -2654,6 +2675,21 @@ runList environment dryRun dataset maybeList =
                   , RecoveryAction "forecast" "Show the current forecast list." (Just "lant list forecast")
                   ]
               }
+
+scopeListRows :: State -> Maybe Text -> [ListRow] -> Either AppError [ListRow]
+scopeListRows _ Nothing rows = Right rows
+scopeListRows state (Just reference) rows = do
+  allowed <- case (resolveAnyBrickReference state reference, resolveDomainReference state reference) of
+    (Right brick, Left _) -> Right (filter (isWithin (brickId brick)) (Map.elems (stateBricks state)))
+    (Left _, Right domain) -> Right [brick | brick <- Map.elems (stateBricks state), any (containsDomain (domainId domain)) (Set.toList (brickDomains brick))]
+    (Right brick, Right _) | "#" `Text.isPrefixOf` reference -> Right (filter (isWithin (brickId brick)) (Map.elems (stateBricks state)))
+    (Right _, Right _) -> Left (appError AmbiguousReference "Choose a #Brick handle or complete Domain path for the list scope.")
+    (Left problem, Left _) -> Left problem
+  let handles = Set.fromList (renderHandle BrickHandle . brickHandle <$> allowed)
+  pure [row | row <- rows, listEntryHandle row `Set.member` handles]
+ where
+  isWithin root brick = brickId brick == root || maybe False (\parent -> maybe False (isWithin root) (Map.lookup parent (stateBricks state))) (brickParent brick)
+  containsDomain target identity = maybe False (target `elem`) (domainIdentityPath state identity)
 
 importanceListRows :: State -> [ListRow]
 importanceListRows state = importanceSubtree state 0 Nothing
@@ -2669,24 +2705,106 @@ importanceListRows state = importanceSubtree state 0 Nothing
     ListRow
       (renderHandle BrickHandle (brickHandle brick))
       (Text.replicate (2 * depth) " " <> brickTitle brick)
-      ("position " <> showText (brickSiblingPosition brick) <> statusSuffix)
+      ("position " <> showText (brickSiblingPosition brick) <> " · " <> natureLabel (brickNature brick) <> " · " <> brickStatusText brick <> statusSuffix)
    where
     domains = [domainPathText currentState identity | identity <- Set.toAscList (brickDomains brick)]
     statusSuffix
       | null domains = ""
       | otherwise = " · " <> Text.intercalate ", " domains
 
-forecastListRows :: State -> UTCTime -> [ListRow]
-forecastListRows state now =
-  [ mkForecastRow state ticket
-  | ticket <- World.buildForecastWorld state now
+-- A Domain scope can hide a parent while retaining its children. Promote such
+-- children to visible roots instead of attaching them to an unrelated row.
+rebaseImportanceRows :: State -> [ListRow] -> [ListRow]
+rebaseImportanceRows state rows =
+  [ row{listEntryTitle = Text.replicate (2 * depth (listEntryHandle row)) " " <> Text.dropWhile (== ' ') (listEntryTitle row)}
+  | row <- rows
   ]
  where
-  mkForecastRow currentState ticket =
+  visible = Set.fromList (listEntryHandle <$> rows)
+  parents =
+    Map.fromList
+      [ (renderHandle BrickHandle (brickHandle brick), renderHandle BrickHandle . brickHandle <$> (brickParent brick >>= (`Map.lookup` stateBricks state)))
+      | brick <- Map.elems (stateBricks state)
+      ]
+  depth handle = case Map.lookup handle parents of
+    Just (Just parent) | parent `Set.member` visible -> 1 + depth parent
+    _ -> 0
+
+-- Compose direct classification with parent/part structure. Only scoped rows
+-- and their scoped ancestors are available here, so grouping cannot widen a
+-- list's scope. Repeated references retain the exact original forecast row.
+categoryListTree :: State -> [ListRow] -> [ListRow] -> [ListTree]
+categoryListTree state context rows = domainForest Nothing <> withoutCategory <> otherOpportunities
+ where
+  handle = renderHandle BrickHandle . brickHandle
+  actual = Map.fromList [(listEntryHandle row, row) | row <- rows]
+  available = Map.fromList [(listEntryHandle row, row) | row <- context <> rows]
+  bricks = Map.filter (\brick -> handle brick `Map.member` available) (stateBricks state)
+  ancestors brick = case brickParent brick >>= (`Map.lookup` bricks) of
+    Nothing -> []
+    Just parent -> parent : ancestors parent
+  included = Set.fromList [brickId ancestor | brick <- Map.elems bricks, handle brick `Map.member` actual, ancestor <- brick : ancestors brick]
+  visible = Map.filter ((`Set.member` included) . brickId) bricks
+  rank = Map.fromList (zip (listEntryHandle <$> rows) [0 :: Int ..])
+  directChildren parent = [brick | brick <- Map.elems visible, brickParent brick == Just (brickId parent)]
+  children = sortOn branchRank . directChildren
+  branchRank brick = minimum (Map.findWithDefault (length rows) (handle brick) rank : fmap branchRank (directChildren brick))
+  groupRoots members = sortOn branchRank [brick | brick <- members, all ((`Set.notMember` identities) . brickId) (ancestors brick)]
+   where
+    identities = Set.fromList (brickId <$> members)
+  renderBrick brick = ListItem row isContext (renderBrick <$> children brick)
+   where
+    isContext = handle brick `Map.notMember` actual
+    source = Map.findWithDefault (available Map.! handle brick) (handle brick) actual
+    row = source{listEntryTitle = brickTitle brick, listEntryDetails = listEntryDetails source <> categoryNote <> if isContext then " · context only; not a forecast candidate" else ""}
+    categoryNote
+      | Set.null (brickDomains brick) = " · no direct category"
+      | otherwise = " · direct categories: " <> Text.intercalate ", " [domainPathText state identity | identity <- Set.toAscList (brickDomains brick)]
+  domainForest parent =
+    [ ListCategory (domainName domain) nested
+    | domain <- sortOn domainName [value | value <- Map.elems (stateDomains state), domainParent value == parent]
+    , let members = [brick | brick <- Map.elems visible, domainId domain `Set.member` brickDomains brick]
+          nested = domainForest (Just (domainId domain)) <> fmap renderBrick (groupRoots members)
+    , not (null nested)
+    ]
+  -- Unclassified parts already visible inside a classified project stay there;
+  -- this is composition context, not inherited category membership.
+  unclassified = [brick | brick <- Map.elems visible, Set.null (brickDomains brick), all (Set.null . brickDomains) (ancestors brick)]
+  withoutCategory = [ListCategory "Without a category" (renderBrick <$> groupRoots unclassified) | not (null unclassified)]
+  others = [ListItem row False [] | row <- rows, not ("#" `Text.isPrefixOf` listEntryHandle row)]
+  otherOpportunities = [ListCategory "Other opportunities" others | not (null others)]
+
+forecastListRows :: State -> UTCTime -> [ListRow]
+forecastListRows state now =
+  case activeScheduledCommitments state now of
+    commitments@(_ : _) -> [fixedRow brick "Fixed-time precedence; resolve any overlap before drawing flexible work." | (brick, _) <- commitments]
+    [] | Just brick <- stateCurrentFocus state >>= (`Map.lookup` stateBricks state), brickStatus brick == BrickActive -> [fixedRow brick "100.0% · current focus remains active; next does not draw another task."]
+    [] | Just (brick, _) <- pendingRepeatableReturn state -> [fixedRow brick "100.0% · repeatable return policy needs review before another draw."]
+    [] ->
+      [ mkForecastRow state ticket chance
+      | (ticket, chance) <- sortOn (Down . snd) (World.forecastSubjectChances activePath hardScope tickets)
+      ]
+ where
+  tickets = fmap supportedForecastTicket (World.buildForecastWorld state now)
+  hardScope = domainScopeTarget <$> stateDomainScope state
+  activePath = if isJust hardScope then Nothing else stateActiveDomain state >>= domainIdentityPath state
+  positionDetails brick =
+    "importance position "
+      <> showText (brickSiblingPosition brick)
+      <> " · parent: "
+      <> maybe "root" (renderHandle BrickHandle . brickHandle) (brickParent brick >>= (`Map.lookup` stateBricks state))
+  fixedRow brick reason = ListRow (renderHandle BrickHandle (brickHandle brick)) (brickTitle brick) (reason <> " · " <> positionDetails brick)
+  mkForecastRow currentState ticket chance =
     ListRow
       (ticketHandle currentState ticket)
       (ticketTitle currentState ticket)
-      (ticketDetails currentState ticket)
+      (Text.pack (showFFloat (Just 1) (fromRational (chance * 100) :: Double) "%") <> " · " <> ticketDetails currentState ticket <> opportunityDetails ticket)
+  opportunityDetails ticket =
+    let opportunities = World.ticketOpportunities ticket
+        (_, strongest, _) = positivePressure factoryForecastProfile (concatMap World.selectableSignals opportunities)
+     in " · "
+          <> Text.intercalate ", " (World.opportunityKindName . World.selectableKind <$> opportunities)
+          <> maybe "" (\signal -> " · " <> signalExplanation signal) strongest
   ticketHandle currentState ticket =
     case World.ticketKind ticket of
       World.BrickSubject ->
@@ -2699,25 +2817,55 @@ forecastListRows state now =
           (showText (World.ticketIdentity ticket))
           (renderHandle RawHandle . rawHandle)
           (Map.lookup (World.ticketIdentity ticket) (stateRaws currentState))
-      World.ExternalEffectSubject -> "effect:" <> Text.take 8 (renderUUIDv7 (World.ticketIdentity ticket))
+      World.ExternalEffectSubject -> "effect:" <> renderUUIDv7 (World.ticketIdentity ticket)
   ticketTitle currentState ticket =
     case World.ticketKind ticket of
-      World.BrickSubject -> fromMaybe (showText (World.ticketIdentity ticket)) (brickTitle <$> Map.lookup (World.ticketIdentity ticket) (stateBricks currentState))
-      World.RawSubject -> fromMaybe "Raw item" (rawOriginal <$> Map.lookup (World.ticketIdentity ticket) (stateRaws currentState))
-      World.ExternalEffectSubject -> fromMaybe "External effect" (externalEffectRedactedPreview <$> Map.lookup (World.ticketIdentity ticket) (stateExternalEffects currentState))
-  ticketDetails currentState ticket =
-    Text.intercalate " · " $ case World.ticketKind ticket of
       World.BrickSubject ->
-        ("kind: brick")
-          : maybe
-            []
-            (\brick -> ["parent: " <> renderHandle BrickHandle (brickHandle brick)])
-            (World.ticketParent ticket >>= \parent -> Map.lookup parent (stateBricks currentState))
-            <> ["opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+        maybe
+          (showText (World.ticketIdentity ticket))
+          brickTitle
+          ( Map.lookup
+              (World.ticketIdentity ticket)
+              (stateBricks currentState)
+          )
       World.RawSubject ->
-        ["kind: raw", "opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+        maybe
+          "Raw item"
+          rawOriginal
+          (Map.lookup (World.ticketIdentity ticket) (stateRaws currentState))
       World.ExternalEffectSubject ->
-        ["kind: external effect", "opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+        maybe
+          "External effect"
+          externalEffectRedactedPreview
+          ( Map.lookup
+              (World.ticketIdentity ticket)
+              (stateExternalEffects currentState)
+          )
+  ticketDetails currentState ticket =
+    Text.intercalate " · " $
+      placementDetails <> ageDetails <> domainDetails <> ["endpoint: " <> ticketHandle currentState ticket] <> case World.ticketKind ticket of
+        World.BrickSubject ->
+          ["kind: brick", "opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+        World.RawSubject ->
+          ["kind: raw", "opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+        World.ExternalEffectSubject ->
+          ["kind: external effect", "opportunities: " <> showText (length (World.ticketOpportunities ticket))]
+   where
+    placementDetails = case World.ticketKind ticket of
+      World.BrickSubject ->
+        [positionDetails brick | brick <- maybe [] pure (Map.lookup (World.ticketIdentity ticket) (stateBricks currentState))]
+          <> ["importance confidence: " <> Text.pack (showFFloat (Just 1) (fromIntegral (unFixed (World.ticketImportanceConfidence ticket)) / 10000 :: Double) "%")]
+      _ -> []
+    createdAt = case World.ticketKind ticket of
+      World.BrickSubject -> brickCreatedAt <$> Map.lookup (World.ticketIdentity ticket) (stateBricks currentState)
+      World.RawSubject -> rawCreatedAt <$> Map.lookup (World.ticketIdentity ticket) (stateRaws currentState)
+      World.ExternalEffectSubject -> Nothing
+    ageDetails = ["age: " <> showText (max 0 (floor (diffUTCTime now created / nominalDay) :: Integer)) <> "d" | created <- maybe [] pure createdAt]
+    paths = World.ticketDomainPaths ticket
+    strongest = maximum (Fixed 0 : [World.domainAffinity activePath [path] | path <- paths])
+    domainDetails = ["domain: " <> domainPathText currentState identity | path <- paths, World.domainAffinity activePath [path] == strongest, identity <- maybe [] pure (safeLast path)]
+    safeLast [] = Nothing
+    safeLast path = Just (last path)
 
 runSearch :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runSearch _environment dryRun dataset rawQuery =
@@ -2736,6 +2884,7 @@ runHelp _environment _dryRun dataset maybeTopic =
           (loadedCursor dataset)
           "help"
           (helpEntries topic)
+          []
           False
 
 searchEntries :: State -> Text -> [SearchHit]
@@ -2744,30 +2893,32 @@ searchEntries state query
   | otherwise =
       sortOn searchHitHandle $
         [ mkBrickHit state brick
-        | brick <- activeBricks state
+        | brick <- Map.elems (stateBricks state)
         , queryIn query (brickTitle brick)
-            || queryIn query (unHandle (brickHandle brick))
+            || queryIn query (renderHandle BrickHandle (brickHandle brick))
         ]
           <> [ mkRawHit raw
              | raw <- Map.elems (stateRaws state)
              , queryIn query (rawOriginal raw)
-                 || queryIn query (unHandle (rawHandle raw))
+                 || queryIn query (renderHandle RawHandle (rawHandle raw))
              ]
           <> [ mkDomainHit state domain
              | domain <- Map.elems (stateDomains state)
-             , domainActive domain
              , queryIn query (domainName domain)
                  || queryIn query (Text.unwords (Text.splitOn "›" (domainPathText state (domainId domain))))
              ]
           <> [ mkEntityHit entity
              | entity <- Map.elems (stateExternalEntities state)
-             , externalEntityActive entity
              , queryIn query (Text.toLower (externalEntityName entity))
+                 || queryIn query (renderHandle EntityHandle (externalEntityHandle entity))
              ]
           <> [ mkListEntryHit entry
              | entry <- Map.elems (stateListEntries state)
-             , listEntryState entry == EntryOpen
              , queryIn query (listEntryLabel entry)
+             ]
+          <> [ SearchHit "raw_shelf" ("shelf:" <> renderUUIDv7 (rawShelfId shelf)) (rawShelfName shelf) (if rawShelfActive shelf then "active" else "archived")
+             | shelf <- Map.elems (stateRawShelves state)
+             , queryIn query (rawShelfName shelf)
              ]
 
 queryIn :: Text -> Text -> Bool
@@ -2781,7 +2932,7 @@ mkBrickHit state brick =
     "brick"
     (renderHandle BrickHandle (brickHandle brick))
     (brickTitle brick)
-    ("status: " <> showText (brickStatus brick) <> maybe "" (" · " <>) domainsText)
+    ("status: " <> brickStatusText brick <> " · " <> natureLabel (brickNature brick) <> maybe "" (" · " <>) domainsText)
  where
   domainsText =
     case Set.toAscList (brickDomains brick) of
@@ -2861,11 +3012,11 @@ helpEntries (Just "list") =
   , helpEntry "lant list forecast" "Current forecast list" "upcoming selectable opportunities used by /next"
   ]
 helpEntries (Just "search") =
-  [ helpEntry "lant search <term>" "Search active bricks, raws, domains, entities, and entries" "Try short terms first"
+  [ helpEntry "lant search <term>" "Search bricks, raws, domains, entities, shelves, and entries" "Try a typed handle or short terms"
   ]
 helpEntries (Just "commands") =
   [ helpEntry "/done" "Mark one Brick done" "default target: current focus"
-  , helpEntry "/focus" "Run an importance comparison on demand" "target a Brick explicitly"
+  , helpEntry "/focus" "Propose focus on one Brick or Domain" "target a Brick explicitly"
   ]
 helpEntries (Just "done") =
   [ helpEntry "done" "Complete one Brick" "usage: lant done [BRICK]"
@@ -2875,7 +3026,7 @@ helpEntries _ =
   [helpEntry "help" "Unknown help topic" "Try: lant help"]
 
 helpEntry :: Text -> Text -> Text -> ListRow
-helpEntry handle title details = ListRow handle title details
+helpEntry = ListRow
 
 showText :: (Show a) => a -> Text
 showText = Text.pack . show
@@ -3758,15 +3909,14 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (PhaseOpportunity brickId, "phase.leave", _) -> withBrick brickId $ \_ -> local (makeJudgmentResultEnvelope current now state ImportanceAxis brickId "Phase left unspecified.")
     (PhaseOpportunity _, "phase.unknown", _) -> local (appendBody current "Phase is optional and descriptive. It never changes importance order or forecast eligibility by itself.")
     (FocusProposalOpportunity brickId selection, "focus.accept", _) ->
-      withBrick brickId $ \brick ->
-        if brickNature brick `elem` [LivingChecklist, FiniteChecklist]
-          then mutate 4 (decideStartChecklistRun state actor brickId selection) makeChecklistStarted
-          else case selection of
-            Just selectionId -> mutate 2 (decideRecordedFocus state actor brickId selectionId) makeFocused
-            Nothing -> mutate 2 (decideFocusBrick state actor brickId) makeFocused
+      acceptFocus brickId selection
     (FocusProposalOpportunity brickId selection, "focus.skip", _) ->
       withBrick brickId $ \brick -> local (makeWorkSkipSymptomEnvelope current now state brick selection)
-    (FocusProposalOpportunity _ _, "focus.assistance", _) -> local (appendBody current "Choose yes when this is an honest useful focus now. Skip opens the recovery route without saying the Work is unimportant.")
+    (FocusProposalOpportunity brickId selection, "focus.assistance", _) ->
+      withBrick brickId $ \brick -> either (pure . Left) local (focusContextEnvelope current now dataset brick selection)
+    (FocusAssistanceOpportunity brickId selection step alternate, action, _)
+      | "focus.aid." `Text.isPrefixOf` action ->
+          withBrick brickId $ \brick -> focusAssistance brick selection step alternate action
     (CurrentFocusOpportunity brickId, "focus.done", _) -> mutate (completionUUIDCount state brickId) (decideCompleteBrick state actor brickId) makeCompleted
     (CurrentFocusOpportunity brickId, "focus.blocked", _) ->
       withBrick brickId $ \brick -> local (makeWorkSkipReactionEnvelope current now state brick Nothing BlockedOrWaitingSymptom)
@@ -3971,8 +4121,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       local (appendBody current "The parent keeps its UUID and # handle. New child Bricks are created atomically; entered order only seeds local importance, and each default Nature remains reviewable later.")
     (ArchivePreviewOpportunity brickId selection symptom, "archive.accept", _) ->
       mutate
-        (archiveUUIDCount (fmap (\value -> (selection, value)) symptom))
-        (decideArchiveBrick state actor brickId (fmap (\value -> (selection, value)) symptom))
+        (archiveUUIDCount (fmap (selection,) symptom))
+        (decideArchiveBrick state actor brickId (fmap (selection,) symptom))
         (makeArchived brickId)
     (ArchivePreviewOpportunity{}, "archive.reject", _) -> replaceWithFresh
     (ArchivePreviewOpportunity{}, "archive.unknown", _) ->
@@ -4234,7 +4384,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     Right effects
       | null unknown -> pure (Left (appError PreconditionFailed "No unknown cleanup recovery is available to stop."))
       | otherwise ->
-          applyEffectTransitions dataset unknown (\currentState identity -> withdrawExternalEffectUUIDCount currentState identity) (\currentState identity -> decideWithdrawExternalEffect currentState actor identity) >>= \case
+          applyEffectTransitions dataset unknown withdrawExternalEffectUUIDCount (`decideWithdrawExternalEffect` actor) >>= \case
             Left problem -> pure (Left problem)
             Right (withdrawn, commandId) -> finishSourceCleanupResult withdrawn effectIdentities commandId
      where
@@ -4356,7 +4506,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     | otherwise =
         makeSourceCleanupApprovalEnvelope identity currentCursor (statePreconditionHash currentState) currentNow currentState custody effects
 
-  dispatchSourceCleanupEffects starting = go starting
+  dispatchSourceCleanupEffects = go
    where
     go accepted [] = pure (Right accepted)
     go accepted (effectIdentity : rest) =
@@ -4550,8 +4700,14 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             finally
               ( sendVaultAgentRequest
                   (Profile.vaultSocket (connectionProfilePaths profile))
-                  (agentPutRequest (Profile.credentialBindingVaultEntry binding) (Profile.credentialBindingScheme binding) label metadata secret)
-                  >>= pure . (>>= acknowledgeStaticCredential)
+                  ( agentPutRequest
+                      (Profile.credentialBindingVaultEntry binding)
+                      (Profile.credentialBindingScheme binding)
+                      label
+                      metadata
+                      secret
+                  )
+                  Data.Functor.<&> (>>= acknowledgeStaticCredential)
               )
               (wipeAgentSecret secret)
     | otherwise = case connectionOAuthClient (connectionProfileRegistry profile) draft of
@@ -5496,6 +5652,55 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   judgmentReceipt axis brickId message base currentNow accepted _ =
     makeJudgmentResultEnvelope base currentNow (loadedState accepted) axis brickId message
 
+  acceptFocus brickId selection =
+    withBrick brickId $ \brick ->
+      if brickNature brick `elem` [LivingChecklist, FiniteChecklist]
+        then mutate 4 (decideStartChecklistRun state actor brickId selection) makeChecklistStarted
+        else case selection of
+          Just selectionId -> mutate 2 (decideRecordedFocus state actor brickId selectionId) makeFocused
+          Nothing -> mutate 2 (decideFocusBrick state actor brickId) makeFocused
+
+  focusAssistance brick selection step alternate action =
+    let screen next = local (makeFocusAssistanceEnvelope current now state brick selection next False [])
+        alternateProbe =
+          if alternate
+            then local (appendBody current "This question remains unanswered. Choose yes or no, or go back to inspect the Work.")
+            else local (makeFocusAssistanceEnvelope current now state brick selection step True [])
+        vague = local (appendBody (makeWorkSkipConfirmationEnvelope current now state brick selection VagueSymptom) "The existing context was insufficient to understand the goal or a concrete starting point.")
+        inspect = either (pure . Left) local (focusContextEnvelope current now dataset brick selection)
+        explanation = local (makeFocusAssistanceEnvelope current now state brick selection FocusExplainSelection False (recordedSelectionBody state selection))
+        selectionQuestion = local (makeFocusAssistanceEnvelope current now state brick selection FocusSelectionUnderstood False ["The record shows the candidates, consumed draw cursors, chosen subject, and any Domain or blocker path. It describes a weighted draw, not a claim that this Brick is best."])
+        restore matches fallback = case break (matches . envelopeOpportunity) (checkpointBack checkpoint) of
+          (skipped, previous : older) -> saveAndReturn (PresentationCheckpoint previous older (reverse skipped <> [current] <> checkpointForward checkpoint)) Nothing
+          _ -> fallback
+        backToContext = restore (\case FocusAssistanceOpportunity identity recorded FocusInspectContext _ -> identity == brickId brick && recorded == selection; _ -> False) inspect
+        backToProposal =
+          restore (== FocusProposalOpportunity (brickId brick) selection) $
+            local . advanceEnvelope current $
+              case selection >>= (`Map.lookup` stateForecastSelections state) of
+                Just evidence -> makeRecordedFocusProposalEnvelope (envelopeInteractionId current) cursor precondition now state brick evidence
+                Nothing -> makeFocusProposalEnvelope (envelopeInteractionId current) cursor precondition now state brick
+     in case (step, action) of
+          (FocusUnderstandWork, _) -> inspect
+          (FocusReviewContext, _) -> inspect
+          (FocusInspectContext, "focus.aid.continue") -> screen FocusContextUnderstood
+          (FocusInspectContext, "focus.aid.back") -> backToProposal
+          (FocusInspectContext, "focus.aid.explain") -> explanation
+          (FocusInspectContext, _) -> local (appendBody current "This is the existing /show context. Continue to decide whether its goal, information, and starting point are understandable; no Focus has started.")
+          (FocusContextUnderstood, "focus.aid.yes") -> screen FocusConfirmStart
+          (FocusContextUnderstood, "focus.aid.no") -> vague
+          (FocusContextUnderstood, _) -> alternateProbe
+          (FocusUnderstandSelection, _) -> inspect
+          (FocusReviewSelection, _) -> inspect
+          (FocusExplainSelection, "focus.aid.continue") -> screen FocusContextUnderstood
+          (FocusExplainSelection, "focus.aid.back") -> backToContext
+          (FocusExplainSelection, _) -> selectionQuestion
+          (FocusSelectionUnderstood, "focus.aid.yes") -> screen FocusContextUnderstood
+          (FocusSelectionUnderstood, "focus.aid.no") -> backToContext
+          (FocusSelectionUnderstood, _) -> local (appendBody current "The selection record is unchanged. You can answer, go back to inspect the Work, or leave this question pending.")
+          (FocusConfirmStart, "focus.aid.yes") -> acceptFocus (brickId brick) selection
+          (FocusConfirmStart, _) -> local (makeWorkSkipDiscoveryEnvelope current now state brick selection OutsidePrerequisiteNode False)
+
   local envelope = saveAndReturn (PresentationCheckpoint envelope (current : checkpointBack checkpoint) []) Nothing
 
   saveAndReturn nextCheckpoint commandId = do
@@ -5854,18 +6059,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     owner <- maybe (Left (appError CorruptData "The finished checklist owner disappeared after replay.")) Right (Map.lookup ownerId (stateBricks (loadedState accepted)))
     pure (makeChecklistRunResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) owner)
 
-  makeCompleted identity currentNow accepted mutation = do
-    brick <- maybe (Left (appError CorruptData "The completed Brick is missing.")) Right (mutationDecisionBrick mutation)
-    case brickNature brick of
-      Repeatable ->
-        case [ review
-             | review <- Map.elems (stateLazyReviews (loadedState accepted))
-             , lazyReviewSubject review == brickId brick
-             , lazyReviewKind review == "repeatable_return_policy"
-             ] of
-          review : _ -> pure (makeRepeatableReturnEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick review)
-          [] -> Left (appError CorruptData "A completed repeatable run did not create its return-policy checkpoint.")
-      _ -> pure (makeCompletionResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick)
+  makeCompleted = completedWorkEnvelope
 
   makeReturnRecorded identity currentNow accepted mutation = do
     brick <- maybe (Left (appError CorruptData "The repeatable Brick is missing from the accepted return policy.")) Right (mutationDecisionBrick mutation)
@@ -6098,17 +6292,132 @@ finishCompensation environment dryRun dataset decision isUndo = do
               (checkpointCurrent checkpoint)
               dryRun
 
-runShow :: Bool -> LoadedDataset -> Text -> ViewDepth -> Either AppError CommandResult
-runShow dryRun dataset reference view = do
-  handle <- parseRawReference reference
-  raw <- maybe (Left notFoundError) Right (resolveRawHandle (loadedState dataset) handle)
-  pure (ShowRawResult (loadedCursor dataset) (rawProjection (view == CompleteView) raw) dryRun)
+focusContextEnvelope :: InteractionEnvelope -> ZonedTime -> LoadedDataset -> Brick -> Maybe UUIDv7 -> Either AppError InteractionEnvelope
+focusContextEnvelope previous now dataset brick selection = do
+  shown <- runShow False dataset (renderHandle BrickHandle (brickHandle brick)) CompleteView
+  pure (makeFocusAssistanceEnvelope previous now (loadedState dataset) brick selection FocusInspectContext False [renderCommandResult shown])
+
+-- Old question-first checkpoints remain decodable, but resuming them opens the
+-- same Work's context without consuming another draw or changing attention.
+upgradeFocusAssistanceCheckpoint :: ZonedTime -> LoadedDataset -> PresentationCheckpoint -> Either AppError PresentationCheckpoint
+upgradeFocusAssistanceCheckpoint now dataset saved = case envelopeOpportunity current of
+  FocusAssistanceOpportunity identity selection step _
+    | step `elem` [FocusUnderstandWork, FocusReviewContext, FocusUnderstandSelection, FocusReviewSelection] -> do
+        brick <- maybe (Left (appError NotFound "The Work in the pending Focus assistance no longer exists.")) Right (Map.lookup identity (stateBricks (loadedState dataset)))
+        context <- focusContextEnvelope current now dataset brick selection
+        let sameAssistance envelope = case envelopeOpportunity envelope of
+              FocusAssistanceOpportunity subject recorded _ _ -> subject == identity && recorded == selection
+              _ -> False
+        pure (PresentationCheckpoint context (dropWhile sameAssistance (checkpointBack checkpoint)) [])
+  _ -> Right checkpoint
  where
-  notFoundError =
-    (appError NotFound "No active Raw matches that exact handle.")
-      { appErrorSubject = Just reference
-      , appErrorRecovery = [RecoveryAction "search" "Search all raw material." (Just ("lant search " <> reference))]
+  checkpoint =
+    saved
+      { checkpointCurrent = upgrade (checkpointCurrent saved)
+      , checkpointBack = fmap upgrade (checkpointBack saved)
+      , checkpointForward = fmap upgrade (checkpointForward saved)
       }
+  upgrade original =
+    let envelope = upgradePresentationEnvelope original
+        withBrick identity builder = builder <$> Map.lookup identity (stateBricks (loadedState dataset))
+        replacement = case envelopeOpportunity envelope of
+          ArchivePreviewOpportunity identity selection symptom -> withBrick identity (\brick -> makeArchivePreviewEnvelope (envelopeInteractionId envelope) (envelopeDatasetCursor envelope) (envelopePreconditionHash envelope) now (loadedState dataset) brick selection symptom)
+          RestorePreviewOpportunity identity -> withBrick identity (makeRestorePreviewEnvelope (envelopeInteractionId envelope) (envelopeDatasetCursor envelope) (envelopePreconditionHash envelope) now (loadedState dataset))
+          _ -> Nothing
+     in case replacement of
+          Just candidate ->
+            let refreshed = envelope{envelopeContent = envelopeContent candidate, envelopeActions = envelopeActions candidate}
+             in if refreshed == envelope then envelope else advanceEnvelope envelope refreshed
+          Nothing -> envelope
+  current = checkpointCurrent checkpoint
+
+recordedSelectionBody :: State -> Maybe UUIDv7 -> [Text]
+recordedSelectionBody state selection = case selection >>= (`Map.lookup` stateForecastSelections state) of
+  Nothing -> ["This proposal has no recorded lottery attached. Its context can still be inspected; Focus requires your explicit confirmation."]
+  Just evidence ->
+    [ "Selected by the recorded weighted focus forecast."
+    , "A draw preserves positive chances for alternatives; it does not claim this Brick is best."
+    , "Admitted subjects in the recorded first draw: " <> showText (length (forecastSelectionAdmitted evidence))
+    , "Original subject: " <> citation (forecastSelectionOriginalSubject evidence)
+    , "Final subject: " <> maybe "none" citation (forecastSelectionEndpointSubject evidence)
+    , "Opportunity: " <> forecastSelectionOpportunityKind evidence
+    ]
+      <> maybe [] (pure . ("Strongest recorded signal: " <>)) (forecastSelectionStrongestSignal evidence)
+      <> fmap ("Additional recorded signal: " <>) (forecastSelectionAdditionalSignals evidence)
+      <> ["Blocker path: " <> Text.intercalate " → " (citation <$> forecastSelectionDependencyPath evidence) | length (forecastSelectionDependencyPath evidence) > 1]
+      <> ["Domain path: " <> Text.intercalate " → " (domainCitation <$> path) | path <- maybe [] pure (forecastSelectionDomainPath evidence)]
+      <> ["Draw: " <> forecastDrawPurpose draw <> " · " <> showText (length (forecastDrawCandidates draw)) <> " candidates · chose " <> forecastDrawChosenIdentity draw <> " · cursor " <> showText (forecastDrawStartingCursor draw) <> " → " <> showText (forecastDrawEndingCursor draw) | draw <- forecastSelectionDraws evidence]
+      <> ["Replay record: " <> renderUUIDv7 (forecastSelectionId evidence), "Forecast profile: " <> forecastSelectionProfileHash evidence]
+ where
+  citation identity = maybe (renderUUIDv7 identity) (\brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"") (Map.lookup identity (stateBricks state))
+  domainCitation identity = maybe (renderUUIDv7 identity) domainName (Map.lookup identity (stateDomains state))
+
+runShow :: Bool -> LoadedDataset -> Text -> ViewDepth -> Either AppError CommandResult
+runShow dryRun dataset supplied view
+  | "+" `Text.isPrefixOf` reference = showRaw =<< resolveAnyRawReference state reference
+  | "#" `Text.isPrefixOf` reference = showBrick =<< resolveAnyBrickReference state reference
+  | "@" `Text.isPrefixOf` reference = do
+      entity <- maybe (Left notFoundError) Right (resolveExternalEntityHandle state (Handle (Text.drop 1 reference)))
+      pure (objectResult "entity" reference (externalEntityName entity) ["Type: " <> entityKindLabel (externalEntityKind entity), if externalEntityActive entity then "Status: active" else "Status: archived"])
+  | Just identity <- Text.stripPrefix "entry:" reference = do
+      entryId <- either (const (Left notFoundError)) Right (parseUUIDv7 identity)
+      entry <- maybe (Left notFoundError) Right (Map.lookup entryId (stateListEntries state))
+      pure (objectResult "list_entry" reference (listEntryLabel entry) ["Within: " <> brickReference (listEntryOwner entry), "Quantity: " <> quantityText (listEntryQuantity entry), "Status: " <> listEntryStateLabel (listEntryState entry)])
+  | Just identity <- Text.stripPrefix "shelf:" reference = do
+      shelfId <- either (const (Left notFoundError)) Right (parseUUIDv7 identity)
+      shelf <- maybe (Left notFoundError) Right (Map.lookup shelfId (stateRawShelves state))
+      pure (objectResult "raw_shelf" reference (rawShelfName shelf) ["Raw: " <> rawCitationText raw | identityValue <- rawShelfMembers shelf, Just raw <- [Map.lookup identityValue (stateRaws state)]])
+  | Just identity <- Text.stripPrefix "effect:" reference = do
+      effectId <- either (const (Left notFoundError)) Right (parseUUIDv7 identity)
+      effect <- maybe (Left notFoundError) Right (Map.lookup effectId (stateExternalEffects state))
+      pure (objectResult "external_effect" reference (externalEffectRedactedPreview effect) ["Status: " <> showText (externalEffectStatus effect), "Revision: " <> showText (externalEffectRevision effect)])
+  | otherwise = case (resolveAnyBrickReference state reference, resolveAnyRawReference state reference, resolveDomainReferenceIncludingArchived state reference) of
+      (Right _, Right _, _) -> Left (appError AmbiguousReference "Choose the #Brick or +Raw handle for this inspection.")
+      (Right _, _, Right _) -> Left (appError AmbiguousReference "Choose the #Brick handle or the complete Domain path for this inspection.")
+      (Right brick, _, _) -> showBrick brick
+      (_, Right raw, Left _) -> showRaw raw
+      (_, Left _, Right domain) -> pure (objectResult "domain" (domainPathText state (domainId domain)) (domainName domain) ([if domainActive domain then "Status: active" else "Status: archived"] <> ["Brick: " <> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"" | brick <- Map.elems (stateBricks state), domainId domain `Set.member` brickDomains brick]))
+      (_, Right _, Right _) -> Left (appError AmbiguousReference "Choose the +Raw handle or the complete Domain path for this inspection.")
+      _ -> Left notFoundError
+ where
+  reference = Text.strip supplied
+  state = loadedState dataset
+  objectResult kind ref title details = ShowObjectResult (loadedCursor dataset) kind ref title details dryRun
+  showRaw raw = Right (ShowRawResult (loadedCursor dataset) (rawProjection (view == CompleteView) raw) dryRun)
+  showBrick brick = Right $ objectResult "brick" (renderHandle BrickHandle (brickHandle brick)) (brickTitle brick) (brickDetails brick)
+  brickReference identity = maybe (renderUUIDv7 identity) (\brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"") (Map.lookup identity (stateBricks state))
+  brickDetails brick =
+    ["Nature: " <> natureLabel (brickNature brick), "Status: " <> brickStatusText brick, "Work: " <> if brickWorkState brick == Wip then "in progress" else "idle"]
+      <> ["Parent: " <> brickReference parent | parent <- maybe [] pure (brickParent brick)]
+      <> ["Domains: " <> Text.intercalate ", " (domainPathText state <$> Set.toAscList (brickDomains brick)) | not (Set.null (brickDomains brick))]
+      <> ["Child: " <> brickReference (brickId child) | child <- orderedSiblings state (Just (brickId brick))]
+      <> ["Blocked by: " <> brickReference (dependencyBlockerBrick dependency) | dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyIsBlocking state dependency]
+      <> ["Removed prerequisite: " <> brickReference (dependencyBlockerBrick dependency) | view /= SummaryView, dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyStatus dependency == DependencyRemoved]
+      <> ["No longer blocking: " <> brickReference (dependencyBlockedBrick dependency) | view /= SummaryView, dependency <- Map.elems (stateDependencies state), dependencyBlockerBrick dependency == brickId brick, dependencyStatus dependency == DependencyRemoved]
+      <> ["Item: " <> listEntryLabel entry <> " · " <> quantityText (listEntryQuantity entry) <> " · " <> listEntryStateLabel (listEntryState entry) | entry <- sortOn listEntryInsertionOrdinal (Map.elems (stateListEntries state)), listEntryOwner entry == brickId brick]
+      <> ["Material (" <> showText (rawLinkRole link) <> "):\n" <> currentMaterial raw | view /= SummaryView, link <- Map.elems (stateRawLinks state), rawLinkTarget link == RawLinkBrick (brickId brick), Just raw <- [Map.lookup (rawLinkRaw link) (stateRaws state)]]
+  currentMaterial raw = case Map.lookup (rawId raw) (stateCurrentRawRevisions state) >>= (`Map.lookup` stateRawContentRevisions state) of
+    Just revision -> case rawContentRevisionContent revision of
+      RawTextContent text -> text
+      RawUriContent uri label -> maybe uri (\name -> name <> "\n" <> uri) label
+      RawStructuredContent schema json -> schema <> "\n" <> json
+      RawBlobContent digest mediaType size name -> fromMaybe "Blob" name <> " · " <> mediaType <> " · " <> showText size <> " bytes · " <> digest
+    Nothing -> rawOriginal raw
+  notFoundError =
+    (appError NotFound "No canonical object matches that exact reference.")
+      { appErrorSubject = Just reference
+      , appErrorRecovery = [RecoveryAction "search" "Search for the object and choose its typed reference." (Just ("lant search " <> reference))]
+      }
+
+brickStatusText :: Brick -> Text
+brickStatusText brick = case brickStatus brick of
+  BrickActive -> if brickWorkState brick == Wip then "in progress" else "active"
+  BrickDone -> "done"
+  BrickArchived -> "archived"
+  BrickSuperseded -> "superseded"
+  BrickMerged -> "merged"
+  BrickMissed -> "missed"
+  BrickCancelled -> "cancelled"
 
 rawCitationText :: Raw -> Text
 rawCitationText raw = renderHandle RawHandle (rawHandle raw) <> " \"" <> Text.take 80 (Text.unwords (Text.words (rawOriginal raw))) <> "\""
@@ -6209,20 +6518,32 @@ translationCandidates state scope = titleCandidates <> rawCandidates
  where
   titleCandidates =
     [ TranslationBrickTitle (brickId brick)
-    | brick <- sortOn brickId (Map.elems (stateBricks state))
-    , translationScopeTitles scope
-    , translationLifecycleIncludes (translationScopeArchived scope) (brickStatus brick)
+    | translationScopeTitles scope
+    , brick <- sortOn brickId (Map.elems (stateBricks state))
+    , translationLifecycleIncludes
+        (translationScopeArchived scope)
+        (brickStatus brick)
     , not (titleNormalizationCurrent state brick)
     ]
   rawCandidates =
     [ TranslationRawRevision (rawId raw) revisionId
-    | raw <- sortOn rawId (Map.elems (stateRaws state))
-    , translationScopeRaws scope
-    , rawTranslationLifecycleIncludes (translationScopeArchived scope) (rawStatus raw)
-    , Just revisionId <- [Map.lookup (rawId raw) (stateCurrentRawRevisions state)]
-    , Just revision <- [Map.lookup revisionId (stateRawContentRevisions state)]
-    , RawTextContent{} <- [rawContentRevisionContent revision]
+    | translationScopeRaws scope
+    , raw <- sortOn rawId (Map.elems (stateRaws state))
+    , rawTranslationLifecycleIncludes
+        (translationScopeArchived scope)
+        (rawStatus raw)
+    , Just revisionId <-
+        [ Map.lookup
+            (rawId raw)
+            (stateCurrentRawRevisions state)
+        ]
     , Map.notMember revisionId (stateCurrentEnglishNormalizations state)
+    , Just revision <-
+        [ Map.lookup
+            revisionId
+            (stateRawContentRevisions state)
+        ]
+    , RawTextContent{} <- [rawContentRevisionContent revision]
     ]
 
 translationScopeCounts :: State -> TranslationScope -> (Int, Int, Int)
@@ -6234,8 +6555,8 @@ translationScopeCounts state scope = (length titles, length raws, unsupported)
   unsupported =
     length
       [ ()
-      | raw <- Map.elems (stateRaws state)
-      , translationScopeRaws scope
+      | translationScopeRaws scope
+      , raw <- Map.elems (stateRaws state)
       , rawTranslationLifecycleIncludes (translationScopeArchived scope) (rawStatus raw)
       , Just revisionId <- [Map.lookup (rawId raw) (stateCurrentRawRevisions state)]
       , Just revision <- [Map.lookup revisionId (stateRawContentRevisions state)]
@@ -6360,28 +6681,35 @@ resolveAnyBrickReference state reference =
       ]
 
 resolveDomainReference :: State -> Text -> Either AppError Domain
-resolveDomainReference state reference =
+resolveDomainReference = resolveDomainReferenceWithLifecycle False
+
+resolveDomainReferenceIncludingArchived :: State -> Text -> Either AppError Domain
+resolveDomainReferenceIncludingArchived = resolveDomainReferenceWithLifecycle True
+
+resolveDomainReferenceWithLifecycle :: Bool -> State -> Text -> Either AppError Domain
+resolveDomainReferenceWithLifecycle includeArchived state reference =
   case matches of
     [domain] -> Right domain
     [] ->
       Left
-        (appError NotFound "No active Domain matches that name or complete path.")
+        (appError NotFound ("No " <> lifecycle <> "Domain matches that name or complete path."))
           { appErrorSubject = Just reference
           , appErrorRecovery = [RecoveryAction "choose-domain" "Use Domain autocomplete or an exact complete path." Nothing]
           }
     domains ->
       Left
-        (appError AmbiguousReference "More than one active Domain has that name.")
+        (appError AmbiguousReference ("More than one " <> lifecycle <> "Domain has that name."))
           { appErrorSubject = Just reference
           , appErrorDetails = fmap (domainPathText state . domainId) domains
           , appErrorRecovery = [RecoveryAction "choose-domain" "Choose one complete Domain path." Nothing]
           }
  where
+  lifecycle = if includeArchived then "" else "active "
   normalized = normalizeDomainText reference
   matches =
     [ domain
     | domain <- Map.elems (stateDomains state)
-    , domainActive domain
+    , includeArchived || domainActive domain
     , normalized == normalizeDomainText (domainName domain)
         || normalized == normalizeDomainText (domainPathText state (domainId domain))
     ]
@@ -6787,7 +7115,13 @@ restoreOrCreateCheckpoint environment dataset =
   loadPendingCheckpoint environment >>= \case
     Left problem -> pure (Left problem)
     Right (Just checkpoint)
-      | checkpointIsFresh dataset checkpoint -> pure (Right checkpoint)
+      | checkpointIsFresh dataset checkpoint -> do
+          now <- appZonedNow environment
+          case upgradeFocusAssistanceCheckpoint now dataset checkpoint of
+            Left problem -> pure (Left problem)
+            Right resumed -> do
+              when (resumed /= checkpoint) (savePendingCheckpoint environment resumed)
+              pure (Right resumed)
     Right _ -> do
       fresh <- freshCheckpoint environment dataset
       case fresh of
@@ -6848,16 +7182,6 @@ simulateEvents dataset drafts = do
       (_, _, events) = encodeSegment sequenceNumber (cursorHash (loadedCursor dataset)) drafts
   state <- foldM applyEvent (loadedState dataset) events
   pure dataset{loadedState = state}
-
-parseRawReference :: Text -> Either AppError Handle
-parseRawReference reference = case Text.uncons (Text.takeWhile (/= ' ') (Text.strip reference)) of
-  Just ('+', handle) | not (Text.null handle) -> Right (Handle handle)
-  _ ->
-    Left
-      (appError InvalidInput "A Raw reference must begin with + and use an exact current handle.")
-        { appErrorSubject = Just reference
-        , appErrorRecovery = [RecoveryAction "search" "Use typed Raw search to choose a reference." Nothing]
-        }
 
 undoToken :: UUIDv7 -> DatasetCursor -> Text
 undoToken commandId cursor = sha256Hex . Text.encodeUtf8 $ renderUUIDv7 commandId <> ":" <> renderCursor cursor

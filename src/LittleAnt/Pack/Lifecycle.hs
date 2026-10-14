@@ -321,5 +321,5 @@ terminalEffectStatus = \case
 rejectUnknown :: Object -> [Text] -> Parser ()
 rejectUnknown fields allowed =
   let accepted = Set.fromList allowed
-      unknown = filter (\key -> Set.notMember key accepted) (fmap Key.toText (KeyMap.keys fields))
+      unknown = filter (`Set.notMember` accepted) (fmap Key.toText (KeyMap.keys fields))
    in unless (null unknown) (fail ("unknown keys: " <> Text.unpack (Text.intercalate ", " unknown)))

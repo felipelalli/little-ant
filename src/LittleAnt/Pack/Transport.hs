@@ -11,6 +11,7 @@ module LittleAnt.Pack.Transport (
   PackHttpTransport (..),
   credentialBoundPackHttpBroker,
   newTlsPackHttpTransport,
+  packHttpTransportWithManager,
 )
 where
 
@@ -24,6 +25,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.CaseInsensitive qualified as CI
+import Data.Char qualified
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
@@ -160,7 +162,10 @@ credentialBoundPackHttpBroker registered binding resolver transport = do
 newTlsPackHttpTransport :: IO PackHttpTransport
 newTlsPackHttpTransport = do
   manager <- Http.newManager tlsManagerSettings
-  pure (PackHttpTransport (executeTls manager))
+  pure (packHttpTransportWithManager manager)
+
+packHttpTransportWithManager :: Http.Manager -> PackHttpTransport
+packHttpTransportWithManager = PackHttpTransport . executeTls
 
 executeTls :: Http.Manager -> CredentialedHttpRequest -> IO (Either AppError BrokerHttpResponse)
 executeTls manager credentialed =
@@ -197,7 +202,7 @@ prepareRequest credentialed = do
       , Http.responseTimeout = Http.responseTimeoutMicro transportTimeoutMicros
       , Http.cookieJar = Nothing
       , Http.proxy = Nothing
-      , Http.decompress = const False
+      , Http.decompress = const True
       }
 
 readResponse :: Http.Response Http.BodyReader -> IO (Either AppError BrokerHttpResponse)
@@ -292,7 +297,7 @@ validateOAuthTokenSet tokenSet = do
     Just refresh | Text.null refresh -> Left (bindingProblem "The OAuth credential contains an empty refresh token." [])
     _ -> Right ()
   unless
-    (Text.length fingerprint == 64 && Text.all (\character -> character >= '0' && character <= '9' || character >= 'a' && character <= 'f') fingerprint)
+    (Text.length fingerprint == 64 && Text.all (\character -> Data.Char.isDigit character || character >= 'a' && character <= 'f') fingerprint)
     (Left (bindingProblem "The OAuth credential authorization fingerprint is not lowercase SHA-256." []))
  where
   fingerprint = oauthAuthorizationFingerprint tokenSet

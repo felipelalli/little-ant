@@ -343,7 +343,7 @@ schemeName = \case
 rejectUnknown :: Object -> [Text] -> Parser ()
 rejectUnknown object allowed =
   let accepted = Set.fromList allowed
-      unknown = filter (\key -> Set.notMember key accepted) (fmap Key.toText (KeyMap.keys object))
+      unknown = filter (`Set.notMember` accepted) (fmap Key.toText (KeyMap.keys object))
    in unless (null unknown) (fail ("unknown keys: " <> Text.unpack (Text.intercalate ", " unknown)))
 
 ensurePrivateDirectory :: FilePath -> IO ()

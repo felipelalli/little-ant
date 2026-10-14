@@ -88,10 +88,12 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAscii, isDigit)
+import Data.Char qualified
 import Data.Foldable (traverse_)
 import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (catMaybes, isJust, isNothing)
+import Data.Maybe qualified
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -1231,7 +1233,9 @@ applyDependencyResolved :: State -> DependencyResolution -> Either AppError Stat
 applyDependencyResolved state payload = do
   dependency <-
     maybe (corrupt "A resolved Dependency is missing.") Right (Map.lookup (resolvedDependencyId payload) (stateDependencies state))
-  unless (dependencyStatus dependency == DependencyActive) $ corrupt "Only an active Dependency can be resolved."
+  -- Older logs may resolve an edge after its owner was archived. Replaying
+  -- that recorded resolution must remain valid after retirement deactivates it.
+  unless (dependencyStatus dependency `elem` [DependencyActive, DependencyRemoved]) $ corrupt "An already resolved Dependency cannot be resolved again."
   pure . bump $
     state
       { stateDependencies =
@@ -1252,7 +1256,7 @@ reaches state start target = go Set.empty start
           (go (Set.insert current visited) . dependencyBlockerBrick)
           [ dependency
           | dependency <- Map.elems (stateDependencies state)
-          , dependencyStatus dependency == DependencyActive
+          , dependencyIsBlocking state dependency
           , dependencyBlockedBrick dependency == current
           ]
 applyForecastSelected :: State -> ForecastSelected -> Either AppError State
@@ -1741,7 +1745,7 @@ applyBrickStatusChanged state payload = do
       changed =
         brick
           { brickStatus = target
-          , brickWorkState = if target == BrickActive then Idle else Idle
+          , brickWorkState = Idle
           , brickImportanceConfidence =
               if statusChangedFrom payload == BrickArchived && target == BrickActive
                 then Provisional "restored local placement"
@@ -1750,6 +1754,10 @@ applyBrickStatusChanged state payload = do
   Right . bump $
     state
       { stateBricks = Map.insert (brickId brick) changed (stateBricks state)
+      , stateDependencies =
+          if target == BrickActive
+            then stateDependencies state
+            else Map.map removeRetiredDependency (stateDependencies state)
       , stateCurrentFocus =
           if stateCurrentFocus state == Just (brickId brick) && target /= BrickActive
             then Nothing
@@ -1761,6 +1769,11 @@ applyBrickStatusChanged state payload = do
       , stateLastRedo = Nothing
       }
  where
+  removeRetiredDependency dependency
+    | dependencyStatus dependency == DependencyActive
+    , statusChangedBrick payload `elem` [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency] =
+        dependency{dependencyStatus = DependencyRemoved}
+    | otherwise = dependency
   allowed BrickActive BrickArchived = True
   allowed BrickArchived BrickActive = True
   allowed BrickActive BrickSuperseded = True
@@ -1851,7 +1864,7 @@ applyRawFed state event payload
       (fedOrigin payload)
       initialContent
       (rawContentDigest initialContent)
-  initialContent = maybe (RawTextContent (fedOriginal payload)) id (fedContent payload)
+  initialContent = Data.Maybe.fromMaybe (RawTextContent (fedOriginal payload)) (fedContent payload)
   duplicate subject = corrupt (subject <> " is repeated in canonical history.")
 
 applyRawContentRevisionAppended :: State -> PersistedEvent -> RawContentRevisionAppended -> Either AppError State
@@ -1991,7 +2004,7 @@ applyImportInvocationRecorded state event invocation = do
   requireDigest digest =
     unless (Text.length digest == 64 && Text.all lowerHex digest) $
       corrupt "An ImportInvocation contains an invalid SHA-256 digest."
-  lowerHex character = (character >= '0' && character <= '9') || (character >= 'a' && character <= 'f')
+  lowerHex character = Data.Char.isDigit character || (character >= 'a' && character <= 'f')
   unique values = Set.size (Set.fromList values) == length values
   validateMapping mapping = do
     when (Text.null (Text.strip (importObjectExternalIdentity mapping))) $ corrupt "An ImportInvocation mapping has an empty external identity."
@@ -2104,8 +2117,8 @@ rawContentDigest = TextEncoding.decodeUtf8 . Base16.encode . SHA256.hash . TextE
 contentCanonicalText :: RawContent -> Text
 contentCanonicalText = \case
   RawTextContent text -> "text\n" <> text
-  RawUriContent locator label -> "uri\n" <> locator <> "\n" <> maybe "" id label
-  RawBlobContent digest mediaType lengthBytes filename -> "blob\n" <> digest <> "\n" <> mediaType <> "\n" <> Text.pack (show lengthBytes) <> "\n" <> maybe "" id filename
+  RawUriContent locator label -> "uri\n" <> locator <> "\n" <> Data.Maybe.fromMaybe "" label
+  RawBlobContent digest mediaType lengthBytes filename -> "blob\n" <> digest <> "\n" <> mediaType <> "\n" <> Text.pack (show lengthBytes) <> "\n" <> Data.Maybe.fromMaybe "" filename
   RawStructuredContent schema json -> "structured\n" <> schema <> "\n" <> json
 
 applyFeedRetraction :: State -> PersistedEvent -> RawFeedRetracted -> Either AppError State
@@ -2241,8 +2254,11 @@ applyBrickChildCreated :: State -> PersistedEvent -> BrickChildCreated -> Either
 applyBrickChildCreated state event payload = do
   parent <- requireBrick state (createdChildParent payload)
   unless (brickStatus parent == BrickActive) $ corrupt "A child cannot be added to inactive Work."
-  unless (elem (brickNature parent) [Project, Collection, ScheduledCommitment]) $
-    corrupt "The parent Nature cannot own independently focusable child Bricks."
+  unless
+    ( brickNature parent
+        `elem` [Project, Collection, ScheduledCommitment]
+    )
+    $ corrupt "The parent Nature cannot own independently focusable child Bricks."
   when (Map.member (createdChildId payload) (stateBricks state)) $ corrupt "Child Brick UUID is repeated in canonical history."
   when (Set.member (createdChildHandle payload) (stateRetiredBrickHandles state)) $ corrupt "Child Brick handle is repeated in canonical history."
   when (Text.null (Text.strip (createdChildTitle payload))) $ corrupt "A child Brick title cannot be empty."

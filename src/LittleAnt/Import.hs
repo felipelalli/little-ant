@@ -11,7 +11,7 @@ module LittleAnt.Import (
 where
 
 import Control.Exception (IOException, displayException, finally, try)
-import Control.Monad (unless, void)
+import Control.Monad (unless, void, when)
 import Data.Aeson (Value)
 import Data.ByteString qualified as ByteString
 import Data.Map.Strict qualified as Map
@@ -89,7 +89,7 @@ emptyImportPort :: ImportPort
 emptyImportPort =
   ImportPort
     []
-    (\source -> pure . Left $ unavailable source)
+    (pure . Left . unavailable)
     (\source _ _ -> pure . Left $ unavailable source)
     (\source _ _ -> pure . Left $ unavailable source)
     (Left . unavailable)
@@ -166,7 +166,7 @@ packRegistryImportPortWithProviders runner registry providers =
           let observation = sourcePreflightObservation preview
           unless (null (observedObjects observation)) $
             Left (sourceProblem CorruptData "A scoped SourceAdapter returned source objects during container discovery.")
-          unless (not (null (observedContainers observation))) $
+          when (null (observedContainers observation)) $
             Left (sourceProblem PreconditionFailed "The provider returned no selectable containers.")
           Right (Just (observedContainers observation))
   preflightProvider provider mode selectedContainers = case validateProviderMode provider mode >> validateProviderScope provider selectedContainers >> lookupPackComponent (providerImportAdapterId provider) registry of

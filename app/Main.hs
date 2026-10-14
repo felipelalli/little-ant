@@ -515,7 +515,7 @@ emitVaultFacts options action facts
           [ "schema" .= ("little-ant/vault-result@1" :: Text)
           , "action" .= action
           ]
-            <> [("facts" .= facts) | not (Map.null facts)]
+            <> ["facts" .= facts | not (Map.null facts)]
   | otherwise = do
       Text.putStrLn (vaultActionHeading action)
       mapM_ (\(key, value) -> Text.putStrLn (key <> ": " <> value)) (Map.toAscList facts)
@@ -612,8 +612,9 @@ vaultParser =
         <> command
           "add"
           ( info
-              ( VaultAddCli
-                  <$> (Text.pack <$> strOption (long "scheme" <> metavar "SCHEME"))
+              ( ( VaultAddCli . Text.pack
+                    <$> strOption (long "scheme" <> metavar "SCHEME")
+                )
                   <*> (Text.pack <$> strOption (long "label" <> metavar "LABEL"))
               )
               (progDesc "Add one credential using no-echo input")
@@ -621,8 +622,7 @@ vaultParser =
         <> command
           "remove"
           ( info
-              ( VaultRemoveCli
-                  <$> (Text.pack <$> strArgument (metavar "ENTRY_UUID"))
+              ( (VaultRemoveCli . Text.pack <$> strArgument (metavar "ENTRY_UUID"))
                   <*> switch (long "yes" <> help "Confirm permanent removal from the encrypted vault")
               )
               (progDesc "Remove one exact credential entry")
@@ -689,7 +689,7 @@ commandParser =
         <> command
           "list"
           ( info
-              (ListCli . fmap Text.pack <$> optional (strArgument (metavar "LIST")))
+              (ListCli . fmap Text.unwords <$> optional (some (Text.pack <$> strArgument (metavar "LIST [SCOPE]"))))
               (progDesc "List structured data (importance | forecast)")
           )
         <> command
@@ -767,13 +767,13 @@ commandParser =
         <> command
           "merge"
           ( info
-              (MergeCli <$> (Text.pack <$> strArgument (metavar "SURVIVOR")) <*> (Text.pack <$> strArgument (metavar "ABSORBED")))
+              ((MergeCli . Text.pack <$> strArgument (metavar "SURVIVOR")) <*> (Text.pack <$> strArgument (metavar "ABSORBED")))
               (experimentalDescription "Merge two Bricks keeping the survivor identity")
           )
         <> command
           "supersede"
           ( info
-              (SupersedeCli <$> (Text.pack <$> strArgument (metavar "OLD")) <*> (Text.pack <$> strArgument (metavar "NEW")))
+              ((SupersedeCli . Text.pack <$> strArgument (metavar "OLD")) <*> (Text.pack <$> strArgument (metavar "NEW")))
               (experimentalDescription "Mark one Brick as superseded by another")
           )
         <> command
@@ -956,8 +956,7 @@ configParser =
         <> command
           "connect"
           ( info
-              ( ConfigConnectCli
-                  <$> (Text.pack <$> strArgument (metavar "SOURCE"))
+              ( (ConfigConnectCli . Text.pack <$> strArgument (metavar "SOURCE"))
                   <*> (Text.pack <$> strOption (long "account" <> metavar "NAME" <> help "Lowercase local account key"))
                   <*> optional (Text.pack <$> strOption (long "label" <> metavar "LABEL" <> help "Human account label (defaults to the account key)"))
                   <*> optional (Text.pack <$> strOption (long "client-id" <> metavar "PUBLIC-ID" <> help "Public OAuth client ID when required by the signed provider authorization"))
@@ -976,7 +975,7 @@ viewReader = eitherReader $ \case
   value -> Left ("unknown projection depth: " <> value)
 
 versionOption :: Parser (a -> a)
-versionOption = infoOption "lant 1.0.0-alpha.1" (long "version" <> help "Show version")
+versionOption = infoOption "lant 1.0.0-alpha.2" (long "version" <> help "Show version")
 
 experimentalDescription :: String -> InfoMod command
 experimentalDescription description = progDesc ("EXPERIMENTAL — " <> description)

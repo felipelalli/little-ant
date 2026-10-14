@@ -8,10 +8,13 @@ module LittleAnt.Pack.Registry (
   lookupPackComponent,
   lookupPackComponentForArtifact,
   componentsOfKind,
+  applyComponentConfigurationDefaults,
 )
 where
 
 import Control.Monad (foldM, unless)
+import Data.Aeson (Value (..), eitherDecodeStrict')
+import Data.Aeson.KeyMap qualified as KeyMap
 import Data.ByteString (ByteString)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -36,6 +39,28 @@ data PackRegistry = PackRegistry
   , registryExactComponentMap :: Map (PackArtifactIdentity, Text) RegisteredPackComponent
   }
   deriving stock (Eq, Show)
+
+-- Defaults are data from the exact authenticated component, never host guesses
+-- about a provider. Existing explicit choices always take precedence.
+applyComponentConfigurationDefaults :: RegisteredPackComponent -> Value -> Either AppError Value
+applyComponentConfigurationDefaults registeredComponentValue (Object configured) = do
+  let schemaPath = componentConfigurationSchema (componentCommon (registeredComponent registeredComponentValue))
+  bytes <- maybe (Left problem) Right (Map.lookup schemaPath (registeredComponentPayload registeredComponentValue))
+  schema <- either (const (Left problem)) Right (eitherDecodeStrict' bytes)
+  case schema of
+    Object fields -> case KeyMap.lookup "properties" fields of
+      Just (Object properties) ->
+        Right . Object $ foldl addDefault configured (KeyMap.toList properties)
+      _ -> Right (Object configured)
+    _ -> Left problem
+ where
+  problem = appError CorruptData "The authenticated component configuration schema is unavailable or malformed."
+  addDefault fields (key, Object property)
+    | not (KeyMap.member key fields)
+    , Just value <- KeyMap.lookup "default" property =
+        KeyMap.insert key value fields
+  addDefault fields _ = fields
+applyComponentConfigurationDefaults _ _ = Left (appError InvalidInput "Component configuration must be an object.")
 
 registryComponents :: PackRegistry -> [RegisteredPackComponent]
 registryComponents = Map.elems . registryComponentMap

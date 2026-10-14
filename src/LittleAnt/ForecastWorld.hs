@@ -7,17 +7,22 @@ module LittleAnt.ForecastWorld (
   SelectableOpportunityKind (..),
   SubjectTicket (..),
   buildForecastWorld,
+  domainAffinity,
+  forecastSubjectChances,
   opportunityKindName,
   selectForecast,
 )
 where
 
+import Data.Bifunctor qualified
 import Data.ByteString (ByteString)
 import Data.List (maximumBy, sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
+import Data.Maybe qualified
 import Data.Ord (comparing)
+import Data.Ratio ((%))
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -177,7 +182,7 @@ buildForecastWorld state now =
           , ticketDependencies =
               [ DependencyBrick (dependencyBlockerBrick dependency)
               | dependency <- Map.elems (stateDependencies state)
-              , dependencyStatus dependency == DependencyActive
+              , dependencyIsBlocking state dependency
               , dependencyBlockedBrick dependency == brickId brick
               ]
           , ticketOpportunities = brickOpportunities state now brick children allChildren
@@ -286,7 +291,7 @@ selectForecast ::
   Either Text ForecastSelection
 selectForecast seed cursors activeDomain hardScope tickets
   | null admittedRoots =
-      Right (EmptyForecast (if hardScope == Nothing then "No opportunity is currently eligible." else "No actionable endpoint exists in this Domain scope."))
+      Right (EmptyForecast (if Data.Maybe.isNothing hardScope then "No opportunity is currently eligible." else "No actionable endpoint exists in this Domain scope."))
   | otherwise = do
       (root, rootDraw, cursorsAfterRoot) <- drawTickets ForecastSubjectDraw admittedRoots cursors
       descend (ticketIdentity root) (ticketIdentity root) [] [eraseDraw rootDraw] cursorsAfterRoot
@@ -302,7 +307,7 @@ selectForecast seed cursors activeDomain hardScope tickets
     ticket <- maybe (Left "The selected subject disappeared from the forecast world.") Right (Map.lookup current table)
     case ticketDependencies ticket of
       dependencies@(_ : _) -> do
-        let brickTargets = mapMaybe dependencyTicket dependencies
+        let brickTargets = filter (reachable table Set.empty . ticketIdentity) (mapMaybe dependencyTicket dependencies)
             nonBrickTargets = [endpoint | DependencyNonBrick endpoint <- dependencies]
         if null brickTargets
           then case nonBrickTargets of
@@ -411,7 +416,7 @@ selectForecast seed cursors activeDomain hardScope tickets
     strongestPaths = [path | path <- paths, domainAffinity activeDomain [path] == best]
     pathIdentity = Text.intercalate " › " . fmap renderUUIDv7
 
-  cursorFor purpose = Map.findWithDefault 0 purpose
+  cursorFor = Map.findWithDefault 0
   advance purpose record = Map.insert purpose (drawEndingCursor record)
 
 eraseDraw :: DrawRecord subject -> DrawRecord Text
@@ -440,11 +445,42 @@ ticketCandidate table activeDomain ticket =
       , factorNegativeSignals = ticketNegativeSignals ticket
       }
 
+-- The same conditional ticket weights as selectForecast, integrated without
+-- sampling. A blocker may receive probability through several original roots.
+forecastSubjectChances :: Maybe [UUIDv7] -> Maybe UUIDv7 -> [SubjectTicket] -> [(SubjectTicket, Rational)]
+forecastSubjectChances activeDomain hardScope tickets =
+  [ (ticket, chance)
+  | (identity, chance) <- Map.toAscList combined
+  , chance > 0
+  , Just ticket <- [Map.lookup identity table]
+  ]
+ where
+  table = Map.fromList [(ticketIdentity ticket, ticket) | ticket <- tickets]
+  roots = [ticket | ticket <- tickets, Data.Maybe.isNothing (ticketParent ticket), reachable table Set.empty (ticketIdentity ticket), maybe True (containsDomain table (ticketIdentity ticket)) hardScope]
+  combined = Map.fromListWith (+) (concat [descend Set.empty ticket chance | (ticket, chance) <- shares roots])
+  shares candidates =
+    let weighted = [(ticket, weightedInteger (forecastWeight factoryForecastProfile (ticketCandidate table activeDomain ticket))) | ticket <- candidates]
+        total = sum (snd <$> weighted)
+     in [(ticket, weight % total) | (ticket, weight) <- weighted, weight > 0, total > 0]
+  descend seen ticket chance
+    | ticketIdentity ticket `Set.member` seen = []
+    | not (null (ticketDependencies ticket)) = case dependencyTargets of
+        [] -> [(ticketIdentity ticket, chance) | any isNonBrick (ticketDependencies ticket)]
+        _ -> branch dependencyTargets
+    | not (null childTargets) = branch childTargets
+    | otherwise = [(ticketIdentity ticket, chance) | not (null (ticketOpportunities ticket))]
+   where
+    dependencyTargets = [target | DependencyBrick identity <- ticketDependencies ticket, reachable table Set.empty identity, Just target <- [Map.lookup identity table]]
+    childTargets = [child | identity <- ticketChildren ticket, reachable table Set.empty identity, Just child <- [Map.lookup identity table]]
+    branch candidates = concat [descend (Set.insert (ticketIdentity ticket) seen) child (chance * share) | (child, share) <- shares candidates]
+    isNonBrick DependencyNonBrick{} = True
+    isNonBrick _ = False
+
 strongestOpportunitySignals :: Map UUIDv7 SubjectTicket -> UUIDv7 -> [ForecastSignal]
 strongestOpportunitySignals table root =
   case candidates of
     [] -> []
-    _ -> snd (maximumBy (comparing (\(pressure, signals) -> (pressure, fmap signalExplanation signals))) candidates)
+    _ -> snd (maximumBy (comparing (Data.Bifunctor.second (fmap signalExplanation))) candidates)
  where
   candidates =
     [ (pressure, selectableSignals opportunity)
@@ -461,9 +497,9 @@ reachable table seen identity
       case Map.lookup identity table of
         Nothing -> False
         Just ticket ->
-          not (null (ticketOpportunities ticket))
-            || any (reachable table (Set.insert identity seen)) (ticketChildren ticket)
-            || any dependencyReachable (ticketDependencies ticket)
+          if null (ticketDependencies ticket)
+            then not (null (ticketOpportunities ticket)) || any (reachable table (Set.insert identity seen)) (ticketChildren ticket)
+            else any dependencyReachable (ticketDependencies ticket)
  where
   dependencyReachable = \case
     DependencyBrick target -> reachable table (Set.insert identity seen) target

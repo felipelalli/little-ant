@@ -113,6 +113,7 @@ module LittleAnt.Model (
   WorkDeferral (..),
   ActiveSprint (..),
   activeBricks,
+  dependencyIsBlocking,
   brickCount,
   emptyState,
   inboxRaws,
@@ -132,13 +133,14 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Time (Day, DayOfWeek, TimeOfDay (..), UTCTime)
+import GHC.Generics (Generic)
 import LittleAnt.Id
 
 data Actor = Actor {actorKind :: Text, actorProfile :: Text}
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data RawStatus = RawAwaitingReview | RawRetracted | RawArchived
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data Raw = Raw
   { rawId :: UUIDv7
@@ -150,7 +152,7 @@ data Raw = Raw
   , rawRevision :: Int
   , rawCreatedByCommand :: UUIDv7
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data BrickTitleNormalization = BrickTitleNormalization
   { brickTitleNormalizationId :: UUIDv7
@@ -162,14 +164,14 @@ data BrickTitleNormalization = BrickTitleNormalization
   , brickTitleNormalizationAcceptedAt :: UTCTime
   , brickTitleNormalizationConfidence :: Maybe Fixed
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data RawContent
   = RawTextContent Text
   | RawUriContent Text (Maybe Text)
   | RawBlobContent Text Text Integer (Maybe Text)
   | RawStructuredContent Text Text
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data RawContentRevision = RawContentRevision
   { rawContentRevisionId :: UUIDv7
@@ -181,10 +183,10 @@ data RawContentRevision = RawContentRevision
   , rawContentRevisionContent :: RawContent
   , rawContentRevisionDigest :: Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data NormalizationSource = HumanNormalization | PoweredUpNormalization | SkillNormalization | ImportNormalization
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data EnglishNormalization = EnglishNormalization
   { englishNormalizationId :: UUIDv7
@@ -195,13 +197,13 @@ data EnglishNormalization = EnglishNormalization
   , englishNormalizationAcceptedAt :: UTCTime
   , englishNormalizationConfidence :: Maybe Fixed
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data SourceMode = SourceSnapshot | SourceSynchronize | SourceMigrate
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ImportProfileLifecycle = ImportProfileActive | ImportProfileRetired
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ImportProfile = ImportProfile
   { importProfileId :: UUIDv7
@@ -215,17 +217,17 @@ data ImportProfile = ImportProfile
   , importProfileLifecycle :: ImportProfileLifecycle
   , importProfileRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ImportObjectDisposition = ImportCreatedRaw | ImportReusedRaw
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ImportObjectMapping = ImportObjectMapping
   { importObjectExternalIdentity :: Text
   , importObjectRawId :: UUIDv7
   , importObjectDisposition :: ImportObjectDisposition
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ImportInvocation = ImportInvocation
   { importInvocationId :: UUIDv7
@@ -247,13 +249,13 @@ data ImportInvocation = ImportInvocation
   , importInvocationSignerFingerprint :: Text
   , importInvocationMappings :: [ImportObjectMapping]
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data SourceCheckPolicy = SourceManualCheck | SourceIntervalCheck Integer
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data SourceBindingLifecycle = SourceBindingActive | SourceBindingPaused | SourceBindingDetached
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data SourceBinding = SourceBinding
   { sourceBindingId :: UUIDv7
@@ -269,7 +271,7 @@ data SourceBinding = SourceBinding
   , sourceBindingAcceptedObservation :: Maybe UUIDv7
   , sourceBindingRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data SourceObservationOutcome
   = SourceUnchanged
@@ -278,7 +280,7 @@ data SourceObservationOutcome
   | SourceUnreachable
   | SourceUnauthorized
   | SourceMalformed
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data SourceObservation = SourceObservation
   { sourceObservationId :: UUIDv7
@@ -291,13 +293,13 @@ data SourceObservation = SourceObservation
   , sourceObservationSnapshotDigest :: Maybe Text
   , sourceObservationSnapshot :: Maybe RawContent
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data SourceReconciliationDisposition
   = SourceAcceptedAsRevision UUIDv7
   | SourceAcceptedAsDerivedRaw UUIDv7
   | SourceIgnoredAsUnrelated
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data SourceReconciliation = SourceReconciliation
   { sourceReconciliationId :: UUIDv7
@@ -306,7 +308,7 @@ data SourceReconciliation = SourceReconciliation
   , sourceReconciliationAt :: UTCTime
   , sourceReconciliationActor :: Actor
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 {- | A declared handoff from human Work to an external Wait. The Wait UUID is
 allocated when the handoff is accepted, but the Wait itself does not exist
@@ -321,10 +323,10 @@ data WaitSuccessor = WaitSuccessor
   , waitSuccessorReviewDelaySeconds :: Integer
   , waitSuccessorDeclaredAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ExternalEntityKind = PersonEntity | TeamEntity | OrganizationEntity | AIAgentEntity | ServiceEntity
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ExternalEntity = ExternalEntity
   { externalEntityId :: UUIDv7
@@ -334,10 +336,10 @@ data ExternalEntity = ExternalEntity
   , externalEntityActive :: Bool
   , externalEntityCreatedAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ContactPointKind = EmailContact | PhoneContact | URIContact | ProviderRecipientContact
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ContactPoint = ContactPoint
   { contactPointId :: UUIDv7
@@ -350,15 +352,15 @@ data ContactPoint = ContactPoint
   , contactPointSource :: Text
   , contactPointVerifiedAt :: Maybe UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data WaitKind
   = HumanResponseWait UUIDv7
   | ExternalConditionWait Text
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data WaitStatus = WaitActive | WaitResolved | WaitCancelled
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data WaitGate = WaitGate
   { waitId :: UUIDv7
@@ -371,7 +373,7 @@ data WaitGate = WaitGate
   , waitDeferralCount :: Int
   , waitRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data WaitObservationKind
   = WaitActivatedObservation
@@ -380,7 +382,7 @@ data WaitObservationKind
   | WaitFollowUpObservation
   | WaitReviewSkippedObservation
   | WaitReclassifiedObservation
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data WaitObservation = WaitObservation
   { waitObservationId :: UUIDv7
@@ -390,13 +392,13 @@ data WaitObservation = WaitObservation
   , waitObservationActor :: Actor
   , waitObservationNote :: Maybe Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data DelegationScope = BrickOnlyDelegation | WholeScopeDelegation
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data FollowUpPolicy = FollowUpOnce | FollowUpEvery | FollowUpNone
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data DelegationStatus
   = DelegationProposed
@@ -406,7 +408,7 @@ data DelegationStatus
   | DelegationTakenBack
   | DelegationCancelled
   | DelegationReassigned
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data Delegation = Delegation
   { delegationId :: UUIDv7
@@ -425,10 +427,10 @@ data Delegation = Delegation
   , delegationExtraFollowUps :: Int
   , delegationRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data DelegationDeliveryReason = InitialDelegationDelivery | FollowUpDelegationDelivery
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data EffectAdapterCustody = EffectAdapterCustody
   { effectAdapterComponentId :: Text
@@ -442,7 +444,7 @@ data EffectAdapterCustody = EffectAdapterCustody
   , effectAdapterPackArchiveDigest :: Text
   , effectAdapterSignerFingerprint :: Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data SourceCleanupItemTarget = SourceCleanupItemTarget
   { cleanupItemImportInvocation :: UUIDv7
@@ -452,7 +454,7 @@ data SourceCleanupItemTarget = SourceCleanupItemTarget
   , cleanupItemLocator :: Text
   , cleanupItemContainerIdentity :: Maybe Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data SourceCleanupContainerTarget = SourceCleanupContainerTarget
   { cleanupContainerImportProfile :: UUIDv7
@@ -462,7 +464,7 @@ data SourceCleanupContainerTarget = SourceCleanupContainerTarget
   , cleanupContainerInspectionDigest :: Text
   , cleanupContainerInspectedAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ExternalEffectRequest
   = DelegationDeliveryRequest
@@ -482,7 +484,7 @@ data ExternalEffectRequest
       }
   | SourceCleanupItemRequest EffectAdapterCustody SourceCleanupItemTarget
   | SourceCleanupContainerRequest EffectAdapterCustody SourceCleanupContainerTarget
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ExternalEffectPurpose
   = DelegationDeliveryEffect
@@ -492,7 +494,7 @@ data ExternalEffectPurpose
   | CalendarCreateEffect
   | CalendarUpdateEffect
   | CalendarCancelEffect
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ExternalEffectStatus
   = EffectProposed
@@ -504,7 +506,7 @@ data ExternalEffectStatus
   | EffectOutcomeUnknown
   | EffectRejected
   | EffectWithdrawn
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data ExternalEffect = ExternalEffect
   { externalEffectId :: UUIDv7
@@ -521,14 +523,14 @@ data ExternalEffect = ExternalEffect
   , externalEffectApprovalGrant :: Maybe UUIDv7
   , externalEffectApprovedDigest :: Maybe Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ExternalEffectApprovalItem = ExternalEffectApprovalItem
   { approvedEffectId :: UUIDv7
   , approvedEffectRevision :: Int
   , approvedEffectDigest :: Text
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data ExternalEffectApprovalGrant = ExternalEffectApprovalGrant
   { externalEffectApprovalGrantId :: UUIDv7
@@ -537,7 +539,7 @@ data ExternalEffectApprovalGrant = ExternalEffectApprovalGrant
   , externalEffectApprovalCommand :: UUIDv7
   , externalEffectApprovalCursor :: Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ExternalEffectReceipt = ExternalEffectReceipt
   { externalEffectReceiptId :: UUIDv7
@@ -547,7 +549,7 @@ data ExternalEffectReceipt = ExternalEffectReceipt
   , externalEffectReceiptProviderReference :: Maybe Text
   , externalEffectReceiptRedactedDetail :: Maybe Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 externalEffectPurpose :: ExternalEffect -> ExternalEffectPurpose
 externalEffectPurpose effect = case externalEffectRequest effect of
@@ -564,7 +566,7 @@ externalEffectDelegation effect = case externalEffectRequest effect of
   SourceCleanupContainerRequest{} -> Nothing
 
 data RecurrenceFamily = DailyRecurrence | WeeklyRecurrence | MonthlyRecurrence | YearlyRecurrence
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data CalendarRule = CalendarRule
   { calendarFamily :: RecurrenceFamily
@@ -575,7 +577,7 @@ data CalendarRule = CalendarRule
   , calendarIntendedMonth :: Maybe Int
   , calendarTimes :: [TimeOfDay]
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data RecurrenceSchedule = RecurrenceSchedule
   { recurrenceOwner :: UUIDv7
@@ -588,7 +590,7 @@ data RecurrenceSchedule = RecurrenceSchedule
   , recurrenceDeadlineOffsetSeconds :: Maybe Integer
   , recurrenceRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data RecurringOccurrence = RecurringOccurrence
   { recurringOccurrenceId :: UUIDv7
@@ -598,7 +600,7 @@ data RecurringOccurrence = RecurringOccurrence
   , recurringOccurrenceLabel :: Text
   , recurringOccurrenceScheduleRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data HabitSchedule
   = FixedSlotHabit
@@ -619,7 +621,7 @@ data HabitSchedule
       , habitDayBoundary :: Maybe TimeOfDay
       , habitScheduleRevision :: Int
       }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data HabitWindow = HabitWindow
   { habitWindowId :: UUIDv7
@@ -630,7 +632,7 @@ data HabitWindow = HabitWindow
   , habitWindowScheduleRevision :: Int
   , habitWindowSettled :: Bool
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data HabitOutcome = HabitOutcome
   { habitOutcomeId :: UUIDv7
@@ -639,10 +641,10 @@ data HabitOutcome = HabitOutcome
   , habitOutcomeKind :: StandingOutcomeKind
   , habitOutcomeAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data NoticeKind = BestBeforeNotice | DeadlineNotice | RecurringReleaseNotice | TemporalTransitionNotice
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data NoticeIdentity = NoticeIdentity
   { noticeSubject :: UUIDv7
@@ -650,19 +652,19 @@ data NoticeIdentity = NoticeIdentity
   , noticeKind :: NoticeKind
   , noticeThreshold :: UTCTime
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data NoticeDisposition
   = NoticeAcknowledged UTCTime
   | NoticeSnoozed ZonedInstant
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data OperationalDayConfig = OperationalDayConfig
   { operationalZone :: Text
   , operationalHabitDayStartsAt :: TimeOfDay
   , operationalWorkdayStartsAt :: TimeOfDay
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ScheduledInterval = ScheduledInterval
   { scheduledIntervalOwner :: UUIDv7
@@ -670,10 +672,10 @@ data ScheduledInterval = ScheduledInterval
   , scheduledEndsAt :: ZonedInstant
   , scheduledIntervalRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ReturnUnit = ReturnDays | ReturnWeeks | ReturnMonths | ReturnYears
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data ReturnPolicy
   = ManualOnlyReturn
@@ -683,7 +685,7 @@ data ReturnPolicy
       , returnVariation :: Int
       , returnZone :: Text
       }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data ReturnSchedule = ReturnSchedule
   { returnScheduleOwner :: UUIDv7
@@ -692,7 +694,7 @@ data ReturnSchedule = ReturnSchedule
   , returnScheduleNotBefore :: Maybe ZonedInstant
   , returnScheduleResolution :: Maybe Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data StandingOutcomeKind
   = StandingDone
@@ -703,7 +705,7 @@ data StandingOutcomeKind
   | StandingAttended
   | StandingMissed
   | StandingCancelled
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data StandingOutcome = StandingOutcome
   { standingOutcomeId :: UUIDv7
@@ -711,13 +713,13 @@ data StandingOutcome = StandingOutcome
   , standingOutcomeKind :: StandingOutcomeKind
   , standingOutcomeAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ZonedInstant = ZonedInstant
   { zonedInstantUtc :: UTCTime
   , zonedInstantZone :: Text
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data TemporalConstraints = TemporalConstraints
   { temporalNotBefore :: Maybe ZonedInstant
@@ -725,7 +727,7 @@ data TemporalConstraints = TemporalConstraints
   , temporalDeadline :: Maybe ZonedInstant
   , temporalRevision :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ChecklistRun = ChecklistRun
   { checklistRunId :: UUIDv7
@@ -733,19 +735,19 @@ data ChecklistRun = ChecklistRun
   , checklistRunStartedAt :: UTCTime
   , checklistRunMutationCount :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data DomainFocusMode = OneSuggestion | StayWithin | PreferDomain
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data DomainScope = DomainScope
   { domainScopeTarget :: UUIDv7
   , domainScopeMode :: DomainFocusMode
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
-data DependencyStatus = DependencyActive | DependencyResolved
-  deriving stock (Eq, Ord, Show)
+data DependencyStatus = DependencyActive | DependencyResolved | DependencyRemoved
+  deriving stock (Eq, Ord, Generic, Show)
 
 data Dependency = Dependency
   { dependencyId :: UUIDv7
@@ -755,7 +757,7 @@ data Dependency = Dependency
   , dependencySource :: Text
   , dependencyCreatedAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data WorkDeferral = WorkDeferral
   { workDeferralId :: UUIDv7
@@ -766,7 +768,7 @@ data WorkDeferral = WorkDeferral
   , workDeferralRecordedAt :: UTCTime
   , workDeferralCooldownUntil :: Maybe UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ActiveSprint = ActiveSprint
   { activeSprintBrick :: UUIDv7
@@ -774,7 +776,7 @@ data ActiveSprint = ActiveSprint
   , activeSprintEndsAt :: UTCTime
   , activeSprintMinutes :: Int
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data BrickNature
   = AtomicTask
@@ -786,7 +788,7 @@ data BrickNature
   | RecurringObligation
   | Habit
   | ScheduledCommitment
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data BrickStatus
   = BrickActive
@@ -796,10 +798,10 @@ data BrickStatus
   | BrickMerged
   | BrickMissed
   | BrickCancelled
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data WorkState = Idle | Wip
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data SkipSymptom
   = VagueSymptom
@@ -814,7 +816,7 @@ data SkipSymptom
   | LessImportantSymptom
   | OutOfDateSymptom
   | OtherSymptom Text
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data SkipReaction
   = SkipAnywayReaction
@@ -832,29 +834,29 @@ data SkipReaction
   | OrderLowerReaction
   | LaterReaction
   | CreateRequestReaction
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data TemplateSelection = TemplateSelection
   { templateIdentifier :: Text
   , templateCatalogVersion :: Text
   , templateSource :: Text
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data ImportanceConfidence
   = HumanComparison
   | DeterministicPosition Text
   | Provisional Text
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 newtype Fixed = Fixed {unFixed :: Integer}
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data JudgmentAxis
   = ImportanceAxis
   | ImpactAxis
   | EffortAxis
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data JudgmentProvenance
   = DirectHuman
@@ -862,20 +864,20 @@ data JudgmentProvenance
   | HumanEitherOrder
   | DeterministicProvisional
   | ModelOnly Text
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data JudgmentRelation
   = MoreThan
   | EitherOrder
   | AboutSame
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data JudgmentStatus
   = JudgmentCurrent
   | JudgmentRetired UUIDv7 Text
   | JudgmentRetracted UUIDv7 Text
   | JudgmentUnresolved Text
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data PairJudgment = PairJudgment
   { judgmentId :: UUIDv7
@@ -891,21 +893,21 @@ data PairJudgment = PairJudgment
   , judgmentReason :: Text
   , judgmentStatus :: JudgmentStatus
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data JudgmentLabel
   = ReviewedJudgment
   | ProvisionalJudgment
   | ReviewDueJudgment
   | HistoricalOnlyJudgment
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data WorkPhase
   = IdeaPhase
   | SpecPhase
   | ExecutionPhase
   | ValidationPhase
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data PhaseClaim = PhaseClaim
   { phaseClaimBrick :: UUIDv7
@@ -913,7 +915,7 @@ data PhaseClaim = PhaseClaim
   , phaseClaimRecordedAt :: UTCTime
   , phaseClaimProvenance :: JudgmentProvenance
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ImpactClass
   = VeryLowImpact
@@ -922,14 +924,14 @@ data ImpactClass
   | HighImpact
   | VeryHighImpact
   | CriticalImpact
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ImpactMaturity
   = SpeculativeImpact
   | SupportedImpact
   | ValidatedImpact
   | ObservedImpact
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data ImpactClaim = ImpactClaim
   { impactClaimBrick :: UUIDv7
@@ -940,7 +942,7 @@ data ImpactClaim = ImpactClaim
   , impactClaimProvenance :: JudgmentProvenance
   , impactClaimProfileHash :: Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data EffortClass
   = VeryEasyEffort
@@ -951,7 +953,7 @@ data EffortClass
   | VeryHardEffort
   | MiniProjectEffort
   | ProjectEffort
-  deriving stock (Bounded, Enum, Eq, Ord, Show)
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data EffortClaim = EffortClaim
   { effortClaimBrick :: UUIDv7
@@ -960,7 +962,7 @@ data EffortClaim = EffortClaim
   , effortClaimProvenance :: JudgmentProvenance
   , effortClaimProfileHash :: Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data EffortActualEvidence = EffortActualEvidence
   { effortActualEvidenceId :: UUIDv7
@@ -974,7 +976,7 @@ data EffortActualEvidence = EffortActualEvidence
   , effortActualRemainingMicrohours :: Maybe Integer
   , effortActualRecordedAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data Brick = Brick
   { brickId :: UUIDv7
@@ -994,7 +996,7 @@ data Brick = Brick
   , brickCreatedBy :: Actor
   , brickCreatedByCommand :: UUIDv7
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data Domain = Domain
   { domainId :: UUIDv7
@@ -1002,7 +1004,7 @@ data Domain = Domain
   , domainParent :: Maybe UUIDv7
   , domainActive :: Bool
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data RawShelf = RawShelf
   { rawShelfId :: UUIDv7
@@ -1010,17 +1012,17 @@ data RawShelf = RawShelf
   , rawShelfActive :: Bool
   , rawShelfMembers :: [UUIDv7]
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data Quantity = Quantity
   { quantityCoefficient :: Integer
   , quantityScale :: Int
   , quantityUnit :: Text
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data ListEntryState = EntryOpen | EntryResolved | EntryCancelled
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data ListEntry = ListEntry
   { listEntryId :: UUIDv7
@@ -1031,7 +1033,7 @@ data ListEntry = ListEntry
   , listEntryInsertionOrdinal :: Int
   , listEntryCreatedAt :: UTCTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data RawDisposition
   = RawKeptStandalone
@@ -1040,7 +1042,7 @@ data RawDisposition
   | RawMaterializedAsListEntry UUIDv7 UUIDv7
   | RawPlacedOnShelf UUIDv7
   | RawAttachedTo UUIDv7 RawLinkRole
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data RawLinkRole
   = DescriptionRole
@@ -1049,13 +1051,13 @@ data RawLinkRole
   | EvidenceRole
   | DerivedFromRole
   | DuplicateOfRole
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data RawLinkTarget
   = RawLinkBrick UUIDv7
   | RawLinkListEntry UUIDv7
   | RawLinkRaw UUIDv7
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data RawLink = RawLink
   { rawLinkId :: UUIDv7
@@ -1065,7 +1067,7 @@ data RawLink = RawLink
   , rawLinkCreatedAt :: UTCTime
   , rawLinkCreatedBy :: Actor
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ImportanceEdge = ImportanceEdge
   { importanceAbove :: UUIDv7
@@ -1073,7 +1075,7 @@ data ImportanceEdge = ImportanceEdge
   , importanceRecordedAt :: UTCTime
   , importanceSource :: Text
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data LazyReviewClaim = LazyReviewClaim
   { lazyReviewId :: UUIDv7
@@ -1082,7 +1084,7 @@ data LazyReviewClaim = LazyReviewClaim
   , lazyReviewReason :: Text
   , lazyReviewCreatedAt :: UTCTime
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Generic, Show)
 
 data CommandEffect = CommandEffect
   { effectCommandId :: UUIDv7
@@ -1090,7 +1092,7 @@ data CommandEffect = CommandEffect
   , effectCreatedRaws :: [UUIDv7]
   , effectCompensatedBy :: Maybe UUIDv7
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data MaterializationEffect = MaterializationEffect
   { materializationCommandId :: UUIDv7
@@ -1104,7 +1106,7 @@ data MaterializationEffect = MaterializationEffect
   , materializationShelfMemberships :: [(UUIDv7, UUIDv7)]
   , materializationPreviousQuantities :: Map UUIDv7 Quantity
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ForecastDrawEvidence = ForecastDrawEvidence
   { forecastDrawPurpose :: Text
@@ -1115,7 +1117,7 @@ data ForecastDrawEvidence = ForecastDrawEvidence
   , forecastDrawSampledInteger :: Integer
   , forecastDrawChosenIdentity :: Text
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data ForecastSelectionEvidence = ForecastSelectionEvidence
   { forecastSelectionId :: UUIDv7
@@ -1131,7 +1133,7 @@ data ForecastSelectionEvidence = ForecastSelectionEvidence
   , forecastSelectionAdditionalSignals :: [Text]
   , forecastSelectionDraws :: [ForecastDrawEvidence]
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 data State = State
   { stateRaws :: Map UUIDv7 Raw
@@ -1202,7 +1204,7 @@ data State = State
   , stateOperationalDayConfig :: OperationalDayConfig
   , stateEventCount :: Integer
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
 
 emptyState :: State
 emptyState =
@@ -1286,6 +1288,15 @@ inboxRaws state =
 
 rawCount :: State -> Int
 rawCount = length . inboxRaws
+
+-- A retained historical edge cannot gate executable Work through a retired
+-- endpoint. Missing endpoints remain visible as corrupt prerequisites.
+dependencyIsBlocking :: State -> Dependency -> Bool
+dependencyIsBlocking state dependency =
+  dependencyStatus dependency == DependencyActive
+    && all activeEndpoint [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency]
+ where
+  activeEndpoint identity = maybe True ((== BrickActive) . brickStatus) (Map.lookup identity (stateBricks state))
 
 activeBricks :: State -> [Brick]
 activeBricks = filter ((== BrickActive) . brickStatus) . Map.elems . stateBricks

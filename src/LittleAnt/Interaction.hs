@@ -17,6 +17,7 @@ module LittleAnt.Interaction (
   TranslationQueue (..),
   SourceReconciliationChoice (..),
   NatureQuestion (..),
+  FocusAssistanceStep (..),
   Opportunity (..),
   ResponseValidation (..),
   ScreenGrammar (..),
@@ -26,6 +27,7 @@ module LittleAnt.Interaction (
   DelegationDraft (..),
   advanceEnvelope,
   envelopeIntegrityIsValid,
+  upgradePresentationEnvelope,
   makeCompletionResultEnvelope,
   makeRepeatableReturnEnvelope,
   makeRepeatableReturnCenterEnvelope,
@@ -97,6 +99,7 @@ module LittleAnt.Interaction (
   makeExistingWorkSuspicionEnvelope,
   makeFocusProposalEnvelope,
   makeRecordedFocusProposalEnvelope,
+  makeFocusAssistanceEnvelope,
   makeNatureChoiceEnvelope,
   makeNatureConfirmationEnvelope,
   makeNatureDiscoveryEnvelope,
@@ -182,6 +185,8 @@ import Data.Char (isAsciiLower)
 import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
+import Data.Maybe qualified
+import Data.Ord qualified
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -418,6 +423,7 @@ data Opportunity
   | StandaloneResultOpportunity UUIDv7
   | WorkCreatedResultOpportunity UUIDv7 UUIDv7
   | FocusProposalOpportunity UUIDv7 (Maybe UUIDv7)
+  | FocusAssistanceOpportunity UUIDv7 (Maybe UUIDv7) FocusAssistanceStep Bool
   | CurrentFocusOpportunity UUIDv7
   | UpdateMeaningOpportunity UUIDv7
   | UpdateTextOpportunity UUIDv7 UpdateMeaningField Text Text
@@ -614,7 +620,7 @@ makeRawTriageEnvelope identity cursor precondition now state raw =
     [ Action "raw.materialize-work" "yes" "y" False "Enter Work materialization."
     , Action "raw.choose-destination" "no" "n" False "Choose a compatible destination."
     , Action "raw.defer-triage" "skip" "s" False "Defer this Raw triage."
-    , Action "raw.triage-assistance" "I don't know" "?" False "Clarify whether this material communicates one useful action."
+    , Action "raw.triage-assistance" "I don't know" "k" False "Clarify whether this material communicates one useful action."
     , moreAction
     ]
     (rawCommands raw)
@@ -639,7 +645,7 @@ makeRawDuplicateEnvelope identity cursor precondition now state candidate root =
     [ Action "raw.duplicate.accept" "yes" "y" exact "Group the later receipt under the canonical Raw receipt."
     , Action "raw.duplicate.reject" "no" "n" False "Record revision-scoped negative duplicate evidence."
     , Action "raw.duplicate.defer" "skip" "s" False "Leave this duplicate review unresolved."
-    , Action "raw.duplicate.inspect" "I don't know" "?" False "Inspect both complete Raw revisions side by side."
+    , Action "raw.duplicate.inspect" "I don't know" "k" False "Inspect both complete Raw revisions side by side."
     , moreAction
     ]
     (rawCommands candidate)
@@ -662,7 +668,7 @@ makeTranslationScopeEnvelope identity cursor precondition now state scope titleC
     , Action "translate.scope.titles" ("titles only    " <> count titleCount <> " candidates") "t" (translationScopeTitles scope && not (translationScopeRaws scope)) "Review Brick titles only."
     , Action "translate.scope.raws" ("raw material only    " <> count rawTextCount <> " candidates") "r" (translationScopeRaws scope && not (translationScopeTitles scope)) "Review supported Raw text only."
     , Action "translate.scope.archived" "include archived material" "i" (translationScopeArchived scope) "Toggle archived Bricks and Raws in this queue."
-    , Action "translate.scope.unknown" "I don't know" "?" False "Explain the review scope without changing data."
+    , Action "translate.scope.unknown" "I don't know" "k" False "Explain the review scope without changing data."
     , Action "translate.scope.continue" "continue" "enter" False "Begin the selected interruptible review queue."
     , moreAction
     ]
@@ -686,7 +692,7 @@ makeTranslationEditorEnvelope previous now state queue suggestion attribution =
       (EnvelopeContent "English normalization for" (Just citation) (["Original", original, progress] <> attributionBody) Nothing)
       [ Action "translate.edit.submit" "preview" "enter" False "Preview this English normalization before accepting it."
       , Action "translate.edit.skip" "skip" "s" False "Leave this candidate unresolved and continue."
-      , Action "translate.edit.unknown" "I don't know" "?" False "Explain normalization while preserving this candidate."
+      , Action "translate.edit.unknown" "I don't know" "k" False "Explain normalization while preserving this candidate."
       , moreAction
       ]
       [CommandOption "translate" "/translate" "Restart translation scope selection.", helpCommand, exitCommand]
@@ -711,7 +717,7 @@ makeTranslationPreviewEnvelope previous now state queue proposed source producer
       [ Action "translate.preview.accept" "yes" "y" True "Accept only this title or Raw-revision normalization."
       , Action "translate.preview.edit" "edit" "e" False "Return to the editor with this proposal selected."
       , Action "translate.preview.reject" "no" "n" False "Reject the proposal and return to a blank dumb editor."
-      , Action "translate.preview.unknown" "I don't know" "?" False "Explain identity and history consequences."
+      , Action "translate.preview.unknown" "I don't know" "k" False "Explain identity and history consequences."
       , moreAction
       ]
       [CommandOption "translate" "/translate" "Restart translation scope selection.", helpCommand, exitCommand]
@@ -771,7 +777,7 @@ makeRawOriginListEnvelope previous now state raw =
       ChoiceGrammar
       (RawOriginListOpportunity (rawId raw))
       (EnvelopeContent "External origins:" (Just (rawCitation raw)) emptyBody Nothing)
-      (bindingActions <> [Action "raw.origin.add" "add an origin..." "a" False "Open the typed SourceBinding builder.", Action "raw.origin.back" "back" "esc" False "Return to Raw detail.", Action "raw.origin.unknown" "I don't know" "?" False "Explain origins without changing data.", moreAction])
+      (bindingActions <> [Action "raw.origin.add" "add an origin..." "a" False "Open the typed SourceBinding builder.", Action "raw.origin.back" "back" "esc" False "Return to Raw detail.", Action "raw.origin.unknown" "I don't know" "k" False "Explain origins without changing data.", moreAction])
       (rawCommands raw)
       Nothing
       (rawFooter now state raw)
@@ -796,7 +802,7 @@ makeSourceBindingEnvelope previous now state binding =
           ChoiceGrammar
           (SourceBindingOpportunity (sourceBindingId binding))
           (EnvelopeContent "External origin:" (rawCitation <$> Map.lookup (sourceBindingRaw binding) (stateRaws state)) ["Type: " <> sourceBindingKind binding, "Origin: " <> sourceBindingLocator binding, "Mode: " <> sourceModeLabel (sourceBindingMode binding), "Checks: " <> sourceCheckPolicyLabel (sourceBindingCheckPolicy binding), "State: " <> sourceLifecycleLabel (sourceBindingLifecycle binding)] Nothing)
-          (sourceBindingActions binding <> [Action "source.binding.back" "back" "esc" False "Return to the Raw's origin list.", Action "source.binding.unknown" "I don't know" "?" False "Explain this origin without changing it.", moreAction])
+          (sourceBindingActions binding <> [Action "source.binding.back" "back" "esc" False "Return to the Raw's origin list.", Action "source.binding.unknown" "I don't know" "k" False "Explain this origin without changing it.", moreAction])
           [helpCommand, exitCommand]
           Nothing
           (sourceFooter now state binding)
@@ -816,7 +822,7 @@ makeSourceReconciliationEnvelope previous now state observation =
       , Action "source.change.derived" "derive new Raw material" "d" False "Preserve a new Raw linked derived_from while retaining this binding on its original Raw."
       , Action "source.change.unrelated" "ignore as unrelated" "i" False "Record this decision and advance only the source baseline."
       , Action "source.change.view" "view differences" "v" False "Inspect the bounded old and observed representations."
-      , Action "source.change.unknown" "I don't know" "?" False "Explain revision, derivation, and unrelated content."
+      , Action "source.change.unknown" "I don't know" "k" False "Explain revision, derivation, and unrelated content."
       , moreAction
       ]
       [helpCommand, exitCommand]
@@ -839,7 +845,7 @@ makeSourceReconciliationPreviewEnvelope previous now state observation choice =
       [ Action "source.reconcile.accept" "yes" "y" True "Commit exactly this reconciliation and accepted baseline."
       , Action "source.reconcile.edit" "edit" "e" False "Return to the three-way source decision."
       , Action "source.reconcile.reject" "no" "n" False "Return without recording this proposal."
-      , Action "source.reconcile.unknown" "I don't know" "?" False "Explain the exact identity, content, and baseline consequences."
+      , Action "source.reconcile.unknown" "I don't know" "k" False "Explain the exact identity, content, and baseline consequences."
       , moreAction
       ]
       [helpCommand, exitCommand]
@@ -864,7 +870,7 @@ makeSourceFailureEnvelope previous now state observation =
       , Action "source.failure.move" "move origin" "m" False "Enter a replacement locator and preview identity consequences."
       , Action "source.failure.detach" "detach origin" "d" False "Preview stopping future checks while retaining all local history."
       , Action "source.failure.later" "later" "l" False "Return to Raw detail without changing the binding."
-      , Action "source.failure.unknown" "I don't know" "?" False "Explain why source failure is not completion or archive."
+      , Action "source.failure.unknown" "I don't know" "k" False "Explain why source failure is not completion or archive."
       , moreAction
       ]
       [helpCommand, exitCommand]
@@ -900,7 +906,7 @@ makeSourceRelocatePreviewEnvelope previous now state binding locator =
       ConfirmationGrammar
       (SourceRelocatePreviewOpportunity (sourceBindingId binding) locator)
       (EnvelopeContent "Move this external origin?" (rawCitation <$> Map.lookup (sourceBindingRaw binding) (stateRaws state)) ["From: " <> sourceBindingLocator binding, "To: " <> locator, identityWarning] Nothing)
-      [Action "source.relocate.accept" "yes" "y" False "Preserve binding identity and accept this visible locator move.", Action "source.relocate.edit" "edit" "e" False "Edit the proposed locator.", Action "source.relocate.reject" "no" "n" True "Keep the current locator.", Action "source.relocate.unknown" "I don't know" "?" False "Explain provider identity and human confirmation.", moreAction]
+      [Action "source.relocate.accept" "yes" "y" False "Preserve binding identity and accept this visible locator move.", Action "source.relocate.edit" "edit" "e" False "Edit the proposed locator.", Action "source.relocate.reject" "no" "n" True "Keep the current locator.", Action "source.relocate.unknown" "I don't know" "k" False "Explain provider identity and human confirmation.", moreAction]
       [helpCommand, exitCommand]
       Nothing
       (sourceFooter now state binding)
@@ -918,7 +924,7 @@ makeSourceLifecyclePreviewEnvelope previous now state binding lifecycle =
       ConfirmationGrammar
       (SourceLifecyclePreviewOpportunity (sourceBindingId binding) lifecycle)
       (EnvelopeContent (sourceLifecycleHeading lifecycle) (rawCitation <$> Map.lookup (sourceBindingRaw binding) (stateRaws state)) ["Origin: " <> sourceBindingLocator binding, lifecycleConsequence lifecycle] Nothing)
-      [Action "source.lifecycle.accept" "yes" "y" False "Apply only this binding lifecycle change.", Action "source.lifecycle.reject" "no" "n" True "Keep the binding unchanged.", Action "source.lifecycle.unknown" "I don't know" "?" False "Explain what local material remains preserved.", moreAction]
+      [Action "source.lifecycle.accept" "yes" "y" False "Apply only this binding lifecycle change.", Action "source.lifecycle.reject" "no" "n" True "Keep the binding unchanged.", Action "source.lifecycle.unknown" "I don't know" "k" False "Explain what local material remains preserved.", moreAction]
       [helpCommand, exitCommand]
       Nothing
       (sourceFooter now state binding)
@@ -959,7 +965,7 @@ makeImportPreflightEnvelope identity cursor precondition now state profileName s
     )
     [ Action "import.accept" "import" "i" False "Rerun this preflight and atomically preserve verified Raw truth."
     , Action "import.back" "back" "b" False "Leave this preview without importing."
-    , Action "import.unknown" "I don't know" "?" False "Explain Raw-first import and source cleanup."
+    , Action "import.unknown" "I don't know" "k" False "Explain Raw-first import and source cleanup."
     , moreAction
     ]
     [CommandOption "import" "/import" "Choose another import source", helpCommand, exitCommand]
@@ -1044,7 +1050,7 @@ makeProviderConnectionEnvelope identity cursor precondition now state draft =
     )
     [ Action "provider.connect.accept" "connect" "c" False (if connectionUsesStaticCredential draft then "Open one no-echo credential input for the exact signed slot." else "Start the exact signed OAuth authorization in this host.")
     , Action "provider.connect.back" "back" "b" False "Leave the provider account unconfigured."
-    , Action "provider.connect.unknown" "I don't know" "?" False "Explain the connection boundary before authorizing."
+    , Action "provider.connect.unknown" "I don't know" "k" False "Explain the connection boundary before authorizing."
     , moreAction
     ]
     [ CommandOption "config" "/config" "Inspect redacted typed configuration"
@@ -1115,13 +1121,13 @@ makePackInstallEnvelope identity cursor precondition now state draft authenticat
     | packInstallTrustClass draft == "untrusted" =
         [ Action "pack.install.trust" "trust publisher..." "t" False "Inspect and separately trust this exact publisher key."
         , Action "pack.install.back" "back" "b" False "Leave the candidate uninstalled and untrusted."
-        , Action "pack.install.unknown" "I don't know" "?" False "Explain the separate trust and installation decisions."
+        , Action "pack.install.unknown" "I don't know" "k" False "Explain the separate trust and installation decisions."
         , moreAction
         ]
     | otherwise =
         [ Action "pack.install.accept" "install" "i" False "Store this exact signed archive and pin its displayed components."
         , Action "pack.install.back" "back" "b" False "Leave the candidate uninstalled."
-        , Action "pack.install.unknown" "I don't know" "?" False "Explain the authority granted by this installation."
+        , Action "pack.install.unknown" "I don't know" "k" False "Explain the authority granted by this installation."
         , moreAction
         ]
   componentLine component =
@@ -1167,7 +1173,7 @@ makePackTrustEnvelope identity cursor precondition now state draft =
     )
     [ Action "pack.trust.accept" "trust" "t" False "Trust this exact publisher and public key in the selected profile."
     , Action "pack.trust.back" "back" "b" False "Leave this publisher untrusted."
-    , Action "pack.trust.unknown" "I don't know" "?" False "Explain publisher-key trust without changing it."
+    , Action "pack.trust.unknown" "I don't know" "k" False "Explain publisher-key trust without changing it."
     , moreAction
     ]
     [CommandOption "packs" "/packs" "Inspect trusted publishers and Packs", helpCommand, exitCommand]
@@ -1224,8 +1230,8 @@ makePackUpdateEnvelope identity cursor precondition now state draft =
   retained = length [() | plan <- packUpdateBindings draft, updateBindingDisposition plan == KeepInstalledRelease]
   unavailable = length [() | plan <- packUpdateBindings draft, updateBindingDisposition plan == BindingUnavailable]
   changes = packUpdateChanges draft
-  componentAdded = length [() | change <- changes, updateChangeCategory change == "component", updateChangeBefore change == Nothing]
-  componentRemoved = length [() | change <- changes, updateChangeCategory change == "component", updateChangeAfter change == Nothing]
+  componentAdded = length [() | change <- changes, updateChangeCategory change == "component", Data.Maybe.isNothing (updateChangeBefore change)]
+  componentRemoved = length [() | change <- changes, updateChangeCategory change == "component", Data.Maybe.isNothing (updateChangeAfter change)]
   componentChanged =
     Set.size
       ( Set.fromList
@@ -1257,9 +1263,9 @@ makePackUpdateEnvelope identity cursor precondition now state draft =
       else ["", "This plan cannot be applied until every unavailable binding has an exact version strategy."]
   actions =
     [Action "pack.update.accept" "update" "u" False "Store the exact candidate and apply only this displayed pin and binding plan." | packUpdateCanApply draft]
-      <> [ Action "pack.update.keep" "keep current" "k" False "Leave the preferred pin and every binding unchanged."
+      <> [ Action "pack.update.keep" "keep current" "e" False "Leave the preferred pin and every binding unchanged."
          , Action "pack.update.inspect" "inspect changes" "i" False "Show the complete signed component, authority, configuration, and binding difference."
-         , Action "pack.update.unknown" "I don't know" "?" False "Explain preferred releases, retained bindings, and explicit rebinding."
+         , Action "pack.update.unknown" "I don't know" "k" False "Explain preferred releases, retained bindings, and explicit rebinding."
          , moreAction
          ]
 
@@ -1319,9 +1325,9 @@ makePackRemovalEnvelope identity cursor precondition now state draft =
       else ["", "Removal is unavailable until every must-resolve reference is handled in its owning flow."]
   actions =
     [Action "pack.remove.accept" "remove preferred" "r" False "Deactivate only this preferred profile pin." | packRemovalCanApply draft]
-      <> [ Action "pack.remove.keep" "keep current" "k" False "Leave the preferred pin and every reference unchanged."
+      <> [ Action "pack.remove.keep" "keep current" "e" False "Leave the preferred pin and every reference unchanged."
          , Action "pack.remove.inspect" "inspect references" "i" False "Show every retained and must-resolve reference in this exact plan."
-         , Action "pack.remove.unknown" "I don't know" "?" False "Explain preferred pins, exact retained releases, and separate garbage collection."
+         , Action "pack.remove.unknown" "I don't know" "k" False "Explain preferred pins, exact retained releases, and separate garbage collection."
          , moreAction
          ]
 
@@ -1368,9 +1374,9 @@ makePackGcEnvelope identity cursor precondition now state draft =
         Nothing
     )
     [ Action "pack.gc.accept" "collect" "c" False "Recompute the global reference set and delete only this unchanged exact archive set."
-    , Action "pack.gc.keep" "keep archives" "k" False "Leave every archive unchanged."
+    , Action "pack.gc.keep" "keep archives" "e" False "Leave every archive unchanged."
     , Action "pack.gc.inspect" "inspect changes" "i" False "Show every exact artifact, digest, path, and byte count."
-    , Action "pack.gc.unknown" "I don't know" "?" False "Explain global Pack references and why collection is always separate."
+    , Action "pack.gc.unknown" "I don't know" "k" False "Explain global Pack references and why collection is always separate."
     , moreAction
     ]
     [CommandOption "packs" "/packs" "Inspect Packs and exact live references", helpCommand, exitCommand]
@@ -1448,7 +1454,7 @@ rawContentPreview =
 
 latestPendingSourceObservation :: State -> SourceBinding -> Maybe SourceObservation
 latestPendingSourceObservation state binding =
-  case reverse . sortOn sourceObservationAt $ filter pending (Map.elems (stateSourceObservations state)) of
+  case sortOn (\observation -> Data.Ord.Down (sourceObservationAt observation, sourceObservationId observation)) $ filter pending (Map.elems (stateSourceObservations state)) of
     observation : _ -> Just observation
     [] -> Nothing
  where
@@ -1546,9 +1552,9 @@ makeRawDestinationEnvelope previous now state raw page =
   candidateAction number = \case
     DestinationBrick brick -> Action ("raw.destination.brick." <> renderUUIDv7 (brickId brick)) (brickCitation brick <> " — " <> natureLabel (brickNature brick)) (Text.pack (show number)) False "Continue according to the selected Brick.s Nature."
     DestinationShelf shelf -> Action ("raw.destination.shelf." <> renderUUIDv7 (rawShelfId shelf)) ("Shelf \"" <> rawShelfName shelf <> "\" — raw shelf") (Text.pack (show number)) False "Preview one direct ordered RawShelf membership."
-  keepAction = Action "raw.keep-standalone" "keep as standalone raw material" "k" False "Settle triage without creating another object."
+  keepAction = Action "raw.keep-standalone" "keep as standalone raw material" "e" False "Settle triage without creating another object."
   createAction = Action "raw.create-group" "create a new group..." "c" False "Choose list, shelf, or independently focusable Work behavior."
-  unknownAction = Action "raw.destination-assistance" "I don't know" "?" False "Clarify what kind of destination is needed."
+  unknownAction = Action "raw.destination-assistance" "I don't know" "k" False "Clarify what kind of destination is needed."
   menuAction = moreAction{actionLabel = "menu..."}
 
 makeRawUnderBrickEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> Brick -> InteractionEnvelope
@@ -1569,7 +1575,7 @@ makeRawUnderBrickEnvelope previous now state raw target =
       )
       [ Action "raw.child-work" "yes" "y" False "Enter ordinary child-Work materialization."
       , Action "raw.attach" "no" "n" False "Choose how this Raw supports the selected Brick."
-      , Action "raw.under-brick-assistance" "I don't know" "?" False "Explain independent Work versus supporting material."
+      , Action "raw.under-brick-assistance" "I don't know" "k" False "Explain independent Work versus supporting material."
       , moreAction
       ]
       (rawCommands raw)
@@ -1590,7 +1596,7 @@ makeRawAttachmentEnvelope previous now state raw target =
       [ Action "raw.attach.description" "description    show this text as the Brick's description" "d" False "Create the Brick's single description link."
       , Action "raw.attach.attachment" "attachment     keep useful material beside the Brick" "a" False "Attach this Raw without making a claim."
       , Action "raw.attach.evidence" "evidence       record material that supports a judgment or claim" "e" False "Attach this Raw as evidence."
-      , Action "raw.attachment-assistance" "I don't know" "?" False "Distinguish the three allowed consequences."
+      , Action "raw.attachment-assistance" "I don't know" "k" False "Distinguish the three allowed consequences."
       , moreAction
       ]
       (rawCommands raw)
@@ -1628,7 +1634,7 @@ makeRawGroupDiscoveryEnvelope previous now state raw =
       [ Action "raw-group.list" "list    show its items together as one working unit" "l" False "Start a checklist builder."
       , Action "raw-group.shelf" "shelf    organize raw material without turning it into Work" "s" False "Name and preview a RawShelf."
       , Action "raw-group.work" "work group    let its children appear independently in next" "w" False "Start ordinary Work-container discovery."
-      , Action "raw-group.assistance" "I don't know" "?" False "Distinguish list, shelf, and independently suggestible Work."
+      , Action "raw-group.assistance" "I don't know" "k" False "Distinguish list, shelf, and independently suggestible Work."
       , moreAction
       ]
       (rawCommands raw)
@@ -1665,7 +1671,7 @@ makeRawShelfCreatePreviewEnvelope previous now state raw name =
       [ Action "raw-shelf.create" "yes" "y" True "Create the RawShelf, ordered membership, and Raw disposition atomically."
       , Action "raw-shelf.edit" "edit" "e" False "Return to the selected shelf name."
       , Action "raw-shelf.cancel" "no" "n" False "Discard only the shelf draft."
-      , Action "raw-shelf.assistance" "I don't know" "?" False "Explain the shelf's flat organizational semantics."
+      , Action "raw-shelf.assistance" "I don't know" "k" False "Explain the shelf's flat organizational semantics."
       , moreAction
       ]
       (rawCommands raw)
@@ -1685,7 +1691,7 @@ makeRawShelfMembershipPreviewEnvelope previous now state raw shelf =
       (EnvelopeContent "Add this raw material to the shelf?" (Just ("Shelf \"" <> rawShelfName shelf <> "\"")) [rawCitation raw, "Position: " <> Text.pack (show (length (rawShelfMembers shelf) + 1)), "Raw material remains preserved."] Nothing)
       [ Action "raw-shelf.add" "yes" "y" True "Append one direct ordered membership and settle Raw triage."
       , Action "raw-shelf.cancel" "no" "n" False "Return to destination selection unchanged."
-      , Action "raw-shelf.assistance" "I don't know" "?" False "Explain that shelves organize Raw without creating Work."
+      , Action "raw-shelf.assistance" "I don't know" "k" False "Explain that shelves organize Raw without creating Work."
       , moreAction
       ]
       (rawCommands raw)
@@ -1714,7 +1720,7 @@ makeNatureChoiceEnvelope previous now state raw context =
       ChoiceGrammar
       (NatureChoiceOpportunity context)
       (EnvelopeContent (quotedDraft raw) Nothing [] (Just "How should this behave?"))
-      (fmap natureAction factoryNatures <> [Action "nature.discover" "I don't know" "?" False "Start bounded behavioral discovery."])
+      (fmap natureAction factoryNatures <> [Action "nature.discover" "I don't know" "k" False "Start bounded behavioral discovery."])
       (rawCommands raw)
       (Just "discover_nature")
       (rawFooter now state raw)
@@ -1740,7 +1746,7 @@ makeNatureDiscoveryEnvelope previous now state raw context discovery =
       (EnvelopeContent (quotedDraft raw) Nothing explanation (Just (natureQuestionText discovery)))
       [ Action "nature.answer.yes" "yes" "y" False "Follow the yes branch."
       , Action "nature.answer.no" "no" "n" False "Follow the no branch."
-      , Action "nature.answer.unknown" "I don't know" "?" False "Ask the alternate probe or leave the draft pending."
+      , Action "nature.answer.unknown" "I don't know" "k" False "Ask the alternate probe or leave the draft pending."
       ]
       (rawCommands raw)
       (Just "nature_discovery")
@@ -1761,7 +1767,7 @@ makeNatureConfirmationEnvelope previous now state raw context nature reason last
       (EnvelopeContent (quotedDraft raw) Nothing ["Classification: " <> natureLabel nature, "Because: " <> reason] (Just "Is this right?"))
       [ Action "nature.confirm" "yes" "y" True "Accept this Nature and continue."
       , Action "nature.reject" "no" "n" False "Return to direct factory Nature choice."
-      , Action "nature.restart" "I don't know" "?" False "Restart behavioral discovery from its first question."
+      , Action "nature.restart" "I don't know" "k" False "Restart behavioral discovery from its first question."
       ]
       (rawCommands raw)
       (Just "confirm_nature")
@@ -1778,7 +1784,7 @@ makeTemplateChoiceEnvelope previous now state raw context nature =
       ChoiceGrammar
       (TemplateChoiceOpportunity context nature)
       (EnvelopeContent ("Nature: " <> natureLabel nature) Nothing [] (Just "Choose an optional setup:"))
-      (templateActions <> [Action "template.none" "no template    keep only the Nature behavior" "n" False "Continue without a Template.", Action "template.assistance" "I don't know" "?" False "Inspect compatible setup differences."])
+      (templateActions <> [Action "template.none" "no template    keep only the Nature behavior" "n" False "Continue without a Template.", Action "template.assistance" "I don't know" "k" False "Inspect compatible setup differences."])
       (rawCommands raw)
       (Just "choose_template")
       (rawFooter now state raw)
@@ -1834,7 +1840,7 @@ makeDomainSelectionEnvelope previous now state raw draft candidates =
     ]
   clearAction = Action "domain.clear" "no Domain" "n" False "Clear every proposed direct Domain membership."
   continueAction = Action "domain.continue" "continue" "enter" True "Accept this visible membership set and continue."
-  assistanceAction = Action "domain.assistance" "I don't know" "?" False "Explain direct Domain membership without changing the selection."
+  assistanceAction = Action "domain.assistance" "I don't know" "k" False "Explain direct Domain membership without changing the selection."
 
 makeExistingWorkSuspicionEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkDraft -> Brick -> InteractionEnvelope
 makeExistingWorkSuspicionEnvelope previous now state raw draft existing =
@@ -1855,7 +1861,7 @@ makeExistingWorkSuspicionEnvelope previous now state raw draft existing =
       [ Action "work-reuse.use" "use existing Work" "u" False "Link this Raw to the existing Brick and create no new importance slot."
       , Action "work-reuse.separate" "create separate Work" "c" False "Keep equal titles valid and continue this draft."
       , Action "work-reuse.differences" "show differences" "s" False "Inspect the bounded structural differences without changing the draft."
-      , Action "work-reuse.assistance" "I don't know" "?" False "Restate the completion-equivalence question after inspection."
+      , Action "work-reuse.assistance" "I don't know" "k" False "Restate the completion-equivalence question after inspection."
       , moreAction
       ]
       (rawCommands raw)
@@ -1898,7 +1904,7 @@ makeImportanceInsertionEnvelope previous now state raw draft low high skipped co
       [ Action "importance.more" "more important" "m" False "Place the proposed Work above the displayed sibling."
       , Action "importance.less" "less important" "l" False "Place the proposed Work below the displayed sibling."
       , Action "importance.skip" "skip" "s" False "Try one nearby sibling before using provisional placement."
-      , Action "importance.assistance" "I don't know" "?" False "Clarify this comparison without implying equality."
+      , Action "importance.assistance" "I don't know" "k" False "Clarify this comparison without implying equality."
       , moreAction
       ]
       (rawCommands raw)
@@ -1931,7 +1937,7 @@ makeWorkPreviewEnvelope previous now state raw draft =
       [ Action "work.create" "yes" "y" True "Atomically create every previewed fact."
       , Action "work.edit" "edit" "e" False "Return to the nearest editable draft fact."
       , Action "work.cancel" "no" "n" False "Discard only this Work draft."
-      , Action "work.preview-assistance" "I don't know" "?" False "Inspect consequences without accepting."
+      , Action "work.preview-assistance" "I don't know" "k" False "Inspect consequences without accepting."
       , moreAction
       ]
       (rawCommands raw)
@@ -1975,7 +1981,7 @@ makeDomainFocusEnvelope identity cursor precondition now state domain =
     [ Action "domain-focus.one" "one suggestion" "o" False "Constrain exactly one forecast draw, then expire the scope."
     , Action "domain-focus.stay" "stay within" "s" False "Keep a visible hard scope until it is cleared."
     , Action "domain-focus.prefer" "prefer" "p" False "Change only the soft Domain-continuity reference."
-    , Action "domain-focus.unknown" "I don't know" "?" False "Explain hard scope versus soft continuity."
+    , Action "domain-focus.unknown" "I don't know" "k" False "Explain hard scope versus soft continuity."
     , moreAction
     ]
     [helpCommand, exitCommand]
@@ -1994,6 +2000,92 @@ makeDomainFocusResultEnvelope identity cursor precondition now state domain mode
     "Domain focus updated:"
     [domainPath state (domainId domain), domainFocusModeLabel mode]
 
+data FocusAssistanceStep
+  = -- Retain the retired question-first steps for checkpoint decoding only.
+    FocusUnderstandWork
+  | FocusReviewContext
+  | FocusInspectContext
+  | FocusContextUnderstood
+  | FocusUnderstandSelection
+  | FocusReviewSelection
+  | FocusExplainSelection
+  | FocusSelectionUnderstood
+  | FocusConfirmStart
+  deriving stock (Eq, Show)
+
+focusAssistanceSteps :: [(Text, FocusAssistanceStep)]
+focusAssistanceSteps =
+  [ ("understand_work", FocusUnderstandWork)
+  , ("review_context", FocusReviewContext)
+  , ("inspect_context", FocusInspectContext)
+  , ("context_understood", FocusContextUnderstood)
+  , ("understand_selection", FocusUnderstandSelection)
+  , ("review_selection", FocusReviewSelection)
+  , ("explain_selection", FocusExplainSelection)
+  , ("selection_understood", FocusSelectionUnderstood)
+  , ("confirm_start", FocusConfirmStart)
+  ]
+
+makeFocusAssistanceEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> Maybe UUIDv7 -> FocusAssistanceStep -> Bool -> [Text] -> InteractionEnvelope
+makeFocusAssistanceEnvelope previous now state brick selection step alternate material =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ConfirmationGrammar
+      (FocusAssistanceOpportunity (brickId brick) selection step alternate)
+      (focusAssistanceContent step (EnvelopeContent heading (Just (brickCitation brick)) (pathContext <> material) question))
+      (actions <> [moreAction])
+      [showBrickCommand brick, helpCommand, exitCommand]
+      (Just "understand_focus")
+      (brickFooter now state brick)
+ where
+  evidence = selection >>= (`Map.lookup` stateForecastSelections state)
+  pathContext = maybe [] (focusPathBody state brick) evidence
+  heading = case step of
+    FocusInspectContext -> "Existing context:"
+    FocusExplainSelection -> "Why this appeared:"
+    _ -> "Work:"
+  question = case step of
+    FocusUnderstandWork -> Nothing
+    FocusReviewContext -> Nothing
+    FocusInspectContext -> Nothing
+    FocusContextUnderstood -> Just (if alternate then "Can you describe the task's goal and a first concrete step using this context?" else "Is it clear now what to do and where to start?")
+    FocusUnderstandSelection -> Nothing
+    FocusReviewSelection -> Nothing
+    FocusExplainSelection -> Nothing
+    FocusSelectionUnderstood -> Just "Is this selection record enough to understand why the Brick appeared?"
+    FocusConfirmStart -> Just "Start focusing this Brick?"
+  actions = fmap (focusAssistanceAction step) localActions
+  localActions
+    | step `elem` [FocusInspectContext, FocusExplainSelection] =
+        [ Action "focus.aid.continue" "continue" "c" False "Continue without accepting Focus."
+        , Action "focus.aid.back" "back" "b" False (if step == FocusInspectContext then "Return to the original Focus proposal." else "Return to the task context.")
+        , Action "focus.aid.unknown" "I don't know" "k" False "Clarify the available context without answering for you."
+        ]
+          <> [Action "focus.aid.explain" "why this appeared" "w" False "Inspect the recorded selection without redrawing." | step == FocusInspectContext, Data.Maybe.isJust evidence]
+    | otherwise =
+        [ Action "focus.aid.yes" "yes" "y" False "Follow the explicit yes branch."
+        , Action "focus.aid.no" "no" "n" False "Follow the no branch without recording a skip."
+        , Action "focus.aid.unknown" "I don't know" "k" False "Continue the bounded understanding route."
+        ]
+
+focusAssistanceAction :: FocusAssistanceStep -> Action -> Action
+focusAssistanceAction step action = case actionId action of
+  "focus.aid.continue" -> action{actionLabel = "decide about focus", actionShortcut = "d", actionConsequence = "Review whether the task is clear, then separately confirm starting Focus."}
+  "focus.aid.back"
+    | step == FocusInspectContext -> action{actionLabel = "back to suggestion", actionShortcut = "b"}
+    | step == FocusExplainSelection -> action{actionLabel = "task context", actionShortcut = "t"}
+  _ -> action
+
+focusAssistanceContent :: FocusAssistanceStep -> EnvelopeContent -> EnvelopeContent
+focusAssistanceContent FocusInspectContext content = case contentSubject content of
+  Just subject -> content{contentBody = fmap (\body -> fromMaybe body (Text.stripPrefix (subject <> "\n\n") body)) (contentBody content)}
+  Nothing -> content
+focusAssistanceContent _ content = content
+
 focusProposalEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> Maybe ForecastSelectionEvidence -> InteractionEnvelope
 focusProposalEnvelope identity cursor precondition now state brick evidence =
   sealed
@@ -2006,7 +2098,7 @@ focusProposalEnvelope identity cursor precondition now state brick evidence =
     (EnvelopeContent "Work:" (Just (brickCitation brick)) (maybe [] (focusPathBody state brick) evidence <> standingContext state brick) (Just "Focus?"))
     [ Action "focus.accept" "yes" "y" False "Make this Brick current and WIP."
     , Action "focus.skip" "skip" "s" False "Open the typed skip-symptom flow."
-    , Action "focus.assistance" "I don't know" "?" False "Clarify this Focus decision."
+    , Action "focus.assistance" "I don't know" "k" False "Clarify this Focus decision."
     , moreAction
     ]
     [CommandOption "done" ("/done " <> brickCitation brick) "Complete this finite Work directly", updateCommand brick, feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
@@ -2028,7 +2120,7 @@ makeExternalEffectRecoveryEnvelope identity cursor precondition now state brick 
         (externalEffectHumanDetails state effect <> [explanation])
         (Just "What should happen?")
     )
-    (actions <> [Action "effect.recovery.stop" "stop" "s" False "Keep the exact history and stop retrying this effect.", Action "effect.recovery.unknown" "I don't know" "?" False "Explain what is known without guessing provider truth.", moreAction])
+    (actions <> [Action "effect.recovery.stop" "stop" "s" False "Keep the exact history and stop retrying this effect.", Action "effect.recovery.unknown" "I don't know" "k" False "Explain what is known without guessing provider truth.", moreAction])
     [helpCommand, exitCommand]
     (Just "recover_external_effect")
     (brickFooter now state brick)
@@ -2075,7 +2167,7 @@ makeExternalEffectDuplicateRiskEnvelope previous now state brick effect =
       )
       [ Action "effect.risk.accept" "yes" "y" False "Accept the duplicate risk and create a new pending revision."
       , Action "effect.risk.reject" "no" "n" False "Return without changing the unresolved effect."
-      , Action "effect.risk.unknown" "I don't know" "?" False "Explain why provider truth cannot be inferred from local history."
+      , Action "effect.risk.unknown" "I don't know" "k" False "Explain why provider truth cannot be inferred from local history."
       , moreAction
       ]
       [helpCommand, exitCommand]
@@ -2156,7 +2248,7 @@ makeWorkSkipSymptomEnvelope previous now state brick selection =
       , Action "work.symptom.less-important" "⬇️ less important" "l" False "Open importance, time, or subject recovery."
       , Action "work.symptom.out-of-date" "🕰️ out of date" "u" False "Open stale-work recovery."
       , Action "work.symptom.other" "🧩 other" "o" False "Preserve another obstacle verbatim."
-      , Action "work.symptom.unknown" "❓ I don't know" "?" False "Discover the symptom through one question at a time."
+      , Action "work.symptom.unknown" "❓ I don't know" "k" False "Discover the symptom through one question at a time."
       , Action "work.symptom.done" "✅ done" "d" False "Complete this finite Work."
       , moreAction
       ]
@@ -2194,7 +2286,7 @@ makeWaitRequestDelayEnvelope previous now state brick selection entity raw =
       [ Action "wait.request.delay.tomorrow" "tomorrow" "t" False "Review no earlier than 24 hours after the request handoff."
       , Action "wait.request.delay.three-days" "three days" "d" True "Review no earlier than 72 hours after the request handoff."
       , Action "wait.request.delay.week" "one week" "w" False "Review no earlier than 168 hours after the request handoff."
-      , Action "wait.request.delay.unknown" "I don't know" "?" False "This is a review threshold, not a promised response time."
+      , Action "wait.request.delay.unknown" "I don't know" "k" False "This is a review threshold, not a promised response time."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2224,7 +2316,7 @@ makeWaitRequestPreviewEnvelope previous now state brick selection entity raw rev
       )
       [ Action "wait.request.preview.accept" "yes" "y" False "Create the Work, Dependency, and declared successor Wait in one command group."
       , Action "wait.request.preview.reject" "no" "n" False "Keep the Raw in the Inbox without creating Work or a gate."
-      , Action "wait.request.preview.unknown" "I don't know" "?" False "Explain why the Wait activates only after this Work completes."
+      , Action "wait.request.preview.unknown" "I don't know" "k" False "Explain why the Wait activates only after this Work completes."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2261,7 +2353,7 @@ makeDependencySelectEnvelope previous now state blocked selection =
       ChoiceGrammar
       (DependencySelectOpportunity (brickId blocked) selection)
       (EnvelopeContent "Choose the prerequisite Work" (Just (brickCitation blocked)) [] (Just "What must be completed first?"))
-      (candidateActions <> [Action "dependency.feed" "Feed new prerequisite Work..." "f" False "Preserve new Raw, then create prerequisite Work through the ordinary flow.", Action "dependency.unknown" "I don't know" "?" False "A prerequisite is Work you can complete; a Wait is an outside response or condition.", moreAction])
+      (candidateActions <> [Action "dependency.feed" "Feed new prerequisite Work..." "f" False "Preserve new Raw, then create prerequisite Work through the ordinary flow.", Action "dependency.unknown" "I don't know" "k" False "A prerequisite is Work you can complete; a Wait is an outside response or condition.", moreAction])
       [showBrickCommand blocked, helpCommand, exitCommand]
       (Just "choose_prerequisite")
       (brickFooter now state blocked)
@@ -2286,7 +2378,7 @@ makeDependencyPreviewEnvelope previous now state blocked selection blocker =
       (EnvelopeContent "Add this prerequisite?" Nothing [brickCitation blocked, "is blocked by", brickCitation blocker, "", "If the blocked Work is drawn, next may follow this chain to an executable blocker."] Nothing)
       [ Action "dependency.accept" "yes" "y" False "Create one directed Dependency edge."
       , Action "dependency.reject" "no" "n" False "Return without recording an edge."
-      , Action "dependency.unknown" "I don't know" "?" False "Explain the direction and cycle checks."
+      , Action "dependency.unknown" "I don't know" "k" False "Explain the direction and cycle checks."
       , moreAction
       ]
       [showBrickCommand blocked, showBrickCommand blocker, helpCommand, exitCommand]
@@ -2326,7 +2418,7 @@ makeWorkBreakNatureEnvelope previous now state brick selection symptom =
       (EnvelopeContent "Break into parts:" (Just (brickCitation brick)) [] (Just "What should the whole become?"))
       [ Action "work.break.nature.project" "finite project — the parts complete one outcome" "p" False "Reclassify the same Brick as a Project."
       , Action "work.break.nature.collection" "open collection — it may keep accepting parts" "c" False "Reclassify the same Brick as a Collection."
-      , Action "work.break.nature.unknown" "I don't know" "?" False "Explain the lifecycle distinction without changing anything."
+      , Action "work.break.nature.unknown" "I don't know" "k" False "Explain the lifecycle distinction without changing anything."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2354,7 +2446,7 @@ makeWorkBreakDraftEnvelope previous now state brick selection symptom target tit
       Nothing
       (brickFooter now state brick)
  where
-  minimumParts = if target == Nothing then 1 else 2
+  minimumParts = if Data.Maybe.isNothing target then 1 else 2
   question
     | length titles < minimumParts = "Enter part " <> Text.pack (show (length titles + 1)) <> "."
     | otherwise = "Enter another part, or press Enter to review."
@@ -2383,7 +2475,7 @@ makeWorkBreakPreviewEnvelope previous now state brick selection symptom target t
       [ Action "work.break.accept" "yes" "y" True "Create all parts and any required parent reclassification atomically."
       , Action "work.break.edit" "edit" "e" False "Return to the part draft."
       , Action "work.break.cancel" "no" "n" False "Discard the draft without recording a symptom."
-      , Action "work.break.unknown" "I don't know" "?" False "Explain identity, ordering, and lazy review."
+      , Action "work.break.unknown" "I don't know" "k" False "Explain identity, ordering, and lazy review."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2400,7 +2492,7 @@ makeWorkBreakResultEnvelope identity cursor precondition now state parent childr
     state
     (WorkBreakResultOpportunity (brickId parent) (fmap brickId children))
     "Parts created:"
-    (brickCitation parent : fmap ("  ↳ " <>) (fmap brickCitation children))
+    (brickCitation parent : fmap (("  ↳ " <>) . brickCitation) children)
 
 makeWorkInterestingEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> Maybe UUIDv7 -> InteractionEnvelope
 makeWorkInterestingEnvelope previous now state brick selection =
@@ -2416,7 +2508,7 @@ makeWorkInterestingEnvelope previous now state brick selection =
       [ Action "work.interesting.sprint" "⏱️ try a short sprint" "t" False "Choose a bounded focus interval."
       , Action "work.interesting.break" "🧩 break it into visible steps" "b" False "Open the decomposition preview."
       , Action "work.interesting.method" "🔧 find a better way" "f" False "Classify a deterministic method improvement."
-      , Action "work.interesting.unknown" "I don't know" "?" False "Explain method change without selecting one."
+      , Action "work.interesting.unknown" "I don't know" "k" False "Explain method change without selecting one."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2449,10 +2541,10 @@ makeWorkSkipDiscoveryEnvelope previous now state brick selection node alternate 
       (envelopePreconditionHash previous)
       ConfirmationGrammar
       (WorkSkipDiscoveryOpportunity (brickId brick) selection node alternate)
-      (EnvelopeContent "" (Just (brickCitation brick)) (if alternate then [skipDiscoveryExplanation node] else []) (Just (skipDiscoveryQuestion node alternate)))
+      (EnvelopeContent "" (Just (brickCitation brick)) ([skipDiscoveryExplanation node | alternate]) (Just (skipDiscoveryQuestion node alternate)))
       [ Action "work.discovery.yes" "yes" "y" False "Follow the yes branch."
       , Action "work.discovery.no" "no" "n" False "Follow the no branch."
-      , Action "work.discovery.unknown" "I don't know" "?" False "Show the alternate probe without choosing a branch."
+      , Action "work.discovery.unknown" "I don't know" "k" False "Show the alternate probe without choosing a branch."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2477,7 +2569,7 @@ makeWorkSkipConfirmationEnvelope previous now state brick selection symptom =
       )
       [ Action "work.discovery.confirm" "yes" "y" True "Open this symptom's recovery without recording it yet."
       , Action "work.discovery.reject" "no" "n" False "Return to the symptom list."
-      , Action "work.discovery.restart" "I don't know" "?" False "Restart the mechanical discovery tree."
+      , Action "work.discovery.restart" "I don't know" "k" False "Restart the mechanical discovery tree."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2516,7 +2608,7 @@ makeWorkOtherPreviewEnvelope previous now state brick selection explanation =
       [ Action "work.other.accept" "yes" "y" False "Record the verbatim obstacle with ordinary cooldown."
       , Action "work.other.edit" "edit" "e" False "Edit the selected explanation."
       , Action "work.other.reject" "no" "n" False "Return without recording evidence."
-      , Action "work.other.unknown" "I don't know" "?" False "Explain how the verbatim evidence will be used."
+      , Action "work.other.unknown" "I don't know" "k" False "Explain how the verbatim evidence will be used."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2538,7 +2630,7 @@ makeWorkSprintDurationEnvelope previous now state brick selection =
       , Action "work.sprint.15" "15 minutes — a short attempt" "2" False "Start a fifteen-minute sprint."
       , Action "work.sprint.25" "25 minutes — a Pomodoro" "3" True "Start the factory-default Pomodoro."
       , Action "work.sprint.custom" "custom..." "c" False "Enter a duration from 1 to 120 minutes."
-      , Action "work.sprint.unknown" "I don't know" "?" False "Explain that this is a bounded attempt, not an estimate."
+      , Action "work.sprint.unknown" "I don't know" "k" False "Explain that this is a bounded attempt, not an estimate."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2591,7 +2683,7 @@ standingContext state brick = occurrenceContext <> habitContext
     | otherwise =
         ["History: " <> Text.concat (habitMark <$> take 8 recentWindows)]
           <> maybe [] (pure . ("Last completed: " <>) . Text.pack . show . habitOutcomeAt) lastCompleted
-  recentWindows = reverse . sortOn habitWindowOpensAt $ [window | window <- Map.elems (stateHabitWindows state), habitWindowOwner window == brickId brick]
+  recentWindows = sortOn (\window -> Data.Ord.Down (habitWindowOpensAt window, habitWindowId window)) $ [window | window <- Map.elems (stateHabitWindows state), habitWindowOwner window == brickId brick]
   outcomesFor window =
     sortOn habitOutcomeAt [outcome | outcome <- Map.elems (stateHabitOutcomes state), habitOutcomeWindow outcome == habitWindowId window]
   habitMark window = case reverse (outcomesFor window) of
@@ -2604,7 +2696,7 @@ standingContext state brick = occurrenceContext <> habitContext
       _ -> "[?]"
     [] -> "[ ]"
   lastCompleted =
-    case reverse . sortOn habitOutcomeAt $ [outcome | outcome <- Map.elems (stateHabitOutcomes state), habitOutcomeOwner outcome == brickId brick, habitOutcomeKind outcome == StandingDone] of
+    case sortOn (\outcome -> Data.Ord.Down (habitOutcomeAt outcome, habitOutcomeId outcome)) $ [outcome | outcome <- Map.elems (stateHabitOutcomes state), habitOutcomeOwner outcome == brickId brick, habitOutcomeKind outcome == StandingDone] of
       outcome : _ -> Just outcome
       [] -> Nothing
 
@@ -2622,7 +2714,7 @@ makeCurrentFocusEnvelope identity cursor precondition now state brick =
     , Action "focus.skip" "skip" "s" False "Explain what is getting in the way."
     , moreAction
     ]
-    [CommandOption "pause" "/pause" "Clear current focus while retaining WIP", updateCommand brick, feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
+    [CommandOption "done" ("/done " <> brickCitation brick) "Complete this finite Work and clear focus", CommandOption "pause" "/pause" "Clear current focus while retaining WIP", updateCommand brick, feedCommand, packsCommand, showBrickCommand brick, helpCommand, exitCommand]
     Nothing
     (brickFooter now state brick)
 
@@ -2638,7 +2730,7 @@ makeUpdateMeaningEnvelope identity cursor precondition now state brick =
     (EnvelopeContent "Update Work:" (Just (brickCitation brick)) [] (Just "What changed?"))
     [ Action "update.title" "title" "t" False "Edit only the visible title; identity and structure remain unchanged."
     , Action "update.description" "description" "d" False "Create or revise the one description Raw attached to this Brick."
-    , Action "update.unknown" "I don't know" "?" False "Explain the two alpha update routes."
+    , Action "update.unknown" "I don't know" "k" False "Explain the two alpha update routes."
     , moreAction
     ]
     [showBrickCommand brick, helpCommand, exitCommand]
@@ -2680,7 +2772,7 @@ makeUpdatePreviewEnvelope previous now state brick field current proposed =
       [ Action "update.accept" "yes" "y" False "Record this exact semantic revision."
       , Action "update.edit" "edit" "e" False "Return to the selected text."
       , Action "update.cancel" "cancel" "c" False "Return to the update hub without recording anything."
-      , Action "update.unknown" "I don't know" "?" False "Explain identity and Raw revision behavior."
+      , Action "update.unknown" "I don't know" "k" False "Explain identity and Raw revision behavior."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2744,13 +2836,13 @@ makeRepeatableReturnEnvelope identity cursor precondition now state brick review
       ]
   policyActions = case existing of
     Just schedule ->
-      [ Action "return.keep" "keep this return" "k" True (returnPolicySummary (returnSchedulePolicy schedule))
+      [ Action "return.keep" "keep this return" "e" True (returnPolicySummary (returnSchedulePolicy schedule))
       , Action "return.change" "change return..." "c" False "Edit structured center, unit, variation, and IANA zone fields."
       ]
     Nothing -> [Action "return.set" "set a return..." "r" False "Choose structured center, unit, variation, and IANA zone fields."]
   manualAction = Action "return.manual" "manual only" "m" False "Keep this standing Brick available only through explicit /focus."
   archiveAction = Action "return.archive" "archive" "a" False "Open the ordinary archive preview for this standing Brick."
-  unknownAction = Action "return.unknown" "I don't know" "?" False "Explain return, manual-only, and archive without choosing."
+  unknownAction = Action "return.unknown" "I don't know" "k" False "Explain return, manual-only, and archive without choosing."
 
 makeRepeatableReturnCenterEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> LazyReviewClaim -> Text -> InteractionEnvelope
 makeRepeatableReturnCenterEnvelope previous now state brick review draft =
@@ -2845,7 +2937,7 @@ makeRepeatableReturnPreviewEnvelope previous now state brick review policy chose
       [ Action "return.accept" "yes" "y" False "Record this policy, chosen offset, and absolute return instant."
       , Action "return.edit" "edit" "e" False "Return to the structured editor."
       , Action "return.reject" "no" "n" False "Return to the completion checkpoint without changing the policy."
-      , Action "return.unknown" "I don't know" "?" False "Explain the chosen deterministic date and DST resolution."
+      , Action "return.unknown" "I don't know" "k" False "Explain the chosen deterministic date and DST resolution."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -2892,14 +2984,14 @@ makeScheduledCommitmentEnvelope identity cursor precondition now state brick int
         [ Action "commitment.attended" "attended" "a" False "Record the truthful attended outcome."
         , Action "commitment.missed" "missed" "m" False "Record the truthful missed outcome."
         , Action "commitment.cancelled" "cancelled" "c" False "Record the truthful cancelled outcome."
-        , Action "commitment.unknown" "I don't know" "?" False "Explain that time alone never infers an outcome."
+        , Action "commitment.unknown" "I don't know" "k" False "Explain that time alone never infers an outcome."
         , moreAction
         ]
     | otherwise =
         [ Action "commitment.attend" "attend now" "a" False "Leave any previous current Work WIP and focus this commitment."
         , Action "commitment.cancelled" "cancelled" "c" False "Record an explicit cancellation."
         , Action "commitment.missed" "missed" "m" False "Record missed only when that is already known."
-        , Action "commitment.unknown" "I don't know" "?" False "Inspect the interval without changing focus or outcome."
+        , Action "commitment.unknown" "I don't know" "k" False "Inspect the interval without changing focus or outcome."
         , moreAction
         ]
 
@@ -2913,7 +3005,7 @@ makeScheduledOverlapEnvelope identity cursor precondition now state commitments 
     ChoiceGrammar
     (ScheduledOverlapOpportunity (fmap (brickId . fst) visible))
     (EnvelopeContent "Overlapping commitments:" Nothing (zipWith row [1 :: Int ..] visible) (Just "Which commitment should we handle?"))
-    (zipWith action [1 :: Int ..] visible <> [Action "commitment.overlap.unknown" "I don't know" "?" False "Explain why no commitment is selected automatically.", moreAction])
+    (zipWith action [1 :: Int ..] visible <> [Action "commitment.overlap.unknown" "I don't know" "k" False "Explain why no commitment is selected automatically.", moreAction])
     [helpCommand, exitCommand]
     Nothing
     (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
@@ -2975,7 +3067,7 @@ makeTemporalNoticeEnvelope previous now state candidate =
       [ Action "notice.open-work" "open Work" "o" False "Open the existing Work proposal without focusing it."
       , Action "notice.acknowledge" "acknowledge this notice" "a" False "Hide only this exact notice identity permanently."
       , Action "notice.snooze" "snooze this notice" "s" False "Choose when this notice may return."
-      , Action "notice.unknown" "I don't know" "?" False "Explain notice state without changing the underlying dates."
+      , Action "notice.unknown" "I don't know" "k" False "Explain notice state without changing the underlying dates."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3000,7 +3092,7 @@ makeNoticeSnoozeEnvelope previous now state candidate =
       [ Action "notice.snooze.hour" "in one hour" "h" False "Snooze to an exact instant one hour from now."
       , Action "notice.snooze.tomorrow" "tomorrow" "t" False "Snooze to the same local clock time tomorrow."
       , Action "notice.snooze.week" "in one week" "w" False "Snooze to the same local clock time in seven days."
-      , Action "notice.snooze.unknown" "I don't know" "?" False "Explain snooze without changing any Work date."
+      , Action "notice.snooze.unknown" "I don't know" "k" False "Explain snooze without changing any Work date."
       , moreAction
       ]
       [helpCommand, exitCommand]
@@ -3060,7 +3152,7 @@ makeEntityKindEnvelope previous now state brick selection purpose =
       , Action "entity.kind.organization" "company or organization" "o" False "Create an organization identity."
       , Action "entity.kind.service" "service" "s" False "Create a service identity."
       , Action "entity.kind.agent" "AI agent" "a" False "Create an AI-agent identity."
-      , Action "entity.kind.unknown" "I don't know" "?" False "A person or company is usually enough; the kind does not grant capabilities."
+      , Action "entity.kind.unknown" "I don't know" "k" False "A person or company is usually enough; the kind does not grant capabilities."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3096,7 +3188,7 @@ makeWaitRequestStatusEnvelope previous now state brick selection entity =
       (EnvelopeContent (brickCitation brick) Nothing ["Needs a response from:", entityReference state (externalEntityId entity)] (Just "Has the request already been made?"))
       [ Action "wait.request.yes" "yes" "y" False "Choose the first Wait review threshold."
       , Action "wait.request.no" "no" "n" False "Create explicit enabling Work before the response Wait."
-      , Action "wait.request.unknown" "I don't know" "?" False "Distinguish your pending request from the other person's pending response."
+      , Action "wait.request.unknown" "I don't know" "k" False "Distinguish your pending request from the other person's pending response."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3134,7 +3226,7 @@ makeWaitActivationDelayEnvelope previous now state brick selection kind =
       , Action "wait.activate.three-days" "three days" "d" True "Review no earlier than 72 hours from now."
       , Action "wait.activate.week" "one week" "w" False "Review no earlier than 168 hours from now."
       , Action "wait.activate.choose" "choose..." "c" False "Open structured date and time selection."
-      , Action "wait.activate.unknown" "I don't know" "?" False "This is a review threshold, not a deadline or promise."
+      , Action "wait.activate.unknown" "I don't know" "k" False "This is a review threshold, not a deadline or promise."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3160,7 +3252,7 @@ makeDelegationScopeEnvelope previous now state brick draft =
       (EnvelopeContent "Responsibility" (Just (brickCitation brick)) ["To: " <> entityReference state (delegationDraftTarget draft)] (Just ("Delegate what to " <> entityReference state (delegationDraftTarget draft) <> "?")))
       [ Action "delegation.scope.brick" "brick only — related parts remain yours" "b" False "Delegate only this durable Brick."
       , Action "delegation.scope.whole" "whole scope — current and future parts are included" "w" False "Delegate this Brick and its complete scope."
-      , Action "delegation.scope.unknown" "I don't know" "?" False "Explain the two mechanically distinct coverage choices."
+      , Action "delegation.scope.unknown" "I don't know" "k" False "Explain the two mechanically distinct coverage choices."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3181,7 +3273,7 @@ makeDelegationPolicyEnvelope previous now state brick draft =
       [ Action "delegation.policy.once" "once — suggest at most one follow-up message" "o" False "Permit one approval-bearing follow-up after the initial handoff."
       , Action "delegation.policy.every" "every review — keep suggesting while unresolved" "e" False "Permit bounded follow-ups, each with separate approval."
       , Action "delegation.policy.none" "no automatic follow-up — keep internal reviews only" "n" False "Never propose an outbound follow-up automatically."
-      , Action "delegation.policy.unknown" "I don't know" "?" False "All choices retain internal status reviews and send nothing automatically."
+      , Action "delegation.policy.unknown" "I don't know" "k" False "All choices retain internal status reviews and send nothing automatically."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3203,7 +3295,7 @@ makeDelegationDelayEnvelope previous now state brick draft =
       , Action "delegation.delay.three-days" "three days" "t" True "Review 72 hours after the observed handoff."
       , Action "delegation.delay.week" "one week" "w" False "Review 168 hours after the observed handoff."
       , Action "delegation.delay.custom" "custom..." "c" False "Enter a positive number of hours, days, or weeks."
-      , Action "delegation.delay.unknown" "I don't know" "?" False "The delay begins only after an observed handoff."
+      , Action "delegation.delay.unknown" "I don't know" "k" False "The delay begins only after an observed handoff."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3238,7 +3330,7 @@ makeDelegationPreviewEnvelope previous now state brick draft =
       [ Action "delegation.preview.accept" "yes" "y" False "Create only a proposed Delegation; human execution remains eligible."
       , Action "delegation.preview.edit" "edit" "e" False "Edit the initial message before creating anything."
       , Action "delegation.preview.reject" "no" "n" False "Discard this uncommitted builder."
-      , Action "delegation.preview.unknown" "I don't know" "?" False "Explain proposed versus active responsibility."
+      , Action "delegation.preview.unknown" "I don't know" "k" False "Explain proposed versus active responsibility."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3277,7 +3369,7 @@ makeDelegationTakeBackPreviewEnvelope previous now state brick delegation =
       (EnvelopeContent "Take responsibility back?" Nothing ["Work: " <> brickCitation brick, "From: " <> entityReference state (delegationTarget delegation), "Human work becomes eligible again: yes", "Optional take-back message: not sent"] Nothing)
       [ Action "delegation.take-back.accept" "yes" "y" False "Terminate this Delegation as taken back and restore human eligibility."
       , Action "delegation.take-back.reject" "no" "n" False "Keep current delegated responsibility."
-      , Action "delegation.take-back.unknown" "I don't know" "?" False "Taking back changes responsibility but never claims completion."
+      , Action "delegation.take-back.unknown" "I don't know" "k" False "Taking back changes responsibility but never claims completion."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3314,7 +3406,7 @@ makeExternalEffectDelayEnvelope previous now state brick effect =
       [ Action "effect.delay.tomorrow" "tomorrow" "t" True "Defer approval review for 24 hours."
       , Action "effect.delay.three-days" "three days" "d" False "Defer approval review for 72 hours."
       , Action "effect.delay.week" "one week" "w" False "Defer approval review for 168 hours."
-      , Action "effect.delay.unknown" "I don't know" "?" False "Deferral changes no approval, delivery, or Delegation fact."
+      , Action "effect.delay.unknown" "I don't know" "k" False "Deferral changes no approval, delivery, or Delegation fact."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
@@ -3341,7 +3433,7 @@ makeWaitReviewEnvelope identity cursor precondition now state brick gate =
     , Action "wait.follow-up" "follow up" "f" False "Create explicit enabling Work; do not claim that a message was sent."
     , Action "wait.change-blocker" "change what is blocking it" "b" False "Return to typed blocker classification."
     , Action "wait.skip" "skip" "s" False "Keep the review threshold and apply only a review cooldown."
-    , Action "wait.unknown" "I don't know" "?" False "Clarify this review through bounded questions."
+    , Action "wait.unknown" "I don't know" "k" False "Clarify this review through bounded questions."
     , moreAction
     ]
     [helpCommand, exitCommand]
@@ -3365,7 +3457,7 @@ makeWaitDelayEnvelope previous now state brick gate =
       , Action "wait.delay.three-days" "three days" "d" True "Set the next review 72 hours from now."
       , Action "wait.delay.week" "one week" "w" False "Set the next review 168 hours from now."
       , Action "wait.delay.choose" "choose..." "c" False "Open structured date and time selection."
-      , Action "wait.delay.unknown" "I don't know" "?" False "Explain the finite review-delay choices."
+      , Action "wait.delay.unknown" "I don't know" "k" False "Explain the finite review-delay choices."
       , moreAction
       ]
       [helpCommand, exitCommand]
@@ -3397,7 +3489,7 @@ makeDelegationReviewEnvelope identity cursor precondition now state brick delega
     , Action "delegation.no-response" "no response" "n" False "Record no response; any follow-up remains a separate approved effect."
     , Action "delegation.take-back" "take it back" "t" False "Preview restoring human responsibility."
     , Action "delegation.skip" "skip" "s" False "Preserve responsibility and defer only this review."
-    , Action "delegation.unknown" "I don't know" "?" False "Use the bounded outcome question tree."
+    , Action "delegation.unknown" "I don't know" "k" False "Use the bounded outcome question tree."
     , moreAction
     ]
     [helpCommand, exitCommand]
@@ -3428,7 +3520,7 @@ makeExternalEffectApprovalEnvelope identity cursor precondition now state brick 
     , Action "effect.reject" "no" "n" False "Reject only this effect instance."
     , Action "effect.later" "later" "l" False "Choose a later approval review."
     , Action "effect.skip" "skip" "s" False "Preserve this effect and its current review threshold."
-    , Action "effect.unknown" "I don't know" "?" False "Explain approval and transport truth."
+    , Action "effect.unknown" "I don't know" "k" False "Explain approval and transport truth."
     , moreAction
     ]
     [helpCommand, exitCommand]
@@ -3459,7 +3551,7 @@ makeSourceCleanupApprovalEnvelope identity cursor precondition now state custody
     , Action "effect.reject" "no" "n" False "Reject this cleanup set; local and source data remain preserved."
     , Action "effect.later" "later" "l" False "Keep the exact proposed set for a later review."
     , Action "effect.inspect" "inspect items" "i" False "Show the exact bounded item list before consent."
-    , Action "effect.unknown" "I don't know" "?" False "Explain source cleanup without changing either side."
+    , Action "effect.unknown" "I don't know" "k" False "Explain source cleanup without changing either side."
     , moreAction
     ]
     [helpCommand, exitCommand]
@@ -3493,7 +3585,7 @@ makeSourceContainerCleanupApprovalEnvelope identity cursor precondition now stat
     , Action "effect.reject" "no" "n" False "Reject this container cleanup set; local and source data remain preserved."
     , Action "effect.later" "later" "l" False "Keep the exact proposed set for a later review."
     , Action "effect.inspect" "inspect containers" "i" False "Show the exact container identities and inspection custody."
-    , Action "effect.unknown" "I don't know" "?" False "Explain the separate empty-container approval."
+    , Action "effect.unknown" "I don't know" "k" False "Explain the separate empty-container approval."
     , moreAction
     ]
     [helpCommand, exitCommand]
@@ -3570,7 +3662,7 @@ makeSourceCleanupRiskEnvelope identity cursor precondition now state custody eff
     )
     [ Action "effect.cleanup.risk.accept" "yes" "y" False "Create new proposed revisions with explicit duplicate-risk custody."
     , Action "effect.cleanup.risk.reject" "no" "n" False "Keep every outcome unknown and perform no provider I/O."
-    , Action "effect.cleanup.risk.unknown" "I don't know" "?" False "Explain why unknown provider truth needs separate consent."
+    , Action "effect.cleanup.risk.unknown" "I don't know" "k" False "Explain why unknown provider truth needs separate consent."
     , moreAction
     ]
     [helpCommand, exitCommand]
@@ -3654,15 +3746,17 @@ makeArchivePreviewEnvelope identity cursor precondition now state brick selectio
     ( EnvelopeContent
         "Archive this Work?"
         (Just (brickCitation brick))
-        [ "It will leave active Work without being marked done."
-        , "Its identity, history, importance evidence, and local placement remain preserved."
-        , "One later relevance review will be created."
-        ]
+        ( [ "It will leave active Work without being marked done."
+          , "Its identity, history, importance evidence, and local placement remain preserved."
+          , "One later relevance review will be created."
+          ]
+            <> archiveDependencyNotice state brick
+        )
         Nothing
     )
-    [ Action "archive.accept" "yes" "y" False "Archive reversibly and create one relevance review."
+    [ Action "archive.accept" "yes" "y" False "Archive, remove the displayed dependencies, and create one relevance review."
     , Action "archive.reject" "no" "n" False "Return without changing lifecycle."
-    , Action "archive.unknown" "I don't know" "?" False "Explain archive versus completion."
+    , Action "archive.unknown" "I don't know" "k" False "Explain archive versus completion."
     , moreAction
     ]
     [showBrickCommand brick, helpCommand, exitCommand]
@@ -3671,7 +3765,25 @@ makeArchivePreviewEnvelope identity cursor precondition now state brick selectio
 
 makeArchiveResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeArchiveResultEnvelope identity cursor precondition now state brick =
-  resultEnvelope identity cursor precondition now state (ArchiveResultOpportunity (brickId brick)) "Archived:" [brickCitation brick, "One relevance review is pending."]
+  resultEnvelope identity cursor precondition now state (ArchiveResultOpportunity (brickId brick)) "Archived:" ([brickCitation brick, "One relevance review is pending."] <> removedDependencyNotice state brick)
+
+archiveDependencyNotice :: State -> Brick -> [Text]
+archiveDependencyNotice state brick =
+  if null affected
+    then []
+    else ["", "Archiving also removes these dependencies:"] <> fmap describe affected <> ["Dependent Work may become executable. Restoring this Work will keep these dependencies removed."]
+ where
+  affected = [dependency | dependency <- Map.elems (stateDependencies state), dependencyStatus dependency == DependencyActive, brickId brick `elem` [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency]]
+  describe dependency
+    | dependencyBlockedBrick dependency == brickId brick = "Remove prerequisite: " <> citation (dependencyBlockerBrick dependency)
+    | otherwise = "Stop blocking: " <> citation (dependencyBlockedBrick dependency)
+  citation identity = maybe (renderUUIDv7 identity) brickCitation (Map.lookup identity (stateBricks state))
+
+removedDependencyNotice :: State -> Brick -> [Text]
+removedDependencyNotice state brick =
+  ["Removed dependencies remain in history and will not reactivate when this Work is restored." | any removed (Map.elems (stateDependencies state))]
+ where
+  removed dependency = dependencyStatus dependency == DependencyRemoved && brickId brick `elem` [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency]
 
 makeArchiveReviewResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> Text -> InteractionEnvelope
 makeArchiveReviewResultEnvelope identity cursor precondition now state brick message =
@@ -3689,14 +3801,16 @@ makeRestorePreviewEnvelope identity cursor precondition now state brick =
     ( EnvelopeContent
         "Restore this Work?"
         (Just (brickCitation brick))
-        [ "The same Brick becomes active again."
-        , "Its previous local placement is retained provisionally and queued for lazy importance review."
-        ]
+        ( [ "The same Brick becomes active again."
+          , "Its previous local placement is retained provisionally and queued for lazy importance review."
+          ]
+            <> removedDependencyNotice state brick
+        )
         Nothing
     )
     [ Action "restore.accept" "yes" "y" False "Restore the same identity without starting focus."
     , Action "restore.reject" "no" "n" False "Leave the Brick archived."
-    , Action "restore.unknown" "I don't know" "?" False "Explain forward restoration versus undo."
+    , Action "restore.unknown" "I don't know" "k" False "Explain forward restoration versus undo."
     , moreAction
     ]
     [showBrickCommand brick, helpCommand, exitCommand]
@@ -3724,12 +3838,12 @@ makeArchiveReviewEnvelope identity cursor precondition now state brick review =
         ]
         (Just "Does it still make sense to keep this archived?")
     )
-    [ Action "archive-review.keep" "keep archived" "k" False "Resolve this one review without creating another reminder."
+    [ Action "archive-review.keep" "keep archived" "e" False "Resolve this one review without creating another reminder."
     , Action "archive-review.restore" "restore it" "r" False "Preview restoring the same Brick."
     , Action "archive-review.update" "update it" "u" False "Revise title or description; restoration remains a separate decision."
     , Action "archive-review.supersede" "newer Work replaced it" "n" False "Enter explicit supersession."
     , Action "archive-review.skip" "skip" "s" False "Keep the review pending with review pressure."
-    , Action "archive-review.unknown" "I don't know" "?" False "Discover whether the Work remains relevant."
+    , Action "archive-review.unknown" "I don't know" "k" False "Discover whether the Work remains relevant."
     , moreAction
     ]
     [showBrickCommand brick, helpCommand, exitCommand]
@@ -3758,7 +3872,7 @@ makeRepairPreviewEnvelope identity cursor planHash now state source original rep
         (Just "Build and fully replay this separate candidate?")
     )
     [ Action "repair.build" "build candidate" "b" False "Copy the dataset, apply only this typed repair, and replay it from zero."
-    , Action "repair.assistance" "I don't know" "?" False "Explain the candidate boundary without changing either dataset."
+    , Action "repair.assistance" "I don't know" "k" False "Explain the candidate boundary without changing either dataset."
     , moreAction
     ]
     repairCommands
@@ -3789,7 +3903,7 @@ makeRepairCandidateEnvelope previous now state repairHash cutoverHash source can
           (Just "Replace the live dataset with this validated candidate?")
       )
       [ Action "repair.cutover" "cut over" "c" False "Durably record consent, atomically exchange datasets, and retain the old authority."
-      , Action "repair.assistance" "I don't know" "?" False "Explain atomic cutover, recovery, and the retained backup."
+      , Action "repair.assistance" "I don't know" "k" False "Explain atomic cutover, recovery, and the retained backup."
       , moreAction
       ]
       repairCommands
@@ -3841,7 +3955,7 @@ makeListEntryPreviewEnvelope previous now state raw owner label quantity =
       )
       [ Action "list-entry.create" "yes" "y" True "Create one owner-scoped ListEntry and link the Raw receipt."
       , Action "list-entry.cancel" "no" "n" False "Return to destination selection without changing the Raw."
-      , Action "list-entry.assistance" "I don't know" "?" False "Explain checklist ownership and quantity."
+      , Action "list-entry.assistance" "I don't know" "k" False "Explain checklist ownership and quantity."
       , moreAction
       ]
       (rawCommands raw)
@@ -3867,11 +3981,11 @@ makeListEntryReuseEnvelope previous now state raw owner entry fedQuantity =
           ]
           (Just "What should happen?")
       )
-      ( [Action "list-entry.keep" "keep it as is" "k" True "Link this Raw receipt without changing quantity."]
+      ( [Action "list-entry.keep" "keep it as is" "e" True "Link this Raw receipt without changing quantity."]
           <> addAction
           <> [ Action "list-entry.change" "change the quantity..." "c" False "Edit the resulting quantity explicitly."
              , Action "list-entry.separate" "separate item..." "s" False "Distinguish a deliberately separate owner-scoped entry before creation."
-             , Action "list-entry.assistance" "I don't know" "?" False "Explain owner-scoped reuse and quantity choices."
+             , Action "list-entry.assistance" "I don't know" "k" False "Explain owner-scoped reuse and quantity choices."
              , moreAction
              ]
       )
@@ -3936,6 +4050,30 @@ advanceEnvelope previous candidate =
 resealEnvelope :: InteractionEnvelope -> InteractionEnvelope
 resealEnvelope envelope = sealEnvelope envelope{envelopeIntegrityToken = ""}
 
+-- Call only after checking the saved envelope's integrity. Presentation changes
+-- preserve the opportunity, action IDs, drafts, and recorded selection.
+upgradePresentationEnvelope :: InteractionEnvelope -> InteractionEnvelope
+upgradePresentationEnvelope original
+  | updated == original = original
+  | otherwise = advanceEnvelope original updated
+ where
+  actions = envelopeActions original
+  used = Set.fromList ("k" : [actionShortcut action | action <- actions, actionShortcut action /= "k", not (oldUncertainty action)])
+  (_, shortcuts) = foldl upgrade (used, []) actions
+  oldUncertainty action = actionShortcut action == "?" && "don't know" `Text.isInfixOf` actionLabel action
+  upgrade (allocated, result) action
+    | oldUncertainty action = (allocated, result <> [action{actionShortcut = "k"}])
+    | actionShortcut action == "k"
+    , not ("don't know" `Text.isInfixOf` actionLabel action) =
+        let candidates = fmap Text.singleton (Text.unpack (Text.filter isAsciiLower (actionLabel action)) <> ['1' .. '9'])
+            available = filter (`Set.notMember` allocated) candidates
+            chosen = case available of first : _ -> first; [] -> actionShortcut action
+         in (Set.insert chosen allocated, result <> [action{actionShortcut = chosen}])
+    | otherwise = (allocated, result <> [action])
+  updated = case envelopeOpportunity original of
+    FocusAssistanceOpportunity _ _ step _ -> original{envelopeActions = fmap (focusAssistanceAction step) shortcuts, envelopeContent = focusAssistanceContent step (envelopeContent original)}
+    _ -> original{envelopeActions = shortcuts}
+
 validateResponse :: InteractionEnvelope -> InteractionEnvelope -> InteractionResponse -> Either AppError ResponseValidation
 validateResponse original replacement response
   | responseInteractionId response /= envelopeInteractionId original = invalid "The interaction identity is unknown."
@@ -3959,7 +4097,12 @@ envelopeIntegrityIsValid envelope = envelopeIntegrityToken envelope == integrity
 
 sealed :: UUIDv7 -> Int -> DatasetCursor -> Text -> ScreenGrammar -> Opportunity -> EnvelopeContent -> [Action] -> [CommandOption] -> Maybe Text -> Footer -> InteractionEnvelope
 sealed identity revision cursor precondition grammar opportunity content actions commands uncertainty footer =
-  sealEnvelope $ InteractionEnvelope identity revision cursor precondition grammar opportunity content actions (ensureCommand importCommand commands) uncertainty footer 0 "core" ""
+  sealEnvelope $ InteractionEnvelope identity revision cursor precondition grammar opportunity content actions available uncertainty footer 0 "core" ""
+ where
+  available
+    | isRecovery = commands
+    | otherwise = foldr ensureCommand commands [importCommand, CommandOption "list" "/list" "Browse importance order or focus forecast", CommandOption "search" "/search" "Search Bricks, Raw, Domains, and people"]
+  isRecovery = case opportunity of RepairPreviewOpportunity{} -> True; RepairCandidateOpportunity{} -> True; RepairCompleteOpportunity{} -> True; _ -> False
 
 ensureCommand :: CommandOption -> [CommandOption] -> [CommandOption]
 ensureCommand command available
@@ -4280,9 +4423,10 @@ reactionActions = \case
   BlockedSymptom -> [skip, unknown]
   WaitingSymptom -> [skip, unknown]
  where
-  action identity label shortcut consequence = Action identity label shortcut False consequence
+  action identity label shortcut =
+    Action identity label shortcut False
   skip = action "work.reaction.skip" "⏭️ skip anyway" "s" "Record this symptom with ordinary cooldown."
-  unknown = action "work.reaction.unknown" "❓ I don't know" "?" "Explain these recoveries without selecting one."
+  unknown = action "work.reaction.unknown" "❓ I don't know" "k" "Explain these recoveries without selecting one."
 
 skipSymptomName :: SkipSymptom -> Text
 skipSymptomName = \case
@@ -4452,7 +4596,7 @@ readMaybeInt text =
     _ -> Nothing
 
 assignTemplateShortcuts :: [TemplateDefinition] -> [(TemplateDefinition, Text)]
-assignTemplateShortcuts definitions = snd (foldl assign (Set.singleton "n", []) definitions)
+assignTemplateShortcuts definitions = snd (foldl assign (Set.fromList ["n", "k", "/"], []) definitions)
  where
   assign (used, result) definition =
     let preferred = templateShortcut definition
@@ -4475,7 +4619,7 @@ importanceText state draft = case sortOn brickSiblingPosition (siblingBricks sta
   maybeText prefix = maybe [] (pure . (prefix <>) . brickCitation)
 
 createdImportanceText :: State -> Brick -> Text
-createdImportanceText state brick = importanceText state (WorkDraft (brickId brick) (brickTitle brick) (brickNature brick) (brickTemplate brick) (brickParent brick) (brickDomains brick) (brickSiblingPosition brick) (brickImportanceConfidence brick) [])
+createdImportanceText state brick = importanceText (state{stateBricks = Map.delete (brickId brick) (stateBricks state)}) (WorkDraft (brickId brick) (brickTitle brick) (brickNature brick) (brickTemplate brick) (brickParent brick) (brickDomains brick) (brickSiblingPosition brick) (brickImportanceConfidence brick) [])
 
 confidenceText :: ImportanceConfidence -> Text
 confidenceText = \case
@@ -4553,7 +4697,10 @@ opportunityValue = \case
     typed
       "import_preflight"
       ( ["source" .= source, "preflight" .= preflight, "erase_after_import" .= eraseAfterImport]
-          <> if Set.null selectedContainers then [] else ["selected_containers" .= Set.toAscList selectedContainers]
+          <> ( [ "selected_containers" .= Set.toAscList selectedContainers
+               | not (Set.null selectedContainers)
+               ]
+             )
       )
   ImportResultOpportunity invocationId imported reused cleanupReady -> typed "import_result" ["import_invocation_id" .= renderUUIDv7 invocationId, "imported_raw_ids" .= fmap renderUUIDv7 imported, "reused_raw_ids" .= fmap renderUUIDv7 reused, "cleanup_ready" .= cleanupReady]
   ProviderConnectionOpportunity draft -> typed "provider_connection" ["draft" .= draft]
@@ -4624,6 +4771,8 @@ opportunityValue = \case
       ( ["brick_id" .= renderUUIDv7 identity]
           <> maybe [] (pure . ("selection_id" .=) . renderUUIDv7) selection
       )
+  FocusAssistanceOpportunity identity selection step alternate ->
+    typed "focus_assistance" ["brick_id" .= renderUUIDv7 identity, "selection_id" .= fmap renderUUIDv7 selection, "step" .= fromMaybe "unknown" (lookup step [(item, name) | (name, item) <- focusAssistanceSteps]), "alternate_probe" .= alternate]
   CurrentFocusOpportunity identity -> typed "current_focus" ["brick_id" .= renderUUIDv7 identity]
   UpdateMeaningOpportunity identity -> typed "update_meaning" ["brick_id" .= renderUUIDv7 identity]
   UpdateTextOpportunity identity field current draft -> typed "update_text" ["brick_id" .= renderUUIDv7 identity, "field" .= updateMeaningFieldText field, "current" .= current, "draft" .= draft]
@@ -4840,6 +4989,10 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "standalone_result" -> StandaloneResultOpportunity <$> uuidField value "raw_id"
     "work_created_result" -> WorkCreatedResultOpportunity <$> uuidField value "raw_id" <*> uuidField value "brick_id"
     "focus_proposal" -> FocusProposalOpportunity <$> uuidField value "brick_id" <*> (value .:? "selection_id" >>= traverse parseUuid)
+    "focus_assistance" -> do
+      stepName <- value .: "step"
+      step <- maybe (fail "unknown Focus assistance step") pure (lookup stepName focusAssistanceSteps)
+      FocusAssistanceOpportunity <$> uuidField value "brick_id" <*> (value .:? "selection_id" >>= traverse parseUuid) <*> pure step <*> value .: "alternate_probe"
     "current_focus" -> CurrentFocusOpportunity <$> uuidField value "brick_id"
     "update_meaning" -> UpdateMeaningOpportunity <$> uuidField value "brick_id"
     "update_text" -> UpdateTextOpportunity <$> uuidField value "brick_id" <*> (value .: "field" >>= parseUpdateMeaningField) <*> value .: "current" <*> value .: "draft"

@@ -2,6 +2,7 @@ module Main (main) where
 
 import Control.Concurrent
 import Control.Exception (bracket)
+import Control.Monad qualified
 import Data.Aeson (object, (.=))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Char8 qualified as ByteString8
@@ -50,7 +51,15 @@ main =
       , testCase "authorization code PKCE rejects state mismatch and missing refresh custody" pkceResponseConfinement
       , testCase "the production PKCE receiver accepts one exact IPv4 loopback callback" pkceLoopbackRoundTrip
       , testCase "an expired provider grant refreshes once and persists before broker use" providerAutomaticRefresh
+      , testCase "oversized vault socket addresses return a typed error rather than crashing" oversizedSocketAddress
       ]
+
+oversizedSocketAddress :: Assertion
+oversizedSocketAddress = do
+  let path = "/" <> replicate 200 'x'
+  server <- runVaultAgent path "unused.age" 60
+  client <- sendVaultAgentRequest path agentStatusRequest
+  mapM_ (\case Left problem -> appErrorCode problem @?= InvalidInput; Right _ -> assertFailure "an invalid socket address was accepted") [Control.Monad.void server, Control.Monad.void client]
 
 pkceLoopbackRoundTrip :: Assertion
 pkceLoopbackRoundTrip = do

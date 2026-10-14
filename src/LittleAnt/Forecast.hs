@@ -23,6 +23,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
+import Data.Ord qualified
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
 import LittleAnt.Foundation
@@ -54,9 +55,10 @@ data ForecastSignal = ForecastSignal
 
 data ForecastProfile = ForecastProfile
   { profileHash :: Text
-  , importanceBottom :: Fixed
+  , importanceTopShare :: Fixed
   , importanceNeutral :: Fixed
-  , importanceExponent :: Int
+  , importanceTailRatio :: Fixed
+  , importanceTailExploration :: Fixed
   , pressureAdditionalFraction :: Fixed
   , pressureGain :: Fixed
   , domainGain :: Fixed
@@ -68,10 +70,11 @@ data ForecastProfile = ForecastProfile
 factoryForecastProfile :: ForecastProfile
 factoryForecastProfile =
   ForecastProfile
-    { profileHash = "little-ant-forecast-v1-factory"
-    , importanceBottom = Fixed 50_000
+    { profileHash = "little-ant-forecast-v2-factory-forte-plus"
+    , importanceTopShare = Fixed 600_000
     , importanceNeutral = Fixed 350_000
-    , importanceExponent = 2
+    , importanceTailRatio = Fixed 700_000
+    , importanceTailExploration = Fixed 20_000
     , pressureAdditionalFraction = Fixed 350_000
     , pressureGain = Fixed 2_000_000
     , domainGain = Fixed 750_000
@@ -138,17 +141,18 @@ importanceFactor profile placement confidence =
     Nothing -> importanceNeutral profile
     Just (_, count) | count <= 1 -> fixedOne
     Just (position, count) ->
-      let denominator = fromIntegral (count - 1)
-          clampedPosition = max 0 (min (count - 1) position)
-          rank = Fixed (fromIntegral clampedPosition * 1_000_000 `div` denominator)
-          inverse = fixedSub fixedOne rank
+      let tailCount = count - 1
+          clampedPosition = max 0 (min tailCount position)
+          ratio = importanceTailRatio profile
+          exploration = importanceTailExploration profile
+          tailSum = fixedDiv (fixedSub fixedOne (fixedPow ratio tailCount)) (fixedSub fixedOne ratio)
+          tailScale = fixedDiv (fixedSub fixedOne (importanceTopShare profile)) (importanceTopShare profile)
+          geometric = fixedDiv (fixedPow ratio (clampedPosition - 1)) tailSum
+          uniform = fixedDiv exploration (Fixed (fromIntegral tailCount * 1_000_000))
           ranked =
-            fixedAdd
-              (importanceBottom profile)
-              ( fixedMul
-                  (fixedSub fixedOne (importanceBottom profile))
-                  (fixedPow inverse (importanceExponent profile))
-              )
+            if clampedPosition == 0
+              then fixedOne
+              else fixedMul tailScale (fixedAdd (fixedMul (fixedSub fixedOne exploration) geometric) uniform)
        in fixedAdd
             (importanceNeutral profile)
             (fixedMul (clampRatio confidence) (fixedSubSigned ranked (importanceNeutral profile)))
@@ -175,7 +179,17 @@ positivePressure profile signals =
     | signalStrength right > signalStrength left = right
     | signalExplanation left <= signalExplanation right = left
     | otherwise = right
-  ordered = reverse (sortOn (\signal -> (signalStrength signal, signalKey signal, signalExplanation signal)) consolidated)
+  ordered =
+    sortOn
+      ( Data.Ord.Down
+          . ( \signal ->
+                ( signalStrength signal
+                , signalKey signal
+                , signalExplanation signal
+                )
+            )
+      )
+      consolidated
 
 forecastWeight :: ForecastProfile -> ForecastCandidate subject -> WeightedCandidate subject
 forecastWeight profile candidate =
@@ -311,7 +325,18 @@ fixedMul (Fixed left) (Fixed right) =
    in Fixed (if productValue < 0 then negate magnitude else magnitude)
 
 fixedPow :: Fixed -> Int -> Fixed
-fixedPow value power = foldl' fixedMul fixedOne (replicate (max 0 power) value)
+fixedPow value power = go value (max 0 power) fixedOne
+ where
+  go _ 0 result = result
+  go base remaining result =
+    go
+      (fixedMul base base)
+      (remaining `div` 2)
+      (if odd remaining then fixedMul result base else result)
+
+fixedDiv :: Fixed -> Fixed -> Fixed
+fixedDiv (Fixed numerator) (Fixed denominator) =
+  Fixed ((numerator * 1_000_000 + denominator `div` 2) `div` denominator)
 
 clampRatio :: Fixed -> Fixed
 clampRatio (Fixed value) = Fixed (max 0 (min 1_000_000 value))

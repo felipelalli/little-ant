@@ -8,6 +8,7 @@ where
 
 import Control.Exception (IOException, try)
 import Control.Monad (foldM)
+import Data.Functor qualified
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -58,21 +59,22 @@ loadProfileAuthorizedPacks now scope paths integrations authority = do
 loadProfileTrustPolicy :: UTCTime -> ProfilePaths -> IntegrationsConfig -> OfficialCatalogAuthority -> IO (Either AppError PackTrustPolicy)
 loadProfileTrustPolicy now paths integrations = \case
   OfficialCatalogCompiledRoot root ->
-    readAcceptedCatalogState (CatalogStateConfig (officialCatalogStateFile paths)) root
-      >>= pure
-        . fmap
-          ( catalogTrustPolicy
-              now
-              1
-              (Set.singleton standardPackIdentity)
-              (trustedPublishers integrations)
-          )
+    readAcceptedCatalogState
+      (CatalogStateConfig (officialCatalogStateFile paths))
+      root
+      Data.Functor.<&> fmap
+        ( catalogTrustPolicy
+            now
+            1
+            (Set.singleton standardPackIdentity)
+            (trustedPublishers integrations)
+        )
   OfficialCatalogUnavailable -> do
     catalogState <- try (doesPathExist (officialCatalogStateFile paths)) :: IO (Either IOException Bool)
     pure $ do
       present <-
         either
-          (\problem -> Left (catalogStateReadProblem paths problem))
+          (Left . catalogStateReadProblem paths)
           Right
           catalogState
       let officialPins =

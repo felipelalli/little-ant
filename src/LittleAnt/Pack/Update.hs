@@ -346,7 +346,12 @@ bindingPlan integrations state installedPin installed candidate =
   providerPlan (name, account) =
     let identifier = Profile.providerAccountComponent account
         accountBindings = [(bindingName, binding) | (bindingName, binding) <- Map.toAscList (Profile.credentialBindings integrations), Profile.credentialBindingAccount binding == name]
-        keep reason = PackUpdateBindingPlan "provider_account" name identifier KeepInstalledRelease reason
+        keep =
+          PackUpdateBindingPlan
+            "provider_account"
+            name
+            identifier
+            KeepInstalledRelease
         rebind = PackUpdateBindingPlan "provider_account" name identifier RebindToCandidate "The compatible static binding will use the reviewed candidate release."
      in case (Map.lookup identifier installedComponents, Map.lookup identifier candidateComponents) of
           (_, Nothing) -> keep "The candidate removes this component; the account keeps its installed release."
@@ -487,5 +492,5 @@ updateProblem code message details =
 rejectUnknown :: Object -> [Text] -> Parser ()
 rejectUnknown fields allowed =
   let accepted = Set.fromList allowed
-      unknown = filter (\key -> Set.notMember key accepted) (fmap Key.toText (KeyMap.keys fields))
+      unknown = filter (`Set.notMember` accepted) (fmap Key.toText (KeyMap.keys fields))
    in unless (null unknown) (fail ("unknown keys: " <> Text.unpack (Text.intercalate ", " unknown)))

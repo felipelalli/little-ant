@@ -53,7 +53,7 @@ unresolved            no trustworthy 1.0 disposition yet
 |---|---|---|---|---|
 | Deterministic offline core with judgment outside it | `I+T`, state/command tests; `O`, skill | **strengthened** | `PRD-006..009`, `DAT-001..005` | synthetic-week replay |
 | `feed` is the only ingress word; natural-language synonyms stay outside the core | `I+T`, `7f5c678`, `Command.hs`; `O` | **retained** | `PRD-013`, `FED-001..009` | `SCN-FED-001..004` |
-| Core-owned grammar, stable answer letters, `*`, `?`, and contextual `[l]ater` | `I+T`, `Grammar.hs`; `O` | **strengthened** | `UX-012..018`, `UX-022..024` | interaction-vocabulary gate |
+| Core-owned grammar, stable answer letters, `*`, `k`, and contextual `[l]ater` | `I+T`, `Grammar.hs`; `O` | **strengthened** | `UX-012..018`, `UX-022..024` | interaction-vocabulary gate |
 | Finite choices execute with one key and no Enter | `O`; partly terminal-tested | **retained** | `UX-011..014` | exact dumb-REPL transcript |
 | A full command word can interrupt a pending one-key question | `O`; partial parser behavior | **replaced** | explicit `[/] more...` palette suspends the pending interaction under `UX-022`, `UX-047`, and `UX-M01`; bare hidden aliases are rejected by `UX-062` | palette navigation, mutation, Escape, and stale-revalidation simulation |
 | JSON success/error envelope includes canonical human rendering | `I+T`, `Main.hs::emit` | **replaced** | `DAT-006..010` sparse typed response plus explicit depth | sparse-versus-complete scenario |
@@ -147,7 +147,7 @@ unresolved            no trustworthy 1.0 disposition yet
 | TaskJuggler export includes dependencies, order, estimates, and visible gaps | `I+T`, `666f6b8` | **strengthened** | planning cut, EffortProfile, immutable manifest, Lua exporter, separate actuals under `DAT-030..037` | planning-manifest replay |
 | `show`, `ls`, `status`, grammar, and event audit support inspection | `I`; some view tests | **strengthened** | sparse depth, negotiated projections, and filtered semantic history under `DAT-006..010`, `DAT-051..054`, `UX-023`, `UX-025..028` | inspection/history route |
 | Event versions, upcasting, dry-run migration, and backup | `I+T`, `f32f248` | **strengthened** | `MIG-001..044`, `DAT-055..056` | `SCN-MIG-001` plus corruption/backup replay |
-| Append-only JSONL can be synchronized by event-set union, archived by rotation, and queried through snapshots | `D`, README roadmap; not delivered | **explicitly deferred beyond 1.0** | 1.0 provides local backup/rebuild and reviewed dataset merge under `DAT-055..056` and `MIG-023`; event-set-union device sync and automatic rotation are not release capabilities | no 1.0 acceptance route |
+| Append-only JSONL can be synchronized by event-set union, archived by rotation, and queried through snapshots | `D`, v0 roadmap; v1 Store tests now cover snapshots and quarterly rotation | **local storage performance implemented; device sync deferred** | disposable fold snapshots and immutable cold segments under `DAT-001..003` and `DAT-044`; local backup/rebuild and reviewed dataset merge retain `DAT-055..056` and `MIG-023`; event-set-union device sync remains deferred | cache/suffix versus full replay, missing/corrupt cache, interrupted rotation, cold repair, and restore |
 
 ## Regression closure
 

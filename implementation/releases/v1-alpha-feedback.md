@@ -16,4 +16,11 @@ file records observations that still need a coherent design.
 - **Constraint:** a future proposal must preserve one coherent `exit`
   vocabulary and should not add `[q]` to the main interface merely to expose a
   keyboard convenience.
-- **Status:** open; design before implementation.
+- **Accepted correction (2026-10-10):** retain canonical `/exit`, accept the
+  exact REPL-only `/quit` spelling, and support an undisplayed `q` outside
+  editable input and filtering selectors when no current action owns it.
+  Escape navigates backward first and exits only at the root main opportunity
+  screen. Nested views and unfinished input keep their cancel/back behavior.
+  Exiting retains the pending interaction and focus, without a domain event.
+- **Status:** implemented; real-PTY regression coverage verifies exit and
+  ordinary `q` input separately.

@@ -4,6 +4,7 @@ module LittleAnt.Result (
   HistoryEntry (..),
   SearchHit (..),
   ListRow (..),
+  ListTree (..),
   PackComponentProjection (..),
   PackProjection (..),
   RawProjection (..),
@@ -62,6 +63,17 @@ data ListRow = ListRow
   , listEntryDetails :: Text
   }
   deriving stock (Eq, Show)
+
+-- Categories are presentation branches; an item can occur in several branches.
+-- Context-only ancestors have no invented forecast chance.
+data ListTree
+  = ListCategory Text [ListTree]
+  | ListItem ListRow Bool [ListTree]
+  deriving stock (Eq, Show)
+
+instance ToJSON ListTree where
+  toJSON (ListCategory label children) = object ["kind" .= ("category" :: Text), "label" .= label, "children" .= children]
+  toJSON (ListItem row context children) = object ["kind" .= ("item" :: Text), "entry" .= row, "context_only" .= context, "children" .= children]
 
 data DiagnosticCheck = DiagnosticCheck
   { diagnosticCheckName :: Text
@@ -130,6 +142,14 @@ data CommandResult
       , resultRaw :: RawProjection
       , resultDryRun :: Bool
       }
+  | ShowObjectResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultObjectKind :: Text
+      , resultObjectReference :: Text
+      , resultObjectTitle :: Text
+      , resultObjectDetails :: [Text]
+      , resultDryRun :: Bool
+      }
   | UndoResult
       { resultCommandId :: UUIDv7
       , resultTargetCommandId :: UUIDv7
@@ -167,6 +187,7 @@ data CommandResult
       { resultDatasetCursor :: DatasetCursor
       , resultListName :: Text
       , resultListEntries :: [ListRow]
+      , resultListCategories :: [ListTree]
       , resultDryRun :: Bool
       }
   | DoctorResult
@@ -303,8 +324,8 @@ instance ToJSON CommandResult where
         , "action" .= action
         ]
           <> maybe [] (pure . ("selected_profile" .=)) selected
-          <> [("profiles" .= profiles) | not (null profiles)]
-          <> [("facts" .= facts) | not (null facts)]
+          <> ["profiles" .= profiles | not (null profiles)]
+          <> ["facts" .= facts | not (null facts)]
           <> dryRunPair dryRun
     TickResult cursor releases windows outcomes dryRun ->
       object $
@@ -330,12 +351,13 @@ instance ToJSON CommandResult where
         , "hits" .= hits
         ]
           <> dryRunPair dryRun
-    ListResult cursor name entries dryRun ->
+    ListResult cursor name entries categories dryRun ->
       object $
         [ "schema" .= ("little-ant/list@1" :: Text)
         , "dataset_cursor" .= renderCursor cursor
         , "list" .= name
         , "entries" .= entries
+        , "categories" .= categories
         ]
           <> dryRunPair dryRun
     DoctorResult cursor healthy validated checks dryRun ->
@@ -411,6 +433,16 @@ instance ToJSON CommandResult where
         , "dataset_cursor" .= renderCursor cursor
         , "raw" .= raw
         ]
+          <> dryRunPair dryRun
+    ShowObjectResult cursor kind reference title details dryRun ->
+      object $
+        [ "schema" .= ("little-ant/show-object@1" :: Text)
+        , "dataset_cursor" .= renderCursor cursor
+        , "kind" .= kind
+        , "reference" .= reference
+        , "title" .= title
+        ]
+          <> ["details" .= details | not (null details)]
           <> dryRunPair dryRun
     UndoResult commandId target cursor raw redoToken wasRedo interaction dryRun ->
       object $

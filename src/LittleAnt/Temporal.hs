@@ -6,6 +6,7 @@ where
 import Control.Exception (SomeException, displayException, try)
 import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
+import Data.Maybe qualified
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time
@@ -121,7 +122,10 @@ quotaWindows state zone schedule@QuotaWindowHabit{} now =
     | index <- [0 .. 100000]
     ]
  where
-  boundary = maybe (operationalHabitDayStartsAt (stateOperationalDayConfig state)) id (habitDayBoundary schedule)
+  boundary =
+    Data.Maybe.fromMaybe
+      (operationalHabitDayStartsAt (stateOperationalDayConfig state))
+      (habitDayBoundary schedule)
   origin = LocalTime (habitQuotaStartsOn schedule) boundary
 quotaWindows _ _ _ _ = []
 

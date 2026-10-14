@@ -1,22 +1,30 @@
 module Main (main) where
 
-import Control.Monad (foldM)
+import Control.Monad (foldM, when)
+import Data.Aeson (encode, object, (.=))
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Lazy qualified as LazyByteString
 import Data.IORef
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
+import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Application
 import LittleAnt.Decision (completionUUIDCount, decideAddDependency, decideCompleteBrick, mutationDecisionEvents, statePreconditionHash)
+import LittleAnt.Error (AppError (..), ErrorCode (PreconditionFailed))
 import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
+import LittleAnt.Forecast (factoryForecastProfile, profileHash)
 import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
+import LittleAnt.Projection (renderEnvelopeAtWidth)
 import LittleAnt.Result
 import LittleAnt.Store
+import LittleAnt.Surface (plainLine, screenLines, textDisplayWidth)
+import System.FilePath ((</>))
 import System.IO.Temp
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -27,7 +35,11 @@ main =
     testGroup
       "S04 vertical forecast"
       [ testCase "next records one immutable draw and restart restores it" recordedNext
+      , testCase "legacy forecast evidence replays its original profile and weights" legacyForecastReplay
       , testCase "completion releases every Dependency for which the Brick is the blocker" dependencyRelease
+      , testCase "retirement removes both dependency directions, discloses release, and preserves historical replay" dependencyRetirement
+      , testCase "saved archive consent refreshes before acceptance without a forecast draw" savedArchiveConsent
+      , testCase "category grouping retains archived relevance-review forecast candidates" archivedCategoryForecast
       ]
 
 recordedNext :: Assertion
@@ -44,6 +56,7 @@ recordedNext =
     afterFirst <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
     Map.size (stateForecastSelections (loadedState afterFirst)) @?= 1
     assertBool "selection evidence is missing" (Map.member selectionId (stateForecastSelections (loadedState afterFirst)))
+    forecastSelectionProfileHash (stateForecastSelections (loadedState afterFirst) Map.! selectionId) @?= profileHash factoryForecastProfile
     stateEventCount (loadedState afterFirst) @?= 5
     second <- run environment NextCommand
     secondEnvelope <- interactionOf second
@@ -51,6 +64,37 @@ recordedNext =
     resultCursor second @?= resultCursor first
     afterSecond <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
     stateEventCount (loadedState afterSecond) @?= 5
+
+legacyForecastReplay :: Assertion
+legacyForecastReplay = do
+  let actor = Actor "human" "test"
+      identities = fmap fixtureUuid [30 .. 32]
+      selected = identities !! 1
+      selectionId = fixtureUuid 33
+      weights = zip identities [1_000_000, 287_500, 50_000]
+      draw = ForecastDrawEvidence "forecast_subject_draw" [(renderUUIDv7 identity, weight) | (identity, weight) <- weights] 1_337_500 0 1 1_100_000 (renderUUIDv7 selected)
+      evidence = ForecastSelectionEvidence selectionId "little-ant-forecast-v1-factory" (ByteString.replicate 32 7) weights selected (Just selected) "finite_work" [] Nothing Nothing [] [draw]
+      brick identity = Brick identity (Handle (renderUUIDv7 identity)) "legacy sibling" AtomicTask "factory@1" "test" Nothing Nothing Set.empty 0 (DeterministicPosition "fixture") BrickActive Idle fixedTime actor (fixtureUuid 99)
+      initial = emptyState{stateBricks = Map.fromList [(identity, brick identity) | identity <- identities]}
+      event =
+        PersistedEvent
+          { persistedEventId = fixtureUuid 34
+          , persistedCommandId = fixtureUuid 35
+          , persistedSegmentSequence = 1
+          , persistedEventSequence = 1
+          , persistedActor = actor
+          , persistedRecordedAt = fixedTime
+          , persistedPreviousSegmentHash = "genesis"
+          , persistedPreconditionHash = statePreconditionHash initial
+          , persistedReplayUUIDs = [selectionId]
+          , persistedPayload = ForecastSelectedV1 (ForecastSelected evidence)
+          }
+  decoded <- assertRight (decodeEvent (encodeEvent event))
+  decoded @?= event
+  replayed <- assertRight (applyEvent initial decoded)
+  Map.lookup selectionId (stateForecastSelections replayed) @?= Just evidence
+  Map.lookup "forecast_subject_draw" (stateRandomCursors replayed) @?= Just 1
+  assertBool "new calculations must identify a different profile" (forecastSelectionProfileHash evidence /= profileHash factoryForecastProfile)
 
 dependencyRelease :: Assertion
 dependencyRelease = do
@@ -102,6 +146,88 @@ dependencyRelease = do
         , persistedPayload = draftPayload draft
         }
 
+dependencyRetirement :: Assertion
+dependencyRetirement = mapM_ check [BrickArchived, BrickSuperseded, BrickMerged]
+ where
+  actor = Actor "human" "test"
+  target = fixtureUuid 21
+  blocked = fixtureUuid 20
+  prerequisite = fixtureUuid 22
+  unrelated = fixtureUuid 23
+  brick identity handle = Brick identity (Handle handle) handle AtomicTask "factory@1" "test" Nothing Nothing Set.empty 0 (DeterministicPosition "fixture") BrickActive Idle fixedTime actor (fixtureUuid 99)
+  targetBrick = brick target "retiring"
+  dependencies =
+    [ Dependency (fixtureUuid 30) blocked target DependencyActive "human" fixedTime
+    , Dependency (fixtureUuid 31) target prerequisite DependencyActive "human" fixedTime
+    , Dependency (fixtureUuid 32) unrelated prerequisite DependencyActive "human" fixedTime
+    ]
+  initial = emptyState{stateBricks = Map.fromList [(brickId one, one) | one <- [brick blocked "blocked", targetBrick, brick prerequisite "prerequisite", brick unrelated "unrelated"]], stateDependencies = Map.fromList [(dependencyId one, one) | one <- dependencies]}
+  statuses state = fmap dependencyStatus (Map.elems (stateDependencies state))
+  apply number payload state =
+    applyEvent state PersistedEvent{persistedEventId = fixtureUuid number, persistedCommandId = fixtureUuid (number + 100), persistedSegmentSequence = 1, persistedEventSequence = fromIntegral number, persistedActor = actor, persistedRecordedAt = fixedTime, persistedPreviousSegmentHash = "genesis", persistedPreconditionHash = statePreconditionHash state, persistedReplayUUIDs = [], persistedPayload = payload}
+  check status = do
+    let preview = makeArchivePreviewEnvelope (fixtureUuid 40) Genesis (statePreconditionHash initial) (utcToZonedTime utc fixedTime) initial targetBrick Nothing Nothing
+    assertBool "archive hid release of dependent Work" ("Stop blocking: #blocked \"blocked\"" `elem` contentBody (envelopeContent preview))
+    assertBool "archive hid removal of its prerequisite" ("Remove prerequisite: #prerequisite \"prerequisite\"" `elem` contentBody (envelopeContent preview))
+    mapM_ (\width -> assertBool "archive disclosure exceeded terminal cells" (all ((<= width) . textDisplayWidth . plainLine) (screenLines (renderEnvelopeAtWidth width preview)))) [28, 80]
+    retired <- assertRight (apply 40 (BrickStatusChangedV1 (BrickStatusChanged target BrickActive status "retire")) initial)
+    statuses retired @?= [DependencyRemoved, DependencyRemoved, DependencyActive]
+    stateDependencies retired Map.! fixtureUuid 30 @?= (head dependencies){dependencyStatus = DependencyRemoved}
+    when (status == BrickArchived) $ do
+      restored <- assertRight (apply 41 (BrickStatusChangedV1 (BrickStatusChanged target BrickArchived BrickActive "restore")) retired)
+      statuses restored @?= statuses retired
+      let restorePreview = makeRestorePreviewEnvelope (fixtureUuid 42) Genesis (statePreconditionHash retired) (utcToZonedTime utc fixedTime) retired (stateBricks retired Map.! target)
+      assertBool "restore promised to silently revive dependencies" (any (Text.isInfixOf "will not reactivate") (contentBody (envelopeContent restorePreview)))
+    -- This exact event ordering exists in older logs: archive an owner, then
+    -- complete its prerequisite and record the explicit resolution.
+    completed <- assertRight (apply 43 (BrickCompletedV1 (BrickCompleted prerequisite)) retired)
+    historical <- assertRight (apply 44 (DependencyResolvedV1 (DependencyResolution (fixtureUuid 31))) completed)
+    statuses historical @?= [DependencyRemoved, DependencyResolved, DependencyActive]
+
+savedArchiveConsent :: Assertion
+savedArchiveConsent = withHarness $ \environment -> do
+  seedOneBrick environment
+  preview <- run environment (ArchiveCommand "#wtms") >>= interactionOf
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let oldAction action
+        | actionId action == "archive.accept" = action{actionConsequence = "Archive reversibly and create one relevance review."}
+        | otherwise = action
+      old = resealEnvelope preview{envelopeActions = fmap oldAction (envelopeActions preview)}
+  LazyByteString.writeFile (storeRoot (appStore environment) </> "checkpoints" </> "pending-envelope.json") $
+    encode (object ["schema" .= ("little-ant/presentation-checkpoint@1" :: Text.Text), "current" .= old, "back_stack" .= ([] :: [InteractionEnvelope]), "forward_stack" .= ([] :: [InteractionEnvelope])])
+  resumed <- run environment NextCommand >>= interactionOf
+  envelopeOpportunity resumed @?= envelopeOpportunity preview
+  envelopeActions resumed @?= envelopeActions preview
+  assertBool "old archive token still authorized the changed consent" (envelopeIntegrityToken resumed /= envelopeIntegrityToken old)
+  again <- run environment NextCommand >>= interactionOf
+  again @?= resumed
+  let oldResponse = InteractionResponse{responseInteractionId = envelopeInteractionId old, responseRevision = envelopeRevision old, responseActionId = "archive.accept", responseIntegrityToken = envelopeIntegrityToken old, responseAnsweredCursor = envelopeDatasetCursor old}
+  runAppCommand environment False (const (pure ())) (RespondCommand oldResponse) >>= \case
+    Left problem -> appErrorCode problem @?= PreconditionFailed
+    Right result -> assertFailure ("old consent was applied: " <> show result)
+  after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  after @?= before
+
+archivedCategoryForecast :: Assertion
+archivedCategoryForecast = withHarness $ \environment -> do
+  seedOneBrick environment
+  preview <- run environment (ArchiveCommand "#wtms") >>= interactionOf
+  let response = InteractionResponse (envelopeInteractionId preview) (envelopeRevision preview) "archive.accept" (envelopeIntegrityToken preview) (envelopeDatasetCursor preview)
+  _ <- run environment (RespondCommand response)
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  importance <- run environment (ListCommand (Just "importance"))
+  case importance of ListResult{resultListEntries} -> resultListEntries @?= []; other -> assertFailure (show other)
+  forecast <- run environment (ListCommand (Just "forecast"))
+  case forecast of
+    ListResult{resultListEntries = [row], resultListCategories = [ListCategory "Without a category" [ListItem grouped False []]]} -> do
+      listEntryHandle row @?= "#wtms"
+      listEntryHandle grouped @?= listEntryHandle row
+      assertBool "grouping lost the archived review or changed its chance" (listEntryDetails row `Text.isPrefixOf` listEntryDetails grouped)
+      assertBool "expected the archived relevance-review opportunity" ("archive_relevance_review" `Text.isInfixOf` listEntryDetails row)
+    other -> assertFailure ("archived forecast disappeared from categories: " <> show other)
+  after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  after @?= before
+
 seedOneBrick :: AppEnv -> IO ()
 seedOneBrick environment = do
   let actor = Actor "human" "test"
@@ -109,10 +235,10 @@ seedOneBrick environment = do
       eventIds = fmap fixtureUuid [11 .. 14]
       precondition = statePreconditionHash emptyState
       replay = rawIdValue : brickIdValue : command : eventIds
-      draft eventId payload =
-        EventDraft eventId command actor fixedTime precondition replay payload
+      draft eventId =
+        EventDraft eventId command actor fixedTime precondition replay
       events =
-        [ draft (eventIds !! 0) (RawFedV1 (RawFed rawIdValue (Handle "wtms") "Write the migration specification" "test" Nothing))
+        [ draft (head eventIds) (RawFedV1 (RawFed rawIdValue (Handle "wtms") "Write the migration specification" "test" Nothing))
         , draft
             (eventIds !! 1)
             ( BrickCreatedV1

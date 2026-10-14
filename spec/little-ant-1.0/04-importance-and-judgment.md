@@ -114,11 +114,11 @@ Is
 #y "Y"
 ?
 
-[m]ore important   [l]ess important   [s]kip   [?] I don't know
+[m]ore important   [l]ess important   [s]kip   I don't [k]now
 ```
 
 - **IMP-006 [core] — Directional answers.** `more important` records X above
-  Y; `less important` records Y above X; `skip` records no edge; `?` enters
+  Y; `less important` records Y above X; `skip` records no edge; `k` enters
   the IMP-040 honest-answer tree while preserving the pending comparison.
   Importance comparisons do not use `yes` or `no`, because naming both
   directions is more precise than interpreting a negative proposition. The
@@ -188,7 +188,7 @@ Is
   materially change focus, may propose an ordinary Brick such as an interview,
   questionnaire, experiment, POC, or MVP. The core never invents the method or
   creates the Brick automatically.
-- **IMP-040 [core] — Honest importance discovery.** Question mark on an
+- **IMP-040 [core] — Honest importance discovery.** The uncertainty shortcut on an
   ordinary two-Brick importance comparison asks one question per screen and
   follows this bounded factory tree, where A is the first displayed Brick and
   B is the second:
@@ -242,7 +242,7 @@ Is
   to the next discriminator but remains distinct from an explicit rejection;
   it creates no negative judgment. At Q1, Q3, and Q6..Q8, uncertainty asks an
   alternate probe and never follows `no` silently. These policies are part of
-  the versioned tree rather than a global alias from question mark to `no`.
+  the versioned tree rather than a global alias from the uncertainty shortcut to `no`.
 - **IMP-042 [core] — Either order is pair-local evidence.** Explicitly
   confirmed `either_order` is symmetric direct human evidence that the exact
   relative order of A and B is immaterial for the current judgment. It creates
@@ -407,7 +407,7 @@ Is
 - **IMP-026 [standard] — Derived remaining effort.** Remaining effort is a
   conservative projection from completed descendants, explicit progress, or
   imported actuals. Focus duration alone never reduces it.
-- **IMP-027 [standard] — Assisted classification.** `?` may run at most three
+- **IMP-027 [standard] — Assisted classification.** `k` may run at most three
   adaptive comparisons against high-confidence historical exemplars. `skip`
   records no effort evidence and never blocks work.
 - **IMP-028 [standard] — Parent scope.** Parent effort includes descendant

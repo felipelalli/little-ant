@@ -1,7 +1,8 @@
 module Main (main) where
 
-import Control.Monad (replicateM)
-import Data.Aeson (encode)
+import Control.Monad (foldM, replicateM)
+import Data.Aeson (Value (..), eitherDecodeStrict', encode)
+import Data.Aeson.KeyMap qualified as KeyMap
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
@@ -54,6 +55,10 @@ tests =
     , testCase "responses revalidate unrelated cursors and reject changed questions" testStaleResponse
     , testCase "Feed undo is rejected after a dependent Raw revision" testDependentUndo
     , testCase "a corrupt presentation checkpoint is rejected without touching history" testCheckpointIntegrity
+    , testCase "snapshot plus hot tail equals full replay and snapshots remain disposable" testSnapshotReplay
+    , testCase "interrupted cold rotation coalesces only identical segment copies" testInterruptedRotation
+    , testCase "cached readers retry a snapshot replaced during hot-tail replay" testConcurrentRotation
+    , testCase "accepted writes automatically rotate after 128 command groups" testAutomaticRotation
     ]
 
 testUuidLayout :: Assertion
@@ -194,6 +199,124 @@ testMalformedAccepted = withSystemTempDirectory "lant-malformed" $ \root -> do
   initializeDataset config
   ByteString.writeFile (root </> "events" </> segmentFileName 1 (sha256Hex bytes)) bytes
   loadDataset config (const (pure ())) >>= assertErrorCode CorruptData
+
+appendTestFeed :: StoreConfig -> LoadedDataset -> Int -> UTCTime -> IO LoadedDataset
+appendTestFeed store current seed now = do
+  identities <- traverse testUuid [seed * 3 + 3000 .. seed * 3 + 3002]
+  let facts = RuntimeFacts now (fmap (UUIDAllocation . renderUUIDv7) identities) mempty (FilesystemFacts True True (Just (renderCursor (loadedCursor current)))) (TerminalCapabilities False False False 80 24 False) []
+  decision <- assertRight (decideFeed (loadedState current) (Actor "human" "test") "test" ("raw " <> Text.pack (show seed) <> " — \"escaped\"\ncontext") facts)
+  assertRight =<< appendCommand store (loadedCursor current) (feedDecisionEvents decision)
+
+testSnapshotReplay :: Assertion
+testSnapshotReplay = withSystemTempDirectory "lant-fold-cache" $ \root -> do
+  let store = StoreConfig root 100000 1000
+      initial = LoadedDataset emptyState Genesis 0
+      snapshot = root </> "projections" </> "fold-snapshot.json"
+  first <- appendTestFeed store initial 1 (UTCTime (fromGregorian 2026 2 1) 0)
+  second <- appendTestFeed store first 2 (UTCTime (fromGregorian 2026 5 1) 0)
+  paths <- assertRight =<< canonicalSegmentFiles store
+  before <- traverse ByteString.readFile paths
+  compacted <- assertRight =<< compactDataset store
+  compacted @?= second
+  listDirectory (root </> "events") >>= (@?= [])
+  quarters <- listDirectory (root </> "archive")
+  Set.fromList quarters @?= Set.fromList ["2026-Q1", "2026-Q2"]
+  cold <- assertRight =<< canonicalSegmentFiles store
+  (firstCold, firstBytes) <- case (cold, before) of
+    (one : _, bytes : _) -> pure (one, bytes)
+    _ -> assertFailure "no cold segments" >> fail "unreachable"
+  traverse ByteString.readFile cold >>= (@?= before)
+  progress <- newIORef []
+  cached <- assertRight =<< loadDataset store (\count -> modifyIORef' progress (<> [count]))
+  cached @?= second
+  readIORef progress >>= (@?= [])
+  snapshotBytes <- ByteString.readFile snapshot
+  oldSnapshot <- case eitherDecodeStrict' snapshotBytes of
+    Right (Object fields)
+      | Just (Object payload) <- KeyMap.lookup "payload" fields ->
+          let oldPayload = Object (KeyMap.insert "state_format" (String "little-ant/fold-state-binary@1") payload)
+              oldDigest = String (sha256Hex (LazyByteString.toStrict (encode oldPayload)))
+           in pure (Object (KeyMap.insert "sha256" oldDigest (KeyMap.insert "payload" oldPayload fields)))
+    other -> assertFailure ("invalid generated snapshot: " <> show other) >> fail "unreachable"
+  LazyByteString.writeFile snapshot (encode oldSnapshot)
+  ByteString.writeFile firstCold "{damaged}\n"
+  loadDataset store (const (pure ())) >>= assertErrorCode CorruptData
+  ByteString.writeFile firstCold firstBytes
+  incompatible <- assertRight =<< loadDataset store (\count -> modifyIORef' progress (<> [count]))
+  incompatible @?= second
+  ByteString.writeFile snapshot snapshotBytes
+  -- Prove that cached boot does not decode cold content; doctor still catches
+  -- canonical corruption hidden behind a healthy cache.
+  ByteString.writeFile firstCold "{damaged}\n"
+  loadDataset store (const (pure ())) >>= assertRight >>= (@?= second)
+  loadDatasetFull store (const (pure ())) >>= assertErrorCode CorruptData
+  ByteString.writeFile firstCold firstBytes
+  third <- appendTestFeed store cached 3 fixedUtcTime
+  writeIORef progress []
+  tailReplay <- assertRight =<< loadDataset store (\count -> modifyIORef' progress (<> [count]))
+  tailReplay @?= third
+  readIORef progress >>= (@?= [1])
+  loadDatasetFull store (const (pure ())) >>= assertRight >>= (@?= third)
+  history <- assertRight =<< readCanonicalEvents store
+  fromIntegral (length history) @?= loadedEventCount third
+  removeFile snapshot
+  loadDataset store (const (pure ())) >>= assertRight >>= (@?= third)
+  _ <- assertRight =<< compactDataset store
+  ByteString.writeFile snapshot "{torn cache}"
+  loadDataset store (const (pure ())) >>= assertRight >>= (@?= third)
+
+testInterruptedRotation :: Assertion
+testInterruptedRotation = withSystemTempDirectory "lant-rotation" $ \root -> do
+  let store = StoreConfig root 100000 1000
+  accepted <- appendTestFeed store (LoadedDataset emptyState Genesis 0) 1 fixedUtcTime
+  _ <- assertRight =<< compactDataset store
+  [cold] <- assertRight =<< canonicalSegmentFiles store
+  let hot = root </> "events" </> takeFileName cold
+  copyFile cold hot
+  ByteString.writeFile (root </> "archive" </> "2026-Q3" </> ".torn.tmp") "{incomplete"
+  loadDataset store (const (pure ())) >>= assertRight >>= (@?= accepted)
+  loadDatasetFull store (const (pure ())) >>= assertRight >>= (@?= accepted)
+  _ <- assertRight =<< compactDataset store
+  doesFileExist hot >>= assertBool "hot duplicate should be removed" . not
+  copyFile cold hot
+  ByteString.appendFile hot "different"
+  loadDatasetFull store (const (pure ())) >>= assertErrorCode CorruptData
+
+testConcurrentRotation :: Assertion
+testConcurrentRotation = withSystemTempDirectory "lant-reader-rotation" $ \root -> do
+  let store = StoreConfig root 100000 1000
+  first <- appendTestFeed store (LoadedDataset emptyState Genesis 0) 1 fixedUtcTime
+  _ <- assertRight =<< compactDataset store
+  second <- appendTestFeed store first 2 fixedUtcTime
+  third <- appendTestFeed store second 3 fixedUtcTime
+  latest <- newIORef third
+  rotated <- newIORef False
+  loaded <-
+    assertRight
+      =<< loadDataset
+        store
+        ( \_ -> do
+            alreadyRotated <- atomicModifyIORef' rotated (True,)
+            if alreadyRotated
+              then pure ()
+              else do
+                fourth <- appendTestFeed store third 4 fixedUtcTime
+                _ <- assertRight =<< compactDataset store
+                writeIORef latest fourth
+        )
+  readIORef latest >>= (@?= loaded)
+  loadDatasetFull store (const (pure ())) >>= assertRight >>= (@?= loaded)
+
+testAutomaticRotation :: Assertion
+testAutomaticRotation = withSystemTempDirectory "lant-auto-fold" $ \root -> do
+  let store = StoreConfig root 100000 1000
+  accepted <- foldM (\current seed -> appendTestFeed store current seed fixedUtcTime) (LoadedDataset emptyState Genesis 0) [1 .. 128]
+  listDirectory (root </> "events") >>= (@?= [])
+  doesFileExist (root </> "projections" </> "fold-snapshot.json") >>= assertBool "snapshot was not written"
+  loadDataset store (const (pure ())) >>= assertRight >>= (@?= accepted)
+  loadDatasetFull store (const (pure ())) >>= assertRight >>= (@?= accepted)
+  tailState <- appendTestFeed store accepted 129 fixedUtcTime
+  loadDataset store (const (pure ())) >>= assertRight >>= (@?= tailState)
 
 testStaleResponse :: Assertion
 testStaleResponse = do

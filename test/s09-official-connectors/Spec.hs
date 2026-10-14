@@ -10,6 +10,7 @@ import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Data.List (sort)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe qualified
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -425,7 +426,7 @@ googleCalendarSnapshot = do
   (sourceObjectExternalId <$> observedObjects observation) @?= expectedIdentities
   (sourceObjectCompleted <$> observedObjects observation) @?= [False, False, False]
   (sourceObjectAttachmentCount <$> observedObjects observation) @?= [0, 0, 1]
-  assertBool "calendar object escaped its selected container" (all ((`Set.member` selected) . maybe "" id . sourceObjectContainerId) (observedObjects observation))
+  assertBool "calendar object escaped its selected container" (all ((`Set.member` selected) . Data.Maybe.fromMaybe "" . sourceObjectContainerId) (observedObjects observation))
   preflightBytes <- assertRight (canonicalJsonBytes (toJSON preflight))
   assertBool "private Calendar description escaped sparse preflight" (not ("::PRIVATE_CALENDAR_BODY::" `ByteString.isInfixOf` preflightBytes))
   observedCalls <- readIORef calls

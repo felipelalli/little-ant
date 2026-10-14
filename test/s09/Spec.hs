@@ -2,6 +2,7 @@ module Main (main) where
 
 import Control.Exception (finally)
 import Control.Monad (foldM)
+import Control.Monad qualified
 import Data.Aeson (eitherDecode, encode)
 import Data.Bits ((.&.))
 import Data.ByteString qualified as ByteString
@@ -25,7 +26,7 @@ import LittleAnt.Repair
 import LittleAnt.Result
 import LittleAnt.Store
 import System.Directory (doesDirectoryExist, doesFileExist, listDirectory, renameDirectory, renameFile)
-import System.FilePath (takeDirectory, (</>))
+import System.FilePath (takeDirectory, takeFileName, (</>))
 import System.IO.Temp (withSystemTempDirectory)
 import System.Posix.Files (FileStatus, fileMode, getFileStatus, isDirectory, setFileMode)
 import Test.Tasty
@@ -264,11 +265,12 @@ losslessRepairCandidate :: Assertion
 losslessRepairCandidate = withRepairHarness $ \outer environment -> do
   _ <- run environment (FeedCommand "test" "preserve this event")
   let store = appStore environment
-      events = storeRoot store </> "events"
-  originalName <- only "canonical segment" <$> listDirectory events
-  originalBytes <- ByteString.readFile (events </> originalName)
+  _ <- assertRight =<< compactDataset store
+  originalPath <- only "canonical segment" <$> (assertRight =<< canonicalSegmentFiles store)
+  let originalName = takeFileName originalPath
+  originalBytes <- ByteString.readFile originalPath
   let wrongName = segmentFileName 1 (Text.replicate 64 "0")
-  renameFile (events </> originalName) (events </> wrongName)
+  renameFile originalPath (takeDirectory originalPath </> wrongName)
   before <- eventFiles store
 
   plan <- assertRight =<< planDatasetRepair store
@@ -505,13 +507,12 @@ makeTreeWritableIfPresent path = do
       else setFileMode child 0o600
 
 whenDirectory :: FileStatus -> IO () -> IO ()
-whenDirectory status action = if isDirectory status then action else pure ()
+whenDirectory status = Control.Monad.when (isDirectory status)
 
 eventFiles :: StoreConfig -> IO [(FilePath, ByteString.ByteString)]
 eventFiles store = do
-  let events = storeRoot store </> "events"
-  names <- listDirectory events
-  traverse (\name -> (name,) <$> ByteString.readFile (events </> name)) names
+  files <- assertRight =<< canonicalSegmentFiles store
+  traverse (\path -> (takeFileName path,) <$> ByteString.readFile path) files
 
 fedState :: Text -> IO (State, Raw)
 fedState text = do

@@ -148,7 +148,7 @@ Validate:
   to the canonical root without deleting either identity, source, revision, or
   history, while grouped projection shows the receipt count;
 - no records pair-specific nonduplicate evidence until either Raw changes;
-  skip leaves the review pending under cooldown; question mark is read-only;
+  skip leaves the review pending under cooldown; the uncertainty shortcut is read-only;
   undo restores the later Raw's prior Inbox disposition and redo revalidates
   both revisions before restoring the link;
 - the suspended proposal is revalidated after that Raw commit and returns
@@ -175,7 +175,7 @@ Validate:
 - open and resolved duplicate cases expose keep/reopen, add or change
   quantity, and distinguishable-separate-item behavior;
 - if the Raw is instead materialized as Work, no hidden Nature fallback
-  exists: direct factory Nature choices and guided `[?] I don't know` precede
+  exists: direct factory Nature choices and guided `I don't [k]now` precede
   any compatible Template, and the exact parent and local importance position
   are visible before the Brick is committed;
 - title, evidence-backed optional parent, explicit direct Domains, duplicate
@@ -224,7 +224,7 @@ using the same canonical envelope/action IDs. Also feed `milk`, `coffee`, and
 `bread` separately and exercise one bounded, attributed recent-Raw batch
 proposal. `no` must enter UX-T01 for the originally selected Raw without
 resolving or penalizing its neighbors. Any proposed Template must expose its
-resulting Nature and source, require `[y]es`, `[n]o`, or `[?] I don't know`,
+resulting Nature and source, require `[y]es`, `[n]o`, or `I don't [k]now`,
 and enter the unchanged dumb flow after `no`. Record every skipped dumb screen
 and the provenance of every added default.
 
@@ -263,11 +263,11 @@ path. A future mobile client reuses this conformance scenario.
 
 Starting from identical pending Raw-to-Work triage, replay the dumb discovery
 tree once for each factory Nature leaf. At every split, replay
-`[?] I don't know`, verify
+`I don't [k]now`, verify
 the alternate probe and its branch equivalence, then use uncertainty again and
 verify that triage remains pending without creating a Brick. At a leaf, verify
 the Nature, decisive reason, final confirmation, `no` return to direct choice,
-`?` restart from Q0, and Escape return to the previous question. None may lose
+`k` restart from Q0, and Escape return to the previous question. None may lose
 the source Raw, create a Brick, record a domain event, or consume a draw.
 
 ## Day 2 — Importance and uncertainty
@@ -336,7 +336,7 @@ triads and prove both end through the same UX-O09 semantics.
 
 ### SCN-IMP-004 — Honest two-Brick importance aid
 
-From UX-O01 press question mark and traverse every IMP-040 leaf through
+From UX-O01 press the uncertainty shortcut and traverse every IMP-040 leaf through
 UX-O11. Verify that uncertainty at Q0 and Q2 may reach the same recovery as
 `no` without becoming negative evidence, while uncertainty at Q1, Q3, and
 Q6..Q8 uses an alternate probe and may remain pending. At Q4 and Q5, preserve
@@ -428,7 +428,7 @@ them, but no hidden Nth-draw service rule forces an outcome.
 ### SCN-FOC-003 — N-step blocker path
 
 Draw `#rlav "Release Little Ant v1"` and resolve through `#rio` to
-`#dtimc`. Validate UX-F03, local weighted branch evidence, complete `?`
+`#dtimc`. Validate UX-F03, local weighted branch evidence, complete `k`
 context, and no importance rewrite.
 
 Attach one Dependency to a decomposed parent and another to one child. Verify
@@ -494,18 +494,20 @@ source, several target pages, and UX-DM02 with and without organization work.
 
 ### SCN-FOC-006 — Honest Focus assistance
 
-From UX-F01 enter UX-F12 and traverse every FOC-048 branch. Exercise Q0 and Q2
-uncertainty converging on the same recovery as `no` without negative evidence;
-exercise Q1 and Q3 alternate probes and repeated pending uncertainty. Inspect
-the proposed Brick through `/show`, return to the exact checkpoint, and answer
-both enough and still unclear. The latter must open UX-S34 with `vague` and
+From UX-F01 enter UX-F12 and traverse every FOC-048 branch. Verify that Q0
+immediately shows the complete existing `/show` context, without asking whether
+reading will suffice. Exercise Q1 alternate probes and repeated pending
+uncertainty. Return to the exact checkpoint and answer both clear and still
+unclear after reading. The latter must open UX-S34 with `vague` and
 record nothing until a final vague reaction. Reject that result and verify the
 original proposal and random cursor remain intact.
 
 Open UX-F13 from ordinary, cross-Domain, and N-step blocker proposals. Verify
 the immutable strongest signal, bounded bonuses, admitted count, Domain or
 blocker path, branch alternatives, and replay identity against the recorded
-draw. Continue to Q4 and back to Q2 without recomputation. Exercise UX-196
+draw. Continue to clarity Q1 and back to context Q0 without recomputation.
+Verify that forecast inspection remains optional and that Q1 `yes` reaches
+separate Q4 consent without starting Focus. Exercise UX-196
 `understand_subject`, including inspection, restatement, and repeated pending
 uncertainty. At UX-F14,
 accept `yes` and verify the ordinary Focus and active-Domain transition;
@@ -518,6 +520,10 @@ reaction must preserve the prior focus and WIP. Accepting UX-F14 alone switches
 focus; accepting a final reaction for the proposed Brick defers only that
 proposal. Replay powered-up and Skill summaries without persuasion, hidden
 answers, automatic Focus, or a second draw.
+
+Resume a saved question-first Focus-assistance checkpoint from an older build.
+It must show the same Brick's context directly and restore the original
+proposal on reverse navigation, preserving all event and random state.
 
 ### SCN-FOC-007 — Fixed-point forecast calculation
 
@@ -577,11 +583,15 @@ state. Validate UX-F06, one current focus, honest WIP and focus-interval
 history, and unchanged Domain and importance. In a separate replay, select direct
 `done` from current focus and validate UX-F07: no intermediate confirmation,
 one atomic completion that closes the focus interval and clears focus, one
-stable `work_completed` result, and a contextual `/undo` that can restore the
-prior state when its preconditions still hold. Verify that the result performs
-no automatic draw, renders `[n]ext`, and enters the ordinary `next` pipeline
-only after `n`. Verify that this result contains no binary question or `no`
-action.
+stable `work_completed` result, and ordinary typed undo preconditions. In the
+REPL, verify that both `d` and `/done` advance once through the ordinary `next`
+pipeline, retaining a completion fact above the next opportunity until the
+next user interaction. Resize retains the fact; a following Work still asks
+for Focus consent, and an empty forecast shows UX-E00. Restart retains the
+already recorded successor without another draw; continuation failure keeps
+the committed result visible and retries only `next`. Separately verify that
+noninteractive completion returns its result with no automatic draw and that
+Repeatable return-policy questions are not skipped.
 
 Replay each WRK-139 command from valid and invalid state. `/focus` must start
 idle Work and resume WIP through the same Focus transition; `/pause` must

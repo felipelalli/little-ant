@@ -1,6 +1,8 @@
 module Main (main) where
 
+import Data.Aeson (encode, object, (.=))
 import Data.ByteString qualified as ByteString
+import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.IORef
 import Data.Map.Strict qualified as Map
@@ -14,8 +16,10 @@ import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
+import LittleAnt.Projection (renderCommandResult)
 import LittleAnt.Result
 import LittleAnt.Store
+import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -71,6 +75,25 @@ tests =
         Map.size (stateBricks (loadedState loaded)) @?= 1
         fmap brickStatus (Map.elems (stateBricks (loadedState loaded))) @?= [BrickDone]
         stateCurrentFocus (loadedState loaded) @?= Nothing
+    , testCase "direct done returns a durable completion result without drawing or focusing its successor" $ withHarness $ \environment -> do
+        _ <- createAtomicWork environment "complete this work"
+        _ <- createAtomicWorkBelow environment "offer this next"
+        proposal <- run environment (FocusCommand "#ctw") >>= interactionOf
+        focused <- answer environment proposal "focus.accept"
+        assertOpportunity "current focus" isCurrentFocus focused
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        completed <- run environment (DoneCommand Nothing) >>= interactionOf
+        assertOpportunity "completion result" isCompleted completed
+        after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        stateCurrentFocus (loadedState after) @?= Nothing
+        stateRandomCursors (loadedState after) @?= stateRandomCursors (loadedState before)
+        stateForecastSelections (loadedState after) @?= stateForecastSelections (loadedState before)
+        run environment NextCommand >>= interactionOf >>= (@?= completed)
+        next <- answer environment completed "next"
+        assertOpportunity "offered successor" isFocusProposal next
+        offered <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        stateCurrentFocus (loadedState offered) @?= Nothing
+        Map.size (stateForecastSelections (loadedState offered)) @?= Map.size (stateForecastSelections (loadedState after)) + 1
     , testCase "pending draft survives restart and local back/forward emit no events" $ withHarness $ \environment -> do
         fed <- run environment (FeedCommand "test" "draft me") >>= interactionOf
         choice <- answer environment fed "raw.materialize-work"
@@ -94,6 +117,189 @@ tests =
         loadedCursor loaded @?= cursorBefore
         stateEventCount (loadedState loaded) @?= 1
         stateBricks (loadedState loaded) @?= Map.empty
+    , testCase "inspection and typed-handle search leave the exact pending interaction and draws unchanged" $ withHarness $ \environment -> do
+        created <- createAtomicWork environment "inspect my brick"
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        brick <- case Map.elems (stateBricks (loadedState before)) of one : _ -> pure one; [] -> assertFailure "no Brick was materialized"
+        let handle = renderHandle BrickHandle (brickHandle brick)
+        shown <- run environment (ShowRawCommand handle CompleteView)
+        case shown of
+          ShowObjectResult{resultObjectTitle} -> resultObjectTitle @?= "Inspect my brick"
+          other -> assertFailure ("Brick inspection resolved the wrong object: " <> show other)
+        found <- run environment (SearchCommand handle)
+        case found of
+          SearchResult{resultSearchHits} -> fmap searchHitHandle resultSearchHits @?= [handle]
+          other -> assertFailure ("expected typed search results, got " <> show other)
+        _ <- run environment (ListCommand (Just "importance"))
+        scoped <- run environment (ListCommand (Just ("importance " <> handle)))
+        case scoped of ListResult{resultListEntries} -> fmap listEntryHandle resultListEntries @?= [handle]; other -> assertFailure (show other)
+        forecast <- run environment (ListCommand (Just "forecast"))
+        case forecast of
+          ListResult{resultListEntries, resultListCategories} -> do
+            let projectedRows = concatMap categoryRows resultListCategories
+                categoryRows (ListCategory _ children) = concatMap categoryRows children
+                categoryRows (ListItem row context children) = [row | not context] <> concatMap categoryRows children
+            mapM_ (\row -> assertBool "category grouping changed an exact forecast row" (any (\grouped -> listEntryHandle grouped == listEntryHandle row && listEntryDetails row `Text.isPrefixOf` listEntryDetails grouped) projectedRows)) resultListEntries
+            assertBool "forecast omitted a positive chance" (all (Text.isInfixOf "%" . listEntryDetails) resultListEntries)
+            case [row | row <- resultListEntries, listEntryHandle row == handle] of
+              [row] -> do
+                let details = listEntryDetails row
+                assertBool "forecast omitted sibling position" (("importance position " <> Text.pack (show (brickSiblingPosition brick))) `Text.isInfixOf` details)
+                assertBool "forecast omitted the root sibling context" ("parent: root" `Text.isInfixOf` details)
+                assertBool "forecast omitted importance confidence" ("importance confidence:" `Text.isInfixOf` details)
+              other -> assertFailure ("forecast omitted the inspected Brick: " <> show other)
+          other -> assertFailure (show other)
+        resumed <- run environment NextCommand >>= interactionOf
+        resumed @?= created
+        after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        loadedCursor after @?= loadedCursor before
+        stateRandomCursors (loadedState after) @?= stateRandomCursors (loadedState before)
+    , testCase "search and show retain completed Bricks for inspection" $ withHarness $ \environment -> do
+        created <- createAtomicWork environment "finished brick"
+        proposal <- answer environment created "next"
+        focused <- answer environment proposal "focus.accept"
+        _ <- answer environment focused "focus.done"
+        loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let handle = renderHandle BrickHandle (brickHandle (head (Map.elems (stateBricks (loadedState loaded)))))
+        found <- run environment (SearchCommand handle)
+        case found of SearchResult{resultSearchHits} -> length resultSearchHits @?= 1; other -> assertFailure (show other)
+        shown <- run environment (ShowRawCommand handle CompleteView)
+        case shown of ShowObjectResult{resultObjectDetails} -> assertBool "completion is absent" ("Status: done" `elem` resultObjectDetails); other -> assertFailure (show other)
+    , testCase "Focus uncertainty inspects exact Work context and the recorded draw before consent" $ withHarness $ \environment -> do
+        created <- createAtomicWork environment "understand this work"
+        proposal <- answer environment created "next"
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        compactDataset (appStore environment) >>= assertRight >>= (@?= before)
+        context <- answer environment proposal "focus.assistance"
+        assertFocusStep FocusInspectContext context
+        contentQuestion (envelopeContent context) @?= Nothing
+        palette <- answer environment context "palette.open"
+        palette @?= context
+        restored <- navigate environment context True
+        restored @?= proposal
+        contextAgain <- navigate environment restored False
+        contextAgain @?= context
+        proposalAgain <- answer environment contextAgain "focus.aid.back"
+        proposalAgain @?= proposal
+        _ <- navigate environment proposalAgain False
+        let brick = head (Map.elems (stateBricks (loadedState before)))
+        shown <- run environment (ShowRawCommand (renderHandle BrickHandle (brickHandle brick)) CompleteView)
+        let citation = Text.takeWhile (/= '\n') (renderCommandResult shown)
+        contentSubject (envelopeContent context) @?= Just citation
+        assertBool "assistance fabricated or truncated /show fields" (any (\body -> citation <> "\n\n" <> body == renderCommandResult shown) (contentBody (envelopeContent context)))
+        assertBool "context retained its duplicate /show heading" (not (any (Text.isPrefixOf citation) (contentBody (envelopeContent context))))
+        fmap actionLabel (take 2 (envelopeActions context)) @?= ["decide about focus", "back to suggestion"]
+        explanation <- answer environment context "focus.aid.explain"
+        assertFocusStep FocusExplainSelection explanation
+        fmap actionLabel (take 2 (envelopeActions explanation)) @?= ["decide about focus", "task context"]
+        fmap actionShortcut (take 3 (envelopeActions explanation)) @?= ["d", "t", "k"]
+        case envelopeOpportunity proposal of
+          FocusProposalOpportunity _ (Just selectionId) -> assertBool "explanation lost its immutable replay identity" (any (Text.isInfixOf (renderUUIDv7 selectionId)) (contentBody (envelopeContent explanation)))
+          other -> assertFailure ("expected a recorded selection: " <> show other)
+        backToContext <- answer environment explanation "focus.aid.back"
+        backToContext @?= context
+        explanationAgain <- answer environment backToContext "focus.aid.explain"
+        contentBody (envelopeContent explanationAgain) @?= contentBody (envelopeContent explanation)
+        restarted <- run environment NextCommand >>= interactionOf
+        restarted @?= explanationAgain
+        nested <- answer environment restarted "focus.aid.unknown"
+        assertFocusStep FocusSelectionUnderstood nested
+        clarity <- answer environment nested "focus.aid.yes"
+        assertFocusStep FocusContextUnderstood clarity
+        consent <- answer environment clarity "focus.aid.yes"
+        assertFocusStep FocusConfirmStart consent
+        after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        loadedState after @?= loadedState before
+        loadedCursor after @?= loadedCursor before
+        focused <- answer environment consent "focus.aid.yes"
+        assertOpportunity "accepted focus" isCurrentFocus focused
+    , testCase "Focus uncertainty stays bounded and vague confirmation records nothing" $ withHarness $ \environment -> do
+        created <- createAtomicWork environment "still unclear"
+        proposal <- answer environment created "next"
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        context <- answer environment proposal "focus.assistance"
+        clarity <- answer environment context "focus.aid.continue"
+        alternate <- answer environment clarity "focus.aid.unknown"
+        case envelopeOpportunity alternate of FocusAssistanceOpportunity _ _ FocusContextUnderstood True -> pure (); other -> assertFailure (show other)
+        pending <- answer environment alternate "focus.aid.unknown"
+        assertFocusStep FocusContextUnderstood pending
+        vague <- answer environment pending "focus.aid.no"
+        case envelopeOpportunity vague of WorkSkipConfirmationOpportunity _ _ VagueSymptom -> pure (); other -> assertFailure (show other)
+        assertBool "missing-understanding reason was omitted" (any (Text.isInfixOf "context was insufficient") (contentBody (envelopeContent vague)))
+        after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        loadedState after @?= loadedState before
+    , testCase "legacy Focus questions resume at context without another draw" $ withHarness $ \environment -> do
+        created <- createAtomicWork environment "legacy focus assistance"
+        proposal <- answer environment created "next"
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let brick = head (Map.elems (stateBricks (loadedState before)))
+            selection = case envelopeOpportunity proposal of FocusProposalOpportunity _ recorded -> recorded; _ -> Nothing
+            legacyEntry = makeFocusAssistanceEnvelope proposal (utcToZonedTime utc fixedTime) (loadedState before) brick selection FocusUnderstandWork False []
+        mapM_
+          ( \step -> do
+              let legacy = makeFocusAssistanceEnvelope legacyEntry (utcToZonedTime utc fixedTime) (loadedState before) brick selection step False []
+              LazyByteString.writeFile (storeRoot (appStore environment) </> "checkpoints" </> "pending-envelope.json") $
+                encode (object ["schema" .= ("little-ant/presentation-checkpoint@1" :: Text), "current" .= legacy, "back_stack" .= [legacyEntry, proposal], "forward_stack" .= ([] :: [InteractionEnvelope])])
+              context <- run environment NextCommand >>= interactionOf
+              assertFocusStep FocusInspectContext context
+              restarted <- run environment NextCommand >>= interactionOf
+              restarted @?= context
+              restored <- navigate environment restarted True
+              restored @?= proposal
+              after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+              loadedState after @?= loadedState before
+              loadedCursor after @?= loadedCursor before
+          )
+          [FocusUnderstandWork, FocusReviewContext, FocusUnderstandSelection, FocusReviewSelection]
+    , testCase "saved legacy shortcuts and duplicate context resume without another draw" $ withHarness $ \environment -> do
+        created <- createAtomicWork environment "resume existing context"
+        proposal <- answer environment created "next"
+        context <- answer environment proposal "focus.assistance"
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let legacyAction action = case actionId action of
+              "focus.aid.continue" -> action{actionLabel = "continue", actionShortcut = "c"}
+              "focus.aid.back" -> action{actionLabel = "back", actionShortcut = "b"}
+              _ | actionShortcut action == "k" -> action{actionShortcut = "?"}
+              _ -> action
+            legacy envelope = resealEnvelope envelope{envelopeActions = fmap legacyAction (envelopeActions envelope)}
+            oldContent = envelopeContent context
+            duplicate body = case contentSubject oldContent of Just subject | "Kind:" `Text.isPrefixOf` body -> subject <> "\n\n" <> body; _ -> body
+            oldContext = legacy context{envelopeContent = oldContent{contentBody = fmap duplicate (contentBody oldContent)}}
+        LazyByteString.writeFile (storeRoot (appStore environment) </> "checkpoints" </> "pending-envelope.json") $
+          encode (object ["schema" .= ("little-ant/presentation-checkpoint@1" :: Text), "current" .= oldContext, "back_stack" .= [legacy proposal], "forward_stack" .= ([] :: [InteractionEnvelope])])
+        resumed <- run environment NextCommand >>= interactionOf
+        envelopeOpportunity resumed @?= envelopeOpportunity context
+        envelopeContent resumed @?= envelopeContent context
+        envelopeActions resumed @?= envelopeActions context
+        assertBool "migration did not reseal the restored question" (envelopeIntegrityIsValid resumed)
+        restarted <- run environment NextCommand >>= interactionOf
+        restarted @?= resumed
+        returned <- answer environment resumed "focus.aid.back"
+        envelopeOpportunity returned @?= envelopeOpportunity proposal
+        fmap actionShortcut (envelopeActions returned) @?= fmap actionShortcut (envelopeActions proposal)
+        forward <- navigate environment returned False
+        forward @?= resumed
+        after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        loadedState after @?= loadedState before
+        loadedCursor after @?= loadedCursor before
+    , testCase "declining final Focus consent preserves unrelated current focus" $ withHarness $ \environment -> do
+        _ <- createAtomicWork environment "previous focus"
+        _ <- createAtomicWorkBelow environment "another proposal"
+        initial <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let first = head [brick | brick <- Map.elems (stateBricks (loadedState initial)), brickTitle brick == "Previous focus"]
+        firstProposal <- run environment (FocusCommand (renderHandle BrickHandle (brickHandle first))) >>= interactionOf
+        _ <- answer environment firstProposal "focus.accept"
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let another = head [brick | brick <- Map.elems (stateBricks (loadedState before)), Just (brickId brick) /= stateCurrentFocus (loadedState before)]
+        proposal <- run environment (FocusCommand (renderHandle BrickHandle (brickHandle another))) >>= interactionOf
+        context <- answer environment proposal "focus.assistance"
+        assertBool "manual Focus advertised lottery evidence" (all ((/= "focus.aid.explain") . actionId) (envelopeActions context))
+        clarity <- answer environment context "focus.aid.continue"
+        q4 <- answer environment clarity "focus.aid.yes"
+        symptoms <- answer environment q4 "focus.aid.no"
+        case envelopeOpportunity symptoms of WorkSkipDiscoveryOpportunity{} -> pure (); other -> assertFailure (show other)
+        after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        loadedState after @?= loadedState before
     , testCase "factory Nature tree reaches every leaf without ambiguity" $ do
         direct [True] @?= ScheduledCommitment
         direct [False, True, False] @?= AtomicTask
@@ -232,6 +438,26 @@ tests =
         loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
         let children = [brick | brick <- Map.elems (stateBricks (loadedState loaded)), brickParent brick == Just projectId]
         fmap brickTitle children @?= ["Write launch copy"]
+        let projectHandle = renderHandle BrickHandle (brickHandle (stateBricks (loadedState loaded) Map.! projectId))
+        listed <- run environment (ListCommand (Just ("importance " <> projectHandle)))
+        assertBool "project scope lost its branch connector" ("└──" `Text.isInfixOf` renderCommandResult listed)
+        case listed of
+          ListResult{resultListCategories = [ListCategory "Without a category" [ListItem project False [ListItem part False []]]]} -> do
+            listEntryHandle project @?= projectHandle
+            listEntryTitle part @?= "Write launch copy"
+          other -> assertFailure ("category grouping lost project/part structure: " <> show other)
+        case children of
+          [child] -> do
+            let childHandle = renderHandle BrickHandle (brickHandle child)
+            scoped <- run environment (ListCommand (Just ("importance " <> childHandle)))
+            case scoped of
+              ListResult{resultListEntries, resultListCategories} -> do
+                fmap listEntryTitle resultListEntries @?= ["Write launch copy"]
+                case resultListCategories of
+                  [ListCategory "Without a category" [ListItem row False []]] -> listEntryHandle row @?= childHandle
+                  other -> assertFailure ("category grouping leaked the parent outside the scope: " <> show other)
+              other -> assertFailure (show other)
+          _ -> assertFailure "expected one child for the scoped-tree check"
     , testCase "ordinary Brick destination distinguishes child Work from attached Raw" $ withHarness $ \environment -> do
         targetResult <- createAtomicWork environment "implement rock splitter"
         targetId <- case envelopeOpportunity targetResult of
@@ -433,6 +659,11 @@ direct = go (NatureDiscovery FixedTimeQuestion False [])
   go discovery (answerValue : rest) = case natureBranch discovery answerValue of
     Left (nature, _) -> if null rest then nature else error "Nature path continued after a leaf"
     Right question -> go (NatureDiscovery question False (discoveryHistory discovery <> [discoveryQuestion discovery])) rest
+
+assertFocusStep :: FocusAssistanceStep -> InteractionEnvelope -> Assertion
+assertFocusStep step envelope = case envelopeOpportunity envelope of
+  FocusAssistanceOpportunity _ _ actual _ -> actual @?= step
+  other -> assertFailure ("expected Focus assistance, got " <> show other)
 
 isRawTriage, isNatureChoice, isTemplateChoice, isCreated, isFocusProposal, isCurrentFocus, isCompleted :: Opportunity -> Bool
 isRawTriage RawTriageOpportunity{} = True

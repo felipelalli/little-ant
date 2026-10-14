@@ -12,6 +12,7 @@ test:
 
 cli-test: build
 	./test/e2e/s01-cli.sh
+	$(PYTHON) test/e2e/repl.py
 
 python-test:
 	$(PYTHON) -m unittest discover -s test/conformance -t .
@@ -20,12 +21,12 @@ spec-audit:
 	$(PYTHON) tools/lant_conformance.py audit
 
 coverage:
-	$(PYTHON) tools/lant_conformance.py coverage --output /tmp/little-ant-coverage.json
+	$(PYTHON) tools/lant_conformance.py coverage --output "$(or $(TMPDIR),/tmp)/little-ant-coverage.json"
 
 vocabulary:
 	$(PYTHON) tools/lant_conformance.py vocabulary
 
-pack-verify:
+pack-verify: build
 	cabal exec runghc -- $(PACK_TOOL_FLAGS) tools/rebuild-standard-pack.hs verify
 	cabal exec runghc -- $(PACK_TOOL_FLAGS) tools/rebuild-official-connectors-pack.hs verify
 	cabal exec runghc -- $(PACK_TOOL_FLAGS) tools/official-catalog.hs verify

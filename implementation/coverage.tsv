@@ -1,12 +1,12 @@
 gate	flow	owner_slice	status	evidence
-2	Shared frame and footer	S01	verified	S01-frame-surface
+2	Shared frame and footer	S01	implemented	-
 2	JSONL loading splash	S01	verified	S01-loading-splash
 2	Contextual personality	S11	planned	-
 2	Honest-answer assistance	S11	planned	-
 2	Palette/command escape	S01	verified	S01-contextual-palette
 2	Revision/stale response	S01	verified	S01-stale-revalidation
 2	Reference selection	S01	verified	S01-typed-reference
-3	Restore/startup to `next`	S01	verified	S01-restore-next
+3	Restore/startup to `next`	S01	implemented	-
 3	Pristine first start	S01	verified	S01-pristine-start
 3	Useful non-pristine empty	S04	planned	-
 3	Feed text input	S01	verified	S01-feed-input

@@ -12,6 +12,12 @@ module LittleAnt.REPL (
   packManagerModel,
   packPathEditorModel,
   paletteModel,
+  paletteCommandSelection,
+  browserModel,
+  documentModel,
+  ListView (..),
+  listModel,
+  viewportModel,
   progressModel,
   runRepl,
   runReplWithCommand,
@@ -23,20 +29,24 @@ import Control.Monad (void)
 import Data.ByteString qualified as ByteString
 import Data.Char (ord)
 import Data.IORef
-import Data.List (find, sortOn)
+import Data.List (find, findIndex, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as TextEncoding
 import Data.Text.IO qualified as Text
 import Graphics.Vty (Modifier (MCtrl), Vty, nextEvent, picForImage, shutdown, update)
+import Graphics.Vty qualified as Vty
 import Graphics.Vty.Config (defaultConfig)
 import Graphics.Vty.CrossPlatform qualified as CrossPlatform
+import Graphics.Vty.Output (Mode (Mouse), setMode)
 import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Import
 import LittleAnt.Interaction
+import LittleAnt.Markdown
 import LittleAnt.Model (Actor (actorProfile), SourceMode (..))
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
@@ -46,6 +56,7 @@ import LittleAnt.Result
 import LittleAnt.Source (SourceContainer (..))
 import LittleAnt.Surface
 import LittleAnt.Terminal
+import LittleAnt.Tree qualified as Tree
 import LittleAnt.Vault.Agent (wipeAgentSecret)
 import System.Environment (lookupEnv)
 import System.IO (hIsTerminalDevice, stdin, stdout)
@@ -57,13 +68,34 @@ data ReplScreen
   | PaletteScreen InteractionEnvelope Text Int PaletteReturn
   | PackManagerScreen InteractionEnvelope [PackProjection] (Maybe AppError) Int (Maybe Text)
   | PackPathEditor InteractionEnvelope PackPathPurpose EditorState (Maybe Text)
-  | PackDetailScreen InteractionEnvelope [PackProjection] (Maybe AppError) Int Text
   | ImportSourceScreen InteractionEnvelope [ImportCatalogChoice] Text Int (Maybe Text)
   | ImportPathEditor InteractionEnvelope ImportSourceDescriptor EditorState (Maybe Text)
   | ImportModeScreen InteractionEnvelope ImportSelection (Maybe Text)
   | ImportContainerScreen InteractionEnvelope ImportSelection SourceMode [SourceContainer] Int (Set.Set Text) (Maybe Text)
   | ProviderConnectionEditor InteractionEnvelope ProviderSourceDefinition ProviderConnectionInput EditorState (Maybe Text)
-  | ReadOnlyScreen InteractionEnvelope Text
+  | ListScreen ReplScreen ListView
+  | SearchEditor ReplScreen EditorState (Maybe Text)
+  | BrowserScreen ReplScreen Text [SearchHit] Text Int (Maybe Text)
+  | InspectionScreen ReplScreen SearchHit Text
+  | ReadOnlyScreen ReplScreen Text
+  | SuspendedScreen ReplScreen Int
+  | CompletionNoticeScreen Text ReplScreen
+  deriving stock (Eq, Show)
+
+-- Presentation state is kept across inspection and view changes, never as a
+-- semantic event or an additional forecast draw.
+data ListView = ListView
+  { listViewName :: Text
+  , listViewScope :: [Text]
+  , listViewEntries :: [ListRow]
+  , listViewCategories :: [ListTree]
+  , listViewGrouped :: Bool
+  , listViewQuery :: Text
+  , listViewSearching :: Bool
+  , listViewSelected :: Int
+  , listViewMessage :: Maybe Text
+  }
+  deriving stock (Eq, Show)
 
 data ImportCatalogChoice
   = ReadyImportSource ImportSourceDescriptor
@@ -89,9 +121,11 @@ data PackPathPurpose
 
 data PaletteReturn
   = ReturnToEnvelope
+  | ReturnToScreen ReplScreen
   | ReturnToPackManager [PackProjection] (Maybe AppError) Int
   | ReturnToImportMode ImportSelection
   | ReturnToImportContainers ImportSelection SourceMode [SourceContainer] Int (Set.Set Text)
+  deriving stock (Eq, Show)
 
 runRepl :: AppEnv -> IO ()
 runRepl environment = runReplWithCommand environment NextCommand
@@ -110,6 +144,8 @@ runReplWithCommand environment initialCommand = do
       Right result -> Text.putStrLn (renderCommandResult result)
   runInteractive vty = do
     color <- terminalColorMode
+    Vty.setMode (Vty.outputIface vty) Vty.BracketedPaste True
+    (width, height) <- Vty.displayBounds (Vty.outputIface vty)
     let interactiveEnvironment =
           environment
             { appProviderConnectionRuntime =
@@ -120,19 +156,56 @@ runReplWithCommand environment initialCommand = do
     result <- runAppCommand interactiveEnvironment False (showProgress vty color) initialCommand
     case result of
       Left problem -> paint vty color (errorModel problem) >> waitForExit vty
-      Right NextResult{resultInteraction} -> loop environmentRef vty color 80 (screenForEnvelope resultInteraction)
-      Right RepairResult{resultInteraction} -> loop environmentRef vty color 80 (screenForEnvelope resultInteraction)
+      Right NextResult{resultInteraction} -> do
+        screen <- presentCompletedEnvelope interactiveEnvironment resultInteraction
+        loop environmentRef vty color width height 0 screen
+      Right RepairResult{resultInteraction} -> loop environmentRef vty color width height 0 (screenForEnvelope resultInteraction)
       Right other -> paint vty color (textModel (renderCommandResult other)) >> waitForExit vty
 
-loop :: IORef AppEnv -> Vty -> ColorMode -> Int -> ReplScreen -> IO ()
-loop environmentRef vty color width screen = do
-  paint vty color (modelFor width screen)
+loop :: IORef AppEnv -> Vty -> ColorMode -> Int -> Int -> Int -> ReplScreen -> IO ()
+loop environmentRef vty color width height requestedOffset = \case
+  CompletionNoticeScreen receipt screen -> loopWithNotice environmentRef vty color width height requestedOffset (Just receipt) screen
+  screen -> loopWithNotice environmentRef vty color width height requestedOffset Nothing screen
+
+loopWithNotice :: IORef AppEnv -> Vty -> ColorMode -> Int -> Int -> Int -> Maybe Text -> ReplScreen -> IO ()
+loopWithNotice environmentRef vty color width height requestedOffset notice screen = do
+  setMode (Vty.outputIface vty) Mouse ((scrollable || selectable) && maximumOffset > 0)
+  paint vty color (viewportModel width height offset model)
   event <- nextEvent vty
   case eventToInput event of
-    Nothing -> loop environmentRef vty color width screen
-    Just (Resized nextWidth _) -> loop environmentRef vty color nextWidth screen
-    Just input -> transition input >>= maybe (pure ()) (loop environmentRef vty color width)
+    Nothing -> loopWithNotice environmentRef vty color width height offset notice screen
+    Just (Resized nextWidth nextHeight) -> loopWithNotice environmentRef vty color nextWidth nextHeight offset notice screen
+    Just (Printable 'f' modifiers)
+      | MCtrl `elem` modifiers
+      , not (isRepairScreen (screenEnvelope screen)) ->
+          case screen of
+            ListScreen previous view -> continue offset (ListScreen previous view{listViewSearching = not (listViewSearching view)})
+            SearchEditor{} -> continue offset screen
+            _ -> continue 0 (SearchEditor (SuspendedScreen screen offset) (EditorState "" "" Nothing) Nothing)
+    Just (PageUp _) | scrollable -> continue (max 0 (offset - max 1 (height - 10))) screen
+    Just (PageDown _) | scrollable -> continue (min maximumOffset (offset + max 1 (height - 10))) screen
+    Just (ArrowUp _) | scrollable -> continue (max 0 (offset - 1)) screen
+    Just (ArrowDown _) | scrollable -> continue (min maximumOffset (offset + 1)) screen
+    Just (WheelUp _) | scrollable -> continue (max 0 (offset - 3)) screen
+    Just (WheelDown _) | scrollable -> continue (min maximumOffset (offset + 3)) screen
+    Just (WheelUp modifiers) | selectable -> stepScreen (ArrowUp modifiers)
+    Just (WheelDown modifiers) | selectable -> stepScreen (ArrowDown modifiers)
+    Just (Home _) | scrollable -> continue 0 screen
+    Just (End _) | scrollable -> continue maximumOffset screen
+    Just input -> stepScreen input
  where
+  stepScreen input = transition input >>= maybe (pure ()) (\nextScreen -> continue (if selectionView nextScreen == selectionView screen then offset else 0) nextScreen)
+  selectionView (ListScreen previous view) = ListScreen previous view{listViewSelected = 0}
+  selectionView (BrowserScreen previous heading entries query _ message) = BrowserScreen previous heading entries query 0 message
+  selectionView other = other
+  continue _ (SuspendedScreen previous previousOffset) = loop environmentRef vty color width height previousOffset previous
+  continue nextOffset nextScreen = loop environmentRef vty color width height nextOffset nextScreen
+  model = prependCompletionNotice width notice (modelFor width screen)
+  (contentRows, _, bodyRoom, _) = viewportRows width height model
+  maximumOffset = max 0 (length contentRows - bodyRoom)
+  offset = viewportStart bodyRoom requestedOffset contentRows
+  scrollable = case screen of ReadOnlyScreen{} -> True; InspectionScreen{} -> True; EnvelopeScreen{} -> True; _ -> False
+  selectable = case screen of ListScreen{} -> True; BrowserScreen{} -> True; PaletteScreen{} -> True; PackManagerScreen{} -> True; ImportSourceScreen{} -> True; ImportContainerScreen{} -> True; _ -> False
   transition input = case screen of
     EnvelopeScreen envelope _ -> envelopeInput envelope input
     FeedEditor envelope editor message -> feedEditorInput envelope editor message input
@@ -140,28 +213,135 @@ loop environmentRef vty color width screen = do
     PaletteScreen envelope query selected target -> paletteInput envelope query selected target input
     PackManagerScreen envelope packs problem selected message -> packManagerInput envelope packs problem selected message input
     PackPathEditor envelope purpose editor message -> packPathInput envelope purpose editor message input
-    PackDetailScreen envelope packs problem selected _ -> case input of
-      Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
-      _ -> pure (Just (PackManagerScreen envelope packs problem selected Nothing))
     ImportSourceScreen envelope choices query selected message -> importSourceInput envelope choices query selected message input
     ImportPathEditor envelope descriptor editor message -> importPathInput envelope descriptor editor message input
     ImportModeScreen envelope selection message -> importModeInput envelope selection message input
     ImportContainerScreen envelope selection mode containers selected chosen message -> importContainerInput envelope selection mode containers selected chosen message input
     ProviderConnectionEditor envelope definition stage editor message -> providerConnectionInput envelope definition stage editor message input
-    ReadOnlyScreen envelope _ -> case input of
-      Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
-      Escape _ -> pure (Just (screenForEnvelope envelope))
-      Backspace _ -> pure (Just (screenForEnvelope envelope))
-      ArrowLeft _ -> pure (Just (screenForEnvelope envelope))
-      _ -> pure (Just (screenForEnvelope envelope))
+    ListScreen previous view -> listInput previous view input
+    SearchEditor previous editor message -> searchEditorInput previous editor message input
+    BrowserScreen previous heading entries query selected message -> browserInput previous heading entries query selected message input
+    InspectionScreen previous hit _ -> case input of
+      Printable 'f' [] | searchHitKind hit == "brick" -> runSimpleCommand (screenEnvelope previous) (FocusCommand (searchHitHandle hit))
+      Printable 'u' [] | searchHitKind hit == "brick" -> runSimpleCommand (screenEnvelope previous) (UpdateCommand (searchHitHandle hit) Nothing)
+      _ -> readOnlyInput previous input
+    ReadOnlyScreen previous _ -> readOnlyInput previous input
+    SuspendedScreen previous _ -> readOnlyInput previous input
+    CompletionNoticeScreen _ previous -> readOnlyInput previous input
+
+  readOnlyInput previous = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Escape _ -> pure (Just previous)
+    Backspace _ -> pure (Just previous)
+    ArrowLeft _ -> pure (Just previous)
+    _ -> pure (Just screen)
+
+  openList previous name =
+    runCurrent (ListCommand (Just name)) >>= \case
+      Left problem -> pure . Just $ ReadOnlyScreen previous (renderError problem)
+      Right ListResult{resultListName, resultListEntries, resultListCategories} ->
+        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing)
+      Right other -> pure . Just $ ReadOnlyScreen previous (renderCommandResult other)
+
+  listInput previous view input = case input of
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Escape _ | listViewSearching view || not (Text.null query) -> changed view{listViewQuery = "", listViewSearching = False, listViewSelected = 0}
+    Escape _ -> pure (Just previous)
+    Backspace _ | listViewSearching view -> search (Text.dropEnd 1 query)
+    Printable character [] | listViewSearching view -> search (query <> Text.singleton character)
+    Pasted material | listViewSearching view -> search (query <> material)
+    Printable 'v' [] ->
+      let name = if listViewName view == "importance" then "forecast" else "importance"
+       in runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view)))) >>= \case
+            Left problem -> changed view{listViewMessage = Just (appErrorMessage problem)}
+            Right ListResult{resultListEntries, resultListCategories} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories}
+            Right _ -> pure (Just screen)
+    Printable 't' [] -> preserve view{listViewGrouped = not (listViewGrouped view)}
+    Printable '/' [] -> pure . Just $ PaletteScreen (screenEnvelope previous) "/" 0 (ReturnToScreen screen)
+    Printable 'k' [] -> changed view{listViewMessage = Just "Importance is your sibling order. Forecast shows current chances. Categories group the same items; repeated references share one chance. Ctrl+F searches this list."}
+    ArrowLeft _ | not (listViewSearching view) -> pure (Just previous)
+    Backspace _ -> pure (Just previous)
+    ArrowUp _ -> select (selected - 1)
+    ArrowDown _ -> select (selected + 1)
+    PageUp _ -> select (selected - max 1 ((height - 10) `div` 3))
+    PageDown _ -> select (selected + max 1 ((height - 10) `div` 3))
+    Home _ -> select 0
+    End _ -> select lastIndex
+    Enter _ -> case safeIndex selected visible of
+      Nothing -> pure (Just screen)
+      Just hit ->
+        runCurrent (ShowRawCommand (searchHitHandle hit) CompleteView) >>= \case
+          Left problem -> changed view{listViewMessage = Just (appErrorMessage problem)}
+          Right result -> pure . Just $ InspectionScreen (SuspendedScreen screen offset) hit (renderCommandResult result)
+    _ -> pure (Just screen)
+   where
+    query = listViewQuery view
+    selected = listViewSelected view
+    visible = listViewHits view
+    lastIndex = max 0 (length visible - 1)
+    changed next = pure . Just $ ListScreen previous next
+    select index = changed view{listViewSelected = max 0 (min lastIndex index), listViewMessage = Nothing}
+    search text = changed view{listViewQuery = text, listViewSelected = 0, listViewMessage = Nothing}
+    preserve next =
+      let currentHandle = searchHitHandle <$> safeIndex selected visible
+          index = fromMaybe 0 (currentHandle >>= \identity -> findIndex ((== identity) . searchHitHandle) (listViewHits next))
+       in changed next{listViewSelected = index, listViewMessage = Nothing}
+
+  searchEditorInput previous editor _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable character [] -> changed (InsertText (Text.singleton character))
+    Pasted material -> changed (InsertText material)
+    Backspace _ | Text.null (editorText editor) -> pure (Just previous)
+    Backspace _ -> changed DeleteBackward
+    Delete _ -> changed DeleteForward
+    ArrowLeft _ -> changed MoveEditorLeft
+    ArrowRight _ -> changed MoveEditorRight
+    Escape _ -> pure (Just previous)
+    Enter _ -> runSearchFrom previous (editorText editor)
+    _ -> pure (Just screen)
+   where
+    changed command = pure . Just $ SearchEditor previous (applyEditorCommand command editor) Nothing
+
+  runSearchFrom previous query =
+    runCurrent (SearchCommand query) >>= \case
+      Left problem -> pure . Just $ SearchEditor previous (EditorState query "" Nothing) (Just (appErrorMessage problem))
+      Right SearchResult{resultSearchHits} -> pure . Just $ BrowserScreen previous ("Search: " <> Text.strip query) resultSearchHits "" 0 Nothing
+      Right other -> pure . Just $ ReadOnlyScreen previous (renderCommandResult other)
+
+  browserInput previous heading entries query selected _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Escape _ -> pure (Just previous)
+    ArrowLeft _ -> pure (Just previous)
+    Backspace _ | Text.null query -> pure (Just previous)
+    Backspace _ -> changed (Text.dropEnd 1 query) 0
+    Printable character [] -> changed (query <> Text.singleton character) 0
+    Pasted material -> changed (query <> material) 0
+    ArrowUp _ -> changed query (max 0 (selected - 1))
+    ArrowDown _ -> changed query (min lastIndex (selected + 1))
+    PageUp _ -> changed query (max 0 (selected - max 1 ((height - 10) `div` 3)))
+    PageDown _ -> changed query (min lastIndex (selected + max 1 ((height - 10) `div` 3)))
+    Home _ -> changed query 0
+    End _ -> changed query lastIndex
+    Enter _ -> case safeIndex selected visible of
+      Nothing -> pure (Just screen)
+      Just hit ->
+        runCurrent (ShowRawCommand (searchHitHandle hit) CompleteView) >>= \case
+          Left problem -> pure . Just $ BrowserScreen previous heading entries query selected (Just (appErrorMessage problem))
+          Right result -> pure . Just $ InspectionScreen (SuspendedScreen screen offset) hit (renderCommandResult result)
+    _ -> pure (Just screen)
+   where
+    visible = browserHits heading query entries
+    lastIndex = max 0 (length visible - 1)
+    changed nextQuery nextSelected = pure . Just $ BrowserScreen previous heading entries nextQuery nextSelected Nothing
 
   envelopeInput envelope = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable 'q' [] | all ((/= "q") . actionShortcut) (envelopeActions envelope) -> pure Nothing
     Printable character [] -> dispatchShortcut envelope (Text.singleton character)
     Enter [] -> dispatchShortcut envelope "*"
     Escape _ | isRepairScreen envelope -> pure Nothing
     Escape _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
-    Escape _ -> navigate envelope True
+    Escape _ -> navigateOrExit envelope
     Backspace _ | isRepairScreen envelope -> pure Nothing
     Backspace _ | ProviderConnectionOpportunity{} <- envelopeOpportunity envelope -> invokeAction envelope "provider.connect.back"
     Backspace _ -> navigate envelope True
@@ -179,7 +359,7 @@ loop environmentRef vty color width screen = do
         pure (Just (FeedEditor envelope (EditorState "" "" Nothing) Nothing))
       Right GuidedAccepted{guidedOutcome = OpenCommandPalette} ->
         pure (Just (PaletteScreen envelope "/" 0 ReturnToEnvelope))
-      Right GuidedAccepted{guidedOutcome = InvokeNext} -> runNextFrom envelope
+      -- The next response advances a checkpoint; startup NextCommand restores it.
       Right GuidedAccepted{guidedActionId} -> invokeAction envelope guidedActionId
 
   invokeAction envelope action =
@@ -196,9 +376,17 @@ loop environmentRef vty color width screen = do
           Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
           Right result -> screenFromResult envelope result
 
+  navigateOrExit envelope =
+    runCurrent (NavigateBackCommand (interactionResponse envelope "navigation.back")) >>= \case
+      Left problem -> pure . Just $ EnvelopeScreen envelope (Just (appErrorMessage problem))
+      Right RespondResult{resultInteraction}
+        | resultInteraction == envelope, isMainOpportunity (envelopeOpportunity envelope) -> pure Nothing
+      Right result -> screenFromResult envelope result
+
   feedEditorInput envelope editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable character [] -> pure . Just $ FeedEditor envelope (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Pasted material -> pure . Just $ FeedEditor envelope (applyEditorCommand (InsertText material) editor) Nothing
     Enter [] -> submitFeed envelope editor
     Escape _ -> pure (Just (screenForEnvelope envelope))
     Backspace _
@@ -212,6 +400,7 @@ loop environmentRef vty color width screen = do
   interactionEditorInput envelope action editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable character [] -> pure . Just $ InteractionEditor envelope action (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Pasted material -> pure . Just $ InteractionEditor envelope action (applyEditorCommand (InsertText material) editor) Nothing
     Enter [] -> submitInteractionText envelope action editor
     Escape _ -> navigate envelope True
     Backspace _
@@ -229,8 +418,13 @@ loop environmentRef vty color width screen = do
       | Text.length query <= 1 -> pure (Just (paletteReturnScreen envelope target))
       | otherwise -> pure . Just $ PaletteScreen envelope (Text.dropEnd 1 query) 0 target
     Printable character [] -> pure . Just $ PaletteScreen envelope (query <> Text.singleton character) 0 target
+    Pasted material -> pure . Just $ PaletteScreen envelope (query <> material) 0 target
     ArrowUp _ -> pure . Just $ PaletteScreen envelope query (max 0 (selected - 1)) target
     ArrowDown _ -> pure . Just $ PaletteScreen envelope query (min (max 0 (length (filteredCommands envelope query) - 1)) (selected + 1)) target
+    Home _ -> pure . Just $ PaletteScreen envelope query 0 target
+    End _ -> pure . Just $ PaletteScreen envelope query (max 0 (length (filteredCommands envelope query) - 1)) target
+    PageUp _ -> pure . Just $ PaletteScreen envelope query (max 0 (selected - 10)) target
+    PageDown _ -> pure . Just $ PaletteScreen envelope query (min (max 0 (length (filteredCommands envelope query) - 1)) (selected + 10)) target
     Enter _ -> runPaletteCommand envelope query selected target
     _ -> pure (Just screen)
 
@@ -240,7 +434,7 @@ loop environmentRef vty color width screen = do
         runCurrent (FeedCommand "repl" material) >>= \case
           Left problem -> pure . Just $ FeedEditor envelope editor (Just (appErrorMessage problem))
           Right FeedResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
-          Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
+          Right other -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
    where
     material = editorText editor
 
@@ -256,20 +450,18 @@ loop environmentRef vty color width screen = do
    where
     material = editorText editor
 
-  runNextFrom envelope =
-    runCurrent NextCommand >>= \case
-      Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
-      Right NextResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
-      Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
-
   screenFromResult envelope = \case
     RespondResult{resultInteraction} -> refreshAndShow resultInteraction
     NextResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     FeedResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     RepairResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
-    other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
+    UndoResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
+    other -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
 
   refreshAndShow envelope = case envelopeOpportunity envelope of
+    CompletionResultOpportunity{} -> do
+      current <- readIORef environmentRef
+      Just <$> presentCompletedEnvelope current envelope
     ProviderConnectionResultOpportunity source accountName _ ->
       reloadCurrentEnvironment >>= \case
         Left problem -> pure . Just $ EnvelopeScreen envelope (Just ("The provider connected, but this REPL could not reload its import catalog: " <> appErrorMessage problem))
@@ -286,27 +478,46 @@ loop environmentRef vty color width screen = do
               Right refreshed -> writeIORef environmentRef (withInteractiveCredentialInput refreshed) >> pure (Just (screenForEnvelope envelope))
       | otherwise -> pure (Just (screenForEnvelope envelope))
 
-  runPaletteCommand envelope query selected target = case safeIndex selected (filteredCommands envelope query) of
+  runPaletteCommand envelope query selected target = case paletteCommandSelection envelope query selected of
     Nothing -> pure (Just (PaletteScreen envelope query selected target))
     Just command -> case commandOptionId command of
       "feed" -> pure (Just (FeedEditor envelope (EditorState "" "" Nothing) Nothing))
       "exit" -> pure Nothing
       "show" -> runShowCommand envelope command
+      "list" -> case Text.words (commandOptionCommand command) of
+        _ : names@(_ : _) -> openList previous (Text.unwords names)
+        _ -> openList previous "importance"
+      "search" -> case Text.words (commandOptionCommand command) of
+        _ : terms@(_ : _) -> runSearchFrom previous (Text.unwords terms)
+        _ -> pure . Just $ SearchEditor previous (EditorState "" "" Nothing) Nothing
       "help" -> pure (Just (paletteReadOnlyScreen envelope target helpText))
       "undo" -> runSimpleCommand envelope UndoCommand
       "redo" -> runSimpleCommand envelope RedoCommand
       "pause" -> runSimpleCommand envelope PauseCommand
       "history" -> runSimpleCommand envelope (HistoryCommand Nothing)
       "doctor" -> runSimpleCommand envelope DoctorCommand
+      "config" -> runSimpleCommand envelope ConfigShowCommand
+      "notices" -> runSimpleCommand envelope NoticesCommand
+      "order" -> runSimpleCommand envelope (OrderCommand (commandReference command))
+      "done" -> runBrickCommand envelope command (DoneCommand . Just)
+      "focus" -> runBrickCommand envelope command FocusCommand
+      "finish" -> runBrickCommand envelope command FinishCommand
+      "return" -> runBrickCommand envelope command (ReturnToIdleCommand . Just)
+      "impact" -> runBrickCommand envelope command ImpactCommand
+      "effort" -> runBrickCommand envelope command EffortCommand
+      "phase" -> runBrickCommand envelope command PhaseCommand
       "packs" -> openPackManager envelope
       "import" -> openImportSourceSelector envelope Nothing
       "break" -> runBrickCommand envelope command BreakCommand
       "archive" -> runBrickCommand envelope command ArchiveCommand
       "restore" -> runBrickCommand envelope command RestoreCommand
-      "update" -> runBrickCommand envelope command (\reference -> UpdateCommand reference Nothing)
+      "update" -> runBrickCommand envelope command (`UpdateCommand` Nothing)
       "translate" -> runSimpleCommand envelope (TranslateCommand Nothing)
       "tie-break" -> runSimpleCommand envelope TieBreakCommand
       _ -> pure (Just (EnvelopeScreen envelope (Just "That command is not implemented yet.")))
+   where
+    previous = paletteReturnScreen envelope target
+    commandReference command = case Text.words (commandOptionCommand command) of _ : terms@(_ : _) -> Just (Text.unwords terms); _ -> Nothing
 
   openImportSourceSelector envelope message = do
     current <- readIORef environmentRef
@@ -361,6 +572,7 @@ loop environmentRef vty color width screen = do
   importPathInput envelope descriptor editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable character [] -> pure . Just $ ImportPathEditor envelope descriptor (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Pasted material -> pure . Just $ ImportPathEditor envelope descriptor (applyEditorCommand (InsertText material) editor) Nothing
     Enter [] ->
       let reference = Text.strip (editorText editor)
        in if Text.null reference
@@ -380,9 +592,9 @@ loop environmentRef vty color width screen = do
   importModeInput envelope selection _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable 's' [] -> chooseImportMode envelope selection SourceSnapshot
-    Printable 'k' [] -> chooseImportMode envelope selection SourceSynchronize
+    Printable 'y' [] -> chooseImportMode envelope selection SourceSynchronize
     Printable 'm' [] -> chooseImportMode envelope selection SourceMigrate
-    Printable '?' [] -> pure . Just $ ImportModeScreen envelope selection (Just "Snapshot copies what exists now. Keep synchronizing observes later changes. Migrate prepares a verified move away from the source; cleanup is always a later separate decision.")
+    Printable 'k' [] -> pure . Just $ ImportModeScreen envelope selection (Just "Snapshot copies what exists now. Keep synchronizing observes later changes. Migrate prepares a verified move away from the source; cleanup is always a later separate decision.")
     Printable '/' [] -> pure . Just $ PaletteScreen envelope "/" 0 (ReturnToImportMode selection)
     Enter _ -> pure . Just $ ImportModeScreen envelope selection (Just "Choose one explicit mode; this screen has no default.")
     Escape _ -> openImportSourceSelector envelope Nothing
@@ -426,7 +638,7 @@ loop environmentRef vty color width screen = do
           runCurrent (ImportCommand (importSelectionReference selection) mode (Set.toAscList chosen) False) >>= \case
             Left problem -> pure . Just $ ImportContainerScreen envelope selection mode containers selected chosen (Just (appErrorMessage problem))
             Right result -> screenFromResult envelope result
-    Printable '?' [] ->
+    Printable 'k' [] ->
       pure . Just $
         ImportContainerScreen
           envelope
@@ -450,6 +662,7 @@ loop environmentRef vty color width screen = do
   providerConnectionInput envelope definition stage editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable character [] -> pure . Just $ ProviderConnectionEditor envelope definition stage (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Pasted material -> pure . Just $ ProviderConnectionEditor envelope definition stage (applyEditorCommand (InsertText material) editor) Nothing
     Enter [] -> submitProviderConnectionField envelope definition stage editor
     Escape _ -> backFromProviderConnectionField envelope definition stage
     Backspace _
@@ -500,7 +713,7 @@ loop environmentRef vty color width screen = do
       Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
       Right PacksResult{resultPacks, resultPacksProblem} ->
         pure (Just (PackManagerScreen envelope resultPacks resultPacksProblem 0 Nothing))
-      Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
+      Right other -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
 
   packManagerInput envelope packs problem selected _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -531,14 +744,14 @@ loop environmentRef vty color width screen = do
               Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
               Right PacksResult{resultPacks, resultPacksProblem} ->
                 pure (Just (PackManagerScreen envelope resultPacks resultPacksProblem 0 (Just (catalogRefreshMessage result))))
-              Right other -> pure (Just (ReadOnlyScreen envelope (renderCommandResult other)))
+              Right other -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
 
   showSelectedPack envelope packs problem selected = case safeIndex selected packs of
     Nothing -> pure (Just (PackManagerScreen envelope packs problem selected (Just "No Pack is selected.")))
     Just pack ->
       runCurrent (PacksShowCommand (projectedPackName pack)) >>= \case
         Left failure -> pure (Just (PackManagerScreen envelope packs problem selected (Just (appErrorMessage failure))))
-        Right result -> pure (Just (PackDetailScreen envelope packs problem selected (renderCommandResult result)))
+        Right result -> pure (Just (ReadOnlyScreen (PackManagerScreen envelope packs problem selected Nothing) (renderCommandResult result)))
 
   updateSelectedPack envelope packs problem selected = case safeIndex selected packs of
     Nothing -> pure (Just (PackManagerScreen envelope packs problem selected (Just "No Pack is selected.")))
@@ -568,6 +781,7 @@ loop environmentRef vty color width screen = do
   packPathInput envelope purpose editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable character [] -> pure . Just $ PackPathEditor envelope purpose (applyEditorCommand (InsertText (Text.singleton character)) editor) Nothing
+    Pasted material -> pure . Just $ PackPathEditor envelope purpose (applyEditorCommand (InsertText material) editor) Nothing
     Enter [] -> submitPackPath envelope purpose editor
     Escape _ -> openPackManager envelope
     Backspace _
@@ -600,13 +814,13 @@ loop environmentRef vty color width screen = do
 
   runShowCommand envelope command =
     let reference = Text.drop 6 (commandOptionCommand command)
-     in runCurrent (ShowRawCommand reference GuidedView) >>= \case
+     in runCurrent (ShowRawCommand reference CompleteView) >>= \case
           Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
-          Right result -> pure (Just (ReadOnlyScreen envelope (renderCommandResult result)))
+          Right result -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult result)))
 
   runBrickCommand envelope command constructor =
     case Text.words (commandOptionCommand command) of
-      _ : reference : _ -> runSimpleCommand envelope (constructor reference)
+      _ : references@(_ : _) -> runSimpleCommand envelope (constructor (Text.unwords references))
       _ -> pure (Just (EnvelopeScreen envelope (Just "Choose a Brick reference for this command.")))
 
   runCurrent command =
@@ -630,6 +844,27 @@ isRepairScreen envelope = case envelopeOpportunity envelope of
   RepairPreviewOpportunity{} -> True
   RepairCandidateOpportunity{} -> True
   _ -> False
+
+screenEnvelope :: ReplScreen -> InteractionEnvelope
+screenEnvelope = \case
+  EnvelopeScreen envelope _ -> envelope
+  FeedEditor envelope _ _ -> envelope
+  InteractionEditor envelope _ _ _ -> envelope
+  PaletteScreen envelope _ _ _ -> envelope
+  PackManagerScreen envelope _ _ _ _ -> envelope
+  PackPathEditor envelope _ _ _ -> envelope
+  ImportSourceScreen envelope _ _ _ _ -> envelope
+  ImportPathEditor envelope _ _ _ -> envelope
+  ImportModeScreen envelope _ _ -> envelope
+  ImportContainerScreen envelope _ _ _ _ _ _ -> envelope
+  ProviderConnectionEditor envelope _ _ _ _ -> envelope
+  ListScreen previous _ -> screenEnvelope previous
+  SearchEditor previous _ _ -> screenEnvelope previous
+  BrowserScreen previous _ _ _ _ _ -> screenEnvelope previous
+  InspectionScreen previous _ _ -> screenEnvelope previous
+  ReadOnlyScreen previous _ -> screenEnvelope previous
+  SuspendedScreen previous _ -> screenEnvelope previous
+  CompletionNoticeScreen _ previous -> screenEnvelope previous
 
 refreshesPackRegistry :: Opportunity -> Bool
 refreshesPackRegistry = \case
@@ -656,19 +891,30 @@ screenForEnvelope envelope = case envelopeOpportunity envelope of
   UpdateTextOpportunity _ _ _ draft -> InteractionEditor envelope "update.text.submit" (selectedEditor draft) Nothing
   _ -> EnvelopeScreen envelope Nothing
 
+-- Advance only the already committed completion checkpoint. The usual
+-- response pipeline records the next draw, and never accepts its Focus offer.
+presentCompletedEnvelope :: AppEnv -> InteractionEnvelope -> IO ReplScreen
+presentCompletedEnvelope environment envelope = case envelopeOpportunity envelope of
+  CompletionResultOpportunity{} ->
+    runAppCommand environment False (const (pure ())) (RespondCommand (interactionResponse envelope "next")) >>= \case
+      Left problem -> pure (EnvelopeScreen envelope (Just ("Work completed. Could not get the next opportunity: " <> appErrorMessage problem <> " Press n to retry.")))
+      Right RespondResult{resultInteraction} -> pure (CompletionNoticeScreen receipt (screenForEnvelope resultInteraction))
+      Right other -> pure (CompletionNoticeScreen receipt (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
+  _ -> pure (screenForEnvelope envelope)
+ where
+  receipt = "✓ Completed: " <> Text.intercalate " " (take 1 (contentBody (envelopeContent envelope)))
+
 paletteReturnScreen :: InteractionEnvelope -> PaletteReturn -> ReplScreen
 paletteReturnScreen envelope = \case
   ReturnToEnvelope -> screenForEnvelope envelope
+  ReturnToScreen previous -> previous
   ReturnToPackManager packs problem selected -> PackManagerScreen envelope packs problem selected Nothing
   ReturnToImportMode selection -> ImportModeScreen envelope selection Nothing
   ReturnToImportContainers selection mode containers selected chosen -> ImportContainerScreen envelope selection mode containers selected chosen Nothing
 
 paletteReadOnlyScreen :: InteractionEnvelope -> PaletteReturn -> Text -> ReplScreen
-paletteReadOnlyScreen envelope target text = case target of
-  ReturnToEnvelope -> ReadOnlyScreen envelope text
-  ReturnToPackManager packs problem selected -> PackDetailScreen envelope packs problem selected text
-  ReturnToImportMode selection -> ImportModeScreen envelope selection (Just text)
-  ReturnToImportContainers selection mode containers selected chosen -> ImportContainerScreen envelope selection mode containers selected chosen (Just text)
+paletteReadOnlyScreen envelope target =
+  ReadOnlyScreen (paletteReturnScreen envelope target)
 
 interactionResponse :: InteractionEnvelope -> Text -> InteractionResponse
 interactionResponse envelope action =
@@ -687,15 +933,182 @@ modelFor width = \case
   PaletteScreen envelope query selected _ -> paletteModelAtWidth width envelope query selected
   PackManagerScreen envelope packs problem selected message -> packManagerModelAtWidth width envelope packs problem selected message
   PackPathEditor envelope purpose editor message -> packPathEditorModelAtWidth width envelope purpose editor message
-  PackDetailScreen envelope _ _ _ text ->
-    ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return to Packs."], []] <> footerFrom width envelope) Nothing
   ImportSourceScreen envelope choices query selected message -> importSourceModelAtWidth width envelope choices query selected message
   ImportPathEditor envelope descriptor editor message -> importPathEditorModelAtWidth width envelope descriptor editor message
   ImportModeScreen envelope selection message -> importModeModelAtWidth width envelope selection message
   ImportContainerScreen envelope selection mode containers selected chosen message -> importContainerModelAtWidth width envelope selection mode containers selected chosen message
   ProviderConnectionEditor envelope definition stage editor message -> providerConnectionEditorModelAtWidth width envelope definition stage editor message
-  ReadOnlyScreen envelope text ->
-    ScreenModel (fmap (pure . Span Normal) (Text.lines text) <> [[], [Span Dim "Press any key to return."], []] <> footerFrom width envelope) Nothing
+  ListScreen previous view -> listModel width (screenEnvelope previous) view
+  SearchEditor previous editor message -> editorModel width (screenEnvelope previous) "Search" "Search titles, contents, or typed handles such as #brick and +raw." editor message
+  BrowserScreen previous heading entries query selected message -> browserModel width (screenEnvelope previous) heading entries query selected message
+  InspectionScreen previous hit text -> documentModel width (screenEnvelope previous) text (if searchHitKind hit == "brick" then "[f] focus · [u] update · ↑/↓ scroll · Esc back" else "↑/↓ scroll · PgUp/PgDn page · Esc back")
+  ReadOnlyScreen previous text -> documentModel width (screenEnvelope previous) text "↑/↓ scroll · PgUp/PgDn page · Esc back"
+  SuspendedScreen previous _ -> modelFor width previous
+  CompletionNoticeScreen receipt previous -> prependCompletionNotice width (Just receipt) (modelFor width previous)
+
+listHit :: ListRow -> SearchHit
+listHit row = SearchHit kind (listEntryHandle row) (listEntryTitle row) (listEntryDetails row)
+ where
+  kind
+    | "+" `Text.isPrefixOf` listEntryHandle row = "raw"
+    | "#" `Text.isPrefixOf` listEntryHandle row = "brick"
+    | otherwise = "external_effect"
+
+listViewRows :: ListView -> [(Text, Text, SearchHit)]
+listViewRows view
+  | listViewGrouped view = Tree.treeRows (Tree.filterForest matches (fmap categoryTree (listViewCategories view)))
+  | listViewName view == "importance" = importanceTreeRows query entries
+  | otherwise = [("", "", hit) | hit <- filteredHits query entries]
+ where
+  query = listViewQuery view
+  entries = fmap listHit (listViewEntries view)
+  matches = not . null . filteredHits query . pure
+  categoryTree (ListCategory label children) = Tree.Node (SearchHit "category" "" label "") (categoryTree <$> children)
+  categoryTree (ListItem row _ children) = Tree.Node (listHit row) (categoryTree <$> children)
+
+listViewHits :: ListView -> [SearchHit]
+listViewHits view = [hit | (_, _, hit) <- listViewRows view, searchHitKind hit /= "category"]
+
+listModel :: Int -> InteractionEnvelope -> ListView -> ScreenModel
+listModel width envelope view = ScreenModel (content <> pinned) Nothing
+ where
+  heading = if listViewName view == "importance" then "Importance order" else "Focus forecast"
+  rows = listViewRows view
+  indices = scanl (\index (_, _, hit) -> index + if searchHitKind hit == "category" then 0 else 1) 0 rows
+  content =
+    styledLines Heading (heading <> if listViewGrouped view then " · Categories + parts" else "")
+      <> concat [styledLines Dim ("Scope: " <> Text.unwords (listViewScope view)) | not (null (listViewScope view))]
+      <> concat [styledLines Dim "Chances apply when next draws flexible work." | listViewName view == "forecast"]
+      <> styledLines Dim "Positions are local to each sibling group."
+      <> [[Span Accent "Search: ", Span Normal (listViewQuery view <> if listViewSearching view then "▏" else "")] | listViewSearching view || not (Text.null (listViewQuery view))]
+      <> [[]]
+      <> (if null rows then [[Span Dim "No matches."]] else concat (zipWith (renderBrowserHit width True (listViewSelected view)) indices rows))
+      <> maybe [] (fmap (pure . Span Warning) . wrapWords width) (listViewMessage view)
+  hints
+    | listViewSearching view = ["Type to search · ↑/↓ select", "Ctrl+F finish · Enter inspect", "Esc clear search"]
+    | width < 50 = [viewHint, treeHint, "Ctrl+F search · Enter show", "↑/↓ select · " <> escapeHint]
+    | otherwise = [viewHint <> " · " <> treeHint <> " · Ctrl+F search", "↑/↓ select · Enter inspect · " <> escapeHint <> " · [/] more"]
+  viewHint = "[v] " <> if listViewName view == "importance" then "forecast" else "importance"
+  treeHint = "[t] categories " <> if listViewGrouped view then "off" else "on"
+  escapeHint = if Text.null (listViewQuery view) then "Esc back" else "Esc clear search"
+  footer = footerFrom width envelope
+  pinned = take 1 footer <> concatMap (fmap (pure . Span Dim) . wrapWords width) hints <> drop 1 footer
+  styledLines role = fmap (pure . Span role) . wrapWords width
+
+filteredHits :: Text -> [SearchHit] -> [SearchHit]
+filteredHits query = filter matches
+ where
+  needle = Text.toCaseFold (Text.unwords (Text.words query))
+  matches hit = Text.null needle || needle `Text.isInfixOf` Text.toCaseFold (searchHitHandle hit <> " " <> searchHitTitle hit <> " " <> searchHitDetails hit)
+
+browserHits :: Text -> Text -> [SearchHit] -> [SearchHit]
+browserHits heading query entries
+  | heading == "Importance order" = [hit | (_, _, hit) <- importanceTreeRows query entries]
+  | otherwise = filteredHits query entries
+
+importanceTreeRows :: Text -> [SearchHit] -> [(Text, Text, SearchHit)]
+importanceTreeRows query = Tree.treeRows . Tree.filterForest (not . null . filteredHits query . pure) . Tree.fromIndentedLabels searchHitTitle
+
+browserModel :: Int -> InteractionEnvelope -> Text -> [SearchHit] -> Text -> Int -> Maybe Text -> ScreenModel
+browserModel width envelope heading entries query selected message =
+  ScreenModel
+    ( [[Span Normal heading]]
+        <> [ [Span Dim line]
+           | heading == "Focus forecast"
+           , line <- ["Chances apply when next draws flexible work.", "Importance positions are local to each sibling group."]
+           ]
+        <> [[Span Dim "Filter: ", Span Normal query], []]
+        <> (if null visible then [[Span Dim "No matches."]] else concat (zipWith (renderBrowserHit width (heading == "Importance order") selected) [0 ..] rows))
+        <> maybe [] (\note -> [] : fmap (pure . Span Warning) (wrapWords width note)) message
+        <> [[]]
+        <> fmap (pure . Span Dim) (wrapWords width ("Showing " <> Text.pack (show (length visible)) <> " of " <> Text.pack (show (length entries)) <> " · Type to filter"))
+        <> fmap (pure . Span Dim) (wrapWords width "↑/↓ select · Enter inspect · Esc back")
+        <> [[]]
+        <> footerFrom width envelope
+    )
+    Nothing
+ where
+  rows
+    | heading == "Importance order" = importanceTreeRows query entries
+    | otherwise = [("", "", hit) | hit <- filteredHits query entries]
+  visible = [hit | (_, _, hit) <- rows]
+renderBrowserHit :: Int -> Bool -> Int -> Int -> (Text, Text, SearchHit) -> [ScreenLine]
+renderBrowserHit width tree selected index (prefix, continuation, hit)
+  | searchHitKind hit == "category" = [[Span Dim ("  " <> prefix), Span Heading (searchHitTitle hit)], [Span Dim ("  " <> continuation)]]
+  | otherwise =
+      let role = if index == selected then Selected else Normal
+          label = Text.dropWhile (== ' ') (searchHitTitle hit)
+          cursor = if index == selected then "> " else "  "
+          titlePrefix = cursor <> prefix <> searchHitHandle hit <> " "
+          labelRoom = width - textDisplayWidth titlePrefix
+          detailPrefix = if Text.null continuation then "    " else "  " <> continuation
+          detailRoom = width - textDisplayWidth detailPrefix
+          firstRow text = [Span Normal cursor, Span Dim prefix, Span Accent (searchHitHandle hit), Span Normal " ", Span role text]
+          bodyRows style text = [[Span Dim detailPrefix, Span style line] | line <- wrapWords detailRoom text]
+          spacer = [Span Dim ("  " <> continuation)]
+       in if tree && labelRoom >= 4 && detailRoom >= 4
+            then case wrapWords labelRoom label of
+              first : _ ->
+                let remaining = Text.dropWhile (== ' ') (Text.drop (Text.length first) label)
+                 in [firstRow first]
+                      <> (if Text.null remaining then [] else bodyRows role remaining)
+                      <> bodyRows Dim (searchHitDetails hit)
+                      <> [spacer]
+              [] -> [firstRow "", spacer]
+            else [firstRow label, [Span Dim detailPrefix, Span Dim (searchHitDetails hit)], spacer]
+
+documentModel :: Int -> InteractionEnvelope -> Text -> Text -> ScreenModel
+documentModel width envelope text hint =
+  ScreenModel (document <> [[], [Span Dim hint], []] <> footerFrom width envelope) Nothing
+ where
+  document = case Text.lines text of
+    title : body ->
+      fmap (fmap (\spanValue -> spanValue{spanRole = Heading})) (filter (not . null) (markdownLines width title))
+        <> [[]]
+        <> markdownLines width (Text.unlines (dropWhile (Text.null . Text.strip) body))
+    [] -> []
+
+-- Pin the product footer while exposing every content row. Selectors keep the
+-- active item in view; read-only documents use an explicit scroll offset.
+viewportModel :: Int -> Int -> Int -> ScreenModel -> ScreenModel
+viewportModel width requestedHeight requestedOffset model = ScreenModel visibleLines Nothing
+ where
+  height = max 1 requestedHeight
+  (content, footer, bodyRoom, overflowing) = viewportRows width requestedHeight model
+  start = viewportStart bodyRoom requestedOffset content
+  range = Text.pack (show (start + 1)) <> "–" <> Text.pack (show (min (length content) (start + bodyRoom))) <> "/" <> Text.pack (show (length content))
+  scrollHint = [Span Dim (fromMaybe "↑/↓" (find ((<= width) . textDisplayWidth) ["Rows " <> range <> " · ↑/↓ · PgUp/PgDn", "Rows " <> range <> " · ↑/↓", "↑/↓ scroll"]))]
+  visibleLines = take height (take bodyRoom (drop start content) <> take 1 (concat [wrapScreenLine (max 1 width) scrollHint | overflowing]) <> footer)
+
+-- Keep three context rows on each side where the page permits it. A wrapped
+-- title takes priority over the margin, and list ends clamp to actual content.
+-- Applying this to an already adjusted offset leaves the viewport unchanged.
+viewportStart :: Int -> Int -> [ScreenLine] -> Int
+viewportStart bodyRoom requestedOffset content = case selected of
+  [] -> offset
+  first : rest ->
+    let final = foldl max first rest
+        titleHeight = final - first + 1
+        margin = min 3 (max 0 ((bodyRoom - titleHeight) `div` 2))
+        earliest = final + margin - bodyRoom + 1
+        latest = first - margin
+     in clamp (if titleHeight > bodyRoom then first else max earliest (min latest offset))
+ where
+  clamp = max 0 . min (max 0 (length content - bodyRoom))
+  offset = clamp requestedOffset
+  selected = [index | (index, row) <- zip [0 ..] content, any ((== Selected) . spanRole) row]
+
+viewportRows :: Int -> Int -> ScreenModel -> ([ScreenLine], [ScreenLine], Int, Bool)
+viewportRows width requestedHeight model = (content, footer, bodyRoom, overflowing)
+ where
+  height = max 1 requestedHeight
+  rows = concatMap (wrapScreenLine (max 1 width)) (screenLines model)
+  (content, footerRows) = break isDivider rows
+  isDivider line = not (Text.null (plainLine line)) && Text.all (== '─') (plainLine line)
+  footer = take (max 0 (height - 3)) footerRows
+  room = max 1 (height - length footer)
+  overflowing = length content > room
+  bodyRoom = max 1 (room - if overflowing then 1 else 0)
 
 packManagerModel :: InteractionEnvelope -> [PackProjection] -> Maybe AppError -> Int -> Maybe Text -> ScreenModel
 packManagerModel = packManagerModelAtWidth 80
@@ -833,7 +1246,7 @@ importModeModelAtWidth width envelope selection message =
   ScreenModel
     ( [[Span Normal ("Import " <> importSourceDisplayName descriptor <> ":")], []]
         <> concatMap renderMode supported
-        <> [actionSpans "?" "I don't know"]
+        <> [actionSpans "k" "I don't know"]
         <> maybe [] (\note -> [] : fmap (pure . Span Normal) (wrapWords width note)) message
         <> [[], actionSpans "/" "more...", []]
         <> footerFrom width envelope
@@ -860,7 +1273,7 @@ importContainerModelAtWidth width envelope selection mode containers selected ch
         <> maybe [] (\note -> [] : fmap (pure . Span Normal) (wrapWords width note)) message
         <> [[]]
         <> actionRows
-        <> [actionSpans "?" "I don't know", actionSpans "/" "more...", []]
+        <> [actionSpans "k" "I don't know", actionSpans "/" "more...", []]
         <> footerFrom width envelope
     )
     Nothing
@@ -916,7 +1329,7 @@ sourceModeName = \case
 sourceModeShortcut :: SourceMode -> Text
 sourceModeShortcut = \case
   SourceSnapshot -> "s"
-  SourceSynchronize -> "k"
+  SourceSynchronize -> "y"
   SourceMigrate -> "m"
 
 sourceModeAction :: SourceMode -> Text
@@ -967,12 +1380,18 @@ editorModel width envelope heading hint editor message =
   ScreenModel
     ( [[Span Normal heading], []]
         <> fmap (pure . Span Dim) (wrapWords (max 20 width) hint)
-        <> [[], [Span Normal "› ", Span Normal (editorBefore editor), Span Selected (fromMaybe " " (editorSelection editor)), Span Normal (editorAfter editor)]]
+        <> [[], [Span Normal "› ", Span Normal (editorBefore editor), Span Selected selection, Span Normal after]]
         <> maybe [] (\problem -> [] : fmap (pure . Span Warning) (wrapWords (max 20 width) problem)) message
         <> [[], [Span Dim "[Enter] continue · [Esc] back"], []]
         <> footerFrom width envelope
     )
     Nothing
+ where
+  (selection, after) = case editorSelection editor of
+    Just selected -> (selected, editorAfter editor)
+    Nothing -> case Text.uncons (editorAfter editor) of
+      Just (character, rest) -> (Text.singleton character, rest)
+      Nothing -> (" ", "")
 
 paletteModel :: InteractionEnvelope -> Text -> Int -> ScreenModel
 paletteModel = paletteModelAtWidth 80
@@ -994,10 +1413,40 @@ paletteModelAtWidth width envelope query selected =
     ]
 
 filteredCommands :: InteractionEnvelope -> Text -> [CommandOption]
-filteredCommands envelope query = filter matches (envelopeCommands envelope)
+filteredCommands envelope query = if null namedMatches then filter matchesDescription available else namedMatches
  where
-  needle = Text.toLower (Text.dropWhile (== '/') query)
-  matches command = Text.null needle || needle `Text.isInfixOf` Text.toLower (commandOptionCommand command <> " " <> commandOptionDescription command)
+  available = envelopeCommands envelope
+  namedMatches = filter matches available
+  needle = Text.toLower (Text.dropWhile (== '/') (canonicalExitQuery query))
+  namedCommand = case Text.words query of first : _ : _ -> Just first; _ -> Nothing
+  matches command = Text.null needle || needle `Text.isInfixOf` Text.toLower (commandOptionCommand command) || maybe False (\name -> take 1 (Text.words (commandOptionCommand command)) == [name]) namedCommand
+  matchesDescription command = needle `Text.isInfixOf` Text.toLower (commandOptionDescription command)
+
+-- The only compatibility spelling is exact and presentation-only. Text input
+-- and command arguments never acquire an exit meaning through prefix matching.
+canonicalExitQuery :: Text -> Text
+canonicalExitQuery query
+  | Text.strip query == "/quit" = "/exit"
+  | otherwise = query
+
+isMainOpportunity :: Opportunity -> Bool
+isMainOpportunity = \case
+  PristineOpportunity -> True
+  SafeEmptyOpportunity -> True
+  RawTriageOpportunity{} -> True
+  RawDuplicateOpportunity{} -> True
+  FocusProposalOpportunity{} -> True
+  CurrentFocusOpportunity{} -> True
+  ScheduledCommitmentOpportunity{} -> True
+  ScheduledOverlapOpportunity{} -> True
+  _ -> False
+
+paletteCommandSelection :: InteractionEnvelope -> Text -> Int -> Maybe CommandOption
+paletteCommandSelection envelope query selected = do
+  command <- safeIndex selected (filteredCommands envelope query)
+  pure $ case Text.words query of
+    name : arguments@(_ : _) | take 1 (Text.words (commandOptionCommand command)) == [name] -> command{commandOptionCommand = Text.unwords (name : arguments)}
+    _ -> command
 
 footerFrom :: Int -> InteractionEnvelope -> [ScreenLine]
 footerFrom width envelope = dropWhile null . dropToDivider . screenLines $ renderEnvelopeAtWidth width envelope
@@ -1010,6 +1459,16 @@ footerFrom width envelope = dropWhile null . dropToDivider . screenLines $ rende
 prependMessage :: Maybe Text -> ScreenModel -> ScreenModel
 prependMessage Nothing model = model
 prependMessage (Just message) model = model{screenLines = [Span Warning message] : [] : screenLines model}
+
+prependCompletionNotice :: Int -> Maybe Text -> ScreenModel -> ScreenModel
+prependCompletionNotice _ Nothing model = model
+prependCompletionNotice width (Just receipt) model =
+  model
+    { screenLines = prefix <> screenLines model
+    , screenCursor = (\cursor -> cursor{cursorRow = cursorRow cursor + length prefix}) <$> screenCursor model
+    }
+ where
+  prefix = wrapScreenLine (max 1 width) [Span Accent receipt] <> [[]]
 
 progressModel :: Integer -> ScreenModel
 progressModel count =
@@ -1044,15 +1503,7 @@ safeIndex index _ | index < 0 = Nothing
 safeIndex index values = case drop index values of value : _ -> Just value; [] -> Nothing
 
 wrapWords :: Int -> Text -> [Text]
-wrapWords width text
-  | Text.length text <= width = [text]
-  | otherwise = go [] "" (Text.words text)
- where
-  go result current [] = result <> [current | not (Text.null current)]
-  go result current (word : rest)
-    | Text.null current = go result word rest
-    | Text.length current + 1 + Text.length word <= width = go result (current <> " " <> word) rest
-    | otherwise = go (result <> [current]) word rest
+wrapWords = wrapDisplayText
 
 textModel :: Text -> ScreenModel
 textModel text = ScreenModel (fmap (pure . Span Normal) (Text.lines text)) Nothing
@@ -1072,6 +1523,13 @@ acquireCredentialWithVty vty color label = collect ByteString.empty Nothing
       Just (Printable 'c' modifiers) | MCtrl `elem` modifiers -> cancel secret
       Just (Printable character [])
         | character >= '!' && character <= '~' -> collect (ByteString.snoc secret (fromIntegral (ord character))) Nothing
+      Just (Pasted material)
+        | let credential = Text.strip material
+        , not (Text.null credential)
+        , Text.all (\character -> character >= '!' && character <= '~') credential
+        , ByteString.length secret + Text.length credential <= 16 * 1024 ->
+            collect (secret <> TextEncoding.encodeUtf8 credential) Nothing
+        | otherwise -> collect secret (Just "Paste one credential of at most 16 KiB without embedded whitespace.")
       Just (Backspace _)
         | ByteString.null secret -> collect secret Nothing
         | otherwise -> collect (ByteString.init secret) Nothing

@@ -1,6 +1,7 @@
 module Main (main) where
 
-import Data.Aeson (encode)
+import Data.Aeson (Value (..), encode, object, toJSON, (.=))
+import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Bits ((.&.))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
@@ -45,15 +46,27 @@ structuralProjection = do
       child = fixtureUuid 2
       outside = fixtureUuid 3
       domain = fixtureUuid 4
+      ancestor = fixtureUuid 5
+      done = fixtureUuid 6
+      dependency identity blocked blocker status = Dependency (fixtureUuid identity) blocked blocker status "fixture" fixedTime
       state =
         emptyState
           { stateBricks =
               Map.fromList
                 [ (outside, fixtureBrick outside "outside" "Outside" Nothing Set.empty 9)
+                , (done, (fixtureBrick done "done" "Completed prerequisite" Nothing Set.empty 10){brickStatus = BrickDone})
                 , (child, fixtureBrick child "child" "Child" (Just root) (Set.singleton domain) 1)
                 , (root, fixtureBrick root "root" "Root" Nothing (Set.singleton domain) 2)
                 ]
-          , stateDomains = Map.singleton domain (Domain domain "Engineering" Nothing True)
+          , stateDomains = Map.fromList [(domain, Domain domain "Engineering" (Just ancestor) True), (ancestor, Domain ancestor "Work" Nothing True)]
+          , stateDependencies =
+              Map.fromList
+                [ (fixtureUuid 20, dependency 20 child root DependencyActive)
+                , (fixtureUuid 21, dependency 21 child outside DependencyActive)
+                , (fixtureUuid 22, dependency 22 outside child DependencyActive)
+                , (fixtureUuid 23, dependency 23 child done DependencyActive)
+                , (fixtureUuid 24, dependency 24 root child DependencyResolved)
+                ]
           }
       projection = buildStructuralProjection Genesis state (ExportBrickSubtree root)
       bytes = LazyByteString.toStrict (encode projection)
@@ -63,6 +76,17 @@ structuralProjection = do
   assertBool "subtree excludes unrelated Work" (not ("Outside" `ByteString.isInfixOf` bytes))
   assertBool "sparse projection omits absent parent" (not ("\"parent_id\":null" `ByteString.isInfixOf` bytes))
   assertBool "parent precedes child" (indexOf "Root" bytes < indexOf "Child" bytes)
+  assertBool "category ancestry was omitted" ("\"name\":\"Work\"" `ByteString.isInfixOf` bytes)
+  case exportProjectionPayload projection of
+    Object fields ->
+      KeyMap.lookup "dependencies" fields
+        @?= Just
+          ( toJSON
+              [ object ["blocked_brick_id" .= renderUUIDv7 child, "blocker_brick_id" .= renderUUIDv7 root]
+              , object ["blocked_brick_id" .= renderUUIDv7 child, "blocker_brick_id" .= renderUUIDv7 outside]
+              ]
+          )
+    other -> assertFailure ("expected structural payload, got " <> show other)
 
 newFileExport :: Assertion
 newFileExport = withSystemTempDirectory "lant-export-file" $ \root -> do

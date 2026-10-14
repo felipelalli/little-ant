@@ -1,7 +1,9 @@
 module Main (main) where
 
+import Data.Bifunctor qualified
 import Data.ByteString qualified as ByteString
 import Data.Map.Strict qualified as Map
+import Data.Ratio ((%))
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -20,6 +22,9 @@ main =
     testGroup
       "S04 forecast"
       [ testCase "factory importance vector matches the normative profile" referenceImportanceVector
+      , testCase "Forte+ preserves a 60 percent head and a softer tail" fortePlusDistribution
+      , testCase "importance confidence and unranked subjects retain their neutral behavior" importanceConfidence
+      , testCase "forecast inspection uses Forte+ at roots and hierarchical descent" fortePlusInspection
       , testCase "bounded signals match the mixed normative vector" mixedReferenceVector
       , testCase "sample 600000 selects B" referenceSample
       , testCase "every admitted candidate retains positive weight" positiveTail
@@ -29,6 +34,10 @@ main =
       , testCase "hierarchy descends instead of serving a decomposed parent" hierarchyDescent
       , testCase "a drawn blocker preserves the original subject" blockerRedirection
       , testCase "dependency redirection follows an N-step chain" blockerChain
+      , testCase "forecast chances integrate hierarchy and shared blockers without sampling" inspectChances
+      , testCase "unavailable blockers cannot crash an admitted forecast branch" unavailableBlockers
+      , testCase "legacy dependencies on completed work are already satisfied" completedLegacyBlocker
+      , testCase "legacy dependencies on retired work cannot exclude executable Work" retiredLegacyBlocker
       , testCase "equal Domain paths consume only the Domain-path stream" domainPathTie
       , testCase "hard Domain scope never falls through globally" hardScope
       , testCase "ancestor not_before gates descendants without rewriting importance" inheritedNotBefore
@@ -37,17 +46,73 @@ main =
 
 referenceImportanceVector :: Assertion
 referenceImportanceVector =
-  fmap weightedInteger candidates @?= [1_000_000, 287_500, 50_000]
+  fmap weightedInteger candidates @?= [1_000_000, 390_980, 275_687]
  where
   candidates = fmap (forecastWeight factoryForecastProfile) [candidate "A" 0 3, candidate "B" 1 3, candidate "C" 2 3]
 
 mixedReferenceVector :: Assertion
 mixedReferenceVector =
-  fmap weightedInteger [a, b, c] @?= [250_000, 503_125, 150_000]
+  fmap weightedInteger [a, b, c] @?= [250_000, 684_215, 827_061]
  where
   a = forecastWeight factoryForecastProfile (withNegative (candidate "A" 0 3) (Fixed 1_000_000))
   b = forecastWeight factoryForecastProfile (withDomain (candidate "B" 1 3) (Fixed 1_000_000))
   c = forecastWeight factoryForecastProfile (withPositive (candidate "C" 2 3) (Fixed 1_000_000))
+
+fortePlusDistribution :: Assertion
+fortePlusDistribution = do
+  let weights count =
+        [ unFixed (importanceFactor factoryForecastProfile (Just (position, count)) fixedOne)
+        | position <- [0 .. count - 1]
+        ]
+      check count = case weights count of
+        [] -> assertFailure "the sibling group is empty"
+        values@(top : _) -> do
+          let topChance = top % sum values
+          assertBool "the top should remain near 60 percent as the group size changes" (abs (topChance - 3 % 5) < 1 % 5_000)
+          assertBool "tail weights must remain positive" (all (> 0) values)
+          assertBool "importance must not reverse the sibling order" (and (zipWith (>=) values (drop 1 values)))
+  mapM_ check [2, 3, 5, 10, 20, 53, 100, 1_000]
+  take 5 (weights 53) @?= [1_000_000, 196_257, 137_457, 96_297, 67_485]
+  sum (weights 53) @?= 1_666_684
+  let values = weights 53
+      tailRatio = values !! 2 % (values !! 1)
+      topFive = sum (take 5 values) % sum values
+  assertBool "the tail should fall by about 30 percent per position" (tailRatio > 7 % 10 && tailRatio < 71 % 100)
+  assertBool "the first five should receive about 89.85 percent" (abs (topFive - 8_985 % 10_000) < 1 % 10_000)
+
+importanceConfidence :: Assertion
+importanceConfidence = do
+  let factor = importanceFactor factoryForecastProfile
+      placements = [Just (position, 53) | position <- [0 .. 52]]
+  map (\placement -> factor placement (Fixed 0)) placements @?= replicate 53 (Fixed 350_000)
+  factor (Just (0, 53)) (Fixed 150_000) @?= Fixed 447_500
+  factor Nothing fixedOne @?= Fixed 350_000
+  factor (Just (0, 1)) (Fixed 0) @?= fixedOne
+  factor (Just (-1, 53)) fixedOne @?= factor (Just (0, 53)) fixedOne
+  factor (Just (100, 53)) fixedOne @?= factor (Just (52, 53)) fixedOne
+  factor (Just (52, 53)) (Fixed (-1)) @?= Fixed 350_000
+  factor (Just (52, 53)) (Fixed 2_000_000) @?= factor (Just (52, 53)) fixedOne
+  let values = [unFixed (factor placement (Fixed 150_000)) | placement <- placements]
+      topChance = unFixed (factor (Just (0, 53)) (Fixed 150_000)) % sum values
+  assertBool "provisional confidence must still dilute the stronger curve" (topChance > 2 % 100 && topChance < 3 % 100)
+
+fortePlusInspection :: Assertion
+fortePlusInspection = do
+  let positioned identity position count parent =
+        (ticket identity parent [] [] [work identity]){ticketSiblingPosition = Just (position, count)}
+      siblings = [positioned (uuid (position + 1)) position 53 Nothing | position <- [0 .. 52]]
+      chances = fmap (Data.Bifunctor.first ticketIdentity) (forecastSubjectChances Nothing Nothing siblings)
+  sum (snd <$> chances) @?= 1
+  case lookup (uuid 1) chances of
+    Just chance -> assertBool "inspection must reflect the factory 60 percent head after bounded-signal rounding" (abs (chance - 3 % 5) < 1 % 50_000)
+    Nothing -> assertFailure "forecast inspection omitted the first sibling"
+  let parent = ticket (uuid 70) Nothing [uuid 71, uuid 72] [] []
+      first = positioned (uuid 71) 0 2 (Just (uuid 70))
+      second = positioned (uuid 72) 1 2 (Just (uuid 70))
+      childChances = fmap (Data.Bifunctor.first ticketIdentity) (forecastSubjectChances Nothing Nothing [parent, first, second])
+  case lookup (uuid 71) childChances of
+    Just chance -> assertBool "hierarchical descent must use the same Forte+ curve" (abs (chance - 3 % 5) < 1 % 100_000)
+    Nothing -> assertFailure "forecast descent omitted the first child"
 
 referenceSample :: Assertion
 referenceSample =
@@ -143,6 +208,17 @@ withDomain :: ForecastCandidate subject -> Fixed -> ForecastCandidate subject
 withDomain item affinity =
   item{forecastFactors = (forecastFactors item){factorDomainAffinity = affinity}}
 
+inspectChances :: Assertion
+inspectChances = do
+  let parent = ticket (uuid 1) Nothing [uuid 2, uuid 3] [] []
+      first = ticket (uuid 2) (Just (uuid 1)) [] [] [work (uuid 2)]
+      second = ticket (uuid 3) (Just (uuid 1)) [] [] [work (uuid 3)]
+  fmap (Data.Bifunctor.first ticketIdentity) (forecastSubjectChances Nothing Nothing [parent, first, second]) @?= [(uuid 2, 1 % 2), (uuid 3, 1 % 2)]
+  let blocked = ticket (uuid 4) Nothing [] [DependencyBrick (uuid 2)] [work (uuid 4)]
+      blocker = first{ticketParent = Nothing}
+  fmap (Data.Bifunctor.first ticketIdentity) (forecastSubjectChances Nothing Nothing [blocked, blocker]) @?= [(uuid 2, 1)]
+  forecastSubjectChances Nothing (Just (uuid 99)) [parent, first, second] @?= []
+
 hierarchyDescent :: Assertion
 hierarchyDescent =
   case selectForecast seed mempty Nothing Nothing [parent, child] of
@@ -153,6 +229,41 @@ hierarchyDescent =
  where
   parent = ticket (uuid 1) Nothing [uuid 2] [] []
   child = ticket (uuid 2) (Just (uuid 1)) [] [] [work (uuid 2)]
+
+unavailableBlockers :: Assertion
+unavailableBlockers = do
+  let unavailable = ticket (uuid 1) Nothing [] [DependencyBrick (uuid 99)] [work (uuid 1)]
+      ready = ticket (uuid 2) Nothing [] [] [work (uuid 2)]
+      branching = ticket (uuid 3) Nothing [] [DependencyBrick (uuid 1), DependencyBrick (uuid 2)] [work (uuid 3)]
+  selectForecast seed mempty Nothing Nothing [unavailable] @?= Right (EmptyForecast "No opportunity is currently eligible.")
+  mapM_ (\world -> case selectForecast seed mempty Nothing Nothing world of Right SelectedOpportunity{selectedEndpointSubject} -> selectedEndpointSubject @?= uuid 2; other -> assertFailure (show other)) [[unavailable, ready], [branching, unavailable{ticketParent = Just (uuid 98)}, ready{ticketParent = Just (uuid 97)}]]
+  fmap (Data.Bifunctor.first ticketIdentity) (forecastSubjectChances Nothing Nothing [unavailable, ready]) @?= [(uuid 2, 1)]
+
+completedLegacyBlocker :: Assertion
+completedLegacyBlocker = do
+  let blocked = fixtureBrick (uuid 84) "blocked" AtomicTask Nothing 0
+      done = (fixtureBrick (uuid 85) "done" AtomicTask Nothing 1){brickStatus = BrickDone}
+      dependency = Dependency (uuid 86) (brickId blocked) (brickId done) DependencyActive "migration:v0" fixedTime
+      state = (fixtureState [blocked, done]){stateDependencies = Map.singleton (dependencyId dependency) dependency}
+      world = buildForecastWorld state fixedTime
+  case selectForecast seed mempty Nothing Nothing world of
+    Right SelectedOpportunity{selectedEndpointSubject} -> selectedEndpointSubject @?= brickId blocked
+    other -> assertFailure (show other)
+  fmap (Data.Bifunctor.first ticketIdentity) (forecastSubjectChances Nothing Nothing world) @?= [(brickId blocked, 1)]
+
+retiredLegacyBlocker :: Assertion
+retiredLegacyBlocker = mapM_ check [BrickArchived, BrickSuperseded, BrickMerged, BrickMissed, BrickCancelled]
+ where
+  check status = do
+    let blocked = fixtureBrick (uuid 87) "blocked" AtomicTask Nothing 0
+        retired = (fixtureBrick (uuid 88) "retired" AtomicTask Nothing 1){brickStatus = status}
+        dependency = Dependency (uuid 89) (brickId blocked) (brickId retired) DependencyActive "legacy" fixedTime
+        state = (fixtureState [blocked, retired]){stateDependencies = Map.singleton (dependencyId dependency) dependency}
+        world = buildForecastWorld state fixedTime
+    case selectForecast seed mempty Nothing Nothing world of
+      Right SelectedOpportunity{selectedEndpointSubject} -> selectedEndpointSubject @?= brickId blocked
+      other -> assertFailure (show other)
+    fmap (Data.Bifunctor.first ticketIdentity) (forecastSubjectChances Nothing Nothing world) @?= [(brickId blocked, 1)]
 
 blockerRedirection :: Assertion
 blockerRedirection =

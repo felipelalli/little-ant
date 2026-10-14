@@ -67,7 +67,8 @@ The v1 dataset is a directory, not a database authority:
 
 ```text
 dataset/
-├── events/        immutable ordered *.jsonl command-group segments
+├── events/        immutable hot *.jsonl command-group segments
+├── archive/       covered immutable segments in YYYY-QN/ directories
 ├── blobs/         content-addressed canonical Raw material
 ├── checkpoints/   disposable UI checkpoints
 └── projections/   disposable indexes and caches
@@ -136,6 +137,15 @@ Performance snapshots are disposable projections keyed by an accepted segment
 cursor and hash. They are never events and never required for correctness. A
 suffix fold from a valid snapshot must equal a full fold from zero; deleting
 all snapshots remains safe. This preserves DAT-003's single canonical history.
+The Store now rotates after 128 accepted command groups since its last valid
+snapshot. Under the writer lock it validates the complete history, durably
+replaces `projections/fold-snapshot.json`, then durably copies covered hot
+segments to their UTC quarter before unlinking the hot copies. Identical
+duplicates left by an interrupted move are one command, not two. A reader
+whose hot path moved resolves the same filename in the archive. Normal loads
+read the checksummed typed fold and hot suffix; doctor, repair, and semantic
+history bypass the cache and validate hot and cold bytes. See
+[ADR 0038](adr/0038-cache-folds-before-moving-canonical-segments.md).
 
 ## Determinism seams
 

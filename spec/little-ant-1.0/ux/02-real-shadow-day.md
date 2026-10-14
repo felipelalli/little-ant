@@ -47,7 +47,7 @@ Using the same factory profile and a fixed random stream:
 4. follow one real blocker/dependency path;
 5. respond naturally to at least one served-work skip;
 6. feed one representative item through duplicate suspicion;
-7. inspect a real project/container through `?`;
+7. inspect a real project/container through `k`;
 8. review one date, recurring item, delegation, or Raw decision when present;
 9. finish with history and a useful session ending.
 

@@ -31,7 +31,7 @@
   question occurs during a later review, never as a toll on `feed`.
 - **FED-006 [core] — No hidden fallback.** Materializing Work still requires
   one validated Nature. Nature uncertainty opens the bounded capability tree
-  answered with `yes`, `no`, or `[?] I don't know`; unresolved uncertainty
+  answered with `yes`, `no`, or `I don't [k]now`; unresolved uncertainty
   leaves the Raw in the Inbox and creates no Brick. No path silently assigns a
   generic Nature, parent, shelf, ListEntry owner, or attachment role.
 - **FED-007 [standard] — Contextual candidate ranking.** Dumb mode ranks a
@@ -163,7 +163,7 @@
               └─ no  → repeatable
   ```
 
-- **FED-025 [core] — Uncertainty probes.** `[?] I don't know` never chooses a
+- **FED-025 [core] — Uncertainty probes.** `I don't [k]now` never chooses a
   branch. It explains the current distinction with one example from each
   branch and asks an alternate consequence-oriented probe:
 
@@ -185,7 +185,7 @@
   classification is right. `yes` accepts the Nature and continues Work
   materialization. `no` discards only the local discovery path and returns to
   the factory Nature choice, where the user may select directly or use
-  `[?] I don't know` to run discovery again. `[?] I don't know` at the result
+  `I don't [k]now` to run discovery again. `I don't [k]now` at the result
   restarts discovery from Q0. None of these paths creates a Brick before the
   complete materialization route is confirmed.
 - **FED-027 [core] — Discovery checkpoints.** Every discovery question and its
@@ -379,7 +379,7 @@
   their declared continuation after the Raw commit rather than entering
   ordinary triage.
 - **FED-050 [core] — Raw triage can finish without creating another object.**
-  Question mark on the independent-Work question asks whether seeing this Raw
+  The uncertainty shortcut on the independent-Work question asks whether seeing this Raw
   alone under `Work:` would communicate one useful action such as doing,
   considering, or reading it. Yes returns to Work materialization; no returns
   to destination selection. A second uncertainty may inspect the complete Raw

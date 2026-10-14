@@ -42,8 +42,22 @@ class CalculationVectorTests(unittest.TestCase):
     def test_reference_weight_and_singleton_vectors_are_present(self) -> None:
         vectors = json.loads((ROOT / "conformance/calculation-vectors.json").read_text(encoding="utf-8"))
         by_id = {item["id"]: item for item in vectors["vectors"]}
-        self.assertEqual(1_337_500, by_id["weighted-choice/neutral-siblings"]["expected"]["total"])
+        self.assertEqual(1_666_667, by_id["weighted-choice/neutral-siblings"]["expected"]["total"])
+        self.assertEqual(
+            [1_000_000, 390_980, 275_687],
+            by_id["weighted-choice/neutral-siblings"]["expected"]["weights"],
+        )
+        self.assertEqual(
+            [250_000, 684_215, 827_061],
+            by_id["weighted-choice/signals-and-sample"]["expected"]["weights"],
+        )
         self.assertEqual("B", by_id["weighted-choice/signals-and-sample"]["expected"]["selected"])
+        self.assertEqual(
+            [1_000_000, 196_257, 137_457, 96_297, 67_485],
+            by_id["importance/forte-plus-53"]["expected"]["first_five_factors"],
+        )
+        self.assertEqual(1_666_684, by_id["importance/forte-plus-53"]["expected"]["all_factors_total"])
+        self.assertEqual(350_000, by_id["importance/zero-confidence"]["expected"]["each_factor"])
         self.assertEqual(0, by_id["weighted-choice/singleton"]["expected"]["blocks_consumed"])
 
 

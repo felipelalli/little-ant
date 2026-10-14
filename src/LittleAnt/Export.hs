@@ -276,13 +276,28 @@ buildStructuralProjection cursor state scope =
     ( object
         [ "bricks" .= fmap brickValue selectedBricks
         , "domains" .= fmap domainValue selectedDomains
+        , "dependencies" .= fmap dependencyValue selectedDependencies
         ]
     )
  where
   selectedIds = Set.fromList (brickId <$> selectBricks state scope)
   selectedBricks = orderedBricks state selectedIds
-  selectedDomainIds = Set.unions (fmap brickDomains selectedBricks) <> scopeDomainIds state scope
+  directDomainIds = Set.unions (fmap brickDomains selectedBricks) <> scopeDomainIds state scope
+  selectedDomainIds = Set.fromList (concatMap domainAncestors (Set.toAscList directDomainIds))
   selectedDomains = filter ((`Set.member` selectedDomainIds) . domainId) (Map.elems (stateDomains state))
+  domainAncestors identity = identity : maybe [] domainAncestors (Map.lookup identity (stateDomains state) >>= domainParent)
+  selectedDependencies =
+    [ dependency
+    | dependency <- Map.elems (stateDependencies state)
+    , dependencyStatus dependency == DependencyActive
+    , dependencyBlockedBrick dependency `Set.member` selectedIds
+    , maybe True ((/= BrickDone) . brickStatus) (Map.lookup (dependencyBlockerBrick dependency) (stateBricks state))
+    ]
+  dependencyValue dependency =
+    object
+      [ "blocked_brick_id" .= renderUUIDv7 (dependencyBlockedBrick dependency)
+      , "blocker_brick_id" .= renderUUIDv7 (dependencyBlockerBrick dependency)
+      ]
   brickValue brick =
     object $
       [ "id" .= renderUUIDv7 (brickId brick)

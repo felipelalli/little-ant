@@ -140,21 +140,59 @@ formula never weakens them.
 
 ### Importance factor
 
-For `n > 1` active siblings, a candidate at zero-based position `i` has
-`rank = i / (n - 1)`, where `0` is most important. A singleton has rank `0`.
-With effective local order confidence `c`:
+Factory profile revision 2 uses **Forte+**. For `n > 1` active siblings, let
+`i` be the zero-based importance position, with `0` most important, and
+`m = n - 1`. The first sibling has ranked weight `1`. The others divide a
+normalized geometric tail and a small uniform exploration share:
 
 ```text
-ranked = bottom + (1 - bottom) * (1 - rank) ^ exponent
-factor = neutral + c * (ranked - neutral)
+tail_sum   = (1 - tail_ratio ^ m) / (1 - tail_ratio)
+tail_scale = (1 - top_share) / top_share
+geometric  = tail_ratio ^ (i - 1) / tail_sum          (i > 0)
+uniform    = tail_exploration / m
+tail_mix   = (1 - tail_exploration) * geometric + uniform
+ranked     = 1                                    (i == 0)
+ranked     = tail_scale * tail_mix                  (i > 0)
+factor     = neutral + c * (ranked - neutral)
 ```
 
-Factory values are `bottom = 0.05`, `neutral = 0.35`, and `exponent = 2`.
-The top-to-bottom factor ratio is therefore 20:1 before other bounded signals,
-while every position remains positive. A Raw subject and any subject without
-current active importance use `neutral`. An archived relevance review may use
-the Brick's last active rank with its decayed confidence; it never restores
-the Brick to the active order.
+Factory values are `top_share = 0.60`, `tail_ratio = 0.70`,
+`tail_exploration = 0.02`, and `neutral = 0.35`. At full confidence and with
+all siblings admitted and all other factors equal, the first sibling has
+approximately 60% of the local draw. Of the remaining 40%, 98% follows a
+geometric decline and 2% is divided uniformly. The decline after the second
+sibling is therefore approximately 30% per position until the uniform floor
+dominates. The first-to-second jump remains deliberate. These are local
+conditional chances, not a promise that the top Brick has 60% of the final
+forecast when confidence differs, gates restrict admission, context adds
+pressure, or hierarchy and dependencies forward probability.
+
+Division of nonnegative fixed-point values rounds half away from zero.
+`tail_ratio ^ k` uses exponentiation by squaring: start with `result = 1`,
+`base = tail_ratio`, and `remaining = k`; while `remaining > 0`, multiply
+`result` by `base` when `remaining` is odd, square `base`, then halve
+`remaining` with integer division. Round every multiplication at the common
+scale. Round each named division and multiplication above separately. Small
+rounding differences mean a normalized chance may differ slightly from 60%;
+the final integer-weight floor preserves positive probability even when a
+very long tail rounds below one fixed-point unit. For two siblings the full-
+confidence split is approximately 60:40. A singleton has factor `1`.
+
+Confidence `c` is clamped to `[0,1]` and interpolates each ranked weight with
+the same neutral factor as before. At zero confidence, equally contextualized
+positioned siblings have equal chances; weak provisional evidence still
+dilutes concentration. A Raw subject and any subject without current active
+importance use `neutral`. An archived relevance review may use the Brick's
+last active position and group size with its decayed confidence; it never
+restores the Brick to the active order. Positions are clamped to `0..n-1`.
+
+The factory profile identifier is
+`little-ant-forecast-v2-factory-forte-plus`. The earlier
+`little-ant-forecast-v1-factory` identifies the former quadratic profile and
+its historical bottom/exponent parameters. New forecasts use revision 2;
+existing selection evidence and pending suggestions retain their recorded
+profile, weights, sampled integer, chosen identities, and cursor progression.
+Replay folds that evidence without recalculating it under the current curve.
 
 Local order confidence for a positioned Brick is the minimum effective
 confidence of its current relations to its immediate active predecessor and
@@ -302,14 +340,14 @@ lottery.
 
 ### Reference vectors
 
-Three equally confident siblings at top, middle, and bottom position, with no
-other signal, produce integer weights:
+Three fully confident siblings at top, middle, and bottom position, with no
+other signal, produce integer weights under Forte+:
 
 ```text
 A  1_000_000
-B    287_500
-C     50_000
-total 1_337_500
+B    390_980
+C    275_687
+total 1_666_667
 ```
 
 If A then has maximum fatigue, B exact active-Domain affinity, and C maximum
@@ -317,12 +355,18 @@ positive pressure, the weights become:
 
 ```text
 A    250_000
-B    503_125
-C    150_000
-total   903_125
+B    684_215
+C    827_061
+total 1_761_276
 ```
 
-A sampled integer `600_000` selects B from canonical order. These vectors,
+A sampled integer `600_000` selects B from canonical order. For 53 fully
+confident siblings with equal remaining factors, the first five importance
+weights are `1_000_000`, `196_257`, `137_457`, `96_297`, and `67_485`; all
+53 weights sum to `1_666_684`. Their two-decimal reference chances are
+`60.00%`, `11.78%`, `8.25%`, `5.78%`, and `4.05%`. At zero confidence,
+every positioned non-singleton sibling has importance factor `350_000`.
+These vectors,
 the zero/singleton boundaries, fixed-point rounding boundaries, maximum signal
 sets, and rejection-sampling edge values are mandatory conformance fixtures.
 
@@ -378,9 +422,10 @@ ranges are inclusive; cross-key invariants are validated atomically.
 | `judgment.axis.importance_horizon_days` | `365` | `30..3650` |
 | `judgment.axis.impact_horizon_days` | `365` | `30..3650` |
 | `judgment.axis.effort_horizon_days` | `180` | `7..1825` |
-| `forecast.importance.bottom_factor` | `0.05` | `0.001..0.50` |
-| `forecast.importance.neutral_factor` | `0.35` | `bottom..1.00` |
-| `forecast.importance.exponent` | `2` | integer `1..4` |
+| `forecast.importance.top_share` | `0.60` | `0.50..0.95` |
+| `forecast.importance.neutral_factor` | `0.35` | `0.001..1.00` |
+| `forecast.importance.tail_ratio` | `0.70` | `0.10..0.95` |
+| `forecast.importance.tail_exploration` | `0.02` | `0.001..0.50` |
 | `forecast.pressure.additional_fraction` | `0.35` | `0.00..1.00` |
 | `forecast.pressure.gain` | `2.00` | `0.00..4.00` |
 | `forecast.domain.gain` | `0.75` | `0.00..2.00` |
