@@ -78,7 +78,12 @@
   each accepted answer it asks the next pair from the same algorithm
   immediately, until the selected scope is coherent or the user exits. Both
   cadences read and write the same comparison history, checkpoints, current
-  order, and contradiction state; `/order` is not a second sorter.
+  order, and contradiction state; `/order` is not a second sorter. Imported low-confidence
+  sibling groups also derive maintenance eligibility when no old marker exists.
+  Equivalent claims in one unresolved sibling run coalesce to one opportunity,
+  owned by its first unresolved comparator in current canonical order. A review
+  skip uses the configured review cooldown (factory 24 hours), independently of
+  Work deferrals; expiry retains the original age and unresolved evidence.
 - **IMP-032 [core] — Explicit ordering scopes preserve sibling locality.**
   `/order` can maintain the current sibling group, every unresolved sibling
   group intersecting the current Domain, every unresolved sibling group in
@@ -514,6 +519,37 @@ Is
   remains, it is proposed explicitly; if several remain after the limit, only
   those classes are shown for direct choice. With no suitable exemplar, the
   direct ladder returns unchanged and no `NORMAL` fallback is invented.
+
+  Demand is explicit and bounded. Opening `/effort` or `/impact` requests help
+  immediately and retains one pending comparison if the flow is left unresolved.
+  A tired/easier-work request offers its executable shortlist immediately; when
+  current effort evidence cannot distinguish at least two alternatives it may
+  retain one dedicated total-scope review. Recovery choice alone is weaker
+  contextual evidence and does not finish that dedicated review.
+
+  A committed title/description, composition, or checklist-scope change after
+  an effort judgment marks that class `review due` and requests a review. An
+  outcome change after an impact judgment requests an impact comparison; new,
+  revised, removed, or completed applicable evidence requests an
+  `impact_maturity_review`. These are attributed changes to previously judged
+  material, not a scan that treats every empty field as a demand. Read-only
+  inspection/export records nothing; a planning gap exposes `/effort` as its
+  immediate recovery, whose unresolved request can later enter the lottery.
+
+  Demand identity is kind plus owner; equivalent current comparison sets are
+  coalesced. Effort shows two to four finite, non-overlapping total scopes;
+  Impact shows two active composition roots. With insufficient comparable
+  units the demand remains inspectable without an invalid lottery offer, and
+  direct classification remains available. Standing Work needs one finite run
+  before comparison. One accepted comparison finishes one round without
+  assigning a class. A stale public class remains `review due` until explicit
+  reclassification/reaffirmation/clear; relative answers alone do not repair it.
+  Stale effort classes cannot serve as reviewed exemplars, planning durations,
+  or easier-work ease factors. Skip records no pair judgment and defers only
+  equivalent review requests for 24 hours; Work eligibility is preserved.
+  Materially replaced requests reset cooldown; merely reopening does not.
+  `/why` uses the recorded demand reason and selection-time probabilities.
+
 - **IMP-055 [core] — All pairwise judgments share recency and contradiction
   discipline.** Impact and effort comparisons retain the same provenance,
   temporal decay, weakest-path confidence, immutable history, fresh-cycle

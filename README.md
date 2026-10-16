@@ -44,7 +44,7 @@ dependencies isolated:
 git clone https://github.com/felipelalli/little-ant.git
 cd little-ant
 git switch main
-nix profile install path:.#little-ant
+nix profile install --profile ~/.nix-profile path:.#little-ant
 ~/.nix-profile/bin/lant --version
 ```
 
@@ -62,6 +62,89 @@ If an older `lant` appears earlier in `PATH`, invoke
 `~/.nix-profile/bin/lant` explicitly or adjust `PATH` before migrating. The
 [alpha contract](implementation/releases/v1-alpha.md) lists the supported
 surface and the deliberately deferred beta work.
+
+For an existing installation from this checkout, update the same Nix profile:
+
+```sh
+nix profile upgrade --profile ~/.nix-profile little-ant
+~/.nix-profile/bin/lant --version
+```
+
+Use the same explicit `--profile` location for installation and upgrades. A
+different default Nix profile can otherwise update successfully while the
+executable on `PATH` remains old. This Nix profile is separate from LANT's
+`--profile NAME`, which chooses a dataset.
+
+### Use Little Ant from Codex
+
+The package includes a compact [alpha operator skill](skills/little-ant/SKILL.md)
+alongside the CLI. Install one discovery link:
+
+```sh
+mkdir -p ~/.agents/skills
+ln -s ~/.nix-profile/share/little-ant/skills/little-ant ~/.agents/skills/little-ant
+```
+
+The link follows future Nix profile upgrades, so the skill and executable come
+from the same package. If a skill already exists at that location, inspect it
+before replacing it. Invoke `$little-ant`, or ask Codex to operate your LANT
+tasks. If it does not appear in the skill selector, restart Codex.
+
+This operator uses the installed CLI and its headless interaction transport for
+guided decisions. It supports the current alpha; it does not claim the complete v1
+Skill mirror, powered-up mode, or the beta's full paired-replay coverage.
+
+### Use the CLI without the REPL
+
+Use `--non-interactive --json` for scripts and skills. The CLI never opens the
+REPL or prompts on the terminal in that mode. It returns `status: completed`,
+`awaiting_input`, or `simulated`; exit codes are 0 for success, 2 when a command
+needs an answer, and 1 for errors. A successful `interaction show` inspection
+exits 0 even if the inspected question still needs an answer.
+
+```sh
+lant --non-interactive --json archive '#handle' --yes
+lant --non-interactive --json restore '#handle' --yes
+lant --non-interactive --json update '#handle' description --text-file description.md --yes
+```
+
+Without `--yes`, lifecycle commands return the ordinary preview. To continue
+any guided flow, save its JSON result and respond to an actual action ID:
+
+```sh
+lant --non-interactive --json interaction show > question.json
+lant --non-interactive --json interaction respond --from question.json --action archive.accept
+```
+
+Input actions also accept `--text TEXT` or `--text-file FILE` (`-` for stdin).
+An old or modified question fails validation; an answer never carries to its
+replacement. `--dry-run` simulates even the direct confirmed forms. Vault and
+static-provider secrets can use explicit `--secret-stdin`, one line per secret,
+without secret-bearing arguments. See the [transport contract](spec/little-ant-1.0/command-catalog.md#headless-interaction-transport)
+and [complete CLI audit](implementation/reviews/2026-10-15-headless-cli.md)
+for all command families, secret input, and remaining experimental boundaries.
+
+### Use the skill and REPL in separate tabs
+
+Clients using the same LANT profile and dataset share their task data **and one
+pending question with its navigation history**. Each tab does not get an
+independent guided session; dumb mode does not provide session isolation.
+
+For now, let one client conduct guided decisions and changes at a time. A
+second tab can use `list importance`, `list forecast`, or `why`; these queries
+preserve the pending question. `next` can record a selection, while `focus`,
+`order`, `effort`, and other guided routes can replace the shared question.
+
+The REPL does not automatically refresh after another client changes the
+dataset. Its next engine operation revalidates the action and may return a
+replacement question or an error. Read that result before answering again;
+an old keypress is not consent to a replacement question.
+
+**Known alpha limitation:** canonical event writes use a writer lock, but
+concurrent saves of the shared presentation checkpoint remain unprotected.
+Two active flows can overwrite each other's pending navigation or encounter a
+checkpoint write/read error. Simultaneous guided editing is therefore not yet
+fully supported. See the [technical limitation and remaining work](implementation/adr/0003-persisted-guided-checkpoints.md#current-alpha-concurrency-limitation).
 
 ## Why Little Ant?
 
@@ -295,13 +378,23 @@ then reads the snapshot and hot suffix. The canonical event bytes stay intact;
 corrupt `projections/fold-snapshot.json` falls back to full replay. Physical
 rotation preserves current focus, handles, closed cycles, and later restores.
 
+Use `/why` to explain the selection currently on screen. It shows the recorded
+chance, order confidence, and relevant pressure; `d` toggles calculation details
+and `b` or Escape returns. The CLI equivalents are `lant why`,
+`lant --view complete why`, and `lant --json why`. Inspection never redraws.
+Older records report which historical details are unavailable.
+
 Forecast percentages describe the chance of reaching an item in a new flexible
 `next` draw. Many eligible items naturally have small absolute percentages;
 an imported provisional order has less influence until human comparisons
 provide evidence. Brick rows show their importance position, parent, and
 importance confidence separately from this chance. Positions are sibling-local
 and use the same zero-based order keys as the importance view, including any
-gaps preserved by migration.
+gaps preserved by migration. Forecast rows also separate Work and ordering-review
+chances below the subject total. Unresolved sibling order contributes one
+maintenance opportunity, with pressure from low confidence and age. A lottery
+comparison asks one pair; `lant order` keeps the continuous ordering workflow.
+Two skips preserve uncertainty and defer that review for 24 hours.
 
 The offline HTML exporter uses the same category/part organization, with native
 collapsible branches and separate composition and dependency sections.
@@ -543,3 +636,11 @@ fed, how it was ordered, what was skipped, and why. When it is time to choose,
 it offers one concrete next move and can explain how it got there.
 
 **Feed freely. Judge deliberately. Focus on one Brick.**
+
+Effort and impact reviews are lazy. `/effort #brick` and `/impact #brick` offer
+help immediately; unresolved requests may return as short lottery comparisons.
+Changes to an existing scope or supporting evidence can request a review too.
+Empty fields alone create no maintenance backlog. Review skip defers the
+question for 24 hours without deferring Work. A tired/easier-work choice offers
+an executable shortlist and ordinary Focus consent; its weak contextual effort
+evidence does not assign a class or replace a dedicated total-effort judgment.

@@ -1421,10 +1421,14 @@ assistance-label, and no-emoji rendering.
 - **UX-201 [core] — Human handles have deterministic edge normalization.** A
   seed is Unicode NFKD-normalized, combining marks removed, ASCII-lowercased,
   and split into nonempty ASCII alphanumeric tokens. One token uses at most
-  its first 12 characters; several tokens use their first characters, at most
-  12. If no token remains, the base is `brick`, `raw`, or `entity` by kind.
-  MOD-010 collision suffixing then applies. This deliberately avoids
-  locale-dependent transliteration. Displayed Unicode content remains intact.
+  its first 6 characters; several tokens use their first characters, at most
+  6. If no token remains, the base is `brick`, `raw`, or `entity` by kind.
+  MOD-010 collision suffixing then applies outside this base limit; neither
+  the sigil nor the numeric suffix counts toward the six characters. The limit
+  applies only to newly allocated handles. Previously allocated handles retain
+  their exact spelling, including longer bases, through replay, restart, and
+  later content revision. This deliberately avoids locale-dependent
+  transliteration. Displayed Unicode content remains intact.
 - **UX-202 [core] — Technical records stay owner-addressed.** Bricks, Raws,
   and ExternalEntities alone have sigil handles. A Domain uses its quoted full
   path; a RawShelf uses `Shelf "name"`; a ListEntry is selected within its

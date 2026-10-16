@@ -1,0 +1,4 @@
+interface:
+  display_name: "Little Ant"
+  short_description: "Operate LANT tasks through its installed CLI"
+  default_prompt: "Use $little-ant to inspect my tasks and help me choose what to do next."

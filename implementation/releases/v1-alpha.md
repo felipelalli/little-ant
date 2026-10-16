@@ -26,6 +26,17 @@ Commands outside this list remain visible because their implementation is
 useful for testing, but their help and documentation mark them experimental.
 An experimental command is not an alpha compatibility promise.
 
+## Multiple clients on one dataset
+
+The alpha supports one client conducting guided decisions and changes at a
+time. A skill and REPL on the same dataset share their pending question and
+navigation; the REPL does not refresh automatically after external changes.
+Use the other client for queries that preserve the interaction, such as
+`list importance`, `list forecast`, and `why`. Canonical event locking does not
+protect concurrent presentation checkpoint saves; this is a known defect, not
+a guarantee of safe simultaneous editing. See the [usage guidance](../../README.md#use-the-skill-and-repl-in-separate-tabs)
+and [technical limitation](../adr/0003-persisted-guided-checkpoints.md#current-alpha-concurrency-limitation).
+
 ## Migration boundary
 
 The default legacy source is

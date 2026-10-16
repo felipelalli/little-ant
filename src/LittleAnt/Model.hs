@@ -16,6 +16,9 @@ module LittleAnt.Model (
   Fixed (..),
   ForecastDrawEvidence (..),
   ForecastSelectionEvidence (..),
+  ForecastExplanation (..),
+  ForecastFactorEvidence (..),
+  ImportanceReviewDeferral (..),
   ImpactClaim (..),
   ImpactClass (..),
   ImpactMaturity (..),
@@ -30,6 +33,8 @@ module LittleAnt.Model (
   ImportanceConfidence (..),
   ImportanceEdge (..),
   LazyReviewClaim (..),
+  JudgmentReviewKind (..),
+  JudgmentReview (..),
   ListEntry (..),
   ListEntryState (..),
   MaterializationEffect (..),
@@ -125,7 +130,7 @@ module LittleAnt.Model (
 )
 where
 
-import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.=))
+import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.:?), (.=))
 import Data.ByteString (ByteString)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -1086,6 +1091,25 @@ data LazyReviewClaim = LazyReviewClaim
   }
   deriving stock (Eq, Ord, Generic, Show)
 
+data JudgmentReviewKind = EffortDiscovery | ImpactDiscovery | ImpactEvidenceReview
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
+
+-- A demand is attached to existing Work. Resolved demands retain the revision
+-- and class-validity evidence, so viewing or repeating a command cannot revive it.
+data JudgmentReview = JudgmentReview
+  { judgmentReviewKind :: JudgmentReviewKind
+  , judgmentReviewSubject :: UUIDv7
+  , judgmentReviewCandidates :: [UUIDv7]
+  , judgmentReviewReason :: Text
+  , judgmentReviewRevision :: Text
+  , judgmentReviewCreatedAt :: UTCTime
+  , judgmentReviewCooldown :: Maybe UTCTime
+  , judgmentReviewDeferrals :: Int
+  , judgmentReviewResolved :: Bool
+  , judgmentReviewClassDue :: Bool
+  }
+  deriving stock (Eq, Generic, Show)
+
 data CommandEffect = CommandEffect
   { effectCommandId :: UUIDv7
   , effectActor :: Actor
@@ -1132,6 +1156,76 @@ data ForecastSelectionEvidence = ForecastSelectionEvidence
   , forecastSelectionStrongestSignal :: Maybe Text
   , forecastSelectionAdditionalSignals :: [Text]
   , forecastSelectionDraws :: [ForecastDrawEvidence]
+  , forecastSelectionExplanation :: Maybe ForecastExplanation
+  }
+  deriving stock (Eq, Generic, Show)
+
+-- Captured inputs belong to the selection instant, never to a later projection.
+data ForecastFactorEvidence = ForecastFactorEvidence
+  { evidenceIdentity :: UUIDv7
+  , evidenceSubject :: Text
+  , evidencePosition :: Maybe (Int, Int)
+  , evidenceConfidence :: Integer
+  , evidenceFactors :: [(Text, Integer)]
+  , evidenceSignals :: [Text]
+  }
+  deriving stock (Eq, Generic, Show)
+
+data ForecastExplanation = ForecastExplanation
+  { explanationRecordedAt :: UTCTime
+  , explanationOriginal :: Text
+  , explanationEndpoint :: Maybe Text
+  , explanationDomain :: [Text]
+  , explanationSubjectChance :: (Integer, Integer)
+  , explanationOpportunityChance :: (Integer, Integer)
+  , explanationFactors :: [ForecastFactorEvidence]
+  }
+  deriving stock (Eq, Generic, Show)
+
+instance ToJSON ForecastFactorEvidence where
+  toJSON value =
+    object $
+      [ "subject_id" .= renderUUIDv7 (evidenceIdentity value)
+      , "subject" .= evidenceSubject value
+      , "confidence_millionths" .= evidenceConfidence value
+      , "factors_millionths" .= evidenceFactors value
+      , "signals" .= evidenceSignals value
+      ]
+        <> maybe [] (pure . ("position" .=)) (evidencePosition value)
+instance FromJSON ForecastFactorEvidence where
+  parseJSON = withObject "forecast factor evidence" $ \value ->
+    ForecastFactorEvidence
+      <$> (value .: "subject_id" >>= either (fail . show) pure . parseUUIDv7)
+      <*> value .: "subject"
+      <*> value .:? "position"
+      <*> value .: "confidence_millionths"
+      <*> value .: "factors_millionths"
+      <*> value .: "signals"
+instance ToJSON ForecastExplanation where
+  toJSON value =
+    object $
+      [ "recorded_at" .= explanationRecordedAt value
+      , "original" .= explanationOriginal value
+      , "domain" .= explanationDomain value
+      , "subject_chance" .= explanationSubjectChance value
+      , "opportunity_chance" .= explanationOpportunityChance value
+      , "factors" .= explanationFactors value
+      ]
+        <> maybe [] (pure . ("endpoint" .=)) (explanationEndpoint value)
+instance FromJSON ForecastExplanation where
+  parseJSON = withObject "forecast explanation" $ \value ->
+    ForecastExplanation
+      <$> value .: "recorded_at"
+      <*> value .: "original"
+      <*> value .:? "endpoint"
+      <*> value .: "domain"
+      <*> value .: "subject_chance"
+      <*> value .: "opportunity_chance"
+      <*> value .: "factors"
+
+data ImportanceReviewDeferral = ImportanceReviewDeferral
+  { importanceReviewCooldownUntil :: UTCTime
+  , importanceReviewDeferralCount :: Int
   }
   deriving stock (Eq, Generic, Show)
 
@@ -1156,6 +1250,7 @@ data State = State
   , stateRawLinks :: Map UUIDv7 RawLink
   , stateImportanceEdges :: Set ImportanceEdge
   , stateLazyReviews :: Map UUIDv7 LazyReviewClaim
+  , stateJudgmentReviews :: Map (JudgmentReviewKind, UUIDv7) JudgmentReview
   , stateCurrentFocus :: Maybe UUIDv7
   , stateCommandEffects :: Map UUIDv7 CommandEffect
   , stateMaterializationEffects :: Map UUIDv7 MaterializationEffect
@@ -1165,6 +1260,7 @@ data State = State
   , stateRandomSeed :: Maybe ByteString
   , stateRandomCursors :: Map Text Integer
   , stateForecastSelections :: Map UUIDv7 ForecastSelectionEvidence
+  , stateImportanceReviewDeferrals :: Map (Maybe UUIDv7) ImportanceReviewDeferral
   , stateWorkDeferrals :: Map UUIDv7 WorkDeferral
   , stateActiveSprint :: Maybe ActiveSprint
   , stateDependencies :: Map UUIDv7 Dependency
@@ -1229,6 +1325,7 @@ emptyState =
     , stateRawLinks = Map.empty
     , stateImportanceEdges = Set.empty
     , stateLazyReviews = Map.empty
+    , stateJudgmentReviews = Map.empty
     , stateCurrentFocus = Nothing
     , stateCommandEffects = Map.empty
     , stateMaterializationEffects = Map.empty
@@ -1238,6 +1335,7 @@ emptyState =
     , stateRandomSeed = Nothing
     , stateRandomCursors = Map.empty
     , stateForecastSelections = Map.empty
+    , stateImportanceReviewDeferrals = Map.empty
     , stateWorkDeferrals = Map.empty
     , stateActiveSprint = Nothing
     , stateDependencies = Map.empty

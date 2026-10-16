@@ -17,8 +17,8 @@ required to operate or implement the product.
 The previous implementation, Allium garden, and generated tests were removed
 from the working tree after their divergence was diagnosed. Git history and a
 versioned v0 archive remain migration evidence only. The README summarizes
-this contract, while the v0 operator skill remains historical evidence; neither
-overrides a canonical rule.
+this contract, while the archived v0 operator skill remains historical
+evidence; neither overrides a canonical rule.
 
 ## Authority
 
@@ -32,16 +32,17 @@ When sources disagree, use this order:
    behavior;
 4. [traceability](little-ant-1.0/traceability.md), to locate provenance rather
    than define behavior;
-5. Git evidence anchors and the retained v0 skill, as non-authoritative
+5. Git evidence anchors and the archived v0 skill, as non-authoritative
    historical evidence.
 
 Deleted code, Allium, and generated artifacts must not be consulted as current
 product evidence merely because Git can recover them.
 
-`skills/little-ant/SKILL.md` is explicitly a **v0 operator skill** during this
-specification phase. It may provide historical evidence, but it must not name,
-infer, or fill a 1.0 route. It is replaced only after the dumb and powered-up
-contracts reach the Skill-mirror gate.
+The historical **v0 operator skill** is evidence only; it must not define or
+fill a 1.0 route. The current `skills/little-ant/SKILL.md` is an interim alpha
+CLI operator that obtains routes from the installed engine. It does not
+replace the complete v1 Skill mirror: that requires the dumb and powered-up
+contracts to reach the Skill-mirror gate.
 
 Normative rules have stable IDs. Later Allium obligations and tests must carry
 the same IDs so a rule cannot silently disappear between layers.

@@ -114,6 +114,7 @@ renderFooterAtWidth width footer =
 
 renderCommandResult :: CommandResult -> Text
 renderCommandResult = \case
+  WhyResult _ _ summary details complete _ -> Text.unlines (summary <> if complete then details else [])
   NextResult _ interaction dryRun -> dryRunFact dryRun <> renderPlain (renderEnvelope interaction)
   RespondResult _ interaction _ dryRun -> dryRunFact dryRun <> renderPlain (renderEnvelope interaction)
   FeedResult _ _ _ _ _ interaction dryRun -> dryRunFact dryRun <> renderPlain (renderEnvelope interaction)

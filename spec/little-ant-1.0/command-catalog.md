@@ -42,11 +42,67 @@ mutation.
   command's help declares them. Sparse JSON is the default structured
   projection; explicit audit projections may include absent values when their
   schema requires them.
+- `--view guided show +RAW` opens that exact Raw's guided workflow. It is an
+  interaction-opening form, unlike the ordinary read-only detail depths.
+- Global `--non-interactive` forbids REPL startup and terminal prompts. Every
+  implemented guided operation remains reachable through the headless
+  interaction transport below; the flag never chooses an answer. Explicit
+  piped material remains valid. `--secret-stdin` supplies secrets as separate
+  stdin lines, without echo or secret-bearing arguments; creation and rotation
+  require the new passphrase twice. Provider browser authorization may still
+  require the account owner's external approval.
+
+## Headless interaction transport
+
+`lant interaction` is a CLI-only transport namespace, not another Work verb or
+a slash alias. It exposes the same envelopes and dispatcher used by the REPL:
+
+| CLI form | Meaning |
+|---|---|
+| `lant interaction show` | Inspect the saved pending envelope without ticking, drawing, refreshing, or changing its checkpoint; fail if none exists. |
+| `lant interaction respond --from FILE --action ACTION_ID [--text TEXT\|--text-file FILE]` | Answer one exact action from the supplied envelope, optionally submitting input text. |
+| `lant interaction back --from FILE` | Move to the preceding presentation checkpoint, bound to the supplied current envelope. |
+| `lant interaction forward --from FILE` | Move to the retained forward presentation checkpoint with the same binding. |
+
+`--from` accepts a JSON envelope or the complete JSON command result containing
+it. `-` reads stdin; `--text-file -` likewise reads UTF-8 text from stdin. Both
+inputs cannot consume stdin in one invocation. Text is valid only for an input
+interaction. Actions use exact IDs from that envelope, not simulated keypresses.
+Identity, revision, cursor, token, and semantic preconditions are validated
+before answering. A replaced or relevantly stale interaction fails with
+`stale_interaction` and never transfers its answer to another question.
+Back/forward only navigate; they do not supply consent or undo domain events.
+
+Structured command results include `status`: `completed`, `awaiting_input`, or
+`simulated`. A completed Feed or response may also carry the next interaction;
+that does not undo completion of its accepted operation. With
+`--non-interactive`, exit 0 means completion, successful inspection, or dry-run;
+exit 2 accompanies a result awaiting an answer; exit 1 means an error.
+`interaction show` exits 0 for successful inspection even when its envelope
+awaits an answer. Without the flag, successfully opening a guided interaction
+retains exit 0 for compatibility. Raw exporter output remains raw bytes.
+
+`lant archive BRICK --yes` and `lant restore BRICK --yes` explicitly accept
+only that invocation's lifecycle preview through the same dispatcher. Archive
+still removes the previewed dependencies and creates its relevance review;
+neither route requires accepting Focus. Without `--yes`, the preview remains
+pending. `lant update BRICK title|description --text TEXT|--text-file FILE`
+submits an exact value to the ordinary revision preview; adding `--yes`
+accepts that revision. `--yes` without a field and value is invalid for update.
+These forms do not answer other judgments, accept a replacement question, or
+provide a general affirmative-answer loop. Global `--dry-run` validates the
+entire requested operation without persisting even an intermediate checkpoint.
+
+UI controls such as opening Feed or the command palette are presentation
+controls: headless callers use `feed` or the envelope's canonical commands.
+An implementation marked `unsupported` remains unavailable; non-interactive
+transport does not claim implementation of deferred product features.
 
 ## Daily work and organization
 
 | REPL command | CLI form | Meaning |
 |---|---|---|
+| `/why` | `lant why` | Inspect the current recorded selection without drawing, answering, or changing the checkpoint; `--view complete` exposes replay details. |
 | `/next` | `lant next` | Obtain one replay-recorded opportunity without silently replacing current focus. |
 | `/feed [text]` | `lant feed [text]` | Preserve one new item as Inbox Raw before any lazy classification. |
 | `/focus [#brick]` | `lant focus <#brick>` | Ask the ordinary `Focus?` question for named Work, or resume its WIP continuation. |

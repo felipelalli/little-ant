@@ -49,6 +49,20 @@ tests =
             large = renderPlain (progressModel 1000000)
         assertBool "small count is padded" ("Loading 000007..." `Text.isInfixOf` small)
         assertBool "large count grows" ("Loading 1000000..." `Text.isInfixOf` large)
+    , testCase "palette bounds long citations without changing commands or search" $ do
+        identity <- fixtureIdentity
+        let title = "Avaliar a variante " <> Text.replicate 80 "界🙂 contexto " <> "LAST_TITLE_WORD"
+            citation = "#longtitle \"" <> title <> "\""
+            command = CommandOption "show" ("/show " <> citation) ("Inspect " <> citation)
+            envelope = (makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow){envelopeCommands = [command]}
+            model = paletteModel envelope "/" 0
+            plain = renderPlain model
+        assertBool "palette rows overflow the terminal" (all ((<= 80) . textDisplayWidth . plainLine) (screenLines model))
+        assertBool "a truncated title needs a visible marker" ("(...)" `Text.isInfixOf` plain)
+        Text.count "Avaliar a variante" plain @?= 1
+        assertBool "the description repeated the complete title" (not ("LAST_TITLE_WORD" `Text.isInfixOf` plain))
+        paletteCommandSelection envelope "/show" 0 @?= Just command
+        filteredCommands envelope "/LAST_TITLE_WORD" @?= [command]
     , testCase "narrow rendering reflows every action without semantic truncation" $ do
         dataset <- loadFixture
         identity <- fixtureIdentity

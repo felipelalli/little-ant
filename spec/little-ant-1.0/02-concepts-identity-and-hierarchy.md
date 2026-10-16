@@ -84,7 +84,8 @@
   target UUID and render its current handle. Normal surfaces do not expose
   UUIDs unless a technical or diagnostic projection explicitly requests
   them. The default mnemonic base for a multi-word title, name, or Raw display
-  seed is its normalized lowercase ASCII initials without stop-word removal.
+  seed is its normalized lowercase ASCII initials without stop-word removal,
+  capped at six characters for new allocations. Existing handles remain stable.
   A Raw's immutable allocation seed is the first available human-visible
   source label, filename, or first nonblank line of its original material;
   when none exists, it is `raw`. Later content revision, English

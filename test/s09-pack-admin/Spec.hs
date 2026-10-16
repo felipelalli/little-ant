@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar, threadDelay)
+import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar)
 import Control.Exception (bracket)
 import Crypto.Error (CryptoFailable (..))
 import Crypto.PubKey.Ed25519 qualified as Ed25519
@@ -54,6 +54,7 @@ import System.IO.Temp (withSystemTempDirectory)
 import System.Posix.Files (fileMode, getFileStatus)
 import Test.Tasty
 import Test.Tasty.HUnit
+import VaultTest
 
 main :: IO ()
 main =
@@ -497,7 +498,7 @@ providerConnectionEnablesImport = withHarness $ \base -> do
   Vault.writeVault (Profile.vaultFile paths) passphrase (Vault.emptyVault vaultIdentity) >>= either (assertFailure . show) pure
   stopped <- newEmptyMVar
   _ <- forkIO (runVaultAgent (Profile.vaultSocket paths) (Profile.vaultFile paths) 60 >>= putMVar stopped)
-  waitForPath (Profile.vaultSocket paths) 100
+  waitForAgent (Profile.vaultSocket paths) stopped 100
 
   responses <- newIORef [deviceAuthorizationResponse, deviceTokenResponse]
   prompts <- newIORef []
@@ -589,7 +590,7 @@ staticProviderConnectionEnablesImport = withHarness $ \base -> do
   Vault.writeVault (Profile.vaultFile paths) passphrase (Vault.emptyVault vaultIdentity) >>= either (assertFailure . show) pure
   stopped <- newEmptyMVar
   _ <- forkIO (runVaultAgent (Profile.vaultSocket paths) (Profile.vaultFile paths) 60 >>= putMVar stopped)
-  waitForPath (Profile.vaultSocket paths) 100
+  waitForAgent (Profile.vaultSocket paths) stopped 100
 
   credentialPrompts <- newIORef []
   let runtime =
@@ -1313,13 +1314,6 @@ deviceTokenResponse =
 assertAgentSuccess :: AgentReply -> Assertion
 assertAgentSuccess reply = assertBool "vault agent did not acknowledge the request" (agentReplySucceeded reply)
 
-waitForPath :: FilePath -> Int -> Assertion
-waitForPath path attempts
-  | attempts <= 0 = assertFailure ("timed out waiting for " <> path)
-  | otherwise = do
-      exists <- doesPathExist path
-      if exists then pure () else threadDelay 10_000 >> waitForPath path (attempts - 1)
-
 publishedRemote :: IO OfficialPackRemote
 publishedRemote = do
   catalog <- ByteString.readFile officialCatalogDocument
@@ -1421,9 +1415,9 @@ connectorIdentity =
     connectorArchiveDigest
 
 withHarness :: (AppEnv -> IO a) -> IO a
-withHarness action = withSystemTempDirectory "little-ant-pack-admin" $ \root ->
+withHarness action = withShortRuntime $ \runtime -> withSystemTempDirectory "little-ant-pack-admin" $ \root ->
   withEnvironment
-    (xdgAssignments root)
+    (("XDG_RUNTIME_DIR", runtime) : filter ((/= "XDG_RUNTIME_DIR") . fst) (xdgAssignments root))
     ( productionAppEnv Nothing >>= \case
         Left problem -> assertFailure (show problem) >> fail "unreachable"
         Right environment -> action environment

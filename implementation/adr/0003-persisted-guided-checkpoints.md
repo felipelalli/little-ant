@@ -54,6 +54,40 @@ replay atomically.
 - Later compensation can be implemented without reconstructing overwritten
   quantities or guessing which structures a command created.
 
+## Current alpha concurrency limitation
+
+There is one `checkpoints/pending-envelope.json` per dataset, including its back
+and forward stacks. It is shared across clients using that dataset rather than
+scoped to a terminal, process, or surface mode. Opening a guided route in one
+client can replace the question another client still displays. The REPL retains
+its screen in memory and has no automatic refresh for external changes.
+Responses are checked against the current interaction and dataset; a stale
+action may return the current/replacement envelope or an error rather than
+apply the old answer. This validation does not create independent sessions.
+
+`Application.savePendingCheckpoint` currently writes the fixed sibling
+`pending-envelope.json.tmp` and renames it over the checkpoint without a
+checkpoint lock or revision compare-and-swap. By code inspection, simultaneous
+saves can collide on that temporary path, fail during I/O, or overwrite newer
+navigation with an older checkpoint. Readers can then encounter invalid
+checkpoint bytes. The canonical `.writer.lock` protects event publication and
+cursor validation; it does not cover this presentation save. Canonical command
+atomicity is therefore not evidence of safe concurrent guided sessions. A
+checkpoint failure can also occur after a command's events have been committed;
+inspect current state/history before retrying an uncertain operation.
+
+The current usage boundary is one client conducting guided decisions and
+changes at a time. Another client may use `list importance`, `list forecast`, or
+`why`, which preserve the checkpoint. After a handoff, obtain the current
+interaction and inspect it before answering. Profiles have separate datasets
+and do not merge, so switching profiles is not synchronization.
+
+Remaining implementation work is to protect checkpoint publication from
+concurrent writers, prevent stale checkpoint replacement, and define client
+coordination explicitly. Regression coverage must include simultaneous clients,
+stale navigation, and an event commit followed by checkpoint failure. Documenting
+this defect does not relax the response-validation contract in UX-192.
+
 ## Alternatives rejected
 
 Persisting each wizard answer as a domain event would turn Back into semantic

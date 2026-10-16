@@ -12,6 +12,7 @@ module LittleAnt.Event (
   EventDraft (..),
   EventPayload (..),
   ForecastSelected (..),
+  ImportanceReviewDeferred (..),
   ForecastFocusAccepted (..),
   FocusPaused (..),
   ImportanceCompared (..),
@@ -73,6 +74,7 @@ module LittleAnt.Event (
   encodeEvent,
   eventTypeName,
   eventVersionNumber,
+  forecastSelectionValue,
   externalEffectConsentDigest,
   externalEffectRequestDigest,
 )
@@ -101,7 +103,8 @@ import Data.Text.Encoding qualified as TextEncoding
 import Data.Time (DayOfWeek (..), UTCTime, addUTCTime, defaultTimeLocale, formatTime)
 import LittleAnt.Error
 import LittleAnt.Id
-import LittleAnt.Judgment (ContradictionAssessment (..), detectContradiction, factoryJudgmentProfileHash, initialConfidence, reorderedSiblingIds)
+import LittleAnt.Judgment (ContradictionAssessment (..), adaptiveImportancePair, detectContradiction, factoryJudgmentProfileHash, initialConfidence, reorderedSiblingIds)
+import LittleAnt.JudgmentReview
 import LittleAnt.Model
 import LittleAnt.Schedule (validateCalendarRule)
 
@@ -549,6 +552,12 @@ newtype BrickFocused = BrickFocused {focusedBrickId :: UUIDv7}
 newtype BrickCompleted = BrickCompleted {completedBrickId :: UUIDv7}
   deriving stock (Eq, Show)
 
+data ImportanceReviewDeferred = ImportanceReviewDeferred
+  { deferredImportanceParent :: Maybe UUIDv7
+  , deferredImportanceUntil :: UTCTime
+  }
+  deriving stock (Eq, Show)
+
 newtype ForecastSelected = ForecastSelected
   { selectedForecastEvidence :: ForecastSelectionEvidence
   }
@@ -589,6 +598,9 @@ data EventPayload
   | BrickChildCreatedV1 BrickChildCreated
   | LazyReviewRequestedV1 LazyReviewRequested
   | LazyReviewSettledV1 LazyReviewSettled
+  | JudgmentReviewRequestedV1 JudgmentReview
+  | JudgmentReviewDeferredV1 JudgmentReviewKind UUIDv7 UTCTime
+  | JudgmentReviewCompletedV1 JudgmentReviewKind UUIDv7 Bool
   | BrickStatusChangedV1 BrickStatusChanged
   | RawLinkAddedV1 RawLinkAdded
   | RawDispositionAcceptedV1 RawDispositionAccepted
@@ -614,6 +626,9 @@ data EventPayload
   | OperationalDayConfigChangedV1 OperationalDayConfigChanged
   | ImportanceComparedV1 ImportanceCompared
   | ImportancePlacementMarkedV1 ImportancePlacementMarked
+  | ContextualEffortRecordedV1 PairJudgmentRecorded
+  | EasierWorkOfferedV1 UUIDv7 ByteString [ForecastDrawEvidence]
+  | PairJudgmentRecordedV2 PairJudgmentRecorded
   | PairJudgmentRecordedV1 PairJudgmentRecorded
   | PhaseChangedV1 PhaseChanged
   | ImpactClassifiedV1 ImpactClassified
@@ -621,6 +636,8 @@ data EventPayload
   | EffortActualObservedV1 EffortActualObserved
   | BrickFocusedV1 BrickFocused
   | BrickCompletedV1 BrickCompleted
+  | ImportanceReviewDeferredV1 ImportanceReviewDeferred
+  | ForecastSelectedV2 ForecastSelected
   | ForecastSelectedV1 ForecastSelected
   | ForecastFocusAcceptedV1 ForecastFocusAccepted
   | WorkReactionRecordedV1 WorkReactionRecorded
@@ -683,6 +700,9 @@ eventTypeName = \case
   BrickChildCreatedV1 _ -> "brick_child_created"
   LazyReviewRequestedV1 _ -> "lazy_review_requested"
   LazyReviewSettledV1 _ -> "lazy_review_settled"
+  JudgmentReviewRequestedV1 _ -> "judgment_review_requested"
+  JudgmentReviewDeferredV1{} -> "judgment_review_deferred"
+  JudgmentReviewCompletedV1{} -> "judgment_review_completed"
   BrickStatusChangedV1 _ -> "brick_status_changed"
   RawLinkAddedV1 _ -> "raw_link_added"
   RawDispositionAcceptedV1 _ -> "raw_disposition_accepted"
@@ -708,6 +728,9 @@ eventTypeName = \case
   OperationalDayConfigChangedV1 _ -> "operational_day_config_changed"
   ImportanceComparedV1 _ -> "importance_compared"
   ImportancePlacementMarkedV1 _ -> "importance_placement_marked"
+  ContextualEffortRecordedV1 _ -> "contextual_effort_recorded"
+  EasierWorkOfferedV1{} -> "easier_work_offered"
+  PairJudgmentRecordedV2 _ -> "pair_judgment_recorded"
   PairJudgmentRecordedV1 _ -> "pair_judgment_recorded"
   PhaseChangedV1 _ -> "phase_changed"
   ImpactClassifiedV1 _ -> "impact_classified"
@@ -715,6 +738,8 @@ eventTypeName = \case
   EffortActualObservedV1 _ -> "effort_actual_observed"
   BrickFocusedV1 _ -> "brick_focused"
   BrickCompletedV1 _ -> "brick_completed"
+  ImportanceReviewDeferredV1 _ -> "importance_review_deferred"
+  ForecastSelectedV2 _ -> "forecast_selected"
   ForecastSelectedV1 _ -> "forecast_selected"
   ForecastFocusAcceptedV1 _ -> "forecast_focus_accepted"
   WorkReactionRecordedV1 _ -> "work_reaction_recorded"
@@ -734,6 +759,8 @@ eventTypeName = \case
   ExternalEffectReceiptRecordedV1 _ -> "external_effect_receipt_recorded"
 
 eventVersionNumber :: EventPayload -> Int
+eventVersionNumber PairJudgmentRecordedV2{} = 2
+eventVersionNumber ForecastSelectedV2{} = 2
 eventVersionNumber _ = 1
 
 encodeEvent :: PersistedEvent -> ByteString
@@ -812,6 +839,14 @@ applyEvent state event = case persistedPayload event of
   BrickChildCreatedV1 payload -> applyBrickChildCreated state event payload
   LazyReviewRequestedV1 payload -> applyLazyReviewRequested state event payload
   LazyReviewSettledV1 payload -> applyLazyReviewSettled state payload
+  JudgmentReviewRequestedV1 review -> applyJudgmentReviewRequested state event review
+  JudgmentReviewDeferredV1 kind identity untilTime -> do
+    review <- requireJudgmentReview state kind identity
+    unless (untilTime > persistedRecordedAt event) $ corrupt "A review cooldown must expire after its deferral."
+    Right . bump $ state{stateJudgmentReviews = Map.insert (kind, identity) review{judgmentReviewCooldown = Just untilTime, judgmentReviewDeferrals = judgmentReviewDeferrals review + 1} (stateJudgmentReviews state), stateLastRedo = Nothing}
+  JudgmentReviewCompletedV1 kind identity classified -> do
+    review <- requireJudgmentReview state kind identity
+    Right . bump $ state{stateJudgmentReviews = Map.insert (kind, identity) review{judgmentReviewResolved = True, judgmentReviewCooldown = Nothing, judgmentReviewClassDue = not classified && judgmentReviewClassDue review} (stateJudgmentReviews state), stateLastRedo = Nothing}
   BrickStatusChangedV1 payload -> applyBrickStatusChanged state payload
   RawLinkAddedV1 payload -> applyRawLinkAdded state event payload
   RawDispositionAcceptedV1 payload -> applyRawDisposition state event payload
@@ -837,6 +872,22 @@ applyEvent state event = case persistedPayload event of
   OperationalDayConfigChangedV1 payload -> applyOperationalDayConfigChanged state payload
   ImportanceComparedV1 payload -> applyImportanceCompared state event payload
   ImportancePlacementMarkedV1 payload -> applyImportancePlacementMarked state event payload
+  ContextualEffortRecordedV1 payload -> applyPairJudgmentRecorded state event payload
+  EasierWorkOfferedV1 source seed draws -> do
+    _ <- requireActiveBrick state source
+    unless (ByteString.length seed == 32 && maybe True (== seed) (stateRandomSeed state)) $ corrupt "An easier-work shortlist changed the dataset seed."
+    unless (not (null draws) && length draws <= 3) $ corrupt "An easier-work shortlist requires one to three draws."
+    let candidateNames = concatMap (fmap fst . forecastDrawCandidates) draws
+    candidateIds <- traverse (either (const (corrupt "An easier-work candidate is not a Brick identity.")) Right . parseUUIDv7) candidateNames
+    candidates <- traverse (requireActiveBrick state) candidateIds
+    unless (all comparableEffort candidates && source `notElem` candidateIds) $ corrupt "Easier-work candidates must be other finite active Work."
+    let chosen = fmap forecastDrawChosenIdentity draws
+    unless (Set.size (Set.fromList chosen) == length chosen) $ corrupt "An easier-work shortlist repeats a candidate."
+    cursors <- foldM (advanceEasier source) (stateRandomCursors state) draws
+    Right . bump $ state{stateRandomSeed = Just seed, stateRandomCursors = cursors}
+  PairJudgmentRecordedV2 payload -> do
+    updated <- applyPairJudgmentRecorded state event payload
+    pure (settleImportanceReview updated event payload)
   PairJudgmentRecordedV1 payload -> applyPairJudgmentRecorded state event payload
   PhaseChangedV1 payload -> applyPhaseChanged state event payload
   ImpactClassifiedV1 payload -> applyImpactClassified state event payload
@@ -844,6 +895,12 @@ applyEvent state event = case persistedPayload event of
   EffortActualObservedV1 payload -> applyEffortActualObserved state event payload
   BrickFocusedV1 payload -> applyBrickFocused state payload
   BrickCompletedV1 payload -> applyBrickCompleted state payload
+  ImportanceReviewDeferredV1 payload -> do
+    unless (deferredImportanceUntil payload > persistedRecordedAt event) $ corrupt "An importance review cooldown must end in the future."
+    let parent = deferredImportanceParent payload
+        count = maybe 0 importanceReviewDeferralCount (Map.lookup parent (stateImportanceReviewDeferrals state))
+    Right . bump $ state{stateImportanceReviewDeferrals = Map.insert parent (ImportanceReviewDeferral (deferredImportanceUntil payload) (count + 1)) (stateImportanceReviewDeferrals state)}
+  ForecastSelectedV2 payload -> applyForecastSelected state payload
   ForecastSelectedV1 payload -> applyForecastSelected state payload
   ForecastFocusAcceptedV1 payload -> applyForecastFocusAccepted state payload
   WorkReactionRecordedV1 payload -> applyWorkReactionRecorded state event payload
@@ -1293,6 +1350,19 @@ applyForecastSelected state payload = do
     unless (forecastDrawTotal draw > 0 && forecastDrawSampledInteger draw >= 0 && forecastDrawSampledInteger draw < forecastDrawTotal draw) $
       corrupt "A forecast draw records an invalid sampled interval."
     pure (Map.insert purpose (forecastDrawEndingCursor draw) cursors)
+
+advanceEasier :: UUIDv7 -> Map.Map Text Integer -> ForecastDrawEvidence -> Either AppError (Map.Map Text Integer)
+advanceEasier source cursors draw = do
+  let purpose = "easier_work_sample"
+      expected = Map.findWithDefault 0 purpose cursors
+      weights = forecastDrawCandidates draw
+      sampled = forecastDrawSampledInteger draw
+      interval _ [] = Nothing
+      interval start ((identity, weight) : rest) = if sampled >= start && sampled < start + weight then Just identity else interval (start + weight) rest
+  unless (forecastDrawPurpose draw == purpose && forecastDrawStartingCursor draw == expected && forecastDrawEndingCursor draw > expected) $ corrupt "An easier-work draw uses the wrong purpose or cursor."
+  unless (all ((> 0) . snd) weights && sum (fmap snd weights) == forecastDrawTotal draw && sampled >= 0 && sampled < forecastDrawTotal draw && interval 0 weights == Just (forecastDrawChosenIdentity draw)) $ corrupt "An easier-work draw records an invalid weighted interval."
+  when (forecastDrawChosenIdentity draw == renderUUIDv7 source) $ corrupt "Easier-work recovery cannot choose the source."
+  Right (Map.insert purpose (forecastDrawEndingCursor draw) cursors)
 
 applyForecastFocusAccepted :: State -> ForecastFocusAccepted -> Either AppError State
 applyForecastFocusAccepted state payload = do
@@ -2318,6 +2388,28 @@ applyLazyReviewRequested state event payload = do
       , stateLastRedo = Nothing
       }
 
+applyJudgmentReviewRequested :: State -> PersistedEvent -> JudgmentReview -> Either AppError State
+applyJudgmentReviewRequested state event proposed = do
+  owner <- requireActiveBrick state (judgmentReviewSubject proposed)
+  let kind = judgmentReviewKind proposed
+      candidates = judgmentReviewCandidates proposed
+      key = (kind, brickId owner)
+  when (Text.null (Text.strip (judgmentReviewReason proposed)) || Text.null (judgmentReviewRevision proposed)) $ corrupt "A judgment review requires an attributed reason and semantic revision."
+  unless (length candidates == Set.size (Set.fromList candidates) && length candidates <= 4) $ corrupt "A judgment review has duplicate or excessive candidates."
+  mapM_ (requireActiveBrick state) candidates
+  when (kind /= EffortDiscovery && Data.Maybe.isJust (brickParent owner)) $ corrupt "Impact reviews belong to composition roots."
+  when (kind == EffortDiscovery && not (comparableEffort owner)) $ corrupt "Effort review requires a finite comparable scope."
+  let review = proposed{judgmentReviewCreatedAt = persistedRecordedAt event, judgmentReviewCooldown = Nothing, judgmentReviewDeferrals = 0, judgmentReviewResolved = False}
+      existing = Map.lookup key (stateJudgmentReviews state)
+      retained = case existing of
+        Just previous | judgmentReviewRevision previous == judgmentReviewRevision review -> previous
+        Just previous -> review{judgmentReviewClassDue = judgmentReviewClassDue review || judgmentReviewClassDue previous}
+        Nothing -> review
+  Right . bump $ state{stateJudgmentReviews = Map.insert key retained (stateJudgmentReviews state), stateLastRedo = Nothing}
+
+requireJudgmentReview :: State -> JudgmentReviewKind -> UUIDv7 -> Either AppError JudgmentReview
+requireJudgmentReview state kind identity = maybe (corrupt "The judgment review does not exist.") Right (Map.lookup (kind, identity) (stateJudgmentReviews state))
+
 applyRawLinkAdded :: State -> PersistedEvent -> RawLinkAdded -> Either AppError State
 applyRawLinkAdded state event payload = do
   _ <- requireRaw state (addedRawId payload)
@@ -2588,15 +2680,27 @@ applyPairJudgmentRecorded state event payload = do
     (ImpactAxis, EitherOrder) -> corrupt "Impact has no either-order relation."
     (EffortAxis, EitherOrder) -> corrupt "Effort has no either-order relation."
     _ -> pure ()
-  validateConfidence =
-    unless (recordedJudgmentInitialConfidence payload == initialConfidence (recordedJudgmentProvenance payload)) $
-      corrupt "A pair judgment does not match its provenance confidence."
+  validateConfidence = case persistedPayload event of
+    ContextualEffortRecordedV1{} -> unless (recordedJudgmentAxis payload == EffortAxis && recordedJudgmentContext payload == "easier_recovery" && recordedJudgmentInitialConfidence payload == Fixed 250_000 && recordedJudgmentProvenance payload == DirectHuman && null (recordedRetiredJudgments payload)) $ corrupt "A contextual effort observation has invalid authority or confidence."
+    _ -> unless (recordedJudgmentInitialConfidence payload == initialConfidence (recordedJudgmentProvenance payload)) $ corrupt "A pair judgment does not match its provenance confidence."
   requireRetired identity = case Map.lookup identity (statePairJudgments state) of
     Nothing -> corrupt "A judgment resolution retires unknown evidence."
     Just judgment
       | judgmentAxis judgment /= recordedJudgmentAxis payload -> corrupt "A judgment resolution crosses axes."
       | judgmentStatus judgment /= JudgmentCurrent -> corrupt "Only current judgment evidence can retire."
       | otherwise -> Right judgment
+
+-- Version 1 folds remain byte-for-byte compatible with their old preconditions.
+-- Current comparisons explicitly carry the review-progress semantics in v2.
+settleImportanceReview :: State -> PersistedEvent -> PairJudgmentRecorded -> State
+settleImportanceReview state event payload
+  | recordedJudgmentAxis payload /= ImportanceAxis || recordedJudgmentStatus payload /= JudgmentCurrent = state
+  | otherwise = reviewed{stateLazyReviews = if coherent then Map.filter keepClaim (stateLazyReviews reviewed) else stateLazyReviews reviewed}
+ where
+  parent = brickParent =<< Map.lookup (recordedJudgmentFirst payload) (stateBricks state)
+  reviewed = state{stateImportanceReviewDeferrals = Map.delete parent (stateImportanceReviewDeferrals state)}
+  coherent = isNothing (adaptiveImportancePair reviewed (persistedRecordedAt event) parent)
+  keepClaim claim = not (lazyReviewKind claim `elem` ["importance", "importance_run_review"] && maybe False ((== parent) . brickParent) (Map.lookup (lazyReviewSubject claim) (stateBricks state)))
 
 applyPhaseChanged :: State -> PersistedEvent -> PhaseChanged -> Either AppError State
 applyPhaseChanged state event payload = do
@@ -2917,6 +3021,18 @@ payloadValue = \case
       [ "review_id" .= uuid (settledReviewId payload)
       , "outcome" .= settledReviewOutcome payload
       ]
+  JudgmentReviewRequestedV1 review ->
+    object
+      [ "kind" .= reviewKindText (judgmentReviewKind review)
+      , "subject_id" .= uuid (judgmentReviewSubject review)
+      , "candidates" .= fmap uuid (judgmentReviewCandidates review)
+      , "reason" .= judgmentReviewReason review
+      , "requested_at" .= judgmentReviewCreatedAt review
+      , "revision" .= judgmentReviewRevision review
+      , "class_due" .= judgmentReviewClassDue review
+      ]
+  JudgmentReviewDeferredV1 kind identity untilTime -> object ["kind" .= reviewKindText kind, "subject_id" .= uuid identity, "cooldown_until" .= untilTime]
+  JudgmentReviewCompletedV1 kind identity classified -> object ["kind" .= reviewKindText kind, "subject_id" .= uuid identity, "classified" .= classified]
   BrickStatusChangedV1 payload ->
     object
       [ "brick_id" .= uuid (statusChangedBrick payload)
@@ -3016,6 +3132,9 @@ payloadValue = \case
     object ["above" .= uuid (comparedAbove payload), "below" .= uuid (comparedBelow payload), "source" .= comparisonSource payload]
   ImportancePlacementMarkedV1 payload ->
     object ["brick_id" .= uuid (markedImportanceBrick payload), "confidence" .= confidenceValue (markedImportanceConfidence payload), "reason" .= markedImportanceReason payload]
+  EasierWorkOfferedV1 source seed draws -> object ["source" .= uuid source, "seed" .= TextEncoding.decodeUtf8 (Base16.encode seed), "draws" .= fmap forecastDrawValue draws]
+  ContextualEffortRecordedV1 payload -> payloadValue (PairJudgmentRecordedV1 payload)
+  PairJudgmentRecordedV2 payload -> payloadValue (PairJudgmentRecordedV1 payload)
   PairJudgmentRecordedV1 payload ->
     object
       [ "judgment_id" .= uuid (recordedJudgmentId payload)
@@ -3066,6 +3185,8 @@ payloadValue = \case
         <> maybe [] (pure . ("remaining_microhours" .=) . Text.pack . show) (observedEffortActualRemainingMicrohours payload)
   BrickFocusedV1 payload -> object ["brick_id" .= uuid (focusedBrickId payload)]
   BrickCompletedV1 payload -> object ["brick_id" .= uuid (completedBrickId payload)]
+  ImportanceReviewDeferredV1 payload -> object ["parent_id" .= (renderUUIDv7 <$> deferredImportanceParent payload), "cooldown_until" .= deferredImportanceUntil payload]
+  ForecastSelectedV2 payload -> forecastSelectionValue (selectedForecastEvidence payload)
   ForecastSelectedV1 payload -> forecastSelectionValue (selectedForecastEvidence payload)
   ForecastFocusAcceptedV1 payload ->
     object $
@@ -3136,6 +3257,7 @@ forecastSelectionValue evidence =
       <> maybe [] (pure . ("endpoint_subject" .=) . renderUUIDv7) (forecastSelectionEndpointSubject evidence)
       <> maybe [] (pure . ("domain_path" .=) . fmap renderUUIDv7) (forecastSelectionDomainPath evidence)
       <> maybe [] (pure . ("strongest_signal" .=)) (forecastSelectionStrongestSignal evidence)
+      <> maybe [] (pure . ("explanation" .=)) (forecastSelectionExplanation evidence)
  where
   admittedValue (identity, weight) = object ["subject_id" .= renderUUIDv7 identity, "weight" .= weight]
   candidateValue (identity, weight) = object ["identity" .= identity, "weight" .= weight]
@@ -3201,6 +3323,40 @@ parsePayload eventType version payload = case (eventType, version) of
               <*> value .: "source"
         )
         payload
+  ("judgment_review_requested", 1) ->
+    withObject
+      "judgment_review_requested@1"
+      ( \value -> do
+          kind <- value .: "kind" >>= maybe (fail "unknown judgment review kind") pure . parseReviewKind
+          identity <- value .: "subject_id" >>= parseId
+          candidates <- value .: "candidates" >>= traverse parseId
+          reason <- value .: "reason"
+          revision <- value .: "revision"
+          requestedAt <- value .: "requested_at"
+          classDue <- value .: "class_due"
+          pure (JudgmentReviewRequestedV1 (JudgmentReview kind identity candidates reason revision requestedAt Nothing 0 False classDue))
+      )
+      payload
+  ("judgment_review_deferred", 1) ->
+    withObject
+      "judgment_review_deferred@1"
+      ( \value ->
+          JudgmentReviewDeferredV1
+            <$> (value .: "kind" >>= maybe (fail "unknown judgment review kind") pure . parseReviewKind)
+            <*> (value .: "subject_id" >>= parseId)
+            <*> value .: "cooldown_until"
+      )
+      payload
+  ("judgment_review_completed", 1) ->
+    withObject
+      "judgment_review_completed@1"
+      ( \value ->
+          JudgmentReviewCompletedV1
+            <$> (value .: "kind" >>= maybe (fail "unknown judgment review kind") pure . parseReviewKind)
+            <*> (value .: "subject_id" >>= parseId)
+            <*> value .: "classified"
+      )
+      payload
   ("lazy_review_settled", 1) ->
     LazyReviewSettledV1
       <$> withObject
@@ -3298,6 +3454,9 @@ parsePayload eventType version payload = case (eventType, version) of
   ("operational_day_config_changed", 1) -> OperationalDayConfigChangedV1 . OperationalDayConfigChanged <$> parseOperationalDayConfig payload
   ("importance_compared", 1) -> ImportanceComparedV1 <$> parseImportanceCompared payload
   ("importance_placement_marked", 1) -> ImportancePlacementMarkedV1 <$> parseImportancePlacementMarked payload
+  ("easier_work_offered", 1) -> withObject "easier_work_offered@1" (\value -> EasierWorkOfferedV1 <$> (value .: "source" >>= parseId) <*> (value .: "seed" >>= parseSeed) <*> (value .: "draws" >>= traverse parseForecastDraw)) payload
+  ("contextual_effort_recorded", 1) -> ContextualEffortRecordedV1 <$> parsePairJudgmentRecorded payload
+  ("pair_judgment_recorded", 2) -> PairJudgmentRecordedV2 <$> parsePairJudgmentRecorded payload
   ("pair_judgment_recorded", 1) -> PairJudgmentRecordedV1 <$> parsePairJudgmentRecorded payload
   ("phase_changed", 1) -> PhaseChangedV1 <$> parsePhaseChanged payload
   ("impact_classified", 1) -> ImpactClassifiedV1 <$> parseImpactClassified payload
@@ -3305,6 +3464,11 @@ parsePayload eventType version payload = case (eventType, version) of
   ("effort_actual_observed", 1) -> EffortActualObservedV1 <$> parseEffortActualObserved payload
   ("brick_focused", 1) -> BrickFocusedV1 <$> withObject "brick_focused@1" (\value -> BrickFocused <$> (value .: "brick_id" >>= parseId)) payload
   ("brick_completed", 1) -> BrickCompletedV1 <$> withObject "brick_completed@1" (\value -> BrickCompleted <$> (value .: "brick_id" >>= parseId)) payload
+  ("importance_review_deferred", 1) -> ImportanceReviewDeferredV1 <$> withObject "importance_review_deferred@1" (\value -> ImportanceReviewDeferred <$> (value .:? "parent_id" >>= traverse parseId) <*> value .: "cooldown_until") payload
+  ("forecast_selected", 2) -> do
+    evidence <- parseForecastSelection payload
+    unless (isJust (forecastSelectionExplanation evidence)) $ fail "forecast_selected@2 requires its explanation snapshot"
+    pure (ForecastSelectedV2 (ForecastSelected evidence))
   ("forecast_selected", 1) -> ForecastSelectedV1 . ForecastSelected <$> parseForecastSelection payload
   ("forecast_focus_accepted", 1) ->
     ForecastFocusAcceptedV1
@@ -3368,6 +3532,7 @@ parsePayload eventType version payload = case (eventType, version) of
       <*> value .:? "strongest_signal"
       <*> value .: "additional_signals"
       <*> (value .: "draws" >>= traverse parseForecastDraw)
+      <*> value .:? "explanation"
   parseSeed encoded =
     case Base16.decode (TextEncoding.encodeUtf8 encoded) of
       Left _ -> fail "invalid forecast seed"

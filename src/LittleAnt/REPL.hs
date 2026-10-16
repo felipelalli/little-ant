@@ -28,6 +28,7 @@ import Control.Exception (bracket)
 import Control.Monad (void)
 import Data.ByteString qualified as ByteString
 import Data.Char (ord)
+import Data.Functor qualified
 import Data.IORef
 import Data.List (find, findIndex, sortOn)
 import Data.Map.Strict qualified as Map
@@ -76,7 +77,9 @@ data ReplScreen
   | ListScreen ReplScreen ListView
   | SearchEditor ReplScreen EditorState (Maybe Text)
   | BrowserScreen ReplScreen Text [SearchHit] Text Int (Maybe Text)
+  | CommandTargetScreen InteractionEnvelope CommandOption [SearchHit] Text Int (Maybe Text)
   | InspectionScreen ReplScreen SearchHit Text
+  | WhyScreen ReplScreen [Text] [Text] Bool
   | ReadOnlyScreen ReplScreen Text
   | SuspendedScreen ReplScreen Int
   | CompletionNoticeScreen Text ReplScreen
@@ -204,8 +207,8 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
   (contentRows, _, bodyRoom, _) = viewportRows width height model
   maximumOffset = max 0 (length contentRows - bodyRoom)
   offset = viewportStart bodyRoom requestedOffset contentRows
-  scrollable = case screen of ReadOnlyScreen{} -> True; InspectionScreen{} -> True; EnvelopeScreen{} -> True; _ -> False
-  selectable = case screen of ListScreen{} -> True; BrowserScreen{} -> True; PaletteScreen{} -> True; PackManagerScreen{} -> True; ImportSourceScreen{} -> True; ImportContainerScreen{} -> True; _ -> False
+  scrollable = case screen of ReadOnlyScreen{} -> True; WhyScreen{} -> True; InspectionScreen{} -> True; EnvelopeScreen{} -> True; _ -> False
+  selectable = case screen of ListScreen{} -> True; BrowserScreen{} -> True; CommandTargetScreen{} -> True; PaletteScreen{} -> True; PackManagerScreen{} -> True; ImportSourceScreen{} -> True; ImportContainerScreen{} -> True; _ -> False
   transition input = case screen of
     EnvelopeScreen envelope _ -> envelopeInput envelope input
     FeedEditor envelope editor message -> feedEditorInput envelope editor message input
@@ -221,9 +224,14 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     ListScreen previous view -> listInput previous view input
     SearchEditor previous editor message -> searchEditorInput previous editor message input
     BrowserScreen previous heading entries query selected message -> browserInput previous heading entries query selected message input
+    CommandTargetScreen envelope command entries query selected message -> commandTargetInput envelope command entries query selected message input
     InspectionScreen previous hit _ -> case input of
       Printable 'f' [] | searchHitKind hit == "brick" -> runSimpleCommand (screenEnvelope previous) (FocusCommand (searchHitHandle hit))
       Printable 'u' [] | searchHitKind hit == "brick" -> runSimpleCommand (screenEnvelope previous) (UpdateCommand (searchHitHandle hit) Nothing)
+      _ -> readOnlyInput previous input
+    WhyScreen previous summary details complete -> case input of
+      Printable 'd' [] -> pure (Just (WhyScreen previous summary details (not complete)))
+      Printable 'b' [] -> pure (Just previous)
       _ -> readOnlyInput previous input
     ReadOnlyScreen previous _ -> readOnlyInput previous input
     SuspendedScreen previous _ -> readOnlyInput previous input
@@ -334,6 +342,14 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     lastIndex = max 0 (length visible - 1)
     changed nextQuery nextSelected = pure . Just $ BrowserScreen previous heading entries nextQuery nextSelected Nothing
 
+  commandTargetInput envelope command entries query selected message input = case input of
+    Enter _ -> case safeIndex selected (filteredHits query entries) of
+      Nothing -> pure (Just screen)
+      Just hit -> runPaletteCommand envelope ("/" <> commandOptionId command <> " " <> searchHitHandle hit) 0 ReturnToEnvelope
+    _ ->
+      browserInput (screenForEnvelope envelope) ("Choose Work for /" <> commandOptionId command) entries query selected message input
+        Data.Functor.<&> fmap (\case BrowserScreen _ _ nextEntries nextQuery nextSelected nextMessage -> CommandTargetScreen envelope command nextEntries nextQuery nextSelected nextMessage; other -> other)
+
   envelopeInput envelope = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
     Printable 'q' [] | all ((/= "q") . actionShortcut) (envelopeActions envelope) -> pure Nothing
@@ -378,6 +394,7 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
 
   navigateOrExit envelope =
     runCurrent (NavigateBackCommand (interactionResponse envelope "navigation.back")) >>= \case
+      Left _ | isMainOpportunity (envelopeOpportunity envelope) -> pure Nothing
       Left problem -> pure . Just $ EnvelopeScreen envelope (Just (appErrorMessage problem))
       Right RespondResult{resultInteraction}
         | resultInteraction == envelope, isMainOpportunity (envelopeOpportunity envelope) -> pure Nothing
@@ -483,6 +500,11 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     Just command -> case commandOptionId command of
       "feed" -> pure (Just (FeedEditor envelope (EditorState "" "" Nothing) Nothing))
       "exit" -> pure Nothing
+      "why" ->
+        runCurrent (WhyCommand SummaryView) >>= \case
+          Left problem -> pure (Just (ReadOnlyScreen previous (appErrorMessage problem)))
+          Right WhyResult{resultWhySummary, resultWhyDetails} -> pure (Just (WhyScreen previous resultWhySummary resultWhyDetails False))
+          Right result -> pure (Just (ReadOnlyScreen previous (renderCommandResult result)))
       "show" -> runShowCommand envelope command
       "list" -> case Text.words (commandOptionCommand command) of
         _ : names@(_ : _) -> openList previous (Text.unwords names)
@@ -821,7 +843,11 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
   runBrickCommand envelope command constructor =
     case Text.words (commandOptionCommand command) of
       _ : references@(_ : _) -> runSimpleCommand envelope (constructor (Text.unwords references))
-      _ -> pure (Just (EnvelopeScreen envelope (Just "Choose a Brick reference for this command.")))
+      _ ->
+        runCurrent (SearchCommand "#") >>= \case
+          Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
+          Right SearchResult{resultSearchHits} -> pure (Just (CommandTargetScreen envelope command (filter ((== "brick") . searchHitKind) resultSearchHits) "" 0 Nothing))
+          Right other -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
 
   runCurrent command =
     readIORef environmentRef >>= \current -> runAppCommand current False (const (pure ())) command
@@ -861,7 +887,9 @@ screenEnvelope = \case
   ListScreen previous _ -> screenEnvelope previous
   SearchEditor previous _ _ -> screenEnvelope previous
   BrowserScreen previous _ _ _ _ _ -> screenEnvelope previous
+  CommandTargetScreen envelope _ _ _ _ _ -> envelope
   InspectionScreen previous _ _ -> screenEnvelope previous
+  WhyScreen previous _ _ _ -> screenEnvelope previous
   ReadOnlyScreen previous _ -> screenEnvelope previous
   SuspendedScreen previous _ -> screenEnvelope previous
   CompletionNoticeScreen _ previous -> screenEnvelope previous
@@ -941,7 +969,9 @@ modelFor width = \case
   ListScreen previous view -> listModel width (screenEnvelope previous) view
   SearchEditor previous editor message -> editorModel width (screenEnvelope previous) "Search" "Search titles, contents, or typed handles such as #brick and +raw." editor message
   BrowserScreen previous heading entries query selected message -> browserModel width (screenEnvelope previous) heading entries query selected message
+  CommandTargetScreen envelope command entries query selected message -> browserModelWithVerb "preview" width envelope ("Choose Work for /" <> commandOptionId command) entries query selected message
   InspectionScreen previous hit text -> documentModel width (screenEnvelope previous) text (if searchHitKind hit == "brick" then "[f] focus · [u] update · ↑/↓ scroll · Esc back" else "↑/↓ scroll · PgUp/PgDn page · Esc back")
+  WhyScreen previous summary details complete -> documentModel width (screenEnvelope previous) (Text.unlines (summary <> if complete then details else [])) "[d] details · [b] back · Esc back"
   ReadOnlyScreen previous text -> documentModel width (screenEnvelope previous) text "↑/↓ scroll · PgUp/PgDn page · Esc back"
   SuspendedScreen previous _ -> modelFor width previous
   CompletionNoticeScreen receipt previous -> prependCompletionNotice width (Just receipt) (modelFor width previous)
@@ -1010,7 +1040,10 @@ importanceTreeRows :: Text -> [SearchHit] -> [(Text, Text, SearchHit)]
 importanceTreeRows query = Tree.treeRows . Tree.filterForest (not . null . filteredHits query . pure) . Tree.fromIndentedLabels searchHitTitle
 
 browserModel :: Int -> InteractionEnvelope -> Text -> [SearchHit] -> Text -> Int -> Maybe Text -> ScreenModel
-browserModel width envelope heading entries query selected message =
+browserModel = browserModelWithVerb "inspect"
+
+browserModelWithVerb :: Text -> Int -> InteractionEnvelope -> Text -> [SearchHit] -> Text -> Int -> Maybe Text -> ScreenModel
+browserModelWithVerb verb width envelope heading entries query selected message =
   ScreenModel
     ( [[Span Normal heading]]
         <> [ [Span Dim line]
@@ -1022,7 +1055,7 @@ browserModel width envelope heading entries query selected message =
         <> maybe [] (\note -> [] : fmap (pure . Span Warning) (wrapWords width note)) message
         <> [[]]
         <> fmap (pure . Span Dim) (wrapWords width ("Showing " <> Text.pack (show (length visible)) <> " of " <> Text.pack (show (length entries)) <> " · Type to filter"))
-        <> fmap (pure . Span Dim) (wrapWords width "↑/↓ select · Enter inspect · Esc back")
+        <> fmap (pure . Span Dim) (wrapWords width ("↑/↓ select · Enter " <> verb <> " · Esc back"))
         <> [[]]
         <> footerFrom width envelope
     )
@@ -1044,7 +1077,7 @@ renderBrowserHit width tree selected index (prefix, continuation, hit)
           detailPrefix = if Text.null continuation then "    " else "  " <> continuation
           detailRoom = width - textDisplayWidth detailPrefix
           firstRow text = [Span Normal cursor, Span Dim prefix, Span Accent (searchHitHandle hit), Span Normal " ", Span role text]
-          bodyRows style text = [[Span Dim detailPrefix, Span style line] | line <- wrapWords detailRoom text]
+          bodyRows style text = [[Span Dim detailPrefix, Span style line] | paragraph <- Text.lines text, line <- wrapWords detailRoom paragraph]
           spacer = [Span Dim ("  " <> continuation)]
        in if tree && labelRoom >= 4 && detailRoom >= 4
             then case wrapWords labelRoom label of
@@ -1055,7 +1088,7 @@ renderBrowserHit width tree selected index (prefix, continuation, hit)
                       <> bodyRows Dim (searchHitDetails hit)
                       <> [spacer]
               [] -> [firstRow "", spacer]
-            else [firstRow label, [Span Dim detailPrefix, Span Dim (searchHitDetails hit)], spacer]
+            else [firstRow label] <> bodyRows Dim (searchHitDetails hit) <> [spacer]
 
 documentModel :: Int -> InteractionEnvelope -> Text -> Text -> ScreenModel
 documentModel width envelope text hint =
@@ -1400,17 +1433,64 @@ paletteModelAtWidth :: Int -> InteractionEnvelope -> Text -> Int -> ScreenModel
 paletteModelAtWidth width envelope query selected =
   ScreenModel
     ( [[Span Normal "More:"], [], [Span Normal "› ", Span Normal query], []]
-        <> zipWith renderRow [0 ..] commands
+        <> concat (zipWith renderRow [0 ..] commands)
         <> [[], [Span Dim "Type to filter available commands."], [Span Dim "↑/↓ select · Enter run · Esc back"], []]
         <> footerFrom width envelope
     )
     Nothing
  where
   commands = filteredCommands envelope query
+  rowWidth = max 1 (min 100 width)
+  labelBudget = max 12 ((rowWidth - 2) * 3 `div` 5)
   renderRow index command =
-    [ Span Normal (if index == selected then "> " else "  ")
-    , Span (if index == selected then Selected else Normal) (Text.justifyLeft 12 ' ' (commandOptionCommand command) <> commandOptionDescription command)
-    ]
+    let label = paletteDisplayLabel labelBudget (commandOptionCommand command)
+        description = paletteDisplayDescription command
+        labelColumns = max 12 (textDisplayWidth label)
+        descriptionRoom = rowWidth - 2 - labelColumns - 2
+        prefix = Span Normal (if index == selected then "> " else "  ")
+        labelSpan = Span (if index == selected then Selected else Normal) label
+     in if descriptionRoom < 16
+          then wrapScreenLine rowWidth [prefix, labelSpan] <> [[Span Dim ("    " <> ellipsizeCells (rowWidth - 4) description)]]
+          else [[prefix, labelSpan, Span Normal (Text.replicate (labelColumns - textDisplayWidth label + 2) " "), Span Dim (ellipsizeCells descriptionRoom description)]]
+
+-- Abbreviate display-only title previews. Filtering and dispatch retain the
+-- complete CommandOption, including its exact reference and original title.
+paletteDisplayLabel :: Int -> Text -> Text
+paletteDisplayLabel budget command = case Text.words command of
+  verb : reference : titleWords@(_ : _) ->
+    let base = verb <> " " <> reference
+        title = Text.unwords titleWords
+        unquoted = Text.stripPrefix "\"" title >>= Text.stripSuffix "\""
+        room = budget - textDisplayWidth base - 3
+     in case unquoted of
+          Nothing -> command
+          Just preview -> if room < 8 then base else base <> " \"" <> ellipsizeCells room preview <> "\""
+  _ -> command
+
+paletteDisplayDescription :: CommandOption -> Text
+paletteDisplayDescription command =
+  let arguments = Text.strip (Text.dropWhile (/= ' ') (commandOptionCommand command))
+      original = commandOptionDescription command
+   in case if Text.null arguments then Nothing else Text.stripSuffix arguments original of
+        Nothing -> original
+        Just prefix ->
+          let trimmed = Text.strip prefix
+           in fromMaybe trimmed (Text.stripSuffix " for" trimmed)
+
+ellipsizeCells :: Int -> Text -> Text
+ellipsizeCells requestedWidth text
+  | textDisplayWidth text <= width = text
+  | width < 5 = Text.replicate (min 3 width) "."
+  | width == 5 = "(...)"
+  | otherwise = Text.stripEnd (takeCells (width - 6) text) <> " (...)"
+ where
+  width = max 0 requestedWidth
+  takeCells remaining value = case Text.uncons value of
+    Just (character, rest)
+      | let cells = textDisplayWidth (Text.singleton character)
+      , cells <= remaining ->
+          Text.cons character (takeCells (remaining - cells) rest)
+    _ -> ""
 
 filteredCommands :: InteractionEnvelope -> Text -> [CommandOption]
 filteredCommands envelope query = if null namedMatches then filter matchesDescription available else namedMatches
@@ -1561,4 +1641,4 @@ credentialInputModel label length' message =
     Nothing
 
 helpText :: Text
-helpText = "Little Ant shows one useful opportunity at a time.\n\nUse the visible keys or return with Escape."
+helpText = "Little Ant shows one useful opportunity at a time.\n\nUse the visible keys or return with Escape.\nUse /why to inspect the recorded selection without drawing again."

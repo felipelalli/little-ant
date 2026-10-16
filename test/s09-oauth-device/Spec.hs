@@ -29,12 +29,12 @@ import LittleAnt.Vault.Agent
 import Network.HTTP.Types.URI (parseQueryText)
 import Network.Socket
 import Network.Socket.ByteString qualified as SocketBytes
-import System.Directory (doesPathExist)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Read (readMaybe)
+import VaultTest
 
 main :: IO ()
 main =
@@ -305,15 +305,15 @@ refreshRotation = do
   oauthRefreshToken preserved @?= Just "REFRESH-OLD"
 
 oauthVaultPersistence :: Assertion
-oauthVaultPersistence = withSystemTempDirectory "lant-oauth-vault" $ \root -> do
+oauthVaultPersistence = withShortRuntime $ \runtime -> withSystemTempDirectory "lant-oauth-vault" $ \root -> do
   passphrase <- assertRight (makePassphrase "oauth fixture passphrase")
   let vaultPath = root </> "vaults" </> "default.age"
-      socketPath = root </> "runtime" </> "default" </> "vault.sock"
+      socketPath = runtime </> "default" </> "vault.sock"
       bindingId = fixtureUuid "019fe080-4344-763f-b110-53cb7aefd0d2"
   Vault.writeVault vaultPath passphrase (Vault.emptyVault (fixtureUuid "019fe080-4344-763f-b110-53cb7aefd0d1")) >>= assertRight
   finished <- newEmptyMVar
   _ <- forkIO (runVaultAgent socketPath vaultPath 60 >>= putMVar finished)
-  waitForPath socketPath 100
+  waitForAgent socketPath finished 100
   sendVaultAgentRequest socketPath (agentUnlockRequest "oauth fixture passphrase") >>= assertRight >>= assertSucceeded
 
   client <- fixtureClient
@@ -344,15 +344,15 @@ oauthVaultPersistence = withSystemTempDirectory "lant-oauth-vault" $ \root -> do
     maybe (assertFailure "vault agent omitted OAuth secret" >> pure ByteString.empty) pure (agentReplySecret reply)
 
 providerAutomaticRefresh :: Assertion
-providerAutomaticRefresh = withSystemTempDirectory "lant-provider-refresh" $ \root -> do
+providerAutomaticRefresh = withShortRuntime $ \runtime -> withSystemTempDirectory ("lant-provider-refresh-" <> replicate 80 'x') $ \root -> do
   passphrase <- assertRight (makePassphrase "provider refresh fixture passphrase")
   let vaultPath = root </> "vaults" </> "default.age"
-      socketPath = root </> "runtime" </> "default" </> "vault.sock"
+      socketPath = runtime </> "default" </> "vault.sock"
       bindingId = fixtureUuid "019fe080-4344-763f-b110-53cb7aefd0e2"
   Vault.writeVault vaultPath passphrase (Vault.emptyVault (fixtureUuid "019fe080-4344-763f-b110-53cb7aefd0e1")) >>= assertRight
   finished <- newEmptyMVar
   _ <- forkIO (runVaultAgent socketPath vaultPath 60 >>= putMVar finished)
-  waitForPath socketPath 100
+  waitForAgent socketPath finished 100
   sendVaultAgentRequest socketPath (agentUnlockRequest "provider refresh fixture passphrase") >>= assertRight >>= assertSucceeded
 
   registry <- googleConnectorRegistry
@@ -438,13 +438,6 @@ googleConnectorRegistry = do
   install <- assertRight (authorizePackInstall fixtureTime scope policy (Set.singleton "google_tasks") authenticated)
   execution <- assertRight (authorizePinnedPackExecution fixtureTime scope policy (installAuthorizedPin install) authenticated)
   assertRight (buildPackRegistry scope [execution])
-
-waitForPath :: FilePath -> Int -> Assertion
-waitForPath path attempts
-  | attempts <= 0 = assertFailure ("timed out waiting for " <> path)
-  | otherwise = do
-      exists <- doesPathExist path
-      if exists then pure () else threadDelay 10_000 >> waitForPath path (attempts - 1)
 
 scriptedTransport :: [OAuthFormResponse] -> IO (OAuthFormTransport, IORef [OAuthFormRequest])
 scriptedTransport responses = do

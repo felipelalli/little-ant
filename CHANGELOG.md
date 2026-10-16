@@ -7,6 +7,39 @@ Removed implementation, Allium, and generated-test artifacts are historical
 evidence only. This changelog summarizes the intended release; it does not
 replace the specification.
 
+## Unreleased
+
+- Limit newly allocated Brick, Raw, and ExternalEntity handle bases to six
+  characters, preserving collision suffixes and all existing handles.
+
+- Bound title previews in the command palette to terminal width, omit repeated
+  citations from descriptions, and keep full command targets and search text.
+- Allow Escape from a stale main opportunity to exit after closing the palette,
+  without replacing the pending question owned by another client.
+
+- Add `--non-interactive`, explicit result status/exit codes, and bound
+  `interaction show|respond|back|forward` transport for every implemented guided
+  CLI flow, with stale-response rejection and explicit secret input on stdin.
+- Support direct archive/restore confirmation with `--yes` and exact title or
+  description input for update; expose archive/restore/update in the REPL with
+  searchable target selection and no prerequisite Focus.
+- Move the packaged operator skill from terminal automation to the public CLI.
+
+- Offer on-demand effort/impact comparisons and impact-evidence reviews in the
+  ordinary lottery, coalescing equivalent requests and preserving Work on skip.
+- Connect tired/easier-work recovery to a recorded executable shortlist and
+  ordinary Focus consent, with separate weak contextual effort evidence.
+- Mark changed scope/evidence judgments review due, retain their history, and
+  explain the recorded review trigger through `/why`.
+
+- Admit unresolved sibling-order reviews to the ordinary lottery, with bounded
+  uncertainty/age pressure, one-comparison cadence, and review-only skip cooldown.
+- Show separate opportunity chances beneath each forecast subject's total.
+- Add read-only `/why` and `lant why`, using immutable selection-time facts and
+  optional calculation details; retain partial explanations for legacy records.
+- Fix vault idle renewal after slow cryptographic writes and stabilize socket
+  fixtures under deep temporary paths in CI.
+
 ## 1.0.0-alpha.2 (2026-10-14)
 
 - Improve the guided REPL with direct exit gestures, task-context assistance,

@@ -16,6 +16,7 @@ module LittleAnt.Judgment (
   provenanceTier,
   relationBetween,
   reorderedSiblingIds,
+  unresolvedReviewCount,
 )
 where
 
@@ -28,6 +29,7 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Time
 import LittleAnt.Id
+import LittleAnt.JudgmentReview (pendingJudgmentReviews)
 import LittleAnt.Model
 
 data RelationView
@@ -92,7 +94,7 @@ effectiveConfidence now judgment
   | age >= horizon = Fixed 0
   | otherwise = Fixed (roundHalfUp (unFixed (judgmentInitialConfidence judgment) * (horizon - age)) horizon)
  where
-  horizon = axisHorizonSeconds (judgmentAxis judgment) (judgmentProvenance judgment)
+  horizon = if judgmentContext judgment == "easier_recovery" then 7 * 86400 else axisHorizonSeconds (judgmentAxis judgment) (judgmentProvenance judgment)
   age = max 0 (floor (diffUTCTime now (judgmentRecordedAt judgment)))
 
 confidenceLabel :: Fixed -> JudgmentLabel
@@ -234,6 +236,15 @@ adaptiveImportancePair state now parent
   unsnoc = \case
     [] -> Nothing
     values -> Just (init values, last values)
+
+-- Count pending semantics, including derived imported order, once per run.
+-- A review cooldown affects eligibility rather than erasing this pending count.
+unresolvedReviewCount :: State -> UTCTime -> Int
+unresolvedReviewCount state now = rawCount state + ordinaryClaims + orderingRuns + demanded
+ where
+  demanded = length (pendingJudgmentReviews state)
+  ordinaryClaims = length [claim | claim <- Map.elems (stateLazyReviews state), lazyReviewKind claim `notElem` ["importance", "importance_run_review"]]
+  orderingRuns = length [parent | parent <- Set.toList (Set.fromList (brickParent <$> activeBricks state)), isJust (adaptiveImportancePair state now parent)]
 
 provocativeImportancePair :: State -> UTCTime -> Maybe UUIDv7 -> Maybe (UUIDv7, UUIDv7)
 provocativeImportancePair state now parent = case candidates of

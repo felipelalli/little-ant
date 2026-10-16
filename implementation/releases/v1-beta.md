@@ -25,7 +25,11 @@ use of the dumb alpha.
   and their recovery surfaces.
 - Implement the loopback-only `local_web` UIAdapter.
 - Implement powered-up mode and a compact v1 Skill as attributed mirrors of
-  the canonical dumb envelopes.
+  the canonical dumb envelopes. The packaged alpha CLI operator is an interim
+  surface, not evidence that this full mirror gate is complete.
+- Resolve the [shared presentation checkpoint concurrency defect](../adr/0003-persisted-guided-checkpoints.md#current-alpha-concurrency-limitation),
+  define coordination between clients, and cover simultaneous saves, stale
+  navigation, and event commits followed by checkpoint failure.
 - Prove required CLI, REPL, powered-up, Skill, and local-web parity; update the
   coverage register from executable evidence for all 65 canonical flows.
 - Run the synthetic week, parameter sweeps, complete migration regression,

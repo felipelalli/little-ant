@@ -21,7 +21,10 @@ main =
   defaultMain $
     testGroup
       "S04 forecast"
-      [ testCase "factory importance vector matches the normative profile" referenceImportanceVector
+      [ testCase "provisional runs add one review and uncertainty raises its chance" provisionalReviews
+      , testCase "local reviews share a ticket with container and dependency continuation" reviewRouting
+      , testCase "review cooldown preserves Work and expires without erasing uncertainty" reviewCooldown
+      , testCase "factory importance vector matches the normative profile" referenceImportanceVector
       , testCase "Forte+ preserves a 60 percent head and a softer tail" fortePlusDistribution
       , testCase "importance confidence and unranked subjects retain their neutral behavior" importanceConfidence
       , testCase "forecast inspection uses Forte+ at roots and hierarchical descent" fortePlusInspection
@@ -43,6 +46,72 @@ main =
       , testCase "ancestor not_before gates descendants without rewriting importance" inheritedNotBefore
       , testCase "ancestor best_before adds date pressure without rewriting importance" inheritedBestBefore
       ]
+
+provisionalReviews :: Assertion
+provisionalReviews = do
+  let bricks = [fixtureBrick (uuid index) ("task-" <> Text.pack (show index)) AtomicTask Nothing (index - 1) | index <- [1 .. 6]]
+      state = fixtureState bricks
+      world = buildForecastWorld state fixedTime
+      reviews = [op | owner <- world, op <- ticketOpportunities owner, selectableKind op == ImportanceRunReviewOpportunity]
+      reviewChance tickets = sum [chance | (_, Just op, chance) <- forecastOpportunityChances Nothing Nothing tickets, selectableKind op == ImportanceRunReviewOpportunity]
+      removeUncertainty ticket' = ticket'{ticketOpportunities = [op{selectableSignals = filter ((/= UncertaintySignal) . signalKey) (selectableSignals op)} | op <- ticketOpportunities ticket']}
+  length world @?= 6
+  length reviews @?= 1
+  Set.size (Set.fromList (ticketIdentity <$> world)) @?= 6
+  assertBool "uncertainty did not raise the review's marginal chance" (reviewChance world > reviewChance (removeUncertainty <$> world))
+  let claims = [LazyReviewClaim (uuid index) (brickId (head bricks)) "importance_run_review" "provisional" fixedTime | index <- [80, 81]]
+      duplicated = state{stateLazyReviews = Map.fromList [(lazyReviewId claim, claim) | claim <- claims]}
+  buildForecastWorld duplicated fixedTime @?= world
+  let old = (head bricks){brickCreatedAt = addUTCTime (-(60 * 86400)) fixedTime}
+      freshRun = buildForecastWorld (fixtureState [old, bricks !! 1]) fixedTime
+  [signalStrength signal | owner <- freshRun, op <- ticketOpportunities owner, selectableKind op == ImportanceRunReviewOpportunity, signal <- selectableSignals op, signalKey signal == AgeSignal] @?= [Fixed 0]
+  let first = head bricks
+      second = bricks !! 1
+      comparison = PairJudgment (uuid 90) ImportanceAxis (brickId first) (brickId second) MoreThan fixedTime DirectHuman fixedOne "judgment@1" "order" "test" JudgmentCurrent
+      coherent = (fixtureState [first, second]){statePairJudgments = Map.singleton (judgmentId comparison) comparison}
+  assertBool "a coherent sibling group was asked again" (all (all ((/= ImportanceRunReviewOpportunity) . selectableKind) . ticketOpportunities) (buildForecastWorld coherent fixedTime))
+
+reviewRouting :: Assertion
+reviewRouting = do
+  let review = SelectableOpportunity "review" ImportanceRunReviewOpportunity [ForecastSignal UncertaintySignal (Fixed 750_000) "uncertain order"]
+      parent = ticket (uuid 1) Nothing [uuid 2] [] [review]
+      child = ticket (uuid 2) (Just (uuid 1)) [] [] [work (uuid 2)]
+      blocked = parent{ticketChildren = [], ticketDependencies = [DependencyBrick (uuid 2)]}
+      check owner = do
+        let world = [owner, child]
+            chances = forecastOpportunityChances Nothing Nothing world
+        sum [chance | (_, _, chance) <- chances] @?= 1
+        sum [chance | (one, _, chance) <- chances, ticketIdentity one == uuid 1] @?= 5 % 8
+        sum [chance | (one, _, chance) <- chances, ticketIdentity one == uuid 2] @?= 3 % 8
+        mapM_
+          ( \n -> case selectForecast (ByteString.replicate 32 n) mempty Nothing Nothing world of
+              Right SelectedOpportunity{selectedEndpointSubject, selectedOpportunity} ->
+                assertBool "the draw selected an unprojected opportunity" (any (\(one, op, chance) -> ticketIdentity one == selectedEndpointSubject && op == Just selectedOpportunity && chance > 0) chances)
+              other -> assertFailure (show other)
+          )
+          [0 .. 40]
+  mapM_
+    ( \kind -> do
+        let localReview = review{selectableKind = kind}
+        check parent{ticketOpportunities = [localReview]}
+        check blocked{ticketOpportunities = [localReview]}
+    )
+    [ImportanceRunReviewOpportunity, EffortComparisonOpportunity, ImpactComparisonOpportunity, ImpactMaturityReviewOpportunity]
+  let cyclic = child{ticketDependencies = [DependencyBrick (uuid 1)]}
+  sum [chance | (_, _, chance) <- forecastOpportunityChances Nothing Nothing [blocked, cyclic]] @?= 1
+  case selectForecast seed mempty Nothing Nothing [blocked, cyclic] of
+    Right SelectedOpportunity{selectedOpportunity} -> selectableKind selectedOpportunity @?= ImportanceRunReviewOpportunity
+    other -> assertFailure (show other)
+
+reviewCooldown :: Assertion
+reviewCooldown = do
+  let first = fixtureBrick (uuid 1) "one" AtomicTask Nothing 0
+      second = fixtureBrick (uuid 2) "two" AtomicTask Nothing 1
+      state = (fixtureState [first, second]){stateImportanceReviewDeferrals = Map.singleton Nothing (ImportanceReviewDeferral (addUTCTime 86400 fixedTime) 1)}
+      kinds now = selectableKind <$> concatMap ticketOpportunities (buildForecastWorld state now)
+  assertBool "review was still admitted during its cooldown" (ImportanceRunReviewOpportunity `notElem` kinds fixedTime)
+  length (filter (== FiniteWorkOpportunity) (kinds fixedTime)) @?= 2
+  length (filter (== ImportanceRunReviewOpportunity) (kinds (addUTCTime 86400 fixedTime))) @?= 1
 
 referenceImportanceVector :: Assertion
 referenceImportanceVector =

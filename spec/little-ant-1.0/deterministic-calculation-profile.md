@@ -187,9 +187,14 @@ last active position and group size with its decayed confidence; it never
 restores the Brick to the active order. Positions are clamped to `0..n-1`.
 
 The factory profile identifier is
-`little-ant-forecast-v2-factory-forte-plus`. The earlier
+`little-ant-forecast-v4-factory-demand-reviews`. Revision 4 retains the
+Forte+ numeric curve and integrates on-demand effort, impact, and evidence
+reviews into the same local review/continuation routes.
+`little-ant-forecast-v3-factory-forte-plus-reviews` identifies the preceding
+ordering-review routing. `little-ant-forecast-v2-factory-forte-plus`
+identifies the earlier Forte+ routing. The earlier
 `little-ant-forecast-v1-factory` identifies the former quadratic profile and
-its historical bottom/exponent parameters. New forecasts use revision 2;
+its historical bottom/exponent parameters. New forecasts use revision 4;
 existing selection evidence and pending suggestions retain their recorded
 profile, weights, sampled integer, chosen identities, and cursor progression.
 Replay folds that evidence without recalculating it under the current curve.
@@ -277,6 +282,19 @@ fixed-point halving. A zero-day date lead is a step: zero before the instant
 and one at or after it.
 
 `not_before` controls admission and never emits pressure before it opens.
+An explicit unresolved effort/impact demand contributes review availability
+`0.05`, with its recorded reason. A material change to an existing judgment
+contributes uncertainty `0.50`; missing values alone contribute none. Demand
+age uses the existing thirty-day ramp capped at `0.50`, and repeated review
+skip uses the existing bounded avoidance curve. Equivalent current candidate
+sets of one kind coalesce. An uncooled semantic replacement takes precedence;
+otherwise earliest cooldown, request instant, and canonical owner UUID choose
+the owner. Deferring that offer cools all equivalent origins for 24 hours.
+A new semantic revision replaces its demand and resets its age/deferrals;
+reopening an unchanged request, inspecting, or restarting cannot reset it.
+The owning subject's importance/Domain factors apply once; the local choice
+between review and continuation uses only eligible opportunity pressure.
+
 Effort emits no ordinary-lottery signal: it informs planning, decomposition,
 and the explicit tired/easier-work route. This avoids turning “easy” into an
 undeclared meaning of important. Nature itself is neutral; its typed time,
@@ -389,7 +407,14 @@ Impact, phase, pressure, or fatigue factor:
 | `PROJECT` | `1` |
 | not classified | `1` |
 
-Each winner is removed before the next draw. Relative Effort evidence may
+Each winner is removed before the next draw. The shortlist and all weighted
+intervals are recorded as `easier_work_offered@1`, which advances only the
+`easier_work_sample` cursor. Returning to or resuming that screen reuses the
+recorded shortlist. A recovery selection records attributed relative evidence
+at initial confidence `0.25` with a seven-day horizon under
+`contextual_effort_recorded@1`. It cannot retire stronger conflicting evidence;
+a conflicting contextual observation remains unresolved historical evidence.
+It never assigns an EffortProfile class or settles a dedicated review. Relative Effort evidence may
 break an otherwise equal class only when its effective confidence is current;
 otherwise canonical UUID order breaks a displayed tie. The chosen shortlist
 is evidence only after the human selects one candidate, as FOC-044 requires.

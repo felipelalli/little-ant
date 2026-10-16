@@ -196,6 +196,7 @@ import LittleAnt.Catalog
 import LittleAnt.Decision (DraftImportanceAnswer (..), WorkDraft (..))
 import LittleAnt.Error
 import LittleAnt.Id
+import LittleAnt.Judgment (unresolvedReviewCount)
 import LittleAnt.Model
 import LittleAnt.Notice
 import LittleAnt.Pack.Admin
@@ -411,6 +412,10 @@ data Opportunity
   | ImpactMaturityPreviewOpportunity UUIDv7 ImpactClass UUIDv7 ImpactMaturity
   | ImpactComparisonOpportunity UUIDv7 UUIDv7 Int [UUIDv7] Bool
   | ImpactContradictionOpportunity UUIDv7 UUIDv7 UUIDv7 UUIDv7 JudgmentRelation [UUIDv7]
+  | EffortComparisonOpportunity UUIDv7 [UUIDv7]
+  | EffortRoundConflictOpportunity UUIDv7 [UUIDv7] UUIDv7
+  | EasierWorkOpportunity UUIDv7 (Maybe UUIDv7) [UUIDv7]
+  | ImpactEvidenceReviewOpportunity UUIDv7
   | EffortClassOpportunity UUIDv7
   | EffortExemplarOpportunity UUIDv7 UUIDv7 Int [EffortClass] [UUIDv7]
   | EffortContradictionOpportunity UUIDv7 UUIDv7 Int [EffortClass] [UUIDv7] UUIDv7 UUIDv7 JudgmentRelation [UUIDv7]
@@ -674,7 +679,7 @@ makeTranslationScopeEnvelope identity cursor precondition now state scope titleC
     ]
     [CommandOption "translate" "/translate" "Restart translation scope selection.", helpCommand, exitCommand]
     (Just "choose_translation_scope")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   count = Text.pack . show
   unsupportedBody = [count unsupportedCount <> " unsupported non-text Raw revisions will be reported, not guessed." | unsupportedCount > 0]
@@ -744,7 +749,7 @@ makeTranslationCompleteEnvelope previous now state queue =
       [Action "next" "next" "n" False "Return to the ordinary opportunity forecast.", moreAction]
       [CommandOption "translate" "/translate" "Review unresolved translation candidates again.", helpCommand, exitCommand]
       Nothing
-      (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+      (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   progress = Text.pack (show (translationQueueAccepted queue)) <> " accepted · " <> Text.pack (show (translationQueueSkipped queue)) <> " unresolved · " <> Text.pack (show (translationQueueTotal queue)) <> " total"
 
@@ -970,7 +975,7 @@ makeImportPreflightEnvelope identity cursor precondition now state profileName s
     ]
     [CommandOption "import" "/import" "Choose another import source", helpCommand, exitCommand]
     Nothing
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   observation = sourcePreflightObservation preflight
   containers = observedContainers observation
@@ -1014,7 +1019,7 @@ makeImportResultEnvelope identity cursor precondition now state invocationId imp
     )
     [CommandOption "import" "/import" "Import another source", helpCommand, exitCommand]
     Nothing
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   triageAction = [Action "import.triage" "triage imported material" "t" False "Open ordinary lazy Raw triage." | not (null (imported <> reused))]
   cleanupAction = [Action "import.cleanup" "clean up the source..." "c" False "Open a separate exact cleanup approval." | cleanupReady]
@@ -1060,7 +1065,7 @@ makeProviderConnectionEnvelope identity cursor precondition now state draft =
     , exitCommand
     ]
     (Just "binary_consent")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 makeProviderConnectionResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> Text -> Text -> InteractionEnvelope
 makeProviderConnectionResultEnvelope identity cursor precondition now state source accountName label =
@@ -1082,7 +1087,7 @@ makeProviderConnectionResultEnvelope identity cursor precondition now state sour
     ]
     [CommandOption "import" "/import" "Choose a source and import mode", CommandOption "config" "/config" "Inspect redacted typed configuration", helpCommand, exitCommand]
     Nothing
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 makePackInstallEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> PackInstallDraft -> AuthenticatedPack -> InteractionEnvelope
 makePackInstallEnvelope identity cursor precondition now state draft authenticated =
@@ -1114,7 +1119,7 @@ makePackInstallEnvelope identity cursor precondition now state draft authenticat
     actions
     [CommandOption "packs" "/packs" "Inspect Packs and installation state", helpCommand, exitCommand]
     (Just "binary_consent")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   manifest = structurallyValidManifest (authenticatedStructuralPack authenticated)
   actions
@@ -1178,7 +1183,7 @@ makePackTrustEnvelope identity cursor precondition now state draft =
     ]
     [CommandOption "packs" "/packs" "Inspect trusted publishers and Packs", helpCommand, exitCommand]
     (Just "binary_consent")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   publisher = packTrustPublisher draft
 
@@ -1222,7 +1227,7 @@ makePackUpdateEnvelope identity cursor precondition now state draft =
     actions
     [CommandOption "packs" "/packs" "Inspect Packs and installation state", helpCommand, exitCommand]
     (Just "binary_consent")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   installed = pinArtifact (packUpdateInstalledPin draft)
   candidate = packUpdateCandidateArtifact draft
@@ -1313,7 +1318,7 @@ makePackRemovalEnvelope identity cursor precondition now state draft =
     actions
     [CommandOption "packs" "/packs" "Inspect Packs and exact live references", helpCommand, exitCommand]
     (Just "binary_consent")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   artifact = pinArtifact (packRemovalPin draft)
   retained = length [() | reference <- packRemovalReferences draft, removalReferenceDisposition reference == RemovalRetained]
@@ -1381,7 +1386,7 @@ makePackGcEnvelope identity cursor precondition now state draft =
     ]
     [CommandOption "packs" "/packs" "Inspect Packs and exact live references", helpCommand, exitCommand]
     (Just "binary_consent")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   candidates = packGcCandidates draft
   shown = take 5 candidates
@@ -1474,10 +1479,10 @@ sourceObservationContext :: ZonedTime -> State -> SourceObservation -> (Maybe Te
 sourceObservationContext now state observation =
   case Map.lookup (sourceObservationBinding observation) (stateSourceBindings state) >>= (\binding -> Map.lookup (sourceBindingRaw binding) (stateRaws state)) of
     Just raw -> (Just (rawCitation raw), rawFooter now state raw)
-    Nothing -> (Nothing, commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    Nothing -> (Nothing, commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 sourceFooter :: ZonedTime -> State -> SourceBinding -> Footer
-sourceFooter now state binding = maybe (commonFooter now (brickCount state) (rawCount state) (reviewCount state)) (rawFooter now state) (Map.lookup (sourceBindingRaw binding) (stateRaws state))
+sourceFooter now state binding = maybe (commonFooter now (brickCount state) (rawCount state) (reviewCount now state)) (rawFooter now state) (Map.lookup (sourceBindingRaw binding) (stateRaws state))
 
 sourceDifferenceSummary :: State -> SourceObservation -> Text
 sourceDifferenceSummary state observation =
@@ -1521,7 +1526,7 @@ translationCandidateView :: ZonedTime -> State -> TranslationCandidate -> (Text,
 translationCandidateView now state = \case
   TranslationBrickTitle identity -> case Map.lookup identity (stateBricks state) of
     Just brick -> (brickCitation brick, brickTitle brick, brickFooter now state brick)
-    Nothing -> ("<missing Brick>", "<missing>", commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    Nothing -> ("<missing Brick>", "<missing>", commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
   TranslationRawRevision rawIdentity revisionIdentity ->
     case (Map.lookup rawIdentity (stateRaws state), Map.lookup revisionIdentity (stateRawContentRevisions state)) of
       (Just raw, Just revision) ->
@@ -1529,7 +1534,7 @@ translationCandidateView now state = \case
               RawTextContent text -> text
               _ -> "<unsupported non-text representation>"
          in (rawCitation raw, original, rawFooter now state raw)
-      _ -> ("<missing Raw>", "<missing>", commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+      _ -> ("<missing Raw>", "<missing>", commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 makeRawDestinationEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> Int -> InteractionEnvelope
 makeRawDestinationEnvelope previous now state raw page =
@@ -1986,7 +1991,7 @@ makeDomainFocusEnvelope identity cursor precondition now state domain =
     ]
     [helpCommand, exitCommand]
     (Just "choose_domain_focus")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 makeDomainFocusResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Domain -> DomainFocusMode -> InteractionEnvelope
 makeDomainFocusResultEnvelope identity cursor precondition now state domain mode =
@@ -3008,7 +3013,7 @@ makeScheduledOverlapEnvelope identity cursor precondition now state commitments 
     (zipWith action [1 :: Int ..] visible <> [Action "commitment.overlap.unknown" "I don't know" "k" False "Explain why no commitment is selected automatically.", moreAction])
     [helpCommand, exitCommand]
     Nothing
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   visible = take 9 commitments
   row index (brick, interval) = Text.pack (show index) <> ". " <> brickCitation brick <> " · starts " <> Text.pack (show (zonedInstantUtc (scheduledStartsAt interval)))
@@ -3031,7 +3036,7 @@ makeNoticeListEnvelope identity cursor precondition now state candidates =
     (selectionActions <> [Action "next" "next" "n" False "Return to one ordinary focus opportunity.", moreAction])
     [helpCommand, exitCommand]
     Nothing
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   body = ["No temporal notices are available." | null candidates]
   question = if null candidates then Nothing else Just "Open which notice?"
@@ -3556,7 +3561,7 @@ makeSourceCleanupApprovalEnvelope identity cursor precondition now state custody
     ]
     [helpCommand, exitCommand]
     (Just "understand_source_cleanup")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   count = Text.pack (show (length effects))
   question = if length effects == 1 then "Delete this source item?" else "Delete these " <> count <> " source items?"
@@ -3590,7 +3595,7 @@ makeSourceContainerCleanupApprovalEnvelope identity cursor precondition now stat
     ]
     [helpCommand, exitCommand]
     (Just "understand_source_container_cleanup")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   count = Text.pack (show (length effects))
   question = if length effects == 1 then "Delete this empty source container?" else "Delete these " <> count <> " empty source containers?"
@@ -3620,7 +3625,7 @@ makeSourceCleanupResultEnvelope identity cursor precondition now state offerCont
     actions
     [helpCommand, exitCommand]
     Nothing
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   count status = Text.pack . show . length $ filter ((== status) . externalEffectStatus) effects
   has status = any ((== status) . externalEffectStatus) effects
@@ -3667,7 +3672,7 @@ makeSourceCleanupRiskEnvelope identity cursor precondition now state custody eff
     ]
     [helpCommand, exitCommand]
     (Just "understand_source_cleanup_unknown_outcome")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
  where
   count = Text.pack (show (length effects))
   question = if length effects == 1 then "Attempt this cleanup again despite the unknown outcome?" else "Attempt these " <> count <> " cleanups again despite unknown outcomes?"
@@ -3877,7 +3882,7 @@ makeRepairPreviewEnvelope identity cursor planHash now state source original rep
     ]
     repairCommands
     (Just "confirm_repair_candidate_build")
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 makeRepairCandidateEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Text -> Text -> FilePath -> FilePath -> FilePath -> DatasetCursor -> Integer -> InteractionEnvelope
 makeRepairCandidateEnvelope previous now state repairHash cutoverHash source candidate backup candidateCursor candidateEvents =
@@ -3908,7 +3913,7 @@ makeRepairCandidateEnvelope previous now state repairHash cutoverHash source can
       ]
       repairCommands
       (Just "confirm_repair_cutover")
-      (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+      (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 makeRepairCompleteEnvelope :: InteractionEnvelope -> DatasetCursor -> Text -> ZonedTime -> State -> Text -> FilePath -> Bool -> InteractionEnvelope
 makeRepairCompleteEnvelope previous cursor precondition now state cutoverHash backup recovered =
@@ -4034,7 +4039,7 @@ resultEnvelope identity cursor precondition now state opportunity heading body =
     [Action "next" "next" "n" False "Obtain the next useful opportunity.", moreAction]
     [feedCommand, packsCommand, helpCommand, exitCommand]
     Nothing
-    (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
 
 advanceEnvelope :: InteractionEnvelope -> InteractionEnvelope -> InteractionEnvelope
 advanceEnvelope previous candidate =
@@ -4070,9 +4075,15 @@ upgradePresentationEnvelope original
             chosen = case available of first : _ -> first; [] -> actionShortcut action
          in (Set.insert chosen allocated, result <> [action{actionShortcut = chosen}])
     | otherwise = (allocated, result <> [action])
-  updated = case envelopeOpportunity original of
+  adapted = case envelopeOpportunity original of
     FocusAssistanceOpportunity _ _ step _ -> original{envelopeActions = fmap (focusAssistanceAction step) shortcuts, envelopeContent = focusAssistanceContent step (envelopeContent original)}
     _ -> original{envelopeActions = shortcuts}
+
+  updated = case envelopeOpportunity adapted of
+    RepairPreviewOpportunity{} -> adapted
+    RepairCandidateOpportunity{} -> adapted
+    RepairCompleteOpportunity{} -> adapted
+    _ -> adapted{envelopeCommands = foldr ensureCommand (envelopeCommands adapted) ordinaryCommands}
 
 validateResponse :: InteractionEnvelope -> InteractionEnvelope -> InteractionResponse -> Either AppError ResponseValidation
 validateResponse original replacement response
@@ -4101,13 +4112,24 @@ sealed identity revision cursor precondition grammar opportunity content actions
  where
   available
     | isRecovery = commands
-    | otherwise = foldr ensureCommand commands [importCommand, CommandOption "list" "/list" "Browse importance order or focus forecast", CommandOption "search" "/search" "Search Bricks, Raw, Domains, and people"]
+    | otherwise = foldr ensureCommand commands ordinaryCommands
   isRecovery = case opportunity of RepairPreviewOpportunity{} -> True; RepairCandidateOpportunity{} -> True; RepairCompleteOpportunity{} -> True; _ -> False
 
 ensureCommand :: CommandOption -> [CommandOption] -> [CommandOption]
 ensureCommand command available
   | commandOptionId command `elem` fmap commandOptionId available = available
   | otherwise = available <> [command]
+
+ordinaryCommands :: [CommandOption]
+ordinaryCommands =
+  [ CommandOption "why" "/why" "Explain the recorded selection"
+  , importCommand
+  , CommandOption "list" "/list" "Browse importance order or focus forecast"
+  , CommandOption "search" "/search" "Search Bricks, Raw, Domains, and people"
+  , CommandOption "archive" "/archive" "Choose Work to archive after reviewing its dependencies"
+  , CommandOption "restore" "/restore" "Choose archived Work to restore"
+  , CommandOption "update" "/update" "Choose Work to update its title or description"
+  ]
 
 sealEnvelope :: InteractionEnvelope -> InteractionEnvelope
 sealEnvelope envelope = envelope{envelopeIntegrityToken = integrityFor envelope}
@@ -4139,7 +4161,7 @@ commonFooter now bricks raws reviews =
 
 rawFooter :: ZonedTime -> State -> Raw -> Footer
 rawFooter now state raw =
-  (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+  (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
     { footerTimeLabel = "Fed"
     , footerTimeValue = formatLocalDateTime (utcToZonedTime (zonedTimeZone now) (rawCreatedAt raw))
     , footerFocus = maybe "idle" (brickHandleText state) (stateCurrentFocus state)
@@ -4148,7 +4170,7 @@ rawFooter now state raw =
 brickFooter :: ZonedTime -> State -> Brick -> Footer
 brickFooter now state brick =
   sprintFooter
-    ( (commonFooter now (brickCount state) (rawCount state) (reviewCount state))
+    ( (commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
         { footerParent = maybe "<root>" (brickReference state) (brickParent brick)
         , footerDomain = domainsText state (brickDomains brick)
         , footerFocus = maybe "idle" (brickHandleText state) (stateCurrentFocus state)
@@ -4176,8 +4198,8 @@ sprintRemaining remaining =
       (minutes, seconds) = divMod totalSeconds 60
    in Text.pack (show minutes) <> ":" <> Text.justifyRight 2 '0' (Text.pack (show seconds))
 
-reviewCount :: State -> Int
-reviewCount state = rawCount state + Map.size (stateLazyReviews state)
+reviewCount :: ZonedTime -> State -> Int
+reviewCount now state = unresolvedReviewCount state (zonedTimeToUTC now)
 
 formatWorkday :: ZonedTime -> Text
 formatWorkday now = Text.pack (formatTime defaultTimeLocale "%a, %b %-d" workday)
@@ -4754,6 +4776,10 @@ opportunityValue = \case
   ImpactMaturityPreviewOpportunity brickId impact evidence maturity -> typed "impact_maturity_preview" ["brick_id" .= renderUUIDv7 brickId, "class" .= impactClassText impact, "evidence_id" .= renderUUIDv7 evidence, "maturity" .= impactMaturityTextValue maturity]
   ImpactComparisonOpportunity first second skips skipped provocative -> typed "impact_comparison" ["first" .= renderUUIDv7 first, "second" .= renderUUIDv7 second, "skip_count" .= skips, "skipped" .= fmap renderUUIDv7 skipped, "provocative" .= provocative]
   ImpactContradictionOpportunity subject comparator above below relation path -> typed "impact_contradiction" ["subject" .= renderUUIDv7 subject, "comparator" .= renderUUIDv7 comparator, "above" .= renderUUIDv7 above, "below" .= renderUUIDv7 below, "relation" .= judgmentRelationText relation, "path" .= fmap renderUUIDv7 path]
+  EffortRoundConflictOpportunity owner candidates winner -> typed "effort_round_conflict" ["owner" .= renderUUIDv7 owner, "candidates" .= fmap renderUUIDv7 candidates, "winner" .= renderUUIDv7 winner]
+  EffortComparisonOpportunity owner candidates -> typed "effort_comparison" ["owner" .= renderUUIDv7 owner, "candidates" .= fmap renderUUIDv7 candidates]
+  EasierWorkOpportunity source selection candidates -> typed "easier_work" ["source" .= renderUUIDv7 source, "selection_id" .= fmap renderUUIDv7 selection, "candidates" .= fmap renderUUIDv7 candidates]
+  ImpactEvidenceReviewOpportunity owner -> typed "impact_evidence_review" ["owner" .= renderUUIDv7 owner]
   EffortClassOpportunity brickId -> typed "effort_class" ["brick_id" .= renderUUIDv7 brickId]
   EffortExemplarOpportunity brickId exemplar index remaining tried -> typed "effort_exemplar" ["brick_id" .= renderUUIDv7 brickId, "exemplar_id" .= renderUUIDv7 exemplar, "index" .= index, "remaining" .= fmap effortClassTextValue remaining, "tried" .= fmap renderUUIDv7 tried]
   EffortContradictionOpportunity brickId exemplar index remaining tried above below relation path -> typed "effort_contradiction" ["brick_id" .= renderUUIDv7 brickId, "exemplar_id" .= renderUUIDv7 exemplar, "index" .= index, "remaining" .= fmap effortClassTextValue remaining, "tried" .= fmap renderUUIDv7 tried, "above" .= renderUUIDv7 above, "below" .= renderUUIDv7 below, "relation" .= judgmentRelationText relation, "path" .= fmap renderUUIDv7 path]
@@ -4977,6 +5003,10 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "impact_maturity_preview" -> ImpactMaturityPreviewOpportunity <$> uuidField value "brick_id" <*> (value .: "class" >>= parseImpactClassText) <*> uuidField value "evidence_id" <*> (value .: "maturity" >>= parseImpactMaturityTextValue)
     "impact_comparison" -> ImpactComparisonOpportunity <$> uuidField value "first" <*> uuidField value "second" <*> value .: "skip_count" <*> (value .: "skipped" >>= traverse parseUuid) <*> value .: "provocative"
     "impact_contradiction" -> ImpactContradictionOpportunity <$> uuidField value "subject" <*> uuidField value "comparator" <*> uuidField value "above" <*> uuidField value "below" <*> (value .: "relation" >>= parseJudgmentRelationText) <*> (value .: "path" >>= traverse parseUuid)
+    "effort_round_conflict" -> EffortRoundConflictOpportunity <$> uuidField value "owner" <*> (value .: "candidates" >>= traverse parseUuid) <*> uuidField value "winner"
+    "effort_comparison" -> EffortComparisonOpportunity <$> uuidField value "owner" <*> (value .: "candidates" >>= traverse parseUuid)
+    "easier_work" -> EasierWorkOpportunity <$> uuidField value "source" <*> (value .:? "selection_id" >>= traverse parseUuid) <*> (value .: "candidates" >>= traverse parseUuid)
+    "impact_evidence_review" -> ImpactEvidenceReviewOpportunity <$> uuidField value "owner"
     "effort_class" -> EffortClassOpportunity <$> uuidField value "brick_id"
     "effort_exemplar" -> EffortExemplarOpportunity <$> uuidField value "brick_id" <*> uuidField value "exemplar_id" <*> value .: "index" <*> (value .: "remaining" >>= traverse parseEffortClassTextValue) <*> (value .: "tried" >>= traverse parseUuid)
     "effort_contradiction" -> EffortContradictionOpportunity <$> uuidField value "brick_id" <*> uuidField value "exemplar_id" <*> value .: "index" <*> (value .: "remaining" >>= traverse parseEffortClassTextValue) <*> (value .: "tried" >>= traverse parseUuid) <*> uuidField value "above" <*> uuidField value "below" <*> (value .: "relation" >>= parseJudgmentRelationText) <*> (value .: "path" >>= traverse parseUuid)

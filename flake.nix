@@ -13,6 +13,14 @@
         # Keep the compiler pinned to the release toolchain even after a flake update.
         haskellPackages = pkgs.haskell.packages.ghc9103;
         packageName = "little-ant";
+        source = pkgs.lib.cleanSourceWith {
+          src = self;
+          filter = path: type:
+            pkgs.lib.cleanSourceFilter path type
+            && !(builtins.elem (builtins.baseNameOf path) [
+              ".direnv" "dist-newstyle" "dist" "target" "__pycache__"
+            ]);
+        };
         ageFfi = pkgs.rustPlatform.buildRustPackage {
           pname = "lant-age-ffi";
           version = "1.0.0";
@@ -26,7 +34,7 @@
             runHook postInstall
           '';
         };
-        pkgBase = haskellPackages.callCabal2nix packageName self {
+        pkgBase = haskellPackages.callCabal2nix packageName source {
           lant_age_ffi = ageFfi;
         };
         pkg = pkgBase.overrideAttrs (old: {
@@ -36,6 +44,8 @@
           postInstall = (old.postInstall or "") + ''
             mkdir -p $out/libexec/little-ant
             mv $out/bin/lant-pack-runner $out/libexec/little-ant/lant-pack-runner
+            mkdir -p $out/share/little-ant/skills
+            cp -R ${./skills/little-ant} $out/share/little-ant/skills/little-ant
           '';
         });
       in {

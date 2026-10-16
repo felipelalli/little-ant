@@ -2,33 +2,38 @@ module Main (main) where
 
 import Control.Concurrent (threadDelay)
 import Control.Exception (IOException, bracket_, try)
-import Control.Monad (when)
-import Data.Aeson (encode, object, (.=))
+import Control.Monad (unless, when)
+import Data.Aeson (FromJSON (parseJSON), Value (..), eitherDecode, encode, object, toJSON, (.:?), (.=))
+import Data.Aeson.KeyMap qualified as KeyMap
+import Data.Aeson.Types (parseEither, withObject)
 import Data.ByteString qualified as StrictByteString
+import Data.ByteString.Char8 qualified as ByteStringChar8
 import Data.ByteString.Lazy.Char8 qualified as LazyByteString
 import Data.Foldable (traverse_)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as TextEncoding
 import Data.Text.IO qualified as Text
 import LittleAnt.Application
 import LittleAnt.Error
 import LittleAnt.Id (parseUUIDv7, renderUUIDv7)
+import LittleAnt.Interaction
 import LittleAnt.Migration.V0 (MigrationStage (..))
 import LittleAnt.Model (SourceMode (..), actorProfile)
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.REPL
-import LittleAnt.Result (CommandResult (ExportResult, resultExportBytes, resultExportDestination))
+import LittleAnt.Result (CommandResult (..))
 import LittleAnt.Vault
 import LittleAnt.Vault.Age (makePassphraseBytes)
 import LittleAnt.Vault.Agent
 import Options.Applicative
 import System.Directory (doesDirectoryExist, doesPathExist)
 import System.Environment (getExecutablePath)
-import System.Exit (exitFailure)
+import System.Exit (ExitCode (..), exitFailure, exitWith)
 import System.FilePath (takeDirectory)
 import System.IO (Handle, hIsTerminalDevice, hSetEcho, stderr, stdin)
 import System.Process
@@ -37,13 +42,16 @@ data Options = Options
   { optionProfile :: Maybe Text
   , optionDryRun :: Bool
   , optionJson :: Bool
+  , optionNonInteractive :: Bool
+  , optionSecretStdin :: Bool
   , optionSchemaMajor :: Int
   , optionView :: ViewDepth
   , optionCommand :: CliCommand
   }
 
 data CliCommand
-  = ReplCli
+  = WhyCli
+  | ReplCli
   | NextCli
   | DoneCli (Maybe Text)
   | ReturnToIdleCli (Maybe Text)
@@ -62,8 +70,11 @@ data CliCommand
   | PhaseCli [Text]
   | PauseCli
   | BreakCli [Text]
-  | ArchiveCli [Text]
-  | RestoreCli [Text]
+  | ArchiveCli [Text] Bool
+  | RestoreCli [Text] Bool
+  | InteractionShowCli
+  | InteractionRespondCli FilePath Text (Maybe TextInput)
+  | InteractionNavigateCli Bool FilePath
   | DomainFocusCli [Text]
   | TieBreakCli
   | UndoCli
@@ -91,7 +102,7 @@ data CliCommand
   | VaultBackupCli FilePath
   | VaultRotateCli
   | VaultDiagnoseCli
-  | UpdateCli Text (Maybe Text)
+  | UpdateCli Text (Maybe Text) (Maybe TextInput) Bool
   | MergeCli Text Text
   | SupersedeCli Text Text
   | ImportCli Text SourceMode [Text] Bool
@@ -112,6 +123,9 @@ data CliCommand
   | RepairCli
   | EditorCli
 
+data TextInput = ArgumentText Text | FileText FilePath
+  deriving stock (Eq, Show)
+
 main :: IO ()
 main = do
   options <- execParser parserInfo
@@ -127,11 +141,12 @@ main = do
             _ -> productionAppEnv (optionProfile options)
        in prepareEnvironment >>= \case
             Left problem -> emitError (optionJson options) problem
-            Right environment -> run environment options
+            Right environment -> run (configureCliInput options environment) options
 
 run :: AppEnv -> Options -> IO ()
 run environment options = case optionCommand options of
   ReplCli
+    | optionNonInteractive options -> emitError (optionJson options) (appError InvalidInput "Non-interactive use requires a command. Use `lant --json next` to request an opportunity.")
     | optionJson options || optionDryRun options -> execute environment options NextCommand
     | otherwise -> runRepl environment
   NextCli -> execute environment options NextCommand
@@ -146,7 +161,7 @@ run environment options = case optionCommand options of
   FocusCli referenceWords -> requiredBrickCommand environment options "focus" FocusCommand referenceWords
   FocusBlockerCli referenceWords -> requiredBrickCommand environment options "focus-blocker" FocusBlockerCommand referenceWords
   FeedCli wordsInCommand -> do
-    material <- if null wordsInCommand then readFeedMaterial else pure (Text.unwords wordsInCommand)
+    material <- if null wordsInCommand then readFeedMaterial options else pure (Text.unwords wordsInCommand)
     execute environment options (FeedCommand "cli" material)
   ShowCli referenceWords
     | null referenceWords ->
@@ -160,14 +175,29 @@ run environment options = case optionCommand options of
           options
           (ShowRawCommand (Text.unwords referenceWords) (optionView options))
   TranslateCli targetWords -> execute environment options (TranslateCommand (nonEmptyWords targetWords))
+  WhyCli -> execute environment options (WhyCommand (optionView options))
   OrderCli referenceWords -> execute environment options (OrderCommand (nonEmptyWords referenceWords))
   ImpactCli referenceWords -> requiredBrickCommand environment options "impact" ImpactCommand referenceWords
   EffortCli referenceWords -> requiredBrickCommand environment options "effort" EffortCommand referenceWords
   PhaseCli referenceWords -> requiredBrickCommand environment options "phase" PhaseCommand referenceWords
   PauseCli -> execute environment options PauseCommand
   BreakCli referenceWords -> requiredBrickCommand environment options "break" BreakCommand referenceWords
-  ArchiveCli referenceWords -> requiredBrickCommand environment options "archive" ArchiveCommand referenceWords
-  RestoreCli referenceWords -> requiredBrickCommand environment options "restore" RestoreCommand referenceWords
+  ArchiveCli referenceWords confirmed -> requiredBrickCommand environment options "archive" (confirmedCommand confirmed "archive.accept" . ArchiveCommand) referenceWords
+  RestoreCli referenceWords confirmed -> requiredBrickCommand environment options "restore" (confirmedCommand confirmed "restore.accept" . RestoreCommand) referenceWords
+  InteractionShowCli -> execute environment options PendingInteractionCommand
+  InteractionRespondCli path action input -> do
+    when (path == "-" && input == Just (FileText "-")) $
+      emitError (optionJson options) (appError InvalidInput "The envelope and text cannot both consume stdin. Use a file for one of them.")
+    envelope <- readInteraction options path
+    unless (action `elem` fmap actionId (envelopeActions envelope)) $
+      emitError (optionJson options) (appError InvalidInput "That action is absent from the supplied interaction.")
+    when (isJust input && envelopeGrammar envelope /= InputGrammar) $
+      emitError (optionJson options) (appError InvalidInput "Text input is only valid for an input interaction.")
+    submitted <- traverse (readTextInput options) input
+    execute environment options (RespondBoundCommand (responseFor envelope action) submitted)
+  InteractionNavigateCli backward path -> do
+    envelope <- readInteraction options path
+    execute environment options ((if backward then NavigateBackCommand else NavigateForwardCommand) (responseFor envelope (if backward then "navigation.back" else "navigation.forward")))
   DomainFocusCli domainWords ->
     case nonEmptyWords domainWords of
       Nothing ->
@@ -203,7 +233,13 @@ run environment options = case optionCommand options of
   VaultBackupCli destination -> runVaultBackup environment options destination
   VaultRotateCli -> runVaultRotate environment options
   VaultDiagnoseCli -> runVaultDiagnose environment options
-  UpdateCli reference section -> execute environment options (UpdateCommand reference section)
+  UpdateCli reference section input confirmed -> case (section, input, confirmed) of
+    (_, Nothing, False) -> execute environment options (UpdateCommand reference section)
+    (Just _, Just source, _) -> do
+      submitted <- readTextInput options source
+      let actions = [("update.text.submit", Just submitted)] <> [("update.accept", Nothing) | confirmed]
+      execute environment options (InteractionPlanCommand (UpdateCommand reference section) actions)
+    _ -> emitError (optionJson options) (appError InvalidInput "A direct update requires title or description and --text TEXT or --text-file FILE; --yes confirms that exact revision.")
   MergeCli survivor absorbed -> execute environment options (MergeCommand survivor absorbed)
   SupersedeCli oldBrick newBrick -> execute environment options (SupersedeCommand oldBrick newBrick)
   ImportCli source mode selectedContainers eraseAfterImport ->
@@ -301,8 +337,8 @@ runVaultUnlock environment options =
         if optionDryRun options
           then emitVaultFacts options "vault_unlock_preview" Map.empty
           else do
-            ensureVaultAgent environment options paths
             passphrase <- readSecretBytes options "Unlock credentials: "
+            ensureVaultAgent environment options paths
             sendVaultAgentRequest (Profile.vaultSocket paths) (agentUnlockRequest passphrase) >>= \case
               Left problem -> emitError (optionJson options) problem
               Right reply
@@ -339,6 +375,7 @@ runVaultInventory environment options =
                 object
                   [ "schema" .= ("little-ant/vault-result@1" :: Text)
                   , "action" .= ("vault_inventory" :: Text)
+                  , "status" .= (if optionDryRun options then "simulated" else "completed" :: Text)
                   , "entries" .= inventory
                   ]
             else do
@@ -365,9 +402,9 @@ runVaultAdd environment options schemeName label =
         if optionDryRun options
           then emitVaultFacts options "vault_add_preview" (Map.fromList [("scheme", schemeName), ("label", label)])
           else do
+            secret <- readSecretBytes options "Credential: "
             ensureVaultAgent environment options paths
             identity <- appAllocateUUID environment
-            secret <- readSecretBytes options "Credential: "
             sendVaultAgentRequest (Profile.vaultSocket paths) (agentPutRequest identity scheme label Map.empty secret) >>= \case
               Left problem -> emitError (optionJson options) problem
               Right reply
@@ -413,9 +450,9 @@ runVaultRotate environment options =
     if optionDryRun options
       then emitVaultFacts options "vault_rotate_preview" Map.empty
       else do
-        ensureVaultAgent environment options paths
         first <- readSecretBytes options "New vault passphrase: "
         second <- readSecretBytes options "Confirm new vault passphrase: "
+        ensureVaultAgent environment options paths
         if first /= second
           then wipeAgentSecret first >> wipeAgentSecret second >> emitError (optionJson options) (appError InvalidInput "The passphrase confirmation did not match.")
           else
@@ -497,15 +534,33 @@ validateNewBackupPath options destination = do
     else when destinationExists (emitError (optionJson options) (appError Conflict "The backup destination already exists."))
 
 readSecretBytes :: Options -> Text -> IO StrictByteString.ByteString
-readSecretBytes options prompt = do
+readSecretBytes options prompt = readSecretInput options prompt >>= either (emitError (optionJson options)) pure
+
+configureCliInput :: Options -> AppEnv -> AppEnv
+configureCliInput options environment
+  | optionNonInteractive options || optionSecretStdin options =
+      environment{appProviderConnectionRuntime = fmap (\runtime -> runtime{providerConnectionAcquireCredential = readSecretInput options}) (appProviderConnectionRuntime environment)}
+  | otherwise = environment
+
+readSecretInput :: Options -> Text -> IO (Either AppError StrictByteString.ByteString)
+readSecretInput options prompt = do
   interactive <- hIsTerminalDevice stdin
-  if not interactive
-    then emitError (optionJson options) (appError PermissionRequired "Secret input requires an interactive terminal with echo disabled.")
-    else do
-      Text.hPutStr stderr prompt
-      value <- bracket_ (hSetEcho stdin False) (hSetEcho stdin True) (StrictByteString.hGetLine stdin)
-      Text.hPutStrLn stderr ""
-      pure value
+  if optionSecretStdin options && not interactive
+    then do
+      value <- try (ByteStringChar8.hGetLine stdin) :: IO (Either IOException StrictByteString.ByteString)
+      pure $ case value of
+        Left _ -> Left (appError InvalidInput "Missing secret input on stdin. Supply one line per requested secret.")
+        Right secret
+          | StrictByteString.null secret || StrictByteString.length secret > 16384 -> Left (appError InvalidInput "A secret must contain between 1 and 16384 bytes.")
+          | otherwise -> Right secret
+    else
+      if optionNonInteractive options || not interactive || optionSecretStdin options
+        then pure (Left (appError PermissionRequired "Secret input requires explicit --secret-stdin with piped input, or an interactive terminal without --non-interactive."))
+        else do
+          Text.hPutStr stderr prompt
+          value <- try (bracket_ (hSetEcho stdin False) (hSetEcho stdin True) (ByteStringChar8.hGetLine stdin)) :: IO (Either IOException StrictByteString.ByteString)
+          Text.hPutStrLn stderr ""
+          pure $ either (const (Left (appError InvalidInput "Secret input ended before a value was supplied."))) Right value
 
 emitVaultFacts :: Options -> Text -> Map Text Text -> IO ()
 emitVaultFacts options action facts
@@ -514,8 +569,10 @@ emitVaultFacts options action facts
         object $
           [ "schema" .= ("little-ant/vault-result@1" :: Text)
           , "action" .= action
+          , "status" .= (if optionDryRun options then "simulated" else "completed" :: Text)
           ]
             <> ["facts" .= facts | not (Map.null facts)]
+            <> ["dry_run" .= True | optionDryRun options]
   | otherwise = do
       Text.putStrLn (vaultActionHeading action)
       mapM_ (\(key, value) -> Text.putStrLn (key <> ": " <> value)) (Map.toAscList facts)
@@ -562,20 +619,85 @@ execute environment options command =
     Left problem -> emitError (optionJson options) problem
     Right ExportResult{resultExportBytes = Just bytes, resultExportDestination = Nothing}
       | not (optionDryRun options) -> StrictByteString.putStr bytes
-    Right result
-      | optionJson options -> LazyByteString.putStrLn (encode result)
-      | otherwise -> Text.putStrLn (renderCommandResult result)
+    Right result -> do
+      let pending = resultNeedsInput result
+          status
+            | optionDryRun options = "simulated"
+            | pending = "awaiting_input"
+            | otherwise = "completed"
+      if optionJson options
+        then LazyByteString.putStrLn . encode $ case toJSON result of
+          Object fields -> Object (KeyMap.insert "status" (toJSON (status :: Text)) fields)
+          value -> value
+        else do
+          Text.putStrLn (renderCommandResult result)
+          when (pending && not (optionDryRun options)) $
+            Text.putStrLn "\nAwaiting input. Inspect with `lant --json interaction show`; answer using `lant interaction respond --from FILE --action ACTION_ID`."
+      when (pending && optionNonInteractive options && not (optionDryRun options) && not (isInspection (optionCommand options))) $
+        exitWith (ExitFailure 2)
 
-readFeedMaterial :: IO Text
-readFeedMaterial = do
+resultNeedsInput :: CommandResult -> Bool
+resultNeedsInput = \case
+  NextResult{resultInteraction} -> interactionNeedsInput resultInteraction
+  RespondResult{resultMutationCommandId = Nothing, resultInteraction} -> interactionNeedsInput resultInteraction
+  RepairResult{resultInteraction} -> case envelopeOpportunity resultInteraction of RepairCompleteOpportunity{} -> False; _ -> True
+  _ -> False
+
+interactionNeedsInput :: InteractionEnvelope -> Bool
+interactionNeedsInput envelope = case envelopeOpportunity envelope of
+  CurrentFocusOpportunity{} -> False
+  _ -> any ((`notElem` ["next", "palette.open", "feed.open"]) . actionId) (envelopeActions envelope)
+
+isInspection :: CliCommand -> Bool
+isInspection InteractionShowCli = True
+isInspection _ = False
+
+confirmedCommand :: Bool -> Text -> AppCommand -> AppCommand
+confirmedCommand False _ command = command
+confirmedCommand True action command = InteractionPlanCommand command [(action, Nothing)]
+
+responseFor :: InteractionEnvelope -> Text -> InteractionResponse
+responseFor envelope action = InteractionResponse (envelopeInteractionId envelope) (envelopeRevision envelope) action (envelopeIntegrityToken envelope) (envelopeDatasetCursor envelope)
+
+readInteraction :: Options -> FilePath -> IO InteractionEnvelope
+readInteraction options path = do
+  bytes <- readInput options path
+  let parsed = eitherDecode bytes >>= parseEither (withObject "interaction result or envelope" (\fields -> fields .:? "interaction" >>= maybe (parseJSON (Object fields)) parseJSON))
+  case parsed of
+    Left _ -> emitError (optionJson options) (appError InvalidInput "Expected a JSON interaction envelope or a CLI result containing interaction.")
+    Right envelope
+      | not (envelopeIntegrityIsValid envelope) -> emitError (optionJson options) (appError InvalidInput "The supplied interaction integrity token is invalid.")
+      | otherwise -> pure envelope
+
+readInput :: Options -> FilePath -> IO LazyByteString.ByteString
+readInput options path = do
   interactive <- hIsTerminalDevice stdin
-  if interactive
-    then do
-      Text.putStrLn "Feed Little Ant"
-      Text.putStrLn "Tip: prefer English for consistent titles and search."
-      Text.putStr "› "
-      Text.getLine
-    else Text.getContents
+  when (path == "-" && interactive && optionNonInteractive options) $
+    emitError (optionJson options) (appError InvalidInput "Explicit stdin input requires a pipe or redirected file in non-interactive mode.")
+  result <- try (if path == "-" then LazyByteString.fromStrict <$> StrictByteString.getContents else LazyByteString.fromStrict <$> StrictByteString.readFile path) :: IO (Either IOException LazyByteString.ByteString)
+  either (const (emitError (optionJson options) (appError InvalidInput "The input file could not be read."))) pure result
+
+readTextInput :: Options -> TextInput -> IO Text
+readTextInput _ (ArgumentText text) = pure text
+readTextInput options (FileText path) = do
+  bytes <- readInput options path
+  case TextEncoding.decodeUtf8' (LazyByteString.toStrict bytes) of
+    Left _ -> emitError (optionJson options) (appError InvalidInput "Text input must be UTF-8.")
+    Right text -> pure text
+
+readFeedMaterial :: Options -> IO Text
+readFeedMaterial options = do
+  interactive <- hIsTerminalDevice stdin
+  if interactive && optionNonInteractive options
+    then emitError (optionJson options) (appError InvalidInput "Feed needs text arguments or piped stdin in non-interactive mode.")
+    else
+      if interactive
+        then do
+          Text.putStrLn "Feed Little Ant"
+          Text.putStrLn "Tip: prefer English for consistent titles and search."
+          Text.putStr "› "
+          Text.getLine
+        else Text.getContents
 
 emitError :: Bool -> AppError -> IO a
 emitError asJson problem = do
@@ -637,6 +759,25 @@ vaultParser =
         <> command "diagnose" (info (pure VaultDiagnoseCli) (progDesc "Inspect redacted path, permissions, and age-format facts"))
     )
 
+confirmationParser :: Parser Bool
+confirmationParser = switch (long "yes" <> help "Confirm this operation's exact lifecycle or text-change preview without opening the REPL")
+
+textInputParser :: Parser TextInput
+textInputParser =
+  (ArgumentText . Text.pack <$> strOption (long "text" <> metavar "TEXT" <> help "Supply the exact input text"))
+    <|> (FileText <$> strOption (long "text-file" <> metavar "FILE" <> help "Read exact UTF-8 text from FILE, or - for stdin"))
+
+interactionParser :: Parser CliCommand
+interactionParser =
+  hsubparser
+    ( command "show" (info (pure InteractionShowCli) (progDesc "Read the pending interaction without ticking, drawing, or changing its checkpoint"))
+        <> command "respond" (info (InteractionRespondCli <$> fromParser <*> (Text.pack <$> strOption (long "action" <> metavar "ACTION_ID" <> help "Choose one exact action ID from the supplied envelope")) <*> optional textInputParser) (progDesc "Answer an exact saved interaction; stale responses fail without carrying consent forward"))
+        <> command "back" (info (InteractionNavigateCli True <$> fromParser) (progDesc "Navigate back from an exact saved interaction"))
+        <> command "forward" (info (InteractionNavigateCli False <$> fromParser) (progDesc "Navigate forward from an exact saved interaction"))
+    )
+ where
+  fromParser = strOption (long "from" <> metavar "FILE" <> help "Read the original JSON result or envelope from FILE, or - for stdin")
+
 optionsParser :: Parser Options
 optionsParser =
   Options
@@ -647,6 +788,8 @@ optionsParser =
       )
     <*> switch (long "dry-run" <> help "Validate and calculate without recording anything")
     <*> switch (long "json" <> help "Return the sparse structured result")
+    <*> switch (long "non-interactive" <> help "Never open the REPL or prompt on the terminal; exit 2 when a command awaits an answer")
+    <*> switch (long "secret-stdin" <> help "Read secrets explicitly from piped stdin, one line per secret; never echo them")
     <*> option
       auto
       ( long "schema"
@@ -660,14 +803,16 @@ optionsParser =
       ( long "view"
           <> metavar "DEPTH"
           <> value SummaryView
-          <> help "summary | operational | relationships | history | complete"
+          <> help "summary | operational | relationships | history | complete | guided (open a Raw workflow)"
       )
     <*> (fromMaybe ReplCli <$> optional commandParser)
 
 commandParser :: Parser CliCommand
 commandParser =
   hsubparser
-    ( command "next" (info (pure NextCli) (progDesc "Obtain or restore one useful opportunity"))
+    ( command "interaction" (info interactionParser (progDesc "Inspect or answer the shared interaction without the REPL"))
+        <> command "why" (info (pure WhyCli) (progDesc "Explain the recorded selection without drawing again"))
+        <> command "next" (info (pure NextCli) (progDesc "Obtain or restore one useful opportunity"))
         <> command
           "done"
           ( info
@@ -761,7 +906,7 @@ commandParser =
         <> command
           "update"
           ( info
-              (UpdateCli . Text.pack <$> strArgument (metavar "REFERENCE") <*> optional (Text.pack <$> strArgument (metavar "SECTION")))
+              (UpdateCli . Text.pack <$> strArgument (metavar "REFERENCE") <*> optional (Text.pack <$> strArgument (metavar "SECTION")) <*> optional textInputParser <*> confirmationParser)
               (progDesc "Update the title or description of one Brick")
           )
         <> command
@@ -854,13 +999,13 @@ commandParser =
         <> command
           "archive"
           ( info
-              (ArchiveCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")))
+              (ArchiveCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")) <*> confirmationParser)
               (progDesc "Stop pursuing Work without claiming completion")
           )
         <> command
           "restore"
           ( info
-              (RestoreCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")))
+              (RestoreCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")) <*> confirmationParser)
               (progDesc "Restore archived Work as the same Brick")
           )
         <> command
@@ -972,6 +1117,7 @@ viewReader = eitherReader $ \case
   "relationships" -> Right RelationshipsView
   "history" -> Right HistoryView
   "complete" -> Right CompleteView
+  "guided" -> Right GuidedView
   value -> Left ("unknown projection depth: " <> value)
 
 versionOption :: Parser (a -> a)

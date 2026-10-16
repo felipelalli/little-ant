@@ -1,20 +1,29 @@
 module Main (main) where
 
+import Control.Monad (forM_, when, (>=>))
+import Data.Aeson (eitherDecode, encode)
 import Data.ByteString qualified as ByteString
 import Data.Char (isAsciiLower)
 import Data.IORef
 import Data.Map.Strict qualified as Map
+import Data.Maybe (isJust)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Application
+import LittleAnt.Decision (statePreconditionHash)
+import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
+import LittleAnt.ForecastWorld qualified as World
 import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
+import LittleAnt.JudgmentReview
 import LittleAnt.Model
 import LittleAnt.Result
 import LittleAnt.Store
+import System.Directory (doesFileExist, removeFile)
+import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -26,7 +35,15 @@ tests :: TestTree
 tests =
   testGroup
     "S03 judgment flows"
-    [ testCase "explicit order maintains one unresolved sibling run continuously" $ withHarness $ \environment -> do
+    [ testCase "missing metadata is neutral until a demand and read-only views do not create work" demandIsLazy
+    , testCase "effort and impact requests produce recorded short lottery rounds" demandLotteryRounds
+    , testCase "equivalent requests coalesce and skip preserves Work with durable cooldown" demandCooldown
+    , testCase "changed scope preserves the public estimate but marks it review due" scopeReview
+    , testCase "new evidence requests impact review without promoting the judgment" impactEvidenceReview
+    , testCase "easier-work recovery records a stable shortlist and offers consent without assigning a class" easierWorkRecovery
+    , testCase "a fresh effort contradiction needs changed or revise before recording" effortConflict
+    , testCase "an isolated demand cannot offer an invalid comparison" isolatedDemand
+    , testCase "explicit order maintains one unresolved sibling run continuously" $ withHarness $ \environment -> do
         _ <- createProvisionalWork environment "alpha"
         _ <- createProvisionalWork environment "bravo"
         _ <- createProvisionalWork environment "charlie"
@@ -231,6 +248,230 @@ tests =
         restored <- run environment NextCommand >>= interactionOf
         restored @?= basis
     ]
+
+demandIsLazy :: Assertion
+demandIsLazy = withHarness $ \environment -> do
+  first <- createProvisionalWork environment "alpha" >>= brickFromResult environment
+  _ <- createProvisionalWork environment "bravo"
+  before <- loadState environment
+  stateJudgmentReviews before @?= Map.empty
+  _ <- run environment (ListCommand (Just "forecast"))
+  _ <- run environment (WhyCommand CompleteView)
+  loadState environment >>= (@?= before)
+  _ <- run environment (EffortCommand (ref first))
+  requested <- loadState environment
+  Map.size (stateJudgmentReviews requested) @?= 1
+  stateEffortClaims requested @?= Map.empty
+  _ <- run environment (EffortCommand (ref first))
+  loadState environment >>= (@?= requested)
+  _ <- run environment (ListCommand (Just "forecast"))
+  loadState environment >>= (@?= requested)
+  assertBool "effort review was not eligible" (World.EffortComparisonOpportunity `elem` offeredKinds requested fixedTime)
+
+demandLotteryRounds :: Assertion
+demandLotteryRounds = withHarness $ \environment -> do
+  bricks <- mapM (createProvisionalWork environment >=> brickFromResult environment) ["alpha", "bravo", "charlie"]
+  let owner = head bricks
+  _ <- run environment (EffortCommand (ref owner))
+  seedLottery environment owner
+  roundEnvelope <- drawUntil environment isEffort 128
+  restored <- run environment NextCommand >>= interactionOf
+  restored @?= roundEnvelope
+  why <- run environment (WhyCommand CompleteView)
+  assertBool "why omitted the frozen demand reason" (any (Text.isInfixOf "requested an effort judgment") (resultWhySummary why))
+  eitherDecode (encode roundEnvelope) @?= Right roundEnvelope
+  case envelopeOpportunity roundEnvelope of
+    EffortComparisonOpportunity identity candidates -> do
+      length candidates @?= 3
+      _ <- answer environment roundEnvelope ("effort.choose." <> renderUUIDv7 (last candidates))
+      state <- loadState environment
+      let review = stateJudgmentReviews state Map.! (EffortDiscovery, identity)
+      judgmentReviewResolved review @?= True
+      stateEffortClaims state @?= Map.empty
+      length [judgment | judgment <- Map.elems (statePairJudgments state), judgmentAxis judgment == EffortAxis] @?= 2
+    other -> assertFailure (show other)
+  _ <- run environment (ImpactCommand (ref owner))
+  impact <- drawUntil environment isImpact 128
+  case envelopeOpportunity impact of
+    ImpactComparisonOpportunity first _ _ _ _ -> do
+      _ <- answer environment impact "impact.more"
+      state <- loadState environment
+      judgmentReviewResolved (stateJudgmentReviews state Map.! (ImpactDiscovery, first)) @?= True
+      stateImpactClaims state @?= Map.empty
+    other -> assertFailure (show other)
+ where
+  isEffort = \case EffortComparisonOpportunity{} -> True; _ -> False
+  isImpact = \case ImpactComparisonOpportunity{} -> True; _ -> False
+
+demandCooldown :: Assertion
+demandCooldown = withHarness $ \environment -> do
+  first <- createProvisionalWork environment "alpha" >>= brickFromResult environment
+  second <- createProvisionalWork environment "bravo" >>= brickFromResult environment
+  _ <- run environment (EffortCommand (ref first))
+  _ <- run environment (EffortCommand (ref second))
+  before <- loadState environment
+  length (pendingJudgmentReviews before) @?= 1
+  seedLottery environment first
+  envelope <- drawUntil environment (\case EffortComparisonOpportunity{} -> True; _ -> False) 128
+  _ <- answer environment envelope "effort.round.skip"
+  after <- loadState environment
+  stateWorkDeferrals after @?= stateWorkDeferrals before
+  statePairJudgments after @?= statePairJudgments before
+  assertBool "review was not cooled" (World.EffortComparisonOpportunity `notElem` offeredKinds after fixedTime)
+  assertBool "Work disappeared on review skip" (World.FiniteWorkOpportunity `elem` offeredKinds after fixedTime)
+  assertBool "review did not return at expiry" (World.EffortComparisonOpportunity `elem` offeredKinds after (addUTCTime 86400 fixedTime))
+  forM_ (Map.elems (stateJudgmentReviews after)) $ \review -> judgmentReviewCooldown review @?= Just (addUTCTime 86400 fixedTime)
+  _ <- run environment (EffortCommand (ref first))
+  loadState environment >>= (@?= after)
+
+scopeReview :: Assertion
+scopeReview = withHarness $ \environment -> do
+  first <- createProvisionalWork environment "alpha" >>= brickFromResult environment
+  _ <- createProvisionalWork environment "bravo"
+  classification <- run environment (EffortCommand (ref first)) >>= interactionOf
+  _ <- answer environment classification "effort.class.easy"
+  before <- loadState environment
+  editor <- run environment (UpdateCommand (ref first) (Just "title")) >>= interactionOf
+  preview <- submit environment editor "update.text.submit" "Alpha with an expanded outcome"
+  _ <- answer environment preview "update.accept"
+  after <- loadState environment
+  stateEffortClaims after @?= stateEffortClaims before
+  reviewClassDue after EffortAxis (brickId first) @?= True
+  currentEffort after (brickId first) @?= Nothing
+  assertBool "scope review was not offered" (World.EffortComparisonOpportunity `elem` offeredKinds after fixedTime)
+  showResult <- run environment (ShowRawCommand (ref first) CompleteView)
+  assertBool "inspection concealed stale class" (any (Text.isInfixOf "review due") (resultObjectDetails showResult))
+  seedLottery environment first
+  relative <- drawUntil environment (\case EffortComparisonOpportunity{} -> True; _ -> False) 128
+  _ <- answer environment relative ("effort.choose." <> renderUUIDv7 (brickId first))
+  relativeOnly <- loadState environment
+  reviewClassDue relativeOnly EffortAxis (brickId first) @?= True
+  currentEffort relativeOnly (brickId first) @?= Nothing
+  renewed <- run environment (EffortCommand (ref first)) >>= interactionOf
+  _ <- answer environment renewed "effort.class.hard"
+  final <- loadState environment
+  reviewClassDue final EffortAxis (brickId first) @?= False
+  assertBool "reclassification did not restore current effort" (isJust (currentEffort final (brickId first)))
+
+impactEvidenceReview :: Assertion
+impactEvidenceReview = withHarness $ \environment -> do
+  first <- createProvisionalWork environment "alpha" >>= brickFromResult environment
+  classification <- run environment (ImpactCommand (ref first)) >>= interactionOf
+  basis <- answer environment classification "impact.class.high"
+  _ <- answer environment basis "impact.speculative"
+  before <- loadState environment
+  fed <- run environment (FeedCommand "test" "Pilot supporting evidence") >>= interactionOf
+  destinations <- answer environment fed "raw.choose-destination"
+  under <- answer environment destinations ("raw.destination.brick." <> renderUUIDv7 (brickId first))
+  attach <- answer environment under "raw.attach"
+  _ <- answer environment attach "raw.attach.evidence"
+  after <- loadState environment
+  stateImpactClaims after @?= stateImpactClaims before
+  reviewClassDue after ImpactAxis (brickId first) @?= True
+  assertBool "new support did not request review" (World.ImpactMaturityReviewOpportunity `elem` offeredKinds after fixedTime)
+  seedLottery environment first
+  envelope <- drawUntil environment (\case ImpactEvidenceReviewOpportunity{} -> True; _ -> False) 128
+  _ <- answer environment envelope "impact.review.retain"
+  final <- loadState environment
+  reviewClassDue final ImpactAxis (brickId first) @?= False
+  impactClaimMaturity (stateImpactClaims final Map.! brickId first) @?= SpeculativeImpact
+  let archived = final{stateBricks = Map.adjust (\brick -> brick{brickStatus = BrickArchived}) (brickId first) (stateBricks final)}
+      historicalChange = archived{stateBricks = Map.adjust (\brick -> brick{brickTitle = "Revised historical outcome"}) (brickId first) (stateBricks archived), stateRaws = Map.map (\raw -> raw{rawStatus = RawRetracted}) (stateRaws archived)}
+  reviewChanges fixedTime archived historicalChange @?= []
+
+easierWorkRecovery :: Assertion
+easierWorkRecovery = withHarness $ \environment -> do
+  bricks <- mapM (createProvisionalWork environment >=> brickFromResult environment) ["alpha", "bravo", "charlie", "delta"]
+  let source = head bricks
+  proposal <- run environment (FocusCommand (ref source)) >>= interactionOf
+  skipped <- answer environment proposal "focus.skip"
+  tired <- answer environment skipped "work.symptom.tired"
+  shortlist <- answer environment tired "work.reaction.easier-work"
+  state <- loadState environment
+  stateCurrentFocus state @?= Nothing
+  stateWorkDeferrals state @?= Map.empty
+  stateEffortClaims state @?= Map.empty
+  Map.keys (stateRandomCursors state) @?= ["easier_work_sample"]
+  assertBool "missing evidence did not retain dedicated help" (not (null (pendingJudgmentReviews state)))
+  restored <- run environment NextCommand >>= interactionOf
+  restored @?= shortlist
+  loadState environment >>= (@?= state)
+  eitherDecode (encode shortlist) @?= Right shortlist
+  case envelopeOpportunity shortlist of
+    EasierWorkOpportunity owner _ candidates -> do
+      owner @?= brickId source
+      length candidates @?= 3
+      assertBool "source appeared as easier work" (brickId source `notElem` candidates)
+      let selected = head candidates
+      offered <- answer environment shortlist ("work.easier.choose." <> renderUUIDv7 selected)
+      envelopeOpportunity offered @?= FocusProposalOpportunity selected Nothing
+      final <- loadState environment
+      stateCurrentFocus final @?= Nothing
+      stateEffortClaims final @?= Map.empty
+      let contextual = [judgment | judgment <- Map.elems (statePairJudgments final), judgmentContext judgment == "easier_recovery"]
+      length contextual @?= 2
+      fmap judgmentInitialConfidence contextual @?= replicate 2 (Fixed 250000)
+      assertBool "recovery erased the dedicated review" (not (null (pendingJudgmentReviews final)))
+    other -> assertFailure (show other)
+
+effortConflict :: Assertion
+effortConflict = withHarness $ \environment -> do
+  first <- createProvisionalWork environment "alpha" >>= brickFromResult environment
+  second <- createProvisionalWork environment "bravo" >>= brickFromResult environment
+  _ <- run environment (EffortCommand (ref first))
+  seedLottery environment first
+  initial <- drawUntil environment (\case EffortComparisonOpportunity{} -> True; _ -> False) 128
+  _ <- answer environment initial ("effort.choose." <> renderUUIDv7 (brickId first))
+  _ <- run environment (EffortCommand (ref second))
+  next <- drawUntil environment (\case EffortComparisonOpportunity{} -> True; _ -> False) 128
+  before <- loadState environment
+  conflict <- answer environment next ("effort.choose." <> renderUUIDv7 (brickId second))
+  assertBool "new answer bypassed fresh conflict gate" (case envelopeOpportunity conflict of EffortRoundConflictOpportunity{} -> True; _ -> False)
+  loadState environment >>= (@?= before)
+  revised <- answer environment conflict "effort.conflict.revise"
+  loadState environment >>= (@?= before)
+  conflictAgain <- answer environment revised ("effort.choose." <> renderUUIDv7 (brickId second))
+  _ <- answer environment conflictAgain "effort.conflict.changed"
+  after <- loadState environment
+  length [judgment | judgment <- Map.elems (statePairJudgments after), judgmentStatus judgment == JudgmentCurrent] @?= 1
+
+isolatedDemand :: Assertion
+isolatedDemand = withHarness $ \environment -> do
+  first <- createProvisionalWork environment "alpha" >>= brickFromResult environment
+  _ <- run environment (EffortCommand (ref first))
+  state <- loadState environment
+  length (pendingJudgmentReviews state) @?= 1
+  assertBool "one unit offered an invalid comparison" (World.EffortComparisonOpportunity `notElem` offeredKinds state fixedTime)
+  assertBool "missing comparator blocked Work" (World.FiniteWorkOpportunity `elem` offeredKinds state fixedTime)
+
+ref :: Brick -> Text
+ref brick = "#" <> unHandle (brickHandle brick)
+
+loadState :: AppEnv -> IO State
+loadState environment = loadedState <$> (assertRight =<< loadDataset (appStore environment) (const (pure ())))
+
+offeredKinds :: State -> UTCTime -> [World.SelectableOpportunityKind]
+offeredKinds state now = [World.selectableKind opportunity | ticket <- World.buildForecastWorld state now, opportunity <- World.ticketOpportunities ticket]
+
+seedLottery :: AppEnv -> Brick -> IO ()
+seedLottery environment owner = do
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let selection = fixtureUuid 90000
+      eventId = fixtureUuid 90001
+      commandId = fixtureUuid 90002
+      evidence = ForecastSelectionEvidence selection "little-ant-forecast-v1-factory" (ByteString.replicate 32 7) [(brickId owner, 1)] (brickId owner) (Just (brickId owner)) "finite_work" [brickId owner] Nothing Nothing [] [] Nothing
+      event = EventDraft eventId commandId (appActor environment) fixedTime (statePreconditionHash (loadedState loaded)) [selection, eventId, commandId] (ForecastSelectedV1 (ForecastSelected evidence))
+  _ <- assertRight =<< appendCommand (appStore environment) (loadedCursor loaded) [event]
+  pure ()
+
+drawUntil :: AppEnv -> (Opportunity -> Bool) -> Int -> IO InteractionEnvelope
+drawUntil _ _ 0 = assertFailure "the deterministic test stream did not serve the requested review"
+drawUntil environment matches attempts = do
+  let checkpoint = storeRoot (appStore environment) </> "checkpoints" </> "pending-envelope.json"
+  exists <- doesFileExist checkpoint
+  when exists (removeFile checkpoint)
+  envelope <- run environment NextCommand >>= interactionOf
+  if matches (envelopeOpportunity envelope) then pure envelope else drawUntil environment matches (attempts - 1)
 
 createProvisionalWork :: AppEnv -> Text -> IO InteractionEnvelope
 createProvisionalWork environment material = do

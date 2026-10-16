@@ -291,6 +291,57 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("Created:")
         return next(hit["handle"] for hit in self.cli("search", title)["hits"] if hit["kind"] == "brick")
 
+    def test_archive_and_restore_are_discoverable_without_accepting_focus(self):
+        handle = self.create_atomic_work("Move this work elsewhere")
+        self.repl.send("/archive " + handle + "\r")
+        self.repl.wait("Archive this Work?")
+        self.repl.send("y")
+        self.repl.wait("Archived:")
+        self.assertIn("Status: archived", self.cli("show", handle)["details"])
+        self.repl.send("/restore\r")
+        self.repl.wait("Choose Work for /restore")
+        self.repl.wait("Enter preview")
+        self.repl.send("\r")
+        self.repl.wait("Restore this Work?")
+        self.repl.send("y")
+        self.repl.wait("Restored:")
+        self.assertIn("Status: active", self.cli("show", handle)["details"])
+        events = [event for entry in self.cli("history", "100")["history"] for event in entry["event_types"]]
+        self.assertFalse(any("focus" in event for event in events))
+
+    def test_easier_work_shortlist_resumes_and_waits_for_focus_consent(self):
+        source = self.create_atomic_work("Prepare the full proposal")
+        self.create_atomic_work("Review the short summary", below=True)
+        self.create_atomic_work("Draw one explanatory diagram", below=True)
+        self.repl.close()
+        self.cli("focus", source)
+        self.repl = Repl(self.executable, self.environment, rows=32)
+        self.repl.wait("Focus?")
+        self.repl.send("s")
+        self.repl.wait("[t]ired")
+        self.repl.send("t")
+        self.repl.wait("You're tired.")
+        self.repl.send("e")
+        self.repl.wait("Easier work:")
+        self.repl.wait("Which of these feels easiest")
+        dataset = self.root / "state/lant/profiles/default/dataset"
+        checkpoint = dataset / "checkpoints/pending-envelope.json"
+        saved = checkpoint.read_bytes()
+        records = sorted(path.read_bytes() for path in dataset.rglob("*.jsonl"))
+        self.repl.close()
+        self.repl = Repl(self.executable, self.environment, rows=32)
+        self.repl.wait("Easier work:")
+        self.assertEqual(checkpoint.read_bytes(), saved)
+        self.assertEqual(sorted(path.read_bytes() for path in dataset.rglob("*.jsonl")), records)
+        self.repl.send("1")
+        self.repl.wait("Focus?")
+        self.assertIn("Work: idle", self.cli("show", source)["details"])
+        events = [json.loads(line) for path in dataset.rglob("*.jsonl") for line in path.read_text().splitlines()]
+        self.assertEqual(sum(event["event_type"] == "easier_work_offered" for event in events), 1)
+        self.assertEqual(sum(event["event_type"] == "contextual_effort_recorded" for event in events), 1)
+        self.assertFalse(any(event["event_type"] == "effort_classified" for event in events))
+        self.assertTrue(self.cli("doctor")["healthy"])
+
     def test_done_advances_once_with_a_receipt_and_retains_the_next_focus_offer(self):
         baseline_environment = self.environment.copy()
         for gesture, columns in (("d", 80), ("/done\r", 28), (None, 80)):
@@ -402,6 +453,49 @@ class ReplTests(unittest.TestCase):
         self.repl.send("\x1b")
         self.repl.await_exit("Escape at the main Raw question")
 
+    def test_two_escapes_exit_the_palette_even_after_another_client_replaces_the_question(self):
+        handle = self.create_atomic_work("Exit without changing another client")
+        self.repl.close()
+        self.cli("focus", handle)
+        self.repl = Repl(self.executable, self.environment)
+        self.repl.wait("Focus?")
+        self.repl.send("/")
+        self.repl.wait("More:")
+        replacement = self.cli("focus", handle)
+        checkpoint = self.root / "state/lant/profiles/default/dataset/checkpoints/pending-envelope.json"
+        before = checkpoint.read_bytes()
+        history = self.cli("history", "100")
+        self.repl.send("\x1b")
+        self.repl.wait("Focus?")
+        self.repl.send("\x1b")
+        self.repl.await_exit("Escape after closing the stale main-screen palette")
+        self.assertEqual(checkpoint.read_bytes(), before)
+        self.assertEqual(self.cli("history", "100"), history)
+        self.assertEqual(self.cli("interaction", "show")["interaction"], replacement["interaction"])
+
+    def test_long_title_palette_stays_compact_and_executes_the_original_target(self):
+        handle = self.create_atomic_work("Bound the palette title")
+        self.repl.close()
+        title = "Avaliar a variante " + "界🙂 contexto " * 80 + "LAST_TITLE_WORD"
+        self.cli("update", handle, "title", "--text", title, "--yes")
+        for columns in (28, 160, 80):
+            with self.subTest(columns=columns):
+                self.cli("focus", handle)
+                self.repl = Repl(self.executable, self.environment, columns=columns, rows=40)
+                self.repl.wait("Work:")
+                self.repl.send("/")
+                self.repl.wait("More:")
+                self.repl.wait("/done " + handle)
+                self.repl.wait("(...)")
+                self.assertNotIn("LAST_TITLE_WORD", self.repl.terminal.text)
+                if columns != 80:
+                    self.repl.close()
+        self.repl.send("done\r")
+        self.repl.wait("✓ Completed:")
+        shown = self.cli("show", handle)
+        self.assertEqual(shown["title"], title)
+        self.assertIn("Status: done", shown["details"])
+
     def test_exit_and_restart_resume_the_same_focus_proposal_without_drawing(self):
         self.launch()
         self.cli("feed", "Keep this pending suggestion")
@@ -425,6 +519,20 @@ class ReplTests(unittest.TestCase):
         checkpoint = dataset / "checkpoints/pending-envelope.json"
         before_checkpoint = checkpoint.read_bytes()
         before_events = {path.name: path.read_bytes() for path in (dataset / "events").glob("*.jsonl")}
+        self.repl.send("/why\r")
+        self.repl.wait("Why this appeared:")
+        self.repl.wait("Chance at selection:")
+        self.repl.wait("[b] back")
+        self.repl.send("d")
+        self.repl.send("\x1b[F")
+        self.repl.wait("Forecast profile:")
+        self.repl.send("b")
+        self.repl.wait("Focus?")
+        self.assertEqual(checkpoint.read_bytes(), before_checkpoint)
+        self.assertEqual({path.name: path.read_bytes() for path in (dataset / "events").glob("*.jsonl")}, before_events)
+        explanation = self.cli("--view", "complete", "why")
+        self.assertEqual(explanation["schema"], "little-ant/why@1")
+        self.assertEqual(explanation["selection"]["explanation"]["opportunity_chance"], [1, 1])
         self.repl.send("/exit\r")
         self.repl.await_exit("/exit with a pending suggestion")
         self.repl = Repl(self.executable, self.environment)

@@ -34,12 +34,20 @@ A projection checkpoint is disposable, cursor/hash-bound, verified against
 full replay, and safe to delete. Canonical segments and blobs remain sufficient
 to rebuild the product.
 
-## Concurrency fails safely after bounded lock acquisition
+## Canonical event writes use bounded lock acquisition
 
-REPL, CLI, and local web may race. A mutator takes an interruptible bounded
-exclusive writer lock, then reloads and revalidates. It never steals a lock or
-retries an already-decided event list. Timeout returns a typed retry-safe
-conflict and no mutation.
+Canonical event publication takes an interruptible bounded exclusive writer
+lock, then reloads and revalidates the dataset cursor. It never steals a lock or
+publishes an event list against an outdated cursor. Lock timeout returns a typed
+retry-safe conflict and no canonical mutation.
+
+This guarantee does not cover presentation checkpoint saves. The alpha shares
+one pending interaction per dataset, writes it through a fixed temporary path
+without a checkpoint lock, and does not automatically refresh another REPL.
+Concurrent guided sessions can replace pending navigation or fail while saving
+or loading it. Use one client for guided decisions and changes at a time; see
+[ADR 0003](adr/0003-persisted-guided-checkpoints.md#current-alpha-concurrency-limitation)
+for the implementation gap and remaining work.
 
 ## Dumb behavior is built first without hiding parity debt
 

@@ -18,10 +18,11 @@ module LittleAnt.Vault.Agent (
   agentReplySecret,
   wipeAgentSecret,
   runVaultAgent,
+  runVaultAgentWithClock,
   sendVaultAgentRequest,
 ) where
 
-import Control.Concurrent (MVar, forkIO, modifyMVar, modifyMVar_, newMVar, threadDelay)
+import Control.Concurrent (MVar, forkIO, killThread, modifyMVar, modifyMVar_, newMVar, threadDelay)
 import Control.Exception (IOException, bracket, catch, finally)
 import Control.Monad (forever, unless, when)
 import Data.Aeson (eitherDecodeStrict', encode)
@@ -128,16 +129,20 @@ agentReplySecret = \case
   _ -> Nothing
 
 runVaultAgent :: FilePath -> FilePath -> Int -> IO (Either AppError ())
-runVaultAgent socketPath vaultPath idleSeconds
+runVaultAgent = runVaultAgentWithClock getCurrentTime
+
+-- The clock is injectable so idle expiry is tested without racing cryptography.
+runVaultAgentWithClock :: IO UTCTime -> FilePath -> FilePath -> Int -> IO (Either AppError ())
+runVaultAgentWithClock clock socketPath vaultPath idleSeconds
   | idleSeconds <= 0 = pure (Left (appError InvalidInput "The vault-agent idle timeout must be positive."))
   | not (validSocketAddress socketPath) = pure (Left socketAddressProblem)
   | otherwise = handleAgentIO $ do
       prepareSocketDirectory socketPath
       rejectExistingSocketPath socketPath
       memory <- newMVar (AgentMemory Nothing)
-      _ <- forkIO (idleReaper idleSeconds memory)
-      bracket (openServer socketPath) close $ \server ->
-        finally (acceptLoop server memory) (removeSocketPath socketPath)
+      bracket (forkIO (idleReaper clock idleSeconds memory)) killThread $ \_ ->
+        bracket (openServer socketPath) close $ \server ->
+          finally (acceptLoop server memory) (removeSocketPath socketPath)
       pure (Right ())
  where
   acceptLoop server memory = do
@@ -153,7 +158,7 @@ runVaultAgent socketPath vaultPath idleSeconds
                 case requestBytes >>= decodeRequest of
                   Left problem -> sendFrame client (encodeReply (ErrorReply problem)) >> pure False
                   Right request -> do
-                    (reply, stop) <- handleRequest vaultPath idleSeconds memory request
+                    (reply, stop) <- handleRequest clock vaultPath idleSeconds memory request
                     sendFrame client (encodeReply reply)
                     pure stop
         )
@@ -189,11 +194,12 @@ socketAddressProblem =
     { appErrorRecovery = [RecoveryAction "shorter-runtime" "Choose a shorter XDG_RUNTIME_DIR, then retry." Nothing]
     }
 
-handleRequest :: FilePath -> Int -> MVar AgentMemory -> AgentRequest -> IO (AgentReply, Bool)
-handleRequest vaultPath idleSeconds memory = \case
+handleRequest :: IO UTCTime -> FilePath -> Int -> MVar AgentMemory -> AgentRequest -> IO (AgentReply, Bool)
+handleRequest clock vaultPath idleSeconds memory = \case
   StatusRequest -> do
     unlocked <- modifyMVar memory $ \current -> do
-      refreshed <- expireIfNeeded current
+      now <- clock
+      refreshed <- expireIfNeededAt now current
       pure (refreshed, isUnlocked refreshed)
     pure (StatusReply unlocked, False)
   UnlockRequest supplied -> do
@@ -205,15 +211,15 @@ handleRequest vaultPath idleSeconds memory = \case
         readVault vaultPath passphrase >>= \case
           Left _ -> pure (ErrorReply (appError PermissionRequired "Could not unlock these credentials."), False)
           Right vault -> do
-            now <- getCurrentTime
+            now <- clock
             modifyMVar_ memory (const (pure (AgentMemory (Just (UnlockedVault passphrase vault (addUTCTime (fromIntegral idleSeconds) now))))))
             pure (OkReply, False)
   LockRequest -> do
     modifyMVar_ memory (const (pure (AgentMemory Nothing)))
     pure (OkReply, False)
-  InventoryRequest -> withUnlocked idleSeconds memory $ \unlocked ->
+  InventoryRequest -> withUnlocked clock idleSeconds memory $ \unlocked ->
     pure (InventoryReply (vaultInventory (unlockedContents unlocked)))
-  ResolveRequest identity _purpose -> withUnlocked idleSeconds memory $ \unlocked ->
+  ResolveRequest identity _purpose -> withUnlocked clock idleSeconds memory $ \unlocked ->
     case resolveVaultEntrySecret identity (unlockedContents unlocked) of
       Left problem -> pure (ErrorReply problem)
       Right secret -> pure (SecretReply (Text.encodeUtf8 secret))
@@ -221,7 +227,7 @@ handleRequest vaultPath idleSeconds memory = \case
     reply <- case Text.decodeUtf8' suppliedSecret of
       Left _ -> pure (ErrorReply (appError InvalidInput "Credential text must be valid UTF-8."))
       Right secret ->
-        withUnlockedMutation vaultPath idleSeconds memory $ \vault ->
+        withUnlockedMutation clock vaultPath idleSeconds memory $ \vault ->
           case resolveVaultEntrySecret identity vault of
             Right _ -> updateVaultEntry identity scheme secret metadata vault
             Left _ -> insertVaultEntry identity scheme label secret metadata vault
@@ -232,30 +238,34 @@ handleRequest vaultPath idleSeconds memory = \case
     wipeBytes supplied
     reply <- case replacementResult of
       Left problem -> pure (ErrorReply problem)
-      Right replacement -> rotateUnlocked vaultPath idleSeconds memory replacement
+      Right replacement -> rotateUnlocked clock vaultPath idleSeconds memory replacement
     pure (reply, False)
   RemoveRequest identity -> do
-    reply <- withUnlockedMutation vaultPath idleSeconds memory (removeVaultEntry identity)
+    reply <- withUnlockedMutation clock vaultPath idleSeconds memory (removeVaultEntry identity)
     pure (reply, False)
   ShutdownRequest -> do
     modifyMVar_ memory (const (pure (AgentMemory Nothing)))
     pure (OkReply, True)
 
-withUnlocked :: Int -> MVar AgentMemory -> (UnlockedVault -> IO AgentReply) -> IO (AgentReply, Bool)
-withUnlocked idleSeconds memory action = do
-  now <- getCurrentTime
+withUnlocked :: IO UTCTime -> Int -> MVar AgentMemory -> (UnlockedVault -> IO AgentReply) -> IO (AgentReply, Bool)
+withUnlocked clock idleSeconds memory action = do
+  now <- clock
   reply <- modifyMVar memory $ \current -> do
     refreshed <- expireIfNeededAt now current
     case refreshed of
       AgentMemory Nothing -> pure (refreshed, ErrorReply (appError PermissionRequired "Credentials are locked."))
       AgentMemory (Just unlocked) -> do
         result <- action unlocked
-        pure (AgentMemory (Just unlocked{unlockedExpiresAt = addUTCTime (fromIntegral idleSeconds) now}), result)
+        completedAt <- clock
+        let renewed = case result of
+              ErrorReply{} -> refreshed
+              _ -> AgentMemory (Just unlocked{unlockedExpiresAt = addUTCTime (fromIntegral idleSeconds) completedAt})
+        pure (renewed, result)
   pure (reply, False)
 
-withUnlockedMutation :: FilePath -> Int -> MVar AgentMemory -> (Vault -> Either AppError Vault) -> IO AgentReply
-withUnlockedMutation vaultPath idleSeconds memory mutation = do
-  now <- getCurrentTime
+withUnlockedMutation :: IO UTCTime -> FilePath -> Int -> MVar AgentMemory -> (Vault -> Either AppError Vault) -> IO AgentReply
+withUnlockedMutation clock vaultPath idleSeconds memory mutation = do
+  now <- clock
   modifyMVar memory $ \current -> do
     refreshed <- expireIfNeededAt now current
     case refreshed of
@@ -266,15 +276,16 @@ withUnlockedMutation vaultPath idleSeconds memory mutation = do
           Right changed ->
             writeVault vaultPath (unlockedPassphrase unlocked) changed >>= \case
               Left problem -> pure (refreshed, ErrorReply problem)
-              Right () ->
+              Right () -> do
+                completedAt <- clock
                 pure
-                  ( AgentMemory (Just unlocked{unlockedContents = changed, unlockedExpiresAt = addUTCTime (fromIntegral idleSeconds) now})
+                  ( AgentMemory (Just unlocked{unlockedContents = changed, unlockedExpiresAt = addUTCTime (fromIntegral idleSeconds) completedAt})
                   , OkReply
                   )
 
-rotateUnlocked :: FilePath -> Int -> MVar AgentMemory -> Passphrase -> IO AgentReply
-rotateUnlocked vaultPath idleSeconds memory replacement = do
-  now <- getCurrentTime
+rotateUnlocked :: IO UTCTime -> FilePath -> Int -> MVar AgentMemory -> Passphrase -> IO AgentReply
+rotateUnlocked clock vaultPath idleSeconds memory replacement = do
+  now <- clock
   modifyMVar memory $ \current -> do
     refreshed <- expireIfNeededAt now current
     case refreshed of
@@ -288,19 +299,17 @@ rotateUnlocked vaultPath idleSeconds memory replacement = do
               Right verified
                 | verified /= unlockedContents unlocked ->
                     pure (refreshed, ErrorReply (appError CorruptData "The rotated vault failed verification."))
-                | otherwise ->
+                | otherwise -> do
+                    completedAt <- clock
                     pure
-                      ( AgentMemory (Just unlocked{unlockedPassphrase = replacement, unlockedExpiresAt = addUTCTime (fromIntegral idleSeconds) now})
+                      ( AgentMemory (Just unlocked{unlockedPassphrase = replacement, unlockedExpiresAt = addUTCTime (fromIntegral idleSeconds) completedAt})
                       , OkReply
                       )
 
-idleReaper :: Int -> MVar AgentMemory -> IO ()
-idleReaper idleSeconds memory = forever $ do
+idleReaper :: IO UTCTime -> Int -> MVar AgentMemory -> IO ()
+idleReaper clock idleSeconds memory = forever $ do
   threadDelay (min 1 idleSeconds * 1_000_000)
-  modifyMVar_ memory expireIfNeeded
-
-expireIfNeeded :: AgentMemory -> IO AgentMemory
-expireIfNeeded current = getCurrentTime >>= \now -> expireIfNeededAt now current
+  modifyMVar_ memory (\current -> clock >>= \now -> expireIfNeededAt now current)
 
 expireIfNeededAt :: UTCTime -> AgentMemory -> IO AgentMemory
 expireIfNeededAt now current@(AgentMemory unlocked) =

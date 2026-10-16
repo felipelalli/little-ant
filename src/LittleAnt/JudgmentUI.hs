@@ -1,5 +1,9 @@
 module LittleAnt.JudgmentUI (
   makeEffortClassEnvelope,
+  makeEffortComparisonEnvelope,
+  makeEffortRoundConflictEnvelope,
+  makeEasierWorkEnvelope,
+  makeImpactEvidenceReviewEnvelope,
   makeEffortExemplarEnvelope,
   makeEffortContradictionEnvelope,
   makeEffortNarrowedEnvelope,
@@ -33,7 +37,8 @@ import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Id
 import LittleAnt.Interaction
-import LittleAnt.Judgment (effortPlanningHours)
+import LittleAnt.Judgment (effortPlanningHours, unresolvedReviewCount)
+import LittleAnt.JudgmentReview
 import LittleAnt.Model
 import LittleAnt.Store
 
@@ -223,7 +228,7 @@ makeImpactClassEnvelope identity cursor precondition now state brick =
     state
     ChoiceGrammar
     (ImpactClassOpportunity (brickId brick))
-    (EnvelopeContent "Impact:" (Just (citation state (brickId brick))) ["Considering its likely result and uncertainty, how much difference is it expected to make?"] Nothing)
+    (EnvelopeContent "Impact:" (Just (citation state (brickId brick))) (["The previous impact judgment is review due." | reviewClassDue state ImpactAxis (brickId brick)] <> ["Considering its likely result and uncertainty, how much difference is it expected to make?"]) Nothing)
     (zipWith impactAction [1 :: Int ..] [minBound .. maxBound] <> [assistance "impact.unknown" "Compare reviewed roots or explain why no class can be inferred.", more])
     (commands (Just (brickId brick)))
     (Just "discover_impact")
@@ -425,6 +430,87 @@ axisContradictionEnvelope previous now state axis opportunity above below path =
     (Just "resolve_judgment_contradiction")
     (brickFooter now state above "Last reviewed")
 
+makeEffortComparisonEnvelope :: InteractionEnvelope -> ZonedTime -> State -> UUIDv7 -> [UUIDv7] -> InteractionEnvelope
+makeEffortComparisonEnvelope previous now state owner candidates =
+  nextEnvelope
+    previous
+    now
+    state
+    ChoiceGrammar
+    (EffortComparisonOpportunity owner candidates)
+    (EnvelopeContent "Compare total effort:" Nothing [reviewReason state EffortDiscovery owner, "Considering each complete current scope, which looks easiest to finish?"] Nothing)
+    (zipWith (candidateAction "effort.choose." state) [1 :: Int ..] candidates <> [Action "effort.round.skip" "skip" "s" False "Defer only this review for 24 hours; Work remains available.", assistance "effort.round.unknown" "Compare total scopes, not importance, time already spent, or today's energy.", more])
+    (commands (Just owner))
+    (Just "compare_total_effort")
+    (brickFooter now state owner "Last reviewed")
+
+makeEffortRoundConflictEnvelope :: InteractionEnvelope -> ZonedTime -> State -> UUIDv7 -> [UUIDv7] -> UUIDv7 -> InteractionEnvelope
+makeEffortRoundConflictEnvelope previous now state owner candidates winner =
+  nextEnvelope
+    previous
+    now
+    state
+    ChoiceGrammar
+    (EffortRoundConflictOpportunity owner candidates winner)
+    (EnvelopeContent "Effort changed?" (Just (citation state winner)) ["This easiest choice conflicts with a recent total-effort judgment.", "Has the work changed, or would you revise this answer?"] Nothing)
+    [ Action "effort.conflict.changed" "changed" "c" False "Accept the new choice and retire only conflicting current paths."
+    , Action "effort.conflict.revise" "revise answer" "r" False "Return to the comparison without accepting this choice."
+    , Action "effort.conflict.skip" "skip" "s" False "Defer the unresolved review."
+    , assistance "effort.conflict.unknown" "Explain this conflict without changing either answer."
+    , more
+    ]
+    (commands (Just owner))
+    (Just "resolve_effort_conflict")
+    (brickFooter now state owner "Last reviewed")
+
+makeEasierWorkEnvelope :: InteractionEnvelope -> ZonedTime -> State -> UUIDv7 -> Maybe UUIDv7 -> [UUIDv7] -> InteractionEnvelope
+makeEasierWorkEnvelope previous now state source selection candidates =
+  nextEnvelope
+    previous
+    now
+    state
+    ChoiceGrammar
+    (EasierWorkOpportunity source selection candidates)
+    (EnvelopeContent "Easier work:" Nothing ["Which of these feels easiest to tackle now?", "This choice reflects today's energy; it does not assign an effort class."] Nothing)
+    (zipWith (candidateAction "work.easier.choose." state) [1 :: Int ..] candidates <> [Action "work.easier.back" "back" "b" False "Return without recording a recovery choice.", assistance "work.easier.unknown" "Choose a useful focus for your current energy, or return without choosing.", more])
+    (commands (Just source))
+    (Just "choose_easier_work")
+    (brickFooter now state source "Last focused")
+
+candidateAction :: Text -> State -> Int -> UUIDv7 -> Action
+candidateAction prefix state number identity = Action (prefix <> renderUUIDv7 identity) (citation state identity) (Text.pack (show number)) False "Record only the displayed choice."
+
+makeImpactEvidenceReviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> UUIDv7 -> InteractionEnvelope
+makeImpactEvidenceReviewEnvelope previous now state owner =
+  nextEnvelope
+    previous
+    now
+    state
+    ChoiceGrammar
+    (ImpactEvidenceReviewOpportunity owner)
+    ( EnvelopeContent
+        "Review impact evidence:"
+        (Just (citation state owner))
+        ( [reviewReason state ImpactEvidenceReview owner] <> case Map.lookup owner (stateImpactClaims state) of
+            Nothing -> ["No current impact judgment is available."]
+            Just claim -> ["Current impact: " <> impactLabel (impactClaimClass claim), "Maturity: " <> maturityLabel (impactClaimMaturity claim)] <> ["Relies on: " <> evidenceCitation state identity | identity <- impactClaimEvidence claim]
+        )
+        Nothing
+    )
+    [ Action "impact.review.reassess" "reassess class and evidence" "r" False "Choose the class and applicable evidence explicitly."
+    , Action "impact.review.retain" "retain current judgment" "y" False "Explicitly reaffirm the existing class and applicable evidence."
+    , Action "impact.review.clear" "clear current judgment" "c" False "Clear the current class while preserving history."
+    , Action "impact.review.skip" "skip" "s" False "Defer this evidence review for 24 hours without changing Work."
+    , assistance "impact.review.unknown" "Inspect whether the selected evidence still supports the current outcome, then reassess, retain, clear, or skip."
+    , more
+    ]
+    (commands (Just owner))
+    (Just "review_impact_evidence")
+    (brickFooter now state owner "Last reviewed")
+
+reviewReason :: State -> JudgmentReviewKind -> UUIDv7 -> Text
+reviewReason state kind owner = maybe "A judgment was requested for this Work." judgmentReviewReason (Map.lookup (kind, owner) (stateJudgmentReviews state))
+
 makeEffortClassEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeEffortClassEnvelope identity cursor precondition now state brick =
   newEnvelope
@@ -435,7 +521,7 @@ makeEffortClassEnvelope identity cursor precondition now state brick =
     state
     ChoiceGrammar
     (EffortClassOpportunity (brickId brick))
-    (EnvelopeContent "Effort:" (Just (citation state (brickId brick))) ["How much total effort would the current scope take from start to finish?"] Nothing)
+    (EnvelopeContent "Effort:" (Just (citation state (brickId brick))) (["The previous effort class is review due after a scope change." | reviewClassDue state EffortAxis (brickId brick)] <> ["How much total effort would the current scope take from start to finish?"]) Nothing)
     (zipWith effortAction [1 :: Int ..] [minBound .. maxBound] <> [assistance "effort.unknown" "Compare reviewed exemplars without inventing a default.", more])
     (commands (Just (brickId brick)))
     (Just "discover_effort")
@@ -586,7 +672,7 @@ nextEnvelope previous _ _ grammar opportunity content actions availableCommands 
 
 baseFooter :: ZonedTime -> State -> Footer
 baseFooter now state =
-  Footer "<root>" "<no Domain>" "Workday" (formatTimeText "%a, %b %-d" now) (formatTimeText "%a, %b %-d, %H:%M" now) (brickCount state) (rawCount state) (rawCount state + Map.size (stateLazyReviews state)) "dumb" focus Nothing 0
+  Footer "<root>" "<no Domain>" "Workday" (formatTimeText "%a, %b %-d" now) (formatTimeText "%a, %b %-d, %H:%M" now) (brickCount state) (rawCount state) (unresolvedReviewCount state (zonedTimeToUTC now)) "dumb" focus Nothing 0
  where
   focus = maybe "idle" (\identity -> maybe "idle" (renderHandle BrickHandle . brickHandle) (Map.lookup identity (stateBricks state))) (stateCurrentFocus state)
 
@@ -606,7 +692,8 @@ commands :: Maybe UUIDv7 -> [CommandOption]
 commands subject =
   [CommandOption "feed" "/feed" "Feed Little Ant"]
     <> maybe [] (\identity -> [CommandOption "show" ("/show " <> renderUUIDv7 identity) "Inspect the current Brick"]) subject
-    <> [ CommandOption "history" "/history" "Open interaction history"
+    <> [ CommandOption "why" "/why" "Explain the recorded selection"
+       , CommandOption "history" "/history" "Open interaction history"
        , CommandOption "help" "/help" "Open Little Ant help"
        , CommandOption "exit" "/exit" "Leave this presentation session"
        ]

@@ -6,6 +6,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.IORef
 import Data.Map.Strict qualified as Map
+import Data.Maybe (isJust)
 import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Data.Time
@@ -34,13 +35,114 @@ main =
   defaultMain $
     testGroup
       "S04 vertical forecast"
-      [ testCase "next records one immutable draw and restart restores it" recordedNext
+      [ testCase "why and forecast preserve the checkpoint, history and recorded facts" whyIsReadOnly
+      , testCase "lottery ordering serves one comparison and persists its skip cooldown" lotteryOrdering
+      , testCase "next records one immutable draw and restart restores it" recordedNext
       , testCase "legacy forecast evidence replays its original profile and weights" legacyForecastReplay
       , testCase "completion releases every Dependency for which the Brick is the blocker" dependencyRelease
       , testCase "retirement removes both dependency directions, discloses release, and preserves historical replay" dependencyRetirement
       , testCase "saved archive consent refreshes before acceptance without a forecast draw" savedArchiveConsent
       , testCase "category grouping retains archived relevance-review forecast candidates" archivedCategoryForecast
       ]
+
+whyIsReadOnly :: Assertion
+whyIsReadOnly = withHarness $ \environment -> do
+  seedOneBrick environment
+  _ <- run environment NextCommand
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let checkpoint = storeRoot (appStore environment) </> "checkpoints" </> "pending-envelope.json"
+  saved <- ByteString.readFile checkpoint
+  first <- run environment (WhyCommand CompleteView)
+  case first of
+    WhyResult{resultWhyEvidence = Just evidence, resultWhySummary = summary} -> do
+      assertBool "new selections omitted their snapshot" (isJust (forecastSelectionExplanation evidence))
+      assertBool "why did not explain its recorded chance" (any (Text.isInfixOf "100.00%") summary)
+    other -> assertFailure (show other)
+  _ <- run environment (ListCommand (Just "forecast"))
+  again <- run environment (WhyCommand CompleteView)
+  again @?= first
+  ByteString.readFile checkpoint >>= (@?= saved)
+  after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  loadedCursor after @?= loadedCursor before
+  stateRandomCursors (loadedState after) @?= stateRandomCursors (loadedState before)
+  let event =
+        EventDraft
+          (fixtureUuid 80)
+          (fixtureUuid 81)
+          (appActor environment)
+          fixedTime
+          (statePreconditionHash (loadedState after))
+          []
+          (BrickTitleNormalizationAcceptedV1 (BrickTitleNormalizationAccepted brickIdValue "Write the migration specification" "Renamed later" HumanNormalization Nothing Nothing))
+  _ <- assertRight =<< appendCommand (appStore environment) (loadedCursor after) [event]
+  changed <- run environment (WhyCommand CompleteView)
+  resultWhySummary changed @?= resultWhySummary first
+  resultWhyDetails changed @?= resultWhyDetails first
+  -- No pending lottery may be invented for a directly opened proposal.
+  _ <- run environment (FocusCommand "#wtms")
+  manual <- run environment (WhyCommand SummaryView)
+  resultWhyEvidence manual @?= Nothing
+  assertBool "manual opening was described as a draw" (any (Text.isInfixOf "opened directly") (resultWhySummary manual))
+
+lotteryOrdering :: Assertion
+lotteryOrdering = withHarness $ \environment -> do
+  seedOrderingRun environment
+  first <- run environment NextCommand >>= interactionOf
+  case envelopeOpportunity first of
+    ImportanceReviewOpportunity session _ _ _ _ _ -> orderSessionCadence session @?= LotteryOrder
+    other -> assertFailure ("unresolved ordering was not dispatched: " <> show other)
+  forecast <- run environment (ListCommand (Just "forecast"))
+  case forecast of
+    ListResult{resultListEntries = [ForecastListRow _ _ _ chance [opportunity]]} -> do
+      chance @?= (1, 1)
+      projectedOpportunityKind opportunity @?= "importance_run_review"
+      projectedOpportunityChance opportunity @?= (1, 1)
+    other -> assertFailure (show other)
+  why <- run environment (WhyCommand SummaryView)
+  assertBool "ordering selection lost its provenance" (isJust (resultWhyEvidence why))
+  accepted <- respond environment first "importance.more"
+  assertBool "lottery answer unexpectedly started a continuous sorter" (case envelopeOpportunity accepted of ImportanceReviewOpportunity{} -> False; _ -> True)
+  afterAnswer <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  Map.size (statePairJudgments (loadedState afterAnswer)) @?= 1
+  _ <- run environment (OrderCommand (Just "#wtms"))
+  continuous <- run environment NextCommand >>= interactionOf
+  case envelopeOpportunity continuous of
+    ImportanceReviewOpportunity session _ _ _ _ _ -> orderSessionCadence session @?= ContinuousOrder
+    other -> assertFailure (show other)
+  -- A new isolated run exercises first skip, nearby alternative and second skip.
+  withHarness $ \skipping -> do
+    seedOrderingRun skipping
+    offered <- run skipping NextCommand >>= interactionOf
+    nearby <- respond skipping offered "importance.skip"
+    case envelopeOpportunity nearby of
+      ImportanceReviewOpportunity _ _ _ skips _ _ -> skips @?= 1
+      other -> assertFailure (show other)
+    _ <- respond skipping nearby "importance.skip"
+    deferred <- assertRight =<< loadDataset (appStore skipping) (const (pure ()))
+    fmap importanceReviewCooldownUntil (Map.lookup Nothing (stateImportanceReviewDeferrals (loadedState deferred))) @?= Just (addUTCTime 86400 fixedTime)
+    stateWorkDeferrals (loadedState deferred) @?= Map.empty
+    during <- run skipping (ListCommand (Just "forecast"))
+    resultListEntries during @?= []
+    let later = addUTCTime 86400 fixedTime
+        resumed = skipping{appNow = pure later, appZonedNow = pure (utcToZonedTime utc later)}
+    afterCooldown <- run resumed (ListCommand (Just "forecast"))
+    assertBool "cooldown expiry discarded the unresolved review" (not (null (resultListEntries afterCooldown)))
+ where
+  respond environment envelope action =
+    run environment (RespondCommand (InteractionResponse (envelopeInteractionId envelope) (envelopeRevision envelope) action (envelopeIntegrityToken envelope) (envelopeDatasetCursor envelope))) >>= \case
+      RespondResult{resultInteraction} -> pure resultInteraction
+      other -> assertFailure (show other) >> fail "unreachable"
+
+seedOrderingRun :: AppEnv -> IO ()
+seedOrderingRun environment = do
+  seedOneBrick environment
+  dataset <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let payload identity handle position = BrickCreatedV1 (BrickCreated identity (Handle handle) handle AtomicTask "nature-v1" "human" Nothing Nothing Set.empty position (DeterministicPosition "imported") rawIdValue)
+      tomorrow identity = TemporalConstraintsChangedV1 (TemporalConstraintsChanged identity (Just (ZonedInstant (addUTCTime (7 * 86400) fixedTime) "UTC")) Nothing Nothing 1)
+      payloads = [payload (fixtureUuid 3) "two" 1, payload (fixtureUuid 4) "three" 2] <> fmap tomorrow [brickIdValue, fixtureUuid 3, fixtureUuid 4]
+      draft index = EventDraft (fixtureUuid index) (fixtureUuid 90) (appActor environment) fixedTime (statePreconditionHash (loadedState dataset)) []
+  _ <- assertRight =<< appendCommand (appStore environment) (loadedCursor dataset) (zipWith draft [100 ..] payloads)
+  pure ()
 
 recordedNext :: Assertion
 recordedNext =
@@ -73,7 +175,7 @@ legacyForecastReplay = do
       selectionId = fixtureUuid 33
       weights = zip identities [1_000_000, 287_500, 50_000]
       draw = ForecastDrawEvidence "forecast_subject_draw" [(renderUUIDv7 identity, weight) | (identity, weight) <- weights] 1_337_500 0 1 1_100_000 (renderUUIDv7 selected)
-      evidence = ForecastSelectionEvidence selectionId "little-ant-forecast-v1-factory" (ByteString.replicate 32 7) weights selected (Just selected) "finite_work" [] Nothing Nothing [] [draw]
+      evidence = ForecastSelectionEvidence selectionId "little-ant-forecast-v1-factory" (ByteString.replicate 32 7) weights selected (Just selected) "finite_work" [] Nothing Nothing [] [draw] Nothing
       brick identity = Brick identity (Handle (renderUUIDv7 identity)) "legacy sibling" AtomicTask "factory@1" "test" Nothing Nothing Set.empty 0 (DeterministicPosition "fixture") BrickActive Idle fixedTime actor (fixtureUuid 99)
       initial = emptyState{stateBricks = Map.fromList [(identity, brick identity) | identity <- identities]}
       event =
@@ -223,7 +325,7 @@ archivedCategoryForecast = withHarness $ \environment -> do
       listEntryHandle row @?= "#wtms"
       listEntryHandle grouped @?= listEntryHandle row
       assertBool "grouping lost the archived review or changed its chance" (listEntryDetails row `Text.isPrefixOf` listEntryDetails grouped)
-      assertBool "expected the archived relevance-review opportunity" ("archive_relevance_review" `Text.isInfixOf` listEntryDetails row)
+      assertBool "expected the archived relevance-review opportunity" ("archive relevance review" `Text.isInfixOf` listEntryDetails row)
     other -> assertFailure ("archived forecast disappeared from categories: " <> show other)
   after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   after @?= before

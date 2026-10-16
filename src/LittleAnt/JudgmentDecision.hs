@@ -3,6 +3,9 @@ module LittleAnt.JudgmentDecision (
   decideTriadWinner,
   decideAxisTriadRelations,
   decideImportanceProvisional,
+  decideImportanceReviewSkip,
+  decideJudgmentReviewSkip,
+  decideEffortChoices,
   decideEffortClass,
   decideImpactClass,
   decidePairJudgment,
@@ -10,16 +13,20 @@ module LittleAnt.JudgmentDecision (
 )
 where
 
-import Control.Monad (when)
+import Control.Monad (unless, when)
+import Data.Foldable (traverse_)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isNothing)
+import Data.Set qualified as Set
 import Data.Text (Text)
+import Data.Time (addUTCTime)
 import LittleAnt.Decision (statePreconditionHash)
 import LittleAnt.Error
 import LittleAnt.Event
 import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Judgment
+import LittleAnt.JudgmentReview
 import LittleAnt.Model
 
 data JudgmentMutation = JudgmentMutation
@@ -45,7 +52,7 @@ decidePairJudgment state actor axis first second relation provenance status reti
           reason
           status
           retired
-      event = draft facts actor state eventId commandId (PairJudgmentRecordedV1 payload)
+      event = draft facts actor state eventId commandId (PairJudgmentRecordedV2 payload)
   pure (JudgmentMutation commandId [event])
 
 decideTriadWinner :: State -> Actor -> UUIDv7 -> [UUIDv7] -> [UUIDv7] -> RuntimeFacts -> Either AppError JudgmentMutation
@@ -55,7 +62,7 @@ decideTriadWinner state actor winner losers retired facts = do
     [firstLoser, secondLoser]
       | winner /= firstLoser && winner /= secondLoser && firstLoser /= secondLoser -> do
           let make eventId loser retiredIds =
-                PairJudgmentRecordedV1 $
+                PairJudgmentRecordedV2 $
                   PairJudgmentRecorded
                     eventId
                     ImportanceAxis
@@ -92,7 +99,7 @@ decideAxisTriadRelations state actor axis relations retired facts = do
       | length eventIds == length relations ->
           let allocated = identities
               makeDraft eventId payload =
-                EventDraft eventId commandId actor (runtimeNow facts) (statePreconditionHash state) allocated (PairJudgmentRecordedV1 payload)
+                EventDraft eventId commandId actor (runtimeNow facts) (statePreconditionHash state) allocated (PairJudgmentRecordedV2 payload)
               makePayload index eventId (first, second, relation) =
                 PairJudgmentRecorded
                   eventId
@@ -124,6 +131,62 @@ decideImportanceProvisional state actor brickId reason facts = do
   (commandId, eventId) <- twoIds facts
   let payload = ImportancePlacementMarked brickId (Provisional reason) reason
   pure (JudgmentMutation commandId [draft facts actor state eventId commandId (ImportancePlacementMarkedV1 payload)])
+
+decideImportanceReviewSkip :: State -> Actor -> UUIDv7 -> Text -> RuntimeFacts -> Either AppError JudgmentMutation
+decideImportanceReviewSkip state actor identity reason facts = do
+  brick <- requireActive state identity
+  (commandId, placementId, deferralId) <- threeIds facts
+  let event eventId = draft facts actor state eventId commandId
+  pure
+    ( JudgmentMutation
+        commandId
+        [ event placementId (ImportancePlacementMarkedV1 (ImportancePlacementMarked identity (Provisional reason) reason))
+        , event deferralId (ImportanceReviewDeferredV1 (ImportanceReviewDeferred (brickParent brick) (addUTCTime (24 * 3600) (runtimeNow facts))))
+        ]
+    )
+
+decideJudgmentReviewSkip :: State -> Actor -> JudgmentReviewKind -> UUIDv7 -> RuntimeFacts -> Either AppError JudgmentMutation
+decideJudgmentReviewSkip state actor kind owner facts = do
+  _ <- requireActive state owner
+  selected <- maybe (Left (appError PreconditionFailed "This judgment has no pending review.")) Right (Map.lookup (kind, owner) (stateJudgmentReviews state))
+  let equivalent = [review | review <- Map.elems (stateJudgmentReviews state), not (judgmentReviewResolved review), judgmentReviewKind review == kind, Set.fromList (reviewCandidates state review) == Set.fromList (reviewCandidates state selected)]
+      count = length equivalent + 1
+  identities <- traverse (either (const (Left (appError CorruptData "Invalid allocated UUID."))) Right . parseUUIDv7 . unUUIDAllocation) (take count (runtimeUUIDs facts))
+  case identities of
+    commandId : eventIds
+      | length identities == count ->
+          pure (JudgmentMutation commandId (zipWith (\identity review -> EventDraft identity commandId actor (runtimeNow facts) (statePreconditionHash state) identities (JudgmentReviewDeferredV1 kind (judgmentReviewSubject review) (addUTCTime (24 * 3600) (runtimeNow facts)))) eventIds equivalent))
+    _ -> Left (appError PreconditionFailed "Not enough identities for equivalent review cooldowns.")
+
+-- Dedicated comparisons record total-scope evidence. Recovery choices retain
+-- weaker contextual evidence and cannot retire a contradictory strong answer.
+decideEffortChoices :: State -> Actor -> [UUIDv7] -> UUIDv7 -> Maybe (UUIDv7, Maybe UUIDv7) -> Bool -> RuntimeFacts -> Either AppError JudgmentMutation
+decideEffortChoices state actor candidates winner recovery acceptChange facts = do
+  when (length candidates < 2 || length candidates > 4 || Set.size (Set.fromList candidates) /= length candidates || winner `notElem` candidates) $
+    Left (appError InvalidInput "Choose one of two to four distinct comparable Work units.")
+  traverse_ (requireActive state) candidates
+  unless (compatibleEffortUnits state candidates) $ Left (appError InvalidInput "Effort comparisons require finite total scopes.")
+  let losers = filter (/= winner) candidates
+      assessments = [(loser, detectContradiction state (runtimeNow facts) EffortAxis loser winner) | loser <- losers]
+      isFresh = \case FreshContradiction{} -> True; _ -> False
+      pathIds = \case FreshContradiction path -> fmap judgmentId (directedPathJudgments path); NoContradiction path -> path
+      retired = Set.toAscList . Set.fromList . concatMap (pathIds . snd) $ assessments
+      weak = case recovery of Just{} -> True; _ -> False
+  when (not weak && not acceptChange && any (isFresh . snd) assessments) $
+    Left (appError PreconditionFailed "The effort choice conflicts with a recent judgment; confirm changed or revise the answer.")
+  identities <- traverse (either (const (Left (appError CorruptData "Invalid allocated UUID."))) Right . parseUUIDv7 . unUUIDAllocation) (take (length candidates + if weak then 1 else 0) (runtimeUUIDs facts))
+  case identities of
+    commandId : eventIds | length eventIds == length losers + if weak then 1 else 0 -> do
+      let pairIds = if weak then drop 1 eventIds else eventIds
+          pair index eventId (loser, assessment) = (if weak then ContextualEffortRecordedV1 else PairJudgmentRecordedV2) (PairJudgmentRecorded eventId EffortAxis loser winner MoreThan DirectHuman (if weak then Fixed 250_000 else initialConfidence DirectHuman) factoryJudgmentProfileHash (if weak then "easier_recovery" else "effort_comparison") (if weak then "current_energy" else "easiest_total_scope") (if weak && isFresh assessment then JudgmentUnresolved "contextual recovery differs from a recent total-effort judgment" else JudgmentCurrent) (if weak || index /= (0 :: Int) then [] else retired))
+          pairs = zipWith3 pair [0 ..] pairIds assessments
+          reaction = case (recovery, eventIds) of
+            (Just (source, selection), eventId : _) -> [(eventId, WorkReactionRecordedV1 (WorkReactionRecorded source selection TiredSymptom (EasierWorkReaction winner) (Just (addUTCTime (15 * 60) (runtimeNow facts)))))]
+            _ -> []
+          payloads = reaction <> zip pairIds pairs
+          make (eventId, payload) = EventDraft eventId commandId actor (runtimeNow facts) (statePreconditionHash state) identities payload
+      pure (JudgmentMutation commandId (make <$> payloads))
+    _ -> Left (appError PreconditionFailed "The runtime did not allocate enough identities for this comparison.")
 
 decidePhase :: State -> Actor -> UUIDv7 -> Maybe WorkPhase -> JudgmentProvenance -> RuntimeFacts -> Either AppError JudgmentMutation
 decidePhase state actor brickId phase provenance facts = do

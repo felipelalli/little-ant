@@ -12,6 +12,7 @@ test:
 
 cli-test: build
 	./test/e2e/s01-cli.sh
+	$(PYTHON) test/e2e/headless.py
 	$(PYTHON) test/e2e/repl.py
 
 python-test:

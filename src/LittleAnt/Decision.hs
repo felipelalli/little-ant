@@ -293,6 +293,7 @@ statePreconditionHash state =
       <> ["phase:" <> renderUUIDv7 identity <> ":" <> Text.pack (show claim) | (identity, claim) <- Map.toAscList (statePhaseClaims state)]
   reviewLines =
     ["lazy-review:" <> renderUUIDv7 identity <> ":" <> Text.pack (show claim) | (identity, claim) <- Map.toAscList (stateLazyReviews state)]
+      <> ["judgment-review:" <> Text.pack (show key) <> ":" <> Text.pack (show review) | (key, review) <- Map.toAscList (stateJudgmentReviews state)]
   dependencyLines =
     ["dependency:" <> renderUUIDv7 identity <> ":" <> Text.pack (show dependency) | (identity, dependency) <- Map.toAscList (stateDependencies state)]
       <> ["checklist-run:" <> renderUUIDv7 identity <> ":" <> Text.pack (show run) | (identity, run) <- Map.toAscList (stateChecklistRuns state)]
@@ -302,6 +303,7 @@ statePreconditionHash state =
       <> ["scheduled-interval:" <> renderUUIDv7 identity <> ":" <> Text.pack (show interval) | (identity, interval) <- Map.toAscList (stateScheduledIntervals state)]
   deferralLines =
     ["deferral:" <> renderUUIDv7 identity <> ":" <> Text.pack (show deferral) | (identity, deferral) <- Map.toAscList (stateWorkDeferrals state)]
+      <> ["importance-review-deferral:" <> maybe "root" renderUUIDv7 parent <> ":" <> Text.pack (show deferral) | (parent, deferral) <- Map.toAscList (stateImportanceReviewDeferrals state)]
   domainLines =
     ["domain:" <> renderUUIDv7 identity <> ":" <> Text.pack (show domain) | (identity, domain) <- Map.toAscList (stateDomains state)]
   focusLines =

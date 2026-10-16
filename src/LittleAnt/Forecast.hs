@@ -70,7 +70,7 @@ data ForecastProfile = ForecastProfile
 factoryForecastProfile :: ForecastProfile
 factoryForecastProfile =
   ForecastProfile
-    { profileHash = "little-ant-forecast-v2-factory-forte-plus"
+    { profileHash = "little-ant-forecast-v4-factory-demand-reviews"
     , importanceTopShare = Fixed 600_000
     , importanceNeutral = Fixed 350_000
     , importanceTailRatio = Fixed 700_000

@@ -193,9 +193,13 @@ tests =
         assertFocusStep FocusExplainSelection explanation
         fmap actionLabel (take 2 (envelopeActions explanation)) @?= ["decide about focus", "task context"]
         fmap actionShortcut (take 3 (envelopeActions explanation)) @?= ["d", "t", "k"]
-        case envelopeOpportunity proposal of
-          FocusProposalOpportunity _ (Just selectionId) -> assertBool "explanation lost its immutable replay identity" (any (Text.isInfixOf (renderUUIDv7 selectionId)) (contentBody (envelopeContent explanation)))
-          other -> assertFailure ("expected a recorded selection: " <> show other)
+        technical <- run environment (WhyCommand CompleteView)
+        case (envelopeOpportunity proposal, technical) of
+          (FocusProposalOpportunity _ (Just selectionId), WhyResult{resultWhyEvidence = Just evidence, resultWhyDetails}) -> do
+            forecastSelectionId evidence @?= selectionId
+            assertBool "technical details lost the immutable replay identity" (any (Text.isInfixOf (renderUUIDv7 selectionId)) resultWhyDetails)
+            assertBool "the short explanation leaked replay identifiers" (not (any (Text.isInfixOf (renderUUIDv7 selectionId)) (contentBody (envelopeContent explanation))))
+          other -> assertFailure ("expected recorded selection details: " <> show other)
         backToContext <- answer environment explanation "focus.aid.back"
         backToContext @?= context
         explanationAgain <- answer environment backToContext "focus.aid.explain"

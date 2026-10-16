@@ -4,6 +4,7 @@ module LittleAnt.Result (
   HistoryEntry (..),
   SearchHit (..),
   ListRow (..),
+  ForecastOpportunityProjection (..),
   ListTree (..),
   PackComponentProjection (..),
   PackProjection (..),
@@ -20,6 +21,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Time (UTCTime)
 import LittleAnt.Error
+import LittleAnt.Event (forecastSelectionValue)
 import LittleAnt.Export
 import LittleAnt.Id
 import LittleAnt.Interaction
@@ -57,11 +59,35 @@ data SearchHit = SearchHit
   }
   deriving stock (Eq, Show)
 
-data ListRow = ListRow
-  { listEntryHandle :: Text
-  , listEntryTitle :: Text
-  , listEntryDetails :: Text
+data ForecastOpportunityProjection = ForecastOpportunityProjection
+  { projectedOpportunityKind :: Text
+  , projectedOpportunityLabel :: Text
+  , projectedOpportunityChance :: (Integer, Integer)
   }
+  deriving stock (Eq, Show)
+
+instance ToJSON ForecastOpportunityProjection where
+  toJSON opportunity =
+    object
+      [ "kind" .= projectedOpportunityKind opportunity
+      , "label" .= projectedOpportunityLabel opportunity
+      , "chance_numerator" .= fst (projectedOpportunityChance opportunity)
+      , "chance_denominator" .= snd (projectedOpportunityChance opportunity)
+      ]
+
+data ListRow
+  = ListRow
+      { listEntryHandle :: Text
+      , listEntryTitle :: Text
+      , listEntryDetails :: Text
+      }
+  | ForecastListRow
+      { listEntryHandle :: Text
+      , listEntryTitle :: Text
+      , listEntryDetails :: Text
+      , listEntryChance :: (Integer, Integer)
+      , listEntryOpportunities :: [ForecastOpportunityProjection]
+      }
   deriving stock (Eq, Show)
 
 -- Categories are presentation branches; an item can occur in several branches.
@@ -109,7 +135,15 @@ data PackProjection = PackProjection
   deriving stock (Eq, Show)
 
 data CommandResult
-  = NextResult
+  = WhyResult
+      { resultDatasetCursor :: DatasetCursor
+      , resultWhyEvidence :: Maybe ForecastSelectionEvidence
+      , resultWhySummary :: [Text]
+      , resultWhyDetails :: [Text]
+      , resultWhyComplete :: Bool
+      , resultDryRun :: Bool
+      }
+  | NextResult
       { resultDatasetCursor :: DatasetCursor
       , resultInteraction :: InteractionEnvelope
       , resultDryRun :: Bool
@@ -256,11 +290,14 @@ instance ToJSON SearchHit where
 
 instance ToJSON ListRow where
   toJSON entry =
-    object
+    object $
       [ "handle" .= listEntryHandle entry
       , "title" .= listEntryTitle entry
       , "details" .= listEntryDetails entry
       ]
+        <> case entry of
+          ForecastListRow _ _ _ (value, total) opportunities -> ["chance_numerator" .= value, "chance_denominator" .= total, "opportunities" .= opportunities]
+          ListRow{} -> []
 
 instance ToJSON DiagnosticCheck where
   toJSON check =
@@ -433,6 +470,12 @@ instance ToJSON CommandResult where
         , "dataset_cursor" .= renderCursor cursor
         , "raw" .= raw
         ]
+          <> dryRunPair dryRun
+    WhyResult cursor evidence summary details complete dryRun ->
+      object $
+        ["schema" .= ("little-ant/why@1" :: Text), "dataset_cursor" .= renderCursor cursor, "summary" .= summary]
+          <> maybe [] (pure . ("selection" .=) . forecastSelectionValue) evidence
+          <> ["details" .= details | complete]
           <> dryRunPair dryRun
     ShowObjectResult cursor kind reference title details dryRun ->
       object $

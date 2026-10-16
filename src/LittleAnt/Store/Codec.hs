@@ -158,8 +158,13 @@ deriving anyclass instance Binary RawLinkTarget
 deriving anyclass instance Binary RawLink
 deriving anyclass instance Binary ImportanceEdge
 deriving anyclass instance Binary LazyReviewClaim
+deriving anyclass instance Binary JudgmentReviewKind
+deriving anyclass instance Binary JudgmentReview
 deriving anyclass instance Binary CommandEffect
 deriving anyclass instance Binary MaterializationEffect
 deriving anyclass instance Binary ForecastDrawEvidence
+deriving anyclass instance Binary ForecastExplanation
+deriving anyclass instance Binary ForecastFactorEvidence
+deriving anyclass instance Binary ImportanceReviewDeferral
 deriving anyclass instance Binary ForecastSelectionEvidence
 deriving anyclass instance Binary State

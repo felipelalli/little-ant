@@ -2,6 +2,11 @@
 
 Status: **planned**
 
+An interim alpha CLI operator is shipped at
+[`skills/little-ant/SKILL.md`](../../skills/little-ant/SKILL.md) and bundled
+with the Nix executable. It uses CLI results and the public headless interaction
+transport; it does not satisfy this slice's full assisted-surface parity gate.
+
 ## Outcome
 
 Add bounded assistance without a second product: powered-up REPL, the v1 Skill,

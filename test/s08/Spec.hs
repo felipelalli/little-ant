@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar, threadDelay)
+import Control.Concurrent (forkIO, myThreadId, newEmptyMVar, putMVar, readMVar, takeMVar)
 import Control.Monad (foldM)
 import Data.Bits ((.&.))
 import Data.ByteString qualified as ByteString
@@ -26,12 +26,13 @@ import LittleAnt.Store
 import LittleAnt.Vault
 import LittleAnt.Vault.Age
 import LittleAnt.Vault.Agent
-import System.Directory (doesFileExist, doesPathExist)
+import System.Directory (doesFileExist)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import System.Posix.Files (fileMode, getFileStatus)
 import Test.Tasty
 import Test.Tasty.HUnit
+import VaultTest
 
 main :: IO ()
 main =
@@ -97,15 +98,27 @@ vaultBackupAndRotation = withSystemTempDirectory "lant-vault-rotation" $ \root -
   assertBool "diagnostics must identify age-v1 without plaintext" ("age_header: age-v1-scrypt-2^18" `elem` diagnostics)
 
 vaultAgentLifecycle :: Assertion
-vaultAgentLifecycle = withSystemTempDirectory "lant-vault-agent" $ \root -> do
+vaultAgentLifecycle = withShortRuntime $ \runtime -> withSystemTempDirectory "lant-vault-agent" $ \root -> do
   passphrase <- assertRight (makePassphrase "agent passphrase")
   populated <- assertRight (insertVaultEntry (fixtureUuid 305) ApiKeyCredential "Test API" "agent-secret-9876" Map.empty (emptyVault (fixtureUuid 304)))
   let vaultPath = root </> "vaults" </> "default.age"
-      socketPath = root </> "runtime" </> "default" </> "vault.sock"
+      socketPath = runtime </> "default" </> "vault.sock"
   writeVault vaultPath passphrase populated >>= assertRight
+  clock <- newIORef now
+  script <- newIORef []
+  agentIdentity <- newEmptyMVar
+  let readClock = do
+        caller <- myThreadId
+        server <- readMVar agentIdentity
+        if caller /= server
+          then readIORef clock
+          else do
+            scheduled <- atomicModifyIORef' script (\case [] -> ([], Nothing); instant : rest -> (rest, Just instant))
+            maybe (readIORef clock) (\instant -> writeIORef clock instant >> pure instant) scheduled
   finished <- newEmptyMVar
-  _ <- forkIO (runVaultAgent socketPath vaultPath 1 >>= putMVar finished)
-  waitForPath socketPath 100
+  server <- forkIO (runVaultAgentWithClock readClock socketPath vaultPath 1 >>= putMVar finished)
+  putMVar agentIdentity server
+  waitForAgent socketPath finished 100
   locked <- sendVaultAgentRequest socketPath agentStatusRequest >>= assertRight
   agentReplyUnlocked locked @?= Just False
   unlocked <- sendVaultAgentRequest socketPath (agentUnlockRequest "agent passphrase") >>= assertRight
@@ -117,23 +130,22 @@ vaultAgentLifecycle = withSystemTempDirectory "lant-vault-agent" $ \root -> do
   assertLeftIO (sendVaultAgentRequest socketPath (agentPutRequest (fixtureUuid 305) OAuthDeviceAuthorization "Wrong scheme" Map.empty "must-not-replace"))
   unchanged <- sendVaultAgentRequest socketPath (agentResolveRequest (fixtureUuid 305) "test_effect") >>= assertRight
   agentReplySecret unchanged @?= Just "agent-secret-9876"
+  -- A successful cryptographic write consumes ten simulated seconds. The idle
+  -- interval must start at its acknowledgement, not before the write began.
+  writeIORef script [now, addUTCTime 10 now]
   replaced <- sendVaultAgentRequest socketPath (agentPutRequest (fixtureUuid 305) ApiKeyCredential "Test API" Map.empty "agent-secret-4321") >>= assertRight
   assertBool "same-scheme token replacement must be one acknowledged vault mutation" (agentReplySucceeded replaced)
   updated <- sendVaultAgentRequest socketPath (agentResolveRequest (fixtureUuid 305) "test_effect") >>= assertRight
   agentReplySecret updated @?= Just "agent-secret-4321"
-  threadDelay 1_200_000
+  writeIORef clock (addUTCTime 10.999 now)
+  stillUnlocked <- sendVaultAgentRequest socketPath agentStatusRequest >>= assertRight
+  agentReplyUnlocked stillUnlocked @?= Just True
+  writeIORef clock (addUTCTime 11 now)
   expired <- sendVaultAgentRequest socketPath agentStatusRequest >>= assertRight
   agentReplyUnlocked expired @?= Just False
   stopped <- sendVaultAgentRequest socketPath agentShutdownRequest >>= assertRight
   assertBool "shutdown must acknowledge before closing" (agentReplySucceeded stopped)
   takeMVar finished >>= assertRight
-
-waitForPath :: FilePath -> Int -> Assertion
-waitForPath path attempts
-  | attempts <= 0 = assertFailure ("timed out waiting for " <> path)
-  | otherwise = do
-      exists <- doesPathExist path
-      if exists then pure () else threadDelay 10_000 >> waitForPath path (attempts - 1)
 
 vaultFileLifecycle :: Assertion
 vaultFileLifecycle = withSystemTempDirectory "lant-vault" $ \root -> do

@@ -96,8 +96,8 @@ uuidV7FromEntropy milliseconds entropy
 handleBase :: HandleKind -> Text -> Text
 handleBase kind seed = case tokens of
   [] -> fallback kind
-  [one] -> Text.take 12 one
-  many -> Text.take 12 (Text.pack (fmap Text.head many))
+  [one] -> Text.take 6 one
+  many -> Text.take 6 (Text.pack (fmap Text.head many))
  where
   normalized = normalize NFKD seed
   withoutMarks = Text.filter (not . isCombiningMark . generalCategory) normalized

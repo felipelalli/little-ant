@@ -23,10 +23,11 @@ import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.Either (isRight)
 import Data.Functor qualified
-import Data.List (find, minimumBy, sort, sortOn)
+import Data.List (find, minimumBy, nub, sort, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, isJust, isNothing, mapMaybe)
 import Data.Ord (Down (..), comparing)
+import Data.Ratio (denominator, numerator)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -37,7 +38,7 @@ import Data.Time.Zones (TZ, loadTZFromDB, utcToLocalTimeTZ)
 import LittleAnt.Catalog
 import LittleAnt.Decision
 import LittleAnt.Error
-import LittleAnt.Event (EventDraft (..), EventPayload (..), ForecastSelected (..), PersistedEvent (..), RepeatableReturnSet (..), applyEvent, decodeEvent, eventTypeName)
+import LittleAnt.Event (EffortClassified (..), EventDraft (..), EventPayload (..), ForecastSelected (..), ImpactClassified (..), PairJudgmentRecorded (..), PersistedEvent (..), RepeatableReturnSet (..), applyEvent, decodeEvent, eventTypeName)
 import LittleAnt.Export
 import LittleAnt.Forecast
 import LittleAnt.ForecastWorld qualified as World
@@ -47,6 +48,7 @@ import LittleAnt.Import
 import LittleAnt.Interaction
 import LittleAnt.Judgment
 import LittleAnt.JudgmentDecision
+import LittleAnt.JudgmentReview
 import LittleAnt.JudgmentUI
 import LittleAnt.Migration.V0
 import LittleAnt.Model
@@ -89,7 +91,8 @@ data ViewDepth = SummaryView | OperationalView | RelationshipsView | HistoryView
   deriving stock (Eq, Ord, Show)
 
 data AppCommand
-  = NextCommand
+  = WhyCommand ViewDepth
+  | NextCommand
   | FocusCommand Text
   | FocusBlockerCommand Text
   | DoneCommand (Maybe Text)
@@ -102,6 +105,9 @@ data AppCommand
   | ShowRawCommand Text ViewDepth
   | TranslateCommand (Maybe Text)
   | RespondCommand InteractionResponse
+  | PendingInteractionCommand
+  | RespondBoundCommand InteractionResponse (Maybe Text)
+  | InteractionPlanCommand AppCommand [(Text, Maybe Text)]
   | SubmitInteractionTextCommand InteractionResponse Text
   | NavigateBackCommand InteractionResponse
   | NavigateForwardCommand InteractionResponse
@@ -379,10 +385,26 @@ runAppCommand environment dryRun _ (MigrateCommand source stage) =
       pure $ case loaded of
         Left problem -> Left problem
         Right dataset -> Right (migrationCommandResult (loadedCursor dataset) report)
+runAppCommand environment dryRun progress (WhyCommand view) =
+  loadDataset (appStore environment) progress >>= \case
+    Left problem -> pure (Left problem)
+    Right dataset -> runWhy environment dryRun dataset view
+runAppCommand environment dryRun progress (ListCommand name) =
+  loadDataset (appStore environment) progress >>= \case
+    Left problem -> pure (Left problem)
+    Right dataset -> runList environment dryRun dataset name
+runAppCommand environment dryRun _ PendingInteractionCommand =
+  loadPendingCheckpoint environment >>= \case
+    Left problem -> pure (Left problem)
+    Right Nothing -> pure (Left (appError PreconditionFailed "There is no pending interaction. Start a command first."))
+    Right (Just checkpoint) ->
+      let envelope = checkpointCurrent checkpoint
+       in pure (Right (NextResult (envelopeDatasetCursor envelope) envelope dryRun))
 runAppCommand environment dryRun progress command =
   loadDataset (appStore environment) progress >>= \case
     Left problem -> case command of
       RespondCommand response -> runCorruptDatasetResponse environment dryRun response problem
+      RespondBoundCommand response Nothing -> runCorruptDatasetResponse environment dryRun response problem
       _ -> pure (Left problem)
     Right loaded ->
       advanceDueTemporal environment dryRun loaded >>= \case
@@ -393,6 +415,7 @@ runAppCommand environment dryRun progress command =
 
 runLoadedCommand :: AppEnv -> Bool -> LoadedDataset -> TemporalTickPlan -> AppCommand -> IO (Either AppError CommandResult)
 runLoadedCommand environment dryRun dataset tickPlan = \case
+  WhyCommand view -> runWhy environment dryRun dataset view
   NextCommand -> runNext environment dryRun dataset
   FocusCommand reference -> runFocus environment dryRun dataset reference
   DoneCommand reference -> runDone environment dryRun dataset reference
@@ -407,6 +430,27 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   ShowRawCommand reference view -> pure (runShow dryRun dataset reference view)
   TranslateCommand reference -> runTranslate environment dryRun dataset reference
   RespondCommand response -> runResponse environment dryRun dataset response Nothing
+  PendingInteractionCommand -> runAppCommand environment dryRun (const (pure ())) PendingInteractionCommand
+  RespondBoundCommand response submitted -> runResponseWithPolicy True environment dryRun dataset response submitted
+  InteractionPlanCommand command actions -> do
+    initial <- runLoadedCommand environment dryRun dataset tickPlan command
+    follow initial actions
+   where
+    follow result [] = pure result
+    follow (Left problem) _ = pure (Left problem)
+    follow (Right result) ((action, submitted) : remaining) = case resultInteractionMaybe result of
+      Nothing -> pure (Left (appError PreconditionFailed "This command did not produce an interaction to answer."))
+      Just envelope -> do
+        let response = InteractionResponse (envelopeInteractionId envelope) (envelopeRevision envelope) action (envelopeIntegrityToken envelope) (envelopeDatasetCursor envelope)
+        case validateResponse envelope envelope response of
+          Left problem -> pure (Left problem)
+          Right ResponseStale{} -> pure (Left staleBoundInteraction)
+          Right ResponseAccepted{} -> do
+            next <-
+              if dryRun
+                then dispatchResponse environment True dataset (PresentationCheckpoint envelope [] []) response submitted
+                else runAppCommand environment False (const (pure ())) (RespondBoundCommand response submitted)
+            follow next remaining
   SubmitInteractionTextCommand response submitted -> runResponse environment dryRun dataset response (Just submitted)
   NavigateBackCommand response -> runNavigation environment dryRun dataset response True
   NavigateForwardCommand response -> runNavigation environment dryRun dataset response False
@@ -1843,7 +1887,7 @@ applyNoticeFrameToResult environment dryRun fallback (Right result) = do
         loadDataset (appStore environment) (const (pure ()))
           Data.Functor.<&> either (const (loadedState fallback)) loadedState
   now <- appZonedNow environment
-  let framed = mapResultInteraction (decorateNoticeFrame framedState now) result
+  let framed = mapResultInteraction (decorateNoticeFrame framedState now . upgradePresentationEnvelope) result
   case resultInteractionMaybe framed of
     Nothing -> pure ()
     Just interaction ->
@@ -2037,6 +2081,10 @@ supportedForecastTicket ticket =
              , World.HabitWindowOpportunity
              , World.LivingChecklistRunOpportunity
              , World.FiniteChecklistRunOpportunity
+             , World.EffortComparisonOpportunity
+             , World.ImpactComparisonOpportunity
+             , World.ImpactMaturityReviewOpportunity
+             , World.ImportanceRunReviewOpportunity
              , World.RawTriageOpportunity
              , World.ArchiveRelevanceReviewOpportunity
              , World.WaitReviewOpportunity
@@ -2060,7 +2108,7 @@ persistForecastSelection environment dryRun dataset selectionId now seed selecti
   eventId <- appAllocateUUID environment
   commandId <- appAllocateUUID environment
   let state = loadedState dataset
-      evidence = forecastEvidence selectionId seed selection
+      evidence = forecastEvidence selectionId seed state (zonedTimeToUTC now) selection
       event =
         EventDraft
           eventId
@@ -2069,7 +2117,7 @@ persistForecastSelection environment dryRun dataset selectionId now seed selecti
           (zonedTimeToUTC now)
           (statePreconditionHash state)
           [selectionId, eventId, commandId]
-          (ForecastSelectedV1 (ForecastSelected evidence))
+          (ForecastSelectedV2 (ForecastSelected evidence))
   persisted <- persistOrSimulate environment dryRun dataset [event]
   case persisted of
     Left problem -> pure (Left problem)
@@ -2081,6 +2129,25 @@ persistForecastSelection environment dryRun dataset selectionId now seed selecti
        in pure $ case selection of
             World.SelectedOpportunity{World.selectedEndpointSubject = endpoint, World.selectedOpportunity = opportunity} ->
               case World.selectableKind opportunity of
+                World.ImportanceRunReviewOpportunity ->
+                  case Map.lookup endpoint (stateBricks acceptedState) of
+                    Nothing -> Left (appError CorruptData "The selected ordering subject is missing.")
+                    Just brick ->
+                      let base = makeSafeEmptyEnvelope selectionId acceptedCursor acceptedPrecondition now
+                          session = orderSessionFor acceptedState (zonedTimeToUTC now) LotteryOrder (OneSiblingGroup (brickParent brick))
+                       in makeCheckpoint (startOrderEnvelope now acceptedState base session)
+                World.EffortComparisonOpportunity ->
+                  case Map.lookup (EffortDiscovery, endpoint) (stateJudgmentReviews acceptedState) of
+                    Just review -> makeCheckpoint (makeEffortComparisonEnvelope (makeSafeEmptyEnvelope selectionId acceptedCursor acceptedPrecondition now) now acceptedState endpoint (reviewCandidates acceptedState review))
+                    Nothing -> Left (appError CorruptData "The selected effort request is missing.")
+                World.ImpactComparisonOpportunity ->
+                  case Map.lookup (ImpactDiscovery, endpoint) (stateJudgmentReviews acceptedState) of
+                    Just review
+                      | first : second : _ <- reviewCandidates acceptedState review ->
+                          makeCheckpoint (appendBody (makeImpactComparisonEnvelope (makeSafeEmptyEnvelope selectionId acceptedCursor acceptedPrecondition now) now acceptedState first second 0 [] False) (judgmentReviewReason review))
+                    _ -> Left (appError CorruptData "The selected impact request has no comparable roots.")
+                World.ImpactMaturityReviewOpportunity ->
+                  makeCheckpoint (makeImpactEvidenceReviewEnvelope (makeSafeEmptyEnvelope selectionId acceptedCursor acceptedPrecondition now) now acceptedState endpoint)
                 World.RawTriageOpportunity ->
                   maybe
                     (Left (appError CorruptData "The selected Raw is missing after forecast replay."))
@@ -2254,24 +2321,53 @@ sourceCleanupCanCheckContainers state effects = case mapMaybe sourceCleanupItemD
       Left _ -> False
   [] -> False
 
-forecastEvidence :: UUIDv7 -> ByteString -> World.ForecastSelection -> ForecastSelectionEvidence
-forecastEvidence selectionId seed selection =
+forecastEvidence :: UUIDv7 -> ByteString -> State -> UTCTime -> World.ForecastSelection -> ForecastSelectionEvidence
+forecastEvidence selectionId seed state now selection =
   case selection of
     World.SelectedOpportunity original endpoint opportunity path domain draws _ ->
       common original (Just endpoint) (World.opportunityKindName (World.selectableKind opportunity)) path domain draws
     World.SelectedRecovery original endpoint path draws _ ->
       common original Nothing ("recovery:" <> Text.pack (show endpoint)) path Nothing draws
     World.EmptyForecast reason ->
-      ForecastSelectionEvidence selectionId (profileHash factoryForecastProfile) seed [] selectionId Nothing ("empty:" <> reason) [] Nothing Nothing [] []
+      ForecastSelectionEvidence selectionId (profileHash factoryForecastProfile) seed [] selectionId Nothing ("empty:" <> reason) [] Nothing Nothing [] [] Nothing
  where
+  tickets = fmap supportedForecastTicket (World.buildForecastWorld state now)
+  hardScope = domainScopeTarget <$> stateDomainScope state
+  activePath = if isJust hardScope then Nothing else stateActiveDomain state >>= domainIdentityPath state
+  projections = World.forecastOpportunityChances activePath hardScope tickets
+  chancePair chance = (numerator chance, denominator chance)
+  citation identity = case Map.lookup identity (stateBricks state) of
+    Just brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\""
+    Nothing -> case Map.lookup identity (stateRaws state) of
+      Just raw -> renderHandle RawHandle (rawHandle raw)
+      Nothing -> renderUUIDv7 identity
+  factorEvidence ticket =
+    let weighted = World.forecastTicketWeight activePath tickets ticket
+     in ForecastFactorEvidence
+          (World.ticketIdentity ticket)
+          (citation (World.ticketIdentity ticket))
+          (World.ticketSiblingPosition ticket)
+          (unFixed (World.ticketImportanceConfidence ticket))
+          [("importance", unFixed (weightedImportance weighted)), ("pressure", unFixed (weightedPressure weighted)), ("domain", unFixed (weightedDomain weighted)), ("family", unFixed (weightedFamily weighted)), ("negative", unFixed (weightedNegative weighted))]
+          (maybe [] (pure . signalExplanation) (weightedStrongestSignal weighted) <> fmap signalExplanation (weightedAdditionalSignals weighted) <> [signalExplanation signal | World.SelectedOpportunity{World.selectedEndpointSubject = selectedOwner, World.selectedOpportunity = opportunity} <- [selection], selectedOwner == World.ticketIdentity ticket, signal <- World.selectableSignals opportunity, "Review requested: " `Text.isPrefixOf` signalExplanation signal])
   common original endpoint kind path domain draws =
     let admitted = case draws of
-          first : _ ->
-            mapMaybe
-              (\candidate -> (,drawCandidateWeight candidate) <$> either (const Nothing) Just (parseUUIDv7 (drawCandidateIdentity candidate)))
-              (drawCandidates first)
+          first : _ -> mapMaybe (\candidate -> (,drawCandidateWeight candidate) <$> either (const Nothing) Just (parseUUIDv7 (drawCandidateIdentity candidate))) (drawCandidates first)
           [] -> []
-        selectedRootSignal = Nothing
+        weighted = World.forecastTicketWeight activePath tickets <$> find ((== original) . World.ticketIdentity) tickets
+        target = fromMaybe (fromMaybe original (safeFirst (reverse path))) endpoint
+        subjectChance = sum [chance | (ticket, _, chance) <- projections, World.ticketIdentity ticket == target]
+        opportunityChance = sum [chance | (ticket, opportunity, chance) <- projections, World.ticketIdentity ticket == target, maybe ("recovery:" `Text.isPrefixOf` kind) ((== kind) . World.opportunityKindName . World.selectableKind) opportunity]
+        involved = Set.fromList (original : path <> maybe [] pure endpoint <> mapMaybe (either (const Nothing) Just . parseUUIDv7 . drawChosenIdentity) draws)
+        explanation =
+          ForecastExplanation
+            now
+            (citation original)
+            (citation <$> endpoint)
+            [maybe (renderUUIDv7 identity) domainName (Map.lookup identity (stateDomains state)) | identity <- fromMaybe [] domain]
+            (chancePair subjectChance)
+            (chancePair opportunityChance)
+            [factorEvidence ticket | ticket <- tickets, World.ticketIdentity ticket `Set.member` involved]
      in ForecastSelectionEvidence
           selectionId
           (profileHash factoryForecastProfile)
@@ -2282,9 +2378,10 @@ forecastEvidence selectionId seed selection =
           kind
           path
           domain
-          selectedRootSignal
-          []
+          (weighted >>= fmap signalExplanation . weightedStrongestSignal)
+          (maybe [] (fmap signalExplanation . weightedAdditionalSignals) weighted)
           (fmap drawEvidence draws)
+          (Just explanation)
   drawEvidence draw =
     ForecastDrawEvidence
       (randomPurposeName (drawPurpose draw))
@@ -2403,13 +2500,38 @@ runTieBreak environment dryRun dataset =
 
 runImpact :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runImpact environment dryRun dataset reference =
-  startBrickInteraction environment dryRun dataset reference $ \identity cursor precondition now state brick ->
-    let root = compositionRoot state brick
-     in makeImpactClassEnvelope identity cursor precondition now state root
+  case resolveBrickReference (loadedState dataset) reference of
+    Left problem -> pure (Left problem)
+    Right brick -> do
+      let root = compositionRoot (loadedState dataset) brick
+      requestJudgmentReview environment dryRun dataset ImpactDiscovery (brickId root) [] "You requested an impact judgment; compare the expected outcomes if classification remains uncertain." >>= \case
+        Left problem -> pure (Left problem)
+        Right accepted -> startBrickInteraction environment dryRun accepted (renderHandle BrickHandle (brickHandle root)) makeImpactClassEnvelope
 
 runEffort :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runEffort environment dryRun dataset reference =
-  startBrickInteraction environment dryRun dataset reference makeEffortClassEnvelope
+  case resolveBrickReference (loadedState dataset) reference of
+    Left problem -> pure (Left problem)
+    Right brick
+      | not (comparableEffort brick) -> pure (Left (appError InvalidInput "Name a finite task, project, or finite checklist. A standing identity needs one finite run before total effort can be compared."))
+      | otherwise ->
+          requestJudgmentReview environment dryRun dataset EffortDiscovery (brickId brick) [] "You requested an effort judgment; a short comparison can help if it remains uncertain." >>= \case
+            Left problem -> pure (Left problem)
+            Right accepted -> startBrickInteraction environment dryRun accepted reference makeEffortClassEnvelope
+
+requestJudgmentReview :: AppEnv -> Bool -> LoadedDataset -> JudgmentReviewKind -> UUIDv7 -> [UUIDv7] -> Text -> IO (Either AppError LoadedDataset)
+requestJudgmentReview environment dryRun dataset kind owner candidates reason = do
+  now <- appNow environment
+  let state = loadedState dataset
+      existing = Map.lookup (kind, owner) (stateJudgmentReviews state)
+      proposed = reviewDemand state now kind owner candidates reason (maybe False judgmentReviewClassDue existing)
+  case existing of
+    Just review | not (judgmentReviewResolved review) || judgmentReviewRevision review == judgmentReviewRevision proposed -> pure (Right dataset)
+    _ -> do
+      identity <- appAllocateUUID environment
+      commandId <- appAllocateUUID environment
+      let event = EventDraft identity commandId (appActor environment) now (statePreconditionHash state) [identity, commandId] (JudgmentReviewRequestedV1 proposed)
+      persistOrSimulate environment dryRun dataset [event]
 
 runPhase :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runPhase environment dryRun dataset reference =
@@ -2794,17 +2916,30 @@ forecastListRows state now =
       <> " · parent: "
       <> maybe "root" (renderHandle BrickHandle . brickHandle) (brickParent brick >>= (`Map.lookup` stateBricks state))
   fixedRow brick reason = ListRow (renderHandle BrickHandle (brickHandle brick)) (brickTitle brick) (reason <> " · " <> positionDetails brick)
+  projections = World.forecastOpportunityChances activePath hardScope tickets
+  chancePair chance = (numerator chance, denominator chance)
   mkForecastRow currentState ticket chance =
-    ListRow
-      (ticketHandle currentState ticket)
-      (ticketTitle currentState ticket)
-      (Text.pack (showFFloat (Just 1) (fromRational (chance * 100) :: Double) "%") <> " · " <> ticketDetails currentState ticket <> opportunityDetails ticket)
-  opportunityDetails ticket =
-    let opportunities = World.ticketOpportunities ticket
-        (_, strongest, _) = positivePressure factoryForecastProfile (concatMap World.selectableSignals opportunities)
-     in " · "
-          <> Text.intercalate ", " (World.opportunityKindName . World.selectableKind <$> opportunities)
-          <> maybe "" (\signal -> " · " <> signalExplanation signal) strongest
+    let opportunities =
+          [ ForecastOpportunityProjection
+              (maybe "recovery" (World.opportunityKindName . World.selectableKind) opportunity)
+              (maybe "resolve blocker" (label . World.selectableKind) opportunity)
+              (chancePair share)
+          | (owner, opportunity, share) <- projections
+          , World.ticketIdentity owner == World.ticketIdentity ticket
+          ]
+        opportunityLines = ["  " <> projectedOpportunityLabel opportunity <> ": " <> rationalPercent (projectedOpportunityChance opportunity) | opportunity <- opportunities]
+     in ForecastListRow
+          (ticketHandle currentState ticket)
+          (ticketTitle currentState ticket)
+          (rationalPercent (chancePair chance) <> " total · " <> ticketDetails currentState ticket <> "\n" <> Text.intercalate "\n" opportunityLines)
+          (chancePair chance)
+          opportunities
+  label World.EffortComparisonOpportunity = "compare total effort"
+  label World.ImpactComparisonOpportunity = "compare expected impact"
+  label World.ImpactMaturityReviewOpportunity = "review impact evidence"
+  label World.ImportanceRunReviewOpportunity = "review sibling order"
+  label kind | kind `elem` [World.FiniteWorkOpportunity, World.RepeatableRunOpportunity, World.HabitWindowOpportunity, World.LivingChecklistRunOpportunity, World.FiniteChecklistRunOpportunity] = "work"
+  label kind = Text.replace "_" " " (World.opportunityKindName kind)
   ticketHandle currentState ticket =
     case World.ticketKind ticket of
       World.BrickSubject ->
@@ -2989,6 +3124,7 @@ helpEntries Nothing =
   [ helpEntry "help" "Show help" "Use: lant help <topic>"
   , helpEntry "list" "List structured data" "usage: lant list <importance|forecast>"
   , helpEntry "search" "Search text references" "usage: lant search <query>"
+  , helpEntry "why" "Explain the recorded selection" "usage: lant [--view complete] why; REPL: /why"
   , helpEntry "next" "Get the next useful action" "default REPL route: lant"
   , helpEntry "focus" "Answer pending focus confirmation" "usage: lant focus <BRICK>"
   , helpEntry "done" "Complete a Brick" "usage: lant done [BRICK]"
@@ -3007,6 +3143,8 @@ helpEntries Nothing =
   , helpEntry "editor" "Open EDITOR workflow for raw material" "usage: lant editor"
   , helpEntry "web" "Start or inspect web view" "usage: lant web"
   ]
+helpEntries (Just "why") =
+  [helpEntry "lant why" "Inspect the current selection" "Read-only; use --view complete for recorded weights and cursors. Older records expose only their available evidence."]
 helpEntries (Just "list") =
   [ helpEntry "lant list importance" "Current ordered work list" "active Brick tree grouped by insertion position"
   , helpEntry "lant list forecast" "Current forecast list" "upcoming selectable opportunities used by /next"
@@ -3210,7 +3348,17 @@ withFeedFact accepted raw envelope =
       }
 
 runResponse :: AppEnv -> Bool -> LoadedDataset -> InteractionResponse -> Maybe Text -> IO (Either AppError CommandResult)
-runResponse environment dryRun dataset response submitted = do
+runResponse = runResponseWithPolicy False
+
+staleBoundInteraction :: AppError
+staleBoundInteraction =
+  (appError StaleInteraction "The answered interaction changed. No answer was carried to the current question.")
+    { appErrorRetrySafety = RetryAfterRefresh
+    , appErrorRecovery = [RecoveryAction "inspect-interaction" "Inspect the pending question; reopen the original command if its data changed." (Just "lant --json interaction show")]
+    }
+
+runResponseWithPolicy :: Bool -> AppEnv -> Bool -> LoadedDataset -> InteractionResponse -> Maybe Text -> IO (Either AppError CommandResult)
+runResponseWithPolicy requireBound environment dryRun dataset response submitted = do
   loadedCheckpoint <- loadPendingCheckpoint environment
   replacementResult <- freshCheckpoint environment dataset
   case (loadedCheckpoint, replacementResult) of
@@ -3218,19 +3366,26 @@ runResponse environment dryRun dataset response submitted = do
     (_, Left problem) -> pure (Left problem)
     (Right Nothing, Right replacement) -> pure (Left (missingInteraction replacement))
     (Right (Just checkpoint), Right replacement)
+      | requireBound && not (navigationMatches (checkpointCurrent checkpoint) response) -> pure (Left staleBoundInteraction)
       | responseAnsweredCursor response /= envelopeDatasetCursor (checkpointCurrent checkpoint) ->
           pure . Right $ RespondResult (loadedCursor dataset) (checkpointCurrent checkpoint) Nothing dryRun
       | otherwise ->
           if scheduledInterrupts (checkpointCurrent checkpoint) (checkpointCurrent replacement)
-            then do
-              saveUnlessDry environment dryRun replacement
-              pure . Right $ RespondResult (loadedCursor dataset) (checkpointCurrent replacement) Nothing dryRun
+            then
+              if requireBound
+                then pure (Left staleBoundInteraction)
+                else do
+                  saveUnlessDry environment dryRun replacement
+                  pure . Right $ RespondResult (loadedCursor dataset) (checkpointCurrent replacement) Nothing dryRun
             else case validateResponse (checkpointCurrent checkpoint) (checkpointCurrent replacement) response of
               Left problem -> pure (Left problem)
               Right (ResponseStale fresh) -> do
-                let freshCheckpointValue = PresentationCheckpoint fresh [] []
-                saveUnlessDry environment dryRun freshCheckpointValue
-                pure . Right $ RespondResult (loadedCursor dataset) fresh Nothing dryRun
+                if requireBound
+                  then pure (Left staleBoundInteraction)
+                  else do
+                    let freshCheckpointValue = PresentationCheckpoint fresh [] []
+                    saveUnlessDry environment dryRun freshCheckpointValue
+                    pure . Right $ RespondResult (loadedCursor dataset) fresh Nothing dryRun
               Right ResponseAccepted{} -> dispatchResponse environment dryRun dataset checkpoint response submitted
 
 dispatchResponse :: AppEnv -> Bool -> LoadedDataset -> PresentationCheckpoint -> InteractionResponse -> Maybe Text -> IO (Either AppError CommandResult)
@@ -3779,7 +3934,9 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       | action == "importance.either.reject" || action == "importance.either.reject.unknown" ->
           local (makeImportanceDiscoveryEnvelope current now state session first second AcceptEitherOrder (Text.isSuffixOf ".unknown" action))
     (ImportanceProvisionalConfirmationOpportunity session first _, "importance.provisional.accept", _) ->
-      mutateJudgment 2 (decideImportanceProvisional state actor first "uncertain_after_help") (afterProvisional session first)
+      case orderSessionCadence session of
+        LotteryOrder -> mutateJudgment 3 (decideImportanceReviewSkip state actor first "uncertain_after_help") (afterProvisional session first)
+        ContinuousOrder -> mutateJudgment 2 (decideImportanceProvisional state actor first "uncertain_after_help") (afterProvisional session first)
     (ImportanceProvisionalConfirmationOpportunity session first second, action, _)
       | action == "importance.provisional.reject" || action == "importance.provisional.reject.unknown" ->
           local (makeImportanceDiscoveryEnvelope current now state session first second TryNearbySibling (Text.isSuffixOf ".unknown" action))
@@ -3829,12 +3986,34 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       answerImpactComparison first second second first MoreThan
     (ImpactComparisonOpportunity first second _ _ _, "impact.same", _) ->
       answerImpactComparison first second first second AboutSame
+    (ImpactComparisonOpportunity first _ _ _ _, "impact.skip", _)
+      | Map.member (envelopeInteractionId current) (stateForecastSelections state) ->
+          deferJudgment ImpactDiscovery first
     (ImpactComparisonOpportunity first second skips skipped provocative, "impact.skip", _) ->
       case impactComparators state first (second : skipped) of
         comparator : _ | skips == 0 -> local (makeImpactComparisonEnvelope current now state first (brickId comparator) 1 (second : skipped) provocative)
         _ -> withBrick first $ \brick -> local (makeImpactClassEnvelopeFrom current now state brick)
     (ImpactComparisonOpportunity{}, "impact.comparison-unknown", _) ->
       local (appendBody current "Compare expected difference using both likely result and uncertainty of success. About the same is pair-local impact evidence, not equal importance.")
+    (EffortComparisonOpportunity owner candidates, action, _)
+      | Just selected <- Text.stripPrefix "effort.choose." action
+      , Right winner <- parseUUIDv7 selected
+      , winner `elem` candidates ->
+          answerEffortRound owner candidates winner False
+    (EffortComparisonOpportunity owner _, "effort.round.skip", _) -> deferJudgment EffortDiscovery owner
+    (EffortComparisonOpportunity{}, "effort.round.unknown", _) -> local (appendBody current "Compare the complete scopes shown here. Choosing one records only that it requires less total effort than the others. No class or hours are inferred; skip leaves the question pending.")
+    (EffortRoundConflictOpportunity owner candidates winner, "effort.conflict.changed", _) -> answerEffortRound owner candidates winner True
+    (EffortRoundConflictOpportunity owner candidates _, "effort.conflict.revise", _) -> local (makeEffortComparisonEnvelope current now state owner candidates)
+    (EffortRoundConflictOpportunity owner _ _, "effort.conflict.skip", _) -> deferJudgment EffortDiscovery owner
+    (EffortRoundConflictOpportunity{}, "effort.conflict.unknown", _) -> local (appendBody current "Changed accepts your new total-effort comparison and retires only the conflicting paths. Revise returns without accepting the new choice.")
+    (ImpactEvidenceReviewOpportunity owner, "impact.review.reassess", _) -> withBrick owner $ \brick -> local (makeImpactClassEnvelopeFrom current now state brick)
+    (ImpactEvidenceReviewOpportunity owner, "impact.review.retain", _) -> case Map.lookup owner (stateImpactClaims state) of
+      Nothing -> pure (Left (appError PreconditionFailed "No current impact judgment is available to retain."))
+      Just claim | not (all usableImpactEvidence (impactClaimEvidence claim)) -> local (appendBody current "Some relied-upon evidence is no longer available. Reassess with applicable evidence, or explicitly clear the judgment.")
+      Just claim -> mutateJudgment 2 (decideImpactClass state actor owner (Just (impactClaimClass claim)) (impactClaimMaturity claim) (impactClaimEvidence claim) DirectHuman) (judgmentReceipt ImpactAxis owner "Impact judgment explicitly reaffirmed.")
+    (ImpactEvidenceReviewOpportunity owner, "impact.review.clear", _) -> mutateJudgment 2 (decideImpactClass state actor owner Nothing SpeculativeImpact [] DirectHuman) (judgmentReceipt ImpactAxis owner "Impact cleared; former evidence remains in history.")
+    (ImpactEvidenceReviewOpportunity owner, "impact.review.skip", _) -> deferJudgment ImpactEvidenceReview owner
+    (ImpactEvidenceReviewOpportunity{}, "impact.review.unknown", _) -> local (appendBody current "New evidence does not prove a higher impact or maturity. Review the attached material with /show, then retain, reassess, clear, or skip.")
     (EffortClassOpportunity brickId, action, _)
       | Just effort <- effortClassForAction action ->
           mutateJudgment 2 (decideEffortClass state actor brickId (Just effort) DirectHuman) (judgmentReceipt EffortAxis brickId (effortClassName effort <> " (~" <> Text.pack (show (effortPlanningHours effort)) <> " work hours) · reviewed"))
@@ -4069,6 +4248,16 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       local (appendBody current "The exact explanation becomes event evidence only. It does not create Raw material or silently invent another symptom.")
     (WorkSkipReactionOpportunity brickId selection symptom, "work.reaction.skip", _) ->
       mutateWorkReaction brickId selection symptom SkipAnywayReaction
+    (WorkSkipReactionOpportunity brickId selection TiredSymptom, "work.reaction.easier-work", _) -> openEasierWork brickId selection
+    (EasierWorkOpportunity source selection candidates, action, _)
+      | Just selected <- Text.stripPrefix "work.easier.choose." action
+      , Right winner <- parseUUIDv7 selected
+      , winner `elem` candidates ->
+          if length candidates == 1
+            then mutate 2 (decideWorkReaction state actor source selection TiredSymptom (EasierWorkReaction winner)) (\identity currentNow accepted _ -> maybe (Left (appError PreconditionFailed "The easier Work is no longer available.")) (Right . makeFocusProposalEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted)) (Map.lookup winner (stateBricks (loadedState accepted))))
+            else mutateJudgment (length candidates + 1) (decideEffortChoices state actor candidates winner (Just (source, selection)) False) (\base currentNow accepted _ -> makeFocusProposalEnvelope (envelopeInteractionId base) (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) (stateBricks (loadedState accepted) Map.! winner))
+    (EasierWorkOpportunity source selection _, "work.easier.back", _) -> withBrick source $ \brick -> local (makeWorkSkipReactionEnvelope current now state brick selection TiredSymptom)
+    (EasierWorkOpportunity{}, "work.easier.unknown", _) -> local (appendBody current "Choose what feels easiest to tackle at your current energy. The choice offers ordinary Focus consent and records only weak contextual effort evidence. Back records no recovery choice.")
     (WorkSkipReactionOpportunity brickId selection TiredSymptom, "work.reaction.pause", _) ->
       mutateWorkReaction brickId selection TiredSymptom PauseForNowReaction
     (WorkSkipReactionOpportunity brickId selection BoredSymptom, "work.reaction.interesting", _) ->
@@ -5485,7 +5674,9 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     case candidates of
       alternative : _ | skips == 0 -> local (makeImportanceReviewEnvelope current now state session first alternative 1 (skipped <> [second]) provocative)
       _ ->
-        mutateJudgment 2 (decideImportanceProvisional state actor first "nearby importance comparisons skipped") (afterProvisional session first)
+        case orderSessionCadence session of
+          LotteryOrder -> mutateJudgment 3 (decideImportanceReviewSkip state actor first "nearby importance comparisons skipped") (afterProvisional session first)
+          ContinuousOrder -> mutateJudgment 2 (decideImportanceProvisional state actor first "nearby importance comparisons skipped") (afterProvisional session first)
    where
     parent = brickParent =<< Map.lookup first (stateBricks state)
     candidates = filter (`notElem` skipped) (nearbyComparators state parent first second)
@@ -5510,6 +5701,65 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
      in case orderSessionCadence session of
           ContinuousOrder -> startOrderEnvelope currentNow acceptedState base paused
           LotteryOrder -> makeOrderResultEnvelope base currentNow acceptedState paused False 1
+
+  usableImpactEvidence identity = case (Map.lookup identity (stateRaws state), Map.lookup identity (stateBricks state)) of
+    (Just raw, _) -> rawStatus raw /= RawRetracted
+    (_, Just brick) -> brickStatus brick == BrickDone
+    _ -> False
+
+  deferJudgment kind owner = mutateJudgment (1 + length [review | review <- Map.elems (stateJudgmentReviews state), not (judgmentReviewResolved review), judgmentReviewKind review == kind, Just selected <- [Map.lookup (kind, owner) (stateJudgmentReviews state)], Set.fromList (reviewCandidates state review) == Set.fromList (reviewCandidates state selected)]) (decideJudgmentReviewSkip state actor kind owner) (judgmentReceipt (reviewAxis kind) owner "Review deferred for 24 hours; Work remains available.")
+
+  answerEffortRound owner candidates winner changed =
+    let conflicts = [() | loser <- filter (/= winner) candidates, FreshContradiction{} <- [detectContradiction state (zonedTimeToUTC now) EffortAxis loser winner]]
+     in if not changed && not (null conflicts)
+          then local (makeEffortRoundConflictEnvelope current now state owner candidates winner)
+          else mutateJudgment (length candidates) (decideEffortChoices state actor candidates winner Nothing changed) (judgmentReceipt EffortAxis owner "Total-effort comparison recorded; no class or hours were assigned.")
+
+  openEasierWork source selection = do
+    seed <- maybe (Entropy.getEntropy 32) pure (stateRandomSeed state)
+    let instant = zonedTimeToUTC now
+        tickets = fmap supportedForecastTicket (World.buildForecastWorld state instant)
+        hardScope = domainScopeTarget <$> stateDomainScope state
+        activePath = (selection >>= (`Map.lookup` stateForecastSelections state) >>= forecastSelectionDomainPath) <|> (stateActiveDomain state >>= domainIdentityPath state)
+        endpoints = Set.fromList [World.ticketIdentity ticket | (ticket, Just opportunity, share) <- World.forecastOpportunityChances activePath hardScope tickets, share > 0, World.selectableKind opportunity == World.FiniteWorkOpportunity, World.ticketIdentity ticket /= source]
+        alternatives = [brick | identity <- Set.toAscList endpoints, Just brick <- [Map.lookup identity (stateBricks state)], comparableEffort brick]
+        weight brick =
+          let identity = brickId brick
+              ease = maybe 1 (\claim -> 8 - toInteger (fromEnum (effortClaimClass claim))) (currentEffort state identity)
+              affinity = World.domainAffinity activePath [path | Just ticket <- [find ((== identity) . World.ticketIdentity) tickets], path <- World.ticketDomainPaths ticket]
+              base = forecastWeight factoryForecastProfile (ForecastCandidate (renderUUIDv7 identity) identity (ForecastFactors Nothing (Fixed 0) [] affinity (Fixed 0) []))
+           in base{weightedInteger = ease * (1_000_000 + (750_000 * unFixed affinity) `div` 1_000_000)}
+        draw cursor remaining collected
+          | null remaining || length collected == 3 = Right collected
+          | otherwise = do
+              selected <- sampleRecorded factoryForecastProfile seed cursor EasierWorkSample remaining
+              draw (drawEndingCursor selected) (filter ((/= drawChosenSubject selected) . weightedSubject) remaining) (collected <> [selected])
+        cursorStart = Map.findWithDefault 0 (randomPurposeName EasierWorkSample) (stateRandomCursors state)
+    case draw cursorStart (weight <$> alternatives) [] of
+      Left detail -> pure (Left (appError CorruptData detail))
+      Right [] -> local (appendBody current "There is no other executable finite Work available in this scope. You can pause, change subject, or go back; no skip or comparison was recorded.")
+      Right draws -> do
+        let candidates = drawChosenSubject <$> draws
+            owner = minimum candidates
+            usefulComparison = length candidates >= 2 && (any (isNothing . currentEffort state) candidates || any (\other -> relationBetween state instant EffortAxis owner other == RelationUnknown) (filter (/= owner) candidates))
+            proposed = reviewDemand state instant EffortDiscovery owner candidates "You asked for easier work, but current effort evidence could not distinguish the alternatives." (maybe False judgmentReviewClassDue existing)
+            existing = Map.lookup (EffortDiscovery, owner) (stateJudgmentReviews state)
+            request = [JudgmentReviewRequestedV1 proposed | usefulComparison, maybe True ((/= judgmentReviewRevision proposed) . judgmentReviewRevision) existing, maybe True judgmentReviewResolved existing]
+            evidence chosen = ForecastDrawEvidence (randomPurposeName (drawPurpose chosen)) [(drawCandidateIdentity candidate, drawCandidateWeight candidate) | candidate <- drawCandidates chosen] (drawTotal chosen) (drawStartingCursor chosen) (drawEndingCursor chosen) (drawSampledInteger chosen) (drawChosenIdentity chosen)
+            payloads = EasierWorkOfferedV1 source seed (evidence <$> draws) : request
+        identities <- replicateM (length payloads + 1) (appAllocateUUID environment)
+        case identities of
+          commandId : eventIds -> do
+            let events = zipWith (\identity payload -> EventDraft identity commandId actor instant precondition identities payload) eventIds payloads
+            persistOrSimulate environment dryRun dataset events >>= \case
+              Left problem -> pure (Left problem)
+              Right accepted -> do
+                identity <- appAllocateUUID environment
+                let base = current{envelopeInteractionId = identity, envelopeRevision = 0, envelopeDatasetCursor = loadedCursor accepted, envelopePreconditionHash = statePreconditionHash (loadedState accepted)}
+                    envelope = makeEasierWorkEnvelope base now (loadedState accepted) source selection candidates
+                saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+                pure (Right (RespondResult (loadedCursor accepted) envelope (Just commandId) dryRun))
+          [] -> pure (Left (appError CorruptData "The shortlist has no command identity."))
 
   answerImpactComparison subject comparator above below relation =
     case if relation == MoreThan then detectContradiction state (zonedTimeToUTC now) ImpactAxis above below else NoContradiction [] of
@@ -6331,26 +6581,100 @@ upgradeFocusAssistanceCheckpoint now dataset saved = case envelopeOpportunity cu
           Nothing -> envelope
   current = checkpointCurrent checkpoint
 
+runWhy :: AppEnv -> Bool -> LoadedDataset -> ViewDepth -> IO (Either AppError CommandResult)
+runWhy environment dryRun dataset view =
+  loadPendingCheckpoint environment >>= \case
+    Left problem -> pure (Left problem)
+    Right checkpoint -> do
+      let state = loadedState dataset
+          current = checkpointCurrent <$> checkpoint
+          selected =
+            current >>= \envelope -> case envelopeOpportunity envelope of
+              FocusProposalOpportunity _ identity -> identity
+              FocusAssistanceOpportunity _ identity _ _ -> identity
+              _ -> Just (envelopeInteractionId envelope)
+          evidence = selected >>= (`Map.lookup` stateForecastSelections state)
+          missing = case envelopeOpportunity <$> current of
+            Just (FocusProposalOpportunity _ Nothing) -> ["This proposal was opened directly; it has no recorded lottery attached."]
+            _ -> ["No recorded lottery is attached to the current interaction. Recorded selection details are unavailable."]
+          summary = maybe missing recordedWhySummary evidence
+          details = maybe [] (recordedWhyDetails state) evidence
+      pure (Right (WhyResult (loadedCursor dataset) evidence summary details (view == CompleteView) dryRun))
+
+recordedWhySummary :: ForecastSelectionEvidence -> [Text]
+recordedWhySummary evidence =
+  ["Why this appeared:", ""] <> case forecastSelectionExplanation evidence of
+    Nothing ->
+      [ "Selected by a recorded weighted draw."
+      , "Opportunity: " <> forecastSelectionOpportunityKind evidence
+      , "This older record has no probability or factor snapshot; those details are unavailable."
+      ]
+        <> maybe [] (pure . ("Strongest recorded signal: " <>)) (forecastSelectionStrongestSignal evidence)
+    Just explanation ->
+      [ fromMaybe (explanationOriginal explanation) (explanationEndpoint explanation)
+      , ""
+      , "Opportunity: " <> opportunityLabel (forecastSelectionOpportunityKind evidence)
+      , "Chance at selection: " <> rationalPercent (explanationOpportunityChance explanation)
+      ]
+        <> [ "Subject total across its opportunities: " <> rationalPercent (explanationSubjectChance explanation)
+           | explanationSubjectChance explanation /= explanationOpportunityChance explanation
+           ]
+        <> concatMap factorSummary (take 1 [factor | factor <- explanationFactors explanation, evidenceSubject factor == fromMaybe (explanationOriginal explanation) (explanationEndpoint explanation)])
+        <> Set.toAscList (Set.fromList [signal | forecastSelectionOpportunityKind evidence `elem` ["effort_comparison", "impact_comparison", "impact_maturity_review"], factor <- explanationFactors explanation, signal <- evidenceSignals factor, "Review requested: " `Text.isPrefixOf` signal])
+        <> maybe [] (pure . ("Main pressure: " <>)) (forecastSelectionStrongestSignal evidence)
+        <> ["Domain: " <> Text.intercalate " › " (explanationDomain explanation) | not (null (explanationDomain explanation))]
+        <> ["Reached through a dependency from " <> explanationOriginal explanation | length (forecastSelectionDependencyPath evidence) > 1]
+        <> ["", "This was a weighted draw; other opportunities also had a chance."]
+ where
+  factorSummary factor =
+    ["Active sibling rank: " <> showText (position + 1) <> " of " <> showText count | (position, count) <- maybe [] pure (evidencePosition factor)]
+      <> ["Order confidence: " <> Text.pack (showFFloat (Just 1) (fromIntegral (evidenceConfidence factor) / 10000 :: Double) "%")]
+  opportunityLabel "importance_run_review" = "review sibling order"
+  opportunityLabel "finite_work" = "work on this task"
+  opportunityLabel other = Text.replace "_" " " other
+
+rationalPercent :: (Integer, Integer) -> Text
+rationalPercent (value, total)
+  | total <= 0 = "unavailable"
+  | value > 0 && value * 10000 < total = "<0.01%"
+  | otherwise = Text.pack (showFFloat (Just 2) (fromIntegral value * 100 / fromIntegral total :: Double) "%")
+
+recordedWhyDetails :: State -> ForecastSelectionEvidence -> [Text]
+recordedWhyDetails state evidence =
+  ["", "Recorded calculation:"]
+    <> [ evidenceSubject factor <> ": " <> Text.intercalate ", " [name <> "=" <> showText value <> "/1000000" | (name, value) <- evidenceFactors factor]
+       | explanation <- maybe [] pure (forecastSelectionExplanation evidence)
+       , factor <- explanationFactors explanation
+       ]
+    <> recordedSelectionTechnicalBody state evidence
+
 recordedSelectionBody :: State -> Maybe UUIDv7 -> [Text]
 recordedSelectionBody state selection = case selection >>= (`Map.lookup` stateForecastSelections state) of
   Nothing -> ["This proposal has no recorded lottery attached. Its context can still be inspected; Focus requires your explicit confirmation."]
-  Just evidence ->
-    [ "Selected by the recorded weighted focus forecast."
-    , "A draw preserves positive chances for alternatives; it does not claim this Brick is best."
-    , "Admitted subjects in the recorded first draw: " <> showText (length (forecastSelectionAdmitted evidence))
-    , "Original subject: " <> citation (forecastSelectionOriginalSubject evidence)
-    , "Final subject: " <> maybe "none" citation (forecastSelectionEndpointSubject evidence)
-    , "Opportunity: " <> forecastSelectionOpportunityKind evidence
-    ]
-      <> maybe [] (pure . ("Strongest recorded signal: " <>)) (forecastSelectionStrongestSignal evidence)
-      <> fmap ("Additional recorded signal: " <>) (forecastSelectionAdditionalSignals evidence)
-      <> ["Blocker path: " <> Text.intercalate " → " (citation <$> forecastSelectionDependencyPath evidence) | length (forecastSelectionDependencyPath evidence) > 1]
-      <> ["Domain path: " <> Text.intercalate " → " (domainCitation <$> path) | path <- maybe [] pure (forecastSelectionDomainPath evidence)]
-      <> ["Draw: " <> forecastDrawPurpose draw <> " · " <> showText (length (forecastDrawCandidates draw)) <> " candidates · chose " <> forecastDrawChosenIdentity draw <> " · cursor " <> showText (forecastDrawStartingCursor draw) <> " → " <> showText (forecastDrawEndingCursor draw) | draw <- forecastSelectionDraws evidence]
-      <> ["Replay record: " <> renderUUIDv7 (forecastSelectionId evidence), "Forecast profile: " <> forecastSelectionProfileHash evidence]
+  Just evidence -> drop (if isJust (forecastSelectionExplanation evidence) then 4 else 2) (recordedWhySummary evidence)
+
+recordedSelectionTechnicalBody :: State -> ForecastSelectionEvidence -> [Text]
+recordedSelectionTechnicalBody state evidence =
+  [ "Selected by the recorded weighted focus forecast."
+  , "A draw preserves positive chances for alternatives; it does not claim this Brick is best."
+  , "Admitted subjects in the recorded first draw: " <> showText (length (forecastSelectionAdmitted evidence))
+  , "Original subject: " <> citation (forecastSelectionOriginalSubject evidence)
+  , "Final subject: " <> maybe "none" citation (forecastSelectionEndpointSubject evidence)
+  , "Opportunity: " <> forecastSelectionOpportunityKind evidence
+  ]
+    <> maybe [] (pure . ("Strongest recorded signal: " <>)) (forecastSelectionStrongestSignal evidence)
+    <> fmap ("Additional recorded signal: " <>) (forecastSelectionAdditionalSignals evidence)
+    <> ["Blocker path: " <> Text.intercalate " → " (citation <$> forecastSelectionDependencyPath evidence) | length (forecastSelectionDependencyPath evidence) > 1]
+    <> ["Domain path: " <> Text.intercalate " → " (domainCitation <$> path) | path <- maybe [] pure (forecastSelectionDomainPath evidence)]
+    <> ["Draw: " <> forecastDrawPurpose draw <> " · " <> showText (length (forecastDrawCandidates draw)) <> " candidates · chose " <> forecastDrawChosenIdentity draw <> " · cursor " <> showText (forecastDrawStartingCursor draw) <> " → " <> showText (forecastDrawEndingCursor draw) | draw <- forecastSelectionDraws evidence]
+    <> ["Replay record: " <> renderUUIDv7 (forecastSelectionId evidence), "Forecast profile: " <> forecastSelectionProfileHash evidence]
  where
-  citation identity = maybe (renderUUIDv7 identity) (\brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"") (Map.lookup identity (stateBricks state))
-  domainCitation identity = maybe (renderUUIDv7 identity) domainName (Map.lookup identity (stateDomains state))
+  citation identity = case forecastSelectionExplanation evidence >>= \explanation -> find ((== identity) . evidenceIdentity) (explanationFactors explanation) of
+    Just factor -> evidenceSubject factor
+    Nothing -> maybe (renderUUIDv7 identity) (\brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"") (Map.lookup identity (stateBricks state))
+  domainCitation identity = case forecastSelectionExplanation evidence of
+    Just explanation -> fromMaybe (renderUUIDv7 identity) (lookup identity (zip (fromMaybe [] (forecastSelectionDomainPath evidence)) (explanationDomain explanation)))
+    Nothing -> maybe (renderUUIDv7 identity) domainName (Map.lookup identity (stateDomains state))
 
 runShow :: Bool -> LoadedDataset -> Text -> ViewDepth -> Either AppError CommandResult
 runShow dryRun dataset supplied view
@@ -6388,6 +6712,9 @@ runShow dryRun dataset supplied view
   brickReference identity = maybe (renderUUIDv7 identity) (\brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"") (Map.lookup identity (stateBricks state))
   brickDetails brick =
     ["Nature: " <> natureLabel (brickNature brick), "Status: " <> brickStatusText brick, "Work: " <> if brickWorkState brick == Wip then "in progress" else "idle"]
+      <> ["Effort: review due; the previous class is historical evidence." | reviewClassDue state EffortAxis (brickId brick)]
+      <> ["Impact: review due; the previous judgment is preserved pending review." | reviewClassDue state ImpactAxis (brickId (compositionRoot state brick))]
+      <> ["Pending " <> reviewKindText (judgmentReviewKind review) <> ": " <> judgmentReviewReason review | review <- pendingJudgmentReviews state, judgmentReviewSubject review == brickId brick]
       <> ["Parent: " <> brickReference parent | parent <- maybe [] pure (brickParent brick)]
       <> ["Domains: " <> Text.intercalate ", " (domainPathText state <$> Set.toAscList (brickDomains brick)) | not (Set.null (brickDomains brick))]
       <> ["Child: " <> brickReference (brickId child) | child <- orderedSiblings state (Just (brickId brick))]
@@ -6936,6 +7263,7 @@ impactComparators state subject excluded =
     , brickId brick /= subject
     , brickId brick `notElem` excluded
     , Map.member (brickId brick) (stateImpactClaims state)
+    , not (reviewClassDue state ImpactAxis (brickId brick))
     ]
  where
   subjectClass = impactClaimClass <$> Map.lookup subject (stateImpactClaims state)
@@ -6954,7 +7282,8 @@ nextEffortExemplar state subject remaining tried =
     | brick <- activeBricks state
     , brickId brick /= subject
     , brickId brick `notElem` tried
-    , Just claim <- [Map.lookup (brickId brick) (stateEffortClaims state)]
+    , comparableEffort brick
+    , Just claim <- [currentEffort state (brickId brick)]
     , effortClaimClass claim `elem` remaining
     ]
   midpoint = case remaining of
@@ -7151,7 +7480,38 @@ runtimeFacts environment count cursor = do
 
 persistOrSimulate :: AppEnv -> Bool -> LoadedDataset -> [EventDraft] -> IO (Either AppError LoadedDataset)
 persistOrSimulate environment dryRun dataset drafts =
-  if dryRun then pure (simulateEvents dataset drafts) else appendCommand (appStore environment) (loadedCursor dataset) drafts
+  case (drafts, simulateEvents dataset drafts) of
+    (_, Left problem) -> pure (Left problem)
+    ([], Right simulated) -> pure (Right simulated)
+    (first : _, Right simulated) -> do
+      let before = loadedState dataset
+          after = loadedState simulated
+          requested =
+            [ JudgmentReviewRequestedV1 review
+            | review <- reviewChanges (draftRecordedAt first) before after
+            , maybe True ((/= judgmentReviewRevision review) . judgmentReviewRevision) (Map.lookup (judgmentReviewKind review, judgmentReviewSubject review) (stateJudgmentReviews after))
+            ]
+          completed =
+            [ JudgmentReviewCompletedV1 kind owner classified
+            | ((kind, owner), review) <- Map.toAscList (stateJudgmentReviews after)
+            , let classified = any (classifies kind owner . draftPayload) drafts
+                  compared = any (compares kind owner . draftPayload) drafts
+            , (classified && (not (judgmentReviewResolved review) || judgmentReviewClassDue review)) || (compared && not (judgmentReviewResolved review))
+            ]
+          effects = requested <> completed
+      identities <- replicateM (length effects) (appAllocateUUID environment)
+      let allocated = nub (concatMap draftReplayUUIDs drafts <> identities)
+          auxiliary = zipWith (\identity payload -> first{draftEventId = identity, draftReplayUUIDs = allocated, draftPayload = payload}) identities effects
+          full = if null effects then drafts else [event{draftReplayUUIDs = allocated} | event <- drafts] <> auxiliary
+      if dryRun then pure (simulateEvents dataset full) else appendCommand (appStore environment) (loadedCursor dataset) full
+ where
+  classifies kind owner = \case
+    EffortClassifiedV1 payload -> kind == EffortDiscovery && classifiedEffortBrick payload == owner
+    ImpactClassifiedV1 payload -> kind /= EffortDiscovery && classifiedImpactBrick payload == owner
+    _ -> False
+  compares kind owner = \case
+    PairJudgmentRecordedV2 payload -> kind /= ImpactEvidenceReview && recordedJudgmentAxis payload == reviewAxis kind && owner `elem` [recordedJudgmentFirst payload, recordedJudgmentSecond payload] && recordedJudgmentContext payload /= "easier_recovery"
+    _ -> False
 
 data NoticeSnoozeChoice = SnoozeOneHour | SnoozeTomorrow | SnoozeOneWeek
 

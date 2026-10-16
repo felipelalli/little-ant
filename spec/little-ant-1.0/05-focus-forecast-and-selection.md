@@ -46,6 +46,10 @@
   uses the strongest aggregated eligible local opportunity. Only after that
   subject wins does the core normalize its local variants. Subject-level
   importance and Domain factors are not added again inside that local draw.
+  When an eligible ordering, effort, impact, or impact-evidence review belongs to a container or blocked
+  subject, its local draw can select that review or continuation. Continuation
+  uses the strongest eligible reachable alternative pressure, then follows
+  ordinary Dependency or child routing; it never makes the parent executable.
 - **FOC-069 [core] — Selection uses recorded integer intervals.** The core
   samples without modulo bias from canonical candidate order and records
   identities, integer weights, total, cursor, sampled integer, and chosen
@@ -53,7 +57,10 @@
 - **FOC-070 [core] — Hierarchical chance remains a projection.** A flat leaf
   chance multiplies the recorded local probabilities along its path. It never
   participates in selection, moves a Brick, or becomes another stored score.
-  The `/list` forecast view labels it accordingly.
+  The `/list` forecast view labels it accordingly. A subject row shows its
+  total chance with separate projected opportunity shares (Work, ordering
+  review, or other eligible variants). The shares sum to the subject total;
+  neither rows nor repeated category membership create additional tickets.
 
 ## Subjects and opportunities
 
@@ -533,7 +540,15 @@ version.
   score as human importance. The read-only screen continues to the post-reading
   clarity question Q1 or returns to context Q0. Its nested uncertainty follows
   UX-196 `understand_subject` and never bypasses the clarity question,
-  recomputes the draw, or answers the Focus decision.
+  recomputes the draw, or answers the Focus decision. The independent `/why`
+  and `lant why` inspector reads the selection attached to the current
+  interaction, presents a short explanation first, and exposes technical detail
+  separately. Back/Escape restores the previous presentation exactly. Inspection
+  does not tick, write a checkpoint, consume randomness, or infer provenance
+  from another task's latest draw. Current selection records capture selection
+  time, immutable labels, rational endpoint/opportunity chances, and factor
+  inputs. Legacy records expose only available facts; missing historical
+  snapshots are never reconstructed against current state.
 - **FOC-050 [core] — Assistance preserves the prior attention state.** Every
   context view, clarity answer, consent question, forecast explanation,
   symptom question, and

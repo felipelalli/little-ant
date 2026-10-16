@@ -9,6 +9,8 @@ module LittleAnt.ForecastWorld (
   buildForecastWorld,
   domainAffinity,
   forecastSubjectChances,
+  forecastOpportunityChances,
+  forecastTicketWeight,
   opportunityKindName,
   selectForecast,
 )
@@ -31,6 +33,7 @@ import LittleAnt.Forecast
 import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Judgment
+import LittleAnt.JudgmentReview
 import LittleAnt.Model
 
 data SelectableOpportunityKind
@@ -127,13 +130,11 @@ data ForecastSelection
   deriving stock (Eq, Show)
 
 buildForecastWorld :: State -> UTCTime -> [SubjectTicket]
-buildForecastWorld state now =
-  fmap brickTicket active
-    <> fmap archivedReviewTicket reviewableArchived
-    <> fmap rawTicket eligibleRaws
-    <> fmap sourceEffectTicket reviewableSourceEffects
+buildForecastWorld state now = filter (reachable table Set.empty . ticketIdentity) tickets
  where
-  active = sortOn brickId (filter (\brick -> not (coolingDown brick) && temporalGateOpen state now brick) (activeBricks state))
+  tickets = fmap brickTicket active <> fmap archivedReviewTicket reviewableArchived <> fmap rawTicket eligibleRaws <> fmap sourceEffectTicket reviewableSourceEffects
+  table = Map.fromList [(ticketIdentity ticket, ticket) | ticket <- tickets]
+  active = sortOn brickId (activeBricks state)
   eligibleRaws = sortOn rawId (inboxRaws state)
   reviewableSourceEffects =
     sortOn
@@ -157,6 +158,7 @@ buildForecastWorld state now =
                   else Nothing
         )
         (Map.elems (stateBricks state))
+  importanceReviews = importanceRunReviews state now
   activeByParent =
     Map.fromListWith
       (<>)
@@ -185,8 +187,22 @@ buildForecastWorld state now =
               , dependencyIsBlocking state dependency
               , dependencyBlockedBrick dependency == brickId brick
               ]
-          , ticketOpportunities = brickOpportunities state now brick children allChildren
+          , ticketOpportunities = brickOpportunities state now brick children allChildren <> Map.findWithDefault [] (brickId brick) importanceReviews <> demandReviews brick
           }
+  demandReviews brick =
+    [ SelectableOpportunity
+        (reviewKindText (judgmentReviewKind review) <> ":" <> renderUUIDv7 (brickId brick))
+        (case judgmentReviewKind review of EffortDiscovery -> EffortComparisonOpportunity; ImpactDiscovery -> ImpactComparisonOpportunity; ImpactEvidenceReview -> ImpactMaturityReviewOpportunity)
+        ( [ ForecastSignal AvailabilitySignal (Fixed 50_000) ("Review requested: " <> judgmentReviewReason review)
+          , ForecastSignal AgeSignal (Fixed (min 500_000 (max 0 (floor (diffUTCTime now (judgmentReviewCreatedAt review) * 500_000 / (30 * 86400)))))) "age of this unresolved judgment request"
+          ]
+            <> [ForecastSignal UncertaintySignal (Fixed 500_000) "previous judgment needs review after a material change" | judgmentReviewClassDue review]
+            <> [ForecastSignal AvoidanceSignal (Fixed (500_000 - 500_000 `div` (2 ^ min 20 (judgmentReviewDeferrals review)))) "judgment review deferred" | judgmentReviewDeferrals review > 0]
+        )
+    | review <- pendingJudgmentReviews state
+    , judgmentReviewSubject review == brickId brick
+    , reviewEligible state now review
+    ]
   rawTicket raw =
     SubjectTicket
       { ticketIdentity = rawId raw
@@ -255,10 +271,6 @@ buildForecastWorld state now =
           | claim <- claims
           ]
       }
-  coolingDown brick =
-    any
-      (\deferral -> workDeferralBrick deferral == brickId brick && maybe False (> now) (workDeferralCooldownUntil deferral))
-      (Map.elems (stateWorkDeferrals state))
   sourceCleanupNeedsReview effect = case externalEffectRequest effect of
     SourceCleanupItemRequest _ target ->
       profileActive target
@@ -294,7 +306,7 @@ selectForecast seed cursors activeDomain hardScope tickets
       Right (EmptyForecast (if Data.Maybe.isNothing hardScope then "No opportunity is currently eligible." else "No actionable endpoint exists in this Domain scope."))
   | otherwise = do
       (root, rootDraw, cursorsAfterRoot) <- drawTickets ForecastSubjectDraw admittedRoots cursors
-      descend (ticketIdentity root) (ticketIdentity root) [] [eraseDraw rootDraw] cursorsAfterRoot
+      descend Set.empty (ticketIdentity root) (ticketIdentity root) [] [eraseDraw rootDraw] cursorsAfterRoot
  where
   table = Map.fromList [(ticketIdentity ticket, ticket) | ticket <- tickets]
   roots = filter ((== Nothing) . ticketParent) tickets
@@ -303,11 +315,34 @@ selectForecast seed cursors activeDomain hardScope tickets
       (\ticket -> reachable table Set.empty (ticketIdentity ticket) && maybe True (containsDomain table (ticketIdentity ticket)) hardScope)
       roots
 
-  descend original current path draws currentCursors = do
-    ticket <- maybe (Left "The selected subject disappeared from the forecast world.") Right (Map.lookup current table)
+  descend seen original current path draws currentCursors = do
+    ticket <- lookupTicket current
+    let routes = localRoutes table seen ticket
+    case routes of
+      [] -> Left "An admitted semantic subject has no selectable route."
+      [(_, Nothing, _)] -> continue (Set.insert current seen) ticket original path draws currentCursors
+      _ -> do
+        (opportunity, opportunityDraw, nextCursors) <- drawRoutes routes currentCursors
+        let nextDraws = draws <> [eraseDraw opportunityDraw]
+        case opportunity of
+          Nothing -> continue (Set.insert current seen) ticket original path nextDraws nextCursors
+          Just selected -> do
+            (effectiveDomain, domainDraws, finalCursors) <- chooseEffectiveDomain ticket nextCursors
+            Right
+              SelectedOpportunity
+                { selectedOriginalSubject = original
+                , selectedEndpointSubject = current
+                , selectedOpportunity = selected
+                , selectedDependencyPath = path <> [current]
+                , selectedEffectiveDomain = effectiveDomain
+                , selectedDraws = nextDraws <> domainDraws
+                , selectedEndingCursors = finalCursors
+                }
+
+  continue seen ticket original path draws currentCursors =
     case ticketDependencies ticket of
       dependencies@(_ : _) -> do
-        let brickTargets = filter (reachable table Set.empty . ticketIdentity) (mapMaybe dependencyTicket dependencies)
+        let brickTargets = filter (reachable table seen . ticketIdentity) (mapMaybe dependencyTicket dependencies)
             nonBrickTargets = [endpoint | DependencyNonBrick endpoint <- dependencies]
         if null brickTargets
           then case nonBrickTargets of
@@ -316,36 +351,18 @@ selectForecast seed cursors activeDomain hardScope tickets
                 SelectedRecovery
                   { selectedOriginalSubject = original
                   , selectedRecoveryEndpoint = endpoint
-                  , selectedDependencyPath = path <> [current]
+                  , selectedDependencyPath = path <> [ticketIdentity ticket]
                   , selectedDraws = draws
                   , selectedEndingCursors = currentCursors
                   }
             [] -> Left "Every Dependency endpoint is corrupt."
           else do
             (nextTicket, dependencyDraw, nextCursors) <- drawTickets ForecastDependencyDraw brickTargets currentCursors
-            descend original (ticketIdentity nextTicket) (path <> [current]) (draws <> [eraseDraw dependencyDraw]) nextCursors
-      [] ->
-        case filter (reachable table Set.empty) (ticketChildren ticket) of
-          children@(_ : _) -> do
-            childTickets <- traverse lookupTicket children
-            (child, childDraw, nextCursors) <- drawTickets ForecastChildDraw childTickets currentCursors
-            descend original (ticketIdentity child) path (draws <> [eraseDraw childDraw]) nextCursors
-          [] ->
-            case ticketOpportunities ticket of
-              [] -> Left "An admitted semantic leaf has no selectable opportunity."
-              opportunities -> do
-                (opportunity, opportunityDraw, nextCursors) <- drawOpportunities opportunities currentCursors
-                (effectiveDomain, domainDraws, finalCursors) <- chooseEffectiveDomain ticket nextCursors
-                Right
-                  SelectedOpportunity
-                    { selectedOriginalSubject = original
-                    , selectedEndpointSubject = current
-                    , selectedOpportunity = opportunity
-                    , selectedDependencyPath = path <> [current]
-                    , selectedEffectiveDomain = effectiveDomain
-                    , selectedDraws = draws <> [eraseDraw opportunityDraw] <> domainDraws
-                    , selectedEndingCursors = finalCursors
-                    }
+            descend seen original (ticketIdentity nextTicket) (path <> [ticketIdentity ticket]) (draws <> [eraseDraw dependencyDraw]) nextCursors
+      [] -> do
+        childTickets <- traverse lookupTicket (filter (reachable table seen) (ticketChildren ticket))
+        (child, childDraw, nextCursors) <- drawTickets ForecastChildDraw childTickets currentCursors
+        descend seen original (ticketIdentity child) path (draws <> [eraseDraw childDraw]) nextCursors
 
   lookupTicket identity = maybe (Left "A structural child is missing from the forecast world.") Right (Map.lookup identity table)
   dependencyTicket = \case
@@ -358,29 +375,10 @@ selectForecast seed cursors activeDomain hardScope tickets
     chosen <- maybe (Left "The chosen ticket is missing.") Right (Map.lookup (drawChosenSubject record) table)
     pure (chosen, record, advance purpose record currentCursors)
 
-  drawOpportunities opportunities currentCursors = do
-    let candidates =
-          [ ForecastCandidate
-              (selectableIdentity opportunity)
-              (selectableIdentity opportunity)
-              ForecastFactors
-                { factorSiblingPosition = Nothing
-                , factorImportanceConfidence = Fixed 0
-                , factorPositiveSignals = selectableSignals opportunity
-                , factorDomainAffinity = Fixed 0
-                , factorFamilyAffinity = Fixed 0
-                , factorNegativeSignals = []
-                }
-          | opportunity <- opportunities
-          ]
-        weighted = fmap (forecastWeight factoryForecastProfile) candidates
+  drawRoutes routes currentCursors = do
+    let weighted = [routeWeight identity opportunity signals | (identity, opportunity, signals) <- routes]
     record <- sampleRecorded factoryForecastProfile seed (cursorFor ForecastOpportunityDraw currentCursors) ForecastOpportunityDraw weighted
-    opportunity <-
-      maybe
-        (Left "The chosen local opportunity is missing.")
-        Right
-        (findOpportunity (drawChosenIdentity record) opportunities)
-    pure (opportunity, record, advance ForecastOpportunityDraw record currentCursors)
+    pure (drawChosenSubject record, record, advance ForecastOpportunityDraw record currentCursors)
 
   chooseEffectiveDomain ticket currentCursors =
     case strongestPaths of
@@ -449,32 +447,81 @@ ticketCandidate table activeDomain ticket =
 -- sampling. A blocker may receive probability through several original roots.
 forecastSubjectChances :: Maybe [UUIDv7] -> Maybe UUIDv7 -> [SubjectTicket] -> [(SubjectTicket, Rational)]
 forecastSubjectChances activeDomain hardScope tickets =
-  [ (ticket, chance)
-  | (identity, chance) <- Map.toAscList combined
-  , chance > 0
-  , Just ticket <- [Map.lookup identity table]
-  ]
+  Map.elems
+    ( Map.fromListWith
+        combine
+        [(ticketIdentity ticket, (ticket, chance)) | (ticket, _, chance) <- forecastOpportunityChances activeDomain hardScope tickets]
+    )
+ where
+  combine (ticket, first) (_, second) = (ticket, first + second)
+
+-- Integrate the same route, child and dependency intervals as the draw.
+-- Nothing denotes a typed non-Brick recovery, never an execution variant.
+forecastOpportunityChances :: Maybe [UUIDv7] -> Maybe UUIDv7 -> [SubjectTicket] -> [(SubjectTicket, Maybe SelectableOpportunity, Rational)]
+forecastOpportunityChances activeDomain hardScope tickets =
+  Map.elems (Map.fromListWith combine (concat [descend Set.empty ticket chance | (ticket, chance) <- shares roots]))
  where
   table = Map.fromList [(ticketIdentity ticket, ticket) | ticket <- tickets]
   roots = [ticket | ticket <- tickets, Data.Maybe.isNothing (ticketParent ticket), reachable table Set.empty (ticketIdentity ticket), maybe True (containsDomain table (ticketIdentity ticket)) hardScope]
-  combined = Map.fromListWith (+) (concat [descend Set.empty ticket chance | (ticket, chance) <- shares roots])
-  shares candidates =
-    let weighted = [(ticket, weightedInteger (forecastWeight factoryForecastProfile (ticketCandidate table activeDomain ticket))) | ticket <- candidates]
-        total = sum (snd <$> weighted)
-     in [(ticket, weight % total) | (ticket, weight) <- weighted, weight > 0, total > 0]
+  combine (ticket, opportunity, first) (_, _, second) = (ticket, opportunity, first + second)
+  shares candidates = normalized [(ticket, weightedInteger (forecastWeight factoryForecastProfile (ticketCandidate table activeDomain ticket))) | ticket <- candidates]
   descend seen ticket chance
     | ticketIdentity ticket `Set.member` seen = []
-    | not (null (ticketDependencies ticket)) = case dependencyTargets of
-        [] -> [(ticketIdentity ticket, chance) | any isNonBrick (ticketDependencies ticket)]
-        _ -> branch dependencyTargets
-    | not (null childTargets) = branch childTargets
-    | otherwise = [(ticketIdentity ticket, chance) | not (null (ticketOpportunities ticket))]
+    | otherwise = concatMap route (normalized [(opportunity, weightedInteger (routeWeight identity opportunity signals)) | (identity, opportunity, signals) <- localRoutes table seen ticket])
    where
-    dependencyTargets = [target | DependencyBrick identity <- ticketDependencies ticket, reachable table Set.empty identity, Just target <- [Map.lookup identity table]]
-    childTargets = [child | identity <- ticketChildren ticket, reachable table Set.empty identity, Just child <- [Map.lookup identity table]]
-    branch candidates = concat [descend (Set.insert (ticketIdentity ticket) seen) child (chance * share) | (child, share) <- shares candidates]
+    nextSeen = Set.insert (ticketIdentity ticket) seen
+    route (Just opportunity, share) = [((ticketIdentity ticket, selectableIdentity opportunity), (ticket, Just opportunity, chance * share))]
+    route (Nothing, share)
+      | not (null (ticketDependencies ticket)) = case dependencyTargets of
+          [] -> [((ticketIdentity ticket, "recovery"), (ticket, Nothing, chance * share)) | any isNonBrick (ticketDependencies ticket)]
+          _ -> branch dependencyTargets share
+      | otherwise = branch childTargets share
+    dependencyTargets = [target | DependencyBrick identity <- ticketDependencies ticket, reachable table nextSeen identity, Just target <- [Map.lookup identity table]]
+    childTargets = [child | identity <- ticketChildren ticket, reachable table nextSeen identity, Just child <- [Map.lookup identity table]]
+    branch candidates share = concat [descend nextSeen child (chance * share * childShare) | (child, childShare) <- shares candidates]
     isNonBrick DependencyNonBrick{} = True
     isNonBrick _ = False
+
+normalized :: [(a, Integer)] -> [(a, Rational)]
+normalized candidates = [(value, weight % total) | (value, weight) <- candidates, weight > 0, total > 0]
+ where
+  total = sum (snd <$> candidates)
+
+routeWeight :: Text -> Maybe SelectableOpportunity -> [ForecastSignal] -> WeightedCandidate (Maybe SelectableOpportunity)
+routeWeight identity opportunity signals =
+  forecastWeight
+    factoryForecastProfile
+    (ForecastCandidate identity opportunity (ForecastFactors Nothing (Fixed 0) signals (Fixed 0) (Fixed 0) []))
+
+-- A review need not execute its owner. Continuation preserves dependency/child
+-- routing, using the strongest reachable alternative rather than a child sum.
+isLocalReview :: SelectableOpportunityKind -> Bool
+isLocalReview kind = kind `elem` [ImportanceRunReviewOpportunity, EffortComparisonOpportunity, ImpactComparisonOpportunity, ImpactMaturityReviewOpportunity]
+
+localRoutes :: Map UUIDv7 SubjectTicket -> Set.Set UUIDv7 -> SubjectTicket -> [(Text, Maybe SelectableOpportunity, [ForecastSignal])]
+localRoutes table seen ticket
+  | null (ticketDependencies ticket) && null (ticketChildren ticket) = local (ticketOpportunities ticket)
+  | otherwise = local reviews <> continuation
+ where
+  reviews = filter (isLocalReview . selectableKind) (ticketOpportunities ticket)
+  local = fmap (\opportunity -> (selectableIdentity opportunity, Just opportunity, selectableSignals opportunity))
+  targets =
+    if null (ticketDependencies ticket)
+      then ticketChildren ticket
+      else [identity | DependencyBrick identity <- ticketDependencies ticket]
+  viable = filter (reachable table (Set.insert (ticketIdentity ticket) seen)) targets
+  nonBrick = any (\case DependencyNonBrick{} -> True; _ -> False) (ticketDependencies ticket)
+  continuation =
+    [ (renderUUIDv7 (ticketIdentity ticket) <> ":continue", Nothing, bestSignals)
+    | not (null viable) || nonBrick
+    ]
+  alternatives = [(pressure, signals) | target <- viable, let signals = strongestOpportunitySignals table target, let (pressure, _, _) = positivePressure factoryForecastProfile signals]
+  bestSignals = case alternatives of
+    [] -> []
+    values -> snd (maximumBy (comparing (Data.Bifunctor.second (fmap signalExplanation))) values)
+
+forecastTicketWeight :: Maybe [UUIDv7] -> [SubjectTicket] -> SubjectTicket -> WeightedCandidate UUIDv7
+forecastTicketWeight activeDomain tickets = forecastWeight factoryForecastProfile . ticketCandidate (Map.fromList [(ticketIdentity ticket, ticket) | ticket <- tickets]) activeDomain
 
 strongestOpportunitySignals :: Map UUIDv7 SubjectTicket -> UUIDv7 -> [ForecastSignal]
 strongestOpportunitySignals table root =
@@ -497,9 +544,11 @@ reachable table seen identity
       case Map.lookup identity table of
         Nothing -> False
         Just ticket ->
-          if null (ticketDependencies ticket)
-            then not (null (ticketOpportunities ticket)) || any (reachable table (Set.insert identity seen)) (ticketChildren ticket)
-            else any dependencyReachable (ticketDependencies ticket)
+          any (isLocalReview . selectableKind) (ticketOpportunities ticket)
+            || ( if null (ticketDependencies ticket)
+                   then not (null (ticketOpportunities ticket)) || any (reachable table (Set.insert identity seen)) (ticketChildren ticket)
+                   else any dependencyReachable (ticketDependencies ticket)
+               )
  where
   dependencyReachable = \case
     DependencyBrick target -> reachable table (Set.insert identity seen) target
@@ -565,6 +614,7 @@ brickOpportunities state now brick children allChildren =
   execution <> waitReviews <> delegationReviews <> effectReviews <> reviews
  where
   execution
+    | workCoolingDown state now brick || not (temporalGateOpen state now brick) = []
     | hasActiveWait state brick = []
     | isActivelyDelegated state brick = []
     | brickNature brick == ScheduledCommitment = []
@@ -579,6 +629,7 @@ brickOpportunities state now brick children allChildren =
     [ op (reviewKind claim) 50_000 (lazyReviewReason claim)
     | claim <- Map.elems (stateLazyReviews state)
     , lazyReviewSubject claim == brickId brick
+    , lazyReviewKind claim `notElem` ["importance", "importance_run_review"]
     ]
   waitReviews =
     [ op WaitReviewOpportunity 350_000 "Wait review is due"
@@ -623,6 +674,39 @@ brickOpportunities state now brick children allChildren =
   impactSignal = case Map.lookup (brickId brick) (stateImpactClaims state) of
     Nothing -> []
     Just claim -> [ForecastSignal ImpactSignal (impactStrength (impactClaimClass claim)) "current Impact class"]
+
+workCoolingDown :: State -> UTCTime -> Brick -> Bool
+workCoolingDown state now brick = case Map.lookup (brickId brick) (stateWorkDeferrals state) >>= workDeferralCooldownUntil of
+  Just untilTime -> now < untilTime
+  Nothing -> False
+
+-- One owner per unresolved sibling run, including imported provisional order.
+-- Equivalent persisted claims are coalesced rather than becoming extra tickets.
+importanceRunReviews :: State -> UTCTime -> Map UUIDv7 [SelectableOpportunity]
+importanceRunReviews state now =
+  Map.fromListWith
+    (<>)
+    [ (first, [SelectableOpportunity identity ImportanceRunReviewOpportunity signals])
+    | parent <- Set.toAscList (Set.fromList (brickParent <$> activeBricks state))
+    , maybe True ((<= now) . importanceReviewCooldownUntil) (Map.lookup parent (stateImportanceReviewDeferrals state))
+    , Just (first, second) <- [adaptiveImportancePair state now parent]
+    , let siblings = siblingBricks state parent
+          relevantClaims = [claim | claim <- Map.elems (stateLazyReviews state), lazyReviewKind claim `elem` ["importance", "importance_run_review"], lazyReviewSubject claim `elem` fmap brickId siblings]
+          pairCreatedAt = maximum [brickCreatedAt brick | identity' <- [first, second], Just brick <- [Map.lookup identity' (stateBricks state)]]
+          origin = max pairCreatedAt (if null relevantClaims then pairCreatedAt else minimum (fmap lazyReviewCreatedAt relevantClaims))
+          confidence = minimum [localConfidence state now brick siblings | identity' <- [first, second], Just brick <- [Map.lookup identity' (stateBricks state)]]
+          uncertainty = min 750_000 (max 0 (1_000_000 - unFixed confidence))
+          age = min 500_000 (max 0 (floor (diffUTCTime now origin * 500_000 / (30 * 86400))))
+          count = maybe 0 importanceReviewDeferralCount (Map.lookup parent (stateImportanceReviewDeferrals state))
+          avoidance = 500_000 - (500_000 `div` (2 ^ min 20 count))
+          identity = "importance-run:" <> maybe "root" renderUUIDv7 parent
+          signals =
+            [ ForecastSignal AvailabilitySignal (Fixed 50_000) "unresolved sibling order review"
+            , ForecastSignal UncertaintySignal (Fixed uncertainty) "low confidence in this sibling order"
+            , ForecastSignal AgeSignal (Fixed age) "age of unresolved sibling order"
+            ]
+              <> [ForecastSignal AvoidanceSignal (Fixed avoidance) "ordering review deferred after uncertainty" | count > 0]
+    ]
 
 hasActiveWait :: State -> Brick -> Bool
 hasActiveWait state brick =
@@ -791,11 +875,3 @@ lookupIndex needle = go 0
   go index (value : rest)
     | needle == value = Just index
     | otherwise = go (index + 1) rest
-
-findOpportunity :: Text -> [SelectableOpportunity] -> Maybe SelectableOpportunity
-findOpportunity identity = go
- where
-  go [] = Nothing
-  go (opportunity : rest)
-    | selectableIdentity opportunity == identity = Just opportunity
-    | otherwise = go rest

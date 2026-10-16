@@ -42,6 +42,8 @@ tests =
     "S01 walking skeleton"
     [ testCase "UUIDv7 uses the RFC 9562 version and variant layout" testUuidLayout
     , testCase "human handles normalize Unicode and retain retired suffixes" testHandles
+    , testCase "new handle bases stop at six characters before collision suffixes" testBoundedHandles
+    , testCase "legacy handles survive replay alongside newly shortened handles" testLegacyHandles
     , testCase "pristine next renders the canonical useful first screen" testPristine
     , testCase "optional envelope fields are omitted rather than null" testSparseEnvelope
     , testCase "Feed persists one Raw and restart restores the same pending envelope" testFeedRestart
@@ -78,6 +80,54 @@ testHandles = do
       second = allocateHandle RawHandle (Set.singleton first) "milk"
   first @?= Handle "milk"
   second @?= Handle "milk2"
+
+testBoundedHandles :: Assertion
+testBoundedHandles = mapM_ check [BrickHandle, RawHandle, EntityHandle]
+ where
+  check kind = do
+    handleBase kind "Abcdefghijklmnop" @?= "abcdef"
+    handleBase kind "Alpha Bravo Charlie Delta Écho Foxtrot Golf Hotel" @?= "abcdef"
+    handleBase kind "Short" @?= "short"
+    let seed = "Abcdefghijklmnop"
+        first = allocateHandle kind Set.empty seed
+        second = allocateHandle kind (Set.singleton first) seed
+        reserved = Set.fromList [first, second, Handle "abcdef4", Handle "abcdefghijkl"]
+        throughNine = Set.fromList (first : [Handle ("abcdef" <> Text.pack (show suffix)) | suffix <- [2 .. 9 :: Int]])
+    first @?= Handle "abcdef"
+    second @?= Handle "abcdef2"
+    allocateHandle kind reserved seed @?= Handle "abcdef3"
+    allocateHandle kind throughNine seed @?= Handle "abcdef10"
+
+testLegacyHandles :: Assertion
+testLegacyHandles = withSystemTempDirectory "lant-legacy-handles" $ \root -> do
+  environment <- deterministicEnv root 800
+  facts <- testFacts environment 3
+  let material = "Alpha Bravo Charlie Delta Echo Foxtrot Golf Hotel India Juliet Kilo Lima"
+      legacyHandle = Handle "abcdefghijkl2"
+  decision <- assertRight (decideFeed emptyState (appActor environment) "test" material facts)
+  legacyDraft <- case feedDecisionEvents decision of
+    [draft@EventDraft{draftPayload = RawFedV1 payload}] -> pure draft{draftPayload = RawFedV1 payload{fedHandle = legacyHandle}}
+    _ -> assertFailure "Feed must produce one Raw allocation" >> fail "unreachable"
+  legacy <- appendCommand (appStore environment) Genesis [legacyDraft] >>= assertRightIO
+  let legacyId = rawId (feedDecisionRaw decision)
+      assertLegacy state = fmap rawId (resolveRawHandle state legacyHandle) @?= Just legacyId
+  assertLegacy (loadedState legacy)
+  shown <- runAppCommand environment False (const (pure ())) (ShowRawCommand "+abcdefghijkl2" SummaryView) >>= assertRightIO
+  case shown of
+    ShowRawResult{resultRaw} -> projectedRawId resultRaw @?= legacyId
+    _ -> assertFailure "legacy handle must still resolve through the application"
+  mapM_
+    ( \expected -> do
+        result <- runAppCommand environment False (const (pure ())) (FeedCommand "test" material) >>= assertRightIO
+        case result of
+          FeedResult{resultRaw} -> renderHandle RawHandle (projectedRawHandle resultRaw) @?= expected
+          _ -> assertFailure "Feed must allocate a new Raw"
+    )
+    ["+abcdef", "+abcdef2"]
+  restarted <- deterministicEnv root 900
+  replayed <- loadDataset (appStore restarted) (const (pure ())) >>= assertRightIO
+  assertLegacy (loadedState replayed)
+  rawCount (loadedState replayed) @?= 3
 
 testPristine :: Assertion
 testPristine = withSystemTempDirectory "lant-pristine" $ \root -> do

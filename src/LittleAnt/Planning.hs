@@ -23,6 +23,7 @@ import LittleAnt.Catalog (natureIdentifier)
 import LittleAnt.Error
 import LittleAnt.Id
 import LittleAnt.Judgment (factoryJudgmentProfileHash)
+import LittleAnt.JudgmentReview (currentEffort)
 import LittleAnt.Model
 import LittleAnt.Pack.Format (canonicalJsonBytes)
 import LittleAnt.Store
@@ -180,7 +181,7 @@ planningCut state selected roots = foldl' combine ([], []) (walk <$> roots)
   children identity = [brick | brick <- selected, brickParent brick == Just identity]
   walk brick
     | finiteNature (brickNature brick)
-    , Map.member (brickId brick) (stateEffortClaims state) =
+    , isJust (currentEffort state (brickId brick)) =
         ([brick], [])
     | null descendants
     , finiteNature (brickNature brick) =
@@ -200,7 +201,7 @@ planningCut state selected roots = foldl' combine ([], []) (walk <$> roots)
   combine (leftItems, leftWarnings) (rightItems, rightWarnings) = (leftItems <> rightItems, leftWarnings <> rightWarnings)
 
 attachEffort :: State -> Brick -> Either AppError (Brick, Maybe EffortMacro)
-attachEffort state brick = case Map.lookup (brickId brick) (stateEffortClaims state) of
+attachEffort state brick = case currentEffort state (brickId brick) of
   Nothing -> Right (brick, Nothing)
   Just claim -> do
     unless
@@ -268,7 +269,7 @@ itemWarnings :: State -> CutItem -> [PlanningWarning]
 itemWarnings state item =
   catMaybes
     [ if isNothing (cutEffort item) && isNothing (cutRemainingEffort item)
-        then Just (one "missing-effort" "No EffortProfile class is recorded; no planning duration was invented.")
+        then Just (one "missing-effort" ("No current EffortProfile class is available; no planning duration was invented. Review with lant effort " <> renderHandle BrickHandle (brickHandle brick) <> "."))
         else Nothing
     , if brickWorkState brick == Wip && isJust (cutEffort item) && isNothing (cutRemainingEffort item)
         then Just (one "wip-total-effort" "The Brick is WIP, but no conservative remaining-effort evidence exists; total effort is exported.")

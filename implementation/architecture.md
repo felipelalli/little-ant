@@ -105,6 +105,12 @@ on timeout it returns a typed, retry-safe conflict without mutating state. A
 retry starts from current state and never appends events decided against an old
 projection.
 
+The writer-lock guarantee above concerns canonical events. The alpha's shared
+presentation checkpoint is saved separately and still has a concurrent-writer
+defect; it does not provide independent guided sessions per client. See
+[ADR 0003](adr/0003-persisted-guided-checkpoints.md#current-alpha-concurrency-limitation)
+for the exact boundary, usage guidance, and remaining work.
+
 ## Event and result registries
 
 S01 introduces versioned, closed registries rather than a generic payload:
