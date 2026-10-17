@@ -113,6 +113,13 @@ For an authorized exact text revision, use `update '#handle' title|description
 --text TEXT --yes`, or `--text-file FILE` (`-` for piped stdin) to preserve
 multiline text. Omitting `--yes` leaves the revision preview pending.
 
+A recurring-obligation series releases nothing until it has a recurrence.
+`update '#handle' repetition` opens its structured editor (family, occurrence
+Nature, interval, weekdays or day, local times, IANA zone, and the opens,
+best-before, and deadline offsets such as `4 days before` or `at the
+anchor`); answer each field through `interaction respond`, then confirm the
+previewed anchors with the user before `recurrence.accept`.
+
 For any other implemented guided flow, save its actual JSON result. Use
 `interaction show` to inspect the current saved question without drawing or
 changing its checkpoint. Submit one actual action ID with `interaction respond

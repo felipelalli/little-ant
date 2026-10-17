@@ -53,6 +53,7 @@ import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Protocol
 import LittleAnt.Provider
+import LittleAnt.RecurrenceInput (recurrenceFieldIsChoice)
 import LittleAnt.Result
 import LittleAnt.Source (SourceContainer (..))
 import LittleAnt.Surface
@@ -917,6 +918,8 @@ screenForEnvelope envelope = case envelopeOpportunity envelope of
   RepeatableReturnVariationOpportunity _ _ _ _ draft -> InteractionEditor envelope "return.variation.submit" (selectedEditor draft) Nothing
   RepeatableReturnZoneOpportunity _ _ _ _ _ draft -> InteractionEditor envelope "return.zone.submit" (selectedEditor draft) Nothing
   UpdateTextOpportunity _ _ _ draft -> InteractionEditor envelope "update.text.submit" (selectedEditor draft) Nothing
+  RecurrenceFieldOpportunity _ field _ draft
+    | not (recurrenceFieldIsChoice field) -> InteractionEditor envelope "recurrence.field.submit" (selectedEditor draft) Nothing
   _ -> EnvelopeScreen envelope Nothing
 
 -- Advance only the already committed completion checkpoint. The usual

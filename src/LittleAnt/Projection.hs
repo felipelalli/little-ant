@@ -51,10 +51,24 @@ renderEnvelopeAtWidth requestedWidth envelope =
   mainLines =
     textBlock Heading (contentHeading content)
       <> maybe [] (textBlock Heading) (contentSubject content)
-      <> concatMap bodyBlock (contentBody content)
+      <> body
       <> maybe [] (textBlock Strong) (contentQuestion content)
   textBlock _ text | Text.null text = []
   textBlock role text = fmap (pure . Span role) (wrapText width text) <> [blank]
+  -- Recurrence screens list structured fields as one compact block; an
+  -- empty item separates blocks instead of every item becoming a paragraph.
+  body
+    | compactBody (envelopeOpportunity envelope) =
+        concatMap compactLine (contentBody content) <> [blank | not (null (contentBody content))]
+    | otherwise = concatMap bodyBlock (contentBody content)
+  compactLine text
+    | Text.null text = [blank]
+    | otherwise = fmap (pure . Span Normal) (wrapText width text)
+  compactBody = \case
+    RecurrenceFieldOpportunity{} -> True
+    RecurrencePreviewOpportunity{} -> True
+    RecurrenceResultOpportunity{} -> True
+    _ -> False
   bodyBlock text = case envelopeOpportunity envelope of
     FocusAssistanceOpportunity _ _ FocusInspectContext _ -> markdownLines width text <> [blank]
     _ -> textBlock Normal text

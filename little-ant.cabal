@@ -130,6 +130,7 @@ library
     LittleAnt.Protocol
     LittleAnt.Provider
     LittleAnt.Provider.Connection
+    LittleAnt.RecurrenceInput
     LittleAnt.Reference
     LittleAnt.Repair
     LittleAnt.REPL

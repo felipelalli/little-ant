@@ -72,8 +72,10 @@ import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Provider
 import LittleAnt.Provider.Connection
+import LittleAnt.RecurrenceInput
 import LittleAnt.Repair
 import LittleAnt.Result
+import LittleAnt.Schedule (CalendarAnchor (..), calendarAnchorsFrom)
 import LittleAnt.Source
 import LittleAnt.Store
 import LittleAnt.Temporal
@@ -3225,13 +3227,19 @@ runUpdate environment dryRun dataset reference requestedField =
       let cursor = loadedCursor dataset
           state = loadedState dataset
           hub = makeUpdateMeaningEnvelope identity cursor (statePreconditionHash state) now state brick
-      case traverse parseUpdateField requestedField of
-        Left problem -> pure (Left problem)
-        Right field -> case field of
-          Nothing -> save hub
-          Just selected -> case currentBrickMeaning state brick selected of
-            Left problem -> pure (Left problem)
-            Right current -> save (makeUpdateTextEnvelope hub now state brick selected current current)
+      case requestedField of
+        Just section
+          | Text.toLower (Text.strip section) == "repetition" ->
+              if brickNature brick == RecurringObligation
+                then save (makeRecurrenceFieldEnvelope hub now state brick RecurrenceFamilyField (initialRecurrenceDraft now state brick) "")
+                else pure (Left (appError PreconditionFailed "Only a recurring-obligation series has a recurrence."))
+        _ -> case traverse parseUpdateField requestedField of
+          Left problem -> pure (Left problem)
+          Right field -> case field of
+            Nothing -> save hub
+            Just selected -> case currentBrickMeaning state brick selected of
+              Left problem -> pure (Left problem)
+              Right current -> save (makeUpdateTextEnvelope hub now state brick selected current current)
  where
   save envelope = do
     saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
@@ -3242,9 +3250,71 @@ runUpdate environment dryRun dataset reference requestedField =
     "description" -> Right UpdateDescription
     _ ->
       Left
-        (appError InvalidInput "The alpha update command supports only title or description.")
-          { appErrorRecovery = [RecoveryAction "choose-field" "Run `lant update BRICK` and choose title or description." Nothing]
+        (appError InvalidInput "The alpha update command supports title, description, or repetition.")
+          { appErrorRecovery = [RecoveryAction "choose-field" "Run `lant update BRICK` and choose title, description, or repetition." Nothing]
           }
+
+-- | The existing schedule, or a weekly draft in the operational zone.
+initialRecurrenceDraft :: ZonedTime -> State -> Brick -> RecurrenceSchedule
+initialRecurrenceDraft now state brick =
+  Data.Maybe.fromMaybe
+    (defaultRecurrenceSchedule (brickId brick) (operationalZone (stateOperationalDayConfig state)) (localDay (zonedTimeToLocalTime now)))
+    (Map.lookup (brickId brick) (stateRecurrenceSchedules state))
+
+recurrenceFamilyForAction :: Text -> Maybe RecurrenceFamily
+recurrenceFamilyForAction action =
+  lookup action [("recurrence.family." <> recurrenceFamilyName family, family) | family <- [minBound .. maxBound]]
+
+loadRecurrenceZone :: Text -> IO (Either AppError TZ)
+loadRecurrenceZone zoneName = do
+  loaded <- try (loadTZFromDB (Text.unpack zoneName)) :: IO (Either SomeException TZ)
+  pure $ case loaded of
+    Right zone -> Right zone
+    Left problem ->
+      Left
+        (appError InvalidInput "That IANA time zone could not be loaded.")
+          { appErrorDetails = [Text.pack (displayException problem)]
+          , appErrorRecovery = [RecoveryAction "edit" "Choose a canonical IANA zone such as America/Sao_Paulo." Nothing]
+          }
+
+{- | Schedule edits govern only anchors from today on (WRK-149), so both a new
+and a revised schedule start on the current local day of its zone.
+-}
+startRecurrenceToday :: TZ -> UTCTime -> RecurrenceSchedule -> RecurrenceSchedule
+startRecurrenceToday zone now draft =
+  normalizeRecurrenceSchedule
+    draft{recurrenceRule = (recurrenceRule draft){calendarStartsOn = localDay (utcToLocalTimeTZ zone now)}}
+
+-- | The next three unreleased nominal anchors with every effective instant.
+recurrencePreviewLines :: State -> TZ -> RecurrenceSchedule -> Either AppError [Text]
+recurrencePreviewLines state zone schedule = do
+  anchors <- calendarAnchorsFrom (recurrenceZone schedule) zone (recurrenceRule schedule) 400
+  let pending = take 3 (filter (not . released) anchors)
+  pure (if null pending then ["none within 400 years"] else concatMap describe pending)
+ where
+  released anchor =
+    any
+      ( \occurrence ->
+          recurringOccurrenceOwner occurrence == recurrenceOwner schedule
+            && zonedInstantUtc (recurringOccurrenceNominalAnchor occurrence) == zonedInstantUtc (anchorInstant anchor)
+      )
+      (Map.elems (stateRecurringOccurrences state))
+  local format instant = Text.pack (formatTime defaultTimeLocale format (utcToLocalTimeTZ zone instant))
+  at anchor offset = local "%b %-d, %H:%M" (addUTCTime (fromInteger offset) (zonedInstantUtc (anchorInstant anchor)))
+  describe anchor =
+    [ local "%a, %b %-d %Y, %H:%M" (zonedInstantUtc (anchorInstant anchor))
+        <> case anchorResolution anchor of
+          UniqueLocalTime -> ""
+          GapShiftedForward -> " (shifted past a DST gap)"
+          FoldEarlier -> " (earlier of a repeated DST hour)"
+    , "  "
+        <> Text.intercalate
+          " · "
+          ( ["opens " <> at anchor (recurrenceNotBeforeOffsetSeconds schedule)]
+              <> maybe [] (\offset -> ["best before " <> at anchor offset]) (recurrenceBestBeforeOffsetSeconds schedule)
+              <> maybe [] (\offset -> ["deadline " <> at anchor offset]) (recurrenceDeadlineOffsetSeconds schedule)
+          )
+    ]
 
 currentBrickMeaning :: State -> Brick -> UpdateMeaningField -> Either AppError Text
 currentBrickMeaning state brick = \case
@@ -3406,6 +3476,33 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         rawId : _ -> withRaw rawId $ \raw -> local (advanceEnvelope current (makeRawTriageEnvelope (envelopeInteractionId current) cursor precondition now state raw))
         [] -> pure (Left (appError PreconditionFailed "This import result contains no Raw material to triage."))
     (UpdateMeaningOpportunity brickId, "update.title", _) -> openUpdateText brickId UpdateTitle
+    (UpdateMeaningOpportunity brickId, "update.repetition", _) -> openRecurrenceEditor brickId
+    (WorkCreatedResultOpportunity _ brickId, "recurrence.set", _) -> openRecurrenceEditor brickId
+    (RecurrenceFieldOpportunity ownerId RecurrenceFamilyField draft _, action, _)
+      | Just family <- recurrenceFamilyForAction action ->
+          withRecurringSeries ownerId $ \owner -> advanceRecurrence owner RecurrenceFamilyField (setRecurrenceFamily family draft)
+    (RecurrenceFieldOpportunity ownerId RecurrenceOccurrenceField draft _, "recurrence.occurrence.atomic", _) ->
+      withRecurringSeries ownerId $ \owner -> advanceRecurrence owner RecurrenceOccurrenceField (setRecurrenceOccurrenceNature AtomicTask draft)
+    (RecurrenceFieldOpportunity ownerId RecurrenceOccurrenceField draft _, "recurrence.occurrence.scheduled", _) ->
+      withRecurringSeries ownerId $ \owner -> advanceRecurrence owner RecurrenceOccurrenceField (setRecurrenceOccurrenceNature ScheduledCommitment draft)
+    (RecurrenceFieldOpportunity ownerId field draft _, "recurrence.field.submit", Just input) ->
+      withRecurringSeries ownerId $ \owner ->
+        case applyRecurrenceInput field input draft of
+          Left problem -> pure (Left problem)
+          Right updated
+            | field == RecurrenceZoneField ->
+                loadRecurrenceZone (recurrenceZone updated) >>= \case
+                  Left problem -> pure (Left problem)
+                  Right _ -> advanceRecurrence owner field updated
+            | otherwise -> advanceRecurrence owner field updated
+    (RecurrencePreviewOpportunity ownerId schedule, "recurrence.accept", _) ->
+      withRecurringSeries ownerId $ \_ -> mutate 2 (decideSetRecurrenceSchedule state actor schedule) makeRecurrenceRecorded
+    (RecurrencePreviewOpportunity ownerId schedule, "recurrence.edit", _) ->
+      withRecurringSeries ownerId $ \owner -> local (makeRecurrenceFieldEnvelope current now state owner RecurrenceFamilyField schedule "")
+    (RecurrencePreviewOpportunity ownerId _, "recurrence.reject", _) ->
+      withRecurringSeries ownerId $ \owner -> local (makeRecurrenceResultEnvelope (envelopeInteractionId current) cursor precondition now state owner False)
+    (RecurrencePreviewOpportunity{}, "recurrence.unknown", _) ->
+      local (appendBody current "Each anchor is one nominal date and time. Opens, best before, and deadline are fixed offsets from it. An occurrence is released when it opens and stays open until done or archived; a later anchor never closes it.")
     (UpdateMeaningOpportunity brickId, "update.description", _) -> openUpdateText brickId UpdateDescription
     (UpdateMeaningOpportunity{}, "update.unknown", _) ->
       local (appendBody current "Title changes only the visible wording. Description creates or revises the one text Raw attached as this Brick's description. UUID, # handle, structure, importance, and history remain unchanged.")
@@ -5573,6 +5670,33 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
           , zonedInstantUtc (scheduledStartsAt interval) <= zonedTimeToUTC now ->
               continue owner interval
         _ -> pure (Left (appError PreconditionFailed "The scheduled commitment is no longer active at this checkpoint."))
+
+  openRecurrenceEditor ownerId =
+    withRecurringSeries ownerId $ \owner ->
+      let draft = initialRecurrenceDraft now state owner
+       in local (makeRecurrenceFieldEnvelope current now state owner RecurrenceFamilyField draft "")
+
+  withRecurringSeries ownerId continue = withBrick ownerId $ \owner ->
+    if brickNature owner == RecurringObligation
+      then continue owner
+      else pure (Left (appError PreconditionFailed "Only a recurring-obligation series has a recurrence."))
+
+  advanceRecurrence owner field updated = case nextRecurrenceField updated field of
+    Just next -> local (makeRecurrenceFieldEnvelope current now state owner next updated (recurrenceFieldDraft updated next))
+    Nothing -> prepareRecurrencePreview owner updated
+
+  prepareRecurrencePreview owner draft =
+    loadRecurrenceZone (recurrenceZone draft) >>= \case
+      Left problem -> pure (Left problem)
+      Right zone ->
+        let schedule = startRecurrenceToday zone (zonedTimeToUTC now) draft
+         in case recurrencePreviewLines state zone schedule of
+              Left problem -> pure (Left problem)
+              Right anchorLines -> local (makeRecurrencePreviewEnvelope current now state owner schedule anchorLines)
+
+  makeRecurrenceRecorded identity currentNow accepted mutation = do
+    brick <- maybe (Left (appError CorruptData "The recurring series is missing from the accepted schedule.")) Right (mutationDecisionBrick mutation)
+    pure (makeRecurrenceResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick True)
 
   prepareReturnPreview owner review policy suppliedSeed =
     prepareReturnProposal (brickId owner) policy suppliedSeed >>= \case

@@ -2,6 +2,7 @@ module Main (main) where
 
 import Data.ByteString qualified as ByteString
 import Data.IORef
+import Data.List qualified
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -17,6 +18,7 @@ import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
+import LittleAnt.RecurrenceInput (RecurrenceField (..))
 import LittleAnt.Result
 import LittleAnt.Store
 import LittleAnt.Time
@@ -36,6 +38,9 @@ main =
       , testCase "manual-only repeatable remains active and leaves ordinary draws" manualOnlyReturn
       , testCase "habit completion records one outcome without terminalizing owner" habitCompletion
       , testCase "recurring obligation releases one stable occurrence and tick is idempotent" recurringRelease
+      , testCase "recurrence editor records a weekly obligation with due offsets" recurrenceEditorWeekly
+      , testCase "recurrence editor rejects prose, RRULE, and unknown zones" recurrenceEditorRejectsProse
+      , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
       , testCase "scheduled commitment has hard precedence and truthful outcome" scheduledCommitmentFlow
       , testCase "scheduled commitment preserves interrupted Work as WIP" scheduledPreemptsFocus
@@ -167,6 +172,99 @@ recurringRelease = withHarness $ \environment -> do
     other -> assertFailure ("expected idempotent empty tick, got " <> show other)
   afterSecond <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   Map.size (stateRecurringOccurrences (loadedState afterSecond)) @?= 1
+
+recurrenceEditorWeekly :: Assertion
+recurrenceEditorWeekly = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  family <- run environment (UpdateCommand "#standing" (Just "repetition")) >>= interactionOf
+  case envelopeOpportunity family of
+    RecurrenceFieldOpportunity identity RecurrenceFamilyField _ _ -> identity @?= brickIdValue
+    other -> assertFailure ("expected the recurrence family field, got " <> show other)
+  occurrence <- answer environment family "recurrence.family.weekly"
+  every <- answer environment occurrence "recurrence.occurrence.atomic"
+  weekdays <- submit environment every "recurrence.field.submit" "1"
+  times <- submit environment weekdays "recurrence.field.submit" "fri"
+  zone <- submit environment times "recurrence.field.submit" "18:00"
+  opens <- submit environment zone "recurrence.field.submit" "America/Sao_Paulo"
+  bestBefore <- submit environment opens "recurrence.field.submit" "5 days before"
+  deadline <- submit environment bestBefore "recurrence.field.submit" "2 days before"
+  preview <- submit environment deadline "recurrence.field.submit" "at the anchor"
+  case envelopeOpportunity preview of
+    RecurrencePreviewOpportunity identity _ -> identity @?= brickIdValue
+    other -> assertFailure ("expected the recurrence preview, got " <> show other)
+  let body = contentBody (envelopeContent preview)
+  assertBool ("preview lacks the first anchor: " <> show body) $
+    ["Fri, Aug 7 2026, 18:00", "  opens Aug 2, 18:00 · best before Aug 5, 18:00 · deadline Aug 7, 18:00"] `Data.List.isInfixOf` body
+  assertBool ("preview lacks the third anchor: " <> show body) ("Fri, Aug 21 2026, 18:00" `elem` body)
+  receipt <- answer environment preview "recurrence.accept"
+  envelopeOpportunity receipt @?= RecurrenceResultOpportunity brickIdValue
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState loaded
+  case Map.lookup brickIdValue (stateRecurrenceSchedules state) of
+    Just schedule -> do
+      calendarFamily (recurrenceRule schedule) @?= WeeklyRecurrence
+      calendarWeekdays (recurrenceRule schedule) @?= Set.singleton Friday
+      calendarIntendedDay (recurrenceRule schedule) @?= Nothing
+      calendarTimes (recurrenceRule schedule) @?= [TimeOfDay 18 0 0]
+      calendarStartsOn (recurrenceRule schedule) @?= fromGregorian 2026 8 3
+      recurrenceZone schedule @?= "America/Sao_Paulo"
+      recurrenceNotBeforeOffsetSeconds schedule @?= -(5 * 86400)
+      recurrenceBestBeforeOffsetSeconds schedule @?= Just (-(2 * 86400))
+      recurrenceDeadlineOffsetSeconds schedule @?= Just 0
+    Nothing -> assertFailure "the accepted recurrence was not recorded"
+  _ <- run environment TickCommand
+  ticked <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let tickedState = loadedState ticked
+  case Map.elems (stateRecurringOccurrences tickedState) of
+    [released] -> do
+      zonedInstantUtc (recurringOccurrenceNominalAnchor released) @?= UTCTime (fromGregorian 2026 8 7) (secondsToDiffTime (21 * 3600))
+      fmap zonedInstantUtc (temporalDeadline =<< Map.lookup (recurringOccurrenceBrick released) (stateTemporalConstraints tickedState))
+        @?= Just (UTCTime (fromGregorian 2026 8 7) (secondsToDiffTime (21 * 3600)))
+    other -> assertFailure ("expected exactly the open Aug 7 occurrence, got " <> show other)
+
+recurrenceEditorRejectsProse :: Assertion
+recurrenceEditorRejectsProse = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  family <- run environment (UpdateCommand "#standing" (Just "repetition")) >>= interactionOf
+  occurrence <- answer environment family "recurrence.family.weekly"
+  every <- answer environment occurrence "recurrence.occurrence.atomic"
+  rejected environment every "every other week"
+  weekdays <- submit environment every "recurrence.field.submit" "2"
+  rejected environment weekdays "FREQ=WEEKLY;BYDAY=FR"
+  times <- submit environment weekdays "recurrence.field.submit" "mon, fri"
+  rejected environment times "6pm"
+  rejected environment times "18:00, 18:00"
+  zone <- submit environment times "recurrence.field.submit" "09:00, 18:00"
+  rejected environment zone "Mars/Olympus_Mons"
+  opens <- submit environment zone "recurrence.field.submit" "America/Sao_Paulo"
+  rejected environment opens "a few days before"
+  rejected environment opens "7 days ahead"
+ where
+  rejected environment envelope text =
+    runAppCommand environment False (const (pure ())) (SubmitInteractionTextCommand (response envelope "recurrence.field.submit") text) >>= \case
+      Left problem -> appErrorCode problem @?= InvalidInput
+      Right other -> assertFailure ("expected " <> show text <> " to be rejected, got " <> show other)
+
+recurrenceEntryPoints :: Assertion
+recurrenceEntryPoints = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  seedBrickAs environment (fixtureUuid 40) (Handle "plain") "Plain work" AtomicTask 50
+  series <- run environment (UpdateCommand "#standing" Nothing) >>= interactionOf
+  assertBool "series update hub lacks repetition" ("update.repetition" `elem` fmap actionId (envelopeActions series))
+  plain <- run environment (UpdateCommand "#plain" Nothing) >>= interactionOf
+  assertBool "plain update hub offers repetition" ("update.repetition" `notElem` fmap actionId (envelopeActions plain))
+  runAppCommand environment False (const (pure ())) (UpdateCommand "#plain" (Just "repetition")) >>= \case
+    Left problem -> appErrorCode problem @?= PreconditionFailed
+    Right other -> assertFailure ("expected repetition to be refused for atomic Work, got " <> show other)
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState loaded
+      brick = stateBricks state Map.! brickIdValue
+      plainBrick = stateBricks state Map.! fixtureUuid 40
+      rawOf owner = head [raw | raw <- Map.elems (stateRaws state), Map.lookup (rawId raw) (stateRawDispositions state) == Just (RawMaterializedAsWork owner)]
+      zoned = utcToZonedTime (hoursToTimeZone (-3)) fixedTime
+      created owner = makeWorkCreatedResultEnvelope (fixtureUuid 90) (loadedCursor loaded) (statePreconditionHash state) zoned state (rawOf (brickId owner)) owner
+  take 1 (fmap actionId (envelopeActions (created brick))) @?= ["recurrence.set"]
+  assertBool "plain Work is offered a recurrence" ("recurrence.set" `notElem` fmap actionId (envelopeActions (created plainBrick)))
 
 noticeLifecycle :: Assertion
 noticeLifecycle = withHarness $ \environment -> do

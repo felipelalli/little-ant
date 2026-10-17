@@ -36,6 +36,9 @@ module LittleAnt.Interaction (
   makeRepeatableReturnZoneEnvelope,
   makeRepeatableReturnPreviewEnvelope,
   makeRepeatableReturnResultEnvelope,
+  makeRecurrenceFieldEnvelope,
+  makeRecurrencePreviewEnvelope,
+  makeRecurrenceResultEnvelope,
   makeScheduledCommitmentEnvelope,
   makeScheduledOverlapEnvelope,
   makeScheduledOutcomeResultEnvelope,
@@ -182,6 +185,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
+import Data.Function ((&))
 import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
@@ -195,6 +199,7 @@ import Data.Time
 import LittleAnt.Catalog
 import LittleAnt.Decision (DraftImportanceAnswer (..), WorkDraft (..))
 import LittleAnt.Error
+import LittleAnt.Event (parseRecurrenceSchedule, recurrenceScheduleValue)
 import LittleAnt.Id
 import LittleAnt.Judgment (unresolvedReviewCount)
 import LittleAnt.Model
@@ -206,6 +211,7 @@ import LittleAnt.Pack.Trust
 import LittleAnt.Pack.Update
 import LittleAnt.Profile (credentialBindingScheme, credentialBindingSlot, providerAccountLabel)
 import LittleAnt.Provider.Connection
+import LittleAnt.RecurrenceInput
 import LittleAnt.Source
 import LittleAnt.Store
 import LittleAnt.Vault (credentialSchemeName)
@@ -443,6 +449,9 @@ data Opportunity
   | RepeatableReturnZoneOpportunity UUIDv7 UUIDv7 Int ReturnUnit Int Text
   | RepeatableReturnPreviewOpportunity UUIDv7 UUIDv7 ReturnPolicy Int ZonedInstant Text ByteString
   | RepeatableReturnResultOpportunity UUIDv7
+  | RecurrenceFieldOpportunity UUIDv7 RecurrenceField RecurrenceSchedule Text
+  | RecurrencePreviewOpportunity UUIDv7 RecurrenceSchedule
+  | RecurrenceResultOpportunity UUIDv7
   | ScheduledCommitmentOpportunity UUIDv7
   | ScheduledOverlapOpportunity [UUIDv7]
   | ScheduledOutcomeResultOpportunity UUIDv7 StandingOutcomeKind
@@ -1964,6 +1973,16 @@ makeWorkCreatedResultEnvelope identity cursor precondition now state raw brick =
     (WorkCreatedResultOpportunity (rawId raw) (brickId brick))
     "Created:"
     [brickCitation brick, "From: " <> rawCitation raw, "Importance: " <> createdImportanceText state brick]
+    & offerRecurrence
+ where
+  offerRecurrence envelope
+    | brickNature brick == RecurringObligation && not (Map.member (brickId brick) (stateRecurrenceSchedules state)) =
+        resealEnvelope
+          envelope
+            { envelopeContent = (envelopeContent envelope){contentQuestion = Just "This series releases nothing until it has a recurrence."}
+            , envelopeActions = Action "recurrence.set" "set the recurrence..." "r" True "Choose the structured calendar rule and due offsets." : envelopeActions envelope
+            }
+    | otherwise = envelope
 
 makeFocusProposalEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeFocusProposalEnvelope identity cursor precondition now state brick =
@@ -2733,11 +2752,16 @@ makeUpdateMeaningEnvelope identity cursor precondition now state brick =
     ChoiceGrammar
     (UpdateMeaningOpportunity (brickId brick))
     (EnvelopeContent "Update Work:" (Just (brickCitation brick)) [] (Just "What changed?"))
-    [ Action "update.title" "title" "t" False "Edit only the visible title; identity and structure remain unchanged."
-    , Action "update.description" "description" "d" False "Create or revise the one description Raw attached to this Brick."
-    , Action "update.unknown" "I don't know" "k" False "Explain the two alpha update routes."
-    , moreAction
-    ]
+    ( [ Action "update.title" "title" "t" False "Edit only the visible title; identity and structure remain unchanged."
+      , Action "update.description" "description" "d" False "Create or revise the one description Raw attached to this Brick."
+      ]
+        <> [ Action "update.repetition" "repetition" "r" False "Change this recurring series' calendar rule and due offsets."
+           | brickNature brick == RecurringObligation
+           ]
+        <> [ Action "update.unknown" "I don't know" "k" False "Explain the alpha update routes."
+           , moreAction
+           ]
+    )
     [showBrickCommand brick, helpCommand, exitCommand]
     (Just "choose_update_field")
     (brickFooter now state brick)
@@ -2955,6 +2979,97 @@ makeRepeatableReturnPreviewEnvelope previous now state brick review policy chose
 makeRepeatableReturnResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeRepeatableReturnResultEnvelope identity cursor precondition now state brick =
   resultEnvelope identity cursor precondition now state (RepeatableReturnResultOpportunity (brickId brick)) "Return recorded:" [brickCitation brick, maybe "Manual only." (returnPolicySummary . returnSchedulePolicy) (Map.lookup (brickId brick) (stateReturnSchedules state))]
+
+makeRecurrenceFieldEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> RecurrenceField -> RecurrenceSchedule -> Text -> InteractionEnvelope
+makeRecurrenceFieldEnvelope previous now state brick field schedule draft =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      grammar
+      (RecurrenceFieldOpportunity (brickId brick) field schedule draft)
+      (EnvelopeContent "Recurrence:" (Just (brickCitation brick)) (settled <> current) (Just (recurrenceFieldPrompt schedule field)))
+      (actions <> [moreAction])
+      [showBrickCommand brick, helpCommand, exitCommand]
+      Nothing
+      (brickFooter now state brick)
+ where
+  settled = [recurrenceFieldLine schedule earlier | earlier <- takeWhile (/= field) (recurrenceFields schedule)]
+  grammar = if recurrenceFieldIsChoice field then ChoiceGrammar else InputGrammar
+  current
+    | recurrenceFieldIsChoice field = []
+    | otherwise = [paddedRecurrenceLabel field <> " › " <> draft]
+  isLast = Data.Maybe.isNothing (nextRecurrenceField schedule field)
+  actions = case field of
+    RecurrenceFamilyField ->
+      [ choice ("recurrence.family." <> recurrenceFamilyName family) (recurrenceFamilyName family) key (calendarFamily (recurrenceRule schedule) == family) consequence
+      | (family, key, consequence) <-
+          [ (DailyRecurrence, "d", "Release one occurrence every N days.")
+          , (WeeklyRecurrence, "w", "Release occurrences on chosen weekdays every N weeks.")
+          , (MonthlyRecurrence, "m", "Release one occurrence on an intended day every N months.")
+          , (YearlyRecurrence, "y", "Release one occurrence on an intended month and day every N years.")
+          ]
+      ]
+    RecurrenceOccurrenceField ->
+      [ choice "recurrence.occurrence.atomic" "atomic task" "a" (recurrenceOccurrenceNature schedule /= ScheduledCommitment) "Each occurrence is ordinary finite Work with its own dates."
+      , choice "recurrence.occurrence.scheduled" "scheduled commitment" "s" (recurrenceOccurrenceNature schedule == ScheduledCommitment) "Each occurrence is an exact interval with attended, missed, or cancelled truth."
+      ]
+    _ ->
+      [ Action
+          "recurrence.field.submit"
+          (if isLast then "review" else "continue")
+          "enter"
+          False
+          (if isLast then "Validate every field and preview the next nominal anchors." else "Continue to the next required field.")
+      ]
+  choice = Action
+
+recurrenceFieldLine :: RecurrenceSchedule -> RecurrenceField -> Text
+recurrenceFieldLine schedule field = paddedRecurrenceLabel field <> " › " <> recurrenceFieldValue schedule field
+
+paddedRecurrenceLabel :: RecurrenceField -> Text
+paddedRecurrenceLabel = Text.justifyLeft 11 ' ' . recurrenceFieldLabel
+
+makeRecurrencePreviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> RecurrenceSchedule -> [Text] -> InteractionEnvelope
+makeRecurrencePreviewEnvelope previous now state brick schedule anchorLines =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ConfirmationGrammar
+      (RecurrencePreviewOpportunity (brickId brick) schedule)
+      ( EnvelopeContent
+          "Recurrence preview:"
+          (Just (brickCitation brick))
+          (fmap (recurrenceFieldLine schedule) (recurrenceFields schedule) <> ["", "Next anchors:"] <> anchorLines <> ["", releaseNote])
+          (Just "Record this recurrence?")
+      )
+      [ Action "recurrence.accept" "yes" "y" False "Record this schedule; due occurrences are released at the next tick."
+      , Action "recurrence.edit" "edit" "e" False "Return to the first field with every value kept."
+      , Action "recurrence.reject" "no" "n" False "Discard the complete draft without changing the series."
+      , Action "recurrence.unknown" "I don't know" "k" False "Explain anchors, offsets, and released occurrences."
+      , moreAction
+      ]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      Nothing
+      (brickFooter now state brick)
+ where
+  releaseNote
+    | Map.member (brickId brick) (stateRecurrenceSchedules state) = "Already released occurrences keep their dates; only unreleased anchors follow this schedule."
+    | otherwise = "Each occurrence is released when it opens and stays open until done or archived."
+
+makeRecurrenceResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> Bool -> InteractionEnvelope
+makeRecurrenceResultEnvelope identity cursor precondition now state brick recorded =
+  resultEnvelope identity cursor precondition now state (RecurrenceResultOpportunity (brickId brick)) heading (brickCitation brick : summary)
+ where
+  heading = if recorded then "Recurrence recorded:" else "Recurrence unchanged:"
+  summary = case Map.lookup (brickId brick) (stateRecurrenceSchedules state) of
+    Nothing -> []
+    Just schedule -> "" : fmap (recurrenceFieldLine schedule) (recurrenceFields schedule)
 
 makeScheduledCommitmentEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ScheduledInterval -> InteractionEnvelope
 makeScheduledCommitmentEnvelope identity cursor precondition now state brick interval =
@@ -4815,6 +4930,9 @@ opportunityValue = \case
   RepeatableReturnPreviewOpportunity identity review policy chosen notBefore resolution seed ->
     typed "repeatable_return_preview" ["owner_id" .= renderUUIDv7 identity, "review_id" .= renderUUIDv7 review, "policy" .= interactionReturnPolicyValue policy, "chosen_offset" .= chosen, "not_before" .= interactionZonedInstantValue notBefore, "resolution" .= resolution, "seed" .= TextEncoding.decodeUtf8 (Base16.encode seed)]
   RepeatableReturnResultOpportunity identity -> typed "repeatable_return_result" ["owner_id" .= renderUUIDv7 identity]
+  RecurrenceFieldOpportunity identity field schedule draft -> typed "recurrence_field" ["owner_id" .= renderUUIDv7 identity, "field" .= recurrenceFieldCode field, "schedule" .= recurrenceScheduleValue schedule, "draft" .= draft]
+  RecurrencePreviewOpportunity identity schedule -> typed "recurrence_preview" ["owner_id" .= renderUUIDv7 identity, "schedule" .= recurrenceScheduleValue schedule]
+  RecurrenceResultOpportunity identity -> typed "recurrence_result" ["owner_id" .= renderUUIDv7 identity]
   ScheduledCommitmentOpportunity identity -> typed "scheduled_commitment" ["owner_id" .= renderUUIDv7 identity]
   ScheduledOverlapOpportunity identities -> typed "scheduled_overlap" ["owner_ids" .= fmap renderUUIDv7 identities]
   ScheduledOutcomeResultOpportunity identity outcome -> typed "scheduled_outcome_result" ["owner_id" .= renderUUIDv7 identity, "outcome" .= scheduledOutcomeName outcome]
@@ -5037,6 +5155,14 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "repeatable_return_zone" -> RepeatableReturnZoneOpportunity <$> uuidField value "owner_id" <*> uuidField value "review_id" <*> value .: "center" <*> (value .: "unit" >>= parseInteractionReturnUnit) <*> value .: "variation" <*> value .: "draft"
     "repeatable_return_preview" -> RepeatableReturnPreviewOpportunity <$> uuidField value "owner_id" <*> uuidField value "review_id" <*> (value .: "policy" >>= parseInteractionReturnPolicy) <*> value .: "chosen_offset" <*> (value .: "not_before" >>= parseInteractionZonedInstant) <*> value .: "resolution" <*> (value .: "seed" >>= parseInteractionSeed)
     "repeatable_return_result" -> RepeatableReturnResultOpportunity <$> uuidField value "owner_id"
+    "recurrence_field" ->
+      RecurrenceFieldOpportunity
+        <$> uuidField value "owner_id"
+        <*> (value .: "field" >>= \code -> maybe (fail "unknown recurrence field") pure (parseRecurrenceFieldCode code))
+        <*> (value .: "schedule" >>= parseRecurrenceSchedule)
+        <*> value .: "draft"
+    "recurrence_preview" -> RecurrencePreviewOpportunity <$> uuidField value "owner_id" <*> (value .: "schedule" >>= parseRecurrenceSchedule)
+    "recurrence_result" -> RecurrenceResultOpportunity <$> uuidField value "owner_id"
     "scheduled_commitment" -> ScheduledCommitmentOpportunity <$> uuidField value "owner_id"
     "scheduled_overlap" -> ScheduledOverlapOpportunity <$> (value .: "owner_ids" >>= traverse parseUuid)
     "scheduled_outcome_result" -> ScheduledOutcomeResultOpportunity <$> uuidField value "owner_id" <*> (value .: "outcome" >>= parseInteractionScheduledOutcome)

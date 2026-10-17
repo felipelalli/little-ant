@@ -1,5 +1,6 @@
 module LittleAnt.Schedule (
   CalendarAnchor (..),
+  calendarAnchorsFrom,
   calendarAnchorsThrough,
   operationalDay,
   validateCalendarRule,
@@ -64,6 +65,27 @@ calendarAnchorsThrough zoneName zone rule now = do
   resolve local =
     let (instant, resolution) = resolveLocalInstant zone local
      in CalendarAnchor local (ZonedInstant instant zoneName) resolution
+
+{- | The first nominal anchors of a validated rule, in order, starting on its
+'calendarStartsOn' day. The search is bounded so a valid but very sparse rule
+returns fewer anchors instead of searching without end.
+-}
+calendarAnchorsFrom :: Text -> TZ -> CalendarRule -> Int -> Either AppError [CalendarAnchor]
+calendarAnchorsFrom zoneName zone rule count = do
+  validateCalendarRule rule
+  let start = calendarStartsOn rule
+      days = takeWhile (< addGregorianYearsClip 400 start) [start ..]
+  pure
+    ( take
+        count
+        [ CalendarAnchor local (ZonedInstant instant zoneName) resolution
+        | day <- days
+        , matches rule day
+        , clock <- sort (calendarTimes rule)
+        , let local = LocalTime day clock
+              (instant, resolution) = resolveLocalInstant zone local
+        ]
+    )
 
 matches :: CalendarRule -> Day -> Bool
 matches rule day =

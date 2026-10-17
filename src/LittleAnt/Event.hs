@@ -75,6 +75,8 @@ module LittleAnt.Event (
   eventTypeName,
   eventVersionNumber,
   forecastSelectionValue,
+  parseRecurrenceSchedule,
+  recurrenceScheduleValue,
   externalEffectConsentDigest,
   externalEffectRequestDigest,
 )

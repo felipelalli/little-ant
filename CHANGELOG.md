@@ -9,6 +9,12 @@ replace the specification.
 
 ## Unreleased
 
+- Add the structured recurring-obligation editor: offered right after a series
+  is created and through `update BRICK repetition`, it records family,
+  occurrence Nature, interval, weekdays or day, local times, IANA zone, and
+  opens/best-before/deadline offsets, previewing the next three anchors. Edits
+  govern only anchors from the current day on.
+
 - Limit newly allocated Brick, Raw, and ExternalEntity handle bases to six
   characters, preserving collision suffixes and all existing handles.
 
