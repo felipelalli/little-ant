@@ -9,6 +9,8 @@ replace the specification.
 
 ## Unreleased
 
+- Make `update it` after an out-of-date skip open the update hub for the same
+  Brick; it previously only appended a note and stayed on the screen.
 - Open a target-less Brick command such as `/archive` in the REPL with only
   the Bricks it can act on (archived ones for `/restore`, any for `/update`,
   active ones otherwise) and the Brick of the current screen preselected.

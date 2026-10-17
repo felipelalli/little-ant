@@ -4423,6 +4423,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       withBrick brickId $ \brick -> local (makeWorkInterestingEnvelope current now state brick selection)
     (WorkInterestingOpportunity brickId selection, "work.interesting.sprint", _) ->
       withBrick brickId $ \brick -> local (makeWorkSprintDurationEnvelope current now state brick selection)
+    -- UX-152: update opens canonical editing of the same Brick; nothing is
+    -- recorded before the final accepted revision.
+    (WorkSkipReactionOpportunity brickId _ OutOfDateSymptom, "work.reaction.update", _) ->
+      withBrick brickId $ \brick -> local (advanceEnvelope current (makeUpdateMeaningEnvelope (envelopeInteractionId current) cursor precondition now state brick))
     (WorkSkipReactionOpportunity brickId selection OutOfDateSymptom, "work.reaction.archive", _) ->
       withBrick brickId $ \brick ->
         local

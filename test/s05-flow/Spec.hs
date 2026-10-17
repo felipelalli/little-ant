@@ -31,6 +31,7 @@ main =
       , testCase "other preserves exact event evidence rather than Raw" verbatimOther
       , testCase "mechanical discovery reaches an explicit confirmed leaf" mechanicalDiscovery
       , testCase "archive leaves Work inactive and releases one bounded relevance review" archiveReview
+      , testCase "out-of-date update opens editing of the same Brick and records nothing" outOfDateUpdate
       , testCase "restore keeps identity and queues only local importance review" restoreWork
       , testCase "title update preserves Brick identity and structure" updateTitle
       , testCase "description update creates one Raw and then revises it in place" updateDescription
@@ -111,6 +112,18 @@ mechanicalDiscovery = withFocusedProposal $ \environment proposal -> do
       identity @?= brickIdValue
       selection @?= selectionOf proposal
     other -> assertFailure ("expected explicit other leaf, got " <> show other)
+
+outOfDateUpdate :: Assertion
+outOfDateUpdate = withHarness $ \environment -> do
+  seedOneBrick environment
+  proposal <- run environment NextCommand >>= interactionOf
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  symptom <- answer environment proposal "focus.skip"
+  stale <- answer environment symptom "work.symptom.out-of-date"
+  hub <- answer environment stale "work.reaction.update"
+  envelopeOpportunity hub @?= UpdateMeaningOpportunity brickIdValue
+  after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  loadedState after @?= loadedState before
 
 archiveReview :: Assertion
 archiveReview = withHarness $ \environment -> do
