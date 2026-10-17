@@ -198,6 +198,15 @@ recurrenceEditorWeekly = withHarness $ \environment -> do
   assertBool ("preview lacks the third anchor: " <> show body) ("Fri, Aug 21 2026, 18:00" `elem` body)
   receipt <- answer environment preview "recurrence.accept"
   envelopeOpportunity receipt @?= RecurrenceResultOpportunity brickIdValue
+  assertBool ("receipt does not list the released occurrence: " <> show (contentBody (envelopeContent receipt))) $
+    any ("Fri, Aug 7 2026" `Text.isSuffixOf`) (contentBody (envelopeContent receipt))
+  -- The release happened with the receipt, so answering it is not stale.
+  afterReceipt <- answer environment receipt "next"
+  case envelopeOpportunity afterReceipt of
+    FocusProposalOpportunity{} -> pure ()
+    other -> assertFailure ("expected the released occurrence to be drawn, got " <> show other)
+  assertBool ("occurrence context lacks its label and deadline: " <> show (contentBody (envelopeContent afterReceipt))) $
+    "Occurrence: Fri, Aug 7 2026 · deadline Fri, Aug 7, 18:00" `elem` contentBody (envelopeContent afterReceipt)
   loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   let state = loadedState loaded
   case Map.lookup brickIdValue (stateRecurrenceSchedules state) of
@@ -212,7 +221,6 @@ recurrenceEditorWeekly = withHarness $ \environment -> do
       recurrenceBestBeforeOffsetSeconds schedule @?= Just (-(2 * 86400))
       recurrenceDeadlineOffsetSeconds schedule @?= Just 0
     Nothing -> assertFailure "the accepted recurrence was not recorded"
-  _ <- run environment TickCommand
   ticked <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   let tickedState = loadedState ticked
   case Map.elems (stateRecurringOccurrences tickedState) of

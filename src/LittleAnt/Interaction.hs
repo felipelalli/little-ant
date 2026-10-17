@@ -2119,7 +2119,7 @@ focusProposalEnvelope identity cursor precondition now state brick evidence =
     precondition
     FocusGrammar
     (FocusProposalOpportunity (brickId brick) (forecastSelectionId <$> evidence))
-    (EnvelopeContent "Work:" (Just (brickCitation brick)) (maybe [] (focusPathBody state brick) evidence <> standingContext state brick) (Just "Focus?"))
+    (EnvelopeContent "Work:" (Just (brickCitation brick)) (maybe [] (focusPathBody state brick) evidence <> standingContext now state brick) (Just "Focus?"))
     [ Action "focus.accept" "yes" "y" False "Make this Brick current and WIP."
     , Action "focus.skip" "skip" "s" False "Open the typed skip-symptom flow."
     , Action "focus.assistance" "I don't know" "k" False "Clarify this Focus decision."
@@ -2689,15 +2689,16 @@ focusPathBody state endpoint evidence =
     | identity == brickId endpoint = "   → blocked by this Brick"
     | otherwise = "   → blocked by " <> maybeCitation identity
 
-standingContext :: State -> Brick -> [Text]
-standingContext state brick = occurrenceContext <> habitContext
+standingContext :: ZonedTime -> State -> Brick -> [Text]
+standingContext now state brick = occurrenceContext <> habitContext
  where
   occurrenceContext = case findOccurrence of
     Nothing -> []
     Just occurrence ->
-      [ "Occurrence: " <> recurringOccurrenceLabel occurrence
+      [ "Occurrence: " <> recurringOccurrenceLabel occurrence <> maybe "" deadlineText (temporalDeadline =<< Map.lookup (brickId brick) (stateTemporalConstraints state))
       , "Series: " <> maybe ("#<missing> " <> renderUUIDv7 (recurringOccurrenceOwner occurrence)) brickCitation (Map.lookup (recurringOccurrenceOwner occurrence) (stateBricks state))
       ]
+  deadlineText deadline = " · deadline " <> formatLocalDateTime (utcToZonedTime (zonedTimeZone now) (zonedInstantUtc deadline))
   findOccurrence =
     case [occurrence | occurrence <- Map.elems (stateRecurringOccurrences state), recurringOccurrenceBrick occurrence == brickId brick] of
       occurrence : _ -> Just occurrence
@@ -2733,7 +2734,7 @@ makeCurrentFocusEnvelope identity cursor precondition now state brick =
     precondition
     FocusGrammar
     (CurrentFocusOpportunity (brickId brick))
-    (EnvelopeContent "Current focus:" (Just (brickCitation brick)) (standingContext state brick) Nothing)
+    (EnvelopeContent "Current focus:" (Just (brickCitation brick)) (standingContext now state brick) Nothing)
     [ Action "focus.done" "done" "d" False "Complete this finite Work and clear focus."
     , Action "focus.skip" "skip" "s" False "Explain what is getting in the way."
     , moreAction
@@ -3069,7 +3070,17 @@ makeRecurrenceResultEnvelope identity cursor precondition now state brick record
   heading = if recorded then "Recurrence recorded:" else "Recurrence unchanged:"
   summary = case Map.lookup (brickId brick) (stateRecurrenceSchedules state) of
     Nothing -> []
-    Just schedule -> "" : fmap (recurrenceFieldLine schedule) (recurrenceFields schedule)
+    Just schedule -> "" : fmap (recurrenceFieldLine schedule) (recurrenceFields schedule) <> openLines
+  openOccurrences =
+    [ (occurrence, occurrenceBrick)
+    | occurrence <- sortOn (zonedInstantUtc . recurringOccurrenceNominalAnchor) (Map.elems (stateRecurringOccurrences state))
+    , recurringOccurrenceOwner occurrence == brickId brick
+    , Just occurrenceBrick <- [Map.lookup (recurringOccurrenceBrick occurrence) (stateBricks state)]
+    , brickStatus occurrenceBrick == BrickActive
+    ]
+  openLines
+    | not recorded || null openOccurrences = []
+    | otherwise = ["", "Open now:"] <> [brickCitation occurrenceBrick <> " · " <> recurringOccurrenceLabel occurrence | (occurrence, occurrenceBrick) <- openOccurrences]
 
 makeScheduledCommitmentEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ScheduledInterval -> InteractionEnvelope
 makeScheduledCommitmentEnvelope identity cursor precondition now state brick interval =

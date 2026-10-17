@@ -14,6 +14,10 @@ replace the specification.
   occurrence Nature, interval, weekdays or day, local times, IANA zone, and
   opens/best-before/deadline offsets, previewing the next three anchors. Edits
   govern only anchors from the current day on.
+- Release occurrences made due by an accepted recurrence before showing its
+  receipt, which lists the occurrences open now, so answering the receipt is
+  not stale. Label new occurrences by their period (`Fri, Oct 16 2026`,
+  `Oct 2026`, `2026`) and show the occurrence deadline beside it.
 
 - Limit newly allocated Brick, Raw, and ExternalEntity handle bases to six
   characters, preserving collision suffixes and all existing handles.

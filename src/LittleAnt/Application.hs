@@ -3496,7 +3496,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                   Right _ -> advanceRecurrence owner field updated
             | otherwise -> advanceRecurrence owner field updated
     (RecurrencePreviewOpportunity ownerId schedule, "recurrence.accept", _) ->
-      withRecurringSeries ownerId $ \_ -> mutate 2 (decideSetRecurrenceSchedule state actor schedule) makeRecurrenceRecorded
+      withRecurringSeries ownerId $ \_ -> mutateAndTick 2 (decideSetRecurrenceSchedule state actor schedule) makeRecurrenceRecorded
     (RecurrencePreviewOpportunity ownerId schedule, "recurrence.edit", _) ->
       withRecurringSeries ownerId $ \owner -> local (makeRecurrenceFieldEnvelope current now state owner RecurrenceFamilyField schedule "")
     (RecurrencePreviewOpportunity ownerId _, "recurrence.reject", _) ->
@@ -6260,6 +6260,28 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
                 let nextCheckpoint = PresentationCheckpoint envelope [] []
                 saveUnlessDry environment dryRun nextCheckpoint
                 pure . Right $ RespondResult (loadedCursor accepted) envelope (Just (mutationDecisionCommandId mutation)) dryRun
+
+  -- Like 'mutate', but releases what the change made due before building the
+  -- result, so the receipt already carries the post-release cursor and the
+  -- next command's tick has nothing left to invalidate it.
+  mutateAndTick count decision resultBuilder = do
+    facts <- runtimeFacts environment count cursor
+    case decision facts of
+      Left problem -> pure (Left problem)
+      Right mutation ->
+        persistOrSimulate environment dryRun dataset (mutationDecisionEvents mutation) >>= \case
+          Left problem -> pure (Left problem)
+          Right accepted ->
+            advanceDueTemporal environment dryRun accepted >>= \case
+              Left problem -> pure (Left problem)
+              Right (released, _) -> do
+                identity <- appAllocateUUID environment
+                currentNow <- appZonedNow environment
+                case resultBuilder identity currentNow released mutation of
+                  Left problem -> pure (Left problem)
+                  Right envelope -> do
+                    saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+                    pure . Right $ RespondResult (loadedCursor released) envelope (Just (mutationDecisionCommandId mutation)) dryRun
 
   feedRequestTitle brickId selection entityId title = do
     facts <- runtimeFacts environment 3 cursor

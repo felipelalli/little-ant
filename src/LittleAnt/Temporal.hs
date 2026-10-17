@@ -55,7 +55,7 @@ makeRelease schedule anchor =
   RecurrenceReleaseFact
     { releaseFactOwner = recurrenceOwner schedule
     , releaseFactAnchor = anchorInstant anchor
-    , releaseFactLabel = Text.pack (show (anchorLocal anchor))
+    , releaseFactLabel = occurrenceLabel (recurrenceRule schedule) (anchorLocal anchor)
     , releaseFactTemporal = constraints
     , releaseFactInterval = interval
     }
@@ -74,6 +74,20 @@ makeRelease schedule anchor =
   interval = case recurrenceDurationSeconds schedule of
     Nothing -> Nothing
     Just duration -> Just (anchorInstant anchor, anchored duration)
+
+{- | The occurrence label names its period in the series' own grain: a day
+for daily and weekly series, a month or a year otherwise. Several local
+times in one day add the clock time.
+-}
+occurrenceLabel :: CalendarRule -> LocalTime -> Text
+occurrenceLabel rule local = Text.pack (formatTime defaultTimeLocale format local)
+ where
+  clock = if length (calendarTimes rule) > 1 then ", %H:%M" else ""
+  format = case calendarFamily rule of
+    DailyRecurrence -> "%a, %b %-d %Y" <> clock
+    WeeklyRecurrence -> "%a, %b %-d %Y" <> clock
+    MonthlyRecurrence -> "%b %Y"
+    YearlyRecurrence -> "%Y"
 
 occurrenceExists :: State -> RecurrenceSchedule -> CalendarAnchor -> Bool
 occurrenceExists state schedule anchor =
