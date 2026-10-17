@@ -158,7 +158,7 @@ tests =
                 }
             draft = WorkDraft (rawId raw) "Domain child" AtomicTask Nothing (Just parentId) (Set.singleton domainId) 0 (Provisional "importance insertion pending") []
             previous = makeRawTriageEnvelope interactionId Genesis (statePreconditionHash state) (utcToZonedTime utc fixedTime) state raw
-            envelope = makeDomainSelectionEnvelope previous (utcToZonedTime utc fixedTime) state raw draft [domainId]
+            envelope = makeDomainSelectionEnvelope previous (utcToZonedTime utc fixedTime) state raw draft [domainId] False
         assertBool "the parent Domain is visibly selected" (any ((== "domain.toggle." <> renderUUIDv7 domainId) . actionId) (envelopeActions envelope))
         eitherDecode (encode envelope) @?= Right envelope
     , testCase "ListEntry creation and quantity addition retain complete undo evidence" $ do

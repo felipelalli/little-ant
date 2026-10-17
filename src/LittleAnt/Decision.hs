@@ -60,6 +60,7 @@ module LittleAnt.Decision (
   decideScheduledOutcome,
   decideExcuseOccurrence,
   decideOccurrenceDoneLate,
+  decideChangeBrickDomains,
   decideSetRecurrenceSchedule,
   decideSetHabitSchedule,
   decideSetOperationalDayConfig,
@@ -1392,6 +1393,21 @@ decideExcuseOccurrence state actor identity reason facts = do
   (commandId, eventId) <- exactlyTwo allocated
   let event = makeDraft facts actor state allocated eventId commandId (ObligationOccurrenceExcusedV1 (ObligationOccurrenceExcused identity normalized))
   pure (MutationDecision commandId (Just brick) Nothing [event])
+
+-- | FED-057: replace a Brick's direct Domain memberships in one batch.
+decideChangeBrickDomains :: State -> Actor -> UUIDv7 -> Set.Set UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
+decideChangeBrickDomains state actor identity proposed facts = do
+  brick <- requireActiveBrick state identity
+  when (brickDomains brick == proposed) $
+    Left (appError InvalidInput "These Domains are already this Brick's direct memberships.")
+  unless (all activeDomain (Set.toList (proposed Set.\\ brickDomains brick))) $
+    Left (appError PreconditionFailed "A selected Domain is missing or archived.")
+  allocated <- requireUUIDs 2 facts
+  (commandId, eventId) <- exactlyTwo allocated
+  let event = makeDraft facts actor state allocated eventId commandId (BrickDomainsChangedV1 (BrickDomainsChanged identity (brickDomains brick) proposed))
+  pure (MutationDecision commandId (Just brick) Nothing [event])
+ where
+  activeDomain domain = maybe False domainActive (Map.lookup domain (stateDomains state))
 
 -- | WRK-163: complete a missed occurrence late without erasing the miss.
 decideOccurrenceDoneLate :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision

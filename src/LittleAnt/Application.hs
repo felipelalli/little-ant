@@ -3714,8 +3714,36 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (RecurrencePreviewOpportunity{}, "recurrence.unknown", _) ->
       local (appendBody current "Each anchor is one nominal date and time. Opens, best before, and deadline are fixed offsets from it. An occurrence is released when it opens. At deadline decides what an unfinished period becomes: stays open keeps it open as debt until done, and a later anchor never closes it; counts as missed closes it as missed at its deadline, and you can still excuse it or mark it done late.")
     (UpdateMeaningOpportunity brickId, "update.description", _) -> openUpdateText brickId UpdateDescription
+    (UpdateMeaningOpportunity brickId, "update.domains", _) ->
+      withAnyBrick brickId $ \brick ->
+        if null (activeDomainCandidates state)
+          then local (appendBody current "No active Domain exists yet.")
+          else local (makeBrickDomainSelectionEnvelope current now state brick (brickDomains brick))
+    (BrickDomainSelectionOpportunity brickId selected, action, _) -> withAnyBrick brickId $ \brick ->
+      case action of
+        "domain.continue"
+          | selected == brickDomains brick -> local (appendBody current "These are already this Work's Domains; toggle one or press Esc.")
+          | otherwise -> local (makeBrickDomainPreviewEnvelope current now state brick selected)
+        "domain.clear" -> local (makeBrickDomainSelectionEnvelope current now state brick Set.empty)
+        "domain.assistance" -> local (appendBody current "Domain membership is direct and optional. Children never inherit it, and an empty set means explicitly no Domain.")
+        _ | Just identityText <- Text.stripPrefix "domain.toggle." action ->
+          case parseUUIDv7 identityText of
+            Right identity
+              | identity `elem` activeDomainCandidates state ->
+                  let updated = if identity `Set.member` selected then Set.delete identity selected else Set.insert identity selected
+                   in local (makeBrickDomainSelectionEnvelope current now state brick updated)
+            _ -> pure (Left (appError InvalidInput "The selected Domain is not active."))
+        _ -> pure (Left unavailable)
+    (BrickDomainPreviewOpportunity brickId proposed, "domain.accept", _) ->
+      mutate 2 (decideChangeBrickDomains state actor brickId proposed) (makeDomainsChanged brickId)
+    (BrickDomainPreviewOpportunity brickId proposed, "domain.edit", _) ->
+      withAnyBrick brickId $ \brick -> local (makeBrickDomainSelectionEnvelope current now state brick proposed)
+    (BrickDomainPreviewOpportunity brickId _, "domain.cancel", _) ->
+      withAnyBrick brickId $ \brick -> local (advanceEnvelope current (makeUpdateMeaningEnvelope (envelopeInteractionId current) cursor precondition now state brick))
+    (BrickDomainPreviewOpportunity{}, "domain.assistance", _) ->
+      local (appendBody current "Yes records the additions and removals as one batch. Children keep their own Domains, and the change can be revised the same way later.")
     (UpdateMeaningOpportunity{}, "update.unknown", _) ->
-      local (appendBody current "Title changes only the visible wording. Description creates or revises the one text Raw attached as this Brick's description. UUID, # handle, structure, importance, and history remain unchanged.")
+      local (appendBody current "Title changes only the visible wording. Description creates or revises the one text Raw attached as this Brick's description. Domains changes its direct Domain memberships. UUID, # handle, structure, importance, and history remain unchanged.")
     (UpdateTextOpportunity brickId field original _, "update.text.submit", Just supplied) ->
       withAnyBrick brickId $ \brick ->
         let proposed = Text.strip supplied
@@ -4187,10 +4215,12 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (ListEntryReuseOpportunity{}, "list-entry.separate", _) -> local (appendBody current "A separate item must first receive a distinguishable label; identical owner-scoped duplicates are never created silently.")
     (ListEntryReuseOpportunity{}, "list-entry.assistance", _) -> local (appendBody current "Keep preserves the current quantity. Add is offered only for matching normalized units. Separate requires a distinguishable label.")
     (WorkTitleOpportunity context nature template _, "work.title.submit", Just title) -> acceptTitle context nature template title
-    (DomainSelectionOpportunity draft candidates, action, _) -> withRaw (workDraftRawId draft) $ \raw ->
+    (DomainSelectionOpportunity draft candidates fromPreview, action, _) -> withRaw (workDraftRawId draft) $ \raw ->
       case action of
-        "domain.continue" -> beginExistingWorkCheck raw draft
-        "domain.clear" -> local (makeDomainSelectionEnvelope current now state raw draft{workDraftDomains = Set.empty} candidates)
+        "domain.continue"
+          | fromPreview -> local (makeWorkPreviewEnvelope current now state raw draft)
+          | otherwise -> beginExistingWorkCheck raw draft
+        "domain.clear" -> local (makeDomainSelectionEnvelope current now state raw draft{workDraftDomains = Set.empty} candidates fromPreview)
         "domain.assistance" -> local (appendBody current "Domain membership is direct and optional. A parent may suggest these paths, but it never assigns them silently.")
         _ | Just identityText <- Text.stripPrefix "domain.toggle." action ->
           case parseUUIDv7 identityText of
@@ -4198,7 +4228,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
               | identity `elem` candidates ->
                   let selected = workDraftDomains draft
                       updated = if identity `Set.member` selected then Set.delete identity selected else Set.insert identity selected
-                   in local (makeDomainSelectionEnvelope current now state raw draft{workDraftDomains = updated} candidates)
+                   in local (makeDomainSelectionEnvelope current now state raw draft{workDraftDomains = updated} candidates fromPreview)
             _ -> pure (Left (appError InvalidInput "The selected Domain is not one of this draft's candidates."))
         _ -> pure (Left unavailable)
     (ExistingWorkSuspicionOpportunity draft existingId, "work-reuse.use", _) -> mutate 4 (decideReuseExistingWork state actor (workDraftRawId draft) existingId) (makeExistingWorkResult existingId)
@@ -4211,6 +4241,12 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (ImportanceInsertionOpportunity draft low high skipped comparator, action, _) -> answerImportance draft low high skipped comparator action
     (WorkPreviewOpportunity draft, "work.create", _) -> mutate (6 + length (workDraftComparisons draft)) (decideMaterializeWork state actor draft) makeWorkCreated
     (WorkPreviewOpportunity draft, "work.edit", _) -> withRaw (workDraftRawId draft) $ \raw -> local (makeWorkTitleEnvelope current now state raw (WorkContext (workDraftRawId draft) (workDraftParent draft) (workDraftDomains draft)) (workDraftNature draft) (workDraftTemplate draft) (workDraftTitle draft))
+    (WorkPreviewOpportunity draft, "work.domains", _) -> withRaw (workDraftRawId draft) $ \raw ->
+      let parentDomains = maybe [] (maybe [] (Set.toAscList . brickDomains) . (`Map.lookup` stateBricks state)) (workDraftParent draft)
+          candidates = parentDomains <> filter (`notElem` parentDomains) (activeDomainCandidates state)
+       in if null candidates
+            then local (appendBody current "No active Domain exists yet.")
+            else local (makeDomainSelectionEnvelope current now state raw draft candidates True)
     (WorkPreviewOpportunity draft, "work.cancel", _) -> withRaw (workDraftRawId draft) $ \raw -> local (advanceEnvelope current (makeRawTriageEnvelope (envelopeInteractionId current) cursor precondition now state raw))
     (WorkPreviewOpportunity draft, "work.preview-assistance", _) -> withRaw (workDraftRawId draft) $ \raw -> local (withExplanation current "Yes is the only mutation. It creates the Brick, source link, Raw disposition, sibling position, and accepted comparison evidence as one command group." raw state now)
     (OrderScopeOpportunity, "order.all", _) -> startScope AllSiblingGroups
@@ -6365,7 +6401,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             initialDraft = WorkDraft (workContextRawId context) (Text.strip title) nature template parent initialDomains 0 (Provisional "importance insertion pending") []
          in if null candidates
               then beginExistingWorkCheck raw initialDraft
-              else local (makeDomainSelectionEnvelope current now state raw initialDraft candidates)
+              else local (makeDomainSelectionEnvelope current now state raw initialDraft candidates False)
 
   beginExistingWorkCheck raw draft =
     case find matching (activeBricks state) of
@@ -6744,6 +6780,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   makeArchiveReviewResult brickId message identity currentNow accepted _ = do
     brick <- maybe (Left (appError CorruptData "The archived Brick disappeared after review.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
     pure (makeArchiveReviewResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick message)
+
+  makeDomainsChanged brickId identity currentNow accepted _ = do
+    brick <- maybe (Left (appError CorruptData "The classified Brick disappeared after replay.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
+    pure (makeBrickDomainsResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick)
 
   makeUpdated brickId field identity currentNow accepted _ = do
     brick <- maybe (Left (appError CorruptData "The updated Brick disappeared after replay.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))

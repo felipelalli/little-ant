@@ -3,6 +3,7 @@ module LittleAnt.Event (
   BrickCreated (..),
   BrickChildCreated (..),
   BrickNatureChanged (..),
+  BrickDomainsChanged (..),
   BrickFocused (..),
   BrickStatusChanged (..),
   DependencyAdded (..),
@@ -380,6 +381,13 @@ data BrickNatureChanged = BrickNatureChanged
   }
   deriving stock (Eq, Show)
 
+data BrickDomainsChanged = BrickDomainsChanged
+  { domainsChangedBrick :: UUIDv7
+  , domainsChangedFrom :: Set.Set UUIDv7
+  , domainsChangedTo :: Set.Set UUIDv7
+  }
+  deriving stock (Eq, Show)
+
 data BrickChildCreated = BrickChildCreated
   { createdChildId :: UUIDv7
   , createdChildHandle :: Handle
@@ -613,6 +621,7 @@ data EventPayload
   | RawFeedRestoredV1 RawFeedRestored
   | BrickCreatedV1 BrickCreated
   | BrickNatureChangedV1 BrickNatureChanged
+  | BrickDomainsChangedV1 BrickDomainsChanged
   | BrickChildCreatedV1 BrickChildCreated
   | LazyReviewRequestedV1 LazyReviewRequested
   | LazyReviewSettledV1 LazyReviewSettled
@@ -718,6 +727,7 @@ eventTypeName = \case
   RawFeedRestoredV1 _ -> "raw_feed_restored"
   BrickCreatedV1 _ -> "brick_created"
   BrickNatureChangedV1 _ -> "brick_nature_changed"
+  BrickDomainsChangedV1 _ -> "brick_domains_changed"
   BrickChildCreatedV1 _ -> "brick_child_created"
   LazyReviewRequestedV1 _ -> "lazy_review_requested"
   LazyReviewSettledV1 _ -> "lazy_review_settled"
@@ -860,6 +870,7 @@ applyEvent state event = case persistedPayload event of
   RawFeedRestoredV1 payload -> applyFeedRestoration state event payload
   BrickCreatedV1 payload -> applyBrickCreated state event payload
   BrickNatureChangedV1 payload -> applyBrickNatureChanged state payload
+  BrickDomainsChangedV1 payload -> applyBrickDomainsChanged state payload
   BrickChildCreatedV1 payload -> applyBrickChildCreated state event payload
   LazyReviewRequestedV1 payload -> applyLazyReviewRequested state event payload
   LazyReviewSettledV1 payload -> applyLazyReviewSettled state payload
@@ -2412,6 +2423,23 @@ applyBrickNatureChanged state payload = do
       , stateLastRedo = Nothing
       }
 
+-- | FED-057: one batch replaces a Brick's direct Domain memberships.
+applyBrickDomainsChanged :: State -> BrickDomainsChanged -> Either AppError State
+applyBrickDomainsChanged state payload = do
+  brick <- requireBrick state (domainsChangedBrick payload)
+  unless (brickStatus brick == BrickActive) $ corrupt "Only an active Brick can change its Domains."
+  unless (brickDomains brick == domainsChangedFrom payload) $ corrupt "A Domain membership change cites stale prior memberships."
+  when (domainsChangedFrom payload == domainsChangedTo payload) $ corrupt "A Domain membership change must change the memberships."
+  unless (all activeDomain (Set.toList (domainsChangedTo payload Set.\\ domainsChangedFrom payload))) $
+    corrupt "A Domain membership change adds a missing or inactive Domain."
+  Right . bump $
+    state
+      { stateBricks = Map.insert (brickId brick) brick{brickDomains = domainsChangedTo payload} (stateBricks state)
+      , stateLastRedo = Nothing
+      }
+ where
+  activeDomain identity = maybe False domainActive (Map.lookup identity (stateDomains state))
+
 applyBrickChildCreated :: State -> PersistedEvent -> BrickChildCreated -> Either AppError State
 applyBrickChildCreated state event payload = do
   parent <- requireBrick state (createdChildParent payload)
@@ -3090,6 +3118,12 @@ payloadValue = \case
       , "to" .= natureText (natureChangedTo payload)
       , "source" .= natureChangedSource payload
       ]
+  BrickDomainsChangedV1 payload ->
+    object
+      [ "brick_id" .= uuid (domainsChangedBrick payload)
+      , "from" .= fmap uuid (Set.toAscList (domainsChangedFrom payload))
+      , "to" .= fmap uuid (Set.toAscList (domainsChangedTo payload))
+      ]
   BrickChildCreatedV1 payload ->
     object
       [ "brick_id" .= uuid (createdChildId payload)
@@ -3420,6 +3454,17 @@ parsePayload eventType version payload = case (eventType, version) of
               <*> (value .: "from" >>= parseNature)
               <*> (value .: "to" >>= parseNature)
               <*> value .: "source"
+        )
+        payload
+  ("brick_domains_changed", 1) ->
+    BrickDomainsChangedV1
+      <$> withObject
+        "brick_domains_changed@1"
+        ( \value ->
+            BrickDomainsChanged
+              <$> (value .: "brick_id" >>= parseId)
+              <*> (Set.fromList <$> (value .: "from" >>= traverse parseId))
+              <*> (Set.fromList <$> (value .: "to" >>= traverse parseId))
         )
         payload
   ("judgment_review_requested", 1) ->

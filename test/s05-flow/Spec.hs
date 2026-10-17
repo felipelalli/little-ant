@@ -35,6 +35,7 @@ main =
       , testCase "restore keeps identity and queues only local importance review" restoreWork
       , testCase "title update preserves Brick identity and structure" updateTitle
       , testCase "description update creates one Raw and then revises it in place" updateDescription
+      , testCase "Domains update previews and records direct memberships as one batch" updateDomains
       ]
 
 provisionalSymptom :: Assertion
@@ -184,6 +185,29 @@ updateTitle = withHarness $ \environment -> do
   brickDomains changedBrick @?= brickDomains oldBrick
   brickSiblingPosition changedBrick @?= brickSiblingPosition oldBrick
   Map.size (stateBrickTitleNormalizations (loadedState updated)) @?= 1
+
+updateDomains :: Assertion
+updateDomains = withHarness $ \environment -> do
+  seedOneBrick environment
+  seeded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let domainId = fixtureUuid 30
+      registration = EventDraft (fixtureUuid 32) (fixtureUuid 31) (Actor "human" "test") fixedTime (statePreconditionHash (loadedState seeded)) [fixtureUuid 31, fixtureUuid 32] (DomainRegisteredV1 (DomainRegistered (Domain domainId "eulen" Nothing True)))
+  registered <- appendCommand (appStore environment) (loadedCursor seeded) [registration]
+  either (assertFailure . show) (const (pure ())) registered
+  hub <- run environment (UpdateCommand "#rrsr" Nothing) >>= interactionOf
+  selector <- answer environment hub "update.domains"
+  envelopeOpportunity selector @?= BrickDomainSelectionOpportunity brickIdValue Set.empty
+  toggled <- answer environment selector ("domain.toggle." <> renderUUIDv7 domainId)
+  envelopeOpportunity toggled @?= BrickDomainSelectionOpportunity brickIdValue (Set.singleton domainId)
+  preview <- answer environment toggled "domain.continue"
+  envelopeOpportunity preview @?= BrickDomainPreviewOpportunity brickIdValue (Set.singleton domainId)
+  assertBool "the preview names the addition" ("Add: eulen" `elem` contentBody (envelopeContent preview))
+  unchanged <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  brickDomains (stateBricks (loadedState unchanged) Map.! brickIdValue) @?= Set.empty
+  result <- answer environment preview "domain.accept"
+  envelopeOpportunity result @?= BrickDomainsResultOpportunity brickIdValue
+  updated <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  brickDomains (stateBricks (loadedState updated) Map.! brickIdValue) @?= Set.singleton domainId
 
 updateDescription :: Assertion
 updateDescription = withHarness $ \environment -> do

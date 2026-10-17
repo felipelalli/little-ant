@@ -100,6 +100,10 @@ module LittleAnt.Interaction (
   makeUpdateResultEnvelope,
   makeCurrentFocusEnvelope,
   makeDomainSelectionEnvelope,
+  makeBrickDomainSelectionEnvelope,
+  makeBrickDomainPreviewEnvelope,
+  makeBrickDomainsResultEnvelope,
+  activeDomainCandidates,
   makeDomainFocusEnvelope,
   makeDomainFocusResultEnvelope,
   makeExistingWorkReuseResultEnvelope,
@@ -398,7 +402,10 @@ data Opportunity
   | NatureConfirmationOpportunity WorkContext BrickNature Text NatureQuestion
   | TemplateChoiceOpportunity WorkContext BrickNature
   | WorkTitleOpportunity WorkContext BrickNature (Maybe TemplateSelection) Text
-  | DomainSelectionOpportunity WorkDraft [UUIDv7]
+  | DomainSelectionOpportunity WorkDraft [UUIDv7] Bool
+  | BrickDomainSelectionOpportunity UUIDv7 (Set.Set UUIDv7)
+  | BrickDomainPreviewOpportunity UUIDv7 (Set.Set UUIDv7)
+  | BrickDomainsResultOpportunity UUIDv7
   | DomainFocusOpportunity UUIDv7
   | DomainFocusResultOpportunity UUIDv7 DomainFocusMode
   | ExistingWorkSuspicionOpportunity WorkDraft UUIDv7
@@ -1839,8 +1846,13 @@ makeWorkTitleEnvelope previous now state raw context nature template title =
       (rawFooter now state raw)
 
 makeWorkPreviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkDraft -> InteractionEnvelope
-makeDomainSelectionEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkDraft -> [UUIDv7] -> InteractionEnvelope
-makeDomainSelectionEnvelope previous now state raw draft candidates =
+
+{- | The Domain step of triage. With @fromPreview@ it was opened from the final
+preview, and continuing returns there instead of starting the importance
+insertion again (FED-051).
+-}
+makeDomainSelectionEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkDraft -> [UUIDv7] -> Bool -> InteractionEnvelope
+makeDomainSelectionEnvelope previous now state raw draft candidates fromPreview =
   advanceEnvelope previous $
     sealed
       (envelopeInteractionId previous)
@@ -1848,7 +1860,7 @@ makeDomainSelectionEnvelope previous now state raw draft candidates =
       (envelopeDatasetCursor previous)
       (envelopePreconditionHash previous)
       ChoiceGrammar
-      (DomainSelectionOpportunity draft candidates)
+      (DomainSelectionOpportunity draft candidates fromPreview)
       (EnvelopeContent "Select zero or more Domains:" (Just ("Work: \"" <> workDraftTitle draft <> "\"")) [] Nothing)
       (domainActions <> [clearAction, continueAction, assistanceAction, moreAction])
       (rawCommands raw)
@@ -1962,6 +1974,7 @@ makeWorkPreviewEnvelope previous now state raw draft =
       )
       [ Action "work.create" "yes" "y" True "Atomically create every previewed fact."
       , Action "work.edit" "edit" "e" False "Return to the nearest editable draft fact."
+      , Action "work.domains" "Domains" "d" False "Choose this draft's direct Domains, then return here."
       , Action "work.cancel" "no" "n" False "Discard only this Work draft."
       , Action "work.preview-assistance" "I don't know" "k" False "Inspect consequences without accepting."
       , moreAction
@@ -2786,6 +2799,7 @@ makeUpdateMeaningEnvelope identity cursor precondition now state brick =
     (EnvelopeContent "Update Work:" (Just (brickCitation brick)) [] (Just "What changed?"))
     ( [ Action "update.title" "title" "t" False "Edit only the visible title; identity and structure remain unchanged."
       , Action "update.description" "description" "d" False "Create or revise the one description Raw attached to this Brick."
+      , Action "update.domains" "Domains" "o" False "Choose this Brick's direct Domains."
       ]
         <> [ Action "update.repetition" "repetition" "r" False "Change this recurring series' calendar rule and due offsets."
            | brickNature brick == RecurringObligation
@@ -2851,6 +2865,82 @@ makeUpdateResultEnvelope identity cursor precondition now state brick field =
     (UpdateResultOpportunity (brickId brick) field)
     ("Updated " <> updateMeaningFieldText field <> ":")
     [brickCitation brick]
+
+-- | Every active Domain, ordered by its displayed path (FED-057).
+activeDomainCandidates :: State -> [UUIDv7]
+activeDomainCandidates state =
+  fmap domainId (sortOn (\domain -> (Text.toCaseFold (domainPath state (domainId domain)), domainId domain)) (filter domainActive (Map.elems (stateDomains state))))
+
+-- | FED-057: a multi-selector over active Domain paths for an existing Brick.
+makeBrickDomainSelectionEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> Set.Set UUIDv7 -> InteractionEnvelope
+makeBrickDomainSelectionEnvelope previous now state brick selected =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ChoiceGrammar
+      (BrickDomainSelectionOpportunity (brickId brick) selected)
+      (EnvelopeContent "Select zero or more Domains:" (Just (brickCitation brick)) [] Nothing)
+      ( [ Action
+            ("domain.toggle." <> renderUUIDv7 identity)
+            ((if identity `Set.member` selected then "* " else "  ") <> domainPath state identity)
+            (Text.pack (show number))
+            False
+            "Toggle this direct Domain membership."
+        | (number, identity) <- zip [1 :: Int ..] (activeDomainCandidates state)
+        ]
+          <> [ Action "domain.clear" "no Domain" "n" False "Clear every direct Domain membership."
+             , Action "domain.continue" "continue" "enter" True "Review the additions and removals before recording them."
+             , Action "domain.assistance" "I don't know" "k" False "Explain direct Domain membership without changing the selection."
+             , moreAction
+             ]
+      )
+      [showBrickCommand brick, helpCommand, exitCommand]
+      (Just "confirm_direct_domains")
+      (brickFooter now state brick)
+
+makeBrickDomainPreviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> Set.Set UUIDv7 -> InteractionEnvelope
+makeBrickDomainPreviewEnvelope previous now state brick proposed =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ConfirmationGrammar
+      (BrickDomainPreviewOpportunity (brickId brick) proposed)
+      ( EnvelopeContent
+          "Change this Work's Domains?"
+          (Just (brickCitation brick))
+          ( ["Add: " <> domainPath state identity | identity <- Set.toAscList (proposed Set.\\ brickDomains brick)]
+              <> ["Remove: " <> domainPath state identity | identity <- Set.toAscList (brickDomains brick Set.\\ proposed)]
+              <> ["After: " <> domainsText state proposed]
+          )
+          Nothing
+      )
+      [ Action "domain.accept" "yes" "y" False "Record these direct memberships as one batch."
+      , Action "domain.edit" "edit" "e" False "Return to the Domain selection."
+      , Action "domain.cancel" "cancel" "c" False "Return to the update hub without recording anything."
+      , Action "domain.assistance" "I don't know" "k" False "Explain direct Domain membership."
+      , moreAction
+      ]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      (Just "confirm_direct_domains")
+      (brickFooter now state brick)
+
+makeBrickDomainsResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
+makeBrickDomainsResultEnvelope identity cursor precondition now state brick =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (BrickDomainsResultOpportunity (brickId brick))
+    "Updated Domains:"
+    [brickCitation brick, "Domains: " <> domainsText state (brickDomains brick)]
 
 updateMeaningFieldText :: UpdateMeaningField -> Text
 updateMeaningFieldText = \case
@@ -5036,7 +5126,10 @@ opportunityValue = \case
   NatureConfirmationOpportunity context nature reason lastQuestion -> typed "nature_confirmation" ["context" .= workContextValue context, "nature" .= natureText nature, "reason" .= reason, "last_question" .= questionText lastQuestion]
   TemplateChoiceOpportunity context nature -> typed "template_choice" ["context" .= workContextValue context, "nature" .= natureText nature]
   WorkTitleOpportunity context nature template title -> typed "work_title" (["context" .= workContextValue context, "nature" .= natureText nature, "title" .= title] <> maybe [] (pure . ("template" .=) . templateSelectionValue) template)
-  DomainSelectionOpportunity draft candidates -> typed "domain_selection" ["draft" .= workDraftValue draft, "candidates" .= fmap renderUUIDv7 candidates]
+  DomainSelectionOpportunity draft candidates fromPreview -> typed "domain_selection" (["draft" .= workDraftValue draft, "candidates" .= fmap renderUUIDv7 candidates] <> ["from_preview" .= True | fromPreview])
+  BrickDomainSelectionOpportunity brickId selected -> typed "brick_domain_selection" ["brick_id" .= renderUUIDv7 brickId, "selected" .= fmap renderUUIDv7 (Set.toAscList selected)]
+  BrickDomainPreviewOpportunity brickId proposed -> typed "brick_domain_preview" ["brick_id" .= renderUUIDv7 brickId, "proposed" .= fmap renderUUIDv7 (Set.toAscList proposed)]
+  BrickDomainsResultOpportunity brickId -> typed "brick_domains_result" ["brick_id" .= renderUUIDv7 brickId]
   DomainFocusOpportunity identity -> typed "domain_focus" ["domain_id" .= renderUUIDv7 identity]
   DomainFocusResultOpportunity identity mode -> typed "domain_focus_result" ["domain_id" .= renderUUIDv7 identity, "mode" .= domainFocusModeName mode]
   ExistingWorkSuspicionOpportunity draft brickId -> typed "existing_work_suspicion" ["draft" .= workDraftValue draft, "brick_id" .= renderUUIDv7 brickId]
@@ -5269,7 +5362,10 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "nature_confirmation" -> NatureConfirmationOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature) <*> value .: "reason" <*> (value .: "last_question" >>= parseQuestion)
     "template_choice" -> TemplateChoiceOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature)
     "work_title" -> WorkTitleOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature) <*> (value .:? "template" >>= traverse parseTemplateSelection) <*> value .: "title"
-    "domain_selection" -> DomainSelectionOpportunity <$> (value .: "draft" >>= parseWorkDraft) <*> (value .: "candidates" >>= traverse parseUuid)
+    "domain_selection" -> DomainSelectionOpportunity <$> (value .: "draft" >>= parseWorkDraft) <*> (value .: "candidates" >>= traverse parseUuid) <*> value .:? "from_preview" .!= False
+    "brick_domain_selection" -> BrickDomainSelectionOpportunity <$> uuidField value "brick_id" <*> (Set.fromList <$> (value .: "selected" >>= traverse parseUuid))
+    "brick_domain_preview" -> BrickDomainPreviewOpportunity <$> uuidField value "brick_id" <*> (Set.fromList <$> (value .: "proposed" >>= traverse parseUuid))
+    "brick_domains_result" -> BrickDomainsResultOpportunity <$> uuidField value "brick_id"
     "domain_focus" -> DomainFocusOpportunity <$> uuidField value "domain_id"
     "domain_focus_result" -> DomainFocusResultOpportunity <$> uuidField value "domain_id" <*> (value .: "mode" >>= parseDomainFocusMode)
     "existing_work_suspicion" -> ExistingWorkSuspicionOpportunity <$> (value .: "draft" >>= parseWorkDraft) <*> uuidField value "brick_id"

@@ -6,11 +6,13 @@ import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.IORef
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Application
-import LittleAnt.Decision (WorkDraft (..))
+import LittleAnt.Decision (WorkDraft (..), statePreconditionHash)
+import LittleAnt.Event (DomainRegistered (..), EventDraft (..), EventPayload (..))
 import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
@@ -331,6 +333,33 @@ tests =
         direct [False, False, False, True] @?= RecurringObligation
         direct [False, False, False, False, True] @?= Habit
         direct [False, False, False, False, False] @?= Repeatable
+    , testCase "the final triage preview edits Domains of root Work and returns to itself" $ withHarness $ \environment -> do
+        empty <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let domainId = fixtureUuid 90
+            registration = EventDraft (fixtureUuid 92) (fixtureUuid 91) (Actor "human" "test") fixedTime (statePreconditionHash (loadedState empty)) [fixtureUuid 91, fixtureUuid 92] (DomainRegisteredV1 (DomainRegistered (Domain domainId "eulen" Nothing True)))
+        appendCommand (appStore environment) (loadedCursor empty) [registration] >>= either (assertFailure . show) (const (pure ()))
+        rawTriage <- run environment (FeedCommand "test" "plan the onboarding") >>= interactionOf
+        nature <- answer environment rawTriage "raw.materialize-work"
+        templates <- answer environment nature "nature.choose.atomic_task"
+        title <- answer environment templates "template.none"
+        preview <- submit environment title "work.title.submit" "Plan the onboarding"
+        selector <- answer environment preview "work.domains"
+        case envelopeOpportunity selector of
+          DomainSelectionOpportunity draft candidates True -> do
+            workDraftParent draft @?= Nothing
+            candidates @?= [domainId]
+          other -> assertFailure ("expected Domain selection from the preview, got " <> show other)
+        toggled <- answer environment selector ("domain.toggle." <> renderUUIDv7 domainId)
+        back <- answer environment toggled "domain.continue"
+        case envelopeOpportunity back of
+          WorkPreviewOpportunity draft -> workDraftDomains draft @?= Set.singleton domainId
+          other -> assertFailure ("expected the same Work preview, got " <> show other)
+        created <- answer environment back "work.create"
+        createdId <- case envelopeOpportunity created of
+          WorkCreatedResultOpportunity _ identity -> pure identity
+          other -> assertFailure ("expected Work result, got " <> show other)
+        loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        brickDomains <$> Map.lookup createdId (stateBricks (loadedState loaded)) @?= Just (Set.singleton domainId)
     , testCase "exact duplicate rejection is revision-scoped and prevents immediate repeat" $ withHarness $ \environment -> do
         _ <- run environment (FeedCommand "test" "milk")
         second <- run environment (FeedCommand "test" "  MILK  ") >>= interactionOf

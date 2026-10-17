@@ -6876,14 +6876,17 @@ Confidence: human comparison
 
 Raw material remains preserved.
 
-*[y]es    [e]dit    [n]o    I don't [k]now
+*[y]es    [e]dit    [d]omains    [n]o    I don't [k]now
 
 [/] more...
 ```
 
 Every applicable required configuration, lazy non-human claim, and provisional
 confidence reason appears in the same preview. `edit` returns to the nearest
-selected fact; `no` discards only the Work draft and returns the source Raw to
+selected fact; `domains` opens the direct Domain selector over the parent's
+Domains first and then every other active Domain, also for root Work, and
+continuing returns to this same preview without repeating the importance
+insertion; `no` discards only the Work draft and returns the source Raw to
 UX-T01; reverse navigation retains the draft. Yes is the sole mutation and
 allocates the handle only after revalidation.
 

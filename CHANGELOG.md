@@ -9,6 +9,10 @@ replace the specification.
 
 ## Unreleased
 
+- Assign Domains to Work at the root: the final triage preview offers
+  `[d]omains` over the parent's and every other active Domain and returns to
+  the same preview, and `/update` gains `Domains` to change an existing
+  Brick's direct memberships through one previewed batch.
 - Let Escape leave the REPL from a review the forecast served as the session's
   root screen, as it already did from a Focus proposal or triage.
 - Highlight the current list view among `[i]mportance · [f]orecast ·
