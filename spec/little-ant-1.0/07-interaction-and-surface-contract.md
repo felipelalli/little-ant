@@ -150,6 +150,11 @@ assistance-label, and no-emoji rendering.
   empty-buffer `Backspace` stops at the commit boundary. `Escape` at the root
   main opportunity screen ends the presentation session, retaining its pending
   interaction and current focus; elsewhere it stops at the commit boundary.
+  When a reversible action was recorded during the current presentation
+  session, `Escape` at that boundary first opens UX-U01 for it; `no` keeps
+  everything and stays, and `Escape` on the preview keeps everything and
+  continues as if the preview had not opened. Actions recorded before the
+  session started are never offered this way.
   Main screens are pristine, safe-empty, Raw triage/duplicate, Focus proposal,
   current Focus, and scheduled commitment/overlap. The undisplayed `q` exit
   gesture is available on noneditable opportunity screens only when no action
@@ -167,13 +172,16 @@ assistance-label, and no-emoji rendering.
   selectors, the wheel moves the selection without activating its item. Wheel movement
   never answers a question, changes a draft, records an event, or redraws the
   forecast; the ordinary footer remains visible.
-- **UX-020 [core] — Semantic undo.** `C-_` and `/undo` append a typed
+- **UX-020 [core] — Semantic undo.** `Ctrl+Z`, `C-_`, and `/undo` append a typed
   compensating event for the latest reversible action in the current
-  interaction; they never delete history or consume a new draw. Confirming the
+  interaction; they never delete history or consume a new draw. Draws and
+  system temporal releases recorded after that action are bookkeeping: they
+  are not undo targets, and undoing the action discards them with it. The
+  REPL palette offers `/undo` and `/redo` on every screen. Confirming the
   boundary preview opened by `Left Arrow` invokes this exact operation. `no`,
   `Escape`, or `Backspace` closes the preview and restores the current screen
   without mutation.
-- **UX-021 [core] — Semantic redo.** `C-M-_` and `/redo` reapply the compensated
+- **UX-021 [core] — Semantic redo.** `Ctrl+Y`, `C-M-_`, and `/redo` reapply the compensated
   intent only if current preconditions still hold. Conflict is explicit.
   Confirming the boundary preview opened by `Right Arrow` invokes this exact
   operation. A newly committed action after undo invalidates any incompatible
@@ -1444,6 +1452,12 @@ assistance-label, and no-emoji rendering.
   and checklist additions use `create` or atomic `batch`; skip evidence uses
   `work_state`; merge/supersede use `batch` with their declared transfer
   matrix. Compensating events preserve the original command and provenance.
+  For the latest reversible command no later dependent mutation can exist, so
+  every precondition above holds; its compensation may restore the complete
+  state recorded before that command, which satisfies every class at once,
+  including Dependencies removed by an archive. Event count, random-stream
+  positions, and retired handles never move backwards. External effects,
+  received source facts, and import invocations end the undo chain.
 - **UX-199 [core] — Redo is one checked branch.** A successful undo returns one
   redo token for that exact command group. Read-only commands and local
   navigation do not invalidate it; any later canonical mutation by any actor

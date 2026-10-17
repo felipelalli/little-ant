@@ -49,6 +49,7 @@ import Graphics.Vty.CrossPlatform qualified as CrossPlatform
 import Graphics.Vty.Output (Mode (Mouse), setMode)
 import LittleAnt.Application
 import LittleAnt.Error
+import LittleAnt.Id (HandleKind (RawHandle), UUIDv7, generateUUIDv7, renderHandle, renderUUIDv7)
 import LittleAnt.Import
 import LittleAnt.Interaction
 import LittleAnt.Markdown
@@ -88,6 +89,8 @@ data ReplScreen
   | ReadOnlyScreen ReplScreen Text
   | SuspendedScreen ReplScreen Int
   | CompletionNoticeScreen Text ReplScreen
+  | -- | UX-019/UX-020: Escape at a commit boundary offers to undo the latest action.
+    UndoPromptScreen InteractionEnvelope [Text] (Maybe Text)
   deriving stock (Eq, Show)
 
 -- Presentation state is kept across inspection and view changes, never as a
@@ -163,28 +166,29 @@ runReplWithCommand environment initialCommand = do
                   <$> appProviderConnectionRuntime environment
             }
     environmentRef <- newIORef interactiveEnvironment
+    sessionStart <- generateUUIDv7
     result <- runAppCommand interactiveEnvironment False (showProgress vty color) initialCommand
     case result of
       Left problem -> paint vty color (errorModel problem) >> waitForExit vty
       Right NextResult{resultInteraction} -> do
         screen <- presentCompletedEnvelope interactiveEnvironment resultInteraction
-        loop environmentRef vty color width height 0 screen
-      Right RepairResult{resultInteraction} -> loop environmentRef vty color width height 0 (screenForEnvelope resultInteraction)
+        loop sessionStart environmentRef vty color width height 0 screen
+      Right RepairResult{resultInteraction} -> loop sessionStart environmentRef vty color width height 0 (screenForEnvelope resultInteraction)
       Right other -> paint vty color (textModel (renderCommandResult other)) >> waitForExit vty
 
-loop :: IORef AppEnv -> Vty -> ColorMode -> Int -> Int -> Int -> ReplScreen -> IO ()
-loop environmentRef vty color width height requestedOffset = \case
-  CompletionNoticeScreen receipt screen -> loopWithNotice environmentRef vty color width height requestedOffset (Just receipt) screen
-  screen -> loopWithNotice environmentRef vty color width height requestedOffset Nothing screen
+loop :: UUIDv7 -> IORef AppEnv -> Vty -> ColorMode -> Int -> Int -> Int -> ReplScreen -> IO ()
+loop sessionStart environmentRef vty color width height requestedOffset = \case
+  CompletionNoticeScreen receipt screen -> loopWithNotice sessionStart environmentRef vty color width height requestedOffset (Just receipt) screen
+  screen -> loopWithNotice sessionStart environmentRef vty color width height requestedOffset Nothing screen
 
-loopWithNotice :: IORef AppEnv -> Vty -> ColorMode -> Int -> Int -> Int -> Maybe Text -> ReplScreen -> IO ()
-loopWithNotice environmentRef vty color width height requestedOffset notice screen = do
+loopWithNotice :: UUIDv7 -> IORef AppEnv -> Vty -> ColorMode -> Int -> Int -> Int -> Maybe Text -> ReplScreen -> IO ()
+loopWithNotice sessionStart environmentRef vty color width height requestedOffset notice screen = do
   setMode (Vty.outputIface vty) Mouse ((scrollable || selectable) && maximumOffset > 0)
   paint vty color (viewportModel width height offset model)
   event <- nextEvent vty
   case eventToInput event of
-    Nothing -> loopWithNotice environmentRef vty color width height offset notice screen
-    Just (Resized nextWidth nextHeight) -> loopWithNotice environmentRef vty color nextWidth nextHeight offset notice screen
+    Nothing -> loopWithNotice sessionStart environmentRef vty color width height offset notice screen
+    Just (Resized nextWidth nextHeight) -> loopWithNotice sessionStart environmentRef vty color nextWidth nextHeight offset notice screen
     Just (Printable 'f' modifiers)
       | MCtrl `elem` modifiers
       , not (isRepairScreen (screenEnvelope screen)) ->
@@ -208,8 +212,8 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
   selectionView (ListScreen previous view) = ListScreen previous view{listViewSelected = 0}
   selectionView (BrowserScreen previous heading entries query _ message) = BrowserScreen previous heading entries query 0 message
   selectionView other = other
-  continue _ (SuspendedScreen previous previousOffset) = loop environmentRef vty color width height previousOffset previous
-  continue nextOffset nextScreen = loop environmentRef vty color width height nextOffset nextScreen
+  continue _ (SuspendedScreen previous previousOffset) = loop sessionStart environmentRef vty color width height previousOffset previous
+  continue nextOffset nextScreen = loop sessionStart environmentRef vty color width height nextOffset nextScreen
   model = prependCompletionNotice width notice (modelFor width screen)
   (contentRows, _, bodyRoom, _) = viewportRows width height model
   maximumOffset = max 0 (length contentRows - bodyRoom)
@@ -243,6 +247,7 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     ReadOnlyScreen previous _ -> readOnlyInput previous input
     SuspendedScreen previous _ -> readOnlyInput previous input
     CompletionNoticeScreen _ previous -> readOnlyInput previous input
+    UndoPromptScreen envelope summary message -> undoPromptInput envelope summary message input
 
   readOnlyInput previous = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -371,6 +376,10 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
 
   envelopeInput envelope = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    -- UX-020/UX-021: Ctrl+Z (or C-_) undoes and Ctrl+Y redoes at once.
+    Printable 'z' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope UndoCommand
+    Printable '_' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope UndoCommand
+    Printable 'y' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope RedoCommand
     Printable 'q' [] | all ((/= "q") . actionShortcut) (envelopeActions envelope) -> pure Nothing
     Printable character [] -> dispatchShortcut envelope (Text.singleton character)
     Enter [] -> dispatchShortcut envelope "*"
@@ -413,11 +422,45 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
 
   navigateOrExit envelope =
     runCurrent (NavigateBackCommand (interactionResponse envelope "navigation.back")) >>= \case
-      Left _ | isMainOpportunity (envelopeOpportunity envelope) -> pure Nothing
-      Left problem -> pure . Just $ EnvelopeScreen envelope (Just (appErrorMessage problem))
+      Left _ | isMainOpportunity (envelopeOpportunity envelope) -> offerUndoOr envelope (pure Nothing)
+      Left problem -> offerUndoOr envelope (pure . Just $ EnvelopeScreen envelope (Just (appErrorMessage problem)))
       Right RespondResult{resultInteraction}
-        | resultInteraction == envelope, isMainOpportunity (envelopeOpportunity envelope) -> pure Nothing
+        | resultInteraction == envelope, isMainOpportunity (envelopeOpportunity envelope) -> offerUndoOr envelope (pure Nothing)
+        | resultInteraction == envelope -> offerUndoOr envelope (pure (Just screen))
       Right result -> screenFromResult envelope result
+
+  -- At the commit boundary, Escape first asks whether to undo the latest
+  -- action; a dry run finds it without recording anything. Declining once
+  -- lets the next Escape continue as before.
+  offerUndoOr envelope fallback = case screen of
+    EnvelopeScreen _ (Just message) | message == undoDeclinedNotice -> fallback
+    _ ->
+      readIORef environmentRef >>= \current ->
+        runAppCommand current True (const (pure ())) UndoCommand >>= \case
+          Right CommandUndoResult{resultUndoSummary, resultTargetCommandId}
+            | thisSession resultTargetCommandId -> pure (Just (UndoPromptScreen envelope resultUndoSummary Nothing))
+          Right UndoResult{resultRaw, resultTargetCommandId}
+            | thisSession resultTargetCommandId -> pure (Just (UndoPromptScreen envelope ["Raw fed · " <> renderHandle RawHandle (projectedRawHandle resultRaw) <> " \"" <> projectedRawPreview resultRaw <> "\""] Nothing))
+          _ -> fallback
+  -- UUIDv7 text sorts by creation time, so this compares with the launch.
+  thisSession command = renderUUIDv7 command >= renderUUIDv7 sessionStart
+
+  undoPromptInput envelope summary _ = \case
+    Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable 'y' [] ->
+      runCurrent UndoCommand >>= \case
+        Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
+        Right result -> screenFromResult envelope result
+    Printable 'n' [] -> declined
+    Printable 'k' [] -> pure (Just (UndoPromptScreen envelope summary (Just "Yes appends one compensating event that restores the state before that action; history keeps both, no new draw happens, and /redo restores it. No keeps everything; Esc keeps everything and continues leaving.")))
+    Escape _
+      | isMainOpportunity (envelopeOpportunity envelope) -> pure Nothing
+      | otherwise -> declined
+    Backspace _ -> declined
+    ArrowLeft _ -> declined
+    _ -> pure (Just screen)
+   where
+    declined = pure (Just (EnvelopeScreen envelope (Just undoDeclinedNotice)))
 
   feedEditorInput envelope editor _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -492,6 +535,8 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     FeedResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     RepairResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
     UndoResult{resultInteraction} -> pure (Just (screenForEnvelope resultInteraction))
+    CommandUndoResult{resultInteraction, resultUndoSummary, resultWasRedo} ->
+      pure (Just (CompletionNoticeScreen ((if resultWasRedo then "Redone: " else "Undone: ") <> Text.intercalate "; " resultUndoSummary) (screenForEnvelope resultInteraction)))
     other -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
 
   refreshAndShow envelope = case envelopeOpportunity envelope of
@@ -895,6 +940,10 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
             <$> appProviderConnectionRuntime refreshed
       }
 
+-- | Shown after declining the undo offer; the next Escape then leaves as usual.
+undoDeclinedNotice :: Text
+undoDeclinedNotice = "Nothing was undone. Press Esc again to continue."
+
 isRepairScreen :: InteractionEnvelope -> Bool
 isRepairScreen envelope = case envelopeOpportunity envelope of
   RepairPreviewOpportunity{} -> True
@@ -923,6 +972,7 @@ screenEnvelope = \case
   ReadOnlyScreen previous _ -> screenEnvelope previous
   SuspendedScreen previous _ -> screenEnvelope previous
   CompletionNoticeScreen _ previous -> screenEnvelope previous
+  UndoPromptScreen envelope _ _ -> envelope
 
 refreshesPackRegistry :: Opportunity -> Bool
 refreshesPackRegistry = \case
@@ -1025,6 +1075,17 @@ modelFor width = \case
   ReadOnlyScreen previous text -> documentModel width (screenEnvelope previous) text "↑/↓ scroll · PgUp/PgDn page · Esc back"
   SuspendedScreen previous _ -> modelFor width previous
   CompletionNoticeScreen receipt previous -> prependCompletionNotice width (Just receipt) (modelFor width previous)
+  UndoPromptScreen envelope summary message ->
+    ScreenModel
+      ( [[Span Heading "Undo the last recorded action?"], []]
+          <> concatMap (fmap (pure . Span Normal) . wrapWords width) summary
+          <> [[]]
+          <> [[Span Accent "[y]", Span Normal "es    ", Span Accent "[n]", Span Normal "o    ", Span Normal "I don't ", Span Accent "[k]", Span Normal "now"]]
+          <> maybe [] (\text -> [] : fmap (pure . Span Dim) (wrapWords width text)) message
+          <> [[]]
+          <> footerFrom width envelope
+      )
+      Nothing
 
 listHit :: ListRow -> SearchHit
 listHit row = SearchHit kind (listEntryHandle row) (listEntryTitle row) (listEntryDetails row)
@@ -1637,7 +1698,10 @@ ellipsizeCells requestedWidth text
 filteredCommands :: InteractionEnvelope -> Text -> [CommandOption]
 filteredCommands envelope query = if null namedMatches then filter matchesDescription available else namedMatches
  where
-  available = envelopeCommands envelope
+  -- Undo and redo are offered on every screen; they check their own target.
+  available = envelopeCommands envelope <> [option | option <- [undoOption, redoOption], commandOptionId option `notElem` fmap commandOptionId (envelopeCommands envelope)]
+  undoOption = CommandOption "undo" "/undo" "Undo the latest action (Ctrl+Z)"
+  redoOption = CommandOption "redo" "/redo" "Redo the latest undone action (Ctrl+Y)"
   namedMatches = filter matches available
   needle = Text.toLower (Text.dropWhile (== '/') (canonicalExitQuery query))
   namedCommand = case Text.words query of first : _ : _ -> Just first; _ -> Nothing

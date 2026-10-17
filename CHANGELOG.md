@@ -9,6 +9,15 @@ replace the specification.
 
 ## Unreleased
 
+- Undo any latest reversible action, not only Feed: `/undo` appends one
+  `command_undone` event that restores the state recorded before that
+  command, so an archive's removed Dependencies come back too, and `/redo`
+  appends `command_redone`. Draws and system releases after the action are
+  discarded with it; external effects and source facts end the chain. In the
+  REPL, Escape at a commit boundary after an action of this session asks
+  `Undo the last recorded action?`; Escape on that question keeps everything
+  and continues leaving. Ctrl+Z (or C-_) undoes and Ctrl+Y redoes at once,
+  and the palette offers `/undo` and `/redo` on every screen.
 - Defer a review with `[l]ater` instead of `[s]kip`, which stays reserved for
   served Work. Wait, Delegation, impact-evidence, total-effort, and
   importance-comparison reviews gain `[o]ut of date`; a review that involves

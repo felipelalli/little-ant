@@ -5,6 +5,7 @@ import Data.IORef
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Application
 import LittleAnt.Decision (statePreconditionHash)
@@ -33,6 +34,7 @@ main =
       , testCase "archive leaves Work inactive and releases one bounded relevance review" archiveReview
       , testCase "out-of-date update opens editing of the same Brick and records nothing" outOfDateUpdate
       , testCase "restore keeps identity and queues only local importance review" restoreWork
+      , testCase "undo restores the state before the latest action and redo reapplies it" undoLatestAction
       , testCase "title update preserves Brick identity and structure" updateTitle
       , testCase "description update creates one Raw and then revises it in place" updateDescription
       , testCase "Domains update previews and records direct memberships as one batch" updateDomains
@@ -144,6 +146,34 @@ archiveReview = withHarness $ \environment -> do
   settled <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   brickStatus (stateBricks (loadedState settled) Map.! brickIdValue) @?= BrickArchived
   Map.size (stateLazyReviews (loadedState settled)) @?= 0
+
+undoLatestAction :: Assertion
+undoLatestAction = withHarness $ \environment -> do
+  seedOneBrick environment
+  preview <- run environment (ArchiveCommand "#rrsr") >>= interactionOf
+  _ <- answer environment preview "archive.accept"
+  undoResult <- run environment UndoCommand
+  case undoResult of
+    CommandUndoResult{resultUndoSummary, resultWasRedo} -> do
+      resultWasRedo @?= False
+      assertBool ("the summary hides the archived Work: " <> show resultUndoSummary) (any (Text.isInfixOf "#rrsr") resultUndoSummary)
+    other -> assertFailure ("expected a command undo, got " <> show other)
+  undone <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  brickStatus (stateBricks (loadedState undone) Map.! brickIdValue) @?= BrickActive
+  Map.size (stateLazyReviews (loadedState undone)) @?= 0
+  _ <- assertRight =<< compactDataset (appStore environment)
+  redone <- run environment RedoCommand
+  case redone of
+    CommandUndoResult{resultWasRedo} -> resultWasRedo @?= True
+    other -> assertFailure ("expected a command redo, got " <> show other)
+  reloaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  brickStatus (stateBricks (loadedState reloaded) Map.! brickIdValue) @?= BrickArchived
+  Map.size (stateLazyReviews (loadedState reloaded)) @?= 1
+  _ <- run environment UndoCommand
+  full <- assertRight =<< loadDatasetFull (appStore environment) (const (pure ()))
+  cached <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  loadedState full @?= loadedState cached
+  brickStatus (stateBricks (loadedState full) Map.! brickIdValue) @?= BrickActive
 
 restoreWork :: Assertion
 restoreWork = withHarness $ \environment -> do

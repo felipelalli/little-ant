@@ -1913,6 +1913,7 @@ mapResultInteraction transform = \case
   result@RespondResult{resultInteraction} -> result{resultInteraction = transform resultInteraction}
   result@FeedResult{resultInteraction} -> result{resultInteraction = transform resultInteraction}
   result@UndoResult{resultInteraction} -> result{resultInteraction = transform resultInteraction}
+  result@CommandUndoResult{resultInteraction} -> result{resultInteraction = transform resultInteraction}
   result -> result
 
 resultInteractionMaybe :: CommandResult -> Maybe InteractionEnvelope
@@ -1921,6 +1922,7 @@ resultInteractionMaybe = \case
   RespondResult{resultInteraction} -> Just resultInteraction
   FeedResult{resultInteraction} -> Just resultInteraction
   UndoResult{resultInteraction} -> Just resultInteraction
+  CommandUndoResult{resultInteraction} -> Just resultInteraction
   _ -> Nothing
 
 decorateNoticeFrame :: State -> ZonedTime -> InteractionEnvelope -> InteractionEnvelope
@@ -6992,19 +6994,40 @@ appendBody envelope explanation =
 withExplanation :: InteractionEnvelope -> Text -> Raw -> State -> ZonedTime -> InteractionEnvelope
 withExplanation envelope explanation _ _ _ = appendBody envelope explanation
 
+{- | UX-020: undo compensates the latest reversible command. A plain Feed
+keeps its typed retraction, which preserves the Raw as retracted evidence;
+every other command restores the state recorded before it.
+-}
 runUndo :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runUndo environment dryRun dataset = do
   facts <- runtimeFacts environment 2 (loadedCursor dataset)
-  case decideUndoFeed (loadedState dataset) (appActor environment) facts of
-    Left problem -> pure (Left problem)
-    Right decision -> finishCompensation environment dryRun dataset decision True
+  case stateUndoPoint (loadedState dataset) of
+    Just point
+      | not (all (== "raw_fed") (undoPointKinds point)) ->
+          either (pure . Left) (finishCommandUndo environment dryRun dataset point False) (decideCommandCompensation (loadedState dataset) (appActor environment) False facts)
+    _ -> case decideUndoFeed (loadedState dataset) (appActor environment) facts of
+      Left problem -> pure (Left problem)
+      Right decision -> finishCompensation environment dryRun dataset decision True
 
 runRedo :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
 runRedo environment dryRun dataset = do
   facts <- runtimeFacts environment 2 (loadedCursor dataset)
-  case decideRedoFeed (loadedState dataset) (appActor environment) facts of
+  case stateRedoPoint (loadedState dataset) of
+    Just point -> either (pure . Left) (finishCommandUndo environment dryRun dataset point True) (decideCommandCompensation (loadedState dataset) (appActor environment) True facts)
+    Nothing -> case decideRedoFeed (loadedState dataset) (appActor environment) facts of
+      Left problem -> pure (Left problem)
+      Right decision -> finishCompensation environment dryRun dataset decision False
+
+finishCommandUndo :: AppEnv -> Bool -> LoadedDataset -> UndoPoint -> Bool -> (UUIDv7, [EventDraft]) -> IO (Either AppError CommandResult)
+finishCommandUndo environment dryRun dataset point isRedo (commandId, events) =
+  persistOrSimulate environment dryRun dataset events >>= \case
     Left problem -> pure (Left problem)
-    Right decision -> finishCompensation environment dryRun dataset decision False
+    Right accepted ->
+      freshCheckpoint environment accepted >>= \case
+        Left problem -> pure (Left problem)
+        Right checkpoint -> do
+          saveUnlessDry environment dryRun checkpoint
+          pure (Right (CommandUndoResult commandId (undoPointCommand point) (loadedCursor accepted) (undoPointSummary point) isRedo (checkpointCurrent checkpoint) dryRun))
 
 finishCompensation :: AppEnv -> Bool -> LoadedDataset -> UndoDecision -> Bool -> IO (Either AppError CommandResult)
 finishCompensation environment dryRun dataset decision isUndo = do

@@ -846,7 +846,8 @@ in dumb mode.
 
 ## UX-U01 — Contextual undo preview
 
-Pressing `Left Arrow` after local backward navigation is exhausted does not
+Pressing `Left Arrow` after local backward navigation is exhausted, or
+`Escape` at that boundary after an action recorded in this session, does not
 silently cross the commit boundary:
 
 ```text
@@ -870,8 +871,9 @@ Undo the last recorded action?
 
 The preview identifies the typed action and its subject. `yes` invokes the
 same semantic compensation as `/undo`; it restores the prior Brick and focus
-state when preconditions still hold. `no`, Escape, or Backspace restores the
-screen from which the preview opened without mutation. `k` explains the
+state when preconditions still hold. `no` or Backspace restores the screen
+from which the preview opened without mutation; Escape does too and then
+continues the gesture that opened it, leaving the session from a main screen. `k` explains the
 projected changes and then restores this confirmation. If there is no eligible
 action, no confirmation is fabricated.
 

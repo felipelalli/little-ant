@@ -67,6 +67,7 @@ module LittleAnt.Model (
   SkipReaction (..),
   SkipSymptom (..),
   State (..),
+  UndoPoint (..),
   TemplateSelection (..),
   ZonedInstant (..),
   TemporalConstraints (..),
@@ -1342,6 +1343,21 @@ data State = State
   , stateSourceReconciliations :: Map UUIDv7 SourceReconciliation
   , stateOperationalDayConfig :: OperationalDayConfig
   , stateEventCount :: Integer
+  , stateUndoPoint :: Maybe UndoPoint
+  , stateRedoPoint :: Maybe UndoPoint
+  }
+  deriving stock (Eq, Generic, Show)
+
+{- | UX-020: the state on the other side of the latest reversible command.
+For undo it is the state before that command; for redo, the state it left.
+Restoring it is the compensation, so every event family is reversible
+without a hand-written inverse.
+-}
+data UndoPoint = UndoPoint
+  { undoPointCommand :: UUIDv7
+  , undoPointState :: State
+  , undoPointKinds :: [Text]
+  , undoPointSummary :: [Text]
   }
   deriving stock (Eq, Generic, Show)
 
@@ -1418,6 +1434,8 @@ emptyState =
     , stateSourceReconciliations = Map.empty
     , stateOperationalDayConfig = OperationalDayConfig "America/Montevideo" (TimeOfDay 4 0 0) (TimeOfDay 6 0 0)
     , stateEventCount = 0
+    , stateUndoPoint = Nothing
+    , stateRedoPoint = Nothing
     }
 
 inboxRaws :: State -> [Raw]

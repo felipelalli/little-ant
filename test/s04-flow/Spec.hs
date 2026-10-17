@@ -4,6 +4,7 @@ import Control.Monad (foldM, when)
 import Data.Aeson (encode, object, (.=))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
+import Data.Either (isLeft)
 import Data.IORef
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust)
@@ -302,6 +303,16 @@ dependencyRetirement = mapM_ check [BrickArchived, BrickSuperseded, BrickMerged]
     retired <- assertRight (apply 40 (BrickStatusChangedV1 (BrickStatusChanged target BrickActive status "retire")) initial)
     statuses retired @?= [DependencyRemoved, DependencyRemoved, DependencyActive]
     stateDependencies retired Map.! fixtureUuid 30 @?= (head dependencies){dependencyStatus = DependencyRemoved}
+    -- UX-020: undoing the retirement restores the removed dependencies too.
+    undone <- assertRight (apply 50 (CommandUndoneV1 (fixtureUuid 140)) retired)
+    statuses undone @?= [DependencyActive, DependencyActive, DependencyActive]
+    brickStatus (stateBricks undone Map.! target) @?= BrickActive
+    stateUndoPoint undone @?= Nothing
+    redone <- assertRight (apply 51 (CommandRedoneV1 (fixtureUuid 140)) undone)
+    statuses redone @?= statuses retired
+    stateBricks redone @?= stateBricks retired
+    stateEventCount redone @?= stateEventCount retired + 2
+    assertBool "a stale undo target was accepted" (isLeft (apply 52 (CommandUndoneV1 (fixtureUuid 999)) retired))
     when (status == BrickArchived) $ do
       restored <- assertRight (apply 41 (BrickStatusChangedV1 (BrickStatusChanged target BrickArchived BrickActive "restore")) retired)
       statuses restored @?= statuses retired

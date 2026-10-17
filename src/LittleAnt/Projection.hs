@@ -155,6 +155,13 @@ renderCommandResult = \case
       <> (if wasRedo then "" else maybe "" (const "\nRedo is available.") redoToken)
       <> "\n\n"
       <> renderPlain (renderEnvelope interaction)
+  CommandUndoResult _ _ _ summary wasRedo interaction dryRun ->
+    dryRunFact dryRun
+      <> (if wasRedo then "Redone:\n" else "Undone:\n")
+      <> Text.unlines (fmap ("  " <>) summary)
+      <> (if wasRedo then "" else "Redo is available.\n")
+      <> "\n"
+      <> renderPlain (renderEnvelope interaction)
   ListResult _ "agenda" rows header _ dryRun ->
     dryRunFact dryRun
       <> "agenda:\n"

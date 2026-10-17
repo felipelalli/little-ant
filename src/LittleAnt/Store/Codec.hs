@@ -53,6 +53,7 @@ instance Binary DayOfWeek where
     pure (toEnum value)
 
 deriving anyclass instance Binary Actor
+deriving anyclass instance Binary UndoPoint
 deriving anyclass instance Binary RawStatus
 deriving anyclass instance Binary Raw
 deriving anyclass instance Binary BrickTitleNormalization

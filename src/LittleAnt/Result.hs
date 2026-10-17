@@ -204,6 +204,16 @@ data CommandResult
       , resultInteraction :: InteractionEnvelope
       , resultDryRun :: Bool
       }
+  | -- | UX-020: the latest reversible command compensated or restored.
+    CommandUndoResult
+      { resultCommandId :: UUIDv7
+      , resultTargetCommandId :: UUIDv7
+      , resultDatasetCursor :: DatasetCursor
+      , resultUndoSummary :: [Text]
+      , resultWasRedo :: Bool
+      , resultInteraction :: InteractionEnvelope
+      , resultDryRun :: Bool
+      }
   | GrammarResult
       { resultDatasetCursor :: DatasetCursor
       , resultGrammarNames :: [Text]
@@ -512,6 +522,16 @@ instance ToJSON CommandResult where
         , "interaction" .= interaction
         ]
           <> maybe [] (pure . ("redo_token" .=)) redoToken
+          <> dryRunPair dryRun
+    CommandUndoResult commandId target cursor summary wasRedo interaction dryRun ->
+      object $
+        [ "schema" .= (if wasRedo then ("little-ant/redo@1" :: Text) else "little-ant/undo@1")
+        , "command_id" .= renderUUIDv7 commandId
+        , "target_command_id" .= renderUUIDv7 target
+        , "dataset_cursor" .= renderCursor cursor
+        , "summary" .= summary
+        , "interaction" .= interaction
+        ]
           <> dryRunPair dryRun
     GrammarResult cursor names dryRun ->
       object $

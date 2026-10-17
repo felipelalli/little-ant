@@ -4150,7 +4150,7 @@ archiveDependencyNotice :: State -> Brick -> [Text]
 archiveDependencyNotice state brick =
   if null affected
     then []
-    else ["", "Archiving also removes these dependencies:"] <> fmap describe affected <> ["Dependent Work may become executable. Restoring this Work will keep these dependencies removed."]
+    else ["", "Archiving also removes these dependencies:"] <> fmap describe affected <> ["Dependent Work may become executable. A later restore keeps these dependencies removed; /undo right after archiving brings them back."]
  where
   affected = [dependency | dependency <- Map.elems (stateDependencies state), dependencyStatus dependency == DependencyActive, brickId brick `elem` [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency]]
   describe dependency

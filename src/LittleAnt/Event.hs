@@ -685,6 +685,8 @@ data EventPayload
   | ExternalEffectChangedV1 ExternalEffectChanged
   | ExternalEffectApprovalGrantedV1 ExternalEffectApprovalGranted
   | ExternalEffectReceiptRecordedV1 ExternalEffectReceiptRecorded
+  | CommandUndoneV1 UUIDv7
+  | CommandRedoneV1 UUIDv7
   deriving stock (Eq, Show)
 
 data EventDraft = EventDraft
@@ -791,6 +793,8 @@ eventTypeName = \case
   ExternalEffectChangedV1 _ -> "external_effect_changed"
   ExternalEffectApprovalGrantedV1 _ -> "external_effect_approval_granted"
   ExternalEffectReceiptRecordedV1 _ -> "external_effect_receipt_recorded"
+  CommandUndoneV1 _ -> "command_undone"
+  CommandRedoneV1 _ -> "command_redone"
 
 eventVersionNumber :: EventPayload -> Int
 eventVersionNumber PairJudgmentRecordedV2{} = 2
@@ -855,8 +859,87 @@ applyDomainRegistered state domain = do
     (corrupt "Sibling Domains cannot repeat the same normalized name.")
   pure . bump $ state{stateDomains = Map.insert (domainId domain) domain (stateDomains state)}
 
+{- | UX-020: every applied command remembers the state before it, so the
+latest reversible command can be compensated by restoring that state. The
+compensating event is appended; history is never rewritten. Values that
+must only grow (event count, random cursors, retired handles) survive.
+-}
 applyEvent :: State -> PersistedEvent -> Either AppError State
 applyEvent state event = case persistedPayload event of
+  CommandUndoneV1 target -> do
+    point <- maybe (corrupt "An undo cites no reversible command.") Right (stateUndoPoint state)
+    unless (undoPointCommand point == target) $ corrupt "An undo cites a command that is not the latest reversible one."
+    Right (carried (undoPointState point)){stateRedoPoint = Just point{undoPointState = bare state}}
+  CommandRedoneV1 target -> do
+    point <- maybe (corrupt "A redo cites no undone command.") Right (stateRedoPoint state)
+    unless (undoPointCommand point == target) $ corrupt "A redo cites a command that was not the latest undo."
+    Right (carried (undoPointState point)){stateUndoPoint = Just point{undoPointState = bare state}}
+  payload -> track payload <$> applyEventPayload state event
+ where
+  bare value = value{stateUndoPoint = Nothing, stateRedoPoint = Nothing}
+  carried restored =
+    (bare restored)
+      { stateEventCount = stateEventCount state + 1
+      , stateRandomSeed = stateRandomSeed state
+      , stateRandomCursors = stateRandomCursors state
+      , stateRetiredRawHandles = stateRetiredRawHandles state <> stateRetiredRawHandles restored
+      , stateRetiredBrickHandles = stateRetiredBrickHandles state <> stateRetiredBrickHandles restored
+      , stateRetiredExternalEntityHandles = stateRetiredExternalEntityHandles state <> stateRetiredExternalEntityHandles restored
+      , stateLastRedo = Nothing
+      }
+  command = persistedCommandId event
+  track payload after
+    | undoTransparent event = after{stateUndoPoint = stateUndoPoint state, stateRedoPoint = stateRedoPoint state}
+    | undoBarrier payload = bare after
+    | Just point <- stateUndoPoint state
+    , undoPointCommand point == command =
+        after{stateUndoPoint = Just point{undoPointKinds = undoPointKinds point <> [eventTypeName payload], undoPointSummary = undoPointSummary point <> [line | let line = undoDescription state payload, line `notElem` undoPointSummary point]}, stateRedoPoint = Nothing}
+    | otherwise = after{stateUndoPoint = Just (UndoPoint command (bare state) [eventTypeName payload] [undoDescription state payload]), stateRedoPoint = Nothing}
+
+{- | Bookkeeping that follows a human command without being one: a recorded
+draw and the system's temporal releases. They neither become nor clear the
+undo target, and undoing the earlier command discards them with it.
+-}
+undoTransparent :: PersistedEvent -> Bool
+undoTransparent event =
+  actorKind (persistedActor event) == "system" || case persistedPayload event of
+    ForecastSelectedV1{} -> True
+    ForecastSelectedV2{} -> True
+    _ -> False
+
+-- | Effects outside the dataset, and the Feed-specific compensation, end undo.
+undoBarrier :: EventPayload -> Bool
+undoBarrier = \case
+  ExternalEffectApprovalGrantedV1{} -> True
+  ExternalEffectReceiptRecordedV1{} -> True
+  ImportInvocationRecordedV1{} -> True
+  SourceObservationRecordedV1{} -> True
+  SourceObservationReconciledV1{} -> True
+  RawFeedRetractedV1{} -> True
+  RawFeedRestoredV1{} -> True
+  _ -> False
+
+-- | One readable line for the undo preview: the event kind and its Work.
+undoDescription :: State -> EventPayload -> Text
+undoDescription state payload = humanized <> maybe "" ((" · " <>) . cite) subject
+ where
+  humanized = case Text.uncons (Text.replace "_" " " (eventTypeName payload)) of
+    Just (first, rest) -> Text.cons (Data.Char.toUpper first) rest
+    Nothing -> ""
+  cite identity = maybe (renderUUIDv7 identity) (\brick -> renderHandle BrickHandle (brickHandle brick) <> " \"" <> brickTitle brick <> "\"") (Map.lookup identity (stateBricks state))
+  subject = case payload of
+    BrickStatusChangedV1 changed -> Just (statusChangedBrick changed)
+    BrickNatureChangedV1 changed -> Just (natureChangedBrick changed)
+    BrickDomainsChangedV1 changed -> Just (domainsChangedBrick changed)
+    WorkReactionRecordedV1 recorded -> Just (recordedWorkReactionBrick recorded)
+    JudgmentReviewDeferredV1 _ identity _ -> Just identity
+    JudgmentReviewCompletedV1 _ identity _ -> Just identity
+    WaitChangedV1 changed -> Just (waitAffectedBrick (changedWaitGate changed))
+    DelegationChangedV1 changed -> Just (delegationBrick (changedDelegation changed))
+    _ -> Nothing
+
+applyEventPayload :: State -> PersistedEvent -> Either AppError State
+applyEventPayload state event = case persistedPayload event of
   RawFedV1 payload -> applyRawFed state event payload
   RawContentRevisionAppendedV1 payload -> applyRawContentRevisionAppended state event payload
   EnglishNormalizationAcceptedV1 payload -> applyEnglishNormalizationAccepted state event payload
@@ -3371,6 +3454,8 @@ payloadValue = \case
   ExternalEffectChangedV1 payload -> externalEffectValue (changedExternalEffect payload)
   ExternalEffectApprovalGrantedV1 payload -> externalEffectApprovalGrantValue (grantedExternalEffectApproval payload)
   ExternalEffectReceiptRecordedV1 payload -> externalEffectReceiptValue (recordedExternalEffectReceipt payload)
+  CommandUndoneV1 target -> object ["target_command_id" .= uuid target]
+  CommandRedoneV1 target -> object ["target_command_id" .= uuid target]
  where
   uuid = renderUUIDv7
 
@@ -3662,6 +3747,8 @@ parsePayload eventType version payload = case (eventType, version) of
   ("external_effect_changed", 1) -> ExternalEffectChangedV1 . ExternalEffectChanged <$> parseExternalEffect payload
   ("external_effect_approval_granted", 1) -> ExternalEffectApprovalGrantedV1 . ExternalEffectApprovalGranted <$> parseExternalEffectApprovalGrant payload
   ("external_effect_receipt_recorded", 1) -> ExternalEffectReceiptRecordedV1 . ExternalEffectReceiptRecorded <$> parseExternalEffectReceipt payload
+  ("command_undone", 1) -> CommandUndoneV1 <$> withObject "command_undone@1" (\value -> value .: "target_command_id" >>= parseId) payload
+  ("command_redone", 1) -> CommandRedoneV1 <$> withObject "command_redone@1" (\value -> value .: "target_command_id" >>= parseId) payload
   (_, bad) -> fail ("unknown event version: " <> show bad <> " for " <> Text.unpack eventType)
  where
   parseRawFedV1 = withObject "raw_fed@1" $ \value -> RawFed <$> (value .: "raw_id" >>= parseId) <*> (Handle <$> value .: "handle") <*> value .: "original" <*> value .: "origin" <*> (value .:? "content" >>= traverse parseRawContent)

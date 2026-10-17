@@ -104,6 +104,7 @@ module LittleAnt.Decision (
   decideRawDuplicateNo,
   decideRawDuplicateYes,
   decideReuseExistingWork,
+  decideCommandCompensation,
   decideRedoFeed,
   decideUndoFeed,
   statePreconditionHash,
@@ -2468,6 +2469,23 @@ decideUndoFeed state actor facts = do
     , Map.notMember (rawId raw) (stateRawDispositions state)
     , rawCreatedBy raw == actor
     ]
+
+-- | UX-020: one compensating event for the latest reversible command, or its redo.
+decideCommandCompensation :: State -> Actor -> Bool -> RuntimeFacts -> Either AppError (UUIDv7, [EventDraft])
+decideCommandCompensation state actor isRedo facts = do
+  point <-
+    maybe
+      ( Left
+          (appError (if isRedo then RedoConflict else PreconditionFailed) (if isRedo then "There is no undone action to redo." else "There is no reversible action to undo."))
+            { appErrorRecovery = [RecoveryAction "history" "Inspect recent semantic history." (Just "lant history")]
+            }
+      )
+      Right
+      (if isRedo then stateRedoPoint state else stateUndoPoint state)
+  allocated <- requireUUIDs 2 facts
+  (commandId, eventId) <- exactlyTwo allocated
+  let payload = (if isRedo then CommandRedoneV1 else CommandUndoneV1) (undoPointCommand point)
+  pure (commandId, [makeDraft facts actor state allocated eventId commandId payload])
 
 decideRedoFeed :: State -> Actor -> RuntimeFacts -> Either AppError UndoDecision
 decideRedoFeed state actor facts = do
