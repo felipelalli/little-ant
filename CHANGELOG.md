@@ -30,6 +30,12 @@ replace the specification.
   closing Obligations group by next deadline with their open occurrences.
   The Nature-discovery question that leads to a recurring obligation now asks
   whether something outside you requires each period.
+- Offer escalated obligation occurrences before the ordinary draw: from its
+  `best_before`, or 24 hours before its deadline, an open occurrence comes
+  first by earliest deadline with `Due first` and the reason in the footer.
+  Skipping it pauses that occurrence for 120 minutes.
+- Honor the skip cooldown of served Work in the forecast; a recorded
+  cooldown was previously looked up under the wrong key and never applied.
 - Offer `[c]lassify` on the detail of a Raw still awaiting triage
   (`show --view guided '+raw'`), opening triage for that exact Raw instead of
   only the oldest Inbox item.

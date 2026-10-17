@@ -1836,7 +1836,12 @@ decideWorkReaction state actor identity selection symptom reaction facts = do
   brick <- requireActiveBrick state identity
   allocated <- requireUUIDs 2 facts
   (commandId, eventId) <- exactlyTwo allocated
-  let cooldown = Just (addUTCTime (15 * 60) (runtimeNow facts))
+  -- FOC-071: skipping an escalated occurrence pauses it for longer, so the
+  -- next escalated occurrence or the ordinary draw is served meanwhile.
+  let pause = case obligationEscalatesAt state brick of
+        Just escalation | escalation <= runtimeNow facts -> obligationEscalationSkipPause
+        _ -> 15 * 60
+      cooldown = Just (addUTCTime pause (runtimeNow facts))
       payload = WorkReactionRecorded identity selection symptom reaction cooldown
       event = makeDraft facts actor state allocated eventId commandId (WorkReactionRecordedV1 payload)
   pure (MutationDecision commandId (Just brick) Nothing [event])

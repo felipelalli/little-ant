@@ -43,6 +43,7 @@ main =
       , testCase "recurrence editor records a lapsing policy with its consequence" recurrenceEditorLapses
       , testCase "lapsing occurrences close as missed and can be done late or excused" lapsingOccurrences
       , testCase "a stays-open series keeps unfinished occurrences as debt" staysOpenKeepsDebt
+      , testCase "escalated occurrences come first by deadline and a skip pauses one" escalatedFirst
       , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
       , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
@@ -340,6 +341,48 @@ lapsingOccurrences = withHarness $ \environment -> do
   -- Neither late completion nor an excuse can repeat.
   repeated <- runAppCommand environment False (const (pure ())) (ShowRawCommand (handleOf middle) GuidedView) >>= either (assertFailure . show) interactionOf
   fmap actionId (envelopeActions repeated) @?= ["next", "occurrence.unknown", "palette.open"]
+
+escalatedFirst :: Assertion
+escalatedFirst = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  seedBrickAs environment (fixtureUuid 40) (Handle "plain") "Plain work" AtomicTask 50
+  -- Daily at 18:00 in Montevideo, opening three days early with best before
+  -- two days early: at 12:00 UTC on Aug 3 the Aug 3 and Aug 4 occurrences
+  -- have escalated and the Aug 5 one has not.
+  let schedule =
+        RecurrenceSchedule
+          brickIdValue
+          (CalendarRule DailyRecurrence 1 (fromGregorian 2026 8 3) Set.empty Nothing Nothing [TimeOfDay 18 0 0])
+          "America/Montevideo"
+          AtomicTask
+          Nothing
+          (-(3 * 86400))
+          (Just (-(2 * 86400)))
+          (Just 0)
+          DeadlineLapses
+          Nothing
+          0
+  _ <- run environment (SetRecurrenceScheduleCommand schedule)
+  _ <- run environment TickCommand
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState loaded
+  (aug5, aug4, aug3) <- case seriesOccurrences state brickIdValue of
+    [first, second, third] -> pure (recurringOccurrenceBrick first, recurringOccurrenceBrick second, recurringOccurrenceBrick third)
+    other -> assertFailure ("expected three occurrences, got " <> show other)
+  first <- run environment NextCommand >>= interactionOf
+  envelopeOpportunity first @?= FocusProposalOpportunity aug3 Nothing
+  footerTimeLabel (envelopeFooter first) @?= "Due first"
+  assertBool ("escalation reason missing: " <> show (footerTimeValue (envelopeFooter first))) $
+    "best before passed · deadline " `Text.isPrefixOf` footerTimeValue (envelopeFooter first)
+  symptom <- answer environment first "focus.skip"
+  tired <- answer environment symptom "work.symptom.tired"
+  receipt <- answer environment tired "work.reaction.skip"
+  paused <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  [workDeferralCooldownUntil deferral | deferral <- Map.elems (stateWorkDeferrals (loadedState paused)), workDeferralBrick deferral == aug3]
+    @?= [Just (addUTCTime (120 * 60) fixedTime)]
+  second <- answer environment receipt "next"
+  envelopeOpportunity second @?= FocusProposalOpportunity aug4 Nothing
+  assertBool "the unescalated occurrence must not be offered first" (envelopeOpportunity second /= FocusProposalOpportunity aug5 Nothing)
 
 staysOpenKeepsDebt :: Assertion
 staysOpenKeepsDebt = withHarness $ \environment -> do

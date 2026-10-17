@@ -85,6 +85,8 @@ module LittleAnt.Model (
   ObligationPeriodState (..),
   obligationPeriodState,
   obligationPeriodHistory,
+  obligationEscalatesAt,
+  obligationEscalationSkipPause,
   seriesOccurrences,
   isObligationOccurrence,
   carriesImportance,
@@ -148,7 +150,7 @@ import Data.Ord (Down (..))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
-import Data.Time (Day, DayOfWeek, TimeOfDay (..), UTCTime)
+import Data.Time (Day, DayOfWeek, NominalDiffTime, TimeOfDay (..), UTCTime, addUTCTime)
 import GHC.Generics (Generic)
 import LittleAnt.Id
 
@@ -1462,6 +1464,23 @@ carriesImportance state brick =
 
 isObligationOccurrence :: State -> UUIDv7 -> Bool
 isObligationOccurrence state identity = Map.member identity (stateRecurringOccurrences state)
+
+{- | FOC-071: an open atomic occurrence escalates at its @best_before@, or
+@obligation.default_escalation_lead_hours@ (24) before its deadline when it
+has none. An occurrence with neither never escalates.
+-}
+obligationEscalatesAt :: State -> Brick -> Maybe UTCTime
+obligationEscalatesAt state brick
+  | not (isObligationOccurrence state (brickId brick)) = Nothing
+  | brickNature brick /= AtomicTask || brickStatus brick /= BrickActive = Nothing
+  | otherwise = case Map.lookup (brickId brick) (stateTemporalConstraints state) of
+      Just TemporalConstraints{temporalBestBefore = Just preferred} -> Just (zonedInstantUtc preferred)
+      Just TemporalConstraints{temporalDeadline = Just deadline} -> Just (addUTCTime (-(24 * 60 * 60)) (zonedInstantUtc deadline))
+      _ -> Nothing
+
+-- | @obligation.escalation_skip_cooldown_minutes@, 120 in the factory profile.
+obligationEscalationSkipPause :: NominalDiffTime
+obligationEscalationSkipPause = 120 * 60
 
 -- | Released occurrences of one series, newest nominal anchor first.
 seriesOccurrences :: State -> UUIDv7 -> [RecurringOccurrence]

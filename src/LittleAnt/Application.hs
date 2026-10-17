@@ -2031,6 +2031,9 @@ createRecordedForecastCheckpoint environment dryRun dataset = do
     _
       | stateEventCount state == 0 ->
           pure . Right $ (dataset, PresentationCheckpoint (makePristineEnvelope interactionId cursor precondition now) [] [])
+    _
+      | (brick, _) : _ <- World.escalatedOccurrences state (zonedTimeToUTC now) ->
+          pure . Right $ (dataset, PresentationCheckpoint (makeEscalatedFocusEnvelope interactionId cursor precondition now state brick) [] [])
     _ -> do
       seed <- maybe (Entropy.getEntropy 32) pure (stateRandomSeed state)
       let tickets = fmap supportedForecastTicket (World.buildForecastWorld state (zonedTimeToUTC now))
@@ -7019,6 +7022,7 @@ chooseFreshEnvelope identity cursor precondition now state =
     commitments@(_ : _ : _) -> makeScheduledOverlapEnvelope identity cursor precondition now state commitments
     [] | Just brick <- stateCurrentFocus state >>= (`Map.lookup` stateBricks state), brickStatus brick == BrickActive -> activeFocusEnvelope identity cursor precondition now state brick
     [] | Just (brick, review) <- pendingRepeatableReturn state -> makeRepeatableReturnEnvelope identity cursor precondition now state brick review
+    [] | (brick, _) : _ <- World.escalatedOccurrences state (zonedTimeToUTC now) -> makeEscalatedFocusEnvelope identity cursor precondition now state brick
     _ -> case duplicateOpportunity state of
       Just (candidate, root) -> makeRawDuplicateEnvelope identity cursor precondition now state candidate root
       Nothing -> case orderedInbox state of

@@ -106,6 +106,7 @@ module LittleAnt.Interaction (
   makeExistingWorkSuspicionEnvelope,
   makeFocusProposalEnvelope,
   makeRecordedFocusProposalEnvelope,
+  makeEscalatedFocusEnvelope,
   makeFocusAssistanceEnvelope,
   makeNatureChoiceEnvelope,
   makeNatureConfirmationEnvelope,
@@ -2002,6 +2003,24 @@ makeFocusProposalEnvelope identity cursor precondition now state brick =
 makeRecordedFocusProposalEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ForecastSelectionEvidence -> InteractionEnvelope
 makeRecordedFocusProposalEnvelope identity cursor precondition now state brick evidence =
   focusProposalEnvelope identity cursor precondition now state brick (Just evidence)
+
+{- | FOC-071: an escalated occurrence offered before the draw. The ordinary
+Focus grammar and typed skip remain; the footer states why it comes first.
+-}
+makeEscalatedFocusEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
+makeEscalatedFocusEnvelope identity cursor precondition now state brick =
+  resealEnvelope
+    envelope
+      { envelopeFooter = (envelopeFooter envelope){footerTimeLabel = "Due first", footerTimeValue = reason}
+      }
+ where
+  envelope = focusProposalEnvelope identity cursor precondition now state brick Nothing
+  constraints = Map.lookup (brickId brick) (stateTemporalConstraints state)
+  local instant = formatLocalDateTime (utcToZonedTime (zonedTimeZone now) instant)
+  reason =
+    Text.intercalate " · " $
+      ["best before passed" | Just _ <- [constraints >>= temporalBestBefore]]
+        <> ["deadline " <> local (zonedInstantUtc deadline) | Just deadline <- [constraints >>= temporalDeadline]]
 
 makeDomainFocusEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Domain -> InteractionEnvelope
 makeDomainFocusEnvelope identity cursor precondition now state domain =

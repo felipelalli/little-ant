@@ -7,6 +7,7 @@ module LittleAnt.ForecastWorld (
   SelectableOpportunityKind (..),
   SubjectTicket (..),
   buildForecastWorld,
+  escalatedOccurrences,
   domainAffinity,
   forecastSubjectChances,
   forecastOpportunityChances,
@@ -308,6 +309,33 @@ buildForecastWorld state now = filter (reachable table Set.empty . ticketIdentit
             (Fixed (min 800_000 (fromIntegral count * 100_000)))
             "recent served-work deferrals"
         ]
+
+{- | FOC-071: escalated occurrences that the draw could serve now, earliest
+deadline first, then earliest nominal anchor, then identity. A skip pause is
+an ordinary cooldown, so a paused occurrence is not listed.
+-}
+escalatedOccurrences :: State -> UTCTime -> [(Brick, RecurringOccurrence)]
+escalatedOccurrences state now =
+  sortOn
+    ( \(brick, occurrence) ->
+        ( Data.Maybe.isNothing (deadlineOf brick)
+        , deadlineOf brick
+        , zonedInstantUtc (recurringOccurrenceNominalAnchor occurrence)
+        , brickId brick
+        )
+    )
+    [ (brick, occurrence)
+    | occurrence <- Map.elems (stateRecurringOccurrences state)
+    , Just brick <- [Map.lookup (recurringOccurrenceBrick occurrence) (stateBricks state)]
+    , Just escalation <- [obligationEscalatesAt state brick]
+    , escalation <= now
+    , Just ticket <- [Map.lookup (brickId brick) tickets]
+    , null (ticketDependencies ticket)
+    , any ((== FiniteWorkOpportunity) . selectableKind) (ticketOpportunities ticket)
+    ]
+ where
+  tickets = Map.fromList [(ticketIdentity ticket, ticket) | ticket <- buildForecastWorld state now]
+  deadlineOf brick = zonedInstantUtc <$> (Map.lookup (brickId brick) (stateTemporalConstraints state) >>= temporalDeadline)
 
 selectForecast ::
   ByteString ->
@@ -693,9 +721,13 @@ brickOpportunities state now brick children allChildren =
     Just claim -> [ForecastSignal ImpactSignal (impactStrength (impactClaimClass claim)) "current Impact class"]
 
 workCoolingDown :: State -> UTCTime -> Brick -> Bool
-workCoolingDown state now brick = case Map.lookup (brickId brick) (stateWorkDeferrals state) >>= workDeferralCooldownUntil of
-  Just untilTime -> now < untilTime
-  Nothing -> False
+workCoolingDown state now brick =
+  or
+    [ now < untilTime
+    | deferral <- Map.elems (stateWorkDeferrals state)
+    , workDeferralBrick deferral == brickId brick
+    , Just untilTime <- [workDeferralCooldownUntil deferral]
+    ]
 
 -- One owner per unresolved sibling run, including imported provisional order.
 -- Equivalent persisted claims are coalesced rather than becoming extra tickets.
