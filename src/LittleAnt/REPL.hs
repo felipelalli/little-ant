@@ -837,9 +837,18 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
 
   runShowCommand envelope command =
     let reference = Text.drop 6 (commandOptionCommand command)
-     in runCurrent (ShowRawCommand reference CompleteView) >>= \case
-          Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
-          Right result -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult result)))
+        completeView =
+          runCurrent (ShowRawCommand reference CompleteView) >>= \case
+            Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
+            Right result -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult result)))
+     in -- A recurring-obligation occurrence opens its guided inspection (UX-RO02).
+        if "#" `Text.isPrefixOf` reference
+          then
+            runCurrent (ShowRawCommand reference GuidedView) >>= \case
+              Right result@NextResult{resultInteraction}
+                | ObligationOccurrenceOpportunity{} <- envelopeOpportunity resultInteraction -> screenFromResult envelope result
+              _ -> completeView
+          else completeView
 
   runBrickCommand envelope command constructor =
     case Text.words (commandOptionCommand command) of
@@ -918,6 +927,7 @@ screenForEnvelope envelope = case envelopeOpportunity envelope of
   RepeatableReturnVariationOpportunity _ _ _ _ draft -> InteractionEditor envelope "return.variation.submit" (selectedEditor draft) Nothing
   RepeatableReturnZoneOpportunity _ _ _ _ _ draft -> InteractionEditor envelope "return.zone.submit" (selectedEditor draft) Nothing
   UpdateTextOpportunity _ _ _ draft -> InteractionEditor envelope "update.text.submit" (selectedEditor draft) Nothing
+  ObligationExcuseOpportunity _ draft -> InteractionEditor envelope "occurrence.excuse.submit" (selectedEditor draft) Nothing
   RecurrenceFieldOpportunity _ field _ draft
     | not (recurrenceFieldIsChoice field) -> InteractionEditor envelope "recurrence.field.submit" (selectedEditor draft) Nothing
   _ -> EnvelopeScreen envelope Nothing

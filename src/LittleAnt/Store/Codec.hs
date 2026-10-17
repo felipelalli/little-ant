@@ -102,6 +102,8 @@ deriving anyclass instance Binary RecurrenceFamily
 deriving anyclass instance Binary CalendarRule
 deriving anyclass instance Binary RecurrenceSchedule
 deriving anyclass instance Binary RecurringOccurrence
+deriving anyclass instance Binary DeadlinePolicy
+deriving anyclass instance Binary ObligationPeriod
 deriving anyclass instance Binary HabitSchedule
 deriving anyclass instance Binary HabitWindow
 deriving anyclass instance Binary HabitOutcome

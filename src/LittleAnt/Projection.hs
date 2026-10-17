@@ -214,11 +214,13 @@ renderCommandResult = \case
       <> maybe "" ("\nSelected profile: " <>) selected
       <> (if null profiles then "" else "\nProfiles:\n" <> Text.unlines ["- " <> profile | profile <- profiles])
       <> (if Map.null facts then "" else "\n" <> Text.unlines [key <> ": " <> value | (key, value) <- Map.toAscList facts])
-  TickResult _ released opened settled dryRun ->
+  TickResult _ released lapsed opened settled dryRun ->
     dryRunFact dryRun
       <> "Tick complete: "
       <> tshow released
       <> " occurrences released, "
+      <> tshow lapsed
+      <> " missed, "
       <> tshow opened
       <> " habit windows opened, "
       <> tshow settled

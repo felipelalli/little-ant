@@ -476,6 +476,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
       TickResult
         (loadedCursor dataset)
         (length (temporalTickReleases tickPlan))
+        (length (filter (Data.Maybe.isJust . releaseFactLapsesAt) (temporalTickReleases tickPlan)) + length (temporalTickLapses tickPlan))
         (length (temporalTickNewHabitWindows tickPlan))
         ( sum (habitWindowFactExpiredUnits <$> temporalTickNewHabitWindows tickPlan)
             + sum (habitExpiryUnits <$> temporalTickHabitExpiries tickPlan)
@@ -2398,7 +2399,15 @@ runOrder :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError
 runOpenRaw :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runOpenRaw environment dryRun dataset reference =
   case resolveAnyRawReference (loadedState dataset) reference of
-    Left problem -> pure (Left problem)
+    Left problem -> case occurrenceReference of
+      Just (occurrence, brick) -> do
+        identity <- appAllocateUUID environment
+        now <- appZonedNow environment
+        let state = loadedState dataset
+            envelope = makeObligationOccurrenceEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state occurrence brick
+        saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+        pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+      Nothing -> pure (Left problem)
     Right raw -> do
       identity <- appAllocateUUID environment
       now <- appZonedNow environment
@@ -2406,6 +2415,11 @@ runOpenRaw environment dryRun dataset reference =
           envelope = makeRawDetailEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state raw
       saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
       pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+ where
+  -- A recurring-obligation occurrence opens its guided inspection (UX-RO02).
+  occurrenceReference = case resolveAnyBrickReference (loadedState dataset) reference of
+    Right brick -> (,brick) <$> Map.lookup (brickId brick) (stateRecurringOccurrences (loadedState dataset))
+    Left _ -> Nothing
 
 runTranslate :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runTranslate environment dryRun dataset reference = do
@@ -3485,6 +3499,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       withRecurringSeries ownerId $ \owner -> advanceRecurrence owner RecurrenceOccurrenceField (setRecurrenceOccurrenceNature AtomicTask draft)
     (RecurrenceFieldOpportunity ownerId RecurrenceOccurrenceField draft _, "recurrence.occurrence.scheduled", _) ->
       withRecurringSeries ownerId $ \owner -> advanceRecurrence owner RecurrenceOccurrenceField (setRecurrenceOccurrenceNature ScheduledCommitment draft)
+    (RecurrenceFieldOpportunity ownerId RecurrencePolicyField draft _, "recurrence.policy.stays_open", _) ->
+      withRecurringSeries ownerId $ \owner -> advanceRecurrence owner RecurrencePolicyField (setRecurrenceDeadlinePolicy DeadlineStaysOpen draft)
+    (RecurrenceFieldOpportunity ownerId RecurrencePolicyField draft _, "recurrence.policy.lapses", _) ->
+      withRecurringSeries ownerId $ \owner -> advanceRecurrence owner RecurrencePolicyField (setRecurrenceDeadlinePolicy DeadlineLapses draft)
     (RecurrenceFieldOpportunity ownerId field draft _, "recurrence.field.submit", Just input) ->
       withRecurringSeries ownerId $ \owner ->
         case applyRecurrenceInput field input draft of
@@ -3501,8 +3519,18 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       withRecurringSeries ownerId $ \owner -> local (makeRecurrenceFieldEnvelope current now state owner RecurrenceFamilyField schedule "")
     (RecurrencePreviewOpportunity ownerId _, "recurrence.reject", _) ->
       withRecurringSeries ownerId $ \owner -> local (makeRecurrenceResultEnvelope (envelopeInteractionId current) cursor precondition now state owner False)
+    (ObligationOccurrenceOpportunity occurrenceId, "occurrence.done_late", _) ->
+      withOccurrence occurrenceId $ \_ _ -> mutate 2 (decideOccurrenceDoneLate state actor occurrenceId) (makeOccurrenceOutcome occurrenceId)
+    (ObligationOccurrenceOpportunity occurrenceId, "occurrence.excuse", _) ->
+      withOccurrence occurrenceId $ \occurrence brick -> local (makeObligationExcuseEnvelope current now state occurrence brick "")
+    (ObligationOccurrenceOpportunity{}, "occurrence.unknown", _) ->
+      local (appendBody current "A period of a series whose deadline counts as missed closes as missed when its deadline passes. Done late records completion now and counts the period as late; excuse marks it excused, for example for vacation. Both keep the miss and its time in history, and neither returns the occurrence to the draw.")
+    (ObligationExcuseOpportunity occurrenceId _, "occurrence.excuse.submit", supplied) ->
+      withOccurrence occurrenceId $ \_ _ -> mutate 2 (decideExcuseOccurrence state actor occurrenceId supplied) (makeOccurrenceOutcome occurrenceId)
+    (ObligationExcuseOpportunity occurrenceId _, "occurrence.excuse.back", _) ->
+      withOccurrence occurrenceId $ \occurrence brick -> local (makeObligationOccurrenceEnvelope (envelopeInteractionId current) cursor precondition now state occurrence brick)
     (RecurrencePreviewOpportunity{}, "recurrence.unknown", _) ->
-      local (appendBody current "Each anchor is one nominal date and time. Opens, best before, and deadline are fixed offsets from it. An occurrence is released when it opens and stays open until done or archived; a later anchor never closes it.")
+      local (appendBody current "Each anchor is one nominal date and time. Opens, best before, and deadline are fixed offsets from it. An occurrence is released when it opens. At deadline decides what an unfinished period becomes: stays open keeps it open as debt until done, and a later anchor never closes it; counts as missed closes it as missed at its deadline, and you can still excuse it or mark it done late.")
     (UpdateMeaningOpportunity brickId, "update.description", _) -> openUpdateText brickId UpdateDescription
     (UpdateMeaningOpportunity{}, "update.unknown", _) ->
       local (appendBody current "Title changes only the visible wording. Description creates or revises the one text Raw attached as this Brick's description. UUID, # handle, structure, importance, and history remain unchanged.")
@@ -5697,6 +5725,16 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
          in case recurrencePreviewLines state zone schedule of
               Left problem -> pure (Left problem)
               Right anchorLines -> local (makeRecurrencePreviewEnvelope current now state owner schedule anchorLines)
+
+  withOccurrence occurrenceId continue = case Map.lookup occurrenceId (stateRecurringOccurrences state) of
+    Nothing -> pure (Left (appError NotFound "The occurrence used by this interaction no longer exists."))
+    Just occurrence -> withAnyBrick (recurringOccurrenceBrick occurrence) (continue occurrence)
+
+  makeOccurrenceOutcome occurrenceId identity currentNow accepted _ = do
+    let acceptedState = loadedState accepted
+    occurrence <- maybe (Left (appError CorruptData "The accepted occurrence is missing.")) Right (Map.lookup occurrenceId (stateRecurringOccurrences acceptedState))
+    brick <- maybe (Left (appError CorruptData "The accepted occurrence Brick is missing.")) Right (Map.lookup (recurringOccurrenceBrick occurrence) (stateBricks acceptedState))
+    pure (makeObligationOutcomeResultEnvelope identity (loadedCursor accepted) (statePreconditionHash acceptedState) currentNow acceptedState occurrence brick)
 
   makeRecurrenceRecorded identity currentNow accepted mutation = do
     brick <- maybe (Left (appError CorruptData "The recurring series is missing from the accepted schedule.")) Right (mutationDecisionBrick mutation)

@@ -35,6 +35,7 @@ buildTemporalTickPlan state now = do
         { temporalTickReleases = boundedReleases
         , temporalTickNewHabitWindows = boundedWindows
         , temporalTickHabitExpiries = existingHabitExpiries state now
+        , temporalTickLapses = take catchUpLimit (existingLapses state now)
         }
 
 catchUpLimit :: Int
@@ -45,19 +46,23 @@ recurrenceFacts state now schedule = withZone (recurrenceZone schedule) $ \zone 
   let horizon = addUTCTime (negate (fromInteger (recurrenceNotBeforeOffsetSeconds schedule))) now
   anchors <- calendarAnchorsThrough (recurrenceZone schedule) zone (recurrenceRule schedule) horizon
   pure
-    [ makeRelease schedule anchor
+    [ makeRelease now schedule anchor
     | anchor <- anchors
     , not (occurrenceExists state schedule anchor)
     ]
 
-makeRelease :: RecurrenceSchedule -> CalendarAnchor -> RecurrenceReleaseFact
-makeRelease schedule anchor =
+makeRelease :: UTCTime -> RecurrenceSchedule -> CalendarAnchor -> RecurrenceReleaseFact
+makeRelease now schedule anchor =
   RecurrenceReleaseFact
     { releaseFactOwner = recurrenceOwner schedule
     , releaseFactAnchor = anchorInstant anchor
     , releaseFactLabel = occurrenceLabel (recurrenceRule schedule) (anchorLocal anchor)
     , releaseFactTemporal = constraints
     , releaseFactInterval = interval
+    , releaseFactLapsesAt =
+        if recurrenceDeadlinePolicy schedule == DeadlineLapses
+          then lapseInstant now (recurrenceOccurrenceNature schedule) (zonedInstantUtc <$> temporalDeadline constraints) (zonedInstantUtc . snd <$> interval)
+          else Nothing
     }
  where
   anchored offset =
@@ -88,6 +93,41 @@ occurrenceLabel rule local = Text.pack (formatTime defaultTimeLocale format loca
     WeeklyRecurrence -> "%a, %b %-d %Y" <> clock
     MonthlyRecurrence -> "%b %Y"
     YearlyRecurrence -> "%Y"
+
+{- | WRK-161: an atomic occurrence lapses at its deadline; a scheduled one
+once it is still unanswered a grace period after its interval ends.
+-}
+lapseInstant :: UTCTime -> BrickNature -> Maybe UTCTime -> Maybe UTCTime -> Maybe UTCTime
+lapseInstant now nature deadline intervalEnd = case nature of
+  ScheduledCommitment -> due (addUTCTime scheduledMissedGrace <$> intervalEnd)
+  _ -> due deadline
+ where
+  due = \case
+    Just instant | instant <= now -> Just instant
+    _ -> Nothing
+
+-- | @obligation.scheduled_missed_grace_hours@, 24 in the factory profile.
+scheduledMissedGrace :: NominalDiffTime
+scheduledMissedGrace = 24 * 60 * 60
+
+existingLapses :: State -> UTCTime -> [ObligationLapseFact]
+existingLapses state now =
+  sortOn
+    (\fact -> (lapseFactAt fact, lapseFactOccurrence fact))
+    [ ObligationLapseFact (recurringOccurrenceId occurrence) instant
+    | occurrence <- Map.elems (stateRecurringOccurrences state)
+    , Just schedule <- [Map.lookup (recurringOccurrenceOwner occurrence) (stateRecurrenceSchedules state)]
+    , recurrenceDeadlinePolicy schedule == DeadlineLapses
+    , Just brick <- [Map.lookup (recurringOccurrenceBrick occurrence) (stateBricks state)]
+    , brickStatus brick == BrickActive
+    , Just instant <-
+        [ lapseInstant
+            now
+            (brickNature brick)
+            (zonedInstantUtc <$> (Map.lookup (brickId brick) (stateTemporalConstraints state) >>= temporalDeadline))
+            (zonedInstantUtc . scheduledEndsAt <$> Map.lookup (brickId brick) (stateScheduledIntervals state))
+        ]
+    ]
 
 occurrenceExists :: State -> RecurrenceSchedule -> CalendarAnchor -> Bool
 occurrenceExists state schedule anchor =

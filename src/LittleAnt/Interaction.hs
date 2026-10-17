@@ -39,6 +39,10 @@ module LittleAnt.Interaction (
   makeRecurrenceFieldEnvelope,
   makeRecurrencePreviewEnvelope,
   makeRecurrenceResultEnvelope,
+  makeObligationOccurrenceEnvelope,
+  makeObligationExcuseEnvelope,
+  makeObligationOutcomeResultEnvelope,
+  obligationHistoryLine,
   makeScheduledCommitmentEnvelope,
   makeScheduledOverlapEnvelope,
   makeScheduledOutcomeResultEnvelope,
@@ -452,6 +456,9 @@ data Opportunity
   | RecurrenceFieldOpportunity UUIDv7 RecurrenceField RecurrenceSchedule Text
   | RecurrencePreviewOpportunity UUIDv7 RecurrenceSchedule
   | RecurrenceResultOpportunity UUIDv7
+  | ObligationOccurrenceOpportunity UUIDv7
+  | ObligationExcuseOpportunity UUIDv7 Text
+  | ObligationOutcomeResultOpportunity UUIDv7
   | ScheduledCommitmentOpportunity UUIDv7
   | ScheduledOverlapOpportunity [UUIDv7]
   | ScheduledOutcomeResultOpportunity UUIDv7 StandingOutcomeKind
@@ -2702,6 +2709,7 @@ standingContext now state brick = occurrenceContext <> habitContext
       [ "Occurrence: " <> recurringOccurrenceLabel occurrence <> maybe "" deadlineText (temporalDeadline =<< Map.lookup (brickId brick) (stateTemporalConstraints state))
       , "Series: " <> maybe ("#<missing> " <> renderUUIDv7 (recurringOccurrenceOwner occurrence)) brickCitation (Map.lookup (recurringOccurrenceOwner occurrence) (stateBricks state))
       ]
+        <> obligationSeriesLines state (recurringOccurrenceOwner occurrence)
   deadlineText deadline = " · deadline " <> formatLocalDateTime (utcToZonedTime (zonedTimeZone now) (zonedInstantUtc deadline))
   findOccurrence =
     case [occurrence | occurrence <- Map.elems (stateRecurringOccurrences state), recurringOccurrenceBrick occurrence == brickId brick] of
@@ -3021,6 +3029,10 @@ makeRecurrenceFieldEnvelope previous now state brick field schedule draft =
       [ choice "recurrence.occurrence.atomic" "atomic task" "a" (recurrenceOccurrenceNature schedule /= ScheduledCommitment) "Each occurrence is ordinary finite Work with its own dates."
       , choice "recurrence.occurrence.scheduled" "scheduled commitment" "s" (recurrenceOccurrenceNature schedule == ScheduledCommitment) "Each occurrence is an exact interval with attended, missed, or cancelled truth."
       ]
+    RecurrencePolicyField ->
+      [ choice "recurrence.policy.stays_open" "stays open" "o" (recurrenceDeadlinePolicy schedule == DeadlineStaysOpen) "An unfinished period stays open as debt until done, as for a bill."
+      , choice "recurrence.policy.lapses" "counts as missed" "m" (recurrenceDeadlinePolicy schedule == DeadlineLapses) "An unfinished period closes as missed at its deadline, as for a required shift."
+      ]
     _ ->
       [ Action
           "recurrence.field.submit"
@@ -3050,7 +3062,7 @@ makeRecurrencePreviewEnvelope previous now state brick schedule anchorLines =
       ( EnvelopeContent
           "Recurrence preview:"
           (Just (brickCitation brick))
-          (fmap (recurrenceFieldLine schedule) (recurrenceFields schedule) <> ["", "Next anchors:"] <> anchorLines <> ["", releaseNote])
+          (fmap (recurrenceFieldLine schedule) (recurrenceFields schedule) <> policyLines <> ["", "Next anchors:"] <> anchorLines <> ["", releaseNote])
           (Just "Record this recurrence?")
       )
       [ Action "recurrence.accept" "yes" "y" False "Record this schedule; due occurrences are released at the next tick."
@@ -3063,9 +3075,128 @@ makeRecurrencePreviewEnvelope previous now state brick schedule anchorLines =
       Nothing
       (brickFooter now state brick)
  where
+  policyLines = case recurrenceDeadlineOffsetSeconds schedule of
+    Nothing -> []
+    Just _ -> ["", deadlinePolicySentence (recurrenceDeadlinePolicy schedule)]
   releaseNote
     | Map.member (brickId brick) (stateRecurrenceSchedules state) = "Already released occurrences keep their dates; only unreleased anchors follow this schedule."
+    | recurrenceDeadlinePolicy schedule == DeadlineLapses = "Each occurrence is released when it opens and closes as missed if it is not done by its deadline."
     | otherwise = "Each occurrence is released when it opens and stays open until done or archived."
+
+-- | The consequence and period history of a lapsing series (WRK-164).
+obligationSeriesLines :: State -> UUIDv7 -> [Text]
+obligationSeriesLines state owner = case Map.lookup owner (stateRecurrenceSchedules state) of
+  Just schedule
+    | recurrenceDeadlinePolicy schedule == DeadlineLapses ->
+        maybe [] (pure . ("Consequence: " <>)) (recurrenceConsequence schedule)
+          <> maybe [] pure (obligationHistoryLine state owner)
+  _ -> []
+
+-- | Newest first: [x] done, [~] done late, [!] missed, [-] excused, with totals.
+obligationHistoryLine :: State -> UUIDv7 -> Maybe Text
+obligationHistoryLine state owner = case take 10 (snd <$> obligationPeriodHistory state owner) of
+  [] -> Nothing
+  cells ->
+    Just
+      ( "History: "
+          <> Text.concat (fmap mark cells)
+          <> "  ·  "
+          <> Text.intercalate
+            " · "
+            [ count PeriodDoneOnTime cells <> " on time"
+            , count PeriodDoneLate cells <> " late"
+            , count PeriodMissed cells <> " missed"
+            , count PeriodExcused cells <> " excused"
+            ]
+      )
+ where
+  count cell = Text.pack . show . length . filter (== cell)
+  mark = \case
+    PeriodDoneOnTime -> "[x]"
+    PeriodDoneLate -> "[~]"
+    PeriodMissed -> "[!]"
+    PeriodExcused -> "[-]"
+    PeriodOpen -> "[ ]"
+
+{- | UX-RO02 for a missed occurrence, and contextual inspection of an open
+one. Neither action returns the occurrence to the draw.
+-}
+makeObligationOccurrenceEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> RecurringOccurrence -> Brick -> InteractionEnvelope
+makeObligationOccurrenceEnvelope identity cursor precondition now state occurrence brick =
+  sealed
+    identity
+    1
+    cursor
+    precondition
+    ChoiceGrammar
+    (ObligationOccurrenceOpportunity (recurringOccurrenceId occurrence))
+    (EnvelopeContent heading (Just (brickCitation brick)) body Nothing)
+    (actions <> [moreAction])
+    [showBrickCommand brick, helpCommand, exitCommand]
+    Nothing
+    (brickFooter now state brick)
+ where
+  cell = obligationPeriodState state (recurringOccurrenceId occurrence)
+  heading = case cell of
+    PeriodMissed -> "Missed:"
+    _ -> "Occurrence:"
+  local instant = formatLocalDateTime (utcToZonedTime (zonedTimeZone now) instant)
+  deadline = temporalDeadline =<< Map.lookup (brickId brick) (stateTemporalConstraints state)
+  period = Map.lookup (recurringOccurrenceId occurrence) (stateObligationPeriods state)
+  body =
+    ["Occurrence: " <> recurringOccurrenceLabel occurrence <> maybe "" ((" · deadline " <>) . local . zonedInstantUtc) deadline]
+      <> ["State: " <> stateText]
+      <> maybe [] (\reason -> ["Excuse: " <> reason]) (period >>= obligationPeriodExcuseReason)
+      <> obligationSeriesLines state (recurringOccurrenceOwner occurrence)
+  stateText = case cell of
+    PeriodOpen -> "open"
+    PeriodDoneOnTime -> "done"
+    PeriodDoneLate -> "done late" <> maybe "" ((" · " <>) . local) (period >>= obligationPeriodDoneLateAt)
+    PeriodMissed -> "missed" <> maybe "" ((" at " <>) . local) (period >>= obligationPeriodMissedAt)
+    PeriodExcused -> "excused" <> maybe "" ((" · " <>) . local) (period >>= obligationPeriodExcusedAt)
+  excuse = Action "occurrence.excuse" "excuse" "e" False "Excuse this period, such as for vacation or leave; it stops counting as a miss."
+  unknown = Action "occurrence.unknown" "I don't know" "k" False "Explain missed, done late, and excused periods without changing anything."
+  actions = case cell of
+    PeriodMissed ->
+      [ Action "occurrence.done_late" "done late" "d" False "Record completion now; the period counts as late and the miss stays in history."
+      , excuse
+      , unknown
+      ]
+    PeriodOpen | brickStatus brick == BrickActive -> [excuse, unknown]
+    _ -> [Action "next" "next" "n" False "Obtain the next useful opportunity.", unknown]
+
+makeObligationExcuseEnvelope :: InteractionEnvelope -> ZonedTime -> State -> RecurringOccurrence -> Brick -> Text -> InteractionEnvelope
+makeObligationExcuseEnvelope previous now state occurrence brick draft =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      InputGrammar
+      (ObligationExcuseOpportunity (recurringOccurrenceId occurrence) draft)
+      ( EnvelopeContent
+          "Excuse:"
+          (Just (brickCitation brick))
+          ["Occurrence: " <> recurringOccurrenceLabel occurrence, "Reason › " <> draft]
+          (Just "Optional reason, such as vacation or leave. Leave it empty to excuse without one.")
+      )
+      [ Action "occurrence.excuse.submit" "excuse" "enter" False "Excuse this period; history keeps any miss and both times."
+      , Action "occurrence.excuse.back" "back" "b" False "Return to the occurrence without changing it."
+      , moreAction
+      ]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      Nothing
+      (brickFooter now state brick)
+
+makeObligationOutcomeResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> RecurringOccurrence -> Brick -> InteractionEnvelope
+makeObligationOutcomeResultEnvelope identity cursor precondition now state occurrence brick =
+  resultEnvelope identity cursor precondition now state (ObligationOutcomeResultOpportunity (recurringOccurrenceId occurrence)) heading (brickCitation brick : ("Occurrence: " <> recurringOccurrenceLabel occurrence) : maybe [] pure (obligationHistoryLine state (recurringOccurrenceOwner occurrence)))
+ where
+  heading = case obligationPeriodState state (recurringOccurrenceId occurrence) of
+    PeriodDoneLate -> "Done late:"
+    PeriodExcused -> "Excused:"
+    _ -> "Occurrence updated:"
 
 makeRecurrenceResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> Bool -> InteractionEnvelope
 makeRecurrenceResultEnvelope identity cursor precondition now state brick recorded =
@@ -4948,6 +5079,9 @@ opportunityValue = \case
   RecurrenceFieldOpportunity identity field schedule draft -> typed "recurrence_field" ["owner_id" .= renderUUIDv7 identity, "field" .= recurrenceFieldCode field, "schedule" .= recurrenceScheduleValue schedule, "draft" .= draft]
   RecurrencePreviewOpportunity identity schedule -> typed "recurrence_preview" ["owner_id" .= renderUUIDv7 identity, "schedule" .= recurrenceScheduleValue schedule]
   RecurrenceResultOpportunity identity -> typed "recurrence_result" ["owner_id" .= renderUUIDv7 identity]
+  ObligationOccurrenceOpportunity identity -> typed "obligation_occurrence" ["occurrence_id" .= renderUUIDv7 identity]
+  ObligationExcuseOpportunity identity draft -> typed "obligation_excuse" ["occurrence_id" .= renderUUIDv7 identity, "draft" .= draft]
+  ObligationOutcomeResultOpportunity identity -> typed "obligation_outcome_result" ["occurrence_id" .= renderUUIDv7 identity]
   ScheduledCommitmentOpportunity identity -> typed "scheduled_commitment" ["owner_id" .= renderUUIDv7 identity]
   ScheduledOverlapOpportunity identities -> typed "scheduled_overlap" ["owner_ids" .= fmap renderUUIDv7 identities]
   ScheduledOutcomeResultOpportunity identity outcome -> typed "scheduled_outcome_result" ["owner_id" .= renderUUIDv7 identity, "outcome" .= scheduledOutcomeName outcome]
@@ -5178,6 +5312,9 @@ parseOpportunity = withObject "Opportunity" $ \value ->
         <*> value .: "draft"
     "recurrence_preview" -> RecurrencePreviewOpportunity <$> uuidField value "owner_id" <*> (value .: "schedule" >>= parseRecurrenceSchedule)
     "recurrence_result" -> RecurrenceResultOpportunity <$> uuidField value "owner_id"
+    "obligation_occurrence" -> ObligationOccurrenceOpportunity <$> uuidField value "occurrence_id"
+    "obligation_excuse" -> ObligationExcuseOpportunity <$> uuidField value "occurrence_id" <*> value .: "draft"
+    "obligation_outcome_result" -> ObligationOutcomeResultOpportunity <$> uuidField value "occurrence_id"
     "scheduled_commitment" -> ScheduledCommitmentOpportunity <$> uuidField value "owner_id"
     "scheduled_overlap" -> ScheduledOverlapOpportunity <$> (value .: "owner_ids" >>= traverse parseUuid)
     "scheduled_outcome_result" -> ScheduledOutcomeResultOpportunity <$> uuidField value "owner_id" <*> (value .: "outcome" >>= parseInteractionScheduledOutcome)

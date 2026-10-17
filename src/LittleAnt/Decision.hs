@@ -10,6 +10,7 @@ module LittleAnt.Decision (
   RecurrenceReleaseFact (..),
   HabitWindowFact (..),
   HabitExpiryFact (..),
+  ObligationLapseFact (..),
   TemporalTickPlan (..),
   decideCompleteBrick,
   decideArchiveBrick,
@@ -57,6 +58,8 @@ module LittleAnt.Decision (
   decideSetRepeatableReturn,
   decideSetScheduledInterval,
   decideScheduledOutcome,
+  decideExcuseOccurrence,
+  decideOccurrenceDoneLate,
   decideSetRecurrenceSchedule,
   decideSetHabitSchedule,
   decideSetOperationalDayConfig,
@@ -168,6 +171,14 @@ data RecurrenceReleaseFact = RecurrenceReleaseFact
   , releaseFactLabel :: Text
   , releaseFactTemporal :: TemporalConstraints
   , releaseFactInterval :: Maybe (ZonedInstant, ZonedInstant)
+  , releaseFactLapsesAt :: Maybe UTCTime
+  }
+  deriving stock (Eq, Show)
+
+-- | WRK-161: one already released occurrence that lapses as missed.
+data ObligationLapseFact = ObligationLapseFact
+  { lapseFactOccurrence :: UUIDv7
+  , lapseFactAt :: UTCTime
   }
   deriving stock (Eq, Show)
 
@@ -193,6 +204,7 @@ data TemporalTickPlan = TemporalTickPlan
   { temporalTickReleases :: [RecurrenceReleaseFact]
   , temporalTickNewHabitWindows :: [HabitWindowFact]
   , temporalTickHabitExpiries :: [HabitExpiryFact]
+  , temporalTickLapses :: [ObligationLapseFact]
   }
   deriving stock (Eq, Show)
 
@@ -317,6 +329,7 @@ statePreconditionHash state =
   temporalScheduleLines =
     [ "recurrence-schedules:" <> Text.pack (show (Map.toAscList (stateRecurrenceSchedules state)))
     , "recurring-occurrences:" <> Text.pack (show (Map.toAscList (stateRecurringOccurrences state)))
+    , "obligation-periods:" <> Text.pack (show (Map.toAscList (stateObligationPeriods state)))
     , "habit-schedules:" <> Text.pack (show (Map.toAscList (stateHabitSchedules state)))
     , "habit-windows:" <> Text.pack (show (Map.toAscList (stateHabitWindows state)))
     , "habit-outcomes:" <> Text.pack (show (Map.toAscList (stateHabitOutcomes state)))
@@ -1356,6 +1369,41 @@ decideSetScheduledInterval state actor ownerId startsAt endsAt facts = do
       event = makeDraft facts actor state allocated eventId commandId (ScheduledIntervalSetV1 (ScheduledIntervalSet ownerId startsAt endsAt revision))
   pure (MutationDecision commandId (Just owner) Nothing [event])
 
+requireObligationOccurrenceBrick :: State -> UUIDv7 -> Either AppError (Brick, ObligationPeriod)
+requireObligationOccurrenceBrick state identity = do
+  occurrence <- maybe (Left (appError PreconditionFailed "Only a released occurrence of a recurring obligation has a period outcome.")) Right (Map.lookup identity (stateRecurringOccurrences state))
+  brick <- maybe (Left (appError NotFound "The occurrence Brick is missing.")) Right (Map.lookup (recurringOccurrenceBrick occurrence) (stateBricks state))
+  pure (brick, Map.findWithDefault (ObligationPeriod Nothing Nothing Nothing Nothing) identity (stateObligationPeriods state))
+
+-- | WRK-162: excuse one open or missed occurrence, with an optional reason.
+decideExcuseOccurrence :: State -> Actor -> UUIDv7 -> Maybe Text -> RuntimeFacts -> Either AppError MutationDecision
+decideExcuseOccurrence state actor identity reason facts = do
+  (brick, period) <- requireObligationOccurrenceBrick state identity
+  case obligationPeriodState state identity of
+    PeriodOpen | brickStatus brick == BrickActive -> pure ()
+    PeriodMissed | brickStatus brick == BrickMissed -> pure ()
+    _ -> Left (appError PreconditionFailed "Only an open or missed occurrence can be excused.")
+  when (isJust (obligationPeriodExcusedAt period)) $ Left (appError PreconditionFailed "This occurrence is already excused.")
+  let normalized = case Text.strip <$> reason of
+        Just text | not (Text.null text) -> Just text
+        _ -> Nothing
+  when (maybe False ((> 200) . Text.length) normalized) $ Left (appError InvalidInput "An excuse reason has at most 200 characters.")
+  allocated <- requireUUIDs 2 facts
+  (commandId, eventId) <- exactlyTwo allocated
+  let event = makeDraft facts actor state allocated eventId commandId (ObligationOccurrenceExcusedV1 (ObligationOccurrenceExcused identity normalized))
+  pure (MutationDecision commandId (Just brick) Nothing [event])
+
+-- | WRK-163: complete a missed occurrence late without erasing the miss.
+decideOccurrenceDoneLate :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
+decideOccurrenceDoneLate state actor identity facts = do
+  (brick, period) <- requireObligationOccurrenceBrick state identity
+  unless (brickStatus brick == BrickMissed && isJust (obligationPeriodMissedAt period) && obligationPeriodState state identity == PeriodMissed) $
+    Left (appError PreconditionFailed "Only a missed occurrence can be done late.")
+  allocated <- requireUUIDs 2 facts
+  (commandId, eventId) <- exactlyTwo allocated
+  let event = makeDraft facts actor state allocated eventId commandId (ObligationOccurrenceDoneLateV1 identity)
+  pure (MutationDecision commandId (Just brick) Nothing [event])
+
 decideScheduledOutcome :: State -> Actor -> UUIDv7 -> StandingOutcomeKind -> RuntimeFacts -> Either AppError MutationDecision
 decideScheduledOutcome state actor ownerId outcome facts = do
   owner <- requireActiveBrick state ownerId
@@ -1381,6 +1429,14 @@ decideSetRecurrenceSchedule state actor proposed facts = do
     Left (appError InvalidInput "A recurrence schedule needs one named IANA timezone.")
   unless (maybe True (> 0) (recurrenceDurationSeconds proposed)) $
     Left (appError InvalidInput "A scheduled occurrence duration must be positive.")
+  when (recurrenceDeadlinePolicy proposed == DeadlineLapses && isNothing (recurrenceDeadlineOffsetSeconds proposed)) $
+    Left (appError InvalidInput "A period can count as missed only when the series has a deadline.")
+  case recurrenceConsequence proposed of
+    Nothing -> pure ()
+    Just text
+      | recurrenceDeadlinePolicy proposed /= DeadlineLapses -> Left (appError InvalidInput "Only a series whose missed periods count as missed states a consequence.")
+      | Text.null (Text.strip text) || Text.length text > 200 -> Left (appError InvalidInput "A consequence has one to 200 characters.")
+      | otherwise -> pure ()
   let revision = maybe 1 ((+ 1) . recurrenceRevision) (Map.lookup (brickId owner) (stateRecurrenceSchedules state))
       schedule = proposed{recurrenceRevision = revision}
   allocated <- requireUUIDs 2 facts
@@ -1584,16 +1640,14 @@ decideTemporalTick state actor plan facts
         identity : rest -> Right (identity, rest)
         [] -> Left (appError PreconditionFailed "The temporal tick has no command identity.")
       (releaseEvents, afterReleases, _) <- buildReleases allocated commandId remaining (stateRetiredBrickHandles state) Map.empty (temporalTickReleases plan)
-      (windowEvents, afterWindows) <- buildWindows allocated commandId afterReleases (temporalTickNewHabitWindows plan)
+      (lapseEvents, afterLapses) <- buildLapses allocated commandId afterReleases (temporalTickLapses plan)
+      (windowEvents, afterWindows) <- buildWindows allocated commandId afterLapses (temporalTickNewHabitWindows plan)
       (expiryEvents, afterExpiries) <- buildExpiries allocated commandId afterWindows (temporalTickHabitExpiries plan)
       unless (null afterExpiries) $ Left (appError PreconditionFailed "The temporal tick UUID allocation count changed unexpectedly.")
-      pure (Just (MutationDecision commandId Nothing Nothing (releaseEvents <> windowEvents <> expiryEvents)))
+      pure (Just (MutationDecision commandId Nothing Nothing (releaseEvents <> lapseEvents <> windowEvents <> expiryEvents)))
  where
-  releaseEventCount = length (temporalTickReleases plan)
-  newWindowEventCount = sum [1 + habitWindowFactExpiredUnits fact | fact <- temporalTickNewHabitWindows plan]
-  expiryEventCount = sum (fmap habitExpiryUnits (temporalTickHabitExpiries plan))
-  eventCount = releaseEventCount + newWindowEventCount + expiryEventCount
-  allocationCount = 1 + 2 * releaseEventCount + 2 * length (temporalTickNewHabitWindows plan) + sum (fmap habitWindowFactExpiredUnits (temporalTickNewHabitWindows plan)) + expiryEventCount
+  eventCount = temporalTickEventCount plan
+  allocationCount = temporalTickUUIDCount plan
 
   buildReleases _ _ ids handles positions [] = Right ([], ids, (handles, positions))
   buildReleases replay commandId ids handles positions (fact : rest) = do
@@ -1606,8 +1660,20 @@ decideTemporalTick state actor plan facts
         interval = fmap (\(startsAt, endsAt) -> ScheduledInterval occurrenceId startsAt endsAt 1) (releaseFactInterval fact)
         payload = RecurringOccurrenceReleased occurrence handle (brickTitle owner) (recurrenceOccurrenceNature schedule) (brickDomains owner) priorPosition (releaseFactTemporal fact) interval
         event = makeDraft facts actor state replay eventId commandId (RecurringOccurrenceReleasedV1 payload)
-    (later, finalIds, finalState) <- buildReleases replay commandId remaining (Set.insert handle handles) (Map.insert (brickId owner) (priorPosition + 1) positions) rest
-    pure (event : later, finalIds, finalState)
+    (lapse, afterLapse) <- case releaseFactLapsesAt fact of
+      Nothing -> Right ([], remaining)
+      Just lapsedAtTime -> case remaining of
+        lapseEventId : rest' -> Right ([makeDraft facts actor state replay lapseEventId commandId (ObligationOccurrenceLapsedV1 (ObligationOccurrenceLapsed occurrenceId lapsedAtTime))], rest')
+        [] -> Left (appError PreconditionFailed "The temporal tick ran out of lapse identities.")
+    (later, finalIds, finalState) <- buildReleases replay commandId afterLapse (Set.insert handle handles) (Map.insert (brickId owner) (priorPosition + 1) positions) rest
+    pure (event : lapse <> later, finalIds, finalState)
+
+  buildLapses _ _ ids [] = Right ([], ids)
+  buildLapses replay commandId (eventId : remaining) (fact : rest) = do
+    let event = makeDraft facts actor state replay eventId commandId (ObligationOccurrenceLapsedV1 (ObligationOccurrenceLapsed (lapseFactOccurrence fact) (lapseFactAt fact)))
+    (later, finalIds) <- buildLapses replay commandId remaining rest
+    pure (event : later, finalIds)
+  buildLapses _ _ [] _ = Left (appError PreconditionFailed "The temporal tick ran out of lapse identities.")
 
   buildWindows _ _ ids [] = Right ([], ids)
   buildWindows replay commandId ids (fact : rest) = do
@@ -1640,18 +1706,23 @@ decideTemporalTick state actor plan facts
 
 temporalTickUUIDCount :: TemporalTickPlan -> Int
 temporalTickUUIDCount plan
-  | eventCount == 0 = 0
+  | temporalTickEventCount plan == 0 = 0
   | otherwise =
       1
         + 2 * length (temporalTickReleases plan)
+        + length (filter (isJust . releaseFactLapsesAt) (temporalTickReleases plan))
+        + length (temporalTickLapses plan)
         + 2 * length (temporalTickNewHabitWindows plan)
         + sum (fmap habitWindowFactExpiredUnits (temporalTickNewHabitWindows plan))
         + sum (fmap habitExpiryUnits (temporalTickHabitExpiries plan))
- where
-  eventCount =
-    length (temporalTickReleases plan)
-      + sum [1 + habitWindowFactExpiredUnits fact | fact <- temporalTickNewHabitWindows plan]
-      + sum (fmap habitExpiryUnits (temporalTickHabitExpiries plan))
+
+temporalTickEventCount :: TemporalTickPlan -> Int
+temporalTickEventCount plan =
+  length (temporalTickReleases plan)
+    + length (filter (isJust . releaseFactLapsesAt) (temporalTickReleases plan))
+    + length (temporalTickLapses plan)
+    + sum [1 + habitWindowFactExpiredUnits fact | fact <- temporalTickNewHabitWindows plan]
+    + sum (fmap habitExpiryUnits (temporalTickHabitExpiries plan))
 decideStartChecklistRun state actor ownerIdentity selection facts = do
   owner <- requireChecklistOwner state ownerIdentity
   if Map.member ownerIdentity (stateChecklistRuns state)

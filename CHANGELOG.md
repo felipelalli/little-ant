@@ -9,6 +9,13 @@ replace the specification.
 
 ## Unreleased
 
+- Give each recurring obligation a deadline policy: an unfinished period
+  either stays open as debt, as for a bill, or counts as missed at its
+  deadline, as for a required weekly shift, with an optional consequence text.
+  The tick closes lapsing periods as missed (scheduled ones after a 24-hour
+  grace); `show --view guided '#occurrence'` lets a missed period be done late
+  or excused and an open one be excused, keeping every fact in a period
+  history such as `[x][~][!][-]` with totals.
 - Offer `[c]lassify` on the detail of a Raw still awaiting triage
   (`show --view guided '+raw'`), opening triage for that exact Raw instead of
   only the oldest Inbox item.

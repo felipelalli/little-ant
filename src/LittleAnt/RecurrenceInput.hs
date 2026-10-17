@@ -21,7 +21,10 @@ module LittleAnt.RecurrenceInput (
   recurrenceFields,
   recurrenceOccurrenceName,
   renderRecurrenceOffset,
+  setRecurrenceDeadlinePolicy,
   setRecurrenceFamily,
+  deadlinePolicyName,
+  deadlinePolicySentence,
   setRecurrenceOccurrenceNature,
 )
 where
@@ -50,6 +53,8 @@ data RecurrenceField
   | RecurrenceOpensField
   | RecurrenceBestBeforeField
   | RecurrenceDeadlineField
+  | RecurrencePolicyField
+  | RecurrenceConsequenceField
   deriving stock (Bounded, Enum, Eq, Ord, Show)
 
 -- | A new weekly atomic series anchored on @today@, with no due offsets.
@@ -73,6 +78,8 @@ defaultRecurrenceSchedule owner zone today =
     , recurrenceNotBeforeOffsetSeconds = 0
     , recurrenceBestBeforeOffsetSeconds = Nothing
     , recurrenceDeadlineOffsetSeconds = Nothing
+    , recurrenceDeadlinePolicy = DeadlineStaysOpen
+    , recurrenceConsequence = Nothing
     , recurrenceRevision = 0
     }
 
@@ -84,6 +91,8 @@ recurrenceFields schedule =
     <> [RecurrenceTimesField, RecurrenceZoneField]
     <> [RecurrenceDurationField | recurrenceOccurrenceNature schedule == ScheduledCommitment]
     <> [RecurrenceOpensField, RecurrenceBestBeforeField, RecurrenceDeadlineField]
+    <> [RecurrencePolicyField | Just _ <- [recurrenceDeadlineOffsetSeconds schedule]]
+    <> [RecurrenceConsequenceField | recurrenceDeadlinePolicy schedule == DeadlineLapses]
  where
   familyFields = case calendarFamily (recurrenceRule schedule) of
     DailyRecurrence -> []
@@ -97,7 +106,7 @@ nextRecurrenceField schedule field = case dropWhile (/= field) (recurrenceFields
   _ -> Nothing
 
 recurrenceFieldIsChoice :: RecurrenceField -> Bool
-recurrenceFieldIsChoice field = field `elem` [RecurrenceFamilyField, RecurrenceOccurrenceField]
+recurrenceFieldIsChoice field = field `elem` [RecurrenceFamilyField, RecurrenceOccurrenceField, RecurrencePolicyField]
 
 recurrenceFieldCode :: RecurrenceField -> Text
 recurrenceFieldCode = \case
@@ -113,6 +122,8 @@ recurrenceFieldCode = \case
   RecurrenceOpensField -> "opens"
   RecurrenceBestBeforeField -> "best_before"
   RecurrenceDeadlineField -> "deadline"
+  RecurrencePolicyField -> "at_deadline"
+  RecurrenceConsequenceField -> "consequence"
 
 parseRecurrenceFieldCode :: Text -> Maybe RecurrenceField
 parseRecurrenceFieldCode code = lookup code [(recurrenceFieldCode field, field) | field <- [minBound .. maxBound]]
@@ -131,6 +142,8 @@ recurrenceFieldLabel = \case
   RecurrenceOpensField -> "Opens"
   RecurrenceBestBeforeField -> "Best before"
   RecurrenceDeadlineField -> "Deadline"
+  RecurrencePolicyField -> "At deadline"
+  RecurrenceConsequenceField -> "Consequence"
 
 recurrenceFieldPrompt :: RecurrenceSchedule -> RecurrenceField -> Text
 recurrenceFieldPrompt schedule = \case
@@ -146,6 +159,19 @@ recurrenceFieldPrompt schedule = \case
   RecurrenceOpensField -> "When does each occurrence open? For example: 7 days before, or at the anchor."
   RecurrenceBestBeforeField -> "Preferred completion relative to the anchor, such as 1 day before, or none."
   RecurrenceDeadlineField -> "Deadline relative to the anchor, such as at the anchor, or none."
+  RecurrencePolicyField -> "When a period is not done by its deadline, what does it become?"
+  RecurrenceConsequenceField -> "Optional: what happens when a period is missed? At most 200 characters, or none."
+
+deadlinePolicyName :: DeadlinePolicy -> Text
+deadlinePolicyName = \case
+  DeadlineStaysOpen -> "stays open"
+  DeadlineLapses -> "counts as missed"
+
+-- | The review sentence for one deadline policy (UX-RO01).
+deadlinePolicySentence :: DeadlinePolicy -> Text
+deadlinePolicySentence = \case
+  DeadlineStaysOpen -> "A period not done by its deadline stays open until done."
+  DeadlineLapses -> "A period not done by its deadline counts as missed."
 
 recurrenceFamilyName :: RecurrenceFamily -> Text
 recurrenceFamilyName = \case
@@ -193,6 +219,8 @@ recurrenceFieldDraft schedule = \case
   RecurrenceOpensField -> renderRecurrenceOffset (recurrenceNotBeforeOffsetSeconds schedule)
   RecurrenceBestBeforeField -> maybe "none" renderRecurrenceOffset (recurrenceBestBeforeOffsetSeconds schedule)
   RecurrenceDeadlineField -> maybe "none" renderRecurrenceOffset (recurrenceDeadlineOffsetSeconds schedule)
+  RecurrencePolicyField -> deadlinePolicyName (recurrenceDeadlinePolicy schedule)
+  RecurrenceConsequenceField -> fromMaybe "none" (recurrenceConsequence schedule)
  where
   rule = recurrenceRule schedule
 
@@ -201,6 +229,11 @@ applyRecurrenceInput :: RecurrenceField -> Text -> RecurrenceSchedule -> Either 
 applyRecurrenceInput field raw schedule = case field of
   RecurrenceFamilyField -> invalid "Choose the family from the listed options."
   RecurrenceOccurrenceField -> invalid "Choose the occurrence Nature from the listed options."
+  RecurrencePolicyField -> invalid "Choose what a period becomes at its deadline from the listed options."
+  RecurrenceConsequenceField
+    | Text.null input || Text.toLower input == "none" -> pure schedule{recurrenceConsequence = Nothing}
+    | Text.length input > 200 -> invalid "A consequence has at most 200 characters."
+    | otherwise -> pure schedule{recurrenceConsequence = Just input}
   RecurrenceEveryField -> do
     every <- wholeNumber "The interval" 1 100000 input
     pure (withRule rule{calendarEvery = every})
@@ -263,6 +296,11 @@ setRecurrenceFamily family schedule =
       , calendarIntendedMonth = Just (fromMaybe startMonth (calendarIntendedMonth rule))
       }
 
+setRecurrenceDeadlinePolicy :: DeadlinePolicy -> RecurrenceSchedule -> RecurrenceSchedule
+setRecurrenceDeadlinePolicy policy schedule = case policy of
+  DeadlineLapses -> schedule{recurrenceDeadlinePolicy = DeadlineLapses}
+  DeadlineStaysOpen -> schedule{recurrenceDeadlinePolicy = DeadlineStaysOpen, recurrenceConsequence = Nothing}
+
 setRecurrenceOccurrenceNature :: BrickNature -> RecurrenceSchedule -> RecurrenceSchedule
 setRecurrenceOccurrenceNature nature schedule = case nature of
   ScheduledCommitment ->
@@ -272,11 +310,16 @@ setRecurrenceOccurrenceNature nature schedule = case nature of
       }
   _ -> schedule{recurrenceOccurrenceNature = AtomicTask, recurrenceDurationSeconds = Nothing}
 
--- | Drop family anchors the selected family does not use before recording.
+{- | Drop family anchors the selected family does not use before recording,
+and the deadline policy when no deadline remains to lapse at.
+-}
 normalizeRecurrenceSchedule :: RecurrenceSchedule -> RecurrenceSchedule
 normalizeRecurrenceSchedule schedule =
-  schedule{recurrenceRule = normalized}
+  withPolicy schedule{recurrenceRule = normalized}
  where
+  withPolicy current = case recurrenceDeadlineOffsetSeconds current of
+    Nothing -> setRecurrenceDeadlinePolicy DeadlineStaysOpen current
+    Just _ -> current
   rule = recurrenceRule schedule
   family = calendarFamily rule
   normalized =

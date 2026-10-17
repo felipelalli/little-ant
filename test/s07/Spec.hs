@@ -40,6 +40,9 @@ main =
       , testCase "recurring obligation releases one stable occurrence and tick is idempotent" recurringRelease
       , testCase "recurrence editor records a weekly obligation with due offsets" recurrenceEditorWeekly
       , testCase "recurrence editor rejects prose, RRULE, and unknown zones" recurrenceEditorRejectsProse
+      , testCase "recurrence editor records a lapsing policy with its consequence" recurrenceEditorLapses
+      , testCase "lapsing occurrences close as missed and can be done late or excused" lapsingOccurrences
+      , testCase "a stays-open series keeps unfinished occurrences as debt" staysOpenKeepsDebt
       , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
       , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
@@ -154,6 +157,8 @@ recurringRelease = withHarness $ \environment -> do
           0
           Nothing
           Nothing
+          DeadlineStaysOpen
+          Nothing
           0
   _ <- run environment (SetRecurrenceScheduleCommand schedule)
   first <- run environment TickCommand
@@ -189,7 +194,11 @@ recurrenceEditorWeekly = withHarness $ \environment -> do
   opens <- submit environment zone "recurrence.field.submit" "America/Sao_Paulo"
   bestBefore <- submit environment opens "recurrence.field.submit" "5 days before"
   deadline <- submit environment bestBefore "recurrence.field.submit" "2 days before"
-  preview <- submit environment deadline "recurrence.field.submit" "at the anchor"
+  policy <- submit environment deadline "recurrence.field.submit" "at the anchor"
+  case envelopeOpportunity policy of
+    RecurrenceFieldOpportunity _ RecurrencePolicyField _ _ -> pure ()
+    other -> assertFailure ("expected the At deadline field, got " <> show other)
+  preview <- answer environment policy "recurrence.policy.stays_open"
   case envelopeOpportunity preview of
     RecurrencePreviewOpportunity identity _ -> identity @?= brickIdValue
     other -> assertFailure ("expected the recurrence preview, got " <> show other)
@@ -230,6 +239,133 @@ recurrenceEditorWeekly = withHarness $ \environment -> do
       fmap zonedInstantUtc (temporalDeadline =<< Map.lookup (recurringOccurrenceBrick released) (stateTemporalConstraints tickedState))
         @?= Just (UTCTime (fromGregorian 2026 8 7) (secondsToDiffTime (21 * 3600)))
     other -> assertFailure ("expected exactly the open Aug 7 occurrence, got " <> show other)
+
+recurrenceEditorLapses :: Assertion
+recurrenceEditorLapses = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  family <- run environment (UpdateCommand "#standing" (Just "repetition")) >>= interactionOf
+  occurrence <- answer environment family "recurrence.family.weekly"
+  every <- answer environment occurrence "recurrence.occurrence.atomic"
+  weekdays <- submit environment every "recurrence.field.submit" "1"
+  times <- submit environment weekdays "recurrence.field.submit" "fri"
+  zone <- submit environment times "recurrence.field.submit" "18:00"
+  opens <- submit environment zone "recurrence.field.submit" "America/Sao_Paulo"
+  bestBefore <- submit environment opens "recurrence.field.submit" "114 hours before"
+  deadline <- submit environment bestBefore "recurrence.field.submit" "2 days before"
+  policy <- submit environment deadline "recurrence.field.submit" "at the anchor"
+  consequence <- answer environment policy "recurrence.policy.lapses"
+  case envelopeOpportunity consequence of
+    RecurrenceFieldOpportunity _ RecurrenceConsequenceField _ _ -> pure ()
+    other -> assertFailure ("expected the Consequence field, got " <> show other)
+  tooLong <- runAppCommand environment False (const (pure ())) (SubmitInteractionTextCommand (response consequence "recurrence.field.submit") (Text.replicate 201 "x"))
+  either (\problem -> appErrorCode problem @?= InvalidInput) (\other -> assertFailure ("expected a long consequence to be rejected, got " <> show other)) tooLong
+  preview <- submit environment consequence "recurrence.field.submit" "Attendance is reported to HR"
+  let body = contentBody (envelopeContent preview)
+  assertBool ("preview lacks the policy: " <> show body) ("At deadline › counts as missed" `elem` body)
+  assertBool ("preview lacks the consequence: " <> show body) ("Consequence › Attendance is reported to HR" `elem` body)
+  assertBool ("preview lacks the policy sentence: " <> show body) ("A period not done by its deadline counts as missed." `elem` body)
+  _ <- answer environment preview "recurrence.accept"
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  case Map.lookup brickIdValue (stateRecurrenceSchedules (loadedState loaded)) of
+    Just schedule -> do
+      recurrenceDeadlinePolicy schedule @?= DeadlineLapses
+      recurrenceConsequence schedule @?= Just "Attendance is reported to HR"
+    Nothing -> assertFailure "the lapsing recurrence was not recorded"
+
+lapsingOccurrences :: Assertion
+lapsingOccurrences = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  -- Daily at 18:00 in Montevideo (21:00 UTC), opening a day early: at the
+  -- fixed 12:00 UTC clock Aug 1 and Aug 2 are past their deadline and Aug 3
+  -- is open.
+  let schedule =
+        RecurrenceSchedule
+          brickIdValue
+          (CalendarRule DailyRecurrence 1 (fromGregorian 2026 8 1) Set.empty Nothing Nothing [TimeOfDay 18 0 0])
+          "America/Montevideo"
+          AtomicTask
+          Nothing
+          (-86400)
+          Nothing
+          (Just 0)
+          DeadlineLapses
+          (Just "Attendance is reported to HR")
+          0
+  _ <- run environment (SetRecurrenceScheduleCommand schedule)
+  ticked <- run environment TickCommand
+  case ticked of
+    TickResult{resultReleasedOccurrences = 3, resultLapsedOccurrences = 2} -> pure ()
+    other -> assertFailure ("expected three releases and two misses, got " <> show other)
+  afterTick <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState afterTick
+  (newest, middle, oldest) <- case seriesOccurrences state brickIdValue of
+    [first, second, third] -> pure (first, second, third)
+    other -> assertFailure ("expected three occurrences, got " <> show other)
+  let deadlineOf day = UTCTime (fromGregorian 2026 8 day) (secondsToDiffTime (21 * 3600))
+  fmap (obligationPeriodState state . recurringOccurrenceId) [newest, middle, oldest] @?= [PeriodOpen, PeriodMissed, PeriodMissed]
+  fmap obligationPeriodMissedAt (Map.lookup (recurringOccurrenceId oldest) (stateObligationPeriods state)) @?= Just (Just (deadlineOf 1))
+  brickStatus (stateBricks state Map.! recurringOccurrenceBrick middle) @?= BrickMissed
+  again <- run environment TickCommand
+  case again of
+    TickResult{resultReleasedOccurrences = 0, resultLapsedOccurrences = 0} -> pure ()
+    other -> assertFailure ("expected an idempotent tick, got " <> show other)
+  let handleOf occurrence = "#" <> unHandle (brickHandle (stateBricks state Map.! recurringOccurrenceBrick occurrence))
+  missed <- run environment (ShowRawCommand (handleOf middle) GuidedView) >>= interactionOf
+  envelopeOpportunity missed @?= ObligationOccurrenceOpportunity (recurringOccurrenceId middle)
+  contentHeading (envelopeContent missed) @?= "Missed:"
+  assertBool ("missed screen lacks the consequence: " <> show (contentBody (envelopeContent missed))) $
+    "Consequence: Attendance is reported to HR" `elem` contentBody (envelopeContent missed)
+  fmap actionId (envelopeActions missed) @?= ["occurrence.done_late", "occurrence.excuse", "occurrence.unknown", "palette.open"]
+  late <- answer environment missed "occurrence.done_late"
+  envelopeOpportunity late @?= ObligationOutcomeResultOpportunity (recurringOccurrenceId middle)
+  contentHeading (envelopeContent late) @?= "Done late:"
+  oldestScreen <- run environment (ShowRawCommand (handleOf oldest) GuidedView) >>= interactionOf
+  reason <- answer environment oldestScreen "occurrence.excuse"
+  excused <- submit environment reason "occurrence.excuse.submit" "vacation"
+  contentHeading (envelopeContent excused) @?= "Excused:"
+  openScreen <- run environment (ShowRawCommand (handleOf newest) GuidedView) >>= interactionOf
+  fmap actionId (envelopeActions openScreen) @?= ["occurrence.excuse", "occurrence.unknown", "palette.open"]
+  openReason <- answer environment openScreen "occurrence.excuse"
+  _ <- submit environment openReason "occurrence.excuse.submit" ""
+  final <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let finalState = loadedState final
+  fmap snd (obligationPeriodHistory finalState brickIdValue) @?= [PeriodExcused, PeriodDoneLate, PeriodExcused]
+  obligationHistoryLine finalState brickIdValue @?= Just "History: [-][~][-]  ·  0 on time · 1 late · 0 missed · 2 excused"
+  let oldestPeriod = stateObligationPeriods finalState Map.! recurringOccurrenceId oldest
+  obligationPeriodMissedAt oldestPeriod @?= Just (deadlineOf 1)
+  obligationPeriodExcuseReason oldestPeriod @?= Just "vacation"
+  obligationPeriodExcuseReason (stateObligationPeriods finalState Map.! recurringOccurrenceId newest) @?= Nothing
+  brickStatus (stateBricks finalState Map.! recurringOccurrenceBrick middle) @?= BrickDone
+  brickStatus (stateBricks finalState Map.! recurringOccurrenceBrick newest) @?= BrickCancelled
+  -- Neither late completion nor an excuse can repeat.
+  repeated <- runAppCommand environment False (const (pure ())) (ShowRawCommand (handleOf middle) GuidedView) >>= either (assertFailure . show) interactionOf
+  fmap actionId (envelopeActions repeated) @?= ["next", "occurrence.unknown", "palette.open"]
+
+staysOpenKeepsDebt :: Assertion
+staysOpenKeepsDebt = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  let schedule =
+        RecurrenceSchedule
+          brickIdValue
+          (CalendarRule DailyRecurrence 1 (fromGregorian 2026 8 1) Set.empty Nothing Nothing [TimeOfDay 8 0 0])
+          "America/Montevideo"
+          AtomicTask
+          Nothing
+          0
+          Nothing
+          (Just 0)
+          DeadlineStaysOpen
+          Nothing
+          0
+  _ <- run environment (SetRecurrenceScheduleCommand schedule)
+  ticked <- run environment TickCommand
+  case ticked of
+    TickResult{resultReleasedOccurrences = 3, resultLapsedOccurrences = 0} -> pure ()
+    other -> assertFailure ("expected three open debts, got " <> show other)
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState loaded
+  fmap (obligationPeriodState state . recurringOccurrenceId) (seriesOccurrences state brickIdValue) @?= [PeriodOpen, PeriodOpen, PeriodOpen]
+  obligationHistoryLine state brickIdValue @?= Nothing
 
 recurrenceEditorRejectsProse :: Assertion
 recurrenceEditorRejectsProse = withHarness $ \environment -> do

@@ -54,6 +54,8 @@ module LittleAnt.Event (
   ScheduledIntervalSet (..),
   RecurrenceScheduleSet (..),
   RecurringOccurrenceReleased (..),
+  ObligationOccurrenceLapsed (..),
+  ObligationOccurrenceExcused (..),
   HabitScheduleSet (..),
   HabitWindowOpened (..),
   HabitWindowOutcomeRecorded (..),
@@ -222,6 +224,20 @@ newtype ExternalEffectReceiptRecorded = ExternalEffectReceiptRecorded
 
 newtype RecurrenceScheduleSet = RecurrenceScheduleSet
   { setRecurrenceSchedule :: RecurrenceSchedule
+  }
+  deriving stock (Eq, Show)
+
+-- | WRK-161: an open occurrence of a lapsing series resolved as missed.
+data ObligationOccurrenceLapsed = ObligationOccurrenceLapsed
+  { lapsedOccurrence :: UUIDv7
+  , lapsedAt :: UTCTime
+  }
+  deriving stock (Eq, Show)
+
+-- | WRK-162: one open or missed occurrence excused by the human.
+data ObligationOccurrenceExcused = ObligationOccurrenceExcused
+  { excusedOccurrence :: UUIDv7
+  , excusedReason :: Maybe Text
   }
   deriving stock (Eq, Show)
 
@@ -621,6 +637,9 @@ data EventPayload
   | ScheduledIntervalSetV1 ScheduledIntervalSet
   | RecurrenceScheduleSetV1 RecurrenceScheduleSet
   | RecurringOccurrenceReleasedV1 RecurringOccurrenceReleased
+  | ObligationOccurrenceLapsedV1 ObligationOccurrenceLapsed
+  | ObligationOccurrenceExcusedV1 ObligationOccurrenceExcused
+  | ObligationOccurrenceDoneLateV1 UUIDv7
   | HabitScheduleSetV1 HabitScheduleSet
   | HabitWindowOpenedV1 HabitWindowOpened
   | HabitWindowOutcomeRecordedV1 HabitWindowOutcomeRecorded
@@ -723,6 +742,9 @@ eventTypeName = \case
   ScheduledIntervalSetV1 _ -> "scheduled_interval_set"
   RecurrenceScheduleSetV1 _ -> "recurrence_schedule_set"
   RecurringOccurrenceReleasedV1 _ -> "recurring_occurrence_released"
+  ObligationOccurrenceLapsedV1 _ -> "obligation_occurrence_lapsed"
+  ObligationOccurrenceExcusedV1 _ -> "obligation_occurrence_excused"
+  ObligationOccurrenceDoneLateV1 _ -> "obligation_occurrence_done_late"
   HabitScheduleSetV1 _ -> "habit_schedule_set"
   HabitWindowOpenedV1 _ -> "habit_window_opened"
   HabitWindowOutcomeRecordedV1 _ -> "habit_window_outcome_recorded"
@@ -867,6 +889,9 @@ applyEvent state event = case persistedPayload event of
   ScheduledIntervalSetV1 payload -> applyScheduledIntervalSet state payload
   RecurrenceScheduleSetV1 payload -> applyRecurrenceScheduleSet state payload
   RecurringOccurrenceReleasedV1 payload -> applyRecurringOccurrenceReleased state event payload
+  ObligationOccurrenceLapsedV1 payload -> applyObligationOccurrenceLapsed state payload
+  ObligationOccurrenceExcusedV1 payload -> applyObligationOccurrenceExcused state event payload
+  ObligationOccurrenceDoneLateV1 occurrence -> applyObligationOccurrenceDoneLate state event occurrence
   HabitScheduleSetV1 payload -> applyHabitScheduleSet state payload
   HabitWindowOpenedV1 payload -> applyHabitWindowOpened state payload
   HabitWindowOutcomeRecordedV1 payload -> applyHabitWindowOutcomeRecorded state event payload
@@ -1429,10 +1454,75 @@ applyRecurrenceScheduleSet state payload = do
     (ScheduledCommitment, Just duration) | duration > 0 -> pure ()
     _ -> corrupt "Only a scheduled occurrence has one positive duration."
   when (Text.null (Text.strip (recurrenceZone schedule))) $ corrupt "A recurrence schedule needs one named IANA zone."
+  when (recurrenceDeadlinePolicy schedule == DeadlineLapses && isNothing (recurrenceDeadlineOffsetSeconds schedule)) $
+    corrupt "A lapsing recurrence schedule needs a deadline."
+  case recurrenceConsequence schedule of
+    Nothing -> pure ()
+    Just text
+      | recurrenceDeadlinePolicy schedule /= DeadlineLapses -> corrupt "Only a lapsing recurrence schedule states a consequence."
+      | Text.null (Text.strip text) || Text.length text > 200 -> corrupt "A recurrence consequence has one to 200 characters."
+      | otherwise -> pure ()
   let previousRevision = maybe 0 recurrenceRevision (Map.lookup (brickId owner) (stateRecurrenceSchedules state))
   unless (recurrenceRevision schedule == previousRevision + 1) $
     corrupt "A recurrence schedule revision is not contiguous."
   Right . bump $ state{stateRecurrenceSchedules = Map.insert (brickId owner) schedule (stateRecurrenceSchedules state), stateLastRedo = Nothing}
+
+requireObligationOccurrence :: State -> UUIDv7 -> Either AppError (Brick, RecurrenceSchedule, ObligationPeriod)
+requireObligationOccurrence state identity = do
+  occurrence <- maybe (corrupt "An obligation outcome references a missing occurrence.") Right (Map.lookup identity (stateRecurringOccurrences state))
+  brick <- requireBrick state (recurringOccurrenceBrick occurrence)
+  schedule <- maybe (corrupt "An obligation outcome references a missing schedule.") Right (Map.lookup (recurringOccurrenceOwner occurrence) (stateRecurrenceSchedules state))
+  let period = Map.findWithDefault (ObligationPeriod Nothing Nothing Nothing Nothing) identity (stateObligationPeriods state)
+  pure (brick, schedule, period)
+
+-- Resolving an occurrence leaves focus and any sprint on it, like an outcome.
+resolveOccurrenceBrick :: UUIDv7 -> BrickStatus -> State -> State
+resolveOccurrenceBrick identity status state =
+  state
+    { stateBricks = Map.adjust (\brick -> brick{brickWorkState = Idle, brickStatus = status}) identity (stateBricks state)
+    , stateCurrentFocus = if stateCurrentFocus state == Just identity then Nothing else stateCurrentFocus state
+    , stateActiveSprint = case stateActiveSprint state of
+        Just sprint | activeSprintBrick sprint == identity -> Nothing
+        current -> current
+    , stateLastRedo = Nothing
+    }
+
+applyObligationOccurrenceLapsed :: State -> ObligationOccurrenceLapsed -> Either AppError State
+applyObligationOccurrenceLapsed state payload = do
+  let identity = lapsedOccurrence payload
+  (brick, schedule, period) <- requireObligationOccurrence state identity
+  unless (brickStatus brick == BrickActive) $ corrupt "Only an open occurrence can lapse."
+  unless (recurrenceDeadlinePolicy schedule == DeadlineLapses) $ corrupt "Only an occurrence of a lapsing series can lapse."
+  let resolved = period{obligationPeriodMissedAt = Just (lapsedAt payload)}
+  Right . bump . resolveOccurrenceBrick identity BrickMissed $
+    state{stateObligationPeriods = Map.insert identity resolved (stateObligationPeriods state)}
+
+applyObligationOccurrenceExcused :: State -> PersistedEvent -> ObligationOccurrenceExcused -> Either AppError State
+applyObligationOccurrenceExcused state event payload = do
+  let identity = excusedOccurrence payload
+  (brick, _, period) <- requireObligationOccurrence state identity
+  when (isJust (obligationPeriodExcusedAt period) || isJust (obligationPeriodDoneLateAt period)) $
+    corrupt "An occurrence is excused at most once and never after late completion."
+  case excusedReason payload of
+    Just reason | Text.null (Text.strip reason) || Text.length reason > 200 -> corrupt "An excuse reason has one to 200 characters."
+    _ -> pure ()
+  let excused = period{obligationPeriodExcusedAt = Just (persistedRecordedAt event), obligationPeriodExcuseReason = excusedReason payload}
+      withPeriod = state{stateObligationPeriods = Map.insert identity excused (stateObligationPeriods state)}
+  case brickStatus brick of
+    BrickActive -> Right . bump $ resolveOccurrenceBrick identity BrickCancelled withPeriod
+    BrickMissed -> Right . bump $ withPeriod{stateLastRedo = Nothing}
+    _ -> corrupt "Only an open or missed occurrence can be excused."
+
+applyObligationOccurrenceDoneLate :: State -> PersistedEvent -> UUIDv7 -> Either AppError State
+applyObligationOccurrenceDoneLate state event identity = do
+  (brick, _, period) <- requireObligationOccurrence state identity
+  unless (brickStatus brick == BrickMissed && isJust (obligationPeriodMissedAt period)) $
+    corrupt "Only a missed occurrence can be done late."
+  when (isJust (obligationPeriodExcusedAt period) || isJust (obligationPeriodDoneLateAt period)) $
+    corrupt "An excused or already late occurrence cannot be done late again."
+  let late = period{obligationPeriodDoneLateAt = Just (persistedRecordedAt event)}
+  Right . bump . resolveOccurrenceBrick identity BrickDone $
+    state{stateObligationPeriods = Map.insert identity late (stateObligationPeriods state)}
 
 applyRecurringOccurrenceReleased :: State -> PersistedEvent -> RecurringOccurrenceReleased -> Either AppError State
 applyRecurringOccurrenceReleased state event payload = do
@@ -3115,6 +3205,13 @@ payloadValue = \case
       , "temporal" .= temporalConstraintsValue (releasedOccurrenceTemporal payload)
       ]
         <> maybe [] (pure . ("interval" .=) . scheduledIntervalValue) (releasedOccurrenceInterval payload)
+  ObligationOccurrenceLapsedV1 payload ->
+    object ["occurrence_id" .= uuid (lapsedOccurrence payload), "lapsed_at" .= lapsedAt payload]
+  ObligationOccurrenceExcusedV1 payload ->
+    object $
+      ["occurrence_id" .= uuid (excusedOccurrence payload)]
+        <> maybe [] (pure . ("reason" .=)) (excusedReason payload)
+  ObligationOccurrenceDoneLateV1 occurrence -> object ["occurrence_id" .= uuid occurrence]
   HabitScheduleSetV1 payload -> habitScheduleValue (setHabitSchedule payload)
   HabitWindowOpenedV1 payload -> habitWindowValue (openedHabitWindow payload)
   HabitWindowOutcomeRecordedV1 payload ->
@@ -3449,6 +3546,9 @@ parsePayload eventType version payload = case (eventType, version) of
   ("scheduled_interval_set", 1) -> ScheduledIntervalSetV1 <$> parseScheduledIntervalSet payload
   ("recurrence_schedule_set", 1) -> RecurrenceScheduleSetV1 . RecurrenceScheduleSet <$> parseRecurrenceSchedule payload
   ("recurring_occurrence_released", 1) -> RecurringOccurrenceReleasedV1 <$> parseRecurringOccurrenceReleased payload
+  ("obligation_occurrence_lapsed", 1) -> withObject "obligation_occurrence_lapsed@1" (\value -> ObligationOccurrenceLapsedV1 <$> (ObligationOccurrenceLapsed <$> (value .: "occurrence_id" >>= parseId) <*> value .: "lapsed_at")) payload
+  ("obligation_occurrence_excused", 1) -> withObject "obligation_occurrence_excused@1" (\value -> ObligationOccurrenceExcusedV1 <$> (ObligationOccurrenceExcused <$> (value .: "occurrence_id" >>= parseId) <*> value .:? "reason")) payload
+  ("obligation_occurrence_done_late", 1) -> withObject "obligation_occurrence_done_late@1" (\value -> ObligationOccurrenceDoneLateV1 <$> (value .: "occurrence_id" >>= parseId)) payload
   ("habit_schedule_set", 1) -> HabitScheduleSetV1 . HabitScheduleSet <$> parseHabitSchedule payload
   ("habit_window_opened", 1) -> HabitWindowOpenedV1 . HabitWindowOpened <$> parseHabitWindow payload
   ("habit_window_outcome_recorded", 1) -> HabitWindowOutcomeRecordedV1 <$> parseHabitWindowOutcomeRecorded payload
@@ -4035,6 +4135,19 @@ recurrenceScheduleValue schedule =
       <> maybe [] (pure . ("duration_seconds" .=)) (recurrenceDurationSeconds schedule)
       <> maybe [] (pure . ("best_before_offset_seconds" .=)) (recurrenceBestBeforeOffsetSeconds schedule)
       <> maybe [] (pure . ("deadline_offset_seconds" .=)) (recurrenceDeadlineOffsetSeconds schedule)
+      <> ["deadline_policy" .= deadlinePolicyText (recurrenceDeadlinePolicy schedule) | recurrenceDeadlinePolicy schedule /= DeadlineStaysOpen]
+      <> maybe [] (pure . ("consequence" .=)) (recurrenceConsequence schedule)
+
+deadlinePolicyText :: DeadlinePolicy -> Text
+deadlinePolicyText = \case
+  DeadlineStaysOpen -> "stays_open"
+  DeadlineLapses -> "lapses"
+
+parseDeadlinePolicy :: Text -> Parser DeadlinePolicy
+parseDeadlinePolicy = \case
+  "stays_open" -> pure DeadlineStaysOpen
+  "lapses" -> pure DeadlineLapses
+  _ -> fail "unknown deadline policy"
 
 parseRecurrenceSchedule :: Value -> Parser RecurrenceSchedule
 parseRecurrenceSchedule = withObject "RecurrenceSchedule" $ \value ->
@@ -4047,6 +4160,8 @@ parseRecurrenceSchedule = withObject "RecurrenceSchedule" $ \value ->
     <*> value .: "not_before_offset_seconds"
     <*> value .:? "best_before_offset_seconds"
     <*> value .:? "deadline_offset_seconds"
+    <*> (value .:? "deadline_policy" >>= maybe (pure DeadlineStaysOpen) parseDeadlinePolicy)
+    <*> value .:? "consequence"
     <*> value .: "revision"
 
 recurringOccurrenceValue :: RecurringOccurrence -> Value

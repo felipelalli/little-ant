@@ -123,7 +123,13 @@ A recurring-obligation series releases nothing until it has a recurrence.
 Nature, interval, weekdays or day, local times, IANA zone, and the opens,
 best-before, and deadline offsets such as `4 days before` or `at the
 anchor`); answer each field through `interaction respond`, then confirm the
-previewed anchors with the user before `recurrence.accept`.
+previewed anchors with the user before `recurrence.accept`. With a deadline,
+`At deadline` asks whether an unfinished period stays open as debt (a bill) or
+counts as missed (a required shift); the latter takes an optional consequence
+of at most 200 characters. `--view guided show '#occurrence'` opens one
+occurrence: a missed one offers `occurrence.done_late` and
+`occurrence.excuse`, an open one `occurrence.excuse`. Never choose done late
+or excuse for the user.
 
 For any other implemented guided flow, save its actual JSON result. Use
 `interaction show` to inspect the current saved question without drawing or

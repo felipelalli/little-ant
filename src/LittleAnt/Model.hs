@@ -80,6 +80,15 @@ module LittleAnt.Model (
   CalendarRule (..),
   RecurrenceSchedule (..),
   RecurringOccurrence (..),
+  DeadlinePolicy (..),
+  ObligationPeriod (..),
+  ObligationPeriodState (..),
+  obligationPeriodState,
+  obligationPeriodHistory,
+  seriesOccurrences,
+  isObligationOccurrence,
+  carriesImportance,
+  importanceSiblings,
   HabitSchedule (..),
   HabitWindow (..),
   HabitOutcome (..),
@@ -132,8 +141,10 @@ where
 
 import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.:?), (.=))
 import Data.ByteString (ByteString)
+import Data.List (sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Ord (Down (..))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -593,9 +604,38 @@ data RecurrenceSchedule = RecurrenceSchedule
   , recurrenceNotBeforeOffsetSeconds :: Integer
   , recurrenceBestBeforeOffsetSeconds :: Maybe Integer
   , recurrenceDeadlineOffsetSeconds :: Maybe Integer
+  , recurrenceDeadlinePolicy :: DeadlinePolicy
+  , recurrenceConsequence :: Maybe Text
   , recurrenceRevision :: Int
   }
   deriving stock (Eq, Generic, Show)
+
+{- | What an unfinished period becomes at its deadline (WRK-148): debt that
+stays open, as for a bill, or a miss, as for a required weekly shift.
+-}
+data DeadlinePolicy = DeadlineStaysOpen | DeadlineLapses
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
+
+{- | The resolution facts of one occurrence of a recurring obligation beyond
+its ordinary Brick lifecycle (WRK-161..163). Every fact keeps its time, so
+excusing or completing a miss late never erases the miss itself.
+-}
+data ObligationPeriod = ObligationPeriod
+  { obligationPeriodMissedAt :: Maybe UTCTime
+  , obligationPeriodExcusedAt :: Maybe UTCTime
+  , obligationPeriodExcuseReason :: Maybe Text
+  , obligationPeriodDoneLateAt :: Maybe UTCTime
+  }
+  deriving stock (Eq, Generic, Show)
+
+-- | How one occurrence counts in the period history of its series (WRK-164).
+data ObligationPeriodState
+  = PeriodOpen
+  | PeriodDoneOnTime
+  | PeriodDoneLate
+  | PeriodMissed
+  | PeriodExcused
+  deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
 data RecurringOccurrence = RecurringOccurrence
   { recurringOccurrenceId :: UUIDv7
@@ -1271,6 +1311,7 @@ data State = State
   , stateScheduledIntervals :: Map UUIDv7 ScheduledInterval
   , stateRecurrenceSchedules :: Map UUIDv7 RecurrenceSchedule
   , stateRecurringOccurrences :: Map UUIDv7 RecurringOccurrence
+  , stateObligationPeriods :: Map UUIDv7 ObligationPeriod
   , stateHabitSchedules :: Map UUIDv7 HabitSchedule
   , stateHabitWindows :: Map UUIDv7 HabitWindow
   , stateHabitOutcomes :: Map UUIDv7 HabitOutcome
@@ -1346,6 +1387,7 @@ emptyState =
     , stateScheduledIntervals = Map.empty
     , stateRecurrenceSchedules = Map.empty
     , stateRecurringOccurrences = Map.empty
+    , stateObligationPeriods = Map.empty
     , stateHabitSchedules = Map.empty
     , stateHabitWindows = Map.empty
     , stateHabitOutcomes = Map.empty
@@ -1405,6 +1447,50 @@ brickCount = length . activeBricks
 siblingBricks :: State -> Maybe UUIDv7 -> [Brick]
 siblingBricks state parent =
   filter ((== parent) . brickParent) (activeBricks state)
+
+{- | Siblings that hold a human importance position. Recurring-obligation
+series and their occurrences compete for time, not value, and never enter
+the sibling importance order (IMP-057). Replay still places them physically
+through 'siblingBricks'.
+-}
+importanceSiblings :: State -> Maybe UUIDv7 -> [Brick]
+importanceSiblings state parent = filter (carriesImportance state) (siblingBricks state parent)
+
+carriesImportance :: State -> Brick -> Bool
+carriesImportance state brick =
+  brickNature brick /= RecurringObligation && not (isObligationOccurrence state (brickId brick))
+
+isObligationOccurrence :: State -> UUIDv7 -> Bool
+isObligationOccurrence state identity = Map.member identity (stateRecurringOccurrences state)
+
+-- | Released occurrences of one series, newest nominal anchor first.
+seriesOccurrences :: State -> UUIDv7 -> [RecurringOccurrence]
+seriesOccurrences state owner =
+  sortOn
+    (\occurrence -> (Down (zonedInstantUtc (recurringOccurrenceNominalAnchor occurrence)), recurringOccurrenceId occurrence))
+    [occurrence | occurrence <- Map.elems (stateRecurringOccurrences state), recurringOccurrenceOwner occurrence == owner]
+
+-- | Resolved periods of one series, newest first (WRK-164).
+obligationPeriodHistory :: State -> UUIDv7 -> [(RecurringOccurrence, ObligationPeriodState)]
+obligationPeriodHistory state owner =
+  [ (occurrence, cell)
+  | occurrence <- seriesOccurrences state owner
+  , let cell = obligationPeriodState state (recurringOccurrenceId occurrence)
+  , cell /= PeriodOpen
+  ]
+
+-- | The period-history cell of one released occurrence (WRK-164).
+obligationPeriodState :: State -> UUIDv7 -> ObligationPeriodState
+obligationPeriodState state identity = case Map.lookup identity (stateObligationPeriods state) of
+  Just period
+    | Just _ <- obligationPeriodExcusedAt period -> PeriodExcused
+    | Just _ <- obligationPeriodDoneLateAt period -> PeriodDoneLate
+    | Just _ <- obligationPeriodMissedAt period -> PeriodMissed
+  _ -> case brickStatus <$> Map.lookup identity (stateBricks state) of
+    Just BrickDone -> PeriodDoneOnTime
+    Just BrickMissed -> PeriodMissed
+    Just BrickCancelled -> PeriodExcused
+    _ -> PeriodOpen
 
 resolveRawHandle :: State -> Handle -> Maybe Raw
 resolveRawHandle state handle = do

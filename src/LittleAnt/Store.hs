@@ -129,7 +129,7 @@ snapshotPayload :: LoadedDataset -> Value
 snapshotPayload dataset =
   object
     [ "schema" .= ("little-ant/fold-snapshot@1" :: Text)
-    , "state_format" .= ("little-ant/fold-state-binary@4" :: Text)
+    , "state_format" .= ("little-ant/fold-state-binary@5" :: Text)
     , "cursor" .= loadedCursor dataset
     , "event_count" .= loadedEventCount dataset
     , "state" .= Text.decodeUtf8 (Base16.encode (encodeFoldState (loadedState dataset)))
@@ -149,7 +149,7 @@ instance FromJSON FoldSnapshot where
       ( \fields -> do
           schema <- fields .: "schema"
           format <- fields .: "state_format"
-          unless (schema == ("little-ant/fold-snapshot@1" :: Text) && format == ("little-ant/fold-state-binary@4" :: Text)) (fail "unsupported fold snapshot")
+          unless (schema == ("little-ant/fold-snapshot@1" :: Text) && format == ("little-ant/fold-state-binary@5" :: Text)) (fail "unsupported fold snapshot")
           cursor <- fields .: "cursor"
           count <- fields .: "event_count"
           text <- fields .: "state"

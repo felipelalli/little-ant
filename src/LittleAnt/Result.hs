@@ -202,6 +202,7 @@ data CommandResult
   | TickResult
       { resultDatasetCursor :: DatasetCursor
       , resultReleasedOccurrences :: Int
+      , resultLapsedOccurrences :: Int
       , resultOpenedHabitWindows :: Int
       , resultSettledHabitUnits :: Int
       , resultDryRun :: Bool
@@ -364,11 +365,12 @@ instance ToJSON CommandResult where
           <> ["profiles" .= profiles | not (null profiles)]
           <> ["facts" .= facts | not (null facts)]
           <> dryRunPair dryRun
-    TickResult cursor releases windows outcomes dryRun ->
+    TickResult cursor releases lapses windows outcomes dryRun ->
       object $
         [ "schema" .= ("little-ant/tick@1" :: Text)
         , "dataset_cursor" .= renderCursor cursor
         , "released_occurrences" .= releases
+        , "lapsed_occurrences" .= lapses
         , "opened_habit_windows" .= windows
         , "settled_habit_units" .= outcomes
         ]
