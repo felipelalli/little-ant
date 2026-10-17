@@ -9,6 +9,9 @@ replace the specification.
 
 ## Unreleased
 
+- Offer `[c]lassify` on the detail of a Raw still awaiting triage
+  (`show --view guided '+raw'`), opening triage for that exact Raw instead of
+  only the oldest Inbox item.
 - Add the structured recurring-obligation editor: offered right after a series
   is created and through `update BRICK repetition`, it records family,
   occurrence Nature, interval, weekdays or day, local times, IANA zone, and

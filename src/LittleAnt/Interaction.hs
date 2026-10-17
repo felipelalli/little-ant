@@ -772,10 +772,14 @@ makeRawDetailEnvelope identity cursor precondition now state raw =
     ChoiceGrammar
     (RawDetailOpportunity (rawId raw))
     (EnvelopeContent "Raw:" (Just (rawCitation raw)) (rawDetailBody state raw) Nothing)
-    [ Action "raw.detail.origin" "origin" "o" False "Inspect or reconcile external origins."
-    , Action "raw.detail.translate" "translate" "t" False "Review English normalization for this Raw."
-    , moreAction
-    ]
+    ( [ Action "raw.detail.classify" "classify" "c" False "Triage this Raw now into Work, a list, a shelf, or another destination."
+      | rawId raw `elem` fmap rawId (inboxRaws state)
+      ]
+        <> [ Action "raw.detail.origin" "origin" "o" False "Inspect or reconcile external origins."
+           , Action "raw.detail.translate" "translate" "t" False "Review English normalization for this Raw."
+           , moreAction
+           ]
+    )
     (CommandOption "translate" ("/translate " <> rawCitation raw) "Review this Raw's English normalization" : rawCommands raw)
     Nothing
     (rawFooter now state raw)

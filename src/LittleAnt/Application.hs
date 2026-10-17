@@ -3572,8 +3572,12 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
       case resolveTranslationTarget state (rawCitationText raw) of
         Left problem -> pure (Left problem)
         Right candidate -> local (makeTranslationEditorEnvelope current now state (TranslationQueue (TranslationScope False True False) [candidate] 0 0 1) Nothing Nothing)
+    (RawDetailOpportunity identity, "raw.detail.classify", _) -> withRaw identity $ \raw ->
+      if identity `elem` fmap rawId (inboxRaws state)
+        then local (advanceEnvelope current (makeRawTriageEnvelope (envelopeInteractionId current) cursor precondition now state raw))
+        else pure (Left (appError PreconditionFailed "Only Raw material still awaiting triage can be classified here."))
     (RawDetailOpportunity{}, action, _)
-      | action `elem` ["raw.detail.revise", "raw.detail.link", "raw.detail.shelve", "raw.detail.classify", "raw.detail.archive"] ->
+      | action `elem` ["raw.detail.revise", "raw.detail.link", "raw.detail.shelve", "raw.detail.archive"] ->
           local (appendBody current "This Raw maintenance action is not available in this checkpoint yet. Use [o]rigin or [t]ranslate for actionable review paths.")
     (RawOriginListOpportunity rawId, "raw.origin.back", _) -> withRaw rawId $ \raw -> local (makeRawDetailEnvelope (envelopeInteractionId current) cursor precondition now state raw)
     (RawOriginListOpportunity{}, "raw.origin.add", _) -> local (appendBody current "Choose a source adapter or enter a manual URL through the SourceBinding builder; no origin has been attached yet.")

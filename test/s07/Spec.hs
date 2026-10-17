@@ -41,6 +41,7 @@ main =
       , testCase "recurrence editor records a weekly obligation with due offsets" recurrenceEditorWeekly
       , testCase "recurrence editor rejects prose, RRULE, and unknown zones" recurrenceEditorRejectsProse
       , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
+      , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
       , testCase "scheduled commitment has hard precedence and truthful outcome" scheduledCommitmentFlow
       , testCase "scheduled commitment preserves interrupted Work as WIP" scheduledPreemptsFocus
@@ -273,6 +274,21 @@ recurrenceEntryPoints = withHarness $ \environment -> do
       created owner = makeWorkCreatedResultEnvelope (fixtureUuid 90) (loadedCursor loaded) (statePreconditionHash state) zoned state (rawOf (brickId owner)) owner
   take 1 (fmap actionId (envelopeActions (created brick))) @?= ["recurrence.set"]
   assertBool "plain Work is offered a recurrence" ("recurrence.set" `notElem` fmap actionId (envelopeActions (created plainBrick)))
+
+rawDetailClassify :: Assertion
+rawDetailClassify = withHarness $ \environment -> do
+  _ <- run environment (FeedCommand "test" "Older Inbox material")
+  _ <- run environment (FeedCommand "test" "Monthly onboarding interview")
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState loaded
+      target = head [raw | raw <- Map.elems (stateRaws state), rawOriginal raw == "Monthly onboarding interview"]
+      reference = "+" <> unHandle (rawHandle target)
+  detail <- run environment (ShowRawCommand reference GuidedView) >>= interactionOf
+  assertBool "Inbox Raw detail lacks classify" ("raw.detail.classify" `elem` fmap actionId (envelopeActions detail))
+  triage <- answer environment detail "raw.detail.classify"
+  case envelopeOpportunity triage of
+    RawTriageOpportunity identity _ _ -> identity @?= rawId target
+    other -> assertFailure ("expected triage of the exact Raw, got " <> show other)
 
 noticeLifecycle :: Assertion
 noticeLifecycle = withHarness $ \environment -> do
