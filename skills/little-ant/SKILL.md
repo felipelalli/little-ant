@@ -89,6 +89,11 @@ For an authorized capture, pass the user's original material through stdin to
 `lant --profile NAME --json feed`, or as a properly shell-quoted argument.
 Feed saves Raw material; it does not by itself create a fully triaged Brick.
 
+English is the canonical language of Brick titles (PRD-010), whatever language
+the conversation uses. When triage asks for a title, propose an English one
+and submit it only once the user accepted it; never submit a title in another
+language on your own. Raw material keeps the user's original words.
+
 For an authorized completion, resolve the exact Brick, then use
 `lant --profile NAME --json done '#handle'`. Prefer the explicit reference over
 bare `done`, which completes the current focus. Verify the returned result and
