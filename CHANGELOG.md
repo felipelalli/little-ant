@@ -9,6 +9,9 @@ replace the specification.
 
 ## Unreleased
 
+- Ask, when restoring archived Work, which Dependencies removed by the
+  archive to relink: each relinkable one is a numbered, pre-marked row, and
+  yes recreates the marked ones as new Dependencies in the same command.
 - Undo any latest reversible action, not only Feed: `/undo` appends one
   `command_undone` event that restores the state recorded before that
   command, so an archive's removed Dependencies come back too, and `/redo`

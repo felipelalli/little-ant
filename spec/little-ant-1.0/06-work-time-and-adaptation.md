@@ -518,7 +518,10 @@
   periodic nag. Restore reactivates the same Brick and deterministically seeds
   its complete sibling order from the last valid local neighborhood; the
   restored placement is explicitly uncertain and creates one lazy
-  `importance_run_review`. Update and restore first applies an accepted edit
+  `importance_run_review`. Its preview asks which Dependencies removed by
+  the archive to relink, listing only those whose other Work is active, whose
+  edge is not active again, and which close no cycle, all marked by default;
+  the marked ones become new Dependencies in the same command. Update and restore first applies an accepted edit
   to the same Brick and then follows the same restoration. Newer Work enters
   canonical supersession with lineage. Review skip leaves status and marker
   unchanged, applying only review cooldown and pressure. Exact structured edit

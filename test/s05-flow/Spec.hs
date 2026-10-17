@@ -182,7 +182,7 @@ restoreWork = withHarness $ \environment -> do
   _ <- answer environment preview "archive.accept"
   _ <- assertRight =<< compactDataset (appStore environment)
   restore <- run environment (RestoreCommand "#rrsr") >>= interactionOf
-  envelopeOpportunity restore @?= RestorePreviewOpportunity brickIdValue
+  envelopeOpportunity restore @?= RestorePreviewOpportunity brickIdValue Set.empty
   receipt <- answer environment restore "restore.accept"
   envelopeOpportunity receipt @?= RestoreResultOpportunity brickIdValue
   loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))

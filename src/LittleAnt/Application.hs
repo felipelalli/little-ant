@@ -4725,11 +4725,18 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (ArchivePreviewOpportunity{}, "archive.reject", _) -> replaceWithFresh
     (ArchivePreviewOpportunity{}, "archive.unknown", _) ->
       local (appendBody current "Archive stops active pursuit without claiming completion. Restore is a later forward action; semantic undo of the archive remains separate.")
-    (RestorePreviewOpportunity brickId, "restore.accept", _) ->
-      mutate (restoreUUIDCount state brickId) (decideRestoreBrick state actor brickId) (makeRestored brickId)
+    (RestorePreviewOpportunity brickId relinks, "restore.accept", _) ->
+      mutate (restoreUUIDCount state brickId (Set.size relinks)) (decideRestoreBrick state actor brickId relinks) (makeRestored brickId)
+    (RestorePreviewOpportunity brickId relinks, action, _)
+      | Just identityText <- Text.stripPrefix "restore.relink." action
+      , Right identity <- parseUUIDv7 identityText
+      , identity `elem` fmap dependencyId (restoreRelinkCandidates state brickId) ->
+          withAnyBrick brickId $ \brick ->
+            let updated = if identity `Set.member` relinks then Set.delete identity relinks else Set.insert identity relinks
+             in local (advanceEnvelope current (makeRestorePreviewEnvelopeWith (envelopeInteractionId current) cursor precondition now state brick updated))
     (RestorePreviewOpportunity{}, "restore.reject", _) -> replaceWithFresh
     (RestorePreviewOpportunity{}, "restore.unknown", _) ->
-      local (appendBody current "Restoration keeps the same identity and history, returns the Brick as idle Work, and queues only its local importance placement for review.")
+      local (appendBody current "Restoration keeps the same identity and history, returns the Brick as idle Work, relinks only the marked dependencies as new ones, and queues its local importance placement for review. Undo right after archiving would instead bring back everything as it was.")
     (ArchiveReviewOpportunity brickId reviewId, "archive-review.keep", _) ->
       mutate 2 (decideKeepArchived state actor reviewId) (makeArchiveReviewResult brickId "Kept archived.")
     (ArchiveReviewOpportunity brickId _, "archive-review.restore", _) ->
@@ -7082,7 +7089,7 @@ upgradeFocusAssistanceCheckpoint now dataset saved = case envelopeOpportunity cu
         withBrick identity builder = builder <$> Map.lookup identity (stateBricks (loadedState dataset))
         replacement = case envelopeOpportunity envelope of
           ArchivePreviewOpportunity identity selection symptom -> withBrick identity (\brick -> makeArchivePreviewEnvelope (envelopeInteractionId envelope) (envelopeDatasetCursor envelope) (envelopePreconditionHash envelope) now (loadedState dataset) brick selection symptom)
-          RestorePreviewOpportunity identity -> withBrick identity (makeRestorePreviewEnvelope (envelopeInteractionId envelope) (envelopeDatasetCursor envelope) (envelopePreconditionHash envelope) now (loadedState dataset))
+          RestorePreviewOpportunity identity relinks -> withBrick identity (\brick -> makeRestorePreviewEnvelopeWith (envelopeInteractionId envelope) (envelopeDatasetCursor envelope) (envelopePreconditionHash envelope) now (loadedState dataset) brick relinks)
           _ -> Nothing
      in case replacement of
           Just candidate ->

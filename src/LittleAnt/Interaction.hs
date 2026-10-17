@@ -92,6 +92,7 @@ module LittleAnt.Interaction (
   makeArchiveResultEnvelope,
   makeArchiveReviewResultEnvelope,
   makeRestorePreviewEnvelope,
+  makeRestorePreviewEnvelopeWith,
   makeRestoreResultEnvelope,
   makeArchiveReviewEnvelope,
   makeUpdateMeaningEnvelope,
@@ -207,7 +208,7 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
 import LittleAnt.Catalog
-import LittleAnt.Decision (DraftImportanceAnswer (..), WorkDraft (..))
+import LittleAnt.Decision (DraftImportanceAnswer (..), WorkDraft (..), restoreRelinkCandidates)
 import LittleAnt.Error
 import LittleAnt.Event (parseRecurrenceSchedule, recurrenceScheduleValue)
 import LittleAnt.Id
@@ -525,7 +526,7 @@ data Opportunity
   | ArchivePreviewOpportunity UUIDv7 (Maybe UUIDv7) (Maybe SkipSymptom)
   | OutOfDatePickOpportunity [UUIDv7]
   | ArchiveResultOpportunity UUIDv7
-  | RestorePreviewOpportunity UUIDv7
+  | RestorePreviewOpportunity UUIDv7 (Set.Set UUIDv7)
   | RestoreResultOpportunity UUIDv7
   | ArchiveReviewOpportunity UUIDv7 UUIDv7
   | CompletionResultOpportunity UUIDv7
@@ -4158,43 +4159,71 @@ archiveDependencyNotice state brick =
     | otherwise = "Stop blocking: " <> citation (dependencyBlockedBrick dependency)
   citation identity = maybe (renderUUIDv7 identity) brickCitation (Map.lookup identity (stateBricks state))
 
+-- | Removed Dependencies the restore cannot relink stay in history only.
 removedDependencyNotice :: State -> Brick -> [Text]
 removedDependencyNotice state brick =
-  ["Removed dependencies remain in history and will not reactivate when this Work is restored." | any removed (Map.elems (stateDependencies state))]
+  ["Other removed dependencies remain in history and stay inactive." | any stays (Map.elems (stateDependencies state))]
  where
-  removed dependency = dependencyStatus dependency == DependencyRemoved && brickId brick `elem` [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency]
+  relinkable = fmap dependencyId (restoreRelinkCandidates state (brickId brick))
+  stays dependency = dependencyStatus dependency == DependencyRemoved && brickId brick `elem` [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency] && dependencyId dependency `notElem` relinkable
 
 makeArchiveReviewResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> Text -> InteractionEnvelope
 makeArchiveReviewResultEnvelope identity cursor precondition now state brick message =
   resultEnvelope identity cursor precondition now state (ArchiveResultOpportunity (brickId brick)) "Archive review settled:" [brickCitation brick, message]
 
+-- | The restore preview with every relinkable removed Dependency selected.
 makeRestorePreviewEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeRestorePreviewEnvelope identity cursor precondition now state brick =
+  makeRestorePreviewEnvelopeWith identity cursor precondition now state brick (Set.fromList (dependencyId <$> restoreRelinkCandidates state (brickId brick)))
+
+{- | WRK-100: restoring asks, one numbered row per removed Dependency, which
+of them to relink; the marked ones are recreated in the same command.
+-}
+makeRestorePreviewEnvelopeWith :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> Set.Set UUIDv7 -> InteractionEnvelope
+makeRestorePreviewEnvelopeWith identity cursor precondition now state brick requested =
   sealed
     identity
     1
     cursor
     precondition
     ConfirmationGrammar
-    (RestorePreviewOpportunity (brickId brick))
+    (RestorePreviewOpportunity (brickId brick) selected)
     ( EnvelopeContent
         "Restore this Work?"
         (Just (brickCitation brick))
         ( [ "The same Brick becomes active again."
           , "Its previous local placement is retained provisionally and queued for lazy importance review."
           ]
+            <> ["" | not (null candidates)]
+            <> ["Archiving removed these dependencies; marked ones are relinked:" | not (null candidates)]
             <> removedDependencyNotice state brick
         )
         Nothing
     )
-    [ Action "restore.accept" "yes" "y" False "Restore the same identity without starting focus."
-    , Action "restore.reject" "no" "n" False "Leave the Brick archived."
-    , Action "restore.unknown" "I don't know" "k" False "Explain forward restoration versus undo."
-    , moreAction
-    ]
+    ( [ Action
+          ("restore.relink." <> renderUUIDv7 (dependencyId dependency))
+          ((if dependencyId dependency `Set.member` selected then "* " else "  ") <> relation dependency)
+          (Text.pack (show number))
+          False
+          "Toggle relinking this Dependency."
+      | (number, dependency) <- zip [1 :: Int ..] candidates
+      ]
+        <> [ Action "restore.accept" "yes" "y" False "Restore the same identity, relink the marked dependencies, and start no focus."
+           , Action "restore.reject" "no" "n" False "Leave the Brick archived."
+           , Action "restore.unknown" "I don't know" "k" False "Explain forward restoration versus undo."
+           , moreAction
+           ]
+    )
     [showBrickCommand brick, helpCommand, exitCommand]
     (Just "confirm_restore")
     (brickFooter now state brick)
+ where
+  candidates = restoreRelinkCandidates state (brickId brick)
+  selected = Set.intersection requested (Set.fromList (dependencyId <$> candidates))
+  other dependency = if dependencyBlockedBrick dependency == brickId brick then dependencyBlockerBrick dependency else dependencyBlockedBrick dependency
+  relation dependency
+    | dependencyBlockedBrick dependency == brickId brick = "waits for " <> brickReference state (other dependency)
+    | otherwise = "blocks " <> brickReference state (other dependency)
 
 makeRestoreResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeRestoreResultEnvelope identity cursor precondition now state brick =
@@ -5301,7 +5330,7 @@ opportunityValue = \case
   ArchivePreviewOpportunity identity selection symptom ->
     typed "archive_preview" (selectionFields identity selection <> optionalSymptomFields symptom)
   ArchiveResultOpportunity identity -> typed "archive_result" ["brick_id" .= renderUUIDv7 identity]
-  RestorePreviewOpportunity identity -> typed "restore_preview" ["brick_id" .= renderUUIDv7 identity]
+  RestorePreviewOpportunity identity relinks -> typed "restore_preview" (["brick_id" .= renderUUIDv7 identity] <> ["relink" .= fmap renderUUIDv7 (Set.toAscList relinks) | not (Set.null relinks)])
   RestoreResultOpportunity identity -> typed "restore_result" ["brick_id" .= renderUUIDv7 identity]
   ArchiveReviewOpportunity identity review -> typed "archive_review" ["brick_id" .= renderUUIDv7 identity, "review_id" .= renderUUIDv7 review]
   CompletionResultOpportunity identity -> typed "completion_result" ["brick_id" .= renderUUIDv7 identity]
@@ -5524,7 +5553,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "out_of_date_pick" -> OutOfDatePickOpportunity <$> (value .: "subjects" >>= traverse parseUuid)
     "archive_preview" -> ArchivePreviewOpportunity <$> uuidField value "brick_id" <*> selectionId value <*> optionalSymptom value
     "archive_result" -> ArchiveResultOpportunity <$> uuidField value "brick_id"
-    "restore_preview" -> RestorePreviewOpportunity <$> uuidField value "brick_id"
+    "restore_preview" -> RestorePreviewOpportunity <$> uuidField value "brick_id" <*> (Set.fromList <$> (value .:? "relink" .!= [] >>= traverse parseUuid))
     "restore_result" -> RestoreResultOpportunity <$> uuidField value "brick_id"
     "archive_review" -> ArchiveReviewOpportunity <$> uuidField value "brick_id" <*> uuidField value "review_id"
     "completion_result" -> CompletionResultOpportunity <$> uuidField value "brick_id"

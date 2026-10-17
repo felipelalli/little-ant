@@ -18,6 +18,7 @@ module LittleAnt.Decision (
   decideKeepArchived,
   archiveUUIDCount,
   restoreUUIDCount,
+  restoreRelinkCandidates,
   decideBreakBrick,
   decideAddDependency,
   decideDomainFocus,
@@ -2318,12 +2319,37 @@ decideArchiveBrick state actor identity served facts = do
 archiveUUIDCount :: Maybe (Maybe UUIDv7, SkipSymptom) -> Int
 archiveUUIDCount served = 3 + maybe 0 (const 1) served
 
-decideRestoreBrick :: State -> Actor -> UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
-decideRestoreBrick state actor identity facts = do
+{- | The Dependencies an archive removed from this Brick that a restore can
+relink: the other Work is active, the same edge is not active again, and
+the edge would not close a cycle. One per blocked/blocker pair.
+-}
+restoreRelinkCandidates :: State -> UUIDv7 -> [Dependency]
+restoreRelinkCandidates state identity = go Set.empty (sortOn dependencyId (Map.elems (stateDependencies state)))
+ where
+  go _ [] = []
+  go seen (dependency : rest)
+    | eligible dependency && pair dependency `Set.notMember` seen = dependency : go (Set.insert (pair dependency) seen) rest
+    | otherwise = go seen rest
+  pair dependency = (dependencyBlockedBrick dependency, dependencyBlockerBrick dependency)
+  eligible dependency =
+    dependencyStatus dependency == DependencyRemoved
+      && identity `elem` [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency]
+      && dependencyBlockedBrick dependency /= dependencyBlockerBrick dependency
+      && all activeOther [dependencyBlockedBrick dependency, dependencyBlockerBrick dependency]
+      && not (any (sameActive dependency) (Map.elems (stateDependencies state)))
+      && not (dependencyReaches state (dependencyBlockerBrick dependency) (dependencyBlockedBrick dependency))
+  activeOther other = other == identity || maybe False ((== BrickActive) . brickStatus) (Map.lookup other (stateBricks state))
+  sameActive dependency other = dependencyStatus other == DependencyActive && pair other == pair dependency
+
+decideRestoreBrick :: State -> Actor -> UUIDv7 -> Set UUIDv7 -> RuntimeFacts -> Either AppError MutationDecision
+decideRestoreBrick state actor identity relinkIds facts = do
   brick <- maybe (Left (appError NotFound "No Brick matches the requested identity.")) Right (Map.lookup identity (stateBricks state))
   if brickStatus brick == BrickArchived
     then pure ()
     else Left (appError PreconditionFailed "Only archived Work can be restored.")
+  let relinks = [dependency | dependency <- restoreRelinkCandidates state identity, dependencyId dependency `Set.member` relinkIds]
+  unless (length relinks == Set.size relinkIds) $
+    Left (appError PreconditionFailed "A selected Dependency can no longer be relinked; review the restore again.")
   let reviews =
         sortOn
           lazyReviewId
@@ -2332,16 +2358,24 @@ decideRestoreBrick state actor identity facts = do
           , lazyReviewSubject claim == identity
           , lazyReviewKind claim == "archive_relevance_review"
           ]
-      count = restoreUUIDCount state identity
+      count = restoreUUIDCount state identity (length relinks)
   allocated <- requireUUIDs count facts
   (commandId, statusEventId, remaining) <- case allocated of
     commandIdentity : statusIdentity : rest -> Right (commandIdentity, statusIdentity, rest)
     _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
-  let (settleIds, importanceIds) = splitAt (length reviews) remaining
+  let (settleIds, afterSettle) = splitAt (length reviews) remaining
+      (relinkIds', importanceIds) = splitAt (2 * length relinks) afterSettle
+      relinkEvents = zipWith relinkEvent (pairs relinkIds') relinks
+      pairs = \case
+        first : second : rest -> (first, second) : pairs rest
+        _ -> []
+      relinkEvent (newDependencyId, eventId) dependency =
+        makeDraft facts actor state allocated eventId commandId (DependencyAddedV1 (DependencyAdded newDependencyId (dependencyBlockedBrick dependency) (dependencyBlockerBrick dependency) "restore"))
   case importanceIds of
     [importanceEventId] ->
       let events =
             [makeDraft facts actor state allocated statusEventId commandId (BrickStatusChangedV1 (BrickStatusChanged identity BrickArchived BrickActive "restore"))]
+              <> relinkEvents
               <> zipWith
                 (\eventId review -> makeDraft facts actor state allocated eventId commandId (LazyReviewSettledV1 (LazyReviewSettled (lazyReviewId review) "restored")))
                 settleIds
@@ -2350,9 +2384,10 @@ decideRestoreBrick state actor identity facts = do
        in pure (MutationDecision commandId (Just brick) Nothing events)
     _ -> Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")
 
-restoreUUIDCount :: State -> UUIDv7 -> Int
-restoreUUIDCount state identity =
+restoreUUIDCount :: State -> UUIDv7 -> Int -> Int
+restoreUUIDCount state identity relinks =
   3
+    + 2 * relinks
     + length
       [ ()
       | claim <- Map.elems (stateLazyReviews state)

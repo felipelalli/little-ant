@@ -12,7 +12,7 @@ import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Application
-import LittleAnt.Decision (completionUUIDCount, decideAddDependency, decideCompleteBrick, mutationDecisionEvents, statePreconditionHash)
+import LittleAnt.Decision (completionUUIDCount, decideAddDependency, decideCompleteBrick, decideRestoreBrick, mutationDecisionEvents, statePreconditionHash)
 import LittleAnt.Error (AppError (..), ErrorCode (PreconditionFailed))
 import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
@@ -317,7 +317,14 @@ dependencyRetirement = mapM_ check [BrickArchived, BrickSuperseded, BrickMerged]
       restored <- assertRight (apply 41 (BrickStatusChangedV1 (BrickStatusChanged target BrickArchived BrickActive "restore")) retired)
       statuses restored @?= statuses retired
       let restorePreview = makeRestorePreviewEnvelope (fixtureUuid 42) Genesis (statePreconditionHash retired) (utcToZonedTime utc fixedTime) retired (stateBricks retired Map.! target)
-      assertBool "restore promised to silently revive dependencies" (any (Text.isInfixOf "will not reactivate") (contentBody (envelopeContent restorePreview)))
+          relinkRows = [actionLabel action | action <- envelopeActions restorePreview, "restore.relink." `Text.isPrefixOf` actionId action]
+      -- WRK-100: the restore asks which removed dependencies to relink.
+      relinkRows @?= ["* blocks #blocked \"blocked\"", "* waits for #prerequisite \"prerequisite\""]
+      envelopeOpportunity restorePreview @?= RestorePreviewOpportunity target (Set.fromList [fixtureUuid 30, fixtureUuid 31])
+      let facts = RuntimeFacts fixedTime (fmap (UUIDAllocation . renderUUIDv7 . fixtureUuid) [60 .. 64]) Map.empty (FilesystemFacts True True Nothing) (TerminalCapabilities False False False 80 24 False) []
+      decision <- assertRight (decideRestoreBrick retired actor target (Set.singleton (fixtureUuid 31)) facts)
+      let relinked = [added | DependencyAddedV1 added <- fmap draftPayload (mutationDecisionEvents decision)]
+      fmap (\added -> (addedDependencyBlockedBrick added, addedDependencyBlockerBrick added)) relinked @?= [(target, prerequisite)]
     -- This exact event ordering exists in older logs: archive an owner, then
     -- complete its prerequisite and record the explicit resolution.
     completed <- assertRight (apply 43 (BrickCompletedV1 (BrickCompleted prerequisite)) retired)

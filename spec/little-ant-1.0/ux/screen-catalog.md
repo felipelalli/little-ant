@@ -2700,7 +2700,8 @@ result with `/undo` in the palette; it does not apply ordinary cooldown.
 An archive preview lists the exact affected prerequisites and dependents,
 explains that those dependencies will be removed, and discloses that dependent
 Work may become executable. Those historical edges remain inspectable after
-archiving and do not reactivate on restoration. Replacement and update remain
+archiving; `/undo` right after archiving brings them back, and a later
+restoration asks which of them to relink. Replacement and update remain
 uncommitted until their existing complete preview is accepted. Skip records only `out_of_date` and cooldown. Uncertainty distinguishes retirement, replacement, revision, and temporary deferral
 through UX-S35A. Escape, Backspace, or Left Arrow restores UX-S01 without
 evidence.
@@ -2768,7 +2769,12 @@ The review is an ordinary weighted non-execution opportunity, not execution
 of the archived Brick. Keep resolves this one automatic review without
 creating another. Restore preserves identity and history, deterministically
 places the Brick near its last valid sibling neighborhood, and marks that
-placement for lazy importance review. Update and restore first previews an
+placement for lazy importance review. Its preview lists each removed
+Dependency that can still be relinked (the other Work is active, the edge is
+not active again, and it closes no cycle) as a numbered `* blocks #x` or
+`* waits for #y` row, marked by default; toggling unmarks it, and yes
+recreates the marked ones as new Dependencies in the same command. Others stay
+in history. Update and restore first previews an
 edit to the same Brick. Newer Work enters explicit supersession. Skip changes
 no lifecycle or lineage and leaves this marker unresolved with review
 cooldown. Every mutation has its own preview; immediate semantic undo of the
