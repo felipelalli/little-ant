@@ -9,6 +9,12 @@ replace the specification.
 
 ## Unreleased
 
+- Let Escape leave the REPL from a review the forecast served as the session's
+  root screen, as it already did from a Focus proposal or triage.
+- Highlight the current list view among `[i]mportance · [f]orecast ·
+  [a]genda`, toggle categories with `[c]ategories` and the agenda's days with
+  `[d]ays` instead of `t`, and let `/archive` be found by typing out of date,
+  obsolete, or no longer.
 - Switch list views directly with `[i]mportance`, `[f]orecast`, and
   `[a]genda` instead of cycling with `v`. The agenda calendar now gives each
   day four columns so a mark sits beside its own day, highlights today, colors

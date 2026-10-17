@@ -7622,7 +7622,7 @@ mode never changes glyphs.
 `/list` opens importance order immediately. The default presentation shows
 composition with `├──`, `│`, and `└──`; `f` switches to the current forecast
 and `a` to the agenda, and `i` returns to importance.
-`t` turns on the combined category and composition tree:
+`c` turns on the combined category and composition tree:
 
 ```text
 Importance order · Categories + parts
@@ -7636,7 +7636,7 @@ Positions are local to each sibling group.
               └── #diagram Draw diagram
 
 ────────────────────────────────────────────────────
-[i]mportance · [f]orecast · [a]genda · [t] categories off · Ctrl+F search
+[i]mportance · [f]orecast · [a]genda · [c]ategories off · Ctrl+F search
 ↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
@@ -7651,7 +7651,7 @@ under several direct categories; uncategorized roots form their own branch.
 Dependencies are a separate relationship and never substitute for composition.
 
 Ctrl-F opens a local search field. While it owns input, letters including `i`,
-`f`, `a`, and `t` are query text. Ctrl-F again finishes typing and retains the query,
+`f`, `a`, `c`, and `d` are query text. Ctrl-F again finishes typing and retains the query,
 allowing view/grouping controls to operate on those results. Matches preserve category/project ancestors; matching a
 branch retains its parts. Arrows select inspectable items, Enter opens read-only
 inspection, and Escape returns to exactly the prior results and selection.
@@ -7698,7 +7698,7 @@ Su  Mo  Tu  We  Th  Fr  Sa
   └── 00:00    #dosio   Do one shift in operations   opens · projected
 
 ────────────────────────────────────────────────────
-[i]mportance · [f]orecast · [a]genda · [t] days off · Ctrl+F search
+[i]mportance · [f]orecast · [a]genda · [d]ays off · Ctrl+F search
 ↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
@@ -7708,7 +7708,7 @@ number, so a mark never touches the next day. A legend follows the grids. With
 color enabled, `!` is red, `•` is yellow, and today's number uses the selected
 style; monochrome keeps the characters and bold marks. The CLI prints the
 legend without `today`, since the `Today:` line names it. Day labels and `Overdue` are not inspection targets.
-`[t]` flattens the groups and keeps the day in each row's details. Search,
+`[d]ays` flattens the groups and keeps the day in each row's details. Search,
 inspection, and back follow UX-LIST00. The CLI prints the same calendar and
 groups as plain text.
 

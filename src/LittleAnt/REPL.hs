@@ -271,10 +271,10 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
             Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader}
             Right _ -> pure (Just screen)
     -- The agenda's days and the other views' categories toggle independently.
-    Printable 't' [] | listViewName view == "agenda" -> preserve view{listViewFlatDays = not (listViewFlatDays view)}
-    Printable 't' [] -> preserve view{listViewGrouped = not (listViewGrouped view)}
+    Printable 'd' [] | listViewName view == "agenda" -> preserve view{listViewFlatDays = not (listViewFlatDays view)}
+    Printable 'c' [] | listViewName view /= "agenda" -> preserve view{listViewGrouped = not (listViewGrouped view)}
     Printable '/' [] -> pure . Just $ PaletteScreen (screenEnvelope previous) "/" 0 (ReturnToScreen screen)
-    Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts of the coming days, overdue first. Categories group the same items; repeated references share one chance. Ctrl+F searches this list."}
+    Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts of the coming days, overdue first. [c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list."}
     ArrowLeft _ | not (listViewSearching view) -> pure (Just previous)
     Backspace _ -> pure (Just previous)
     ArrowUp _ -> select (selected - 1)
@@ -1063,15 +1063,24 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
       <> maybe [] (fmap (pure . Span Warning) . wrapWords width) (listViewMessage view)
   hints
     | listViewSearching view = ["Type to search · ↑/↓ select", "Ctrl+F finish · Enter inspect", "Esc clear search"]
-    | width < 50 = [viewHint, treeHint, "Ctrl+F search · Enter show", "↑/↓ select · " <> escapeHint]
-    | otherwise = [viewHint <> " · " <> treeHint <> " · Ctrl+F search", "↑/↓ select · Enter inspect · " <> escapeHint <> " · [/] more"]
-  viewHint = "[i]mportance · [f]orecast · [a]genda"
+    | width < 50 = [treeHint, "Ctrl+F search · Enter show", "↑/↓ select · " <> escapeHint]
+    | otherwise = ["↑/↓ select · Enter inspect · " <> escapeHint <> " · [/] more"]
+  -- Wide terminals keep the view keys and the grouping toggle on one line.
+  controlLine
+    | width < 50 = viewSpans
+    | otherwise = viewSpans <> [Span Dim (" · " <> treeHint <> " · Ctrl+F search")]
+  -- The current view stands out among the three view keys.
+  viewSpans =
+    concat
+      [ [Span Dim " · " | index > 0] <> [Span (if name == listViewName view then Selected else Dim) label]
+      | (index, (label, name)) <- zip [0 :: Int ..] [("[i]mportance", "importance"), ("[f]orecast", "forecast"), ("[a]genda", "agenda")]
+      ]
   treeHint
-    | agenda = "[t] days " <> if listViewFlatDays view then "on" else "off"
-    | otherwise = "[t] categories " <> if listViewGrouped view then "off" else "on"
+    | agenda = "[d]ays " <> if listViewFlatDays view then "on" else "off"
+    | otherwise = "[c]ategories " <> if listViewGrouped view then "off" else "on"
   escapeHint = if Text.null (listViewQuery view) then "Esc back" else "Esc clear search"
   footer = footerFrom width envelope
-  pinned = take 1 footer <> concatMap (fmap (pure . Span Dim) . wrapWords width) hints <> drop 1 footer
+  pinned = take 1 footer <> [controlLine | not (listViewSearching view)] <> concatMap (fmap (pure . Span Dim) . wrapWords width) hints <> drop 1 footer
   styledLines role = fmap (pure . Span role) . wrapWords width
 
 -- | UX-280: one key opens each list view directly.
@@ -1609,6 +1618,16 @@ isMainOpportunity = \case
   CurrentFocusOpportunity{} -> True
   ScheduledCommitmentOpportunity{} -> True
   ScheduledOverlapOpportunity{} -> True
+  -- Reviews the forecast serves as the root of a session (UX-019).
+  EffortComparisonOpportunity{} -> True
+  ImpactComparisonOpportunity{} -> True
+  ImpactEvidenceReviewOpportunity{} -> True
+  ImportanceReviewOpportunity{} -> True
+  ArchiveReviewOpportunity{} -> True
+  WaitReviewScreenOpportunity{} -> True
+  DelegationReviewScreenOpportunity{} -> True
+  ExternalEffectApprovalScreenOpportunity{} -> True
+  ExternalEffectRecoveryScreenOpportunity{} -> True
   _ -> False
 
 paletteCommandSelection :: InteractionEnvelope -> Text -> Int -> Maybe CommandOption

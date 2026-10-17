@@ -135,7 +135,11 @@ tests =
         [text | spans <- styled, Span Caution text <- spans] @?= ["•"]
         fmap (Text.concat . fmap spanText) styled @?= header
         [text | Span Selected text <- concat (agendaHeaderLines (header <> ["", agendaLegend]))] @?= ["17", "17"]
-
+    , testCase "the palette finds archive by what out-of-date Work means" $ do
+        identity <- fixtureIdentity
+        let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+        mapM_ (\query -> fmap commandOptionId (filteredCommands envelope query) @?= ["archive"]) ["/out of date", "/obsolete", "/no longer"]
+    , testCase "forecast browsing explains chance and sibling-local position" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
             plain = renderPlain (browserModel 80 envelope "Focus forecast" [] "" 0 Nothing)
@@ -157,7 +161,7 @@ tests =
           ( \width -> do
               let model = viewportModel width 24 0 (listModel width envelope view{listViewGrouped = False, listViewQuery = "", listViewSearching = False, listViewSelected = 35})
                   plain = renderPlain model
-              mapM_ (\fragment -> assertBool ("pinned list control missing: " <> Text.unpack fragment) (fragment `Text.isInfixOf` plain)) ["#b35", "[a]genda", "[t]", "Ctrl+F", "mode:"]
+              mapM_ (\fragment -> assertBool ("pinned list control missing: " <> Text.unpack fragment) (fragment `Text.isInfixOf` plain)) ["#b35", "[a]genda", "[c]ategories", "Ctrl+F", "mode:"]
               assertBool "viewport is taller than the terminal" (length (screenLines model) <= 24)
               assertBool "list overflowed its width" (all ((<= width) . textDisplayWidth . plainLine) (screenLines model))
           )

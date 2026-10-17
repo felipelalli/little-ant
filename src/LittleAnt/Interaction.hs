@@ -4406,7 +4406,7 @@ ordinaryCommands =
   , importCommand
   , CommandOption "list" "/list" "Browse importance order or focus forecast"
   , CommandOption "search" "/search" "Search Bricks, Raw, Domains, and people"
-  , CommandOption "archive" "/archive" "Choose Work to archive after reviewing its dependencies"
+  , CommandOption "archive" "/archive" "Archive Work that is out of date, obsolete, or no longer makes sense; dependencies are reviewed first"
   , CommandOption "restore" "/restore" "Choose archived Work to restore"
   , CommandOption "update" "/update" "Choose Work to update its title or description"
   ]
