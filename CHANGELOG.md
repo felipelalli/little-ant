@@ -9,6 +9,9 @@ replace the specification.
 
 ## Unreleased
 
+- Answer `no` to the final `Start focusing this Brick?` with the ordinary skip
+  symptoms, so an obstacle such as out of date can be named directly; only
+  `I don't know` opens the guided symptom discovery.
 - Give each recurring obligation a deadline policy: an unfinished period
   either stays open as debt, as for a bill, or counts as missed at its
   deadline, as for a required weekly shift, with an optional consequence text.

@@ -6145,6 +6145,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
           (FocusSelectionUnderstood, "focus.aid.no") -> backToContext
           (FocusSelectionUnderstood, _) -> local (appendBody current "The selection record is unchanged. You can answer, go back to inspect the Work, or leave this question pending.")
           (FocusConfirmStart, "focus.aid.yes") -> acceptFocus (brickId brick) selection
+          -- A refusal already knows its obstacle; only uncertainty needs discovery.
+          (FocusConfirmStart, "focus.aid.no") -> local (makeWorkSkipSymptomEnvelope current now state brick selection)
           (FocusConfirmStart, _) -> local (makeWorkSkipDiscoveryEnvelope current now state brick selection OutsidePrerequisiteNode False)
 
   local envelope = saveAndReturn (PresentationCheckpoint envelope (current : checkpointBack checkpoint) []) Nothing

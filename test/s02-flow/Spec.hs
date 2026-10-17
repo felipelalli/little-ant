@@ -232,6 +232,23 @@ tests =
         assertBool "missing-understanding reason was omitted" (any (Text.isInfixOf "context was insufficient") (contentBody (envelopeContent vague)))
         after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
         loadedState after @?= loadedState before
+    , testCase "Focus refusal names its obstacle while uncertainty discovers it" $ withHarness $ \environment -> do
+        created <- createAtomicWork environment "stale label"
+        proposal <- answer environment created "next"
+        before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        context <- answer environment proposal "focus.assistance"
+        clarity <- answer environment context "focus.aid.continue"
+        consent <- answer environment clarity "focus.aid.yes"
+        assertFocusStep FocusConfirmStart consent
+        refused <- answer environment consent "focus.aid.no"
+        case envelopeOpportunity refused of WorkSkipSymptomOpportunity{} -> pure (); other -> assertFailure ("expected the skip symptoms, got " <> show other)
+        assertBool "the symptom list lacks out of date" ("work.symptom.out-of-date" `elem` fmap actionId (envelopeActions refused))
+        restored <- run environment (NavigateBackCommand (response refused "navigate")) >>= interactionOf
+        assertFocusStep FocusConfirmStart restored
+        unsure <- answer environment restored "focus.aid.unknown"
+        case envelopeOpportunity unsure of WorkSkipDiscoveryOpportunity{} -> pure (); other -> assertFailure ("expected symptom discovery, got " <> show other)
+        after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        loadedState after @?= loadedState before
     , testCase "legacy Focus questions resume at context without another draw" $ withHarness $ \environment -> do
         created <- createAtomicWork environment "legacy focus assistance"
         proposal <- answer environment created "next"
@@ -301,7 +318,7 @@ tests =
         clarity <- answer environment context "focus.aid.continue"
         q4 <- answer environment clarity "focus.aid.yes"
         symptoms <- answer environment q4 "focus.aid.no"
-        case envelopeOpportunity symptoms of WorkSkipDiscoveryOpportunity{} -> pure (); other -> assertFailure (show other)
+        case envelopeOpportunity symptoms of WorkSkipSymptomOpportunity{} -> pure (); other -> assertFailure (show other)
         after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
         loadedState after @?= loadedState before
     , testCase "factory Nature tree reaches every leaf without ambiguity" $ do

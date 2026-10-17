@@ -544,14 +544,17 @@ version.
 
   Q4. Start focusing this Brick?
   ├─ yes → accept the original Focus proposal
-  └─ no or unknown → open UX-S33 symptom discovery
+  ├─ no → open the UX-S01 skip symptoms
+  └─ unknown → open UX-S33 symptom discovery
   ```
 
   Understanding the task and understanding the draw are separate concerns.
   Forecast inspection is optional and never a toll before Focus consent. Q1
   uses an alternate probe under UX-017; uncertainty never confirms `vague`.
-  Q4 uncertainty reaches the same recovery as `no` without becoming a negative
-  answer or skip. Q4 remains a separate explicit decision even after Q1 `yes`.
+  Q4 `no` is the person's own refusal, so it opens the ordinary symptom
+  choice, whose uncertainty still reaches UX-S33; Q4 uncertainty opens UX-S33
+  directly without becoming a negative answer. Neither records a skip. Q4
+  remains a separate explicit decision even after Q1 `yes`.
 - **FOC-049 [core] — Forecast explanation is the recorded draw.** The Focus
   aid's explanation reads the immutable selection record from FOC-002 and
   FOC-005: the proposed Brick, strongest signal, bounded additional signals,

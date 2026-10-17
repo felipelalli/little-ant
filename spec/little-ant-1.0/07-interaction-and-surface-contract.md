@@ -2028,10 +2028,10 @@ assistance-label, and no-emoji rendering.
 - **UX-142 [core] — Final Focus consent remains explicit.** FOC-048 Q4 renders
   UX-F14 with `Start focusing this Brick?` and
   `[y]es · [n]o · I don't [k]now`. `yes` invokes the original Focus accept
-  transition immediately. `no` and uncertainty both open UX-S33 without
-  recording a skip; their local answers remain distinct even though the
-  recovery screen is the same. The symptom tree and final reaction own any
-  later deferral evidence.
+  transition immediately. `no` opens the UX-S01 skip symptoms, where a person
+  who already knows the obstacle names it directly; uncertainty opens UX-S33.
+  Neither records a skip. The symptom choice and final reaction own any later
+  deferral evidence.
 - **UX-143 [standard] — Assisted Focus cannot persuade or accept.** Skill or
   powered-up mode may summarize `/show`, paraphrase the exact FOC-049 facts, or
   mark one binary answer with concise attribution. It cannot add persuasive

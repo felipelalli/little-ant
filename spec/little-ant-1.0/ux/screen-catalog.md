@@ -527,8 +527,9 @@ Start focusing this Brick?
   mode: dumb, focus: idle
 ```
 
-`yes` accepts the original proposal and starts Focus. `no` and uncertainty
-both enter UX-S33 without recording a skip or symptom. If `/next` produced
+`yes` accepts the original proposal and starts Focus. `no` enters the UX-S01
+skip symptoms and uncertainty enters UX-S33; neither records a skip or
+symptom. If `/next` produced
 this proposal while another Brick remained current, every uncommitted route
 preserves that Focus; only this final `yes` switches it.
 
