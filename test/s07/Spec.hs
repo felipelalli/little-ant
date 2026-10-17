@@ -44,6 +44,7 @@ main =
       , testCase "lapsing occurrences close as missed and can be done late or excused" lapsingOccurrences
       , testCase "a stays-open series keeps unfinished occurrences as debt" staysOpenKeepsDebt
       , testCase "escalated occurrences come first by deadline and a skip pauses one" escalatedFirst
+      , testCase "the agenda lists dated facts by day with projections and a calendar" agendaOutlook
       , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
       , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
@@ -383,6 +384,46 @@ escalatedFirst = withHarness $ \environment -> do
   second <- answer environment receipt "next"
   envelopeOpportunity second @?= FocusProposalOpportunity aug4 Nothing
   assertBool "the unescalated occurrence must not be offered first" (envelopeOpportunity second /= FocusProposalOpportunity aug5 Nothing)
+
+agendaOutlook :: Assertion
+agendaOutlook = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  seedBrickAs environment (fixtureUuid 40) (Handle "plain") "Plain work" AtomicTask 50
+  -- The fixed clock is Mon Aug 3, 09:00 at UTC-3. Plain work was due Aug 1.
+  setTemporal environment (fixtureUuid 40) Nothing (Just (ZonedInstant (UTCTime (fromGregorian 2026 8 1) 0) "America/Montevideo")) 60
+  let schedule =
+        RecurrenceSchedule
+          brickIdValue
+          (CalendarRule WeeklyRecurrence 1 (fromGregorian 2026 8 3) (Set.singleton Friday) Nothing Nothing [TimeOfDay 18 0 0])
+          "America/Montevideo"
+          AtomicTask
+          Nothing
+          (-(2 * 86400))
+          (Just (-86400))
+          (Just 0)
+          DeadlineLapses
+          Nothing
+          0
+  _ <- run environment (SetRecurrenceScheduleCommand schedule)
+  listed <- run environment (ListCommand (Just "agenda"))
+  case listed of
+    ListResult{resultListEntries, resultListHeader, resultListCategories} -> do
+      let summary = [(listEntryDay row, listEntryHandle row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries]
+      take 4 summary
+        @?= [ ("Overdue", "#plain", "deadline")
+            , ("Wed, Aug 5", "#standing", "opens")
+            , ("Thu, Aug 6", "#standing", "best before")
+            , ("Fri, Aug 7", "#standing", "deadline")
+            ]
+      assertBool ("the second Friday is not projected: " <> show summary) (("Fri, Aug 14", "#standing", "deadline") `elem` summary)
+      assertBool "a projected row lacks its mark" (all (Text.isInfixOf "projected" . listEntryDetails) (filter ((== "#standing") . listEntryHandle) resultListEntries))
+      assertBool ("the lapsing deadline lacks its consequence: " <> show resultListEntries) (any (Text.isInfixOf "deadline · counts as missed" . listEntryDetails) resultListEntries)
+      take 3 resultListHeader @?= ["Today: Mon, Aug 3", "", "     August 2026"]
+      assertBool ("calendar marks are missing: " <> show resultListHeader) (any (Text.isInfixOf " 6• 7!") resultListHeader)
+      [label | ListCategory label _ <- resultListCategories] @?= ["Overdue", "Wed, Aug 5", "Thu, Aug 6", "Fri, Aug 7", "Wed, Aug 12", "Thu, Aug 13", "Fri, Aug 14"]
+    other -> assertFailure ("expected the agenda, got " <> show other)
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  Map.size (stateRecurringOccurrences (loadedState loaded)) @?= 0
 
 staysOpenKeepsDebt :: Assertion
 staysOpenKeepsDebt = withHarness $ \environment -> do

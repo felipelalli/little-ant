@@ -216,9 +216,10 @@ assistance-label, and no-emoji rendering.
   do not create alternate meanings. Missing REPL arguments are guided, while
   missing noninteractive CLI arguments fail with exact usage. Neither surface
   guesses a target from recency.
-- **UX-280 [core] — One list command exposes the two lists.** `/list` opens
-  importance order directly in the REPL; CLI usage still names `importance`
-  or `forecast`. Pinned `v` alternates the views and `t` toggles a combined
+- **UX-280 [core] — One list command exposes the three lists.** `/list` opens
+  importance order directly in the REPL; CLI usage still names `importance`,
+  `forecast`, or `agenda`. Pinned `v` cycles importance, forecast, and agenda
+  (UX-288), and `t` toggles a combined
   category/project/part tree. Positions remain sibling-local; forecast chances
   are unchanged by grouping. Multiple category references denote the same
   Brick, never extra probability mass. Parts do not inherit direct category
@@ -226,9 +227,25 @@ assistance-label, and no-emoji rendering.
   Ctrl-F opens local search; view keys become text until Ctrl-F finishes
   typing (retaining the query) or Escape clears it.
   Search retains ancestor context. Inspection/back and view changes preserve
-  scope, query, and the selected item where available. Both views are
-  cursor-stable, scoped, read-only, and consume no draw. `/forecast` and
-  `/importance` are not aliases.
+  scope, query, and the selected item where available. Every view is
+  cursor-stable, scoped, read-only, and consumes no draw. `/forecast`,
+  `/importance`, and `/agenda` are not aliases.
+- **UX-288 [standard] — The agenda is a dated, read-only outlook.** `list
+  agenda` shows dated facts of active Work over `agenda.window_days` local
+  days of the operational zone, starting today, like an org-mode agenda. An
+  `Overdue` group comes first: open Work whose deadline, or else
+  `best_before`, already passed, oldest first. Then one group per day with at
+  least one fact, in time order: `opens` for a future `not_before`, `best
+  before`, `deadline` (with `counts as missed` for a lapsing occurrence),
+  and `starts` for a scheduled interval. Occurrences of a recurring series
+  that are not yet released appear as `projected` rows on their projected
+  dates, cited by the series handle; projection uses the recorded schedule
+  and releases nothing. An escalated occurrence (FOC-071) says `escalated`.
+  A compact month calendar heads the view for each month the window touches,
+  marking days with a deadline `!` and other days with a `best_before` `•`.
+  In the REPL, day labels are non-selectable groups, `t` flattens them, and
+  rows inspect like other list rows. The agenda never ticks, draws, or
+  changes importance; JSON exposes each row's day, time, and kind.
 - **UX-281 [standard] — Administration stays out of the lazy-human path.**
   Explicit `lant tick`, grammar inspection, diagnostics, and repair are
   CLI-only. Every ordinary command still performs the canonical tick, so the

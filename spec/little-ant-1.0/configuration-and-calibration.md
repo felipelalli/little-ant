@@ -76,6 +76,7 @@ entries.
 | `obligation.escalation_skip_cooldown_minutes` | `120` | integer `5..1440` | Pause after skipping one escalated occurrence before it is offered first again. |
 | `obligation.scheduled_missed_grace_hours` | `24` | integer `0..168` | Time after an unanswered scheduled occurrence ends before it lapses as missed (WRK-161). |
 | `obligation.miss_history_periods` | `4` | integer `1..52` | Resolved periods inspected for recent-miss pressure. |
+| `agenda.window_days` | `14` | integer `1..92` | Local days shown by the agenda list, starting today (UX-288). |
 | `vault.agent_idle_lock_minutes` | `30` | integer `1..1440` | Credential inactivity before the profile agent locks. |
 | `delegation.review_delay_hours` | `72` | integer `0..8760` | Default delay from a handoff or observation to internal review. |
 | `delegation.review_skip_cooldown_hours` | `24` | integer `1..720` | Override after deferring an internal Delegation review. |

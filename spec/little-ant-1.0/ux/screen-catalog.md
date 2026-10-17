@@ -7667,6 +7667,43 @@ make no importance judgment. A standalone HTML export reflects categories with
 nested parts and keeps composition and dependency sections separately reachable;
 native collapsible branches and browser find replace terminal key controls.
 
+## UX-LIST01 — Agenda view
+
+`v` from forecast, or `lant list agenda`, opens the dated outlook of UX-288:
+
+```text
+Agenda · Today: Sat, Oct 17
+
+     October 2026
+Su Mo Tu We Th Fr Sa
+             1  2  3
+ 4  5  6  7  8  9 10
+11 12 13 14 15 16 17
+18 19 20 21•22 23!24
+25 26 27 28•29 30!31
+
+  Overdue
+  └── #pfr     Pay the fine                     deadline · Thu, Oct 15
+  Mon, Oct 19
+  └── 00:00    #dosio2  Do one shift in operations   opens
+  Wed, Oct 21
+  └── 18:00    #dosio2  Do one shift in operations   best before
+  Fri, Oct 23
+  └── 18:00    #dosio2  Do one shift in operations   deadline · counts as missed
+  Mon, Oct 26
+  └── 00:00    #dosio   Do one shift in operations   opens · projected
+
+────────────────────────────────────────────────────
+[v] importance · [t] days off · Ctrl+F search
+↑/↓ select · Enter inspect · Esc back · [/] more
+```
+
+The calendar is a fixed-width header and scrolls away with the rows; the
+controls stay pinned. Day labels and `Overdue` are not inspection targets.
+`[t]` flattens the groups and keeps the day in each row's details. Search,
+inspection, and back follow UX-LIST00. The CLI prints the same calendar and
+groups as plain text.
+
 ## UX-EXP00 — Read-only export
 
 `/export` opens a searchable installed-exporter selector. Each row uses its

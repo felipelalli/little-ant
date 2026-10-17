@@ -21,7 +21,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Char8 qualified as ByteStringChar8
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
-import Data.Either (isRight)
+import Data.Either (isRight, rights)
 import Data.Functor qualified
 import Data.List (find, minimumBy, nub, sort, sortOn)
 import Data.Map.Strict qualified as Map
@@ -2792,11 +2792,11 @@ runList environment dryRun dataset maybeList = do
         scoped <- scopeListRows (loadedState dataset) scope rows
         context <- scopeListRows (loadedState dataset) scope (importanceListRows zone (loadedState dataset))
         let visible = if name == "importance" then rebaseImportanceRows (loadedState dataset) scoped else scoped
-        pure (ListResult (loadedCursor dataset) name visible (categoryListTree (loadedState dataset) context visible) dryRun)
+        pure (ListResult (loadedCursor dataset) name visible [] (categoryListTree (loadedState dataset) context visible) dryRun)
    in case listName of
         Nothing ->
           pure . Left $
-            (appError InvalidInput "Choose a list: importance | forecast")
+            (appError InvalidInput "Choose a list: importance | forecast | agenda")
               { appErrorRecovery =
                   [ RecoveryAction "list" "Show the ordered work list." (Just "lant list importance")
                   , RecoveryAction "forecast" "Show the current forecast list." (Just "lant list forecast")
@@ -2808,6 +2808,13 @@ runList environment dryRun dataset maybeList = do
           now <- appZonedNow environment
           let rows = forecastListRows (loadedState dataset) (zonedTimeToUTC now)
           pure (result "forecast" rows)
+        Just "agenda" -> do
+          now <- appZonedNow environment
+          zones <- recurrenceZones (loadedState dataset)
+          let (header, rows) = agendaView (loadedState dataset) zones now
+          pure $ do
+            scoped <- scopeListRows (loadedState dataset) scope rows
+            pure (ListResult (loadedCursor dataset) "agenda" scoped header (agendaDayGroups scoped) dryRun)
         Just unsupported ->
           pure . Left $
             (appError InvalidInput "Unknown list name.")
@@ -2817,6 +2824,139 @@ runList environment dryRun dataset maybeList = do
                   , RecoveryAction "forecast" "Show the current forecast list." (Just "lant list forecast")
                   ]
               }
+
+-- | @agenda.window_days@, 14 in the factory profile (UX-288).
+agendaWindowDays :: Integer
+agendaWindowDays = 14
+
+-- | The loadable zones of recorded recurrence schedules, for projection.
+recurrenceZones :: State -> IO (Map.Map Text TZ)
+recurrenceZones state = do
+  loaded <- traverse (\name -> fmap (name,) <$> loadRecurrenceZone name) (nub (recurrenceZone <$> Map.elems (stateRecurrenceSchedules state)))
+  pure (Map.fromList (rights loaded))
+
+data AgendaFact = AgendaFact
+  { agendaAt :: UTCTime
+  , agendaKind :: Text
+  , agendaBrick :: Brick
+  , agendaNotes :: [Text]
+  }
+
+{- | UX-288: the calendar header and the dated rows of the agenda, overdue
+first. Projected occurrences come from recorded schedules; nothing is
+released, drawn, or changed.
+-}
+agendaView :: State -> Map.Map Text TZ -> ZonedTime -> ([Text], [ListRow])
+agendaView state zones now = (Text.pack ("Today: " <> formatTime defaultTimeLocale "%a, %b %-d" today) : "" : calendar, overdueRows <> datedRows)
+ where
+  utcNow = zonedTimeToUTC now
+  zone = zonedTimeZone now
+  today = localDay (zonedTimeToLocalTime now)
+  lastDay = addDays (agendaWindowDays - 1) today
+  windowEnd = localTimeToUTC zone (LocalTime (addDays agendaWindowDays today) midnight)
+  inWindow instant = instant >= utcNow && instant < windowEnd
+  localDayOf = localDay . utcToLocalTime zone
+  dayLabel = Text.pack . formatTime defaultTimeLocale "%a, %b %-d"
+  clock = Text.pack . formatTime defaultTimeLocale "%H:%M" . utcToLocalTime zone
+  active = activeBricks state
+  constraintsOf brick = Map.lookup (brickId brick) (stateTemporalConstraints state)
+  lapsing brick = case Map.lookup (brickId brick) (stateRecurringOccurrences state) >>= (`Map.lookup` stateRecurrenceSchedules state) . recurringOccurrenceOwner of
+    Just schedule -> recurrenceDeadlinePolicy schedule == DeadlineLapses
+    Nothing -> False
+  escalated brick = maybe False (<= utcNow) (obligationEscalatesAt state brick)
+  notesFor brick kind =
+    ["counts as missed" | kind == "deadline", lapsing brick]
+      <> ["escalated" | escalated brick]
+  overdue =
+    sortOn
+      (\fact -> (agendaAt fact, brickId (agendaBrick fact)))
+      [ AgendaFact instant kind brick (notesFor brick kind)
+      | brick <- active
+      , Just constraints <- [constraintsOf brick]
+      , Just (instant, kind) <- [passed constraints]
+      ]
+  passed constraints = case (temporalDeadline constraints, temporalBestBefore constraints) of
+    (Just deadline, _) | zonedInstantUtc deadline < utcNow -> Just (zonedInstantUtc deadline, "deadline")
+    (Nothing, Just preferred) | zonedInstantUtc preferred < utcNow -> Just (zonedInstantUtc preferred, "best before")
+    _ -> Nothing
+  ownFacts brick =
+    [ AgendaFact instant kind brick (notesFor brick kind)
+    | (instant, kind) <-
+        maybe [] constraintFacts (constraintsOf brick)
+          <> [ (zonedInstantUtc (scheduledStartsAt interval), "starts")
+             | brickNature brick == ScheduledCommitment
+             , Just interval <- [Map.lookup (brickId brick) (stateScheduledIntervals state)]
+             ]
+    , inWindow instant
+    ]
+  constraintFacts constraints =
+    [(zonedInstantUtc instant, "opens") | Just instant <- [temporalNotBefore constraints]]
+      <> [(zonedInstantUtc instant, "best before") | Just instant <- [temporalBestBefore constraints]]
+      <> [(zonedInstantUtc instant, "deadline") | Just instant <- [temporalDeadline constraints]]
+  projected =
+    [ AgendaFact instant kind series (["counts as missed" | kind == "deadline", recurrenceDeadlinePolicy schedule == DeadlineLapses] <> ["projected"])
+    | schedule <- Map.elems (stateRecurrenceSchedules state)
+    , Just series <- [Map.lookup (recurrenceOwner schedule) (stateBricks state)]
+    , brickStatus series == BrickActive
+    , let offsets =
+            [(recurrenceNotBeforeOffsetSeconds schedule, "opens")]
+              <> [(offset, "best before") | Just offset <- [recurrenceBestBeforeOffsetSeconds schedule]]
+              <> [(offset, "deadline") | Just offset <- [recurrenceDeadlineOffsetSeconds schedule]]
+          earliest = minimum (fmap fst offsets)
+          released anchor = any (\occurrence -> recurringOccurrenceOwner occurrence == recurrenceOwner schedule && zonedInstantUtc (recurringOccurrenceNominalAnchor occurrence) == zonedInstantUtc (anchorInstant anchor)) (Map.elems (stateRecurringOccurrences state))
+    , Just tz <- [Map.lookup (recurrenceZone schedule) zones]
+    , Right anchors <- [calendarAnchorsFrom (recurrenceZone schedule) tz (recurrenceRule schedule) maxBound]
+    , anchor <- filter (not . released) (takeWhile (\anchor -> addUTCTime (fromInteger earliest) (zonedInstantUtc (anchorInstant anchor)) < windowEnd) anchors)
+    , (offset, kind) <- offsets
+    , let instant = addUTCTime (fromInteger offset) (zonedInstantUtc (anchorInstant anchor))
+    , inWindow instant
+    ]
+  kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("best before", 2), ("deadline", 3)])
+  dated = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (concatMap ownFacts active <> projected)
+  row label fact =
+    AgendaListRow
+      (renderHandle BrickHandle (brickHandle (agendaBrick fact)))
+      (brickTitle (agendaBrick fact))
+      (Text.intercalate " · " ([dayLabel (localDayOf (agendaAt fact)), clock (agendaAt fact), agendaKind fact] <> agendaNotes fact))
+      label
+      (Just (clock (agendaAt fact)))
+      (agendaKind fact)
+  overdueRows = fmap (row "Overdue") overdue
+  datedRows = [row (dayLabel (localDayOf (agendaAt fact))) fact | fact <- dated]
+  marks =
+    Map.fromListWith
+      max
+      [ (localDayOf (agendaAt fact), if agendaKind fact == "deadline" then '!' else '•')
+      | fact <- dated
+      , agendaKind fact `elem` ["deadline", "best before"]
+      ]
+  calendar = intercalateBlank [monthGrid month | month <- nub [let (y, m, _) = toGregorian day in (y, m) | day <- [today .. lastDay]]]
+  intercalateBlank = \case
+    [] -> []
+    first : rest -> first <> concatMap ("" :) rest
+  monthGrid (year, month) =
+    let first = fromGregorian year month 1
+        size = gregorianMonthLength year month
+        lead = fromEnum (dayOfWeek first) `mod` 7
+        cell day = Text.justifyRight 2 ' ' (Text.pack (show day)) <> Text.singleton (Map.findWithDefault ' ' (fromGregorian year month day) marks)
+        cells = replicate lead "   " <> fmap cell [1 .. size]
+        weeks = chunksOf 7 cells
+        title = Text.pack (formatTime defaultTimeLocale "%B %Y" first)
+     in Text.stripEnd (Text.center 20 ' ' title) : "Su Mo Tu We Th Fr Sa" : fmap (Text.stripEnd . Text.concat) weeks
+  chunksOf count values = case splitAt count values of
+    (chunk, []) -> [chunk | not (null chunk)]
+    (chunk, rest) -> chunk : chunksOf count rest
+
+-- | Agenda rows grouped by their day label, in row order.
+agendaDayGroups :: [ListRow] -> [ListTree]
+agendaDayGroups rows =
+  [ ListCategory label [ListItem row False [] | row <- rows, rowDay row == label]
+  | label <- nub (fmap rowDay rows)
+  ]
+ where
+  rowDay = \case
+    AgendaListRow{listEntryDay} -> listEntryDay
+    _ -> ""
 
 scopeListRows :: State -> Maybe Text -> [ListRow] -> Either AppError [ListRow]
 scopeListRows _ Nothing rows = Right rows
@@ -3065,6 +3205,7 @@ runHelp _environment _dryRun dataset maybeTopic =
           (loadedCursor dataset)
           "help"
           (helpEntries topic)
+          []
           []
           False
 

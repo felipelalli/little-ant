@@ -155,7 +155,27 @@ renderCommandResult = \case
       <> (if wasRedo then "" else maybe "" (const "\nRedo is available.") redoToken)
       <> "\n\n"
       <> renderPlain (renderEnvelope interaction)
-  ListResult _ name rows _ dryRun ->
+  ListResult _ "agenda" rows header _ dryRun ->
+    dryRunFact dryRun
+      <> "agenda:\n"
+      <> Text.unlines header
+      <> "\n"
+      <> (if null rows then "  (nothing dated in the window)" else Text.unlines (concatMap agendaGroup (groupDays rows)))
+   where
+    groupDays = foldr (\row groups -> case groups of (day, members) : rest | day == agendaDay row -> (day, row : members) : rest; _ -> (agendaDay row, [row]) : groups) []
+    agendaDay = \case AgendaListRow{listEntryDay} -> listEntryDay; _ -> ""
+    agendaGroup (day, members) = ("  " <> day) : zipWith (agendaLine day) [1 :: Int ..] members
+     where
+      agendaLine label index row =
+        let branch = if index == length members then "  └── " else "  ├── "
+            when' = case row of
+              AgendaListRow{listEntryTime = Just time} | label /= "Overdue" -> time <> "  "
+              _ -> ""
+            facts = case row of
+              AgendaListRow{listEntryDetails} -> Text.intercalate " · " (drop (if label == "Overdue" then 0 else 2) (Text.splitOn " · " listEntryDetails))
+              _ -> listEntryDetails row
+         in branch <> when' <> listEntryHandle row <> " " <> listEntryTitle row <> " · " <> facts
+  ListResult _ name rows _ _ dryRun ->
     dryRunFact dryRun
       <> name
       <> ":\n"

@@ -99,6 +99,8 @@ data ListView = ListView
   , listViewSearching :: Bool
   , listViewSelected :: Int
   , listViewMessage :: Maybe Text
+  , listViewHeader :: [Text]
+  , listViewFlatDays :: Bool
   }
   deriving stock (Eq, Show)
 
@@ -249,8 +251,8 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
   openList previous name =
     runCurrent (ListCommand (Just name)) >>= \case
       Left problem -> pure . Just $ ReadOnlyScreen previous (renderError problem)
-      Right ListResult{resultListName, resultListEntries, resultListCategories} ->
-        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing)
+      Right ListResult{resultListName, resultListEntries, resultListCategories, resultListHeader} ->
+        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing resultListHeader False)
       Right other -> pure . Just $ ReadOnlyScreen previous (renderCommandResult other)
 
   listInput previous view input = case input of
@@ -261,14 +263,16 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     Printable character [] | listViewSearching view -> search (query <> Text.singleton character)
     Pasted material | listViewSearching view -> search (query <> material)
     Printable 'v' [] ->
-      let name = if listViewName view == "importance" then "forecast" else "importance"
+      let name = nextListView (listViewName view)
        in runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view)))) >>= \case
             Left problem -> changed view{listViewMessage = Just (appErrorMessage problem)}
-            Right ListResult{resultListEntries, resultListCategories} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories}
+            Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader}
             Right _ -> pure (Just screen)
+    -- The agenda's days and the other views' categories toggle independently.
+    Printable 't' [] | listViewName view == "agenda" -> preserve view{listViewFlatDays = not (listViewFlatDays view)}
     Printable 't' [] -> preserve view{listViewGrouped = not (listViewGrouped view)}
     Printable '/' [] -> pure . Just $ PaletteScreen (screenEnvelope previous) "/" 0 (ReturnToScreen screen)
-    Printable 'k' [] -> changed view{listViewMessage = Just "Importance is your sibling order. Forecast shows current chances. Categories group the same items; repeated references share one chance. Ctrl+F searches this list."}
+    Printable 'k' [] -> changed view{listViewMessage = Just "Importance is your sibling order. Forecast shows current chances. Agenda shows dated facts of the coming days, overdue first. Categories group the same items; repeated references share one chance. Ctrl+F searches this list."}
     ArrowLeft _ | not (listViewSearching view) -> pure (Just previous)
     Backspace _ -> pure (Just previous)
     ArrowUp _ -> select (selected - 1)
@@ -1019,6 +1023,10 @@ listHit row = SearchHit kind (listEntryHandle row) (listEntryTitle row) (listEnt
 
 listViewRows :: ListView -> [(Text, Text, SearchHit)]
 listViewRows view
+  | listViewName view == "agenda" =
+      if listViewFlatDays view
+        then [("", "", hit) | hit <- filteredHits query entries]
+        else Tree.treeRows (Tree.filterForest matches (fmap categoryTree (listViewCategories view)))
   | listViewGrouped view = Tree.treeRows (Tree.filterForest matches (fmap categoryTree (listViewCategories view)))
   | listViewName view == "importance" = importanceTreeRows query entries
   | otherwise = [("", "", hit) | hit <- filteredHits query entries]
@@ -1035,14 +1043,18 @@ listViewHits view = [hit | (_, _, hit) <- listViewRows view, searchHitKind hit /
 listModel :: Int -> InteractionEnvelope -> ListView -> ScreenModel
 listModel width envelope view = ScreenModel (content <> pinned) Nothing
  where
-  heading = if listViewName view == "importance" then "Importance order" else "Focus forecast"
+  heading = case listViewName view of
+    "importance" -> "Importance order"
+    "agenda" -> "Agenda"
+    _ -> "Focus forecast"
+  agenda = listViewName view == "agenda"
   rows = listViewRows view
   indices = scanl (\index (_, _, hit) -> index + if searchHitKind hit == "category" then 0 else 1) 0 rows
   content =
-    styledLines Heading (heading <> if listViewGrouped view then " · Categories + parts" else "")
+    styledLines Heading (heading <> if listViewGrouped view && not agenda then " · Categories + parts" else "")
       <> concat [styledLines Dim ("Scope: " <> Text.unwords (listViewScope view)) | not (null (listViewScope view))]
       <> concat [styledLines Dim "Chances apply when next draws flexible work." | listViewName view == "forecast"]
-      <> styledLines Dim "Positions are local to each sibling group."
+      <> (if agenda then fmap (pure . Span Normal) (listViewHeader view) else styledLines Dim "Positions are local to each sibling group.")
       <> [[Span Accent "Search: ", Span Normal (listViewQuery view <> if listViewSearching view then "▏" else "")] | listViewSearching view || not (Text.null (listViewQuery view))]
       <> [[]]
       <> (if null rows then [[Span Dim "No matches."]] else concat (zipWith (renderBrowserHit width True (listViewSelected view)) indices rows))
@@ -1051,12 +1063,21 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
     | listViewSearching view = ["Type to search · ↑/↓ select", "Ctrl+F finish · Enter inspect", "Esc clear search"]
     | width < 50 = [viewHint, treeHint, "Ctrl+F search · Enter show", "↑/↓ select · " <> escapeHint]
     | otherwise = [viewHint <> " · " <> treeHint <> " · Ctrl+F search", "↑/↓ select · Enter inspect · " <> escapeHint <> " · [/] more"]
-  viewHint = "[v] " <> if listViewName view == "importance" then "forecast" else "importance"
-  treeHint = "[t] categories " <> if listViewGrouped view then "off" else "on"
+  viewHint = "[v] " <> nextListView (listViewName view)
+  treeHint
+    | agenda = "[t] days " <> if listViewFlatDays view then "on" else "off"
+    | otherwise = "[t] categories " <> if listViewGrouped view then "off" else "on"
   escapeHint = if Text.null (listViewQuery view) then "Esc back" else "Esc clear search"
   footer = footerFrom width envelope
   pinned = take 1 footer <> concatMap (fmap (pure . Span Dim) . wrapWords width) hints <> drop 1 footer
   styledLines role = fmap (pure . Span role) . wrapWords width
+
+-- | UX-280: @v@ cycles importance, forecast, and agenda.
+nextListView :: Text -> Text
+nextListView = \case
+  "importance" -> "forecast"
+  "forecast" -> "agenda"
+  _ -> "importance"
 
 filteredHits :: Text -> [SearchHit] -> [SearchHit]
 filteredHits query = filter matches

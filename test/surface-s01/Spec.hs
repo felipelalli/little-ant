@@ -139,7 +139,7 @@ tests =
             child = ListRow "#diagram" "Draw diagram" "60.0% · importance position 1"
             others = [ListRow ("#b" <> Text.pack (show index)) "Other task" "1.0%" | index <- [1 .. 35 :: Int]]
             categories = [ListCategory "Work" [ListCategory "Talks" [ListItem parent True [ListItem child False []]]], ListCategory "Other" [ListItem row False [] | row <- others]]
-            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing
+            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing [] False
             filtered = renderPlain (listModel 80 envelope view)
         mapM_ (\fragment -> assertBool ("missing grouped context: " <> Text.unpack fragment) (fragment `Text.isInfixOf` filtered)) ["Work", "Talks", "#talk", "#diagram", "60.0%", "context only"]
         assertBool "search retained an unrelated category" (not ("Other task" `Text.isInfixOf` filtered))
@@ -195,7 +195,7 @@ tests =
             full = renderPlain (model "" 0)
             filtered = model "diagram" 2
             plain = renderPlain filtered
-            cli = renderCommandResult (ListResult Genesis "importance" [ListRow (searchHitHandle hit) (searchHitTitle hit) "" | hit <- entries] [] False)
+            cli = renderCommandResult (ListResult Genesis "importance" [ListRow (searchHitHandle hit) (searchHitTitle hit) "" | hit <- entries] [] [] False)
         mapM_ (\branch -> assertBool ("missing branch " <> Text.unpack branch) (branch `Text.isInfixOf` full)) ["├── #outline", "├── #slides", "│   ├── #intro", "│   └── #diagram", "└── #rehearse"]
         mapM_ (\handle -> assertBool "search lost ancestor context" (handle `Text.isInfixOf` plain)) ["#talk", "#slides", "#diagram"]
         assertBool "search retained an unrelated root or sibling" (not ("#other" `Text.isInfixOf` plain || "#outline" `Text.isInfixOf` plain))

@@ -9,6 +9,12 @@ replace the specification.
 
 ## Unreleased
 
+- Add `list agenda`, a dated read-only outlook of the next 14 days like an
+  org-mode agenda: an Overdue group, then one group per day with `opens`,
+  `best before`, `deadline`, and `starts` facts, projected rows for
+  recurring occurrences not yet released, and a month calendar header that
+  marks deadlines `!` and best-before days `•`. In the REPL, `v` now cycles
+  importance, forecast, and agenda, and `t` toggles the agenda's day groups.
 - Make `update it` after an out-of-date skip open the update hub for the same
   Brick; it previously only appended a note and stayed on the screen.
 - Open a target-less Brick command such as `/archive` in the REPL with only

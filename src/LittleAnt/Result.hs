@@ -88,6 +88,15 @@ data ListRow
       , listEntryChance :: (Integer, Integer)
       , listEntryOpportunities :: [ForecastOpportunityProjection]
       }
+  | -- | One dated fact of the agenda (UX-288); the day is its group label.
+    AgendaListRow
+      { listEntryHandle :: Text
+      , listEntryTitle :: Text
+      , listEntryDetails :: Text
+      , listEntryDay :: Text
+      , listEntryTime :: Maybe Text
+      , listEntryKind :: Text
+      }
   deriving stock (Eq, Show)
 
 -- Categories are presentation branches; an item can occur in several branches.
@@ -222,6 +231,7 @@ data CommandResult
       { resultDatasetCursor :: DatasetCursor
       , resultListName :: Text
       , resultListEntries :: [ListRow]
+      , resultListHeader :: [Text]
       , resultListCategories :: [ListTree]
       , resultDryRun :: Bool
       }
@@ -298,6 +308,7 @@ instance ToJSON ListRow where
       ]
         <> case entry of
           ForecastListRow _ _ _ (value, total) opportunities -> ["chance_numerator" .= value, "chance_denominator" .= total, "opportunities" .= opportunities]
+          AgendaListRow _ _ _ day time kind -> ["day" .= day, "time" .= time, "kind" .= kind]
           ListRow{} -> []
 
 instance ToJSON DiagnosticCheck where
@@ -390,7 +401,7 @@ instance ToJSON CommandResult where
         , "hits" .= hits
         ]
           <> dryRunPair dryRun
-    ListResult cursor name entries categories dryRun ->
+    ListResult cursor name entries header categories dryRun ->
       object $
         [ "schema" .= ("little-ant/list@1" :: Text)
         , "dataset_cursor" .= renderCursor cursor
@@ -398,6 +409,7 @@ instance ToJSON CommandResult where
         , "entries" .= entries
         , "categories" .= categories
         ]
+          <> ["header" .= header | not (null header)]
           <> dryRunPair dryRun
     DoctorResult cursor healthy validated checks dryRun ->
       object $
