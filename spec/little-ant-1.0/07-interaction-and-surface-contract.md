@@ -1773,15 +1773,25 @@ assistance-label, and no-emoji rendering.
   occurrence label. Repeated titles are left intact. Contextual inspection
   explains the nominal anchor and dates; every action affects only this
   occurrence. The surface never says FIFO, next occurrence, or inserts an
-  importance comparison among occurrences.
+  importance comparison among occurrences or for the series. An escalated
+  occurrence offered by FOC-071 states why in one secondary line, such as
+  `Due first: best before passed · deadline Fri, Oct 23, 18:00`.
 - **UX-246 [standard] — Recurrence input is finite and mechanical.** UX-RO01
   selects daily, weekly, monthly, or yearly, then shows only the fields required
   by WRK-148: occurrence Nature, interval, times, zone, family anchor,
-  scheduled duration when applicable, and explicit temporal offsets. Numeric
+  scheduled duration when applicable, explicit temporal offsets, the deadline
+  policy, and, for `lapses`, the optional consequence text. Numeric
   and finite-choice input replaces recurrence prose. The
   preview shows the next three nominal anchors and effective not-before,
   best-before, and deadline values before acceptance. Unsupported imported
   rules stop with preserve-as-Raw or reviewed finite-expansion recovery.
+- **UX-287 [standard] — A missed period is honest and repairable.** UX-RO02
+  shows one missed occurrence with its deadline, the series consequence text
+  when present, and the period history. It offers `done late` (WRK-163),
+  `excuse` (WRK-162), and uncertainty; neither action reopens the occurrence
+  for the draw. An open occurrence also offers `excuse` from contextual
+  inspection. The surface never calls a miss a failure of the person and never
+  shows a score.
 - **UX-247 [core] — Commitment creation names the full interval.** UX-SC00
   collects start date/time/zone and end date/time/zone as separate structured
   fields and previews both absolute instants, duration, Place/source links,

@@ -6186,8 +6186,11 @@ Focus?
   mode: dumb, focus: idle
 ```
 
-The series keeps the human importance position; the occurrence has its own
-UUID, `#` handle, lifecycle, and history. The displayed label is separate from
+The series has no importance position (IMP-057); the occurrence has its own
+UUID, `#` handle, lifecycle, and history. When FOC-071 offers an escalated
+occurrence first, the secondary context adds one line before `Now:`, such as
+`. Due first: best before passed · deadline Fri, Oct 23, 18:00`, and skip
+pauses only this occurrence. The displayed label is separate from
 the repeated title. Yes starts only this atomic occurrence. Done or archive
 resolves only it; skip follows ordinary finite-Work diagnosis and can increase
 later pressure without creating a missed historical cell. A series configured
@@ -6211,8 +6214,17 @@ Zone         › America/Montevideo
 Opens        › 7 days before
 Best before  › 1 day before
 Deadline     › at the anchor
+At deadline  › stays open
 
 [Enter] review · [Esc] back
+```
+
+A required weekly shift instead ends with:
+
+```text
+Deadline     › at the anchor
+At deadline  › counts as missed
+Consequence  › Attendance is reported to HR
 ```
 
 Family and occurrence Nature are finite selectors. The weekly variant adds
@@ -6222,7 +6234,41 @@ display zones. Offsets are structured signed values and may be omitted only
 for best-before or deadline. Review
 renders the next three nominal anchors and all effective absolute instants,
 then yes, edit, no, and uncertainty. Monthly day 31 visibly demonstrates
-clamping. No field accepts cron, RRULE, or prose.
+clamping. No field accepts cron, RRULE, or prose. `At deadline` is a finite
+selector between `stays open` and `counts as missed`; `counts as missed`
+requires a deadline and then shows the optional `Consequence` field, which
+accepts at most 200 characters and may stay empty. Review states the policy
+in words, for example `A period not done by its deadline counts as missed.`
+
+## UX-RO02 — Missed occurrence
+
+```text
+Missed:
+
+#ctsno3 "Do one shift in operations"
+
+Occurrence: Fri, Oct 23 2026 · deadline Fri, Oct 23, 18:00
+Consequence: Attendance is reported to HR
+History: [!][x][x][-][x]  ·  3 on time · 0 late · 1 missed · 1 excused
+
+[d]one late    [e]xcuse    I don't [k]now
+[/] more...
+
+────────────────────────────────────────
+. #ctsno "Do one shift in operations"
+  Eulen
+. Missed: Fri, Oct 23, 18:00
+     Now: Sat, Oct 24, 09:00
+. 18 bricks, 7 raws, 3 reviews
+  mode: dumb, focus: idle
+```
+
+Done late records completion now and moves the period to late; excuse asks
+for an optional reason and moves it to excused. Both keep the miss in
+history, and neither returns the occurrence to the draw. The missed screen
+is reached from the series history, `/show`, or the notice for the miss; it
+is never offered by `next`. Uncertainty explains WRK-161..163 without
+changing anything.
 
 ## UX-SC00 — Scheduled-commitment interval
 

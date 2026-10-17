@@ -11,8 +11,9 @@
 - **IMP-003 [core] — Stable display.** The global importance view is a
   lexicographic traversal of sibling orders. Blocking may be displayed but
   never rewrites the order.
-- **IMP-004 [core] — Binary insertion.** A new or locally displaced Brick is
-  placed through resumable binary insertion, requiring approximately
+- **IMP-004 [core] — Binary insertion.** A new or locally displaced Brick,
+  other than a recurring-obligation series (IMP-057), is placed through
+  resumable binary insertion, requiring approximately
   logarithmic human comparisons. After reusable evidence narrows the interval,
   the first unresolved comparator is its ordinary midpoint. A Dependency
   target is not privileged as an insertion anchor, because prerequisite order
@@ -579,16 +580,20 @@ Is
   is `review due`. Relative-only evidence renders as `not classified · N
   comparisons`. Numeric confidence is available only in explicit structured
   evidence/forecast inspection, never as a user-facing target to optimize.
-- **IMP-057 [core] — Generated obligation occurrences reuse series
-  importance.** A `recurring_obligation` series owns one ordinary human
-  importance position. Its generated occurrences are independent Bricks for
-  lifecycle, focus, history, and references, but they do not create sibling
-  insertion questions or additional root importance positions. The importance
-  projection nests them beneath the series in nominal-anchor order; the focus
-  forecast chooses among open occurrences with ordinary age and temporal
-  evidence after the series attention subject wins. This is a closed
-  Nature-owned generated lane, not FIFO execution, manual composition, or a
-  general exception available to Packs.
+- **IMP-057 [core] — Recurring obligations carry no importance position.** An
+  obligation competes for time, not for value: its deadline already states
+  when it must be done. A `recurring_obligation` series and its generated
+  occurrences therefore never enter binary insertion, ordering reviews, or the
+  sibling importance order, and creating a series asks no importance
+  question. The importance projection lists active series in a separate
+  `Obligations` group ordered by their next deadline, with open occurrences
+  nested in nominal-anchor order. In the forecast a series subject uses the
+  neutral importance factor raised by deadline approach, and FOC-071 offers
+  escalated occurrences first. A series position recorded before this rule is
+  kept in history and ignored. Occurrences remain independent Bricks for
+  lifecycle, focus, history, and references. This is a closed Nature-owned
+  rule, not FIFO execution, manual composition, or a general exception
+  available to Packs.
 
 Importance, impact, effort, and phase remain independent. None is a hidden
 sort key for another.

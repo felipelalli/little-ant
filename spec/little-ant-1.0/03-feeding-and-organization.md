@@ -154,8 +154,8 @@
         │  ├─ yes → collection
         │  └─ no  → living_checklist
         └─ no
-           Q6. Does each required occurrence remain open until completed or
-               explicitly closed?
+           Q6. Is each period required by something outside you, so that
+               missing its deadline matters (debt, a report, a penalty)?
            ├─ yes → recurring_obligation
            └─ no
               Q7. Are missed time windows recorded and are streaks meaningful?
@@ -175,7 +175,7 @@
   | project or finite checklist | Could any part need its own `next`, importance, blocker, date, Domain, or history? | project | finite checklist |
   | members or executions | Will items be added or removed while the parent remains? | members | executions |
   | collection or living checklist | At focus time, must the whole open set appear together? | living checklist | collection |
-  | obligation or non-accumulating work | If one due period is not completed, should its occurrence remain open or overdue? | recurring obligation | non-accumulating work |
+  | obligation or non-accumulating work | If one period passes unfulfilled, does anyone or anything besides your own history notice it? | recurring obligation | non-accumulating work |
   | habit or repeatable | Should an unfulfilled window affect history or a streak? | habit | repeatable |
 
   A second uncertainty at the same split leaves Raw triage pending instead of

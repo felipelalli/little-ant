@@ -182,19 +182,47 @@ Confidence `c` is clamped to `[0,1]` and interpolates each ranked weight with
 the same neutral factor as before. At zero confidence, equally contextualized
 positioned siblings have equal chances; weak provisional evidence still
 dilutes concentration. A Raw subject and any subject without current active
-importance use `neutral`. An archived relevance review may use the Brick's
-last active position and group size with its decayed confidence; it never
-restores the Brick to the active order. Positions are clamped to `0..n-1`.
+importance use `neutral`. A recurring-obligation series has no importance position
+under IMP-057 and also uses `neutral`. An archived relevance review may use
+the Brick's last active position and group size with its decayed confidence;
+it never restores the Brick to the active order. Positions are clamped to
+`0..n-1`.
+
+### Deadline approach
+
+A `deadline` records an external consequence, so its approach progressively
+overrides the human order. Let `f` be the importance factor above, `top = 1`
+(the factor of a fully confident first sibling), `lead` the factory
+`deadline_lead_days`, and `now` the forecast instant:
+
+```text
+approach_start = best_before            when best_before < deadline
+               = deadline - lead        otherwise
+u              = clamp((now - approach_start) / (deadline - approach_start), 0, 1)
+effective      = f + u * (top - f)
+```
+
+`u` is `1` at and after the deadline and `0` without a deadline. A
+`best_before` alone never changes the importance factor; it only emits date
+pressure. The effective factor never falls below `f`, so a highly ranked
+subject loses nothing as its deadline approaches. A subject's `u` is the
+maximum over its eligible local opportunities, the same aggregation that
+preserves one subject ticket for pressure. Durations use whole seconds; `u`
+and `effective` are fixed-point values rounded half away from zero. Within a
+recurring series' local draw the inherited factor cancels, as for pressure.
 
 The factory profile identifier is
-`little-ant-forecast-v4-factory-demand-reviews`. Revision 4 retains the
-Forte+ numeric curve and integrates on-demand effort, impact, and evidence
-reviews into the same local review/continuation routes.
-`little-ant-forecast-v3-factory-forte-plus-reviews` identifies the preceding
-ordering-review routing. `little-ant-forecast-v2-factory-forte-plus`
+`little-ant-forecast-v5-factory-deadline-approach`. Revision 5 adds the
+deadline approach above, the `best_before` ramp, and recent-miss pressure,
+and gives recurring-obligation series the neutral factor.
+`little-ant-forecast-v4-factory-demand-reviews` identifies the preceding
+revision, which retained the Forte+ numeric curve and integrated on-demand
+effort, impact, and evidence reviews into the same local review/continuation
+routes. `little-ant-forecast-v3-factory-forte-plus-reviews` identifies the
+earlier ordering-review routing. `little-ant-forecast-v2-factory-forte-plus`
 identifies the earlier Forte+ routing. The earlier
 `little-ant-forecast-v1-factory` identifies the former quadratic profile and
-its historical bottom/exponent parameters. New forecasts use revision 4;
+its historical bottom/exponent parameters. New forecasts use revision 5;
 existing selection evidence and pending suggestions retain their recorded
 profile, weights, sampled integer, chosen identities, and cursor progression.
 Replay folds that evidence without recalculating it under the current curve.
@@ -234,18 +262,33 @@ The factory signal strengths are intentionally coarse:
 | neglect age | linear from `0` to `0.50` over 30 days |
 | explicit deferrals after cooldown | `0.50 * (1 - 2^-count)` |
 | uncertainty or contradiction | owning confidence/consequence rule, capped at `0.75` |
-| `best_before` or `deadline` pressure | linear over its configured lead window, capped at `1.00` |
+| `best_before` pressure | linear from `0` at its ramp start to `1.00` at `best_before`; `1.00` afterwards |
+| `deadline` pressure | linear over its configured lead window to `1.00` at `deadline`; `1.00` afterwards |
+| recent misses of a lapsing obligation series | `min(0.50, 0.25 * misses)` |
 | matching preferred Place | `0.10` |
 | phase `idea/spec/execution/validation` | `0/0.05/0.15/0.10` |
 | impact `VERY_LOW..CRITICAL` | `0/0.02/0.04/0.06/0.08/0.10` |
 
 The closed correlation keys are `availability`, `age`, `date`, `avoidance`,
-`uncertainty`, `phase`, `impact`, `place`, `wip`, `schedule`, and
+`uncertainty`, `phase`, `impact`, `place`, `wip`, `schedule`, `missed`, and
 `review_consequence`. A rule emitting several observations about one fact uses
-one key; it cannot multiply pressure by renaming the same cause. Factory lead
-windows are seven days for both ordinary `best_before` and `deadline`; a
-Template may declare a different visible lead window as part of its accepted
-configuration.
+one key; it cannot multiply pressure by renaming the same cause. `best_before`
+and `deadline` both use `date`, so they collapse to their maximum.
+
+A `best_before` ramp starts at the later of the opportunity's eligibility
+origin (defined with neglect age below) and `best_before_max_ramp_days`
+before `best_before`; a ramp of zero length is `1.00` once eligible. A human
+who expects difficult Work therefore sets an early `best_before`, and the
+pressure reaches its maximum then instead of at the deadline. The factory
+deadline lead window is seven days and the factory maximum `best_before`
+ramp is thirty days; a Template may declare different visible values as part
+of its accepted configuration.
+
+Recent-miss pressure applies to each open occurrence of a `lapses`
+recurring-obligation series (WRK-148). `misses` counts `missed` periods among
+the series' last `obligation.miss_history_periods` resolved periods; a period
+later excused or done late is not counted. The signal fades as on-time
+periods replace misses in that horizon.
 
 Availability base signals are exhaustive: FOC-037's five execution variants
 use `work`; `raw_triage` uses `raw_triage`; every FOC-061 organization-
@@ -464,7 +507,9 @@ ranges are inclusive; cross-key invariants are validated atomically.
 | `forecast.wip.max_signal` | `0.50` | `0.00..1.00` |
 | `forecast.review_consequence.per_subject_signal` | `0.10` | `0.00..1.00` |
 | `forecast.review_consequence.max_signal` | `0.50` | `0.00..1.00` |
-| `forecast.date.best_before_lead_days` | `7` | `0..365` |
+| `forecast.date.best_before_max_ramp_days` | `30` | `0..365` |
+| `forecast.miss.per_miss_signal` | `0.25` | `0.00..1.00` |
+| `forecast.miss.max_signal` | `0.50` | `0.00..1.00` |
 | `forecast.date.deadline_lead_days` | `7` | `0..365` |
 
 Factory phase, Impact, Place, availability, deferral, and review signal maps

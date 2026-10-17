@@ -866,9 +866,15 @@
   Month-end clamping follows WRK-039 without drift. Each nominal anchor also
   has explicit signed offsets for occurrence `not_before` and optional
   `best_before` and `deadline`; no due meaning is inferred from frequency.
+  Each series declares one deadline policy: `stays_open` keeps an unfinished
+  occurrence open as debt, as for a bill; `lapses` resolves it as missed at
+  its deadline, as for a required weekly shift, and requires a deadline
+  offset. A `lapses` series may store one optional consequence text of at most
+  200 characters, shown beside each miss and never interpreted. A schedule
+  recorded without a policy is `stays_open`.
   Unsupported cron/RRULE shapes remain source material or require an explicit
   finite expansion rather than approximate core recurrence.
-- **WRK-149 [core] — Occurrence release is idempotent and keeps debt.** At each
+- **WRK-149 [core] — Occurrence release is idempotent and never closes an older period.** At each
   canonical tick, every nominal anchor whose occurrence `not_before` has
   opened produces exactly one Brick of the series' declared occurrence Nature,
   keyed by series UUID and nominal anchor. It receives a normal UUID and `#`
@@ -878,8 +884,8 @@
   end and follows WRK-151..156, including attended/missed/cancelled truth and
   hard precedence. Both carry an `occurrence_of` edge, series provenance,
   effective direct Domains, and no independent human importance slot under
-  IMP-057. A later anchor never closes an older one. A Nature-owned outcome or
-  explicit archive resolves only that occurrence. Schedule edits affect future
+  IMP-057. A later anchor never closes an older one. A Nature-owned outcome,
+  WRK-161's lapse, or explicit archive resolves only that occurrence. Schedule edits affect future
   unreleased anchors; already released occurrences retain their facts unless
   an explicit reviewed batch edits them.
 - **WRK-150 [core] — Catch-up release is bounded, not lossy.** Offline time may
@@ -890,6 +896,35 @@
   The default limit is 1,000. The startup splash reports real replay/materialize
   progress and useful-empty recovery remains unavailable while a required
   catch-up continuation is pending.
+- **WRK-161 [core] — Lapsing occurrences close as missed.** At each canonical
+  tick, an open atomic occurrence of a `lapses` series whose deadline has
+  passed is resolved with the system outcome `missed`, timestamped at that
+  deadline. A scheduled occurrence still unanswered
+  `obligation.scheduled_missed_grace_hours` after its interval ends lapses the
+  same way; a truthful attended, missed, or cancelled answer recorded before
+  then wins. Lapse is replay-recorded, bounded and resumable like WRK-150,
+  never coalesces periods, and creates no debt. If the lapsing occurrence is
+  the current focus, focus returns to idle and the session history remains.
+  An occurrence released after its own deadline, as during catch-up, lapses at
+  the same tick.
+- **WRK-162 [standard] — Excused periods.** Before or after its deadline, the
+  human may mark one occurrence `excused`, with an optional reason such as
+  vacation or leave. An excused period is not a miss, emits no recent-miss
+  pressure, and stays visible in history. Excusing a missed occurrence
+  replaces the miss in the tally while history keeps both facts and their
+  times.
+- **WRK-163 [standard] — Late completion.** A missed occurrence offers `done
+  late`. It records completion at the real instant, keeps the miss fact, and
+  moves the period from missed to late in the tally. It never reopens the
+  occurrence for the draw, restores debt, or retracts a consequence already
+  shown. Archive and restore are not part of this route.
+- **WRK-164 [standard] — Period history of a lapsing series.** A `lapses`
+  series exposes its resolved periods newest first as `[x]` done, `[~]` done
+  late, `[!]` missed, and `[-]` excused, with totals such as `6 on time · 1
+  late · 2 missed · 1 excused` over the displayed horizon and the consequence
+  text beside misses. Recent misses add the bounded pressure defined by the
+  deterministic calculation profile to the next open occurrence. The history
+  is a record, not a streak or a score.
 - **WRK-151 [core] — Scheduled commitment data is one exact interval.** A
   `scheduled_commitment` requires `starts_at` and `ends_at` exact instants with
   `ends_at > starts_at`. Each endpoint retains its own display IANA zone, so a
@@ -969,8 +1004,10 @@
   six months plus or minus three months chooses and records one replay-safe
   date, preventing a batch of completions from necessarily returning together.
 - **WRK-023 [standard] — Recurring obligation.** A standing series releases
-  independently completable occurrence Bricks. Unpaid occurrences remain open
-  and may coexist with later periods.
+  independently completable occurrence Bricks. Under `stays_open`, unpaid
+  occurrences remain open and may coexist with later periods. Under `lapses`,
+  each period resolves on its own as done, done late, missed, or excused, and
+  no debt accumulates.
 - **WRK-024 [standard] — Habit.** A habit retains one standing identity
   while applicable windows record `done` or an unfulfilled outcome. Expired
   opportunities do not accumulate as overdue task backlog.
@@ -997,7 +1034,9 @@
   - skipping a released `recurring_obligation` occurrence leaves that finite
     occurrence open. After cooldown, recorded avoidance and its ordinary
     `best_before` or `deadline` signals may increase its selection pressure;
-    a later period never erases it;
+    under `stays_open` a later period never erases it, and under `lapses` its
+    deadline still resolves it as missed under WRK-161. An escalated
+    occurrence uses FOC-071's skip pause instead of the ordinary cooldown;
   - an active `scheduled_commitment` is hard precedence under `FOC-030`, not
     an ordinary-lottery execution, and therefore exposes truthful
     commitment outcomes instead of this skip route.
@@ -1019,8 +1058,9 @@
   derive from applicable habit-window outcomes. A `repeatable` Brick has no
   expected windows, so it may expose completion count and `Last completed`
   but never inserts a gap merely because no execution occurred. A recurring
-  obligation exposes open and resolved occurrence state rather than a streak;
-  an unresolved occurrence is debt, not a missed historical cell. UX-079 and
+  obligation exposes open and resolved occurrence state rather than a streak.
+  Under `stays_open` an unresolved occurrence is debt, not a missed historical
+  cell; under `lapses` resolved periods follow WRK-164. UX-079 and
   UX-H00 define the exact accessible compact forms.
 - **WRK-139 [core] — Public focus and standing commands are semantic, not
   aliases.** REPL commands are `/focus #brick`, `/pause`,

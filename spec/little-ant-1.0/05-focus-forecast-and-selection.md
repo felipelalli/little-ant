@@ -313,7 +313,9 @@ version.
   policy. Neither branch fabricates generic completion or a terminal Brick
   outcome. Continuations, useful-empty recovery, and hard precedence are not
   lottery selections and do not acquire a misleading universal skip from this
-  rule.
+  rule. FOC-071's escalated obligation offer is also precedence; it keeps its
+  own typed skip because the escalated occurrence remains ordinary finite
+  Work.
 - **FOC-027 [core] — Explicit failure.** Invalid state that prevents a valid
   forecast yields a typed diagnostic and concrete recovery suggestion, not a
   fake focus opportunity.
@@ -336,6 +338,24 @@ version.
   a lottery result, it requires truthful commitment-specific outcomes instead
   of the universal lottery skip. WRK-152 and UX-SC02..SC04 define current-focus
   and overlap handling.
+- **FOC-071 [core] — Escalated obligations are offered first.** An open
+  recurring-obligation occurrence escalates at its `best_before`, or
+  `obligation.default_escalation_lead_hours` before its `deadline` when it has
+  no `best_before`; an occurrence with neither never escalates. While no
+  FOC-030 commitment applies and no current focus continues, `next` offers
+  the escalated occurrences before the ordinary weighted draw, by earliest
+  deadline, then earliest nominal anchor, then canonical identity. No
+  importance comparison orders them, because every one must be done and the
+  earliest deadline first is the order that best meets them all. The offer
+  uses the ordinary `Focus?` grammar with its reason visible and keeps the
+  typed `skip`: skipping pauses that occurrence for
+  `obligation.escalation_skip_cooldown_minutes`, during which the next
+  escalated occurrence or the ordinary draw is served, and it records the
+  deferral like any skip. `/focus` and other explicit choices remain
+  available. This is visible temporal precedence, like FOC-030, not a hidden
+  probability multiplier, and it never applies to habits, repeatable Work, or
+  one-off Work with a deadline, whose deadline approach stays inside the
+  draw.
 - **FOC-031 [core] — Preparation before commitment.** Before the interval
   begins, a scheduled-commitment subject may descend to currently eligible
   preparatory descendants or resolve a hard prerequisite through the ordinary
@@ -348,7 +368,8 @@ version.
   subject wins, the core performs one replay-recorded local weighted draw among
   its open occurrences using deadline, best-before, age, skip evidence, and
   occurrence state. Every open occurrence retains positive chance; oldest is
-  not a FIFO guarantee. The chosen occurrence is then served as `finite_work`
+  not a FIFO guarantee. Escalated occurrences are served by FOC-071 before
+  this draw instead. The chosen occurrence is then served as `finite_work`
   with the series in secondary context. A series with no open occurrence and
   no other review is dormant.
 - **FOC-063 [standard] — Required place is a continuation after selection.**
@@ -585,7 +606,9 @@ version.
   intended long tail. Calibration must publish fixed-stream starvation
   distributions and flag unacceptable tails; `/list`'s Focus forecast exposes
   age and current chance so the human can inspect or directly choose without
-  falsifying randomness.
+  falsifying randomness. FOC-030 and FOC-071 are the only temporal
+  precedence exceptions; both are visible and leave the draw itself
+  unchanged.
 - **FOC-060 [core] — Change-subject recovery has complete edge behavior.** The
   source path for fatigue is the effective Domain path recorded by the served
   draw; for an existing current focus it is its recorded active path. With
