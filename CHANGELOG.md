@@ -9,6 +9,9 @@ replace the specification.
 
 ## Unreleased
 
+- Open a target-less Brick command such as `/archive` in the REPL with only
+  the Bricks it can act on (archived ones for `/restore`, any for `/update`,
+  active ones otherwise) and the Brick of the current screen preselected.
 - Answer `no` to the final `Start focusing this Brick?` with the ordinary skip
   symptoms, so an obstacle such as out of date can be named directly; only
   `I don't know` opens the guided symptom discovery.

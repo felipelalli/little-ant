@@ -14,6 +14,7 @@ module LittleAnt.REPL (
   paletteModel,
   paletteCommandSelection,
   browserModel,
+  brickCommandTargets,
   documentModel,
   ListView (..),
   listModel,
@@ -856,7 +857,9 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
       _ ->
         runCurrent (SearchCommand "#") >>= \case
           Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
-          Right SearchResult{resultSearchHits} -> pure (Just (CommandTargetScreen envelope command (filter ((== "brick") . searchHitKind) resultSearchHits) "" 0 Nothing))
+          Right SearchResult{resultSearchHits} ->
+            let (targets, selected) = brickCommandTargets envelope (commandOptionId command) resultSearchHits
+             in pure (Just (CommandTargetScreen envelope command targets "" selected Nothing))
           Right other -> pure (Just (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
 
   runCurrent command =
@@ -914,6 +917,23 @@ refreshesPackRegistry = \case
   PackTrustResultOpportunity{} -> True
   ProviderConnectionResultOpportunity{} -> True
   _ -> False
+
+{- | Bricks a target-less Brick command can act on, with the Brick of the
+current screen preselected. Lifecycle commands list only Bricks in the state
+they accept: archived ones for restore, any for update, active otherwise.
+-}
+brickCommandTargets :: InteractionEnvelope -> Text -> [SearchHit] -> ([SearchHit], Int)
+brickCommandTargets envelope commandId hits = (targets, fromMaybe 0 (contextHandle >>= \handle -> findIndex ((== handle) . searchHitHandle) targets))
+ where
+  targets = filter (\hit -> searchHitKind hit == "brick" && accepts (hitStatus hit)) hits
+  hitStatus = fst . Text.breakOn " · " . fromMaybe "" . Text.stripPrefix "status: " . searchHitDetails
+  accepts status = case commandId of
+    "restore" -> status == "archived"
+    "update" -> True
+    _ -> status `elem` ["active", "in progress"]
+  contextHandle = case Text.words <$> contentSubject (envelopeContent envelope) of
+    Just (handle : _) | "#" `Text.isPrefixOf` handle -> Just handle
+    _ -> Nothing
 
 screenForEnvelope :: InteractionEnvelope -> ReplScreen
 screenForEnvelope envelope = case envelopeOpportunity envelope of

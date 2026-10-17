@@ -108,6 +108,24 @@ tests =
         paletteCommandSelection envelope "/quit extra" 0 @?= Nothing
         paletteCommandSelection envelope "/quitter" 0 @?= Nothing
         assertBool "the palette duplicated exit vocabulary" (not ("/quit" `Text.isInfixOf` renderPlain (paletteModel envelope "/" 0)))
+    , testCase "target-less Brick commands list eligible Bricks and preselect the screen's Brick" $ do
+        identity <- fixtureIdentity
+        let pristine = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            envelope = pristine{envelopeContent = (envelopeContent pristine){contentSubject = Just "#ctailip \"Create the label\""}}
+            hit handle status = SearchHit "brick" handle ("Title " <> handle) ("status: " <> status <> " · atomic task")
+            hits =
+              [ hit "#aaa" "done"
+              , hit "#bbb" "active"
+              , hit "#ccc" "archived"
+              , hit "#ctailip" "active"
+              , hit "#ddd" "in progress"
+              , SearchHit "raw" "+raw" "Raw" "inbox"
+              ]
+            handles (targets, selected) = (fmap searchHitHandle targets, selected)
+        handles (brickCommandTargets envelope "archive" hits) @?= (["#bbb", "#ctailip", "#ddd"], 1)
+        handles (brickCommandTargets envelope "restore" hits) @?= (["#ccc"], 0)
+        handles (brickCommandTargets envelope "update" hits) @?= (["#aaa", "#bbb", "#ccc", "#ctailip", "#ddd"], 3)
+        handles (brickCommandTargets pristine "archive" hits) @?= (["#bbb", "#ctailip", "#ddd"], 0)
     , testCase "forecast browsing explains chance and sibling-local position" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
