@@ -399,6 +399,8 @@ tests =
             workDraftImportanceConfidence draft @?= DeterministicPosition "recurring_obligation"
             workDraftComparisons draft @?= []
           other -> assertFailure ("expected the series preview without comparisons, got " <> show other)
+        assertBool ("the series preview names importance neighbours: " <> show (contentBody (envelopeContent series))) $
+          "Importance: none; a recurring obligation competes by its deadlines" `elem` contentBody (envelopeContent series)
         _ <- answer environment series "work.create"
         loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
         length (stateImportanceEdges (loadedState loaded)) @?= 0

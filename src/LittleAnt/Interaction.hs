@@ -4911,7 +4911,12 @@ assignTemplateShortcuts definitions = snd (foldl assign (Set.fromList ["n", "k",
     | otherwise = Just candidate
 
 importanceText :: State -> WorkDraft -> Text
-importanceText state draft = case sortOn brickSiblingPosition (importanceSiblings state (workDraftParent draft)) of
+importanceText state draft
+  | workDraftNature draft == RecurringObligation = "none; a recurring obligation competes by its deadlines"
+  | otherwise = rankedImportanceText state draft
+
+rankedImportanceText :: State -> WorkDraft -> Text
+rankedImportanceText state draft = case sortOn brickSiblingPosition (importanceSiblings state (workDraftParent draft)) of
   [] -> "only sibling"
   siblings ->
     let before = [brick | brick <- siblings, brickSiblingPosition brick < workDraftSiblingPosition draft]
