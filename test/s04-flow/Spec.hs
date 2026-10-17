@@ -37,6 +37,7 @@ main =
       "S04 vertical forecast"
       [ testCase "why and forecast preserve the checkpoint, history and recorded facts" whyIsReadOnly
       , testCase "lottery ordering serves one comparison and persists its skip cooldown" lotteryOrdering
+      , testCase "a comparison's out-of-date route asks which Work and archives only that one" comparisonOutOfDate
       , testCase "next records one immutable draw and restart restores it" recordedNext
       , testCase "legacy forecast evidence replays its original profile and weights" legacyForecastReplay
       , testCase "completion releases every Dependency for which the Brick is the blocker" dependencyRelease
@@ -127,6 +128,32 @@ lotteryOrdering = withHarness $ \environment -> do
         resumed = skipping{appNow = pure later, appZonedNow = pure (utcToZonedTime utc later)}
     afterCooldown <- run resumed (ListCommand (Just "forecast") Nothing)
     assertBool "cooldown expiry discarded the unresolved review" (not (null (resultListEntries afterCooldown)))
+ where
+  respond environment envelope action =
+    run environment (RespondCommand (InteractionResponse (envelopeInteractionId envelope) (envelopeRevision envelope) action (envelopeIntegrityToken envelope) (envelopeDatasetCursor envelope))) >>= \case
+      RespondResult{resultInteraction} -> pure resultInteraction
+      other -> assertFailure (show other) >> fail "unreachable"
+
+comparisonOutOfDate :: Assertion
+comparisonOutOfDate = withHarness $ \environment -> do
+  seedOrderingRun environment
+  comparison <- run environment NextCommand >>= interactionOf
+  (first, second) <- case envelopeOpportunity comparison of
+    ImportanceReviewOpportunity _ a b _ _ _ -> pure (a, b)
+    other -> assertFailure ("expected an importance comparison, got " <> show other)
+  picker <- respond environment comparison "review.out-of-date"
+  envelopeOpportunity picker @?= OutOfDatePickOpportunity [first, second]
+  recoveries <- respond environment picker ("out-of-date.pick." <> renderUUIDv7 second)
+  envelopeOpportunity recoveries @?= WorkSkipReactionOpportunity second Nothing OutOfDateSymptom
+  preview <- respond environment recoveries "work.reaction.archive"
+  case envelopeOpportunity preview of
+    ArchivePreviewOpportunity identity Nothing (Just OutOfDateSymptom) -> identity @?= second
+    other -> assertFailure ("expected the archive preview, got " <> show other)
+  _ <- respond environment preview "archive.accept"
+  archived <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  brickStatus <$> Map.lookup second (stateBricks (loadedState archived)) @?= Just BrickArchived
+  brickStatus <$> Map.lookup first (stateBricks (loadedState archived)) @?= Just BrickActive
+  Map.size (statePairJudgments (loadedState archived)) @?= 0
  where
   respond environment envelope action =
     run environment (RespondCommand (InteractionResponse (envelopeInteractionId envelope) (envelopeRevision envelope) action (envelopeIntegrityToken envelope) (envelopeDatasetCursor envelope))) >>= \case

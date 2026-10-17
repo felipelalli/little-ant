@@ -86,6 +86,7 @@ makeImportanceReviewEnvelope previous now state session first second skips skipp
     [ Action "importance.more" "more important" "m" False "Record that the first Brick is more important."
     , Action "importance.less" "less important" "l" False "Record that the second Brick is more important."
     , Action "importance.skip" "skip" "s" False "Try one bounded nearby comparison or keep the current order."
+    , Action "review.out-of-date" "out of date" "o" False "Choose which of these Works is out of date; the review itself is never archived."
     , assistance "importance.assistance" "Use the bounded importance-discovery tree."
     , more
     ]
@@ -439,7 +440,7 @@ makeEffortComparisonEnvelope previous now state owner candidates =
     ChoiceGrammar
     (EffortComparisonOpportunity owner candidates)
     (EnvelopeContent "Compare total effort:" Nothing [reviewReason state EffortDiscovery owner, "Considering each complete current scope, which looks easiest to finish?"] Nothing)
-    (zipWith (candidateAction "effort.choose." state) [1 :: Int ..] candidates <> [Action "effort.round.skip" "skip" "s" False "Defer only this review for 24 hours; Work remains available.", assistance "effort.round.unknown" "Compare total scopes, not importance, time already spent, or today's energy.", more])
+    (zipWith (candidateAction "effort.choose." state) [1 :: Int ..] candidates <> [Action "effort.round.skip" "later" "l" False "Hide only this review for 24 hours; Work remains available.", Action "review.out-of-date" "out of date" "o" False "Choose which of these Works is out of date; the review itself is never archived.", assistance "effort.round.unknown" "Compare total scopes, not importance, time already spent, or today's energy.", more])
     (commands (Just owner))
     (Just "compare_total_effort")
     (brickFooter now state owner "Last reviewed")
@@ -455,7 +456,7 @@ makeEffortRoundConflictEnvelope previous now state owner candidates winner =
     (EnvelopeContent "Effort changed?" (Just (citation state winner)) ["This easiest choice conflicts with a recent total-effort judgment.", "Has the work changed, or would you revise this answer?"] Nothing)
     [ Action "effort.conflict.changed" "changed" "c" False "Accept the new choice and retire only conflicting current paths."
     , Action "effort.conflict.revise" "revise answer" "r" False "Return to the comparison without accepting this choice."
-    , Action "effort.conflict.skip" "skip" "s" False "Defer the unresolved review."
+    , Action "effort.conflict.skip" "later" "l" False "Hide only this unresolved review for 24 hours."
     , assistance "effort.conflict.unknown" "Explain this conflict without changing either answer."
     , more
     ]
@@ -500,8 +501,9 @@ makeImpactEvidenceReviewEnvelope previous now state owner =
     [ Action "impact.review.reassess" "reassess class and evidence" "r" False "Choose the class and applicable evidence explicitly."
     , Action "impact.review.retain" "retain current judgment" "y" False "Explicitly reaffirm the existing class and applicable evidence."
     , Action "impact.review.clear" "clear current judgment" "c" False "Clear the current class while preserving history."
-    , Action "impact.review.skip" "skip" "s" False "Defer this evidence review for 24 hours without changing Work."
-    , assistance "impact.review.unknown" "Inspect whether the selected evidence still supports the current outcome, then reassess, retain, clear, or skip."
+    , Action "impact.review.skip" "later" "l" False "Hide only this evidence review for 24 hours without changing Work."
+    , Action "review.out-of-date" "out of date" "o" False "Archive, replace, or update this Work; the review itself is never archived."
+    , assistance "impact.review.unknown" "Inspect whether the selected evidence still supports the current outcome, then reassess, retain, clear, or come back later."
     , more
     ]
     (commands (Just owner))

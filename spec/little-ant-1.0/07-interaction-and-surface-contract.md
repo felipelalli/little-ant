@@ -258,6 +258,20 @@ assistance-label, and no-emoji rendering.
   context, or else `Without a category`. Rows inspect like other list rows.
   The agenda never ticks, draws, or changes importance; JSON exposes each
   row's day, ISO date, time, and kind.
+- **UX-289 [core] — A review is deferred with `later` and never archived.**
+  On a lottery review, typed review skip is labelled `[l]ater`: it hides only
+  that review for its cooldown (factory 24 hours) and leaves its Work and
+  gates unchanged. After the cooldown the review re-enters the ordinary
+  weighted draw with its age and deferral pressure; it takes no queue
+  position ahead of other candidates. `skip` stays reserved for served Work,
+  whose symptom diagnosis it opens. A review whose subject is active Work,
+  such as a Wait, Delegation, impact-evidence, total-effort, or importance
+  comparison review, also offers `[o]ut of date`. The review itself is a
+  question and is never archived: with one subject this opens UX-S35 for that
+  Work; with several it first asks `Which Work is out of date?` with one
+  numbered row per Work, then opens UX-S35 for the chosen one. Archiving a
+  compared Work retires the comparison without recording any importance,
+  effort, or impact relation; the other Work is unchanged.
 - **UX-281 [standard] — Administration stays out of the lazy-human path.**
   Explicit `lant tick`, grammar inspection, diagnostics, and repair are
   CLI-only. Every ordinary command still performs the canonical tick, so the

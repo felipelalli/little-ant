@@ -100,6 +100,7 @@ module LittleAnt.Interaction (
   makeUpdateResultEnvelope,
   makeCurrentFocusEnvelope,
   makeDomainSelectionEnvelope,
+  makeOutOfDatePickEnvelope,
   makeBrickDomainSelectionEnvelope,
   makeBrickDomainPreviewEnvelope,
   makeBrickDomainsResultEnvelope,
@@ -522,6 +523,7 @@ data Opportunity
   | WorkSprintDurationOpportunity UUIDv7 (Maybe UUIDv7)
   | WorkSkipAcknowledgedOpportunity UUIDv7 SkipSymptom SkipReaction
   | ArchivePreviewOpportunity UUIDv7 (Maybe UUIDv7) (Maybe SkipSymptom)
+  | OutOfDatePickOpportunity [UUIDv7]
   | ArchiveResultOpportunity UUIDv7
   | RestorePreviewOpportunity UUIDv7
   | RestoreResultOpportunity UUIDv7
@@ -3807,7 +3809,8 @@ makeWaitReviewEnvelope identity cursor precondition now state brick gate =
     , Action "wait.longer" "wait longer" "w" False "Choose a new review threshold."
     , Action "wait.follow-up" "follow up" "f" False "Create explicit enabling Work; do not claim that a message was sent."
     , Action "wait.change-blocker" "change what is blocking it" "b" False "Return to typed blocker classification."
-    , Action "wait.skip" "skip" "s" False "Keep the review threshold and apply only a review cooldown."
+    , Action "wait.skip" "later" "l" False "Hide only this review for 24 hours; the Wait and its threshold stay unchanged."
+    , Action "review.out-of-date" "out of date" "o" False "Archive, replace, or update this Work; the review itself is never archived."
     , Action "wait.unknown" "I don't know" "k" False "Clarify this review through bounded questions."
     , moreAction
     ]
@@ -3863,7 +3866,8 @@ makeDelegationReviewEnvelope identity cursor precondition now state brick delega
     , Action "delegation.refused" "refused" "r" False "Record refusal and enter responsibility reconciliation."
     , Action "delegation.no-response" "no response" "n" False "Record no response; any follow-up remains a separate approved effect."
     , Action "delegation.take-back" "take it back" "t" False "Preview restoring human responsibility."
-    , Action "delegation.skip" "skip" "s" False "Preserve responsibility and defer only this review."
+    , Action "delegation.skip" "later" "l" False "Hide only this review for 24 hours; responsibility stays unchanged."
+    , Action "review.out-of-date" "out of date" "o" False "Archive, replace, or update this Work; the review itself is never archived."
     , Action "delegation.unknown" "I don't know" "k" False "Use the bounded outcome question tree."
     , moreAction
     ]
@@ -4217,7 +4221,7 @@ makeArchiveReviewEnvelope identity cursor precondition now state brick review =
     , Action "archive-review.restore" "restore it" "r" False "Preview restoring the same Brick."
     , Action "archive-review.update" "update it" "u" False "Revise title or description; restoration remains a separate decision."
     , Action "archive-review.supersede" "newer Work replaced it" "n" False "Enter explicit supersession."
-    , Action "archive-review.skip" "skip" "s" False "Keep the review pending with review pressure."
+    , Action "archive-review.skip" "later" "l" False "Hide only this review for 24 hours; it returns with review pressure."
     , Action "archive-review.unknown" "I don't know" "k" False "Discover whether the Work remains relevant."
     , moreAction
     ]
@@ -4820,6 +4824,29 @@ reactionActions = \case
   skip = action "work.reaction.skip" "⏭️ skip anyway" "s" "Record this symptom with ordinary cooldown."
   unknown = action "work.reaction.unknown" "❓ I don't know" "k" "Explain these recoveries without selecting one."
 
+{- | A review that involves several Works asks which one is out of date; the
+chosen Work then opens the ordinary out-of-date recoveries.
+-}
+makeOutOfDatePickEnvelope :: InteractionEnvelope -> ZonedTime -> State -> [Brick] -> InteractionEnvelope
+makeOutOfDatePickEnvelope previous now state bricks =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ChoiceGrammar
+      (OutOfDatePickOpportunity (brickId <$> bricks))
+      (EnvelopeContent "Which Work is out of date?" Nothing [] Nothing)
+      ( [ Action ("out-of-date.pick." <> renderUUIDv7 (brickId brick)) (brickCitation brick) (Text.pack (show number)) False "Open archive, replace, or update for this Work."
+        | (number, brick) <- zip [1 :: Int ..] bricks
+        ]
+          <> [Action "out-of-date.unknown" "I don't know" "k" False "Explain what out of date changes.", moreAction]
+      )
+      [helpCommand, exitCommand]
+      (Just "choose_out_of_date_work")
+      (case bricks of first : _ -> brickFooter now state first; [] -> commonFooter now (brickCount state) (rawCount state) (reviewCount now state))
+
 skipSymptomName :: SkipSymptom -> Text
 skipSymptomName = \case
   VagueSymptom -> "vague"
@@ -5270,6 +5297,7 @@ opportunityValue = \case
       ( ["brick_id" .= renderUUIDv7 identity, "symptom" .= skipSymptomName symptom, "reaction" .= skipReactionName reaction]
           <> skipSymptomDetail symptom
       )
+  OutOfDatePickOpportunity subjects -> typed "out_of_date_pick" ["subjects" .= fmap renderUUIDv7 subjects]
   ArchivePreviewOpportunity identity selection symptom ->
     typed "archive_preview" (selectionFields identity selection <> optionalSymptomFields symptom)
   ArchiveResultOpportunity identity -> typed "archive_result" ["brick_id" .= renderUUIDv7 identity]
@@ -5493,6 +5521,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
         <$> uuidField value "brick_id"
         <*> parseSkipSymptomFields value
         <*> (value .: "reaction" >>= parseSkipReactionName value)
+    "out_of_date_pick" -> OutOfDatePickOpportunity <$> (value .: "subjects" >>= traverse parseUuid)
     "archive_preview" -> ArchivePreviewOpportunity <$> uuidField value "brick_id" <*> selectionId value <*> optionalSymptom value
     "archive_result" -> ArchiveResultOpportunity <$> uuidField value "brick_id"
     "restore_preview" -> RestorePreviewOpportunity <$> uuidField value "brick_id"

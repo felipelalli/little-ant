@@ -2963,6 +2963,18 @@ agendaLegend = "! deadline · \8226 best before"
 agendaWeekdays :: Text
 agendaWeekdays = "Su  Mo  Tu  We  Th  Fr  Sa"
 
+-- | The active Works a review's out-of-date route can act on, in display order.
+reviewOutOfDateSubjects :: State -> Opportunity -> [Brick]
+reviewOutOfDateSubjects state = \case
+  WaitReviewScreenOpportunity identity -> active (waitAffectedBrick <$> maybe [] pure (Map.lookup identity (stateWaits state)))
+  DelegationReviewScreenOpportunity identity -> active (delegationBrick <$> maybe [] pure (Map.lookup identity (stateDelegations state)))
+  ImpactEvidenceReviewOpportunity owner -> active [owner]
+  EffortComparisonOpportunity owner candidates -> active (nub (owner : candidates))
+  ImportanceReviewOpportunity _ first second _ _ _ -> active [first, second]
+  _ -> []
+ where
+  active identities = [brick | identity <- identities, Just brick <- [Map.lookup identity (stateBricks state)], brickStatus brick == BrickActive]
+
 {- | UX-288: the agenda grouped by category, then by day, with a dated part
 nested under its dated parent of the same day. A Brick without direct Domains
 shows under the nearest classified ancestor, as composition context.
@@ -4060,6 +4072,19 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         mutate 2 (decideCancelProposedDelegation state actor delegationId) (makeDelegationUpdated delegationId "Proposed Delegation cancelled; no handoff was claimed.")
     (DelegationHandoffOpportunity{}, "delegation.handoff.edit", _) ->
       local (appendBody current "Editing an already proposed message is a forward revision and records no handoff. Use Back to return to its accepted preview before delivery.")
+    -- A review's out-of-date route acts on its Work, never on the review.
+    (opportunity, "review.out-of-date", _)
+      | subjects@(_ : _) <- reviewOutOfDateSubjects state opportunity ->
+          case subjects of
+            [single] -> local (makeWorkSkipReactionEnvelope current now state single Nothing OutOfDateSymptom)
+            _ -> local (makeOutOfDatePickEnvelope current now state subjects)
+    (OutOfDatePickOpportunity subjects, action, _)
+      | Just identityText <- Text.stripPrefix "out-of-date.pick." action
+      , Right identity <- parseUUIDv7 identityText
+      , identity `elem` subjects ->
+          withBrick identity $ \brick -> local (makeWorkSkipReactionEnvelope current now state brick Nothing OutOfDateSymptom)
+    (OutOfDatePickOpportunity{}, "out-of-date.unknown", _) ->
+      local (appendBody current "Pick the Work whose meaning no longer holds. You can then archive it, mark it replaced by newer Work, or update it. A comparison that involved archived Work stops being asked; the other Work is unchanged.")
     (WaitReviewScreenOpportunity waitIdentity, "wait.response", _) ->
       withWait waitIdentity $ \gate brick ->
         let observation = case waitKind gate of

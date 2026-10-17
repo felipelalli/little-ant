@@ -970,7 +970,7 @@ Is
 #ipc "Interview prospective customers"
 ?
 
-*[m]ore important   [l]ess important   [s]kip   I don't [k]now
+*[m]ore important   [l]ess important   [s]kip   [o]ut of date   I don't [k]now
 
 ────────────────────────────────────────
 Suggestion: /bin/claude-fast.sh · importance insertion
@@ -984,7 +984,8 @@ Suggestion: /bin/claude-fast.sh · importance insertion
 
 The `*` appears only when evidence supports that default. `more important`
 records the displayed first Brick above the second; `less important` records
-the reverse strict relation. Neither means equality.
+the reverse strict relation. Neither means equality. `out of date` follows
+UX-289 and first asks which of the two Works is out of date.
 
 ## UX-S01 — Served-work symptom
 
@@ -1336,7 +1337,8 @@ What happened?
 
 [r]esponse received    [w]ait longer
 [f]ollow up             [c]hange what is blocking it
-[s]kip                  I don't [k]now
+[l]ater                 [o]ut of date
+I don't [k]now
 
 [/] more...
 
@@ -1354,10 +1356,11 @@ the forecast when no other gate applies. `wait longer` enters review-policy
 selection through UX-W00. `follow up` enters an enabling-Brick flow and
 preserves the declared successor Wait. `change what is blocking it` returns to
 UX-S02 and replaces the old gate only after an explicit atomic preview. `k`
-explains and may expose linked evidence without recording an outcome. `skip`
+explains and may expose linked evidence without recording an outcome. `later`
 leaves the Wait and `review_not_before` unchanged, records only the typed
 review deferral, and applies the review's cooldown and future pressure. It is
-not `wait longer` and does not open served-work symptom diagnosis. The Wait
+not `wait longer` and does not open served-work symptom diagnosis. `out of
+date` opens UX-S35 for the waiting Work under UX-289. The Wait
 itself is never cited as work, focused, importance-ordered, or completed.
 
 ## UX-W02 — Source-observed Wait resolution

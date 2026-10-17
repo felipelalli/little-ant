@@ -9,6 +9,11 @@ replace the specification.
 
 ## Unreleased
 
+- Defer a review with `[l]ater` instead of `[s]kip`, which stays reserved for
+  served Work. Wait, Delegation, impact-evidence, total-effort, and
+  importance-comparison reviews gain `[o]ut of date`; a review that involves
+  several Works first asks which one is out of date, then opens archive,
+  replace, or update for it. The review itself is never archived.
 - Give the agenda no fixed horizon: it projects 35 days at a time, the REPL
   loads the next days as the selection reaches the end, and `lant list agenda
   --days N` sets the CLI window. A day with one fact stays a flat row; only
