@@ -47,6 +47,42 @@
       "operation": "weighted_choice",
       "input": { "ordered_candidates": ["A"], "weights": [1] },
       "expected": { "selected": "A", "blocks_consumed": 0 }
+    },
+    {
+      "id": "deadline-approach/half-lead",
+      "operation": "deadline_approach",
+      "input": { "lead_seconds": 604800, "seconds_until_deadline": 302400, "importance_factor": 350000 },
+      "expected": { "u": 500000, "effective_factor": 675000 }
+    },
+    {
+      "id": "deadline-approach/best-before-start",
+      "operation": "deadline_approach",
+      "input": { "lead_seconds": 604800, "seconds_since_best_before": 172800, "seconds_until_deadline": 172800, "importance_factor": 350000 },
+      "expected": { "u": 500000, "effective_factor": 675000 }
+    },
+    {
+      "id": "deadline-approach/never-lowers",
+      "operation": "deadline_approach",
+      "input": { "lead_seconds": 604800, "seconds_until_deadline": -60, "importance_factor": 67485 },
+      "expected": { "u": 1000000, "effective_factor": 1000000 }
+    },
+    {
+      "id": "best-before-ramp/capped",
+      "operation": "best_before_ramp",
+      "input": { "max_ramp_seconds": 2592000, "seconds_since_eligible": 3456000, "seconds_until_best_before": 1296000 },
+      "expected": { "strength": 500000 }
+    },
+    {
+      "id": "best-before-ramp/from-eligibility",
+      "operation": "best_before_ramp",
+      "input": { "max_ramp_seconds": 2592000, "seconds_since_eligible": 432000, "seconds_until_best_before": 1296000 },
+      "expected": { "strength": 250000 }
+    },
+    {
+      "id": "missed-pressure/bounded",
+      "operation": "missed_pressure",
+      "input": { "per_miss": 250000, "maximum": 500000, "misses": [0, 1, 2, 3] },
+      "expected": { "strengths": [0, 250000, 500000, 500000] }
     }
   ]
 }

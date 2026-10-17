@@ -5893,7 +5893,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
           let identity = brickId brick
               ease = maybe 1 (\claim -> 8 - toInteger (fromEnum (effortClaimClass claim))) (currentEffort state identity)
               affinity = World.domainAffinity activePath [path | Just ticket <- [find ((== identity) . World.ticketIdentity) tickets], path <- World.ticketDomainPaths ticket]
-              base = forecastWeight factoryForecastProfile (ForecastCandidate (renderUUIDv7 identity) identity (ForecastFactors Nothing (Fixed 0) [] affinity (Fixed 0) []))
+              base = forecastWeight factoryForecastProfile (ForecastCandidate (renderUUIDv7 identity) identity (ForecastFactors Nothing (Fixed 0) [] affinity (Fixed 0) [] (Fixed 0)))
            in base{weightedInteger = ease * (1_000_000 + (750_000 * unFixed affinity) `div` 1_000_000)}
         draw cursor remaining collected
           | null remaining || length collected == 3 = Right collected

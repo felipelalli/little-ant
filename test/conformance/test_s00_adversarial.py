@@ -60,6 +60,22 @@ class CalculationVectorTests(unittest.TestCase):
         self.assertEqual(350_000, by_id["importance/zero-confidence"]["expected"]["each_factor"])
         self.assertEqual(0, by_id["weighted-choice/singleton"]["expected"]["blocks_consumed"])
 
+    def test_deadline_approach_and_pressure_vectors_are_present(self) -> None:
+        vectors = json.loads((ROOT / "conformance/calculation-vectors.json").read_text(encoding="utf-8"))
+        by_id = {item["id"]: item for item in vectors["vectors"]}
+        self.assertEqual(
+            {"u": 500_000, "effective_factor": 675_000},
+            by_id["deadline-approach/half-lead"]["expected"],
+        )
+        self.assertEqual(
+            {"u": 500_000, "effective_factor": 675_000},
+            by_id["deadline-approach/best-before-start"]["expected"],
+        )
+        self.assertEqual(1_000_000, by_id["deadline-approach/never-lowers"]["expected"]["effective_factor"])
+        self.assertEqual(500_000, by_id["best-before-ramp/capped"]["expected"]["strength"])
+        self.assertEqual(250_000, by_id["best-before-ramp/from-eligibility"]["expected"]["strength"])
+        self.assertEqual([0, 250_000, 500_000, 500_000], by_id["missed-pressure/bounded"]["expected"]["strengths"])
+
 
 class AutomaticDemotionTests(unittest.TestCase):
     def test_stale_verified_flow_is_reported_as_implemented(self) -> None:

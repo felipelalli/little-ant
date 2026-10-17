@@ -28,7 +28,7 @@ import Data.Ratio ((%))
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Time (UTCTime, diffUTCTime)
+import Data.Time (UTCTime, addUTCTime, diffUTCTime)
 import LittleAnt.Forecast
 import LittleAnt.Foundation
 import LittleAnt.Id
@@ -106,6 +106,7 @@ data SubjectTicket = SubjectTicket
   , ticketChildren :: [UUIDv7]
   , ticketDependencies :: [DependencyEndpoint]
   , ticketOpportunities :: [SelectableOpportunity]
+  , ticketDeadlineApproach :: Fixed
   }
   deriving stock (Eq, Show)
 
@@ -168,16 +169,18 @@ buildForecastWorld state now = filter (reachable table Set.empty . ticketIdentit
       (<>)
       [(brickParent brick, [brick]) | brick <- Map.elems (stateBricks state)]
   brickTicket brick =
-    let siblings = sortOn brickSiblingPosition (Map.findWithDefault [] (brickParent brick) activeByParent)
+    let siblings = sortOn brickSiblingPosition (filter (carriesImportance state) (Map.findWithDefault [] (brickParent brick) activeByParent))
         position = fromMaybe 0 (lookupIndex (brickId brick) (fmap brickId siblings))
         children = sortOn brickSiblingPosition (Map.findWithDefault [] (Just (brickId brick)) activeByParent)
         allChildren = Map.findWithDefault [] (Just (brickId brick)) allByParent
+        opportunities = brickOpportunities state now brick children allChildren
      in SubjectTicket
           { ticketIdentity = brickId brick
           , ticketKind = BrickSubject
           , ticketParent = brickParent brick
-          , ticketSiblingPosition = Just (position, length siblings)
-          , ticketImportanceConfidence = localConfidence state now brick siblings
+          , -- IMP-057: obligation series and occurrences hold no position.
+            ticketSiblingPosition = if carriesImportance state brick then Just (position, length siblings) else Nothing
+          , ticketImportanceConfidence = if carriesImportance state brick then localConfidence state now brick siblings else Fixed 0
           , ticketNegativeSignals = deferralSignals brick
           , ticketDomainPaths = fmap (domainPath state) (Set.toAscList (brickDomains brick))
           , ticketChildren = fmap brickId children
@@ -187,7 +190,16 @@ buildForecastWorld state now = filter (reachable table Set.empty . ticketIdentit
               , dependencyIsBlocking state dependency
               , dependencyBlockedBrick dependency == brickId brick
               ]
-          , ticketOpportunities = brickOpportunities state now brick children allChildren <> Map.findWithDefault [] (brickId brick) importanceReviews <> demandReviews brick
+          , ticketOpportunities = opportunities <> Map.findWithDefault [] (brickId brick) importanceReviews <> demandReviews brick
+          , ticketDeadlineApproach =
+              if any (isExecutionKind . selectableKind) opportunities
+                then
+                  deadlineApproach
+                    deadlineLeadSeconds
+                    now
+                    (zonedInstantUtc <$> effectiveTemporal state brick temporalBestBefore earliestInstant)
+                    (zonedInstantUtc <$> effectiveTemporal state brick temporalDeadline earliestInstant)
+                else Fixed 0
           }
   demandReviews brick =
     [ SelectableOpportunity
@@ -220,6 +232,7 @@ buildForecastWorld state now = filter (reachable table Set.empty . ticketIdentit
               RawTriageOpportunity
               [ForecastSignal AvailabilitySignal (Fixed 150_000) "new Inbox Raw triage"]
           ]
+      , ticketDeadlineApproach = Fixed 0
       }
   sourceEffectTicket effect =
     SubjectTicket
@@ -238,6 +251,7 @@ buildForecastWorld state now = filter (reachable table Set.empty . ticketIdentit
               kind
               [ForecastSignal ReviewConsequenceSignal strength explanation]
           ]
+      , ticketDeadlineApproach = Fixed 0
       }
    where
     (kind, strength, explanation) = case externalEffectStatus effect of
@@ -270,6 +284,7 @@ buildForecastWorld state now = filter (reachable table Set.empty . ticketIdentit
               ]
           | claim <- claims
           ]
+      , ticketDeadlineApproach = Fixed 0
       }
   sourceCleanupNeedsReview effect = case externalEffectRequest effect of
     SourceCleanupItemRequest _ target ->
@@ -398,6 +413,7 @@ selectForecast seed cursors activeDomain hardScope tickets
                         , factorDomainAffinity = Fixed 0
                         , factorFamilyAffinity = Fixed 0
                         , factorNegativeSignals = []
+                        , factorDeadlineApproach = Fixed 0
                         }
                   )
               | path <- paths
@@ -441,6 +457,7 @@ ticketCandidate table activeDomain ticket =
       , factorDomainAffinity = domainAffinity activeDomain (ticketDomainPaths ticket)
       , factorFamilyAffinity = Fixed 0
       , factorNegativeSignals = ticketNegativeSignals ticket
+      , factorDeadlineApproach = maximum (Fixed 0 : [ticketDeadlineApproach descendant | identity <- descendants table Set.empty (ticketIdentity ticket), Just descendant <- [Map.lookup identity table]])
       }
 
 -- The same conditional ticket weights as selectForecast, integrated without
@@ -491,7 +508,7 @@ routeWeight :: Text -> Maybe SelectableOpportunity -> [ForecastSignal] -> Weight
 routeWeight identity opportunity signals =
   forecastWeight
     factoryForecastProfile
-    (ForecastCandidate identity opportunity (ForecastFactors Nothing (Fixed 0) signals (Fixed 0) (Fixed 0) []))
+    (ForecastCandidate identity opportunity (ForecastFactors Nothing (Fixed 0) signals (Fixed 0) (Fixed 0) [] (Fixed 0)))
 
 -- A review need not execute its owner. Continuation preserves dependency/child
 -- routing, using the strongest reachable alternative rather than a child sum.
@@ -667,7 +684,7 @@ brickOpportunities state now brick children allChildren =
     SelectableOpportunity
       (renderUUIDv7 (brickId brick) <> ":" <> kindName kind)
       kind
-      (phaseSignal <> impactSignal <> temporalSignals state now brick <> [ForecastSignal AvailabilitySignal (Fixed strength) explanation])
+      (phaseSignal <> impactSignal <> temporalSignals state now brick <> missedSignals state brick <> quotaSignals state now brick <> [ForecastSignal AvailabilitySignal (Fixed strength) explanation])
   phaseSignal = case Map.lookup (brickId brick) (statePhaseClaims state) of
     Nothing -> []
     Just claim -> [ForecastSignal PhaseSignal (phaseStrength (phaseClaimValue claim)) "current phase"]
@@ -748,21 +765,77 @@ pendingRepeatableReturn state brick =
     (\claim -> lazyReviewSubject claim == brickId brick && lazyReviewKind claim == "repeatable_return_policy")
     (Map.elems (stateLazyReviews state))
 
+-- | @forecast.date.deadline_lead_days@, seven days in the factory profile.
+deadlineLeadSeconds :: Integer
+deadlineLeadSeconds = 7 * 24 * 60 * 60
+
+-- | @forecast.date.best_before_max_ramp_days@, thirty days in the factory profile.
+bestBeforeMaxRampSeconds :: Integer
+bestBeforeMaxRampSeconds = 30 * 24 * 60 * 60
+
+{- | Date pressure. Deadline pressure ramps over its fixed lead window; a
+@best_before@ ramps from the later of the opportunity's eligibility origin
+and the maximum ramp, reaching 1.00 at @best_before@ itself.
+-}
 temporalSignals :: State -> UTCTime -> Brick -> [ForecastSignal]
 temporalSignals state now brick =
   catMaybes
-    [ dateSignal "best-before" (effectiveTemporal state brick temporalBestBefore earliestInstant)
-    , dateSignal "deadline" (effectiveTemporal state brick temporalDeadline earliestInstant)
+    [ bestBeforeSignal . zonedInstantUtc <$> effectiveTemporal state brick temporalBestBefore earliestInstant
+    , deadlineSignal . zonedInstantUtc <$> effectiveTemporal state brick temporalDeadline earliestInstant
     ]
  where
-  leadSeconds = 7 * 24 * 60 * 60 :: Integer
-  dateSignal label = fmap $ \instant ->
-    let remaining = floor (diffUTCTime (zonedInstantUtc instant) now) :: Integer
-        strength
-          | remaining <= 0 = 1_000_000
-          | remaining >= leadSeconds = 0
-          | otherwise = (leadSeconds - remaining) * 1_000_000 `div` leadSeconds
-     in ForecastSignal DateSignal (Fixed strength) (label <> " window")
+  bestBeforeSignal preferred =
+    let rampStart = max (eligibilityOrigin state brick) (addUTCTime (fromInteger (negate bestBeforeMaxRampSeconds)) preferred)
+     in ForecastSignal DateSignal (rampFraction now (min rampStart preferred) preferred) "best-before window"
+  deadlineSignal deadline =
+    ForecastSignal DateSignal (rampFraction now (addUTCTime (fromInteger (negate deadlineLeadSeconds)) deadline) deadline) "deadline window"
+
+{- | When this Work first became eligible: its creation or release, or its
+opening when that comes later.
+-}
+eligibilityOrigin :: State -> Brick -> UTCTime
+eligibilityOrigin state brick =
+  maybe created (max created . zonedInstantUtc) (effectiveTemporal state brick temporalNotBefore latestInstant)
+ where
+  created = brickCreatedAt brick
+
+-- | @forecast.miss.*@: recent misses of a lapsing series press its next occurrence.
+missedSignals :: State -> Brick -> [ForecastSignal]
+missedSignals state brick = case Map.lookup (brickId brick) (stateRecurringOccurrences state) of
+  Just occurrence
+    | Just schedule <- Map.lookup (recurringOccurrenceOwner occurrence) (stateRecurrenceSchedules state)
+    , recurrenceDeadlinePolicy schedule == DeadlineLapses
+    , misses > 0 ->
+        [ForecastSignal MissedSignal (Fixed (min 500_000 (250_000 * fromIntegral misses))) "recent missed periods of this series"]
+   where
+    misses = length (filter ((== PeriodMissed) . snd) (take missHistoryPeriods (obligationPeriodHistory state (recurringOccurrenceOwner occurrence))))
+  _ -> []
+
+-- | @obligation.miss_history_periods@, four in the factory profile.
+missHistoryPeriods :: Int
+missHistoryPeriods = 4
+
+{- | Quota-window pressure: the elapsed fraction of an open quota window
+times its unmet fraction. Fixed slots use date, age, and deferral evidence.
+-}
+quotaSignals :: State -> UTCTime -> Brick -> [ForecastSignal]
+quotaSignals state now brick = case Map.lookup (brickId brick) (stateHabitSchedules state) of
+  Just QuotaWindowHabit{} ->
+    [ ForecastSignal ScheduleSignal (fixedProduct elapsed unmet) "quota window elapsing with unmet completions"
+    | window <- openHabitWindows state now brick
+    , let elapsed = rampFraction now (zonedInstantUtc (habitWindowOpensAt window)) (zonedInstantUtc (habitWindowClosesAt window))
+          recorded = length [() | outcome <- Map.elems (stateHabitOutcomes state), habitOutcomeWindow outcome == habitWindowId window]
+          target = habitWindowTarget window
+          unmet = if target <= 0 then Fixed 0 else Fixed (fromIntegral (max 0 (target - recorded)) * 1_000_000 `div` fromIntegral target)
+    , unFixed unmet > 0
+    ]
+  _ -> []
+ where
+  fixedProduct (Fixed left) (Fixed right) = Fixed ((left * right + 500_000) `div` 1_000_000)
+
+isExecutionKind :: SelectableOpportunityKind -> Bool
+isExecutionKind kind =
+  kind `elem` [FiniteWorkOpportunity, RepeatableRunOpportunity, HabitWindowOpportunity, LivingChecklistRunOpportunity, FiniteChecklistRunOpportunity]
 
 effectiveTemporal :: State -> Brick -> (TemporalConstraints -> Maybe ZonedInstant) -> (ZonedInstant -> ZonedInstant -> ZonedInstant) -> Maybe ZonedInstant
 effectiveTemporal state brick field combine = foldl choose Nothing lineage

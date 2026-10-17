@@ -16,6 +16,14 @@ replace the specification.
   grace); `show --view guided '#occurrence'` lets a missed period be done late
   or excused and an open one be excused, keeping every fact in a period
   history such as `[x][~][!][-]` with totals.
+- Move the forecast to profile `little-ant-forecast-v5-factory-deadline-approach`:
+  an approaching deadline raises a subject's importance factor toward the top
+  without ever lowering it, `best_before` pressure ramps from when the Work
+  became eligible (at most 30 days) to 1.00 at `best_before` itself, recent
+  misses of a lapsing series press its next occurrence, and quota-window habits
+  gain elapsed-and-unmet pressure. Recurring-obligation series and their
+  occurrences use the neutral importance factor and no longer shift the
+  positions of their siblings.
 - Offer `[c]lassify` on the detail of a Raw still awaiting triage
   (`show --view guided '+raw'`), opening triage for that exact Raw instead of
   only the oldest Inbox item.

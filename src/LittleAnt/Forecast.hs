@@ -11,6 +11,9 @@ module LittleAnt.Forecast (
   fixedOne,
   forecastWeight,
   importanceFactor,
+  effectiveImportance,
+  deadlineApproach,
+  rampFraction,
   positivePressure,
   sampleRecorded,
   sampleWithInteger,
@@ -26,6 +29,7 @@ import Data.Map.Strict qualified as Map
 import Data.Ord qualified
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
+import Data.Time (UTCTime, addUTCTime, diffUTCTime)
 import LittleAnt.Foundation
 import LittleAnt.Model
 
@@ -43,6 +47,7 @@ data CorrelationKey
   | PlaceSignal
   | WipSignal
   | ScheduleSignal
+  | MissedSignal
   | ReviewConsequenceSignal
   deriving stock (Bounded, Enum, Eq, Ord, Show)
 
@@ -70,7 +75,7 @@ data ForecastProfile = ForecastProfile
 factoryForecastProfile :: ForecastProfile
 factoryForecastProfile =
   ForecastProfile
-    { profileHash = "little-ant-forecast-v4-factory-demand-reviews"
+    { profileHash = "little-ant-forecast-v5-factory-deadline-approach"
     , importanceTopShare = Fixed 600_000
     , importanceNeutral = Fixed 350_000
     , importanceTailRatio = Fixed 700_000
@@ -89,6 +94,7 @@ data ForecastFactors = ForecastFactors
   , factorDomainAffinity :: Fixed
   , factorFamilyAffinity :: Fixed
   , factorNegativeSignals :: [ForecastSignal]
+  , factorDeadlineApproach :: Fixed
   }
   deriving stock (Eq, Show)
 
@@ -157,6 +163,42 @@ importanceFactor profile placement confidence =
             (importanceNeutral profile)
             (fixedMul (clampRatio confidence) (fixedSubSigned ranked (importanceNeutral profile)))
 
+{- | The deadline approach raises the human importance factor toward the
+factor of a fully confident first sibling: @f + u * (1 - f)@. It never
+lowers @f@, and @u = 0@ leaves it unchanged.
+-}
+effectiveImportance :: Fixed -> Fixed -> Fixed
+effectiveImportance factor approach =
+  fixedAdd factor (fixedMul (clampRatio approach) (fixedSub fixedOne factor))
+
+{- | @u@ of the deadline approach: the elapsed fraction from the approach
+start to the deadline, in whole seconds. The approach starts at
+@best_before@ when it precedes the deadline, and @lead@ seconds before the
+deadline otherwise. Without a deadline there is no approach.
+-}
+deadlineApproach :: Integer -> UTCTime -> Maybe UTCTime -> Maybe UTCTime -> Fixed
+deadlineApproach _ _ _ Nothing = Fixed 0
+deadlineApproach lead now bestBefore (Just deadline) =
+  rampFraction now start deadline
+ where
+  start = case bestBefore of
+    Just preferred | preferred < deadline -> preferred
+    _ -> addUTCTime (fromInteger (negate lead)) deadline
+
+{- | The linear fraction of @[start, end]@ elapsed at @now@, clamped to
+@[0,1]@ and rounded half away from zero; a ramp of zero length is complete
+at its end.
+-}
+rampFraction :: UTCTime -> UTCTime -> UTCTime -> Fixed
+rampFraction now start end
+  | now >= end = fixedOne
+  | now <= start = Fixed 0
+  | otherwise = Fixed ((elapsed * 1_000_000 * 2 + span') `div` (2 * span'))
+ where
+  seconds later earlier = floor (diffUTCTime later earlier) :: Integer
+  elapsed = seconds now start
+  span' = max 1 (seconds end start)
+
 positivePressure :: ForecastProfile -> [ForecastSignal] -> (Fixed, Maybe ForecastSignal, [ForecastSignal])
 positivePressure profile signals =
   case ordered of
@@ -194,7 +236,10 @@ positivePressure profile signals =
 forecastWeight :: ForecastProfile -> ForecastCandidate subject -> WeightedCandidate subject
 forecastWeight profile candidate =
   let factors = forecastFactors candidate
-      importance = importanceFactor profile (factorSiblingPosition factors) (factorImportanceConfidence factors)
+      importance =
+        effectiveImportance
+          (importanceFactor profile (factorSiblingPosition factors) (factorImportanceConfidence factors))
+          (factorDeadlineApproach factors)
       (pressure, strongest, extras) = positivePressure profile (factorPositiveSignals factors)
       pressureFactor = fixedAdd fixedOne (fixedMul (pressureGain profile) pressure)
       domainFactor = fixedAdd fixedOne (fixedMul (domainGain profile) (clampRatio (factorDomainAffinity factors)))

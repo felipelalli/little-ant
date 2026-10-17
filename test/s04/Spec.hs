@@ -45,6 +45,11 @@ main =
       , testCase "hard Domain scope never falls through globally" hardScope
       , testCase "ancestor not_before gates descendants without rewriting importance" inheritedNotBefore
       , testCase "ancestor best_before adds date pressure without rewriting importance" inheritedBestBefore
+      , testCase "best_before pressure ramps from eligibility, at most thirty days" bestBeforeRamp
+      , testCase "deadline approach raises importance without ever lowering it" deadlineApproachVector
+      , testCase "recurring obligations hold no importance position and inherit deadline approach" obligationsAreNeutral
+      , testCase "recent misses of a lapsing series press its next occurrence" recentMissPressure
+      , testCase "quota windows press by elapsed and unmet fractions" quotaWindowPressure
       ]
 
 provisionalReviews :: Assertion
@@ -253,6 +258,7 @@ candidate identity position count =
       , factorDomainAffinity = Fixed 0
       , factorFamilyAffinity = Fixed 0
       , factorNegativeSignals = []
+      , factorDeadlineApproach = Fixed 0
       }
 
 withPositive :: ForecastCandidate subject -> Fixed -> ForecastCandidate subject
@@ -394,14 +400,118 @@ inheritedNotBefore = do
 inheritedBestBefore :: Assertion
 inheritedBestBefore = do
   let parent = fixtureBrick (uuid 82) "parent" Project Nothing 0
-      child = fixtureBrick (uuid 83) "child" AtomicTask (Just (brickId parent)) 0
-      halfway = addUTCTime (fromIntegral (7 * 24 * 60 * 60 `div` 2 :: Int)) fixedTime
+      halfDays = fromIntegral (7 * 24 * 60 * 60 `div` 2 :: Int)
+      -- The ramp starts when the child became eligible, half its length ago.
+      child = (fixtureBrick (uuid 83) "child" AtomicTask (Just (brickId parent)) 0){brickCreatedAt = addUTCTime (negate halfDays) fixedTime}
+      halfway = addUTCTime halfDays fixedTime
       constraints = TemporalConstraints Nothing (Just (ZonedInstant halfway "America/Montevideo")) Nothing 1
       state = (fixtureState [parent, child]){stateTemporalConstraints = Map.singleton (brickId parent) constraints}
       childTicket = head [item | item <- buildForecastWorld state fixedTime, ticketIdentity item == brickId child]
       dateStrengths = [signalStrength signal | opportunity <- ticketOpportunities childTicket, signal <- selectableSignals opportunity, signalKey signal == DateSignal]
   dateStrengths @?= [Fixed 500_000]
   brickSiblingPosition child @?= 0
+
+dateStrengthsAt :: UTCTime -> UTCTime -> UTCTime -> [Fixed]
+dateStrengthsAt created preferred now =
+  let brick = (fixtureBrick (uuid 84) "ramp" AtomicTask Nothing 0){brickCreatedAt = created}
+      constraints = TemporalConstraints Nothing (Just (ZonedInstant preferred "America/Montevideo")) Nothing 1
+      state = (fixtureState [brick]){stateTemporalConstraints = Map.singleton (brickId brick) constraints}
+   in [signalStrength signal | owner <- buildForecastWorld state now, opportunity <- ticketOpportunities owner, signal <- selectableSignals opportunity, signalKey signal == DateSignal]
+
+bestBeforeRamp :: Assertion
+bestBeforeRamp = do
+  let days count = fromIntegral (count * 24 * 60 * 60 :: Int)
+      preferred = addUTCTime (days 15) fixedTime
+  -- Eligible 40 days ago: the ramp is capped to the 30 days before best_before.
+  dateStrengthsAt (addUTCTime (days (-40)) fixedTime) preferred fixedTime @?= [Fixed 500_000]
+  dateStrengthsAt (addUTCTime (days (-40)) fixedTime) preferred preferred @?= [fixedOne]
+  dateStrengthsAt (addUTCTime (days (-40)) fixedTime) preferred (addUTCTime (days 1) preferred) @?= [fixedOne]
+  -- Eligible today: no pressure yet, a quarter after a quarter of the ramp.
+  dateStrengthsAt fixedTime preferred fixedTime @?= [Fixed 0]
+  dateStrengthsAt fixedTime (addUTCTime (days 20) fixedTime) (addUTCTime (days 5) fixedTime) @?= [Fixed 250_000]
+  -- A best_before already behind the origin is complete once eligible.
+  dateStrengthsAt fixedTime (addUTCTime (days (-1)) fixedTime) fixedTime @?= [fixedOne]
+
+deadlineApproachVector :: Assertion
+deadlineApproachVector = do
+  let days count = fromIntegral (count * 24 * 60 * 60 :: Int)
+      lead = 7 * 24 * 60 * 60
+      at count = addUTCTime (days count) fixedTime
+  deadlineApproach lead fixedTime Nothing Nothing @?= Fixed 0
+  deadlineApproach lead fixedTime Nothing (Just (at 7)) @?= Fixed 0
+  deadlineApproach lead fixedTime Nothing (Just (addUTCTime (days 7 / 2) fixedTime)) @?= Fixed 500_000
+  deadlineApproach lead fixedTime Nothing (Just (at (-1))) @?= fixedOne
+  -- best_before alone starts nothing; before the deadline it starts the approach.
+  deadlineApproach lead fixedTime (Just (at (-1))) Nothing @?= Fixed 0
+  deadlineApproach lead fixedTime (Just (at (-2))) (Just (at 2)) @?= Fixed 500_000
+  deadlineApproach lead fixedTime (Just (at 3)) (Just (at 2)) @?= Fixed 714_286
+  effectiveImportance (Fixed 350_000) (Fixed 500_000) @?= Fixed 675_000
+  effectiveImportance (Fixed 350_000) (Fixed 0) @?= Fixed 350_000
+  effectiveImportance fixedOne (Fixed 300_000) @?= fixedOne
+  effectiveImportance (Fixed 67_485) fixedOne @?= fixedOne
+
+-- One series between two ordinary siblings, with one open occurrence.
+obligationWorld :: Maybe UTCTime -> State
+obligationWorld deadline =
+  let first = fixtureBrick (uuid 85) "first" AtomicTask Nothing 0
+      series = fixtureBrick (uuid 86) "series" RecurringObligation Nothing 1
+      second = fixtureBrick (uuid 87) "second" AtomicTask Nothing 2
+      occurrence = fixtureBrick (uuid 88) "occurrence" AtomicTask (Just (brickId series)) 0
+      released = RecurringOccurrence (brickId occurrence) (brickId series) (brickId occurrence) (ZonedInstant fixedTime "America/Montevideo") "Aug 2026" 1
+      constraints = TemporalConstraints Nothing Nothing ((`ZonedInstant` "America/Montevideo") <$> deadline) 1
+   in (fixtureState [first, series, second, occurrence])
+        { stateRecurringOccurrences = Map.singleton (brickId occurrence) released
+        , stateTemporalConstraints = Map.singleton (brickId occurrence) constraints
+        }
+
+obligationsAreNeutral :: Assertion
+obligationsAreNeutral = do
+  let quiet = obligationWorld Nothing
+      world = buildForecastWorld quiet fixedTime
+      positionOf identity = head [ticketSiblingPosition item | item <- world, ticketIdentity item == identity]
+  positionOf (uuid 85) @?= Just (0, 2)
+  positionOf (uuid 86) @?= Nothing
+  positionOf (uuid 87) @?= Just (1, 2)
+  positionOf (uuid 88) @?= Nothing
+  let seriesImportance state = weightedImportance (head [forecastTicketWeight Nothing tickets item | let tickets = buildForecastWorld state fixedTime, item <- tickets, ticketIdentity item == uuid 86])
+  seriesImportance quiet @?= importanceNeutral factoryForecastProfile
+  -- An overdue occurrence raises its series to the top factor.
+  seriesImportance (obligationWorld (Just (addUTCTime (-60) fixedTime))) @?= fixedOne
+
+recentMissPressure :: Assertion
+recentMissPressure = do
+  let series = fixtureBrick (uuid 90) "series" RecurringObligation Nothing 0
+      occurrenceBrick index status = (fixtureBrick (uuid index) ("occ-" <> Text.pack (show index)) AtomicTask (Just (brickId series)) 0){brickStatus = status}
+      bricks = [occurrenceBrick 91 BrickMissed, occurrenceBrick 92 BrickDone, occurrenceBrick 93 BrickMissed, occurrenceBrick 94 BrickActive]
+      anchor index = ZonedInstant (addUTCTime (fromIntegral (index * 86400)) fixedTime) "America/Montevideo"
+      occurrences = Map.fromList [(brickId brick, RecurringOccurrence (brickId brick) (brickId series) (brickId brick) (anchor (index :: Int)) "day" 1) | (index, brick) <- zip [1 ..] bricks]
+      schedule policy = RecurrenceSchedule (brickId series) (CalendarRule DailyRecurrence 1 (fromGregorian 2026 8 1) Set.empty Nothing Nothing [TimeOfDay 18 0 0]) "America/Montevideo" AtomicTask Nothing 0 Nothing (Just 0) policy Nothing 1
+      stateWith policy =
+        (fixtureState (series : bricks))
+          { stateRecurringOccurrences = occurrences
+          , stateRecurrenceSchedules = Map.singleton (brickId series) (schedule policy)
+          }
+      missed state = [signalStrength signal | item <- buildForecastWorld state fixedTime, ticketIdentity item == uuid 94, opportunity <- ticketOpportunities item, signal <- selectableSignals opportunity, signalKey signal == MissedSignal]
+  missed (stateWith DeadlineLapses) @?= [Fixed 500_000]
+  missed (stateWith DeadlineStaysOpen) @?= []
+  let excused = (stateWith DeadlineLapses){stateObligationPeriods = Map.singleton (uuid 93) (ObligationPeriod (Just fixedTime) (Just fixedTime) Nothing Nothing)}
+  missed excused @?= [Fixed 250_000]
+
+quotaWindowPressure :: Assertion
+quotaWindowPressure = do
+  let habit = fixtureBrick (uuid 95) "habit" Habit Nothing 0
+      opens = addUTCTime (-(2 * 86400)) fixedTime
+      window = HabitWindow (uuid 96) (brickId habit) (ZonedInstant opens "America/Montevideo") (ZonedInstant (addUTCTime (4 * 86400) opens) "America/Montevideo") 2 1 False
+      schedule = QuotaWindowHabit (brickId habit) 2 4 ReturnDays (fromGregorian 2026 8 1) "America/Montevideo" Nothing 1
+      done = HabitOutcome (uuid 97) (uuid 96) (brickId habit) StandingDone fixedTime
+      base =
+        (fixtureState [habit])
+          { stateHabitSchedules = Map.singleton (brickId habit) schedule
+          , stateHabitWindows = Map.singleton (uuid 96) window
+          }
+      quota state = [signalStrength signal | item <- buildForecastWorld state fixedTime, opportunity <- ticketOpportunities item, signal <- selectableSignals opportunity, signalKey signal == ScheduleSignal]
+  quota base @?= [Fixed 500_000]
+  quota base{stateHabitOutcomes = Map.singleton (uuid 97) done} @?= [Fixed 250_000]
 
 fixtureState :: [Brick] -> State
 fixtureState bricks =
@@ -434,6 +544,7 @@ ticket identity parent children dependencies opportunities =
     , ticketChildren = children
     , ticketDependencies = dependencies
     , ticketOpportunities = opportunities
+    , ticketDeadlineApproach = Fixed 0
     }
 
 work :: UUIDv7 -> SelectableOpportunity
