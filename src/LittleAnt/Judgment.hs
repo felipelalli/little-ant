@@ -167,7 +167,7 @@ adaptiveImportancePair state now parent
   | otherwise = mergeRoundPair (knownRuns ordered)
  where
   shortRunThreshold = 12
-  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (siblingBricks state parent))
+  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (importanceSiblings state parent))
 
   insertionPair _ [] = Nothing
   insertionPair [] (first : rest) = insertionPair [first] rest
@@ -251,7 +251,7 @@ provocativeImportancePair state now parent = case candidates of
   [] -> Nothing
   candidate : _ -> Just (candidateFirst candidate, candidateSecond candidate)
  where
-  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (siblingBricks state parent))
+  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (importanceSiblings state parent))
   pairs = [(first, second) | (leftIndex, first) <- zip [0 :: Int ..] ordered, second <- drop (leftIndex + 2) ordered]
   candidates = sortOn candidateOrder (mapMaybe candidate pairs)
   candidate (first, second)
@@ -283,13 +283,13 @@ nearbyComparators state parent subject current =
   , identity /= current
   ]
  where
-  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (siblingBricks state parent))
+  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (importanceSiblings state parent))
   currentIndex = maybe 0 fst (find ((== current) . snd) (zip [0 ..] ordered))
 
 reorderedSiblingIds :: State -> UTCTime -> Maybe UUIDv7 -> [UUIDv7]
 reorderedSiblingIds state now parent = go initialIncoming []
  where
-  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (siblingBricks state parent))
+  ordered = fmap brickId (sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (importanceSiblings state parent))
   orderIndex = Map.fromList (zip ordered [0 :: Int ..])
   relevantIds = Set.fromList ordered
   candidates =

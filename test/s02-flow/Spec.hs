@@ -390,6 +390,44 @@ tests =
         Map.lookup 0 byPosition @?= Just "Fix the release"
         Map.lookup 1 byPosition @?= Just "Write documentation"
         length (stateImportanceEdges (loadedState loaded)) @?= 1
+    , testCase "a recurring-obligation series asks no importance question" $ withHarness $ \environment -> do
+        _ <- createAtomicWork environment "alpha"
+        series <- createSeries environment "pay the rent"
+        case envelopeOpportunity series of
+          WorkPreviewOpportunity draft -> do
+            workDraftSiblingPosition draft @?= 1
+            workDraftImportanceConfidence draft @?= DeterministicPosition "recurring_obligation"
+            workDraftComparisons draft @?= []
+          other -> assertFailure ("expected the series preview without comparisons, got " <> show other)
+        _ <- answer environment series "work.create"
+        loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        length (stateImportanceEdges (loadedState loaded)) @?= 0
+    , testCase "insertion and the importance list leave a series out of the sibling order" $ withHarness $ \environment -> do
+        first <- createAtomicWork environment "alpha"
+        alpha <- case envelopeOpportunity first of
+          WorkCreatedResultOpportunity _ identity -> pure identity
+          other -> assertFailure ("expected first Work result, got " <> show other)
+        seriesPreview <- createSeries environment "pay the rent"
+        _ <- answer environment seriesPreview "work.create"
+        raw <- run environment (FeedCommand "test" "bravo") >>= interactionOf
+        nature <- answer environment raw "raw.materialize-work"
+        templates <- answer environment nature "nature.choose.atomic_task"
+        title <- answer environment templates "template.none"
+        comparison <- submit environment title "work.title.submit" "Bravo"
+        case envelopeOpportunity comparison of
+          ImportanceInsertionOpportunity _ 0 1 [] comparator -> comparator @?= alpha
+          other -> assertFailure ("expected one comparison with the only ranked sibling, got " <> show other)
+        preview <- answer environment comparison "importance.less"
+        _ <- answer environment preview "work.create"
+        loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let byPosition = Map.fromList [(brickSiblingPosition brick, brickTitle brick) | brick <- Map.elems (stateBricks (loadedState loaded))]
+        Map.elems byPosition @?= ["Alpha", "Bravo", "Pay the rent"]
+        listed <- run environment (ListCommand (Just "importance"))
+        case listed of
+          ListResult{resultListEntries} -> do
+            fmap listEntryTitle resultListEntries @?= ["Alpha", "Bravo", "Pay the rent"]
+            fmap (Text.takeWhile (/= ' ') . listEntryDetails) resultListEntries @?= ["position", "position", "obligation"]
+          other -> assertFailure ("expected the importance list, got " <> show other)
     , testCase "two comparison skips produce visible provisional placement without false equality" $ withHarness $ \environment -> do
         _ <- createAtomicWork environment "alpha"
         _ <- createAtomicWorkBelow environment "bravo"
@@ -586,6 +624,15 @@ createAtomicWork environment material = do
   title <- answer environment templates "template.none"
   preview <- submit environment title "work.title.submit" (titleCase material)
   answer environment preview "work.create"
+
+-- | Triage one Raw into a recurring-obligation series up to its preview.
+createSeries :: AppEnv -> Text -> IO InteractionEnvelope
+createSeries environment material = do
+  raw <- run environment (FeedCommand "test" material) >>= interactionOf
+  nature <- answer environment raw "raw.materialize-work"
+  templates <- answer environment nature "nature.choose.recurring_obligation"
+  title <- answer environment templates "template.none"
+  submit environment title "work.title.submit" (titleCase material)
 
 createAtomicWorkBelow :: AppEnv -> Text -> IO InteractionEnvelope
 createAtomicWorkBelow environment material = do

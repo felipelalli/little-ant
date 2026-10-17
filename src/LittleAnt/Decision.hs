@@ -2379,11 +2379,16 @@ validateWorkDraft state draft = do
   if position < 0 || position > length siblings
     then Left (appError InvalidInput "The Work draft has no valid sibling position.")
     else pure ()
-  mapM_ (validateComparison siblings position) (workDraftComparisons draft)
-  case (siblings, workDraftImportanceConfidence draft, workDraftComparisons draft) of
-    ([], DeterministicPosition _, []) -> pure ()
-    (_ : _, HumanComparison, _ : _) -> pure ()
-    (_ : _, Provisional _, []) -> pure ()
+  -- IMP-057: comparisons and confidence concern only Bricks that hold an
+  -- importance position; a recurring-obligation series holds none.
+  let ranked = filter (carriesImportance state) siblings
+  mapM_ (validateComparison ranked position) (workDraftComparisons draft)
+  case (workDraftNature draft, ranked, workDraftImportanceConfidence draft, workDraftComparisons draft) of
+    (RecurringObligation, _, DeterministicPosition _, []) -> pure ()
+    (RecurringObligation, _, _, _) -> Left (appError InvalidInput "A recurring obligation carries no importance position.")
+    (_, [], DeterministicPosition _, []) -> pure ()
+    (_, _ : _, HumanComparison, _ : _) -> pure ()
+    (_, _ : _, Provisional _, []) -> pure ()
     _ -> Left (appError InvalidInput "The importance confidence does not match the draft evidence.")
 
 validateComparison :: [Brick] -> Int -> DraftImportanceAnswer -> Either AppError ()

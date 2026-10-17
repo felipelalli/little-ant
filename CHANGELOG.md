@@ -24,6 +24,12 @@ replace the specification.
   gain elapsed-and-unmet pressure. Recurring-obligation series and their
   occurrences use the neutral importance factor and no longer shift the
   positions of their siblings.
+- Stop asking importance questions for recurring obligations: creating a
+  series skips binary insertion, ordering reviews and comparisons ignore
+  series and occurrences, and `list importance` shows active series in a
+  closing Obligations group by next deadline with their open occurrences.
+  The Nature-discovery question that leads to a recurring obligation now asks
+  whether something outside you requires each period.
 - Offer `[c]lassify` on the detail of a Raw still awaiting triage
   (`show --view guided '+raw'`), opening triage for that exact Raw instead of
   only the oldest Inbox item.

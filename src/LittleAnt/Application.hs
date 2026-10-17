@@ -2780,13 +2780,14 @@ resolveExportScope state (Just supplied)
   reference = Text.strip supplied
 
 runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
-runList environment dryRun dataset maybeList =
+runList environment dryRun dataset maybeList = do
+  zone <- zonedTimeZone <$> appZonedNow environment
   let arguments = maybe [] Text.words maybeList
       listName = case arguments of name : _ -> Just (Text.toLower name); _ -> Nothing
       scope = case drop 1 arguments of [] -> Nothing; parts -> Just (Text.unwords parts)
       result name rows = do
         scoped <- scopeListRows (loadedState dataset) scope rows
-        context <- scopeListRows (loadedState dataset) scope (importanceListRows (loadedState dataset))
+        context <- scopeListRows (loadedState dataset) scope (importanceListRows zone (loadedState dataset))
         let visible = if name == "importance" then rebaseImportanceRows (loadedState dataset) scoped else scoped
         pure (ListResult (loadedCursor dataset) name visible (categoryListTree (loadedState dataset) context visible) dryRun)
    in case listName of
@@ -2799,7 +2800,7 @@ runList environment dryRun dataset maybeList =
                   ]
               }
         Just "importance" ->
-          pure (result "importance" (importanceListRows (loadedState dataset)))
+          pure (result "importance" (importanceListRows zone (loadedState dataset)))
         Just "forecast" -> do
           now <- appZonedNow environment
           let rows = forecastListRows (loadedState dataset) (zonedTimeToUTC now)
@@ -2829,9 +2830,35 @@ scopeListRows state (Just reference) rows = do
   isWithin root brick = brickId brick == root || maybe False (\parent -> maybe False (isWithin root) (Map.lookup parent (stateBricks state))) (brickParent brick)
   containsDomain target identity = maybe False (target `elem`) (domainIdentityPath state identity)
 
-importanceListRows :: State -> [ListRow]
-importanceListRows state = importanceSubtree state 0 Nothing
+{- | The importance order, then the active recurring-obligation series in a
+separate Obligations group by next deadline, each with its open occurrences
+in nominal-anchor order (IMP-057).
+-}
+importanceListRows :: TimeZone -> State -> [ListRow]
+importanceListRows zone state = importanceSubtree state 0 Nothing <> obligationRows
  where
+  obligationRows =
+    concat
+      [ ListRow (renderHandle BrickHandle (brickHandle series)) (brickTitle series) ("obligation" <> maybe "" ((" · next deadline " <>) . deadlineText) next)
+          : [ ListRow (renderHandle BrickHandle (brickHandle brick)) ("  " <> brickTitle brick) ("occurrence · " <> recurringOccurrenceLabel occurrence <> maybe "" ((" · deadline " <>) . deadlineText) (deadlineOf brick))
+            | (occurrence, brick) <- reverse open
+            ]
+      | (series, next, open) <- sortOn (\(series, next, _) -> (Data.Maybe.isNothing next, next, brickId series)) obligations
+      ]
+  obligations =
+    [ (series, minimumMaybe (Data.Maybe.mapMaybe (deadlineOf . snd) open), open)
+    | series <- activeBricks state
+    , brickNature series == RecurringObligation
+    , let open =
+            [ (occurrence, brick)
+            | occurrence <- seriesOccurrences state (brickId series)
+            , Just brick <- [Map.lookup (recurringOccurrenceBrick occurrence) (stateBricks state)]
+            , brickStatus brick == BrickActive
+            ]
+    ]
+  deadlineOf brick = zonedInstantUtc <$> (temporalDeadline =<< Map.lookup (brickId brick) (stateTemporalConstraints state))
+  deadlineText instant = Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %H:%M" (utcToLocalTime zone instant))
+  minimumMaybe values = if null values then Nothing else Just (minimum values)
   importanceSubtree currentState depth parent =
     concatMap
       ( \current ->
@@ -6194,7 +6221,11 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     pure (makeExistingWorkReuseResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) raw existing)
   beginImportance raw draft =
     case orderedSiblings state (workDraftParent draft) of
-      [] -> local (makeWorkPreviewEnvelope current now state raw draft{workDraftImportanceConfidence = DeterministicPosition "sole_sibling"})
+      _
+        | workDraftNature draft == RecurringObligation ->
+            -- IMP-057: an obligation competes for time, not value.
+            local (makeWorkPreviewEnvelope current now state raw draft{workDraftSiblingPosition = length (siblingBricks state (workDraftParent draft)), workDraftImportanceConfidence = DeterministicPosition "recurring_obligation"})
+      [] -> local (makeWorkPreviewEnvelope current now state raw draft{workDraftSiblingPosition = physicalPosition (workDraftParent draft) 0, workDraftImportanceConfidence = DeterministicPosition "sole_sibling"})
       siblings ->
         let index = length siblings `div` 2
             comparator = brickId (siblings !! index)
@@ -6202,6 +6233,8 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
 
   answerImportance draft low high skipped comparator action = withRaw (workDraftRawId draft) $ \raw ->
     case findIndexById comparator siblings of
+      -- A question saved before IMP-057 no longer applies to a series.
+      _ | workDraftNature draft == RecurringObligation && action `elem` ["importance.more", "importance.less", "importance.skip"] -> beginImportance raw draft
       Nothing -> pure (Left (appError PreconditionFailed "The comparison sibling is no longer available."))
       Just index -> case action of
         "importance.more" -> continueImportance raw draft{workDraftComparisons = workDraftComparisons draft <> [DraftAbove comparator]} low index skipped
@@ -6214,7 +6247,7 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
 
   continueImportance raw draft nextLow nextHigh skipped
     | nextLow >= nextHigh =
-        local (makeWorkPreviewEnvelope current now state raw draft{workDraftSiblingPosition = nextLow, workDraftImportanceConfidence = HumanComparison})
+        local (makeWorkPreviewEnvelope current now state raw draft{workDraftSiblingPosition = physicalPosition (workDraftParent draft) nextLow, workDraftImportanceConfidence = HumanComparison})
     | otherwise =
         let index = nextLow + ((nextHigh - nextLow) `div` 2)
          in local (makeImportanceInsertionEnvelope current now state raw draft nextLow nextHigh skipped (brickId (orderedSiblings state (workDraftParent draft) !! index)))
@@ -6222,7 +6255,16 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   skipImportance raw draft low high skipped currentIndex =
     case nearbyComparator (orderedSiblings state (workDraftParent draft)) low high skipped currentIndex of
       Just nextComparator | length skipped < 2 -> local (makeImportanceInsertionEnvelope current now state raw draft low high skipped nextComparator)
-      _ -> local (makeWorkPreviewEnvelope current now state raw draft{workDraftSiblingPosition = currentIndex, workDraftImportanceConfidence = Provisional "nearby importance comparisons skipped"})
+      _ -> local (makeWorkPreviewEnvelope current now state raw draft{workDraftSiblingPosition = physicalPosition (workDraftParent draft) currentIndex, workDraftImportanceConfidence = Provisional "nearby importance comparisons skipped"})
+
+  -- Insertion indexes count only ranked siblings (IMP-057); replay places the
+  -- new Brick among all siblings, just before the ranked one at that index.
+  physicalPosition parent index =
+    min (length (siblingBricks state parent)) $ case drop index (orderedSiblings state parent) of
+      next : _ -> brickSiblingPosition next
+      [] -> case reverse (orderedSiblings state parent) of
+        lastRanked : _ -> brickSiblingPosition lastRanked + 1
+        [] -> length (siblingBricks state parent)
 
   chooseShelfDestination rawIdentity shelfText = case parseUUIDv7 shelfText of
     Left _ -> pure (Left (appError InvalidInput "The selected RawShelf identity is invalid."))
@@ -6614,7 +6656,7 @@ natureBranch discovery answer =
     (ChangingMembersQuestion, False) -> Right OpenOccurrenceQuestion
     (IndependentMemberQuestion, True) -> leaf Collection "members may be suggested independently"
     (IndependentMemberQuestion, False) -> leaf LivingChecklist "the changing open set is worked as one scope"
-    (OpenOccurrenceQuestion, True) -> leaf RecurringObligation "each required occurrence remains open until closed"
+    (OpenOccurrenceQuestion, True) -> leaf RecurringObligation "something outside you requires each period"
     (OpenOccurrenceQuestion, False) -> Right StreakQuestion
     (StreakQuestion, True) -> leaf Habit "missed windows and streaks belong to its history"
     (StreakQuestion, False) -> leaf Repeatable "each execution finishes without accumulating an overdue occurrence"
@@ -6631,7 +6673,7 @@ natureBranch discovery answer =
     (ChangingMembersQuestion, False) -> Right OpenOccurrenceQuestion
     (IndependentMemberQuestion, True) -> leaf LivingChecklist "the whole open set must appear together at focus time"
     (IndependentMemberQuestion, False) -> leaf Collection "a member may be served independently"
-    (OpenOccurrenceQuestion, True) -> leaf RecurringObligation "an unfinished period remains open or overdue"
+    (OpenOccurrenceQuestion, True) -> leaf RecurringObligation "an unfulfilled period is noticed beyond your own history"
     (OpenOccurrenceQuestion, False) -> Right StreakQuestion
     (StreakQuestion, True) -> leaf Habit "an unfulfilled window affects history or a streak"
     (StreakQuestion, False) -> leaf Repeatable "an unfulfilled window does not accumulate or affect a streak"
@@ -6648,7 +6690,7 @@ nearbyComparator siblings low high skipped current =
      in position >= low && position < high && brickId brick `notElem` skipped
 
 orderedSiblings :: State -> Maybe UUIDv7 -> [Brick]
-orderedSiblings state parent = sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (siblingBricks state parent)
+orderedSiblings state parent = sortOn (\brick -> (brickSiblingPosition brick, brickId brick)) (importanceSiblings state parent)
 
 findIndexById :: UUIDv7 -> [Brick] -> Maybe Int
 findIndexById identity = go 0
@@ -6905,7 +6947,7 @@ runShow dryRun dataset supplied view
       <> ["Pending " <> reviewKindText (judgmentReviewKind review) <> ": " <> judgmentReviewReason review | review <- pendingJudgmentReviews state, judgmentReviewSubject review == brickId brick]
       <> ["Parent: " <> brickReference parent | parent <- maybe [] pure (brickParent brick)]
       <> ["Domains: " <> Text.intercalate ", " (domainPathText state <$> Set.toAscList (brickDomains brick)) | not (Set.null (brickDomains brick))]
-      <> ["Child: " <> brickReference (brickId child) | child <- orderedSiblings state (Just (brickId brick))]
+      <> ["Child: " <> brickReference (brickId child) | child <- sortOn (\child -> (brickSiblingPosition child, brickId child)) (siblingBricks state (Just (brickId brick)))]
       <> ["Blocked by: " <> brickReference (dependencyBlockerBrick dependency) | dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyIsBlocking state dependency]
       <> ["Removed prerequisite: " <> brickReference (dependencyBlockerBrick dependency) | view /= SummaryView, dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyStatus dependency == DependencyRemoved]
       <> ["No longer blocking: " <> brickReference (dependencyBlockedBrick dependency) | view /= SummaryView, dependency <- Map.elems (stateDependencies state), dependencyBlockerBrick dependency == brickId brick, dependencyStatus dependency == DependencyRemoved]
@@ -7269,9 +7311,9 @@ scopeGroups state now scope = filter needsReview candidates
     DomainSiblingGroups domain ->
       [ parent
       | parent <- allGroups
-      , any (Set.member domain . brickDomains) (siblingBricks state parent)
+      , any (Set.member domain . brickDomains) (importanceSiblings state parent)
       ]
-  needsReview parent = length (siblingBricks state parent) >= 2 && isJust (adaptiveImportancePair state now parent)
+  needsReview parent = length (importanceSiblings state parent) >= 2 && isJust (adaptiveImportancePair state now parent)
 
 startOrderEnvelope :: ZonedTime -> State -> InteractionEnvelope -> OrderSession -> InteractionEnvelope
 startOrderEnvelope now state previous session =
@@ -7366,7 +7408,7 @@ domainIdentityPath state identity =
 currentParentFor :: State -> Maybe UUIDv7
 currentParentFor state = do
   focused <- stateCurrentFocus state >>= (`Map.lookup` stateBricks state)
-  if length (siblingBricks state (Just (brickId focused))) >= 2
+  if length (importanceSiblings state (Just (brickId focused))) >= 2
     then Just (brickId focused)
     else brickParent focused
 
@@ -7402,7 +7444,7 @@ contradictionTriad state first second path = take 3 (deduplicate ([first, second
     , Just judgment <- [Map.lookup identity (statePairJudgments state)]
     ]
   parent = brickParent =<< Map.lookup first (stateBricks state)
-  nearby = fmap brickId (sortOn brickSiblingPosition (siblingBricks state parent))
+  nearby = fmap brickId (sortOn brickSiblingPosition (importanceSiblings state parent))
   deduplicate = foldl (\seen identity -> if identity `elem` seen then seen else seen <> [identity]) []
 
 incompatibleJudgments :: State -> UTCTime -> UUIDv7 -> [UUIDv7] -> [UUIDv7]

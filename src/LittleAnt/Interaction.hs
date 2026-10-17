@@ -4555,7 +4555,7 @@ directQuestion = \case
   IndependentPartsQuestion -> "Do any parts need independent focus, importance, blockers, dates, Domain membership, or history?"
   ChangingMembersQuestion -> "Does it maintain a changing set of members or entries?"
   IndependentMemberQuestion -> "Should next ever serve one member independently?"
-  OpenOccurrenceQuestion -> "Does each required occurrence remain open until completed or explicitly closed?"
+  OpenOccurrenceQuestion -> "Is each period required by something outside you, so that missing its deadline matters (debt, a report, a penalty)?"
   StreakQuestion -> "Are missed time windows recorded and are streaks meaningful?"
 
 alternateQuestion :: NatureQuestion -> Text
@@ -4566,7 +4566,7 @@ alternateQuestion = \case
   IndependentPartsQuestion -> "Could any part need its own next, importance, blocker, date, Domain, or history?"
   ChangingMembersQuestion -> "Will items be added or removed while the parent remains?"
   IndependentMemberQuestion -> "At focus time, must the whole open set appear together?"
-  OpenOccurrenceQuestion -> "If one due period is not completed, should its occurrence remain open or overdue?"
+  OpenOccurrenceQuestion -> "If one period passes unfulfilled, does anyone or anything besides your own history notice it?"
   StreakQuestion -> "Should an unfulfilled window affect history or a streak?"
 
 natureProbeExplanation :: NatureQuestion -> Text
@@ -4577,7 +4577,7 @@ natureProbeExplanation = \case
   IndependentPartsQuestion -> "Project parts can be served alone; checklist entries appear together."
   ChangingMembersQuestion -> "A collection changes membership; repeatable work records executions."
   IndependentMemberQuestion -> "A book can be served alone; a grocery list appears together."
-  OpenOccurrenceQuestion -> "An unpaid bill remains open; a repeatable review does not accumulate."
+  OpenOccurrenceQuestion -> "Rent or a required shift answers to someone else each period; a repeatable review does not."
   StreakQuestion -> "A missed walk affects history; a reread simply returns later."
 
 rawCommands :: Raw -> [CommandOption]
@@ -4892,7 +4892,7 @@ assignTemplateShortcuts definitions = snd (foldl assign (Set.fromList ["n", "k",
     | otherwise = Just candidate
 
 importanceText :: State -> WorkDraft -> Text
-importanceText state draft = case sortOn brickSiblingPosition (siblingBricks state (workDraftParent draft)) of
+importanceText state draft = case sortOn brickSiblingPosition (importanceSiblings state (workDraftParent draft)) of
   [] -> "only sibling"
   siblings ->
     let before = [brick | brick <- siblings, brickSiblingPosition brick < workDraftSiblingPosition draft]

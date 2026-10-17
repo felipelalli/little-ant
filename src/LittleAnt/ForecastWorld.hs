@@ -707,7 +707,7 @@ importanceRunReviews state now =
     | parent <- Set.toAscList (Set.fromList (brickParent <$> activeBricks state))
     , maybe True ((<= now) . importanceReviewCooldownUntil) (Map.lookup parent (stateImportanceReviewDeferrals state))
     , Just (first, second) <- [adaptiveImportancePair state now parent]
-    , let siblings = siblingBricks state parent
+    , let siblings = importanceSiblings state parent
           relevantClaims = [claim | claim <- Map.elems (stateLazyReviews state), lazyReviewKind claim `elem` ["importance", "importance_run_review"], lazyReviewSubject claim `elem` fmap brickId siblings]
           pairCreatedAt = maximum [brickCreatedAt brick | identity' <- [first, second], Just brick <- [Map.lookup identity' (stateBricks state)]]
           origin = max pairCreatedAt (if null relevantClaims then pairCreatedAt else minimum (fmap lazyReviewCreatedAt relevantClaims))

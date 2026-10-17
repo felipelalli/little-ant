@@ -750,7 +750,7 @@ axisRelationSentence state axis first second =
     <> citation state second
 
 scopeCounts :: State -> Maybe UUIDv7 -> Text
-scopeCounts state parent = Text.pack (show (length (siblingBricks state parent))) <> " siblings"
+scopeCounts state parent = Text.pack (show (length (importanceSiblings state parent))) <> " siblings"
 
 currentParent :: State -> Maybe UUIDv7
 currentParent state = stateCurrentFocus state >>= (brickParent <=< (`Map.lookup` stateBricks state))
