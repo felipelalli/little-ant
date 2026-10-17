@@ -7639,7 +7639,7 @@ Positions are local to each sibling group.
               └── #diagram Draw diagram
 
 ────────────────────────────────────────────────────
-[i]mportance · [f]orecast · [a]genda · [c]ategories off · Ctrl+F search
+[i]mportance · [f]orecast · [a]genda · [c]ategories: on · Ctrl+F search
 ↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
@@ -7654,7 +7654,7 @@ under several direct categories; uncategorized roots form their own branch.
 Dependencies are a separate relationship and never substitute for composition.
 
 Ctrl-F opens a local search field. While it owns input, letters including `i`,
-`f`, `a`, `c`, and `d` are query text. Ctrl-F again finishes typing and retains the query,
+`f`, `a`, and `c` are query text. Ctrl-F again finishes typing and retains the query,
 allowing view/grouping controls to operate on those results. Matches preserve category/project ancestors; matching a
 branch retains its parts. Arrows select inspectable items, Enter opens read-only
 inspection, and Escape returns to exactly the prior results and selection.
@@ -7690,30 +7690,45 @@ Su  Mo  Tu  We  Th  Fr  Sa
 ! deadline · • best before · 17 today
 
   Overdue
-  └── #pfr     Pay the fine                     deadline · Thu, Oct 15
-  Mon, Oct 19
-  └── 00:00    #dosio2  Do one shift in operations   opens
+  └── #pfr Pay the fine
+      deadline · Thu, Oct 15
+  #dosio2 Do one shift in operations
+    Mon, Oct 19 · 00:00 · opens
   Wed, Oct 21
-  └── 18:00    #dosio2  Do one shift in operations   best before
-  Fri, Oct 23
-  └── 18:00    #dosio2  Do one shift in operations   deadline · counts as missed
-  Mon, Oct 26
-  └── 00:00    #dosio   Do one shift in operations   opens · projected
+  ├── #dosio2 Do one shift in operations
+  │   Wed, Oct 21 · 18:00 · best before
+  └── #rent Pay the rent
+      Wed, Oct 21 · 23:59 · deadline
+  #dosio Do one shift in operations
+    Mon, Oct 26 · 00:00 · opens · projected
 
 ────────────────────────────────────────────────────
-[i]mportance · [f]orecast · [a]genda · [d]ays off · Ctrl+F search
+[i]mportance · [f]orecast · [a]genda · [c]ategories: off · Ctrl+F search
 ↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
 The calendar is a fixed-width header and scrolls away with the rows; the
-controls stay pinned. Each day takes four columns, its mark directly after its
+controls stay pinned. It shows the month of the selected row, the current
+month while nothing later is selected. Each day takes four columns, its mark directly after its
 number, so a mark never touches the next day. A legend follows the grids. With
-color enabled, `!` is red, `•` is yellow, and today's number uses the selected
-style; monochrome keeps the characters and bold marks. The CLI prints the
+color enabled, `!` is red, `•` is yellow, and today's number looks like the
+selected style without being the selection, so the viewport follows the
+selected row; monochrome keeps the characters and bold marks. The CLI prints the
 legend without `today`, since the `Today:` line names it. Day labels and `Overdue` are not inspection targets.
-`[d]ays` flattens the groups and keeps the day in each row's details. Search,
-inspection, and back follow UX-LIST00. The CLI prints the same calendar and
-groups as plain text.
+A day with one fact is a flat row; several facts on one day form a group.
+Reaching the end loads the next `agenda.chunk_days` days in place. With
+`[c]ategories: on`, Domain groups contain day groups, and a dated part nests
+under its dated parent of the same day:
+
+```text
+  eulen
+  └── Wed, Oct 21
+      └── #launch Launch the onboarding
+          └── #slides Prepare the slides
+```
+
+Search, inspection, and back follow UX-LIST00. The CLI prints the same
+calendars and day rows as plain text.
 
 ## UX-EXP00 — Read-only export
 

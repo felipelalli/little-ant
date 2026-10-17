@@ -405,7 +405,7 @@ agendaOutlook = withHarness $ \environment -> do
           Nothing
           0
   _ <- run environment (SetRecurrenceScheduleCommand schedule)
-  listed <- run environment (ListCommand (Just "agenda"))
+  listed <- run environment (ListCommand (Just "agenda") Nothing)
   case listed of
     ListResult{resultListEntries, resultListHeader, resultListCategories} -> do
       let summary = [(listEntryDay row, listEntryHandle row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries]
@@ -421,7 +421,9 @@ agendaOutlook = withHarness $ \environment -> do
       take 4 resultListHeader @?= ["Today: Mon, Aug 3", "", "        August 2026", "Su  Mo  Tu  We  Th  Fr  Sa"]
       assertBool ("calendar marks are missing: " <> show resultListHeader) (any (Text.isInfixOf " 6•  7!  8") resultListHeader)
       last resultListHeader @?= "! deadline · • best before"
-      [label | ListCategory label _ <- resultListCategories] @?= ["Overdue", "Wed, Aug 5", "Thu, Aug 6", "Fri, Aug 7", "Wed, Aug 12", "Thu, Aug 13", "Fri, Aug 14"]
+      [label | ListCategory label _ <- resultListCategories] @?= ["Without a category"]
+      [label | ListCategory _ days <- resultListCategories, ListCategory label _ <- days] @?= ["Overdue", "Wed, Aug 5", "Thu, Aug 6", "Fri, Aug 7", "Wed, Aug 12", "Thu, Aug 13", "Fri, Aug 14", "Wed, Aug 19", "Thu, Aug 20", "Fri, Aug 21", "Wed, Aug 26", "Thu, Aug 27", "Fri, Aug 28", "Wed, Sep 2", "Thu, Sep 3", "Fri, Sep 4"]
+      [listEntryDate row | row@AgendaListRow{} <- take 2 resultListEntries] @?= ["2026-07-31", "2026-08-05"]
     other -> assertFailure ("expected the agenda, got " <> show other)
   loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   Map.size (stateRecurringOccurrences (loadedState loaded)) @?= 0

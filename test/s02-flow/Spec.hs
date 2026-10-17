@@ -132,10 +132,10 @@ tests =
         case found of
           SearchResult{resultSearchHits} -> fmap searchHitHandle resultSearchHits @?= [handle]
           other -> assertFailure ("expected typed search results, got " <> show other)
-        _ <- run environment (ListCommand (Just "importance"))
-        scoped <- run environment (ListCommand (Just ("importance " <> handle)))
+        _ <- run environment (ListCommand (Just "importance") Nothing)
+        scoped <- run environment (ListCommand (Just ("importance " <> handle)) Nothing)
         case scoped of ListResult{resultListEntries} -> fmap listEntryHandle resultListEntries @?= [handle]; other -> assertFailure (show other)
-        forecast <- run environment (ListCommand (Just "forecast"))
+        forecast <- run environment (ListCommand (Just "forecast") Nothing)
         case forecast of
           ListResult{resultListEntries, resultListCategories} -> do
             let projectedRows = concatMap categoryRows resultListCategories
@@ -470,7 +470,7 @@ tests =
         loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
         let byPosition = Map.fromList [(brickSiblingPosition brick, brickTitle brick) | brick <- Map.elems (stateBricks (loadedState loaded))]
         Map.elems byPosition @?= ["Alpha", "Bravo", "Pay the rent"]
-        listed <- run environment (ListCommand (Just "importance"))
+        listed <- run environment (ListCommand (Just "importance") Nothing)
         case listed of
           ListResult{resultListEntries} -> do
             fmap listEntryTitle resultListEntries @?= ["Alpha", "Bravo", "Pay the rent"]
@@ -529,7 +529,7 @@ tests =
         let children = [brick | brick <- Map.elems (stateBricks (loadedState loaded)), brickParent brick == Just projectId]
         fmap brickTitle children @?= ["Write launch copy"]
         let projectHandle = renderHandle BrickHandle (brickHandle (stateBricks (loadedState loaded) Map.! projectId))
-        listed <- run environment (ListCommand (Just ("importance " <> projectHandle)))
+        listed <- run environment (ListCommand (Just ("importance " <> projectHandle)) Nothing)
         assertBool "project scope lost its branch connector" ("└──" `Text.isInfixOf` renderCommandResult listed)
         case listed of
           ListResult{resultListCategories = [ListCategory "Without a category" [ListItem project False [ListItem part False []]]]} -> do
@@ -539,7 +539,7 @@ tests =
         case children of
           [child] -> do
             let childHandle = renderHandle BrickHandle (brickHandle child)
-            scoped <- run environment (ListCommand (Just ("importance " <> childHandle)))
+            scoped <- run environment (ListCommand (Just ("importance " <> childHandle)) Nothing)
             case scoped of
               ListResult{resultListEntries, resultListCategories} -> do
                 fmap listEntryTitle resultListEntries @?= ["Write launch copy"]

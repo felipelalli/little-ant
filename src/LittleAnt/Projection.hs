@@ -164,6 +164,8 @@ renderCommandResult = \case
    where
     groupDays = foldr (\row groups -> case groups of (day, members) : rest | day == agendaDay row -> (day, row : members) : rest; _ -> (agendaDay row, [row]) : groups) []
     agendaDay = \case AgendaListRow{listEntryDay} -> listEntryDay; _ -> ""
+    -- A day with one fact stays flat: the row already names its date.
+    agendaGroup (day, [row]) | day /= "Overdue" = ["  " <> listEntryHandle row <> " " <> listEntryTitle row <> " · " <> listEntryDetails row]
     agendaGroup (day, members) = ("  " <> day) : zipWith (agendaLine day) [1 :: Int ..] members
      where
       agendaLine label index row =

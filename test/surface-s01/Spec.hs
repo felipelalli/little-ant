@@ -127,14 +127,32 @@ tests =
         handles (brickCommandTargets envelope "restore" hits) @?= (["#ccc"], 0)
         handles (brickCommandTargets envelope "update" hits) @?= (["#aaa", "#bbb", "#ccc", "#ctailip", "#ddd"], 3)
         handles (brickCommandTargets pristine "archive" hits) @?= (["#bbb", "#ctailip", "#ddd"], 0)
-    , testCase "the agenda calendar highlights only today's cell in the current month" $ do
-        let header = ["Today: Sat, Oct 17", "", "        October 2026", agendaWeekdays, "11  12  13  14  15  16  17", "18  19  20  21• 22  23! 24", "", "        November 2026", agendaWeekdays, "15  16  17  18  19  20  21"]
-            styled = agendaHeaderLines header
-        [text | spans <- styled, Span Selected text <- spans] @?= ["17"]
-        [text | spans <- styled, Span Urgent text <- spans] @?= ["!"]
-        [text | spans <- styled, Span Caution text <- spans] @?= ["•"]
-        fmap (Text.concat . fmap spanText) styled @?= header
-        [text | Span Selected text <- concat (agendaHeaderLines (header <> ["", agendaLegend]))] @?= ["17", "17"]
+    , testCase "the agenda calendar shows the selected row's month and highlights today only in the current one" $ do
+        let october = ["        October 2026", agendaWeekdays, "11  12  13  14  15  16  17", "18  19  20  21\8226 22  23! 24"]
+            november = ["        November 2026", agendaWeekdays, "15  16  17  18  19  20  21"]
+            header = ["Today: Sat, Oct 17", ""] <> october <> [""] <> november <> ["", agendaLegend]
+            current = agendaHeaderLines Nothing header
+            later = agendaHeaderLines (Just "2026-11-16") header
+        [text | spans <- current, Span Today text <- spans] @?= ["17", "17"]
+        [text | spans <- current, Span Urgent text <- spans] @?= ["!", "!"]
+        [text | spans <- current, Span Caution text <- spans] @?= ["\8226", "\8226"]
+        fmap (Text.concat . fmap spanText) current @?= ["Today: Sat, Oct 17", ""] <> october <> ["", "! deadline \183 \8226 best before \183 17 today"]
+        fmap (Text.concat . fmap spanText) later @?= ["Today: Sat, Oct 17", ""] <> november <> ["", "! deadline \183 \8226 best before \183 17 today"]
+        [text | spans <- take 5 later, Span Today text <- spans] @?= []
+    , testCase "agenda days group only when they hold several facts, and categories nest days" $ do
+        identity <- fixtureIdentity
+        let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            row handle day date = AgendaListRow handle ("Task " <> handle) (day <> " \183 18:00 \183 deadline") day date (Just "18:00") "deadline"
+            single = row "#one" "Mon, Oct 19" "2026-10-19"
+            first = row "#two" "Wed, Oct 21" "2026-10-21"
+            second = row "#three" "Wed, Oct 21" "2026-10-21"
+            categories = [ListCategory "eulen" [ListCategory "Wed, Oct 21" [ListItem first False [ListItem second False []]]], ListCategory "Without a category" [ListCategory "Mon, Oct 19" [ListItem single False []]]]
+            view = ListView "agenda" [] [single, first, second] categories False "" False 0 Nothing [] 35
+            days = [(searchHitKind hit, searchHitTitle hit) | (_, _, hit) <- listViewRows view]
+        days @?= [("brick", "Task #one"), ("category", "Wed, Oct 21"), ("brick", "Task #two"), ("brick", "Task #three")]
+        [searchHitTitle hit | (_, _, hit) <- listViewRows view{listViewGrouped = True}]
+          @?= ["eulen", "Wed, Oct 21", "Task #two", "Task #three", "Without a category", "Mon, Oct 19", "Task #one"]
+        assertBool "the toggle hides its state" ("[c]ategories: off" `Text.isInfixOf` renderPlain (listModel 100 envelope view))
     , testCase "the palette finds archive by what out-of-date Work means" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
@@ -152,7 +170,7 @@ tests =
             child = ListRow "#diagram" "Draw diagram" "60.0% · importance position 1"
             others = [ListRow ("#b" <> Text.pack (show index)) "Other task" "1.0%" | index <- [1 .. 35 :: Int]]
             categories = [ListCategory "Work" [ListCategory "Talks" [ListItem parent True [ListItem child False []]]], ListCategory "Other" [ListItem row False [] | row <- others]]
-            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing [] False
+            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing [] 35
             filtered = renderPlain (listModel 80 envelope view)
         mapM_ (\fragment -> assertBool ("missing grouped context: " <> Text.unpack fragment) (fragment `Text.isInfixOf` filtered)) ["Work", "Talks", "#talk", "#diagram", "60.0%", "context only"]
         assertBool "search retained an unrelated category" (not ("Other task" `Text.isInfixOf` filtered))

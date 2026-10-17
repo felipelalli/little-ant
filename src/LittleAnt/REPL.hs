@@ -19,6 +19,7 @@ module LittleAnt.REPL (
   documentModel,
   ListView (..),
   listModel,
+  listViewRows,
   viewportModel,
   progressModel,
   runRepl,
@@ -40,6 +41,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Text.IO qualified as Text
+import Data.Time (Day, defaultTimeLocale, formatTime, parseTimeM)
 import Graphics.Vty (Modifier (MCtrl), Vty, nextEvent, picForImage, shutdown, update)
 import Graphics.Vty qualified as Vty
 import Graphics.Vty.Config (defaultConfig)
@@ -101,7 +103,7 @@ data ListView = ListView
   , listViewSelected :: Int
   , listViewMessage :: Maybe Text
   , listViewHeader :: [Text]
-  , listViewFlatDays :: Bool
+  , listViewDays :: Integer
   }
   deriving stock (Eq, Show)
 
@@ -250,10 +252,10 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     _ -> pure (Just screen)
 
   openList previous name =
-    runCurrent (ListCommand (Just name)) >>= \case
+    runCurrent (ListCommand (Just name) Nothing) >>= \case
       Left problem -> pure . Just $ ReadOnlyScreen previous (renderError problem)
       Right ListResult{resultListName, resultListEntries, resultListCategories, resultListHeader} ->
-        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing resultListHeader False)
+        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing resultListHeader agendaChunkDays)
       Right other -> pure . Just $ ReadOnlyScreen previous (renderCommandResult other)
 
   listInput previous view input = case input of
@@ -266,23 +268,21 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     Printable key []
       | Just name <- lookup key listViewKeys
       , name /= listViewName view ->
-          runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view)))) >>= \case
+          runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view))) (Just agendaChunkDays)) >>= \case
             Left problem -> changed view{listViewMessage = Just (appErrorMessage problem)}
-            Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader}
+            Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewDays = agendaChunkDays}
             Right _ -> pure (Just screen)
-    -- The agenda's days and the other views' categories toggle independently.
-    Printable 'd' [] | listViewName view == "agenda" -> preserve view{listViewFlatDays = not (listViewFlatDays view)}
-    Printable 'c' [] | listViewName view /= "agenda" -> preserve view{listViewGrouped = not (listViewGrouped view)}
+    Printable 'c' [] -> preserve view{listViewGrouped = not (listViewGrouped view)}
     Printable '/' [] -> pure . Just $ PaletteScreen (screenEnvelope previous) "/" 0 (ReturnToScreen screen)
-    Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts of the coming days, overdue first. [c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list."}
+    Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts, overdue first, and loads further days as you scroll. [c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list."}
     ArrowLeft _ | not (listViewSearching view) -> pure (Just previous)
     Backspace _ -> pure (Just previous)
     ArrowUp _ -> select (selected - 1)
-    ArrowDown _ -> select (selected + 1)
+    ArrowDown _ -> forward (selected + 1)
     PageUp _ -> select (selected - max 1 ((height - 10) `div` 3))
-    PageDown _ -> select (selected + max 1 ((height - 10) `div` 3))
+    PageDown _ -> forward (selected + max 1 ((height - 10) `div` 3))
     Home _ -> select 0
-    End _ -> select lastIndex
+    End _ -> forward lastIndex
     Enter _ -> case safeIndex selected visible of
       Nothing -> pure (Just screen)
       Just hit ->
@@ -297,6 +297,17 @@ loopWithNotice environmentRef vty color width height requestedOffset notice scre
     lastIndex = max 0 (length visible - 1)
     changed next = pure . Just $ ListScreen previous next
     select index = changed view{listViewSelected = max 0 (min lastIndex index), listViewMessage = Nothing}
+    -- UX-288: reaching the end of the agenda loads its next chunk of days.
+    forward index
+      | listViewName view == "agenda" && index >= lastIndex - 2 =
+          let days = listViewDays view + agendaChunkDays
+           in runCurrent (ListCommand (Just (Text.unwords ("agenda" : listViewScope view))) (Just days)) >>= \case
+                Right ListResult{resultListEntries, resultListCategories, resultListHeader} ->
+                  let next = view{listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewDays = days}
+                      count = length (listViewHits next)
+                   in changed next{listViewSelected = max 0 (min (count - 1) index), listViewMessage = Nothing}
+                _ -> select index
+      | otherwise = select index
     search text = changed view{listViewQuery = text, listViewSelected = 0, listViewMessage = Nothing}
     preserve next =
       let currentHandle = searchHitHandle <$> safeIndex selected visible
@@ -1025,10 +1036,7 @@ listHit row = SearchHit kind (listEntryHandle row) (listEntryTitle row) (listEnt
 
 listViewRows :: ListView -> [(Text, Text, SearchHit)]
 listViewRows view
-  | listViewName view == "agenda" =
-      if listViewFlatDays view
-        then [("", "", hit) | hit <- filteredHits query entries]
-        else Tree.treeRows (Tree.filterForest matches (fmap categoryTree (listViewCategories view)))
+  | listViewName view == "agenda" = [(prefix, continuation, hit) | (prefix, continuation, (hit, _)) <- Tree.treeRows (agendaForest view)]
   | listViewGrouped view = Tree.treeRows (Tree.filterForest matches (fmap categoryTree (listViewCategories view)))
   | listViewName view == "importance" = importanceTreeRows query entries
   | otherwise = [("", "", hit) | hit <- filteredHits query entries]
@@ -1038,6 +1046,34 @@ listViewRows view
   matches = not . null . filteredHits query . pure
   categoryTree (ListCategory label children) = Tree.Node (SearchHit "category" "" label "") (categoryTree <$> children)
   categoryTree (ListItem row _ children) = Tree.Node (listHit row) (categoryTree <$> children)
+
+{- | UX-288: the agenda by category when toggled; otherwise by day, where a day
+with one fact stays flat because the row already names its date. Each node
+keeps its ISO date so the calendar can follow the selection.
+-}
+agendaForest :: ListView -> [Tree.Tree (SearchHit, Text)]
+agendaForest view = Tree.filterForest (matches . fst) forest
+ where
+  matches = not . null . filteredHits (listViewQuery view) . pure
+  forest
+    | listViewGrouped view = fmap node (listViewCategories view)
+    | otherwise = concatMap day (groupOn rowDay (listViewEntries view))
+  node (ListCategory label children) = Tree.Node (SearchHit "category" "" label "", "") (node <$> children)
+  node (ListItem row _ children) = Tree.Node (listHit row, rowDate row) (node <$> children)
+  day = \case
+    [row] | rowDay row /= "Overdue" -> [leaf row]
+    rows@(first : _) -> [Tree.Node (SearchHit "category" "" (rowDay first) "", "") (leaf <$> rows)]
+    [] -> []
+  leaf row = Tree.Node (listHit row, rowDate row) []
+  rowDay = \case AgendaListRow{listEntryDay} -> listEntryDay; _ -> ""
+  rowDate = \case AgendaListRow{listEntryDate} -> listEntryDate; _ -> ""
+  groupOn key = foldr (\row groups -> case groups of (member : rest) : others | key member == key row -> (row : member : rest) : others; _ -> [row] : groups) []
+
+-- | The ISO date of the selected agenda row, if any.
+agendaSelectedDate :: ListView -> Maybe Text
+agendaSelectedDate view = case drop (listViewSelected view) [date | (_, _, (hit, date)) <- Tree.treeRows (agendaForest view), searchHitKind hit /= "category"] of
+  date : _ | not (Text.null date) -> Just date
+  _ -> Nothing
 
 listViewHits :: ListView -> [SearchHit]
 listViewHits view = [hit | (_, _, hit) <- listViewRows view, searchHitKind hit /= "category"]
@@ -1053,10 +1089,10 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
   rows = listViewRows view
   indices = scanl (\index (_, _, hit) -> index + if searchHitKind hit == "category" then 0 else 1) 0 rows
   content =
-    styledLines Heading (heading <> if listViewGrouped view && not agenda then " · Categories + parts" else "")
+    styledLines Heading (heading <> if listViewGrouped view then " · Categories + parts" else "")
       <> concat [styledLines Dim ("Scope: " <> Text.unwords (listViewScope view)) | not (null (listViewScope view))]
       <> concat [styledLines Dim "Chances apply when next draws flexible work." | listViewName view == "forecast"]
-      <> (if agenda then agendaHeaderLines (listViewHeader view) else styledLines Dim "Positions are local to each sibling group.")
+      <> (if agenda then agendaHeaderLines (agendaSelectedDate view) (listViewHeader view) else styledLines Dim "Positions are local to each sibling group.")
       <> [[Span Accent "Search: ", Span Normal (listViewQuery view <> if listViewSearching view then "▏" else "")] | listViewSearching view || not (Text.null (listViewQuery view))]
       <> [[]]
       <> (if null rows then [[Span Dim "No matches."]] else concat (zipWith (renderBrowserHit width True (listViewSelected view)) indices rows))
@@ -1075,9 +1111,8 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
       [ [Span Dim " · " | index > 0] <> [Span (if name == listViewName view then Selected else Dim) label]
       | (index, (label, name)) <- zip [0 :: Int ..] [("[i]mportance", "importance"), ("[f]orecast", "forecast"), ("[a]genda", "agenda")]
       ]
-  treeHint
-    | agenda = "[d]ays " <> if listViewFlatDays view then "on" else "off"
-    | otherwise = "[c]ategories " <> if listViewGrouped view then "off" else "on"
+  -- The toggle names its current state, not the action of pressing it.
+  treeHint = "[c]ategories: " <> if listViewGrouped view then "on" else "off"
   escapeHint = if Text.null (listViewQuery view) then "Esc back" else "Esc clear search"
   footer = footerFrom width envelope
   pinned = take 1 footer <> [controlLine | not (listViewSearching view)] <> concatMap (fmap (pure . Span Dim) . wrapWords width) hints <> drop 1 footer
@@ -1087,33 +1122,41 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
 listViewKeys :: [(Char, Text)]
 listViewKeys = [('i', "importance"), ('f', "forecast"), ('a', "agenda")]
 
-{- | The agenda header with today's cell highlighted in the first month grid,
-which is always the current month because the window starts today.
+{- | The agenda header: today, the month grid of the selected row (the
+current month when nothing later is selected), and the legend. Today's cell
+is highlighted only in the current month's grid, which comes first because
+the window starts today.
 -}
-agendaHeaderLines :: [Text] -> [[Span]]
-agendaHeaderLines header = zipWith line [0 :: Int ..] header
+agendaHeaderLines :: Maybe Text -> [Text] -> [[Span]]
+agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> concatMap gridLines chosen <> legendLines
  where
+  intro = takeWhile (\text -> text /= agendaWeekdays && text /= agendaLegend) (take 2 header)
   today = case header of
     first : _ | Just date <- Text.stripPrefix "Today: " first -> lastMaybe (Text.words date)
     _ -> Nothing
-  gridStart = elemIndex agendaWeekdays header
-  gridEnd = case gridStart of
-    Just start -> start + 1 + length (takeWhile (not . Text.null) (drop (start + 1) header))
-    Nothing -> 0
+  blocks = splitBlank (drop 2 header)
+  grids = [block | block@(_ : weekdays : _) <- blocks, weekdays == agendaWeekdays]
+  selectedMonth = do
+    date <- selectedDate
+    day <- parseTimeM False defaultTimeLocale "%Y-%m-%d" (Text.unpack date) :: Maybe Day
+    pure (Text.pack (formatTime defaultTimeLocale "%B %Y" day))
+  matching = [(index, grid) | (index, grid@(title : _)) <- zip [0 :: Int ..] grids, Just (Text.strip title) == selectedMonth]
+  chosen = take 1 (matching <> zip [0 ..] grids)
+  gridLines (index, title : weekdays : weeks) =
+    [Span Normal title] : [Span Normal weekdays] : fmap (concatMap (cell (if index == 0 then today else Nothing)) . chunks) weeks <> [[]]
+  gridLines (_, other) = fmap (pure . Span Normal) other
+  legendLines =
+    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Today (fromMaybe "dd" today), Span Dim " today"]
+    | agendaLegend `elem` header
+    ]
+  splitBlank values = case break Text.null values of
+    (block, []) -> [block | not (null block)]
+    (block, _ : rest) -> [block | not (null block)] <> splitBlank rest
   -- Grid cells are a two-column day, one mark (! deadline, • best before),
   -- and a separating space.
-  line index text
-    | text == agendaLegend =
-        [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Selected (fromMaybe "dd" today), Span Dim " today"]
-    | isGrid index = concatMap (cell (if inFirstGrid index then today else Nothing)) (chunks text)
-    | otherwise = [Span Normal text]
-  isGrid index = any (\start -> index > start && index < gridStop start) starts && not (Text.null (header !! index))
-  inFirstGrid index = maybe False (\start -> index > start && index < gridEnd) gridStart
-  starts = [index | (index, text) <- zip [0 ..] header, text == agendaWeekdays]
-  gridStop start = start + 1 + length (takeWhile (not . Text.null) (drop (start + 1) header))
   cell day text =
     let number = Text.take 2 text
-        numberRole = if Just (Text.strip number) == day then Selected else Normal
+        numberRole = if Just (Text.strip number) == day then Today else Normal
         mark = case Text.take 1 (Text.drop 2 text) of
           "!" -> [Span Urgent "!"]
           "\8226" -> [Span Caution "\8226"]

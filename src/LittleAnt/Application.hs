@@ -3,6 +3,7 @@ module LittleAnt.Application (
   AppEnv (..),
   ProviderConnectionRuntime (..),
   ViewDepth (..),
+  agendaChunkDays,
   agendaLegend,
   agendaWeekdays,
   natureBranch,
@@ -102,7 +103,7 @@ data AppCommand
   | DoneCommand (Maybe Text)
   | ReturnToIdleCommand (Maybe Text)
   | FinishCommand Text
-  | ListCommand (Maybe Text)
+  | ListCommand (Maybe Text) (Maybe Integer)
   | SearchCommand Text
   | HelpCommand (Maybe Text)
   | FeedCommand Text Text
@@ -393,10 +394,10 @@ runAppCommand environment dryRun progress (WhyCommand view) =
   loadDataset (appStore environment) progress >>= \case
     Left problem -> pure (Left problem)
     Right dataset -> runWhy environment dryRun dataset view
-runAppCommand environment dryRun progress (ListCommand name) =
+runAppCommand environment dryRun progress (ListCommand name days) =
   loadDataset (appStore environment) progress >>= \case
     Left problem -> pure (Left problem)
-    Right dataset -> runList environment dryRun dataset name
+    Right dataset -> runList environment dryRun dataset name days
 runAppCommand environment dryRun _ PendingInteractionCommand =
   loadPendingCheckpoint environment >>= \case
     Left problem -> pure (Left problem)
@@ -425,7 +426,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   DoneCommand reference -> runDone environment dryRun dataset reference
   ReturnToIdleCommand reference -> runReturnToIdle environment dryRun dataset reference
   FinishCommand reference -> runFinish environment dryRun dataset reference
-  ListCommand list -> runList environment dryRun dataset list
+  ListCommand list days -> runList environment dryRun dataset list days
   SearchCommand query -> runSearch environment dryRun dataset query
   HelpCommand topic -> runHelp environment dryRun dataset topic
   FocusBlockerCommand reference -> runFocusBlocker environment dryRun dataset reference
@@ -2784,8 +2785,8 @@ resolveExportScope state (Just supplied)
  where
   reference = Text.strip supplied
 
-runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
-runList environment dryRun dataset maybeList = do
+runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> Maybe Integer -> IO (Either AppError CommandResult)
+runList environment dryRun dataset maybeList maybeDays = do
   zone <- zonedTimeZone <$> appZonedNow environment
   let arguments = maybe [] Text.words maybeList
       listName = case arguments of name : _ -> Just (Text.toLower name); _ -> Nothing
@@ -2813,10 +2814,11 @@ runList environment dryRun dataset maybeList = do
         Just "agenda" -> do
           now <- appZonedNow environment
           zones <- recurrenceZones (loadedState dataset)
-          let (header, rows) = agendaView (loadedState dataset) zones now
+          let days = max 1 (fromMaybe agendaChunkDays maybeDays)
+              (header, rows) = agendaView (loadedState dataset) zones now days
           pure $ do
             scoped <- scopeListRows (loadedState dataset) scope rows
-            pure (ListResult (loadedCursor dataset) "agenda" scoped header (agendaDayGroups scoped) dryRun)
+            pure (ListResult (loadedCursor dataset) "agenda" scoped header (agendaCategoryTree (loadedState dataset) scoped) dryRun)
         Just unsupported ->
           pure . Left $
             (appError InvalidInput "Unknown list name.")
@@ -2827,9 +2829,11 @@ runList environment dryRun dataset maybeList = do
                   ]
               }
 
--- | @agenda.window_days@, 14 in the factory profile (UX-288).
-agendaWindowDays :: Integer
-agendaWindowDays = 14
+{- | UX-288: the days the agenda projects at a time. The REPL loads the next
+chunk as the selection reaches the end, so the agenda has no fixed horizon.
+-}
+agendaChunkDays :: Integer
+agendaChunkDays = 35
 
 -- | The loadable zones of recorded recurrence schedules, for projection.
 recurrenceZones :: State -> IO (Map.Map Text TZ)
@@ -2848,14 +2852,14 @@ data AgendaFact = AgendaFact
 first. Projected occurrences come from recorded schedules; nothing is
 released, drawn, or changed.
 -}
-agendaView :: State -> Map.Map Text TZ -> ZonedTime -> ([Text], [ListRow])
-agendaView state zones now = (Text.pack ("Today: " <> formatTime defaultTimeLocale "%a, %b %-d" today) : "" : calendar, overdueRows <> datedRows)
+agendaView :: State -> Map.Map Text TZ -> ZonedTime -> Integer -> ([Text], [ListRow])
+agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defaultTimeLocale "%a, %b %-d" today) : "" : calendar, overdueRows <> datedRows)
  where
   utcNow = zonedTimeToUTC now
   zone = zonedTimeZone now
   today = localDay (zonedTimeToLocalTime now)
-  lastDay = addDays (agendaWindowDays - 1) today
-  windowEnd = localTimeToUTC zone (LocalTime (addDays agendaWindowDays today) midnight)
+  lastDay = addDays (windowDays - 1) today
+  windowEnd = localTimeToUTC zone (LocalTime (addDays windowDays today) midnight)
   inWindow instant = instant >= utcNow && instant < windowEnd
   localDayOf = localDay . utcToLocalTime zone
   dayLabel = Text.pack . formatTime defaultTimeLocale "%a, %b %-d"
@@ -2921,6 +2925,7 @@ agendaView state zones now = (Text.pack ("Today: " <> formatTime defaultTimeLoca
       (brickTitle (agendaBrick fact))
       (Text.intercalate " · " ([dayLabel (localDayOf (agendaAt fact)), clock (agendaAt fact), agendaKind fact] <> agendaNotes fact))
       label
+      (Text.pack (showGregorian (localDayOf (agendaAt fact))))
       (Just (clock (agendaAt fact)))
       (agendaKind fact)
   overdueRows = fmap (row "Overdue") overdue
@@ -2958,16 +2963,42 @@ agendaLegend = "! deadline · \8226 best before"
 agendaWeekdays :: Text
 agendaWeekdays = "Su  Mo  Tu  We  Th  Fr  Sa"
 
--- | Agenda rows grouped by their day label, in row order.
-agendaDayGroups :: [ListRow] -> [ListTree]
-agendaDayGroups rows =
-  [ ListCategory label [ListItem row False [] | row <- rows, rowDay row == label]
-  | label <- nub (fmap rowDay rows)
-  ]
+{- | UX-288: the agenda grouped by category, then by day, with a dated part
+nested under its dated parent of the same day. A Brick without direct Domains
+shows under the nearest classified ancestor, as composition context.
+-}
+agendaCategoryTree :: State -> [ListRow] -> [ListTree]
+agendaCategoryTree state rows = domainForest Nothing <> [ListCategory "Without a category" (byDay unclassified) | not (null unclassified)]
  where
+  indexed = zip [0 :: Int ..] rows
+  brickOf row = Text.stripPrefix "#" (listEntryHandle row) >>= (`Map.lookup` stateBrickHandles state) . Handle >>= (`Map.lookup` stateBricks state)
+  ancestors brick = case brickParent brick >>= (`Map.lookup` stateBricks state) of
+    Nothing -> []
+    Just parent -> parent : ancestors parent
+  categories row = case brickOf row of
+    Nothing -> Set.empty
+    Just brick -> fromMaybe Set.empty (find (not . Set.null) (brickDomains <$> brick : ancestors brick))
+  unclassified = [entry | entry@(_, row) <- indexed, Set.null (categories row)]
+  domainForest parent =
+    [ ListCategory (domainName domain) nested
+    | domain <- sortOn domainName [value | value <- Map.elems (stateDomains state), domainParent value == parent]
+    , let members = [entry | entry@(_, row) <- indexed, domainId domain `Set.member` categories row]
+          nested = domainForest (Just (domainId domain)) <> byDay members
+    , not (null nested)
+    ]
   rowDay = \case
     AgendaListRow{listEntryDay} -> listEntryDay
     _ -> ""
+  byDay members =
+    [ ListCategory label (nestParts [entry | entry@(_, row) <- members, rowDay row == label])
+    | label <- nub (rowDay . snd <$> members)
+    ]
+  -- Each row hangs under the first row of its nearest ancestor in the group.
+  nestParts group = [render entry | entry <- group, isNothing (owner entry)]
+   where
+    firstRow = Map.fromListWith min [(brickId brick, index) | (index, row) <- group, Just brick <- [brickOf row]]
+    owner (_, row) = brickOf row >>= \brick -> find (`Map.member` firstRow) (brickId <$> ancestors brick) >>= (`Map.lookup` firstRow)
+    render entry@(index, row) = ListItem row False [render part | part <- group, owner part == Just index, fst part /= fst entry]
 
 scopeListRows :: State -> Maybe Text -> [ListRow] -> Either AppError [ListRow]
 scopeListRows _ Nothing rows = Right rows

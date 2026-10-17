@@ -56,7 +56,7 @@ data CliCommand
   | DoneCli (Maybe Text)
   | ReturnToIdleCli (Maybe Text)
   | FinishCli Text
-  | ListCli (Maybe Text)
+  | ListCli (Maybe Text) (Maybe Integer)
   | SearchCli [Text]
   | HelpCli (Maybe Text)
   | FocusCli [Text]
@@ -155,7 +155,7 @@ run environment options = case optionCommand options of
   ReturnToIdleCli (Just target) -> requiredBrickCommand environment options "return-to-idle" (ReturnToIdleCommand . Just) [target]
   ReturnToIdleCli Nothing -> execute environment options (ReturnToIdleCommand Nothing)
   FinishCli target -> execute environment options (FinishCommand target)
-  ListCli maybeList -> execute environment options (ListCommand maybeList)
+  ListCli maybeList days -> execute environment options (ListCommand maybeList days)
   SearchCli query -> execute environment options (SearchCommand (Text.unwords query))
   HelpCli maybeTopic -> execute environment options (HelpCommand maybeTopic)
   FocusCli referenceWords -> requiredBrickCommand environment options "focus" FocusCommand referenceWords
@@ -834,8 +834,10 @@ commandParser =
         <> command
           "list"
           ( info
-              (ListCli . fmap Text.unwords <$> optional (some (Text.pack <$> strArgument (metavar "LIST [SCOPE]"))))
-              (progDesc "List structured data (importance | forecast)")
+              ( (ListCli . fmap Text.unwords <$> optional (some (Text.pack <$> strArgument (metavar "LIST [SCOPE]"))))
+                  <*> optional (option auto (long "days" <> metavar "N" <> help "Days the agenda projects from today (default 35)"))
+              )
+              (progDesc "List structured data (importance | forecast | agenda)")
           )
         <> command
           "search"

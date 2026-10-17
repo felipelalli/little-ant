@@ -35,6 +35,8 @@ data SemanticRole
     Urgent
   | -- | A softer date mark, such as an agenda best-before day.
     Caution
+  | -- | Today's calendar cell; it looks selected without being the selection.
+    Today
   deriving stock (Eq, Ord, Show)
 
 data Span = Span

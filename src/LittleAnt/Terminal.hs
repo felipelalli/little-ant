@@ -102,6 +102,7 @@ roleAttribute mode role =
         ColorEnabled -> (defAttr `withForeColor` cyan) `withStyle` bold
         Monochrome -> defAttr `withStyle` bold
     Selected -> defAttr `withStyle` reverseVideo
+    Today -> defAttr `withStyle` reverseVideo
     Warning -> defAttr `withStyle` bold
     Heading -> roleAttribute mode Accent
     Strong -> defAttr `withStyle` bold

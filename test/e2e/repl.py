@@ -210,7 +210,7 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("Ctrl+F search")
         self.repl.send("a")
         self.repl.wait("Agenda")
-        self.repl.wait("[d]ays off")
+        self.repl.wait("[c]ategories: on")
         self.repl.send("i")
         self.repl.wait("Importance order")
         self.repl.wait("Search: fc")

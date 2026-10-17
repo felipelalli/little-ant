@@ -9,6 +9,14 @@ replace the specification.
 
 ## Unreleased
 
+- Give the agenda no fixed horizon: it projects 35 days at a time, the REPL
+  loads the next days as the selection reaches the end, and `lant list agenda
+  --days N` sets the CLI window. A day with one fact stays a flat row; only
+  days with several facts and `Overdue` form groups, so `[d]ays` is gone.
+  `[c]ategories` now works in the agenda, grouping by Domain, then by day,
+  with dated parts under their dated parent. The REPL calendar shows the
+  selected row's month, today's highlight no longer pulls the viewport back
+  to the calendar, and the categories toggle names its current state.
 - Assign Domains to Work at the root: the final triage preview offers
   `[d]omains` over the parent's and every other active Domain and returns to
   the same preview, and `/update` gains `Domains` to change an existing

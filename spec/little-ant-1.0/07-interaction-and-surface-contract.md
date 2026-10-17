@@ -221,7 +221,8 @@ assistance-label, and no-emoji rendering.
   `forecast`, or `agenda`. Pinned `[i]mportance`, `[f]orecast`, and
   `[a]genda` (UX-288) switch directly to each view, the current one highlighted, and
   `[c]ategories` toggles a combined
-  category/project/part tree. Positions remain sibling-local; forecast chances
+  category/project/part tree in every view, its label naming the current
+  state (`[c]ategories: on` or `off`). Positions remain sibling-local; forecast chances
   are unchanged by grouping. Multiple category references denote the same
   Brick, never extra probability mass. Parts do not inherit direct category
   membership, and context-only forecast ancestors have no invented chance.
@@ -232,8 +233,11 @@ assistance-label, and no-emoji rendering.
   cursor-stable, scoped, read-only, and consumes no draw. `/forecast`,
   `/importance`, and `/agenda` are not aliases.
 - **UX-288 [standard] — The agenda is a dated, read-only outlook.** `list
-  agenda` shows dated facts of active Work over `agenda.window_days` local
-  days of the operational zone, starting today, like an org-mode agenda. An
+  agenda` shows dated facts of active Work from today in the operational zone,
+  like an org-mode agenda, with no fixed horizon: it projects
+  `agenda.chunk_days` local days at a time, and the REPL projects the next
+  chunk when the selection reaches the end, keeping the selection; the CLI
+  takes `--days N`. An
   `Overdue` group comes first: open Work whose deadline, or else
   `best_before`, already passed, oldest first. Then one group per day with at
   least one fact, in time order: `opens` for a future `not_before`, `best
@@ -242,12 +246,18 @@ assistance-label, and no-emoji rendering.
   that are not yet released appear as `projected` rows on their projected
   dates, cited by the series handle; projection uses the recorded schedule
   and releases nothing. An escalated occurrence (FOC-071) says `escalated`.
-  A compact month calendar heads the view for each month the window touches,
-  marking days with a deadline `!` and other days with a `best_before` `•`,
-  highlighting today, and ending with a legend of those marks.
-  In the REPL, day labels are non-selectable groups, `[d]ays` flattens them, and
-  rows inspect like other list rows. The agenda never ticks, draws, or
-  changes importance; JSON exposes each row's day, time, and kind.
+  A compact month calendar heads the view, marking days with a deadline `!`
+  and other days with a `best_before` `•`, highlighting today, and ending
+  with a legend of those marks; the REPL shows the month of the selected row,
+  and the CLI every month the window touches.
+  A day with several facts is a non-selectable group; a day with one fact
+  stays a flat row, whose details already name the date, while `Overdue` is
+  always a group. `[c]ategories` groups the rows by Domain, then by day, and
+  nests a dated part under its dated parent of the same day; Work without
+  direct Domains appears under its nearest classified ancestor as composition
+  context, or else `Without a category`. Rows inspect like other list rows.
+  The agenda never ticks, draws, or changes importance; JSON exposes each
+  row's day, ISO date, time, and kind.
 - **UX-281 [standard] — Administration stays out of the lazy-human path.**
   Explicit `lant tick`, grammar inspection, diagnostics, and repair are
   CLI-only. Every ordinary command still performs the canonical tick, so the

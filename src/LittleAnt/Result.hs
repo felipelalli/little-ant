@@ -94,6 +94,7 @@ data ListRow
       , listEntryTitle :: Text
       , listEntryDetails :: Text
       , listEntryDay :: Text
+      , listEntryDate :: Text
       , listEntryTime :: Maybe Text
       , listEntryKind :: Text
       }
@@ -308,7 +309,7 @@ instance ToJSON ListRow where
       ]
         <> case entry of
           ForecastListRow _ _ _ (value, total) opportunities -> ["chance_numerator" .= value, "chance_denominator" .= total, "opportunities" .= opportunities]
-          AgendaListRow _ _ _ day time kind -> ["day" .= day, "time" .= time, "kind" .= kind]
+          AgendaListRow _ _ _ day date time kind -> ["day" .= day, "date" .= date, "time" .= time, "kind" .= kind]
           ListRow{} -> []
 
 instance ToJSON DiagnosticCheck where
