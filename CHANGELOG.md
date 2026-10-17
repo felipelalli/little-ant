@@ -9,6 +9,10 @@ replace the specification.
 
 ## Unreleased
 
+- Switch list views directly with `[i]mportance`, `[f]orecast`, and
+  `[a]genda` instead of cycling with `v`. The agenda calendar now gives each
+  day four columns so a mark sits beside its own day, highlights today, colors
+  deadline `!` red and best-before `•` yellow, and ends with a legend.
 - Add `list agenda`, a dated read-only outlook of the next 14 days like an
   org-mode agenda: an Overdue group, then one group per day with `opens`,
   `best before`, `deadline`, and `starts` facts, projected rows for

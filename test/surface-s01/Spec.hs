@@ -2,6 +2,7 @@ module Main (main) where
 
 import Data.Text qualified as Text
 import Data.Time
+import LittleAnt.Application (agendaLegend, agendaWeekdays)
 import LittleAnt.Decision (statePreconditionHash)
 import LittleAnt.Id
 import LittleAnt.Interaction
@@ -126,7 +127,15 @@ tests =
         handles (brickCommandTargets envelope "restore" hits) @?= (["#ccc"], 0)
         handles (brickCommandTargets envelope "update" hits) @?= (["#aaa", "#bbb", "#ccc", "#ctailip", "#ddd"], 3)
         handles (brickCommandTargets pristine "archive" hits) @?= (["#bbb", "#ctailip", "#ddd"], 0)
-    , testCase "forecast browsing explains chance and sibling-local position" $ do
+    , testCase "the agenda calendar highlights only today's cell in the current month" $ do
+        let header = ["Today: Sat, Oct 17", "", "        October 2026", agendaWeekdays, "11  12  13  14  15  16  17", "18  19  20  21• 22  23! 24", "", "        November 2026", agendaWeekdays, "15  16  17  18  19  20  21"]
+            styled = agendaHeaderLines header
+        [text | spans <- styled, Span Selected text <- spans] @?= ["17"]
+        [text | spans <- styled, Span Urgent text <- spans] @?= ["!"]
+        [text | spans <- styled, Span Caution text <- spans] @?= ["•"]
+        fmap (Text.concat . fmap spanText) styled @?= header
+        [text | Span Selected text <- concat (agendaHeaderLines (header <> ["", agendaLegend]))] @?= ["17", "17"]
+
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
             plain = renderPlain (browserModel 80 envelope "Focus forecast" [] "" 0 Nothing)
@@ -148,7 +157,7 @@ tests =
           ( \width -> do
               let model = viewportModel width 24 0 (listModel width envelope view{listViewGrouped = False, listViewQuery = "", listViewSearching = False, listViewSelected = 35})
                   plain = renderPlain model
-              mapM_ (\fragment -> assertBool ("pinned list control missing: " <> Text.unpack fragment) (fragment `Text.isInfixOf` plain)) ["#b35", "[v]", "[t]", "Ctrl+F", "mode:"]
+              mapM_ (\fragment -> assertBool ("pinned list control missing: " <> Text.unpack fragment) (fragment `Text.isInfixOf` plain)) ["#b35", "[a]genda", "[t]", "Ctrl+F", "mode:"]
               assertBool "viewport is taller than the terminal" (length (screenLines model) <= 24)
               assertBool "list overflowed its width" (all ((<= width) . textDisplayWidth . plainLine) (screenLines model))
           )

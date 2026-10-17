@@ -31,6 +31,10 @@ data SemanticRole
   | Emphasis
   | Code
   | Link
+  | -- | A due date that matters now, such as an agenda deadline mark.
+    Urgent
+  | -- | A softer date mark, such as an agenda best-before day.
+    Caution
   deriving stock (Eq, Ord, Show)
 
 data Span = Span

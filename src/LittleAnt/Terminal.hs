@@ -30,6 +30,7 @@ import Graphics.Vty (
   horizCat,
   italic,
   picForImage,
+  red,
   reverseVideo,
   shutdown,
   string,
@@ -38,6 +39,7 @@ import Graphics.Vty (
   vertCat,
   withForeColor,
   withStyle,
+  yellow,
  )
 import Graphics.Vty.Config (defaultConfig)
 import Graphics.Vty.CrossPlatform qualified as CrossPlatform
@@ -110,6 +112,12 @@ roleAttribute mode role =
     Link -> case mode of
       ColorEnabled -> (defAttr `withForeColor` cyan) `withStyle` underline
       Monochrome -> defAttr `withStyle` underline
+    Urgent -> case mode of
+      ColorEnabled -> (defAttr `withForeColor` red) `withStyle` bold
+      Monochrome -> defAttr `withStyle` bold
+    Caution -> case mode of
+      ColorEnabled -> (defAttr `withForeColor` yellow) `withStyle` bold
+      Monochrome -> defAttr `withStyle` bold
 
 spanImage :: ColorMode -> Span -> Image
 spanImage mode (Span role text)

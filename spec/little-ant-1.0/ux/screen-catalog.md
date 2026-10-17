@@ -7620,7 +7620,8 @@ mode never changes glyphs.
 ## UX-LIST00 — Importance and Focus views
 
 `/list` opens importance order immediately. The default presentation shows
-composition with `├──`, `│`, and `└──`; `v` switches to the current forecast.
+composition with `├──`, `│`, and `└──`; `f` switches to the current forecast
+and `a` to the agenda, and `i` returns to importance.
 `t` turns on the combined category and composition tree:
 
 ```text
@@ -7635,7 +7636,7 @@ Positions are local to each sibling group.
               └── #diagram Draw diagram
 
 ────────────────────────────────────────────────────
-[v] forecast · [t] categories off · Ctrl+F search
+[i]mportance · [f]orecast · [a]genda · [t] categories off · Ctrl+F search
 ↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
@@ -7649,8 +7650,8 @@ branch does not thereby acquire the project's category. A Brick can appear
 under several direct categories; uncategorized roots form their own branch.
 Dependencies are a separate relationship and never substitute for composition.
 
-Ctrl-F opens a local search field. While it owns input, letters including `v`
-and `t` are query text. Ctrl-F again finishes typing and retains the query,
+Ctrl-F opens a local search field. While it owns input, letters including `i`,
+`f`, `a`, and `t` are query text. Ctrl-F again finishes typing and retains the query,
 allowing view/grouping controls to operate on those results. Matches preserve category/project ancestors; matching a
 branch retains its parts. Arrows select inspectable items, Enter opens read-only
 inspection, and Escape returns to exactly the prior results and selection.
@@ -7669,18 +7670,21 @@ native collapsible branches and browser find replace terminal key controls.
 
 ## UX-LIST01 — Agenda view
 
-`v` from forecast, or `lant list agenda`, opens the dated outlook of UX-288:
+`a` from any list view, or `lant list agenda`, opens the dated outlook of
+UX-288; today's date is highlighted in the calendar:
 
 ```text
 Agenda · Today: Sat, Oct 17
 
-     October 2026
-Su Mo Tu We Th Fr Sa
-             1  2  3
- 4  5  6  7  8  9 10
-11 12 13 14 15 16 17
-18 19 20 21•22 23!24
-25 26 27 28•29 30!31
+        October 2026
+Su  Mo  Tu  We  Th  Fr  Sa
+                 1   2   3
+ 4   5   6   7   8   9  10
+11  12  13  14  15  16  17
+18  19  20  21• 22  23! 24
+25  26  27  28• 29  30! 31
+
+! deadline · • best before · 17 today
 
   Overdue
   └── #pfr     Pay the fine                     deadline · Thu, Oct 15
@@ -7694,12 +7698,16 @@ Su Mo Tu We Th Fr Sa
   └── 00:00    #dosio   Do one shift in operations   opens · projected
 
 ────────────────────────────────────────────────────
-[v] importance · [t] days off · Ctrl+F search
+[i]mportance · [f]orecast · [a]genda · [t] days off · Ctrl+F search
 ↑/↓ select · Enter inspect · Esc back · [/] more
 ```
 
 The calendar is a fixed-width header and scrolls away with the rows; the
-controls stay pinned. Day labels and `Overdue` are not inspection targets.
+controls stay pinned. Each day takes four columns, its mark directly after its
+number, so a mark never touches the next day. A legend follows the grids. With
+color enabled, `!` is red, `•` is yellow, and today's number uses the selected
+style; monochrome keeps the characters and bold marks. The CLI prints the
+legend without `today`, since the `Today:` line names it. Day labels and `Overdue` are not inspection targets.
 `[t]` flattens the groups and keeps the day in each row's details. Search,
 inspection, and back follow UX-LIST00. The CLI prints the same calendar and
 groups as plain text.

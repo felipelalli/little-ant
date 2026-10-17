@@ -3,6 +3,8 @@ module LittleAnt.Application (
   AppEnv (..),
   ProviderConnectionRuntime (..),
   ViewDepth (..),
+  agendaLegend,
+  agendaWeekdays,
   natureBranch,
   productionAppEnv,
   productionMigrationEnv,
@@ -2930,7 +2932,7 @@ agendaView state zones now = (Text.pack ("Today: " <> formatTime defaultTimeLoca
       | fact <- dated
       , agendaKind fact `elem` ["deadline", "best before"]
       ]
-  calendar = intercalateBlank [monthGrid month | month <- nub [let (y, m, _) = toGregorian day in (y, m) | day <- [today .. lastDay]]]
+  calendar = intercalateBlank [monthGrid month | month <- nub [let { (y, m, _) = toGregorian day } in (y, m) | day <- [today .. lastDay]]] <> ["", agendaLegend]
   intercalateBlank = \case
     [] -> []
     first : rest -> first <> concatMap ("" :) rest
@@ -2938,14 +2940,23 @@ agendaView state zones now = (Text.pack ("Today: " <> formatTime defaultTimeLoca
     let first = fromGregorian year month 1
         size = gregorianMonthLength year month
         lead = fromEnum (dayOfWeek first) `mod` 7
-        cell day = Text.justifyRight 2 ' ' (Text.pack (show day)) <> Text.singleton (Map.findWithDefault ' ' (fromGregorian year month day) marks)
-        cells = replicate lead "   " <> fmap cell [1 .. size]
+        -- Four columns per day keep each mark beside its own day.
+        cell day = Text.justifyRight 2 ' ' (Text.pack (show day)) <> Text.singleton (Map.findWithDefault ' ' (fromGregorian year month day) marks) <> " "
+        cells = replicate lead "    " <> fmap cell [1 .. size]
         weeks = chunksOf 7 cells
         title = Text.pack (formatTime defaultTimeLocale "%B %Y" first)
-     in Text.stripEnd (Text.center 20 ' ' title) : "Su Mo Tu We Th Fr Sa" : fmap (Text.stripEnd . Text.concat) weeks
+     in Text.stripEnd (Text.center 27 ' ' title) : agendaWeekdays : fmap (Text.stripEnd . Text.concat) weeks
   chunksOf count values = case splitAt count values of
     (chunk, []) -> [chunk | not (null chunk)]
     (chunk, rest) -> chunk : chunksOf count rest
+
+-- | The key to the agenda calendar marks.
+agendaLegend :: Text
+agendaLegend = "! deadline · \8226 best before"
+
+-- | The weekday row of an agenda month grid, aligned to four-column cells.
+agendaWeekdays :: Text
+agendaWeekdays = "Su  Mo  Tu  We  Th  Fr  Sa"
 
 -- | Agenda rows grouped by their day label, in row order.
 agendaDayGroups :: [ListRow] -> [ListTree]

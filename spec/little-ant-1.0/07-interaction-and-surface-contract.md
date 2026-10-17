@@ -218,8 +218,8 @@ assistance-label, and no-emoji rendering.
   guesses a target from recency.
 - **UX-280 [core] — One list command exposes the three lists.** `/list` opens
   importance order directly in the REPL; CLI usage still names `importance`,
-  `forecast`, or `agenda`. Pinned `v` cycles importance, forecast, and agenda
-  (UX-288), and `t` toggles a combined
+  `forecast`, or `agenda`. Pinned `[i]mportance`, `[f]orecast`, and
+  `[a]genda` (UX-288) switch directly to each view, and `t` toggles a combined
   category/project/part tree. Positions remain sibling-local; forecast chances
   are unchanged by grouping. Multiple category references denote the same
   Brick, never extra probability mass. Parts do not inherit direct category
@@ -242,7 +242,8 @@ assistance-label, and no-emoji rendering.
   dates, cited by the series handle; projection uses the recorded schedule
   and releases nothing. An escalated occurrence (FOC-071) says `escalated`.
   A compact month calendar heads the view for each month the window touches,
-  marking days with a deadline `!` and other days with a `best_before` `•`.
+  marking days with a deadline `!` and other days with a `best_before` `•`,
+  highlighting today, and ending with a legend of those marks.
   In the REPL, day labels are non-selectable groups, `t` flattens them, and
   rows inspect like other list rows. The agenda never ticks, draws, or
   changes importance; JSON exposes each row's day, time, and kind.
