@@ -4454,10 +4454,21 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (NatureConfirmationOpportunity context nature _ _, "nature.confirm", _) -> withContextRaw context $ \raw -> local (makeTemplateChoiceEnvelope current now state raw context nature)
     (NatureConfirmationOpportunity context _ _ _, "nature.reject", _) -> withContextRaw context $ \raw -> local (makeNatureChoiceEnvelope current now state raw context)
     (NatureConfirmationOpportunity context _ _ _, "nature.restart", _) -> withContextRaw context $ \raw -> local (makeNatureDiscoveryEnvelope current now state raw context initialDiscovery)
-    (TemplateChoiceOpportunity context nature, "template.none", _) -> openTitle context nature Nothing
-    (TemplateChoiceOpportunity context _, "template.assistance", _) -> withContextRaw context $ \raw -> local (withExplanation current "A Template is an optional factory setup compatible with the selected Nature. Choosing none keeps only the Nature behavior." raw state now)
-    (TemplateChoiceOpportunity context nature, action, _)
+    (TemplateSettingOpportunity context nature, "template.setting.digital", _) -> withContextRaw context $ \raw -> local (makeTemplateListEnvelope current now state raw context nature (Just DigitalSetting))
+    (TemplateSettingOpportunity context nature, "template.setting.physical", _) -> withContextRaw context $ \raw -> local (makeTemplateListEnvelope current now state raw context nature (Just PhysicalSetting))
+    (TemplateSettingOpportunity context nature, "template.assistance", _) -> withContextRaw context $ \raw -> local (makeTemplateDiscoveryEnvelope current now state raw context nature Nothing 0)
+    (TemplateChoiceOpportunity context nature _, "template.none", _) -> openTitle context nature Nothing
+    (TemplateChoiceOpportunity context nature setting, "template.assistance", _) -> withContextRaw context $ \raw -> local (makeTemplateDiscoveryEnvelope current now state raw context nature setting 0)
+    (TemplateChoiceOpportunity context nature _, action, _)
       | Just identifier <- Text.stripPrefix "template.choose." action -> chooseTemplate context nature identifier
+    (TemplateDiscoveryOpportunity context nature setting index, action, _)
+      | Just answer <- lookup action [("template.answer.yes", True), ("template.answer.no", False), ("template.answer.unknown", False)] ->
+          withContextRaw context $ \raw -> local $ case templateDiscoveryAnswer nature setting index answer of
+            Left (nextSetting, nextIndex) -> makeTemplateDiscoveryEnvelope current now state raw context nature nextSetting nextIndex
+            Right (finalSetting, chosen) -> makeTemplateConfirmationEnvelope current now state raw context nature finalSetting chosen
+    (TemplateConfirmationOpportunity context nature _ chosen, "template.confirm", _) -> maybe (openTitle context nature Nothing) (chooseTemplate context nature) chosen
+    (TemplateConfirmationOpportunity context nature _ _, "template.reject", _) -> withContextRaw context $ \raw -> local (makeTemplateChoiceEnvelope current now state raw context nature)
+    (TemplateConfirmationOpportunity context nature _ _, "template.restart", _) -> withContextRaw context $ \raw -> local (makeTemplateDiscoveryEnvelope current now state raw context nature Nothing 0)
     (ListEntryPreviewOpportunity rawId ownerId label quantity, "list-entry.create", _) -> mutate 6 (decideMaterializeListEntry state actor rawId ownerId label quantity) makeListEntryResult
     (ListEntryPreviewOpportunity rawId _ _ _, "list-entry.cancel", _) -> withRaw rawId $ \raw -> local (makeRawDestinationEnvelope current now state raw 0)
     (ListEntryPreviewOpportunity{}, "list-entry.assistance", _) -> local (appendBody current "A ListEntry belongs only to this checklist. Its label is not a global object, and the source Raw remains preserved.")

@@ -298,10 +298,22 @@ actionLine :: Action -> ScreenLine
 actionLine action = [normal (if actionDefault action then "*" else " ")] <> label
  where
   shortcut = [dim "[", accent (actionShortcut action), dim "]"]
-  label = case Text.breakOn (actionShortcut action) (actionLabel action) of
+  label = case shortcutSplit (actionShortcut action) (actionLabel action) of
     (before, after)
       | actionShortcut action == "/" || Text.null after -> shortcut <> [normal (" " <> actionLabel action)]
       | otherwise -> [normal before] <> shortcut <> [normal (Text.drop (Text.length (actionShortcut action)) after)]
+
+{- | UX-013: the bracket goes on the letter that starts a word when one does
+("a digital [t]ask"), otherwise on its first occurrence ("D[o]mains").
+-}
+shortcutSplit :: Text -> Text -> (Text, Text)
+shortcutSplit key text = case Text.breakOn (" " <> key) text of
+  (before, after)
+    | not (Text.isPrefixOf key text)
+    , not (Text.null key)
+    , not (Text.null after) ->
+        (before <> " ", Text.drop 1 after)
+  _ -> Text.breakOn key text
 
 joinActions :: Int -> [Action] -> ScreenLine
 joinActions spacing = intercalateSpans [normal (Text.replicate spacing " ")] . fmap actionLine

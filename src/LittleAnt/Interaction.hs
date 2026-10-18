@@ -181,6 +181,10 @@ module LittleAnt.Interaction (
   makeWorkSprintDurationEnvelope,
   makeStandaloneResultEnvelope,
   makeTemplateChoiceEnvelope,
+  makeTemplateListEnvelope,
+  makeTemplateDiscoveryEnvelope,
+  makeTemplateConfirmationEnvelope,
+  templateDiscoveryAnswer,
   makeWorkCreatedResultEnvelope,
   makeImportanceInsertionEnvelope,
   makeListEntryPreviewEnvelope,
@@ -202,7 +206,7 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.Function ((&))
-import Data.List (sortOn)
+import Data.List (find, sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Maybe qualified
@@ -407,7 +411,10 @@ data Opportunity
   | NatureChoiceOpportunity WorkContext
   | NatureDiscoveryOpportunity WorkContext NatureDiscovery
   | NatureConfirmationOpportunity WorkContext BrickNature Text NatureQuestion
-  | TemplateChoiceOpportunity WorkContext BrickNature
+  | TemplateSettingOpportunity WorkContext BrickNature
+  | TemplateChoiceOpportunity WorkContext BrickNature (Maybe WorkSetting)
+  | TemplateDiscoveryOpportunity WorkContext BrickNature (Maybe WorkSetting) Int
+  | TemplateConfirmationOpportunity WorkContext BrickNature (Maybe WorkSetting) (Maybe Text)
   | WorkTitleOpportunity WorkContext BrickNature (Maybe TemplateSelection) Text
   | DomainSelectionOpportunity WorkDraft [UUIDv7] Bool
   | BrickDomainSelectionOpportunity UUIDv7 (Set.Set UUIDv7)
@@ -1817,8 +1824,115 @@ makeNatureConfirmationEnvelope previous now state raw context nature reason last
       (Just "confirm_nature")
       (rawFooter now state raw)
 
+{- | UX-K05: an atomic task first asks where it is done, because the generic
+digital or physical task is the usual answer; other Natures list their
+Templates directly. Either way the plain choice is the factory default.
+-}
 makeTemplateChoiceEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkContext -> BrickNature -> InteractionEnvelope
-makeTemplateChoiceEnvelope previous now state raw context nature =
+makeTemplateChoiceEnvelope previous now state raw context nature
+  | hasSettings nature =
+      templateEnvelope
+        previous
+        now
+        state
+        raw
+        (TemplateSettingOpportunity context nature)
+        (EnvelopeContent ("Nature: " <> natureLabel nature) Nothing [] (Just "Where is it done?"))
+        [ Action "template.setting.digital" "digital…     on the computer, phone, or remotely" "d" True "Choose among digital setups."
+        , Action "template.setting.physical" "physical…    in person, out and about, or by hand" "p" False "Choose among physical setups."
+        , Action "template.assistance" "I don't know" "k" False "Answer yes/no questions that find the setup."
+        ]
+        "choose_template_setting"
+  | otherwise = makeTemplateListEnvelope previous now state raw context nature Nothing
+
+makeTemplateListEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkContext -> BrickNature -> Maybe WorkSetting -> InteractionEnvelope
+makeTemplateListEnvelope previous now state raw context nature setting =
+  templateEnvelope
+    previous
+    now
+    state
+    raw
+    (TemplateChoiceOpportunity context nature setting)
+    (EnvelopeContent ("Nature: " <> natureLabel nature <> maybe "" ((" · " <>) . settingText) setting) Nothing [] (Just "Choose an optional setup:"))
+    (plain <> templateActions <> [Action "template.assistance" "I don't know" "k" False "Answer yes/no questions that find the setup."])
+    "choose_template"
+ where
+  definitions = maybe (compatibleTemplates nature) (settingTemplates nature) setting
+  -- Labels are padded so the examples line up in one column.
+  width = maximum (Text.length "no template" : fmap (Text.length . templateDisplayLabel) definitions)
+  column label note = Text.justifyLeft (width + 4) ' ' label <> note
+  plain = case setting of
+    Nothing -> [Action "template.none" (column "no template" "keep only the Nature behavior") "n" True "Continue without a Template."]
+    Just _ -> []
+  templateActions =
+    [ Action ("template.choose." <> templateDefinitionId definition) (column (templateDisplayLabel definition) ("e.g. \"" <> templateExample definition <> "\"")) shortcut (Data.Maybe.isJust setting && Data.Maybe.isNothing (templateQuestion definition)) "Apply this one-time creation recipe."
+    | (definition, shortcut) <- assignTemplateShortcuts definitions
+    ]
+
+-- | UX-016: one yes/no question per screen, each with concrete examples.
+makeTemplateDiscoveryEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkContext -> BrickNature -> Maybe WorkSetting -> Int -> InteractionEnvelope
+makeTemplateDiscoveryEnvelope previous now state raw context nature setting index =
+  templateEnvelope
+    previous
+    now
+    state
+    raw
+    (TemplateDiscoveryOpportunity context nature setting index)
+    (EnvelopeContent ("Nature: " <> natureLabel nature) Nothing examples (Just question))
+    [ Action "template.answer.yes" "yes" "y" False "Follow the yes branch."
+    , Action "template.answer.no" "no" "n" False "Follow the no branch."
+    , Action "template.answer.unknown" "I don't know" "k" False "Treat it as no and ask the next question."
+    ]
+    "template_discovery"
+ where
+  (question, examples) = case (setting, discoveryCandidate nature setting index) of
+    (Nothing, _)
+      | hasSettings nature ->
+          ( "Does it need you somewhere specific, or your hands on a physical thing?"
+          , ["Yes, for example: buy bread, pick up a package, fix a chair, visit a client.", "No, for example: write a report, answer e-mail, join a video call, pay a bill online."]
+          )
+    (_, Just definition) -> case templateQuestion definition of
+      Just asked -> (templateQuestionText asked, ["For example: " <> templateQuestionExamples asked <> "."])
+      Nothing -> ("Is it a " <> templateDisplayLabel definition <> "?", ["For example: \"" <> templateExample definition <> "\"."])
+    _ -> ("Does any setup fit?", [])
+
+{- | The next step after a yes/no answer: another question, or the Template
+(Nothing for none) that the confirmation proposes.
+-}
+templateDiscoveryAnswer :: BrickNature -> Maybe WorkSetting -> Int -> Bool -> Either (Maybe WorkSetting, Int) (Maybe WorkSetting, Maybe TemplateDefinition)
+templateDiscoveryAnswer nature setting index answer = case setting of
+  Nothing
+    | hasSettings nature -> Left (Just (if answer then PhysicalSetting else DigitalSetting), 0)
+  _
+    | answer, Just definition <- discoveryCandidate nature setting index -> Right (setting, Just definition)
+    | Just _ <- discoveryCandidate nature setting (index + 1) -> Left (setting, index + 1)
+    | otherwise -> Right (setting, settingGeneric nature =<< setting)
+
+makeTemplateConfirmationEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkContext -> BrickNature -> Maybe WorkSetting -> Maybe TemplateDefinition -> InteractionEnvelope
+makeTemplateConfirmationEnvelope previous now state raw context nature setting chosen =
+  templateEnvelope
+    previous
+    now
+    state
+    raw
+    (TemplateConfirmationOpportunity context nature setting (templateDefinitionId <$> chosen))
+    (EnvelopeContent ("Nature: " <> natureLabel nature) Nothing ["Setup: " <> maybe "no template" templateDisplayLabel chosen, "Because: " <> reason] (Just "Is this right?"))
+    [ Action "template.confirm" "yes" "y" True "Use this setup and continue to the title."
+    , Action "template.reject" "no" "n" False "Return to the setup list."
+    , Action "template.restart" "I don't know" "k" False "Start the questions again."
+    ]
+    "confirm_template"
+ where
+  reason = case chosen of
+    Nothing -> "no listed setup matched, so only the Nature behavior applies."
+    Just definition -> case (templateQuestion definition, templateSetting definition) of
+      (Just asked, _) -> templateQuestionReason asked <> "."
+      (Nothing, Just DigitalSetting) -> "it is done on the computer, phone, or remotely, and no more specific setup matched."
+      (Nothing, Just PhysicalSetting) -> "it needs you somewhere specific or your hands, and no more specific setup matched."
+      (Nothing, Nothing) -> "it is like " <> templateDisplayLabel definition <> ", e.g. \"" <> templateExample definition <> "\"."
+
+templateEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> Opportunity -> EnvelopeContent -> [Action] -> Text -> InteractionEnvelope
+templateEnvelope previous now state raw opportunity content actions purpose =
   advanceEnvelope previous $
     sealed
       (envelopeInteractionId previous)
@@ -1826,19 +1940,31 @@ makeTemplateChoiceEnvelope previous now state raw context nature =
       (envelopeDatasetCursor previous)
       (envelopePreconditionHash previous)
       ChoiceGrammar
-      (TemplateChoiceOpportunity context nature)
-      (EnvelopeContent ("Nature: " <> natureLabel nature) Nothing [] (Just "Choose an optional setup:"))
-      (templateActions <> [Action "template.none" "no template    keep only the Nature behavior" "n" False "Continue without a Template.", Action "template.assistance" "I don't know" "k" False "Inspect compatible setup differences."])
+      opportunity
+      content
+      actions
       (rawCommands raw)
-      (Just "choose_template")
+      (Just purpose)
       (rawFooter now state raw)
+
+hasSettings :: BrickNature -> Bool
+hasSettings nature = any (Data.Maybe.isJust . templateSetting) (compatibleTemplates nature)
+
+-- | The Templates the assistance tree asks about, in list order.
+discoveryCandidate :: BrickNature -> Maybe WorkSetting -> Int -> Maybe TemplateDefinition
+discoveryCandidate nature setting index = case drop index candidates of
+  definition : _ | index >= 0 -> Just definition
+  _ -> Nothing
  where
-  definitions = compatibleTemplates nature
-  assigned = assignTemplateShortcuts definitions
-  templateActions =
-    [ Action ("template.choose." <> templateDefinitionId definition) (templateDisplayLabel definition <> "    e.g. \"" <> templateExample definition <> "\"") shortcut False "Apply this one-time creation recipe."
-    | (definition, shortcut) <- assigned
-    ]
+  candidates = maybe (compatibleTemplates nature) (filter (Data.Maybe.isJust . templateQuestion) . settingTemplates nature) setting
+
+settingGeneric :: BrickNature -> WorkSetting -> Maybe TemplateDefinition
+settingGeneric nature setting = find (Data.Maybe.isNothing . templateQuestion) (settingTemplates nature setting)
+
+settingText :: WorkSetting -> Text
+settingText = \case
+  DigitalSetting -> "digital"
+  PhysicalSetting -> "physical"
 
 makeWorkTitleEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Raw -> WorkContext -> BrickNature -> Maybe TemplateSelection -> Text -> InteractionEnvelope
 makeWorkTitleEnvelope previous now state raw context nature template title =
@@ -5293,7 +5419,10 @@ opportunityValue = \case
   NatureChoiceOpportunity context -> typed "nature_choice" ["context" .= workContextValue context]
   NatureDiscoveryOpportunity context discovery -> typed "nature_discovery" ["context" .= workContextValue context, "discovery" .= discoveryValue discovery]
   NatureConfirmationOpportunity context nature reason lastQuestion -> typed "nature_confirmation" ["context" .= workContextValue context, "nature" .= natureText nature, "reason" .= reason, "last_question" .= questionText lastQuestion]
-  TemplateChoiceOpportunity context nature -> typed "template_choice" ["context" .= workContextValue context, "nature" .= natureText nature]
+  TemplateSettingOpportunity context nature -> typed "template_setting" ["context" .= workContextValue context, "nature" .= natureText nature]
+  TemplateChoiceOpportunity context nature setting -> typed "template_choice" (["context" .= workContextValue context, "nature" .= natureText nature] <> ["setting" .= settingText value | Just value <- [setting]])
+  TemplateDiscoveryOpportunity context nature setting index -> typed "template_discovery" (["context" .= workContextValue context, "nature" .= natureText nature, "index" .= index] <> ["setting" .= settingText value | Just value <- [setting]])
+  TemplateConfirmationOpportunity context nature setting template -> typed "template_confirmation" (["context" .= workContextValue context, "nature" .= natureText nature, "template" .= template] <> ["setting" .= settingText value | Just value <- [setting]])
   WorkTitleOpportunity context nature template title -> typed "work_title" (["context" .= workContextValue context, "nature" .= natureText nature, "title" .= title] <> maybe [] (pure . ("template" .=) . templateSelectionValue) template)
   DomainSelectionOpportunity draft candidates fromPreview -> typed "domain_selection" (["draft" .= workDraftValue draft, "candidates" .= fmap renderUUIDv7 candidates] <> ["from_preview" .= True | fromPreview])
   BrickDomainSelectionOpportunity brickId selected -> typed "brick_domain_selection" ["brick_id" .= renderUUIDv7 brickId, "selected" .= fmap renderUUIDv7 (Set.toAscList selected)]
@@ -5533,7 +5662,10 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "nature_choice" -> NatureChoiceOpportunity <$> (value .: "context" >>= parseWorkContext)
     "nature_discovery" -> NatureDiscoveryOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "discovery" >>= parseDiscovery)
     "nature_confirmation" -> NatureConfirmationOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature) <*> value .: "reason" <*> (value .: "last_question" >>= parseQuestion)
-    "template_choice" -> TemplateChoiceOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature)
+    "template_setting" -> TemplateSettingOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature)
+    "template_choice" -> TemplateChoiceOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature) <*> settingField value
+    "template_discovery" -> TemplateDiscoveryOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature) <*> settingField value <*> value .: "index"
+    "template_confirmation" -> TemplateConfirmationOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature) <*> settingField value <*> value .:? "template"
     "work_title" -> WorkTitleOpportunity <$> (value .: "context" >>= parseWorkContext) <*> (value .: "nature" >>= parseNature) <*> (value .:? "template" >>= traverse parseTemplateSelection) <*> value .: "title"
     "domain_selection" -> DomainSelectionOpportunity <$> (value .: "draft" >>= parseWorkDraft) <*> (value .: "candidates" >>= traverse parseUuid) <*> value .:? "from_preview" .!= False
     "brick_domain_selection" -> BrickDomainSelectionOpportunity <$> uuidField value "brick_id" <*> (Set.fromList <$> (value .: "selected" >>= traverse parseUuid))
@@ -5686,6 +5818,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     present <- value .:? "symptom" :: Parser (Maybe Text)
     traverse (const (parseSkipSymptomFields value)) present
   optionalNature value = value .:? "target_nature" >>= traverse parseNature
+  settingField value = value .:? "setting" >>= traverse (maybe (fail "unknown work setting") pure . parseWorkSetting)
 
 translationScopeValue :: TranslationScope -> Value
 translationScopeValue scope = object ["titles" .= translationScopeTitles scope, "raws" .= translationScopeRaws scope, "archived" .= translationScopeArchived scope]

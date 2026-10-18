@@ -110,7 +110,10 @@ The normative reference renderings live in
   visible `*`, Enter does not guess and literal `*` is unbound. Input screens
   keep their editor grammar: `*` inserts text and Enter submits or advances as
   declared by UX-011. No evidence means no default unless the screen contract
-  defines an explicit factory default, as UX-O02 does.
+  defines an explicit factory default, as UX-O02 and UX-K05 do. A factory
+  default marks the most common choice that is safe and cheap to revise,
+  so the usual path costs one Enter; powered-up or Skill mode may move the
+  `*` to an attributed suggestion it can justify.
 - **UX-016 [core] — Honest-answer assistance.** `I don't [k]now` is visible
   in every finite decision and always means `help me reach an honest answer`.
   It opens a bounded, deterministic assistance tree without recording an
@@ -2391,10 +2394,14 @@ assistance-label, and no-emoji rendering.
   surfaces preserve the same one-to-one association. Examples explain
   behavior only: they are not classification evidence, title suggestions,
   Template selections, or domain-specific branches.
-- **UX-053 [core] — Template-choice defaults.** UX-K05 lists compatible
+- **UX-053 [core] — Template-choice defaults.** UX-K05 offers compatible
   Templates only after dumb Work materialization has resolved one Nature.
-  Dumb mode marks no Template and not even `no template` with `*`; the human
-  must make an explicit choice. Skill or powered-up mode may mark one
+  An atomic task first asks where it is done, digital or physical, then lists
+  that setting's Templates (UX-K07); other Natures list theirs directly. The
+  factory default is the plain choice: `digital`, then the generic
+  `digital_task` or `physical_task`, and `no template` for other Natures.
+  `I don't know` walks UX-K08 yes/no questions with concrete examples and ends
+  at a UX-K09 confirmation. Skill or powered-up mode may move the `*` to one
   compatible Template as an attributed suggestion, but cannot mark an
   unattributed or ambiguous default. Rejecting or bypassing a Template
   preserves the resolved Nature.

@@ -67,7 +67,7 @@ class HeadlessTests(unittest.TestCase):
 
     def create_work(self, title):
         _, value = self.call("feed", title, code=0)
-        for action in ("raw.materialize-work", "nature.choose.atomic_task", "template.none"):
+        for action in ("raw.materialize-work", "nature.choose.atomic_task", "template.setting.digital", "template.choose.digital_task"):
             _, value = self.reply(value, action, code=2)
         _, value = self.reply(value, "work.title.submit", title, code=2)
         while value["interaction"]["opportunity"]["type"] != "work_preview":

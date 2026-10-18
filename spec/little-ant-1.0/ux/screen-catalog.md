@@ -4052,14 +4052,17 @@ could resolve.
 
 ## UX-K05 — Dumb Template choice
 
+An atomic task first asks where it is done, because the generic digital or
+physical task is the usual answer:
+
 ```text
-Nature: living checklist
+Nature: atomic task
 
-Choose an optional setup:
+Where is it done?
 
-[g]rocery list    e.g. "A reusable list shown all at once"
-[n]o template     keep only the living-checklist behavior
-I don't [k]now
+*[d]igital…     on the computer, phone, or remotely
+ [p]hysical…    in person, out and about, or by hand
+ I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -4070,11 +4073,32 @@ I don't [k]now
   mode: dumb, focus: idle
 ```
 
-The catalog contains only Templates compatible with the resolved Nature.
-Every option is explicit and none receives `*` in dumb mode. Skill or
-powered-up mode may highlight one attributed compatible suggestion. If the
-installed catalog has no compatible Template, materialization skips this
-screen and continues with the resolved Nature.
+Enter chooses `digital` and opens UX-K07. Other Natures list their compatible
+Templates directly, with `no template` first as the factory default:
+
+```text
+Nature: living checklist
+
+Choose an optional setup:
+
+*[n]o template      keep only the Nature behavior
+ [g]rocery list     e.g. "A reusable list shown all at once"
+ I don't [k]now
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
+```
+
+The catalog contains only Templates compatible with the resolved Nature, and
+examples line up in one column. Skill or powered-up mode may move the `*` to
+one attributed compatible suggestion. If the installed catalog has no
+compatible Template, materialization skips this screen and continues with the
+resolved Nature. `I don't know` opens UX-K08.
 
 ## UX-K06 — Dense scheduled-commitment Template choice
 
@@ -4086,19 +4110,19 @@ Nature: scheduled commitment
 
 Choose an optional setup:
 
-[f]light                 e.g. "Flight AD123 to Montevideo"
-scheduled [t]ransport    e.g. "Train from London to Paris"
-[a]ppointment            e.g. "Dentist appointment"
-[m]eeting                e.g. "Quarterly planning meeting"
-[e]vent attendance       e.g. "Attend the security conference"
-[r]eservation            e.g. "Dinner reservation"
-[c]lass session          e.g. "Spanish lesson"
-e[x]am                   e.g. "Driver's license exam"
-[w]ork shift             e.g. "Saturday support shift"
-[s]ervice window         e.g. "Internet technician visit"
-[h]otel stay             e.g. "Stay at Hotel Carrasco"
-[n]o template            keep only the scheduled-commitment behavior
-I don't [k]now
+*[n]o template            keep only the Nature behavior
+ [f]light                 e.g. "Flight AD123 to Montevideo"
+ scheduled [t]ransport    e.g. "Train from London to Paris"
+ [a]ppointment            e.g. "Dentist appointment"
+ [m]eeting                e.g. "Quarterly planning meeting"
+ [e]vent attendance       e.g. "Attend the security conference"
+ [r]eservation            e.g. "Dinner reservation"
+ [c]lass session          e.g. "Spanish lesson"
+ e[x]am                   e.g. "Driver's license exam"
+ [w]ork shift             e.g. "Saturday support shift"
+ [s]ervice window         e.g. "Internet technician visit"
+ [h]otel stay             e.g. "Stay at Hotel Carrasco"
+ I don't [k]now
 
 ────────────────────────────────────────
 . <root>
@@ -4112,6 +4136,112 @@ I don't [k]now
 No category screen is introduced while this flat choice remains usable.
 Future categories or pagination must follow `UX-056` and preserve the same
 Template identities.
+
+## UX-K07 — Setting Template list
+
+Each setting lists its Templates, the generic one first as the default:
+
+```text
+Nature: atomic task · digital
+
+Choose an optional setup:
+
+*a digital [t]ask            e.g. "Write the quarterly report"
+ [b]ug fix                   e.g. "Fix the broken login page"
+ [d]ocument review           e.g. "Review the contract draft"
+ [a]pplication submission    e.g. "Submit the visa application"
+ [c]ontact someone           e.g. "Call or message the accountant"
+ I don't [k]now
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
+```
+
+```text
+Nature: atomic task · physical
+
+Choose an optional setup:
+
+*a physical [t]ask           e.g. "Take the car to the car wash"
+ [e]rrand                    e.g. "Pick up the package at the post office"
+ [b]uy something             e.g. "Buy a phone charger"
+ [r]epair                    e.g. "Fix the leaking tap"
+ [m]eet someone in person    e.g. "Have coffee with a client"
+ I don't [k]now
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
+```
+
+Escape returns to UX-K05. A shortcut brackets the letter that starts a word
+when one does. `I don't know` opens UX-K08 inside this setting.
+
+## UX-K08 — Template assistance question
+
+`I don't know` on UX-K05 or UX-K07 asks one yes/no question per screen, each
+with concrete examples:
+
+```text
+Nature: atomic task
+
+Yes, for example: buy bread, pick up a package, fix a chair, visit a client.
+No, for example: write a report, answer e-mail, join a video call, pay a bill online.
+
+Does it need you somewhere specific, or your hands on a physical thing?
+
+[y]es    [n]o    I don't [k]now
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
+```
+
+For an atomic task this first question picks the setting; the setting's
+Templates then ask in list order, for example `Is it fixing something broken
+in software or a system?` with `For example: the login page fails, a script
+crashes, the printer driver stopped working.` Other Natures ask one question
+per compatible Template, such as `Is it a flight?` with its example. `yes`
+proposes that Template; `no` and `I don't know` ask the next question; after
+the last one the generic setting Template, or `no template`, is proposed.
+There is no default. Escape returns to the previous question.
+
+## UX-K09 — Template confirmation
+
+```text
+Nature: atomic task
+
+Setup: contact someone
+Because: it mainly reaches one person by call or message.
+
+Is this right?
+
+*[y]es    [n]o    I don't [k]now
+
+────────────────────────────────────────
+. <root>
+  <no Domain>
+. Workday: Mon, Aug 3
+          Now: Mon, Aug 3, 09:00
+. 0 bricks, 0 raws, 0 reviews
+  mode: dumb, focus: idle
+```
+
+`yes` opens the title editor with that Template; `no` returns to UX-K05;
+`k` restarts UX-K08 from its first question.
 
 ## UX-B00 — Dumb part collection
 

@@ -1,5 +1,6 @@
 module Main (main) where
 
+import Control.Monad (foldM)
 import Data.Aeson (encode, object, (.=))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
@@ -12,6 +13,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Application
+import LittleAnt.Catalog (WorkSetting (..))
 import LittleAnt.Decision (WorkDraft (..), statePreconditionHash)
 import LittleAnt.Event (DomainRegistered (..), EventDraft (..), EventPayload (..))
 import LittleAnt.Export (emptyExportPort)
@@ -45,9 +47,11 @@ tests =
         templateChoice <- answer environment natureChoice "nature.choose.atomic_task"
         assertOpportunity "Template choice" isTemplateChoice templateChoice
 
-        title <- answer environment templateChoice "template.none"
+        title <- answerPlainSetup environment templateChoice
         case envelopeOpportunity title of
-          WorkTitleOpportunity _ AtomicTask Nothing suggested -> suggested @?= "Fix a bug on website"
+          WorkTitleOpportunity _ AtomicTask (Just selection) suggested -> do
+            templateIdentifier selection @?= "digital_task"
+            suggested @?= "Fix a bug on website"
           other -> assertFailure ("expected Work title, got " <> show other)
 
         preview <- submit environment title "work.title.submit" "Fix a bug on website"
@@ -334,6 +338,64 @@ tests =
         direct [False, False, False, True] @?= RecurringObligation
         direct [False, False, False, False, True] @?= Habit
         direct [False, False, False, False, False] @?= Repeatable
+    , testCase "an atomic task asks where it is done and defaults to the generic setup" $ withHarness $ \environment -> do
+        rawTriage <- run environment (FeedCommand "test" "call the accountant") >>= interactionOf
+        nature <- answer environment rawTriage "raw.materialize-work"
+        setting <- answer environment nature "nature.choose.atomic_task"
+        assertOpportunity "setting choice" (\case TemplateSettingOpportunity{} -> True; _ -> False) setting
+        defaults setting @?= ["template.setting.digital"]
+        physical <- answer environment setting "template.setting.physical"
+        defaults physical @?= ["template.choose.physical_task"]
+        fmap actionShortcut (envelopeActions physical) @?= ["t", "e", "b", "r", "m", "k"]
+        back <- navigate environment physical True
+        digital <- answer environment back "template.setting.digital"
+        defaults digital @?= ["template.choose.digital_task"]
+        assertBool "contact someone is a digital setup" ("template.choose.contact_someone" `elem` fmap actionId (envelopeActions digital))
+    , testCase "I don't know walks yes/no questions with examples and confirms a setup" $ withHarness $ \environment -> do
+        rawTriage <- run environment (FeedCommand "test" "call the accountant") >>= interactionOf
+        nature <- answer environment rawTriage "raw.materialize-work"
+        setting <- answer environment nature "nature.choose.atomic_task"
+        first <- answer environment setting "template.assistance"
+        contentQuestion (envelopeContent first) @?= Just "Does it need you somewhere specific, or your hands on a physical thing?"
+        assertBool "the setting question gives examples" (any ("No, for example:" `Text.isPrefixOf`) (contentBody (envelopeContent first)))
+        bug <- answer environment first "template.answer.no"
+        contentQuestion (envelopeContent bug) @?= Just "Is it fixing something broken in software or a system?"
+        document <- answer environment bug "template.answer.no"
+        application <- answer environment document "template.answer.unknown"
+        contact <- answer environment application "template.answer.no"
+        confirmation <- answer environment contact "template.answer.yes"
+        case envelopeOpportunity confirmation of
+          TemplateConfirmationOpportunity _ AtomicTask (Just DigitalSetting) (Just "contact_someone") -> pure ()
+          other -> assertFailure ("expected contact someone, got " <> show other)
+        defaults confirmation @?= ["template.confirm"]
+        title <- answer environment confirmation "template.confirm"
+        case envelopeOpportunity title of
+          WorkTitleOpportunity _ AtomicTask (Just selection) _ -> templateIdentifier selection @?= "contact_someone"
+          other -> assertFailure ("expected the title with contact someone, got " <> show other)
+        confirmationAgain <- navigate environment title True
+        restart <- answer environment confirmationAgain "template.restart"
+        physical <- answer environment restart "template.answer.yes"
+        noneFits <- foldM (\envelope _ -> answer environment envelope "template.answer.no") physical [1 .. 4 :: Int]
+        case envelopeOpportunity noneFits of
+          TemplateConfirmationOpportunity _ AtomicTask (Just PhysicalSetting) (Just "physical_task") -> pure ()
+          other -> assertFailure ("expected the generic physical task, got " <> show other)
+    , testCase "other Natures list no template first and ask one Template at a time" $ withHarness $ \environment -> do
+        rawTriage <- run environment (FeedCommand "test" "dentist on friday") >>= interactionOf
+        nature <- answer environment rawTriage "raw.materialize-work"
+        templates <- answer environment nature "nature.choose.scheduled_commitment"
+        take 1 (fmap actionId (envelopeActions templates)) @?= ["template.none"]
+        defaults templates @?= ["template.none"]
+        flight <- answer environment templates "template.assistance"
+        contentQuestion (envelopeContent flight) @?= Just "Is it a flight?"
+        transport <- answer environment flight "template.answer.no"
+        contentQuestion (envelopeContent transport) @?= Just "Is it a scheduled transport?"
+        appointment <- answer environment transport "template.answer.no"
+        confirmation <- answer environment appointment "template.answer.yes"
+        case envelopeOpportunity confirmation of
+          TemplateConfirmationOpportunity _ ScheduledCommitment Nothing (Just "appointment") -> pure ()
+          other -> assertFailure ("expected appointment, got " <> show other)
+        list <- answer environment confirmation "template.reject"
+        assertOpportunity "the list again" (\case TemplateChoiceOpportunity{} -> True; _ -> False) list
     , testCase "the final triage preview edits Domains of root Work and returns to itself" $ withHarness $ \environment -> do
         empty <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
         let domainId = fixtureUuid 90
@@ -342,7 +404,7 @@ tests =
         rawTriage <- run environment (FeedCommand "test" "plan the onboarding") >>= interactionOf
         nature <- answer environment rawTriage "raw.materialize-work"
         templates <- answer environment nature "nature.choose.atomic_task"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         preview <- submit environment title "work.title.submit" "Plan the onboarding"
         selector <- answer environment preview "work.domains"
         case envelopeOpportunity selector of
@@ -376,7 +438,7 @@ tests =
         groceryRaw <- run environment (FeedCommand "test" "buy groceries") >>= interactionOf
         nature <- answer environment groceryRaw "raw.materialize-work"
         templates <- answer environment nature "nature.choose.living_checklist"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         preview <- submit environment title "work.title.submit" "Buy groceries"
         created <- answer environment preview "work.create"
         ownerId <- case envelopeOpportunity created of
@@ -415,7 +477,7 @@ tests =
         raw <- run environment (FeedCommand "test" "fix the release") >>= interactionOf
         nature <- answer environment raw "raw.materialize-work"
         templates <- answer environment nature "nature.choose.atomic_task"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         comparison <- submit environment title "work.title.submit" "Fix the release"
         case envelopeOpportunity comparison of
           ImportanceInsertionOpportunity draft 0 1 [] comparator -> do
@@ -477,7 +539,7 @@ tests =
         raw <- run environment (FeedCommand "test" "bravo") >>= interactionOf
         nature <- answer environment raw "raw.materialize-work"
         templates <- answer environment nature "nature.choose.atomic_task"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         comparison <- submit environment title "work.title.submit" "Bravo"
         case envelopeOpportunity comparison of
           ImportanceInsertionOpportunity _ 0 1 [] comparator -> comparator @?= alpha
@@ -499,7 +561,7 @@ tests =
         raw <- run environment (FeedCommand "test" "charlie") >>= interactionOf
         nature <- answer environment raw "raw.materialize-work"
         templates <- answer environment nature "nature.choose.atomic_task"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         firstComparison <- submit environment title "work.title.submit" "Charlie"
         secondComparison <- answer environment firstComparison "importance.skip"
         case envelopeOpportunity secondComparison of
@@ -515,7 +577,7 @@ tests =
         source <- run environment (FeedCommand "test" "release the website") >>= interactionOf
         nature <- answer environment source "raw.materialize-work"
         templates <- answer environment nature "nature.choose.project"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         projectPreview <- submit environment title "work.title.submit" "Release the website"
         projectResult <- answer environment projectPreview "work.create"
         projectId <- case envelopeOpportunity projectResult of
@@ -533,7 +595,7 @@ tests =
           NatureChoiceOpportunity context -> workContextParent context @?= Just projectId
           other -> assertFailure ("expected contextual Nature choice, got " <> show other)
         childTemplates <- answer environment childNature "nature.choose.atomic_task"
-        childTitle <- answer environment childTemplates "template.none"
+        childTitle <- answerPlainSetup environment childTemplates
         childPreview <- submit environment childTitle "work.title.submit" "Write launch copy"
         case envelopeOpportunity childPreview of
           WorkPreviewOpportunity draft -> do
@@ -640,7 +702,7 @@ tests =
         source <- run environment (FeedCommand "test" "repair the website defect") >>= interactionOf
         nature <- answer environment source "raw.materialize-work"
         templates <- answer environment nature "nature.choose.atomic_task"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         suspicion <- submit environment title "work.title.submit" "Fix a bug on website"
         case envelopeOpportunity suspicion of
           ExistingWorkSuspicionOpportunity _ identity -> identity @?= existingId
@@ -666,7 +728,7 @@ tests =
         raw <- run environment (FeedCommand "test" "dry run me") >>= interactionOf
         nature <- answer environment raw "raw.materialize-work"
         templates <- answer environment nature "nature.choose.atomic_task"
-        title <- answer environment templates "template.none"
+        title <- answerPlainSetup environment templates
         preview <- submit environment title "work.title.submit" "Dry run me"
 
         simulated <- assertRight =<< runAppCommand environment True (const (pure ())) (RespondCommand (response preview "work.create"))
@@ -686,7 +748,7 @@ createAtomicWork environment material = do
   raw <- run environment (FeedCommand "test" material) >>= interactionOf
   nature <- answer environment raw "raw.materialize-work"
   templates <- answer environment nature "nature.choose.atomic_task"
-  title <- answer environment templates "template.none"
+  title <- answerPlainSetup environment templates
   preview <- submit environment title "work.title.submit" (titleCase material)
   answer environment preview "work.create"
 
@@ -696,7 +758,7 @@ insertAtomicWork environment material comparisonAnswer = do
   raw <- run environment (FeedCommand "test" material) >>= interactionOf
   nature <- answer environment raw "raw.materialize-work"
   templates <- answer environment nature "nature.choose.atomic_task"
-  title <- answer environment templates "template.none"
+  title <- answerPlainSetup environment templates
   comparison <- submit environment title "work.title.submit" (titleCase material)
   preview <- answerUntilPreview comparison
   answer environment preview "work.create"
@@ -711,7 +773,7 @@ createSeries environment material = do
   raw <- run environment (FeedCommand "test" material) >>= interactionOf
   nature <- answer environment raw "raw.materialize-work"
   templates <- answer environment nature "nature.choose.recurring_obligation"
-  title <- answer environment templates "template.none"
+  title <- answerPlainSetup environment templates
   submit environment title "work.title.submit" (titleCase material)
 
 createAtomicWorkBelow :: AppEnv -> Text -> IO InteractionEnvelope
@@ -719,7 +781,7 @@ createAtomicWorkBelow environment material = do
   raw <- run environment (FeedCommand "test" material) >>= interactionOf
   nature <- answer environment raw "raw.materialize-work"
   templates <- answer environment nature "nature.choose.atomic_task"
-  title <- answer environment templates "template.none"
+  title <- answerPlainSetup environment templates
   comparison <- submit environment title "work.title.submit" (titleCase material)
   preview <- answer environment comparison "importance.less"
   answer environment preview "work.create"
@@ -759,6 +821,15 @@ interactionOf = \case
   FeedResult{resultInteraction} -> pure resultInteraction
   RespondResult{resultInteraction} -> pure resultInteraction
   other -> assertFailure ("result has no guided interaction: " <> show other)
+
+defaults :: InteractionEnvelope -> [Text]
+defaults envelope = [actionId action | action <- envelopeActions envelope, actionDefault action]
+
+-- | The plain setup: no Template, or the generic digital task for an atomic task.
+answerPlainSetup :: AppEnv -> InteractionEnvelope -> IO InteractionEnvelope
+answerPlainSetup environment envelope = case envelopeOpportunity envelope of
+  TemplateSettingOpportunity{} -> answer environment envelope "template.setting.digital" >>= \digital -> answer environment digital "template.choose.digital_task"
+  _ -> answer environment envelope "template.none"
 
 answer :: AppEnv -> InteractionEnvelope -> Text -> IO InteractionEnvelope
 answer environment envelope action =
@@ -802,6 +873,7 @@ isRawTriage _ = False
 isNatureChoice NatureChoiceOpportunity{} = True
 isNatureChoice _ = False
 isTemplateChoice TemplateChoiceOpportunity{} = True
+isTemplateChoice TemplateSettingOpportunity{} = True
 isTemplateChoice _ = False
 isCreated WorkCreatedResultOpportunity{} = True
 isCreated _ = False

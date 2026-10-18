@@ -24,15 +24,22 @@ classifier can recognize.
 
 ## `atomic_task`
 
-| Template | Status | Example or purpose |
-|---|---|---|
-| `bug_fix` | confirmed | Fix one bounded defect and optionally record verification evidence. |
-| `one_off_errand` | confirmed | Pick up, return, deliver, or obtain one thing under Place conditions. |
-| `one_off_purchase` | confirmed | Buy one independently focusable item rather than maintain a list. |
-| `document_review` | confirmed | Review one document with an attached Raw and optional SourceBinding. |
-| `contact_someone` | confirmed | Make one call, visit, message, or other contact. |
-| `quick_repair` | confirmed | Repair one bounded physical item. |
-| `application_submission` | confirmed | Complete and submit one application or form. |
+An atomic task is first placed in a setting, digital or physical (UX-K05);
+each setting lists a generic Template first, as the factory default, then its
+specific ones.
+
+| Template | Setting | Status | Example or purpose |
+|---|---|---|---|
+| `digital_task` | digital | confirmed | Any task done on the computer, phone, or remotely, when nothing more specific fits. |
+| `bug_fix` | digital | confirmed | Fix one bounded defect and optionally record verification evidence. |
+| `document_review` | digital | confirmed | Review one document with an attached Raw and optional SourceBinding. |
+| `application_submission` | digital | confirmed | Complete and submit one application or form. |
+| `contact_someone` | digital | confirmed | Reach one person by call, message, or other remote contact. |
+| `physical_task` | physical | confirmed | Any task that needs a place or your hands, when nothing more specific fits. |
+| `one_off_errand` | physical | confirmed | Pick up, return, deliver, or obtain one thing under Place conditions. |
+| `one_off_purchase` | physical | confirmed | Buy one independently focusable item rather than maintain a list. |
+| `quick_repair` | physical | confirmed | Repair one bounded physical item. |
+| `meet_in_person` | physical | confirmed | Meet or visit one person in person. |
 
 ## `scheduled_commitment`
 

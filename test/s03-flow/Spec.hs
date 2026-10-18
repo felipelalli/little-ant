@@ -478,7 +478,7 @@ createProvisionalWork environment material = do
   raw <- run environment (FeedCommand "test" material) >>= interactionOf
   nature <- answer environment raw "raw.materialize-work"
   templates <- answer environment nature "nature.choose.atomic_task"
-  title <- answer environment templates "template.none"
+  title <- answerPlainSetup environment templates
   comparisonOrPreview <- submit environment title "work.title.submit" (titleCase material)
   preview <- settle comparisonOrPreview
   answer environment preview "work.create"
@@ -528,6 +528,12 @@ interactionOf = \case
   FeedResult{resultInteraction} -> pure resultInteraction
   RespondResult{resultInteraction} -> pure resultInteraction
   other -> assertFailure ("result has no interaction: " <> show other)
+
+-- | The plain setup: no Template, or the generic digital task for an atomic task.
+answerPlainSetup :: AppEnv -> InteractionEnvelope -> IO InteractionEnvelope
+answerPlainSetup environment envelope = case envelopeOpportunity envelope of
+  TemplateSettingOpportunity{} -> answer environment envelope "template.setting.digital" >>= \digital -> answer environment digital "template.choose.digital_task"
+  _ -> answer environment envelope "template.none"
 
 answer :: AppEnv -> InteractionEnvelope -> Text -> IO InteractionEnvelope
 answer environment envelope action = run environment (RespondCommand (response envelope action)) >>= interactionOf

@@ -3,7 +3,11 @@ module LittleAnt.Catalog (
   NatureDefinition (..),
   StructureCapability (..),
   TemplateDefinition (..),
+  TemplateQuestion (..),
+  WorkSetting (..),
   compatibleTemplates,
+  parseWorkSetting,
+  settingTemplates,
   factoryNatures,
   factoryTemplates,
   findNature,
@@ -56,6 +60,28 @@ data TemplateDefinition = TemplateDefinition
   , templateDisplayLabel :: Text
   , templateExample :: Text
   , templateShortcut :: Maybe Text
+  , templateSetting :: Maybe WorkSetting
+  , templateQuestion :: Maybe TemplateQuestion
+  }
+  deriving stock (Eq, Show)
+
+-- | Where an atomic task is done; it groups the Templates a person chooses from.
+data WorkSetting = DigitalSetting | PhysicalSetting
+  deriving stock (Bounded, Enum, Eq, Ord, Show)
+
+parseWorkSetting :: Text -> Maybe WorkSetting
+parseWorkSetting = \case
+  "digital" -> Just DigitalSetting
+  "physical" -> Just PhysicalSetting
+  _ -> Nothing
+
+{- | One yes/no question of the Template assistance tree, with concrete
+examples, and the reason a yes gives for choosing the Template.
+-}
+data TemplateQuestion = TemplateQuestion
+  { templateQuestionText :: Text
+  , templateQuestionExamples :: Text
+  , templateQuestionReason :: Text
   }
   deriving stock (Eq, Show)
 
@@ -87,22 +113,27 @@ findNature value = firstWhere ((== value) . natureValue) factoryNatures
 compatibleTemplates :: BrickNature -> [TemplateDefinition]
 compatibleTemplates value = filter ((== value) . templateNature) factoryTemplates
 
+-- | The Templates of one setting, the generic one first.
+settingTemplates :: BrickNature -> WorkSetting -> [TemplateDefinition]
+settingTemplates value setting = filter ((== Just setting) . templateSetting) (compatibleTemplates value)
+
 findTemplate :: Text -> Maybe TemplateDefinition
 findTemplate identifier = firstWhere ((== identifier) . templateDefinitionId) factoryTemplates
 
 factoryTemplates :: [TemplateDefinition]
 factoryTemplates =
   concat
-    [ templates
-        AtomicTask
-        [ ("bug_fix", "Fix one bounded defect", Nothing)
-        , ("one_off_errand", "Pick up or deliver one thing", Nothing)
-        , ("one_off_purchase", "Buy one independently focusable item", Nothing)
-        , ("document_review", "Review one document", Nothing)
-        , ("contact_someone", "Make one call, visit, or message", Nothing)
-        , ("quick_repair", "Repair one bounded physical item", Nothing)
-        , ("application_submission", "Complete and submit one application", Nothing)
-        ]
+    [ [ settingTemplate DigitalSetting "digital_task" "a digital task" "Write the quarterly report" "t" Nothing
+      , settingTemplate DigitalSetting "bug_fix" "bug fix" "Fix the broken login page" "b" (question "Is it fixing something broken in software or a system?" "the login page fails, a script crashes, the printer driver stopped working" "it fixes something broken in software or a system")
+      , settingTemplate DigitalSetting "document_review" "document review" "Review the contract draft" "d" (question "Is it mainly reading or reviewing one document?" "review the contract draft, read the onboarding guide" "it is mainly reading or reviewing one document")
+      , settingTemplate DigitalSetting "application_submission" "application submission" "Submit the visa application" "a" (question "Is it filling in and submitting one form or application?" "a visa application, the income tax return, a job application" "it fills in and submits one form or application")
+      , settingTemplate DigitalSetting "contact_someone" "contact someone" "Call or message the accountant" "c" (question "Is it mainly reaching one person by call or message?" "call the accountant, reply to Ana's e-mail" "it mainly reaches one person by call or message")
+      , settingTemplate PhysicalSetting "physical_task" "a physical task" "Take the car to the car wash" "t" Nothing
+      , settingTemplate PhysicalSetting "one_off_errand" "errand" "Pick up the package at the post office" "e" (question "Is it picking up, returning, or delivering something?" "pick up the package, return the library book" "it picks up, returns, or delivers something")
+      , settingTemplate PhysicalSetting "one_off_purchase" "buy something" "Buy a phone charger" "b" (question "Is it buying one thing?" "buy a phone charger, get a birthday gift" "it buys one thing")
+      , settingTemplate PhysicalSetting "quick_repair" "repair" "Fix the leaking tap" "r" (question "Is it fixing a physical object?" "fix the leaking tap, replace the light bulb" "it fixes a physical object")
+      , settingTemplate PhysicalSetting "meet_in_person" "meet someone in person" "Have coffee with a client" "m" (question "Is it meeting or visiting someone in person?" "visit grandma, have coffee with a client" "it meets or visits someone in person")
+      ]
     , templates
         Project
         [ ("software_feature", "Specify, implement, and verify one feature", Nothing)
@@ -202,8 +233,10 @@ factoryTemplates =
         ]
     ]
  where
-  templates natureValue' = fmap (\(identifier, example, shortcut) -> TemplateDefinition identifier "factory@1" natureValue' (label identifier) example shortcut)
-  label = mapUnderscores
+  templates natureValue' = fmap (\(identifier, example, shortcut) -> TemplateDefinition identifier "factory@1" natureValue' (mapUnderscores identifier) example shortcut Nothing Nothing)
+  settingTemplate setting identifier label example shortcut =
+    TemplateDefinition identifier "factory@1" AtomicTask label example (Just shortcut) (Just setting)
+  question text examples reason = Just (TemplateQuestion text examples reason)
 
 validateFactoryCatalog :: Either Text ()
 validateFactoryCatalog

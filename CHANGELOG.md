@@ -9,6 +9,15 @@ replace the specification.
 
 ## Unreleased
 
+- Redesign the setup (Template) choice. An atomic task now asks where it is
+  done: `*digital` (Enter) or `physical`, then lists that setting's setups
+  with a generic one first as the default (`a digital task`, `a physical
+  task`), so the usual path is Enter, Enter. New Templates `digital_task`,
+  `physical_task`, and `meet_in_person`. Other Natures list `no template`
+  first as the default. `I don't know` now walks yes/no questions with
+  concrete examples and ends at a confirmation, instead of a one-line tip.
+  Examples line up in one column, and a shortcut brackets the letter that
+  starts a word ("a digital [t]ask").
 - Fix Escape in the REPL: on a screen opened by a slash command, such as
   the `/update` hub, Escape no longer stays put; with no earlier screen left
   it ends the session like on the main screen. When a CLI command or
