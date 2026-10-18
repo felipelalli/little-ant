@@ -1356,7 +1356,7 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
   -- Each row starts with its ISO week number, then four columns per day.
   weekLine todayNumber pointed text = Span Dim (Text.take 4 text) : concatMap (cell todayNumber pointed) (chunks (Text.drop 4 text))
   legendLines =
-    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Habit "\9702", Span Dim " habit · ", Span Done "+", Span Dim " done · ", Span Urgent "\215", Span Dim " missed · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
+    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Habit "\9702", Span Dim " habit · ", Span Done ".", Span Dim " done · ", Span Urgent "\215", Span Dim " missed · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
     | agendaLegend `elem` header
     ]
   splitBlank values = case break Text.null values of
@@ -1374,7 +1374,7 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
           "!" -> [Span Urgent "!"]
           "\8226" -> [Span Caution "\8226"]
           "\9702" -> [Span Habit "\9702"]
-          "+" -> [Span Done "+"]
+          "." -> [Span Done "."]
           "\215" -> [Span Urgent "\215"]
           rest -> [Span Normal rest | not (Text.null rest)]
      in Span numberRole number : mark <> [Span Normal (Text.drop 3 text) | not (Text.null (Text.drop 3 text))]

@@ -7729,11 +7729,11 @@ Agenda · Today: Sat, Oct 17, 2026
 Wk  Mo  Tu  We  Th  Fr  Sa  Su
 40               1   2   3   4
 41   5   6   7   8   9  10  11
-42  12  13  14  15! 16  17+ 18
+42  12  13  14  15! 16  17. 18
 43  19  20  21• 22  23! 24  25
 44  26  27  28• 29  30! 31
 
-! deadline · • best before · ◦ habit · + done · × missed · 17 today · 21 selected
+! deadline · • best before · ◦ habit · . done · × missed · 17 today · 21 selected
 
   #rpt Send the weekly report
     Sat, Oct 17 · 09:12 · done
@@ -7765,7 +7765,7 @@ height does not change between months. The controls stay pinned. It shows the mo
 selected row, the current month while no row is selected, and marks
 the selected day bold and underlined, apart from today's highlight. Each day takes four columns, its mark directly after its
 number, so a mark never touches the next day. A legend follows the grids. With
-color enabled, `!` and `×` are red, `•` is yellow, `+` is green like `done`
+color enabled, `!` and `×` are red, `•` is yellow, `.` is green like `done`
 rows, `opens` rows are blue, a habit's `◦` is magenta like its `habit` and
 `habit due` rows, and today's number looks like the
 selected style without being the selection, ending at its own number even in

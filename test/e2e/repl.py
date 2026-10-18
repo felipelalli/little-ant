@@ -314,7 +314,7 @@ class ReplTests(unittest.TestCase):
         # Today starts at midnight, so what was done today is already there.
         self.repl.wait(handle)
         self.repl.wait("· done")
-        self.repl.wait("+ done · × missed")
+        self.repl.wait(". done · × missed")
         # Above the top the agenda searches earlier days; this dataset has none.
         self.repl.send("\x1b[A")
         self.repl.wait("Nothing earlier was recorded in the last 420 days.")
@@ -343,7 +343,7 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("Done on:")
         self.repl.send("/agenda\r")
         self.repl.wait("Agenda")
-        self.repl.wait("+ done")
+        self.repl.wait(". done")
 
     def test_escape_after_an_action_offers_to_undo_it(self):
         handle = self.create_atomic_work("Undo this archive")

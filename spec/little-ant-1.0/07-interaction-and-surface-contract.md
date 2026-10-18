@@ -276,7 +276,7 @@ assistance-label, and no-emoji rendering.
   A compact Monday-first month calendar heads the view, each row starting
   with its ISO week number and giving each day its strongest mark: `×` for a
   miss, `!` for a deadline (on a past day, Work still overdue), `•` for a
-  `best_before`, `+` for something done, and `◦` for a habit; every mark takes
+  `best_before`, `.` for something done, and `◦` for a habit; every mark takes
   one column, so it never touches the next day. It highlights
   today and ends with a legend of those marks; the REPL keeps it pinned
   above the scrolling rows, shows the month of the selected row (today's

@@ -9,6 +9,9 @@ replace the specification.
 
 ## Unreleased
 
+- Explain `/why` when nothing was drawn: it names the current screen and
+  says it came from your own command or action, or that nothing was
+  eligible, and points to `/list forecast` and `next`.
 - Keep v0 completion times: migration now dates each completion adopted
   from v0 with its v0 time instead of the cutover time, and
   `lant migrate --date-completions` repairs a dataset an earlier build
@@ -23,7 +26,7 @@ replace the specification.
 - Add `/importance`, `/forecast`, and `/agenda`, which open `/list` on that
   view.
 - Make the agenda calendar easier to read: the done mark is a one-column
-  `+`, `opens` rows are blue while `done` rows stay green, and today's
+  `.`, `opens` rows are blue while `done` rows stay green, and today's
   highlight in the last column no longer runs to the end of the line.
 - Show the past in the agenda. Moving above the first row in the REPL, or
   `lant list agenda --past N`, loads earlier days: every completion as

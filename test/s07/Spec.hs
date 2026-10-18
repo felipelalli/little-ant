@@ -222,7 +222,7 @@ agendaPastOccurrences = withHarness $ \environment -> do
       -- The window reaches back into July, so its grid comes first.
       take 1 (drop 2 resultListHeader) @?= ["           July 2026"]
       assertBool ("missed days lack their mark: " <> show resultListHeader) (any (Text.isInfixOf " 1\215  2\215") resultListHeader)
-      assertBool ("the late completion lacks its mark: " <> show resultListHeader) (any (Text.isInfixOf " 3+  4!") resultListHeader)
+      assertBool ("the late completion lacks its mark: " <> show resultListHeader) (any (Text.isInfixOf " 3.  4!") resultListHeader)
       last resultListHeader @?= agendaLegend
     other -> assertFailure ("expected the agenda, got " <> show other)
 

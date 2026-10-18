@@ -567,7 +567,10 @@ version.
   recomputes the draw, or answers the Focus decision. The independent `/why`
   and `lant why` inspector reads the selection attached to the current
   interaction, presents a short explanation first, and exposes technical detail
-  separately. Back/Escape restores the previous presentation exactly. Inspection
+  separately. When the current interaction was not drawn, it says why instead:
+  nothing was eligible, or the current screen, named by its heading, came from
+  the human's own command or action, and it points to `/list forecast` and
+  `next`. Back/Escape restores the previous presentation exactly. Inspection
   does not tick, write a checkpoint, consume randomness, or infer provenance
   from another task's latest draw. Current selection records capture selection
   time, immutable labels, rational endpoint/opportunity chances, and factor

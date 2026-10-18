@@ -3130,16 +3130,16 @@ agendaMarks =
   , ("habit missed", (5, '\215'))
   , ("deadline", (4, '!'))
   , ("best before", (3, '\8226'))
-  , ("done", (2, '+'))
-  , ("done late", (2, '+'))
-  , ("habit done", (2, '+'))
+  , ("done", (2, '.'))
+  , ("done late", (2, '.'))
+  , ("habit done", (2, '.'))
   , ("habit", (1, '\9702'))
   , ("habit due", (1, '\9702'))
   ]
 
 -- | The key to the agenda calendar marks.
 agendaLegend :: Text
-agendaLegend = "! deadline · \8226 best before · \9702 habit · + done · \215 missed"
+agendaLegend = "! deadline · \8226 best before · \9702 habit · . done · \215 missed"
 
 -- | The weekday row of an agenda month grid, after the ISO week column.
 agendaWeekdays :: Text
@@ -7321,9 +7321,16 @@ runWhy environment dryRun dataset view =
               FocusAssistanceOpportunity _ identity _ _ -> identity
               _ -> Just (envelopeInteractionId envelope)
           evidence = selected >>= (`Map.lookup` stateForecastSelections state)
-          missing = case envelopeOpportunity <$> current of
-            Just (FocusProposalOpportunity _ Nothing) -> ["This proposal was opened directly; it has no recorded lottery attached."]
-            _ -> ["No recorded lottery is attached to the current interaction. Recorded selection details are unavailable."]
+          -- UX-047: say why nothing was drawn, naming the current screen.
+          missing =
+            ( case current of
+                Just envelope -> case envelopeOpportunity envelope of
+                  FocusProposalOpportunity _ Nothing -> ["This proposal was opened directly; it has no recorded lottery attached."]
+                  SafeEmptyOpportunity -> ["Nothing was drawn: no Work or review is eligible right now, so there is no selection to explain."]
+                  _ -> ["The current screen, \"" <> contentHeading (envelopeContent envelope) <> "\", came from your own command or action, not from a draw, so there is no selection to explain."]
+                Nothing -> ["There is no current screen yet, so nothing was drawn."]
+            )
+              <> ["", "/list forecast shows the current chances, and next draws the next opportunity."]
           summary = maybe missing recordedWhySummary evidence
           details = maybe [] (recordedWhyDetails state) evidence
       pure (Right (WhyResult (loadedCursor dataset) evidence summary details (view == CompleteView) dryRun))
