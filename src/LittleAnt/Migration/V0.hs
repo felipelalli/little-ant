@@ -3,6 +3,8 @@
 module LittleAnt.Migration.V0 (
   MigrationReport (..),
   MigrationStage (..),
+  legacyCompletionDates,
+  parseLegacyLog,
   runV0Migration,
 )
 where
@@ -52,7 +54,7 @@ import System.Posix.Files qualified as Posix
 import System.Posix.IO (FdOption (CloseOnExec), OpenMode (ReadOnly), closeFd, defaultFileFlags, handleToFd, openFd, setFdOption)
 import System.Posix.Unistd (fileSynchronise)
 
-data MigrationStage = MigrationInspect | MigrationBuild | MigrationCutover
+data MigrationStage = MigrationInspect | MigrationBuild | MigrationCutover | MigrationDateCompletions
   deriving stock (Eq, Ord, Show)
 
 data MigrationReport = MigrationReport
@@ -68,6 +70,8 @@ data MigrationReport = MigrationReport
   , migrationCandidateCursor :: Maybe DatasetCursor
   , migrationCutoverComplete :: Bool
   , migrationDryRun :: Bool
+  , -- | Completions adopted from v0 that took their v0 time (WRK-165).
+    migrationDatedCompletions :: Int
   }
   deriving stock (Eq, Show)
 
@@ -96,6 +100,8 @@ data LegacyBrick = LegacyBrick
   , legacyBrickRequester :: Maybe Text
   , legacyBrickCreatedAt :: UTCTime
   , legacyBrickCreatedOrder :: Int
+  , -- | When the latest stage began, such as the v0 completion time.
+    legacyBrickStageAt :: UTCTime
   }
   deriving stock (Eq, Show)
 
@@ -580,10 +586,11 @@ createLegacyBrick projection event identity title = do
           Nothing
           (legacyEventAt event)
           (length (legacyBricks projection))
+          (legacyEventAt event)
   pure projection{legacyBricks = Map.insert identity brick (legacyBricks projection)}
 
 touchStage :: LegacyProjection -> LegacyEvent -> LegacyStage -> Either AppError LegacyProjection
-touchStage projection event stage = updateBrick projection event (\brick -> brick{legacyBrickStage = stage})
+touchStage projection event stage = updateBrick projection event (\brick -> brick{legacyBrickStage = stage, legacyBrickStageAt = legacyEventAt event})
 
 requireBrickOnly :: LegacyProjection -> LegacyEvent -> Either AppError LegacyProjection
 requireBrickOnly projection event = do
@@ -615,8 +622,9 @@ supersedeBrick projection event = do
           , legacyBrickEstimateHours = Nothing
           , legacyBrickCreatedAt = legacyEventAt event
           , legacyBrickCreatedOrder = length (legacyBricks projection)
+          , legacyBrickStageAt = legacyEventAt event
           }
-      changedOld = old{legacyBrickStage = LegacySuperseded}
+      changedOld = old{legacyBrickStage = LegacySuperseded, legacyBrickStageAt = legacyEventAt event}
       repoint identity = if identity == oldIdentity then replacementIdentity else identity
       dependencies =
         Set.fromList
@@ -832,7 +840,9 @@ data BuildState = BuildState
 
 runV0Migration :: StoreConfig -> Actor -> IO UTCTime -> Bool -> Maybe FilePath -> MigrationStage -> IO (Either AppError MigrationReport)
 runV0Migration targetStore actor clock dryRun sourceOverride stage = handleMigrationIO $ do
-  sourcePath <- maybe defaultV0SourcePath pure sourceOverride
+  -- Dating reads the v0 log the cutover preserved inside the dataset.
+  let preserved = storeRoot targetStore </> "legacy" </> "v0" </> "events.jsonl"
+  sourcePath <- maybe (if stage == MigrationDateCompletions then pure preserved else defaultV0SourcePath) pure sourceOverride
   sourceExists <- doesFileExist sourcePath
   unless sourceExists (ioError (userError ("v0 source does not exist: " <> sourcePath)))
   sourceBytes <- ByteString.readFile sourcePath
@@ -864,6 +874,36 @@ runV0Migration targetStore actor clock dryRun sourceOverride stage = handleMigra
             MigrationCutover
               | dryRun -> inspectCutover sourcePath sourceBytes sourceDigest projection paths live True
               | otherwise -> performCutover targetStore sourcePath sourceBytes sourceDigest projection paths live
+            MigrationDateCompletions -> do
+              let dates = legacyCompletionDates projection (loadedState live)
+                  report = (reportFor stage sourcePath sourceDigest sourceBytes projection paths Nothing False dryRun){migrationCandidatePath = Nothing, migrationDatedCompletions = length dates}
+              if dryRun || null dates
+                then pure (Right report)
+                else do
+                  now <- clock
+                  facts <- migrationFacts now (1 + length dates) live
+                  case factsUUIDs facts of
+                    Left problem -> pure (Left problem)
+                    Right [] -> pure (Left (migrationError PreconditionFailed "The migration UUID allocation count changed unexpectedly."))
+                    Right (commandId : eventIds) -> do
+                      let drafts = zipWith (\eventId (brickId, at) -> directDraft actor (loadedState live) facts commandId eventId (CompletionDatedV1 (CompletionDated brickId at))) eventIds dates
+                      fmap (const report) <$> appendCommand targetStore (loadedCursor live) drafts
+
+{- | WRK-165: completed Work adopted from v0 whose completion still carries
+the cutover time, with its v0 completion time. A Brick is matched by its v0
+creation time, and by title when several share it.
+-}
+legacyCompletionDates :: LegacyProjection -> State -> [(UUIDv7, UTCTime)]
+legacyCompletionDates projection state =
+  [ (brickId brick, legacyBrickStageAt legacy)
+  | legacy <- Map.elems (legacyBricks projection)
+  , legacyBrickStage legacy == LegacyDone
+  , let created = [brick | brick <- Map.elems (stateBricks state), brickCreatedAt brick == legacyBrickCreatedAt legacy]
+  , [brick] <- [if length created == 1 then created else filter ((== legacyBrickTitle legacy) . brickTitle) created]
+  , brickStatus brick == BrickDone
+  , Just recorded <- [Map.lookup (brickId brick) (stateBrickCompletedAt state)]
+  , legacyBrickStageAt legacy < recorded
+  ]
 
 defaultV0SourcePath :: IO FilePath
 defaultV0SourcePath = do
@@ -892,7 +932,10 @@ reportFor
   sourceDigest
   _sourceBytes
   projection
-  paths =
+  paths
+  candidateCursor
+  cutoverComplete
+  dryRun =
     MigrationReport
       stage
       sourcePath
@@ -913,6 +956,10 @@ reportFor
           else
             Nothing
       )
+      candidateCursor
+      cutoverComplete
+      dryRun
+      0
 
 requireEmptyTarget :: MigrationPaths -> LoadedDataset -> Either AppError ()
 requireEmptyTarget paths dataset =
@@ -1192,17 +1239,22 @@ buildCandidate store actor now projection = do
             , dependencyStatus dependency == DependencyActive
             , Just (dependencyBlockerBrick dependency) == Map.lookup (legacyBrickId brick) (builtBrickIds state)
             ]
-      facts <- migrationFacts now (2 + length completedDependencies) (builtDataset state)
+          -- WRK-165: a v0 completion keeps its own time.
+          dated = legacyBrickStage brick == LegacyDone && legacyBrickStageAt brick < now
+      facts <- migrationFacts now (2 + length completedDependencies + if dated then 1 else 0) (builtDataset state)
       pure $ do
         brickId <- mapped "lifecycle Brick" (legacyBrickId brick) (builtBrickIds state)
         allocated <- factsUUIDs facts
-        (commandId, eventId, resolutionIds) <- case allocated of
-          commandIdentity : eventIdentity : remaining -> Right (commandIdentity, eventIdentity, remaining)
+        (commandId, eventId, remaining) <- case allocated of
+          commandIdentity : eventIdentity : rest -> Right (commandIdentity, eventIdentity, rest)
           _ -> Left (migrationError PreconditionFailed "The migration lifecycle UUID allocation count changed unexpectedly.")
         payload <- lifecyclePayload brickId brick
-        let event = directDraft actor (loadedState (builtDataset state)) facts commandId eventId payload
-            resolutions = zipWith (\identity dependency -> directDraft actor (loadedState (builtDataset state)) facts commandId identity (DependencyResolvedV1 (DependencyResolution (dependencyId dependency)))) resolutionIds completedDependencies
-        Right (event : resolutions, state)
+        let (resolutionIds, datedIds) = splitAt (length completedDependencies) remaining
+            draft = directDraft actor (loadedState (builtDataset state)) facts commandId
+            event = draft eventId payload
+            resolutions = zipWith (\identity dependency -> draft identity (DependencyResolvedV1 (DependencyResolution (dependencyId dependency)))) resolutionIds completedDependencies
+            dating = [draft identity (CompletionDatedV1 (CompletionDated brickId (legacyBrickStageAt brick))) | dated, identity <- take 1 datedIds]
+        Right (event : resolutions <> dating, state)
    where
     lifecycle = [brick | brick <- sortOn legacyBrickCreatedOrder (Map.elems (legacyBricks projection)), legacyBrickStage brick /= LegacyActive]
 

@@ -190,7 +190,7 @@ reinterprets the view. Neither `/importance` nor `/forecast` is an alias.
 | REPL command | CLI form | Meaning |
 |---|---|---|
 | `/import` | `lant import <source> (--snapshot\|--synchronize\|--migrate) [--erase-after-import]` | Run the catalog-declared Raw-first preflight and, after acceptance, import. |
-| `/migrate` | `lant migrate --from <v0-jsonl> --into <v1-dataset>` | Produce the harmless v0 preflight plan; `--inspect`, `--build`, and `--cutover` are the only later stages. |
+| `/migrate` | `lant migrate --from <v0-jsonl> --into <v1-dataset>` | Produce the harmless v0 preflight plan; `--inspect`, `--build`, and `--cutover` are the only later stages; `--date-completions` gives Work completed in v0 its v0 completion time after cutover (MIG-006). |
 | `/export` | `lant export <exporter> [--scope <reference>] [--output <new-path>]` | Run one read-only Pack exporter; bytes go to stdout unless the host creates a new output file. |
 | `/web` | `lant web` | Start the loopback-only local web mirror and display its expiring access URL. |
 | `/config` | `lant config show\|paths\|validate\|connect` | Inspect or enter the typed configuration hub; `connect` previews one signed provider authorization while secrets remain under Vault. |

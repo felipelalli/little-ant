@@ -28,6 +28,12 @@
   - v0 `wip` becomes `active`/`wip`, with current focus preserved only when
     explicit evidence identifies it;
   - terminal v0 `done` and `superseded` retain their outcomes and lineage;
+    a v0 completion keeps its own v0 time as its completion time (WRK-165),
+    and `lant migrate --date-completions` gives that time to Work an earlier
+    build adopted at the cutover time, reading the v0 log the cutover
+    preserved; it matches each Brick by its v0 creation time, and by title
+    when several share it, and dates only completions still at that later
+    time;
     any explicit v0 `dropped` outcome maps to canonical v1 `archived` with
     its source vocabulary and reason preserved as migration evidence;
   - no legacy stage is converted into phase merely by name.

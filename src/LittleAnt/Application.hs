@@ -560,6 +560,7 @@ migrationCommandResult cursor report =
         , ("supported_types", Text.pack (show (length (migrationSupportedTypes report))))
         , ("cutover_complete", if migrationCutoverComplete report then "true" else "false")
         ]
+          <> [("dated_completions", Text.pack (show (migrationDatedCompletions report))) | migrationStage report == MigrationDateCompletions]
           <> maybe [] (\path -> [("candidate", Text.pack path)]) (migrationCandidatePath report)
           <> maybe [] (\path -> [("backup", Text.pack path)]) (migrationBackupPath report)
           <> maybe [] (\candidateCursor -> [("candidate_cursor", renderCursor candidateCursor)]) (migrationCandidateCursor report)
@@ -570,6 +571,7 @@ migrationCommandResult cursor report =
     MigrationInspect -> "inspect"
     MigrationBuild -> "build"
     MigrationCutover -> "cutover"
+    MigrationDateCompletions -> "date-completions"
 
 data PackProfileSnapshot = PackProfileSnapshot
   { packProfilePaths :: Profile.ProfilePaths

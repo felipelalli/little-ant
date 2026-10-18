@@ -9,6 +9,10 @@ replace the specification.
 
 ## Unreleased
 
+- Keep v0 completion times: migration now dates each completion adopted
+  from v0 with its v0 time instead of the cutover time, and
+  `lant migrate --date-completions` repairs a dataset an earlier build
+  migrated, reading the v0 log preserved inside it.
 - Give completed Work an earlier completion time. `/update` on completed
   Work offers `[w]hen done`, which opens a month calendar with today
   selected (arrows move the day and week, PgUp/PgDn the month); Enter asks

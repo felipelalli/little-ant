@@ -10,6 +10,7 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.IORef
 import Data.Map.Strict qualified as Map
+import Data.Maybe qualified
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
@@ -119,6 +120,16 @@ buildAndCutover = withFixture $ \fixture -> do
         _ -> assertFailure "legacy Raw is missing from the identity map"
       _ -> assertFailure "migration manifest has no Raw identity map"
     Right _ -> assertFailure "migration manifest is not an object"
+  -- WRK-165: the v0 completion keeps its own time, not the build time.
+  let doneTimes = [Map.lookup (brickId brick) (stateBrickCompletedAt state) | brick <- Map.elems (stateBricks state), brickStatus brick == BrickDone]
+  case doneTimes of
+    [Just at] -> assertBool ("the v0 completion took the build time: " <> show at) (at < readUtc "2026-08-01 09:00:30 UTC")
+    other -> assertFailure ("expected one dated completion, got " <> show other)
+  -- An older build left the cutover time; the dating stage finds it again.
+  projection <- requireRight "legacy projection" (parseLegacyLog sourceBefore)
+  let undated = state{stateBrickCompletedAt = fmap (const fixtureNow) (stateBrickCompletedAt state)}
+  fmap snd (legacyCompletionDates projection undated) @?= Data.Maybe.catMaybes doneTimes
+  legacyCompletionDates projection state @?= []
   cutover <- migrate fixture False MigrationCutover
   migrationCutoverComplete cutover @?= True
   live <- loadHealthy (fixtureStore fixture)
@@ -127,6 +138,8 @@ buildAndCutover = withFixture $ \fixture -> do
   backupDataset <- loadHealthy (StoreConfig backup 5000000 25000)
   loadedCursor backupDataset @?= Genesis
   ByteString.readFile (fixtureSource fixture) >>= (@?= sourceBefore)
+  dated <- migrate fixture False MigrationDateCompletions
+  migrationDatedCompletions dated @?= 0
   cutoverAgain <- migrate fixture False MigrationCutover
   migrationCutoverComplete cutoverAgain @?= True
   loadHealthy (fixtureStore fixture)

@@ -1056,6 +1056,7 @@ migrationStageParser :: Parser MigrationStage
 migrationStageParser =
   flag' MigrationBuild (long "build" <> help "Build and replay an isolated v1 candidate; do not change the selected profile")
     <|> flag' MigrationCutover (long "cutover" <> help "Atomically adopt the previously validated candidate and retain a backup")
+    <|> flag' MigrationDateCompletions (long "date-completions" <> help "Give Work completed in v0 its v0 completion time, from the log the cutover preserved")
     <|> pure MigrationInspect
 
 importModeParser :: Parser SourceMode
