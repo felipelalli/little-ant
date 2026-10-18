@@ -138,9 +138,9 @@ tests =
         [text | spans <- current, Span Today text <- spans] @?= ["18", "18"]
         [text | spans <- current, Span Urgent text <- spans] @?= ["!", "!"]
         [text | spans <- take 6 current, Span Dim text <- spans] @?= ["42  ", "43  "]
-        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18", ""] <> october <> ["", "! deadline \183 \8226 best before \183 18 today"]
+        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18", ""] <> october <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today"]
         [text | spans <- selected, Span Pointed text <- spans] @?= ["21", "21"]
-        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18", ""] <> november <> ["", "! deadline \183 \8226 best before \183 18 today \183 16 selected"]
+        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18", ""] <> november <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today \183 16 selected"]
         [text | spans <- take 5 later, Span Today text <- spans] @?= []
     , testCase "agenda days stay flat when alone, periods head turning weeks, and Domain folders open with Tab" $ do
         identity <- fixtureIdentity

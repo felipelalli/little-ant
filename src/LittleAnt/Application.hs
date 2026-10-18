@@ -24,7 +24,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Char8 qualified as ByteStringChar8
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
-import Data.Either (isRight, rights)
+import Data.Either (fromRight, isRight, rights)
 import Data.Functor qualified
 import Data.List (find, minimumBy, nub, sort, sortOn)
 import Data.Map.Strict qualified as Map
@@ -2838,10 +2838,10 @@ chunk as the selection reaches the end, so the agenda has no fixed horizon.
 agendaChunkDays :: Integer
 agendaChunkDays = 35
 
--- | The loadable zones of recorded recurrence schedules, for projection.
+-- | The loadable zones of recorded recurrence and habit schedules, for projection.
 recurrenceZones :: State -> IO (Map.Map Text TZ)
 recurrenceZones state = do
-  loaded <- traverse (\name -> fmap (name,) <$> loadRecurrenceZone name) (nub (recurrenceZone <$> Map.elems (stateRecurrenceSchedules state)))
+  loaded <- traverse (\name -> fmap (name,) <$> loadRecurrenceZone name) (nub ((recurrenceZone <$> Map.elems (stateRecurrenceSchedules state)) <> (habitScheduleZone <$> Map.elems (stateHabitSchedules state))))
   pure (Map.fromList (rights loaded))
 
 data AgendaFact = AgendaFact
@@ -2920,8 +2920,43 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
     , let instant = addUTCTime (fromInteger offset) (zonedInstantUtc (anchorInstant anchor))
     , inWindow instant
     ]
-  kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("best before", 2), ("deadline", 3)])
-  dated = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (dropCoincident (concatMap ownFacts active <> projected))
+  -- A fixed habit slot is one `habit` row at its start; a quota window is one
+  -- `habit due` row at its close with its progress. Released windows show
+  -- their recorded completions; later ones are projected from the schedule.
+  habits =
+    [ habitFact window owner (Map.findWithDefault 0 (habitWindowId window) completions) False
+    | window <- Map.elems (stateHabitWindows state)
+    , not (habitWindowSettled window)
+    , Just owner <- [Map.lookup (habitWindowOwner window) (stateBricks state)]
+    , brickStatus owner == BrickActive
+    , zonedInstantUtc (habitWindowClosesAt window) >= utcNow
+    , zonedInstantUtc (habitWindowOpensAt window) < windowEnd
+    ]
+      <> [ habitFact (HabitWindow (habitScheduleOwner schedule) (habitScheduleOwner schedule) opensAt closesAt target (habitScheduleRevision schedule) False) owner 0 True
+         | schedule <- Map.elems (stateHabitSchedules state)
+         , Just owner <- [Map.lookup (habitScheduleOwner schedule) (stateBricks state)]
+         , brickStatus owner == BrickActive
+         , Just tz <- [Map.lookup (habitScheduleZone schedule) zones]
+         , (opensAt, closesAt, target) <- projectedHabitWindows tz schedule
+         , zonedInstantUtc closesAt >= utcNow
+         , not (any (\window -> habitWindowOwner window == habitScheduleOwner schedule && zonedInstantUtc (habitWindowOpensAt window) == zonedInstantUtc opensAt) (Map.elems (stateHabitWindows state)))
+         , habitInstant schedule opensAt closesAt < windowEnd
+         ]
+  projectedHabitWindows tz schedule = case schedule of
+    FixedSlotHabit{} -> fromRight [] (fixedWindows tz schedule windowEnd)
+    QuotaWindowHabit{} -> quotaWindows state tz schedule windowEnd
+  habitInstant schedule opensAt closesAt = case schedule of
+    FixedSlotHabit{} -> zonedInstantUtc opensAt
+    QuotaWindowHabit{} -> zonedInstantUtc closesAt
+  completions = Map.fromListWith (+) [(habitOutcomeWindow outcome, 1 :: Int) | outcome <- Map.elems (stateHabitOutcomes state), habitOutcomeKind outcome == StandingDone]
+  habitFact window owner done projection =
+    case Map.lookup (brickId owner) (stateHabitSchedules state) of
+      Just QuotaWindowHabit{} ->
+        AgendaFact (zonedInstantUtc (habitWindowClosesAt window)) "habit due" owner ([Text.pack (show done) <> "/" <> Text.pack (show (habitWindowTarget window)) <> " done"] <> ["projected" | projection])
+      _ ->
+        AgendaFact (zonedInstantUtc (habitWindowOpensAt window)) "habit" owner (["until " <> clock (zonedInstantUtc (habitWindowClosesAt window))] <> ["done" | done > 0] <> ["projected" | projection])
+  kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("habit", 1), ("best before", 2), ("habit due", 2), ("deadline", 3)])
+  dated = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (dropCoincident (concatMap ownFacts active <> projected) <> habits)
   -- A fact at the same instant as a later one of the same Work says less:
   -- opens yields to best before, and both yield to the deadline.
   dropCoincident facts =
@@ -2950,13 +2985,15 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
       (agendaKind fact)
   overdueRows = fmap (row "Overdue") overdue
   datedRows = [row (dayLabel (localDayOf (agendaAt fact))) fact | fact <- dated]
+  -- One mark per day, the strongest: deadline, then best before, then habit.
   marks =
-    Map.fromListWith
-      max
-      [ (localDayOf (agendaAt fact), if agendaKind fact == "deadline" then '!' else '•')
-      | fact <- dated
-      , agendaKind fact `elem` ["deadline", "best before"]
-      ]
+    snd
+      <$> Map.fromListWith
+        max
+        [ (localDayOf (agendaAt fact), mark)
+        | fact <- dated
+        , Just mark <- [lookup (agendaKind fact) [("deadline", (3 :: Int, '!')), ("best before", (2, '\8226')), ("habit", (1, '\9702')), ("habit due", (1, '\9702'))]]
+        ]
   calendar = intercalateBlank [monthGrid month | month <- nub [let { (y, m, _) = toGregorian day } in (y, m) | day <- [today .. lastDay]]] <> ["", agendaLegend]
   intercalateBlank = \case
     [] -> []
@@ -2980,7 +3017,7 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
 
 -- | The key to the agenda calendar marks.
 agendaLegend :: Text
-agendaLegend = "! deadline · \8226 best before"
+agendaLegend = "! deadline · \8226 best before · \9702 habit"
 
 -- | The weekday row of an agenda month grid, after the ISO week column.
 agendaWeekdays :: Text

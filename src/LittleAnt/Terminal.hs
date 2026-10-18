@@ -30,6 +30,7 @@ import Graphics.Vty (
   green,
   horizCat,
   italic,
+  magenta,
   picForImage,
   red,
   reverseVideo,
@@ -109,6 +110,9 @@ roleAttribute mode role =
       ColorEnabled -> defAttr `withForeColor` green
       Monochrome -> defAttr
     PinBoundary -> defAttr
+    Habit -> case mode of
+      ColorEnabled -> defAttr `withForeColor` magenta
+      Monochrome -> defAttr `withStyle` italic
     Warning -> defAttr `withStyle` bold
     Heading -> roleAttribute mode Accent
     Strong -> defAttr `withStyle` bold

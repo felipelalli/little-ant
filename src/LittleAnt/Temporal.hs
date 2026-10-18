@@ -1,5 +1,7 @@
 module LittleAnt.Temporal (
   buildTemporalTickPlan,
+  fixedWindows,
+  quotaWindows,
 )
 where
 

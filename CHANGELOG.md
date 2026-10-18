@@ -9,6 +9,12 @@ replace the specification.
 
 ## Unreleased
 
+- Show habits in the agenda: a fixed slot is a `habit` row at its start
+  with `until` its end, and a quota window is a `habit due` row at its close
+  with its progress, such as `1/3 done`; later windows are projected. Habits
+  have their own calendar mark `◦`, legend entry, and magenta color.
+- Leave the REPL with Escape from a receipt whose only action is next, such
+  as one reopened in a new session.
 - Refine the agenda: the calendar starts on Monday with an ISO week column,
   stays pinned above the rows in the REPL, and marks the selected day. A
   heading such as `Week 44/53, Oct, 2026`, `Sep, 2026`, or `2027` separates

@@ -156,7 +156,8 @@ assistance-label, and no-emoji rendering.
   continues as if the preview had not opened. Actions recorded before the
   session started are never offered this way.
   Main screens are pristine, safe-empty, Raw triage/duplicate, Focus proposal,
-  current Focus, and scheduled commitment/overlap. The undisplayed `q` exit
+  current Focus, and scheduled commitment/overlap; a result whose only action
+  is `next`, such as a receipt reopened in a new session, also leaves. The undisplayed `q` exit
   gesture is available on noneditable opportunity screens only when no action
   owns that shortcut; it is literal input in editors and filtering selectors.
   `Left Arrow` may instead preview the latest reversible recorded action and ask
@@ -252,7 +253,10 @@ assistance-label, and no-emoji rendering.
   `best_before`, already passed, oldest first. Then one group per day with at
   least one fact, in time order: `opens` for a future `not_before`, `best
   before`, `deadline` (with `counts as missed` for a lapsing occurrence),
-  and `starts` for a scheduled interval. Occurrences of a recurring series
+  and `starts` for a scheduled interval. Habits have their own kinds: a
+  fixed slot is one `habit` row at its start (`until` its end), and a quota
+  window is one `habit due` row at its close with its progress (`1/3
+  done`); windows not yet released appear as `projected`. Occurrences of a recurring series
   that are not yet released appear as `projected` rows on their projected
   dates, cited by the series handle; projection uses the recorded schedule
   and releases nothing. An escalated occurrence (FOC-071) says `escalated`.
@@ -260,14 +264,15 @@ assistance-label, and no-emoji rendering.
   listed: `opens` yields to `best before`, and both yield to `deadline`.
   A compact Monday-first month calendar heads the view, each row starting
   with its ISO week number, marking days with a deadline `!` and other days
-  with a `best_before` `•`, highlighting today, and ending with a legend of
+  with a `best_before` `•`, other days with a habit `◦`, highlighting today,
+  and ending with a legend of
   those marks; the REPL keeps it pinned above the scrolling rows, shows the
   month of the selected row, and marks the selected day differently from
   today; the CLI shows every month the window touches. Between dated days, a
   heading names the largest unit that turned: `2027` for a year, `Sep, 2026`
   for a month, or `Week 44/53, Oct, 2026` for an ISO week. Fact kinds are
   colored in the REPL: `opens` and `starts` green, `best before` yellow,
-  `deadline` red.
+  `deadline` red, and habits magenta.
   A day with several facts is a non-selectable group; a day with one fact
   stays a flat row, whose details already name the date, while `Overdue` is
   always a group. `[c]ategories` groups the rows by Domain, then by day, and

@@ -449,10 +449,10 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
 
   navigateOrExit envelope =
     runCurrent (NavigateBackCommand (interactionResponse envelope "navigation.back")) >>= \case
-      Left _ | isMainOpportunity (envelopeOpportunity envelope) -> offerUndoOr envelope (pure Nothing)
+      Left _ | leavesOnEscape envelope -> offerUndoOr envelope (pure Nothing)
       Left problem -> offerUndoOr envelope (pure . Just $ EnvelopeScreen envelope (Just (appErrorMessage problem)))
       Right RespondResult{resultInteraction}
-        | resultInteraction == envelope, isMainOpportunity (envelopeOpportunity envelope) -> offerUndoOr envelope (pure Nothing)
+        | resultInteraction == envelope, leavesOnEscape envelope -> offerUndoOr envelope (pure Nothing)
         | resultInteraction == envelope -> offerUndoOr envelope (pure (Just screen))
       Right result -> screenFromResult envelope result
 
@@ -481,7 +481,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     Printable 'n' [] -> declined
     Printable 'k' [] -> pure (Just (UndoPromptScreen envelope summary (Just "Yes appends one compensating event that restores the state before that action; history keeps both, no new draw happens, and /redo restores it. No keeps everything; Esc keeps everything and continues leaving.")))
     Escape _
-      | isMainOpportunity (envelopeOpportunity envelope) -> pure Nothing
+      | leavesOnEscape envelope -> pure Nothing
       | otherwise -> declined
     Backspace _ -> declined
     ArrowLeft _ -> declined
@@ -1277,7 +1277,7 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
   -- Each row starts with its ISO week number, then four columns per day.
   weekLine todayNumber pointed text = Span Dim (Text.take 4 text) : concatMap (cell todayNumber pointed) (chunks (Text.drop 4 text))
   legendLines =
-    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
+    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Habit "\9702", Span Dim " habit · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
     | agendaLegend `elem` header
     ]
   splitBlank values = case break Text.null values of
@@ -1294,6 +1294,7 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
         mark = case Text.take 1 (Text.drop 2 text) of
           "!" -> [Span Urgent "!"]
           "\8226" -> [Span Caution "\8226"]
+          "\9702" -> [Span Habit "\9702"]
           rest -> [Span Normal rest | not (Text.null rest)]
      in Span numberRole number : mark <> [Span Normal (Text.drop 3 text) | not (Text.null (Text.drop 3 text))]
   chunks text
@@ -1313,7 +1314,7 @@ colorAgendaKinds = concatMap split
       let (before, kind, role) = foldr1 (\left right -> if Text.length (fst3 left) <= Text.length (fst3 right) then left else right) candidates
           rest = Text.drop (Text.length before + Text.length kind + 3) text
        in Span Dim (before <> " · ") : Span role kind : go rest
-  kinds = [("deadline", Urgent), ("best before", Caution), ("opens", Opening), ("starts", Opening)]
+  kinds = [("deadline", Urgent), ("best before", Caution), ("opens", Opening), ("starts", Opening), ("habit due", Habit), ("habit", Habit)]
   boundary rest = Text.null rest || " · " `Text.isPrefixOf` rest
   fst3 (value, _, _) = value
 
@@ -1818,6 +1819,14 @@ canonicalExitQuery :: Text -> Text
 canonicalExitQuery query
   | Text.strip query == "/quit" = "/exit"
   | otherwise = query
+
+{- | UX-019: Escape at the root leaves from a main screen and from a result
+whose only way forward is next, such as a receipt reopened in a new session.
+-}
+leavesOnEscape :: InteractionEnvelope -> Bool
+leavesOnEscape envelope =
+  isMainOpportunity (envelopeOpportunity envelope)
+    || fmap actionId (envelopeActions envelope) == ["next", "palette.open"]
 
 isMainOpportunity :: Opportunity -> Bool
 isMainOpportunity = \case

@@ -41,6 +41,8 @@ data SemanticRole
     Pointed
   | -- | An agenda opening, the mildest dated fact.
     Opening
+  | -- | A habit slot or quota window in the agenda.
+    Habit
   | -- | Ends the rows a viewport keeps pinned above the scrolling body.
     PinBoundary
   deriving stock (Eq, Ord, Show)

@@ -7700,7 +7700,7 @@ Wk  Mo  Tu  We  Th  Fr  Sa  Su
 43  19  20  21• 22  23! 24  25
 44  26  27  28• 29  30! 31
 
-! deadline · • best before · 17 today · 21 selected
+! deadline · • best before · ◦ habit · 17 today · 21 selected
 
   Overdue
   └── #pfr Pay the fine
@@ -7729,7 +7729,8 @@ scrolls away with them. The controls stay pinned. It shows the month of the
 selected row, the current month while nothing later is selected, and marks
 the selected day bold and underlined, apart from today's highlight. Each day takes four columns, its mark directly after its
 number, so a mark never touches the next day. A legend follows the grids. With
-color enabled, `!` is red, `•` is yellow, and today's number looks like the
+color enabled, `!` is red, `•` is yellow, a habit's `◦` is magenta like its
+`habit` and `habit due` rows, and today's number looks like the
 selected style without being the selection, so the viewport follows the
 selected row; monochrome keeps the characters and bold marks. The CLI prints the
 legend without `today`, since the `Today:` line names it. Day labels and `Overdue` are not inspection targets.
