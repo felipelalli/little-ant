@@ -676,6 +676,7 @@ test-suite little-ant-s01-surface-test
   hs-source-dirs: test/surface-s01
   build-depends:
     , base         >=4.20 && <5
+    , containers   >=0.7  && <0.8
     , little-ant
     , tasty        >=1.5  && <1.6
     , tasty-hunit  >=0.10 && <0.11

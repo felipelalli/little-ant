@@ -256,16 +256,28 @@ assistance-label, and no-emoji rendering.
   that are not yet released appear as `projected` rows on their projected
   dates, cited by the series handle; projection uses the recorded schedule
   and releases nothing. An escalated occurrence (FOC-071) says `escalated`.
-  A compact month calendar heads the view, marking days with a deadline `!`
-  and other days with a `best_before` `•`, highlighting today, and ending
-  with a legend of those marks; the REPL shows the month of the selected row,
-  and the CLI every month the window touches.
+  When facts of one Work fall on the same instant, only the strongest is
+  listed: `opens` yields to `best before`, and both yield to `deadline`.
+  A compact Monday-first month calendar heads the view, each row starting
+  with its ISO week number, marking days with a deadline `!` and other days
+  with a `best_before` `•`, highlighting today, and ending with a legend of
+  those marks; the REPL keeps it pinned above the scrolling rows, shows the
+  month of the selected row, and marks the selected day differently from
+  today; the CLI shows every month the window touches. Between dated days, a
+  heading names the largest unit that turned: `2027` for a year, `Sep, 2026`
+  for a month, or `Week 44/53, Oct, 2026` for an ISO week. Fact kinds are
+  colored in the REPL: `opens` and `starts` green, `best before` yellow,
+  `deadline` red.
   A day with several facts is a non-selectable group; a day with one fact
   stays a flat row, whose details already name the date, while `Overdue` is
   always a group. `[c]ategories` groups the rows by Domain, then by day, and
   nests a dated part under its dated parent of the same day; Work without
   direct Domains appears under its nearest classified ancestor as composition
-  context, or else `Without a category`. Rows inspect like other list rows.
+  context, or else `Without a category`. In the REPL each Domain branch is a
+  selectable folder, collapsed with its row count until Tab or Enter opens
+  it; Tab inside an open folder closes it and selects it, and searching opens
+  every folder. Loading more days keeps the selection on the same row, so
+  later folders stay reachable. Rows inspect like other list rows.
   The agenda never ticks, draws, or changes importance; JSON exposes each
   row's day, ISO date, time, and kind.
 - **UX-289 [core] — A review is deferred with `later` and never archived.**

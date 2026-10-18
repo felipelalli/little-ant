@@ -27,6 +27,7 @@ import Graphics.Vty (
   defAttr,
   dim,
   emptyImage,
+  green,
   horizCat,
   italic,
   picForImage,
@@ -103,6 +104,11 @@ roleAttribute mode role =
         Monochrome -> defAttr `withStyle` bold
     Selected -> defAttr `withStyle` reverseVideo
     Today -> defAttr `withStyle` reverseVideo
+    Pointed -> (defAttr `withStyle` underline) `withStyle` bold
+    Opening -> case mode of
+      ColorEnabled -> defAttr `withForeColor` green
+      Monochrome -> defAttr
+    PinBoundary -> defAttr
     Warning -> defAttr `withStyle` bold
     Heading -> roleAttribute mode Accent
     Strong -> defAttr `withStyle` bold

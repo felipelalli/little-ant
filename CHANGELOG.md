@@ -9,6 +9,14 @@ replace the specification.
 
 ## Unreleased
 
+- Refine the agenda: the calendar starts on Monday with an ISO week column,
+  stays pinned above the rows in the REPL, and marks the selected day. A
+  heading such as `Week 44/53, Oct, 2026`, `Sep, 2026`, or `2027` separates
+  turning weeks, months, and years. Facts of one Work at the same instant
+  collapse to the strongest (opens < best before < deadline), and the kinds
+  are green, yellow, and red. With `[c]ategories`, Domain folders start
+  collapsed and open with Tab or Enter, and loading more days keeps the
+  selection on its row, which fixes the endless first category.
 - Show dates in `show`: a Brick lists its own opens, best-before, and
   deadline, plus the effective best-before and deadline when an ancestor or an
   open descendant sets an earlier one, as `Effective deadline: … · via #part`.

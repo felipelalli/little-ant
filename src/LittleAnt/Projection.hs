@@ -167,8 +167,20 @@ renderCommandResult = \case
       <> "agenda:\n"
       <> Text.unlines header
       <> "\n"
-      <> (if null rows then "  (nothing dated in the window)" else Text.unlines (concatMap agendaGroup (groupDays rows)))
+      <> (if null rows then "  (nothing dated in the window)" else Text.unlines (concat (zipWith withBreak (Nothing : fmap Just groups) groups)))
    where
+    groups = groupDays rows
+    -- A turning week, month, or year gets its own line between dated days.
+    withBreak previous current@(day, first : _) =
+      [ label
+      | Just (previousDay, previousFirst : _) <- [previous]
+      , previousDay /= "Overdue"
+      , day /= "Overdue"
+      , Just label <- [agendaPeriodBreak (agendaDate previousFirst) (agendaDate first)]
+      ]
+        <> agendaGroup current
+    withBreak _ current = agendaGroup current
+    agendaDate = \case AgendaListRow{listEntryDate} -> listEntryDate; _ -> ""
     groupDays = foldr (\row groups -> case groups of (day, members) : rest | day == agendaDay row -> (day, row : members) : rest; _ -> (agendaDay row, [row]) : groups) []
     agendaDay = \case AgendaListRow{listEntryDay} -> listEntryDay; _ -> ""
     -- A day with one fact stays flat: the row already names its date.

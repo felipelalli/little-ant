@@ -37,6 +37,12 @@ data SemanticRole
     Caution
   | -- | Today's calendar cell; it looks selected without being the selection.
     Today
+  | -- | The calendar cell of the selected agenda row.
+    Pointed
+  | -- | An agenda opening, the mildest dated fact.
+    Opening
+  | -- | Ends the rows a viewport keeps pinned above the scrolling body.
+    PinBoundary
   deriving stock (Eq, Ord, Show)
 
 data Span = Span

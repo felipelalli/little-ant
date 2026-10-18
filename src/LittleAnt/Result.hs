@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiWayIf #-}
+
 module LittleAnt.Result (
   CommandResult (..),
   DiagnosticCheck (..),
@@ -10,6 +12,7 @@ module LittleAnt.Result (
   PackProjection (..),
   RawProjection (..),
   UndoClass (..),
+  agendaPeriodBreak,
   resultCursor,
 )
 where
@@ -19,7 +22,9 @@ import Data.ByteString (ByteString)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
-import Data.Time (UTCTime)
+import Data.Text qualified as Text
+import Data.Time (Day, UTCTime, defaultTimeLocale, formatTime, fromGregorian, parseTimeM, toGregorian)
+import Data.Time.Calendar.WeekDate (toWeekDate)
 import LittleAnt.Error
 import LittleAnt.Event (forecastSelectionValue)
 import LittleAnt.Export
@@ -542,3 +547,24 @@ instance ToJSON CommandResult where
           <> dryRunPair dryRun
    where
     dryRunPair True = ["dry_run" .= True]; dryRunPair False = []
+
+{- | UX-288: the label between two consecutive agenda dates (ISO text) when a
+year, month, or ISO week turns, naming the largest unit that turned.
+-}
+agendaPeriodBreak :: Text -> Text -> Maybe Text
+agendaPeriodBreak previous next = do
+  before <- parseDay previous
+  after <- parseDay next
+  let (yearBefore, monthBefore, _) = toGregorian before
+      (yearAfter, monthAfter, _) = toGregorian after
+      (isoYearBefore, weekBefore, _) = toWeekDate before
+      (isoYearAfter, weekAfter, _) = toWeekDate after
+      (_, weeksInYear, _) = toWeekDate (fromGregorian isoYearAfter 12 28)
+      monthYear = Text.pack (formatTime defaultTimeLocale "%b, %Y" after)
+  if
+    | yearAfter /= yearBefore -> Just (Text.pack (show yearAfter))
+    | monthAfter /= monthBefore -> Just monthYear
+    | (isoYearAfter, weekAfter) /= (isoYearBefore, weekBefore) -> Just ("Week " <> Text.pack (show weekAfter) <> "/" <> Text.pack (show weeksInYear) <> ", " <> monthYear)
+    | otherwise -> Nothing
+ where
+  parseDay text = parseTimeM False defaultTimeLocale "%Y-%m-%d" (Text.unpack text) :: Maybe Day

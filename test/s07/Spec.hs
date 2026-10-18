@@ -418,7 +418,7 @@ agendaOutlook = withHarness $ \environment -> do
       assertBool ("the second Friday is not projected: " <> show summary) (("Fri, Aug 14", "#standing", "deadline") `elem` summary)
       assertBool "a projected row lacks its mark" (all (Text.isInfixOf "projected" . listEntryDetails) (filter ((== "#standing") . listEntryHandle) resultListEntries))
       assertBool ("the lapsing deadline lacks its consequence: " <> show resultListEntries) (any (Text.isInfixOf "deadline · counts as missed" . listEntryDetails) resultListEntries)
-      take 4 resultListHeader @?= ["Today: Mon, Aug 3", "", "        August 2026", "Su  Mo  Tu  We  Th  Fr  Sa"]
+      take 5 resultListHeader @?= ["Today: Mon, Aug 3", "", "          August 2026", "Wk  Mo  Tu  We  Th  Fr  Sa  Su", "31                       1   2"]
       assertBool ("calendar marks are missing: " <> show resultListHeader) (any (Text.isInfixOf " 6•  7!  8") resultListHeader)
       last resultListHeader @?= "! deadline · • best before"
       [label | ListCategory label _ <- resultListCategories] @?= ["Without a category"]

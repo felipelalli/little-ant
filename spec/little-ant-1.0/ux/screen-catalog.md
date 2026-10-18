@@ -7692,15 +7692,15 @@ UX-288; today's date is highlighted in the calendar:
 ```text
 Agenda · Today: Sat, Oct 17
 
-        October 2026
-Su  Mo  Tu  We  Th  Fr  Sa
-                 1   2   3
- 4   5   6   7   8   9  10
-11  12  13  14  15  16  17
-18  19  20  21• 22  23! 24
-25  26  27  28• 29  30! 31
+          October 2026
+Wk  Mo  Tu  We  Th  Fr  Sa  Su
+40               1   2   3   4
+41   5   6   7   8   9  10  11
+42  12  13  14  15  16  17  18
+43  19  20  21• 22  23! 24  25
+44  26  27  28• 29  30! 31
 
-! deadline · • best before · 17 today
+! deadline · • best before · 17 today · 21 selected
 
   Overdue
   └── #pfr Pay the fine
@@ -7712,6 +7712,9 @@ Su  Mo  Tu  We  Th  Fr  Sa
   │   Wed, Oct 21 · 18:00 · best before
   └── #rent Pay the rent
       Wed, Oct 21 · 23:59 · deadline
+
+Week 44/53, Oct, 2026
+
   #dosio Do one shift in operations
     Mon, Oct 26 · 00:00 · opens · projected
 
@@ -7720,9 +7723,11 @@ Su  Mo  Tu  We  Th  Fr  Sa
 ↑/↓ select · ←/→ view · Enter inspect · Esc back · [/] more
 ```
 
-The calendar is a fixed-width header and scrolls away with the rows; the
-controls stay pinned. It shows the month of the selected row, the current
-month while nothing later is selected. Each day takes four columns, its mark directly after its
+The calendar is a fixed-width header pinned above the scrolling rows while
+the terminal leaves the rows at least six lines; on a shorter terminal it
+scrolls away with them. The controls stay pinned. It shows the month of the
+selected row, the current month while nothing later is selected, and marks
+the selected day bold and underlined, apart from today's highlight. Each day takes four columns, its mark directly after its
 number, so a mark never touches the next day. A legend follows the grids. With
 color enabled, `!` is red, `•` is yellow, and today's number looks like the
 selected style without being the selection, so the viewport follows the
@@ -7730,14 +7735,15 @@ selected row; monochrome keeps the characters and bold marks. The CLI prints the
 legend without `today`, since the `Today:` line names it. Day labels and `Overdue` are not inspection targets.
 A day with one fact is a flat row; several facts on one day form a group.
 Reaching the end loads the next `agenda.chunk_days` days in place. With
-`[c]ategories: on`, Domain groups contain day groups, and a dated part nests
-under its dated parent of the same day:
+`[c]ategories: on`, Domain folders open with Tab or Enter and contain day
+groups, and a dated part nests under its dated parent of the same day:
 
 ```text
-  eulen
+> ▾ eulen (2)
   └── Wed, Oct 21
       └── #launch Launch the onboarding
           └── #slides Prepare the slides
+  ▸ Without a category (5)
 ```
 
 Search, inspection, and back follow UX-LIST00. The CLI prints the same

@@ -37,6 +37,7 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Text.IO qualified as TextIO
 import Data.Time
+import Data.Time.Calendar.WeekDate (toWeekDate)
 import Data.Time.Zones (TZ, loadTZFromDB, utcToLocalTimeTZ)
 import LittleAnt.Catalog
 import LittleAnt.Decision
@@ -2920,7 +2921,24 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
     , inWindow instant
     ]
   kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("best before", 2), ("deadline", 3)])
-  dated = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (concatMap ownFacts active <> projected)
+  dated = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (dropCoincident (concatMap ownFacts active <> projected))
+  -- A fact at the same instant as a later one of the same Work says less:
+  -- opens yields to best before, and both yield to the deadline.
+  dropCoincident facts =
+    [ fact
+    | fact <- facts
+    , not
+        ( any
+            ( \other ->
+                agendaAt other == agendaAt fact
+                  && brickId (agendaBrick other) == brickId (agendaBrick fact)
+                  && agendaKind fact `elem` ["opens", "best before"]
+                  && agendaKind other `elem` ["best before", "deadline"]
+                  && kindOrder (agendaKind other) > kindOrder (agendaKind fact)
+            )
+            facts
+        )
+    ]
   row label fact =
     AgendaListRow
       (renderHandle BrickHandle (brickHandle (agendaBrick fact)))
@@ -2946,13 +2964,16 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
   monthGrid (year, month) =
     let first = fromGregorian year month 1
         size = gregorianMonthLength year month
-        lead = fromEnum (dayOfWeek first) `mod` 7
+        -- ISO weeks start on Monday, so the grid does too.
+        lead = (fromEnum (dayOfWeek first) + 6) `mod` 7
         -- Four columns per day keep each mark beside its own day.
         cell day = Text.justifyRight 2 ' ' (Text.pack (show day)) <> Text.singleton (Map.findWithDefault ' ' (fromGregorian year month day) marks) <> " "
         cells = replicate lead "    " <> fmap cell [1 .. size]
         weeks = chunksOf 7 cells
+        -- Each row starts with the ISO week of its Monday.
+        weekNumber row = let (_, week, _) = toWeekDate (addDays (fromIntegral (row * 7 - lead)) first) in Text.justifyRight 2 ' ' (Text.pack (show week)) <> "  "
         title = Text.pack (formatTime defaultTimeLocale "%B %Y" first)
-     in Text.stripEnd (Text.center 27 ' ' title) : agendaWeekdays : fmap (Text.stripEnd . Text.concat) weeks
+     in Text.stripEnd (Text.center 31 ' ' title) : agendaWeekdays : zipWith (\row week -> Text.stripEnd (weekNumber row <> Text.concat week)) [0 :: Int ..] weeks
   chunksOf count values = case splitAt count values of
     (chunk, []) -> [chunk | not (null chunk)]
     (chunk, rest) -> chunk : chunksOf count rest
@@ -2961,9 +2982,9 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
 agendaLegend :: Text
 agendaLegend = "! deadline · \8226 best before"
 
--- | The weekday row of an agenda month grid, aligned to four-column cells.
+-- | The weekday row of an agenda month grid, after the ISO week column.
 agendaWeekdays :: Text
-agendaWeekdays = "Su  Mo  Tu  We  Th  Fr  Sa"
+agendaWeekdays = "Wk  Mo  Tu  We  Th  Fr  Sa  Su"
 
 -- | The active Works a review's out-of-date route can act on, in display order.
 reviewOutOfDateSubjects :: State -> Opportunity -> [Brick]
