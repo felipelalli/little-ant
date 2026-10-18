@@ -6974,7 +6974,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
 
   makeWorkCreated identity currentNow accepted mutation = do
     raw <- maybe (Left (appError CorruptData "The Work source Raw is missing.")) Right (mutationDecisionRaw mutation)
-    brick <- maybe (Left (appError CorruptData "The created Brick is missing.")) Right (mutationDecisionBrick mutation)
+    decided <- maybe (Left (appError CorruptData "The created Brick is missing.")) Right (mutationDecisionBrick mutation)
+    -- The receipt reads the replayed Brick: replay can renumber positions,
+    -- so the decided position may no longer match its neighbours.
+    brick <- maybe (Left (appError CorruptData "The created Brick is missing after replay.")) Right (Map.lookup (brickId decided) (stateBricks (loadedState accepted)))
     pure (makeWorkCreatedResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) raw brick)
 
   makeFocused identity currentNow accepted mutation = do

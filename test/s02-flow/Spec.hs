@@ -5,6 +5,7 @@ import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Char (isAsciiLower)
 import Data.IORef
+import Data.List qualified
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -436,6 +437,22 @@ tests =
         Map.lookup 0 byPosition @?= Just "Fix the release"
         Map.lookup 1 byPosition @?= Just "Write documentation"
         length (stateImportanceEdges (loadedState loaded)) @?= 1
+    , testCase "the creation receipt names the neighbours of the replayed position" $ withHarness $ \environment -> do
+        _ <- createAtomicWork environment "alpha"
+        mapM_ (\name -> insertAtomicWork environment name "importance.less") ["beta", "delta", "omega"]
+        mapM_ (run environment . DoneCommand . Just) ["Alpha", "Beta"]
+        -- Done Work keeps positions 0 and 1, so Gamma is placed physically at
+        -- 2; its comparisons then renumber the active siblings from 0.
+        created <- insertAtomicWork environment "gamma" "importance.more"
+        loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+        let state = loadedState loaded
+            active = [brickTitle brick | brick <- Data.List.sortOn brickSiblingPosition (Map.elems (stateBricks state)), brickStatus brick == BrickActive]
+        active @?= ["Gamma", "Delta", "Omega"]
+        delta <- case [brick | brick <- Map.elems (stateBricks state), brickTitle brick == "Delta"] of
+          [brick] -> pure brick
+          other -> assertFailure ("expected one Delta, got " <> show other)
+        assertBool ("the receipt names stale neighbours: " <> show (contentBody (envelopeContent created))) $
+          ("Importance: above #" <> unHandle (brickHandle delta) <> " \"Delta\"") `elem` contentBody (envelopeContent created)
     , testCase "a recurring-obligation series asks no importance question" $ withHarness $ \environment -> do
         _ <- createAtomicWork environment "alpha"
         series <- createSeries environment "pay the rent"
@@ -672,6 +689,21 @@ createAtomicWork environment material = do
   title <- answer environment templates "template.none"
   preview <- submit environment title "work.title.submit" (titleCase material)
   answer environment preview "work.create"
+
+-- | Triage one Raw into atomic Work, giving every insertion comparison one answer.
+insertAtomicWork :: AppEnv -> Text -> Text -> IO InteractionEnvelope
+insertAtomicWork environment material comparisonAnswer = do
+  raw <- run environment (FeedCommand "test" material) >>= interactionOf
+  nature <- answer environment raw "raw.materialize-work"
+  templates <- answer environment nature "nature.choose.atomic_task"
+  title <- answer environment templates "template.none"
+  comparison <- submit environment title "work.title.submit" (titleCase material)
+  preview <- answerUntilPreview comparison
+  answer environment preview "work.create"
+ where
+  answerUntilPreview envelope = case envelopeOpportunity envelope of
+    ImportanceInsertionOpportunity{} -> answer environment envelope comparisonAnswer >>= answerUntilPreview
+    _ -> pure envelope
 
 -- | Triage one Raw into a recurring-obligation series up to its preview.
 createSeries :: AppEnv -> Text -> IO InteractionEnvelope

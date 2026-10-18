@@ -9,6 +9,9 @@ replace the specification.
 
 ## Unreleased
 
+- Fix the creation receipt's importance line, which could name the wrong
+  neighbours after done Work kept the top positions: it now reads the
+  position the comparisons left, not the one first computed.
 - Explain `/why` when nothing was drawn: it names the current screen and
   says it came from your own command or action, or that nothing was
   eligible, and points to `/list forecast` and `next`.
