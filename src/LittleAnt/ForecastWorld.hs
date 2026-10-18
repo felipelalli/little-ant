@@ -7,6 +7,7 @@ module LittleAnt.ForecastWorld (
   SelectableOpportunityKind (..),
   SubjectTicket (..),
   buildForecastWorld,
+  effectiveDateWithOrigin,
   escalatedOccurrences,
   domainAffinity,
   forecastSubjectChances,
@@ -876,6 +877,30 @@ effectiveTemporal state brick field combine = foldl choose Nothing lineage
   choose current item = case Map.lookup (brickId item) (stateTemporalConstraints state) >>= field of
     Nothing -> current
     Just candidate -> Just (maybe candidate (`combine` candidate) current)
+
+{- | MOD-033: the earliest date among the Brick itself, its ancestors, and
+its open descendants, with the Brick that sets it. A descendant's date is
+shown on the parent but never becomes the parent's own date, never makes
+the parent overdue or missed, and adds no pressure to it; executable parts
+carry their own pressure. Ties prefer the Brick, then the nearest ancestor.
+-}
+effectiveDateWithOrigin :: State -> Brick -> (TemporalConstraints -> Maybe ZonedInstant) -> Maybe (ZonedInstant, Brick)
+effectiveDateWithOrigin state brick field = foldl choose Nothing (brick : ancestors state brick <> descendants brick)
+ where
+  dated item = Map.lookup (brickId item) (stateTemporalConstraints state) >>= field
+  choose current item = case (current, dated item) of
+    (_, Nothing) -> current
+    (Nothing, Just candidate) -> Just (candidate, item)
+    (Just (best, _), Just candidate)
+      | zonedInstantUtc candidate < zonedInstantUtc best -> Just (candidate, item)
+      | otherwise -> current
+  descendants parent =
+    concat
+      [ child : descendants child
+      | child <- Map.elems (stateBricks state)
+      , brickParent child == Just (brickId parent)
+      , brickStatus child == BrickActive
+      ]
 
 ancestors :: State -> Brick -> [Brick]
 ancestors state brick = case brickParent brick >>= (`Map.lookup` stateBricks state) of

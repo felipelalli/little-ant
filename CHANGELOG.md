@@ -9,6 +9,10 @@ replace the specification.
 
 ## Unreleased
 
+- Show dates in `show`: a Brick lists its own opens, best-before, and
+  deadline, plus the effective best-before and deadline when an ancestor or an
+  open descendant sets an earlier one, as `Effective deadline: … · via #part`.
+  A descendant's date never makes the parent overdue or adds pressure to it.
 - Step through the list views with Right and Left Arrow: importance,
   forecast, agenda. Left Arrow on importance still returns.
 - Ask, when restoring archived Work, which Dependencies removed by the

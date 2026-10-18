@@ -4,6 +4,7 @@ import Control.Monad (foldM, when)
 import Data.Aeson (encode, object, (.=))
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Lazy qualified as LazyByteString
+import Data.Bifunctor (second)
 import Data.Either (isLeft)
 import Data.IORef
 import Data.Map.Strict qualified as Map
@@ -17,6 +18,7 @@ import LittleAnt.Error (AppError (..), ErrorCode (PreconditionFailed))
 import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
 import LittleAnt.Forecast (factoryForecastProfile, profileHash)
+import LittleAnt.ForecastWorld (effectiveDateWithOrigin)
 import LittleAnt.Foundation
 import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
@@ -39,6 +41,7 @@ main =
       [ testCase "why and forecast preserve the checkpoint, history and recorded facts" whyIsReadOnly
       , testCase "lottery ordering serves one comparison and persists its skip cooldown" lotteryOrdering
       , testCase "a comparison's out-of-date route asks which Work and archives only that one" comparisonOutOfDate
+      , testCase "the effective deadline is the earliest among self, ancestors, and open descendants" effectiveDeadlineBothWays
       , testCase "next records one immutable draw and restart restores it" recordedNext
       , testCase "legacy forecast evidence replays its original profile and weights" legacyForecastReplay
       , testCase "completion releases every Dependency for which the Brick is the blocker" dependencyRelease
@@ -160,6 +163,36 @@ comparisonOutOfDate = withHarness $ \environment -> do
     run environment (RespondCommand (InteractionResponse (envelopeInteractionId envelope) (envelopeRevision envelope) action (envelopeIntegrityToken envelope) (envelopeDatasetCursor envelope))) >>= \case
       RespondResult{resultInteraction} -> pure resultInteraction
       other -> assertFailure (show other) >> fail "unreachable"
+
+effectiveDeadlineBothWays :: Assertion
+effectiveDeadlineBothWays = do
+  let actor = Actor "human" "test"
+      brick identity handle parent status = Brick identity (Handle handle) handle AtomicTask "factory@1" "test" Nothing parent Set.empty 0 (DeterministicPosition "fixture") status Idle fixedTime actor (fixtureUuid 99)
+      at days = ZonedInstant (addUTCTime (days * 86400) fixedTime) "UTC"
+      deadline days = TemporalConstraints Nothing Nothing (Just (at days)) 1
+      [project, part, step, finished, sibling] = fmap fixtureUuid [70 .. 74]
+      bricks =
+        [ brick project "project" Nothing BrickActive
+        , brick part "part" (Just project) BrickActive
+        , brick step "step" (Just part) BrickActive
+        , brick finished "finished" (Just project) BrickDone
+        , brick sibling "sibling" (Just project) BrickActive
+        ]
+      state =
+        emptyState
+          { stateBricks = Map.fromList [(brickId one, one) | one <- bricks]
+          , stateTemporalConstraints = Map.fromList [(part, deadline 10), (step, deadline 5), (finished, deadline 1), (sibling, deadline 20)]
+          }
+      effective identity = fmap (second brickId) (effectiveDateWithOrigin state (stateBricks state Map.! identity) temporalDeadline)
+  -- A dated part pulls an undated project forward; done parts do not count.
+  effective project @?= Just (at 5, step)
+  effective part @?= Just (at 5, step)
+  effective step @?= Just (at 5, step)
+  -- An earlier ancestor date pulls a later part back.
+  let earlier = state{stateTemporalConstraints = Map.insert project (deadline 3) (stateTemporalConstraints state)}
+  fmap (second brickId) (effectiveDateWithOrigin earlier (stateBricks earlier Map.! sibling) temporalDeadline) @?= Just (at 3, project)
+  -- The project's own value never changes.
+  temporalDeadline <$> Map.lookup project (stateTemporalConstraints state) @?= Nothing
 
 seedOrderingRun :: AppEnv -> IO ()
 seedOrderingRun environment = do

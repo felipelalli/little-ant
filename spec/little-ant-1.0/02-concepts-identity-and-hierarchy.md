@@ -546,6 +546,13 @@ The factory library contains:
   effective_deadline = earliest value on self and ancestors
   ```
 
+  Composition also rolls dates up for display: a Brick shows the earliest
+  `best_before` and deadline among itself, its ancestors, and its open
+  descendants, with the Brick that sets it (`Effective deadline: … · via
+  #part`). A descendant's date never becomes the parent's own value, never
+  makes the parent overdue or missed, and adds no forecast pressure to it;
+  executable parts carry their own pressure.
+
 - **MOD-034 [standard] — Inheritance must be explicit.** Domain membership is
   direct-only under MOD-061, and MOD-068 makes RawLinks, requester,
   responsible actor, and `about` direct-only as well. V1 has no generic

@@ -432,7 +432,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   FocusBlockerCommand reference -> runFocusBlocker environment dryRun dataset reference
   FeedCommand origin material -> runFeed environment dryRun dataset origin material
   ShowRawCommand reference GuidedView -> runOpenRaw environment dryRun dataset reference
-  ShowRawCommand reference view -> pure (runShow dryRun dataset reference view)
+  ShowRawCommand reference view -> runShow dryRun dataset reference view . zonedTimeZone <$> appZonedNow environment
   TranslateCommand reference -> runTranslate environment dryRun dataset reference
   RespondCommand response -> runResponse environment dryRun dataset response Nothing
   PendingInteractionCommand -> runAppCommand environment dryRun (const (pure ())) PendingInteractionCommand
@@ -7061,7 +7061,7 @@ finishCompensation environment dryRun dataset decision isUndo = do
 
 focusContextEnvelope :: InteractionEnvelope -> ZonedTime -> LoadedDataset -> Brick -> Maybe UUIDv7 -> Either AppError InteractionEnvelope
 focusContextEnvelope previous now dataset brick selection = do
-  shown <- runShow False dataset (renderHandle BrickHandle (brickHandle brick)) CompleteView
+  shown <- runShow False dataset (renderHandle BrickHandle (brickHandle brick)) CompleteView (zonedTimeZone now)
   pure (makeFocusAssistanceEnvelope previous now (loadedState dataset) brick selection FocusInspectContext False [renderCommandResult shown])
 
 -- Old question-first checkpoints remain decodable, but resuming them opens the
@@ -7193,8 +7193,8 @@ recordedSelectionTechnicalBody state evidence =
     Just explanation -> fromMaybe (renderUUIDv7 identity) (lookup identity (zip (fromMaybe [] (forecastSelectionDomainPath evidence)) (explanationDomain explanation)))
     Nothing -> maybe (renderUUIDv7 identity) domainName (Map.lookup identity (stateDomains state))
 
-runShow :: Bool -> LoadedDataset -> Text -> ViewDepth -> Either AppError CommandResult
-runShow dryRun dataset supplied view
+runShow :: Bool -> LoadedDataset -> Text -> ViewDepth -> TimeZone -> Either AppError CommandResult
+runShow dryRun dataset supplied view zone
   | "+" `Text.isPrefixOf` reference = showRaw =<< resolveAnyRawReference state reference
   | "#" `Text.isPrefixOf` reference = showBrick =<< resolveAnyBrickReference state reference
   | "@" `Text.isPrefixOf` reference = do
@@ -7234,12 +7234,24 @@ runShow dryRun dataset supplied view
       <> ["Pending " <> reviewKindText (judgmentReviewKind review) <> ": " <> judgmentReviewReason review | review <- pendingJudgmentReviews state, judgmentReviewSubject review == brickId brick]
       <> ["Parent: " <> brickReference parent | parent <- maybe [] pure (brickParent brick)]
       <> ["Domains: " <> Text.intercalate ", " (domainPathText state <$> Set.toAscList (brickDomains brick)) | not (Set.null (brickDomains brick))]
+      <> dateLines brick "Opens" temporalNotBefore False
+      <> dateLines brick "Best before" temporalBestBefore True
+      <> dateLines brick "Deadline" temporalDeadline True
       <> ["Child: " <> brickReference (brickId child) | child <- sortOn (\child -> (brickSiblingPosition child, brickId child)) (siblingBricks state (Just (brickId brick)))]
       <> ["Blocked by: " <> brickReference (dependencyBlockerBrick dependency) | dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyIsBlocking state dependency]
       <> ["Removed prerequisite: " <> brickReference (dependencyBlockerBrick dependency) | view /= SummaryView, dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyStatus dependency == DependencyRemoved]
       <> ["No longer blocking: " <> brickReference (dependencyBlockedBrick dependency) | view /= SummaryView, dependency <- Map.elems (stateDependencies state), dependencyBlockerBrick dependency == brickId brick, dependencyStatus dependency == DependencyRemoved]
       <> ["Item: " <> listEntryLabel entry <> " · " <> quantityText (listEntryQuantity entry) <> " · " <> listEntryStateLabel (listEntryState entry) | entry <- sortOn listEntryInsertionOrdinal (Map.elems (stateListEntries state)), listEntryOwner entry == brickId brick]
       <> ["Material (" <> showText (rawLinkRole link) <> "):\n" <> currentMaterial raw | view /= SummaryView, link <- Map.elems (stateRawLinks state), rawLinkTarget link == RawLinkBrick (brickId brick), Just raw <- [Map.lookup (rawLinkRaw link) (stateRaws state)]]
+  -- MOD-033: the own date, then the effective one when a relative sets it.
+  dateLines brick label field rolls =
+    [label <> ": " <> localDate instant | Just instant <- [Map.lookup (brickId brick) (stateTemporalConstraints state) >>= field]]
+      <> [ "Effective " <> Text.toLower label <> ": " <> localDate instant <> " · via " <> brickReference (brickId origin)
+         | rolls
+         , Just (instant, origin) <- [World.effectiveDateWithOrigin state brick field]
+         , brickId origin /= brickId brick
+         ]
+  localDate = Text.pack . formatTime defaultTimeLocale "%a, %b %-d, %H:%M" . utcToLocalTime zone . zonedInstantUtc
   currentMaterial raw = case Map.lookup (rawId raw) (stateCurrentRawRevisions state) >>= (`Map.lookup` stateRawContentRevisions state) of
     Just revision -> case rawContentRevisionContent revision of
       RawTextContent text -> text
