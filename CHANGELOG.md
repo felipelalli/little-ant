@@ -9,6 +9,9 @@ replace the specification.
 
 ## Unreleased
 
+- Fix the agenda calendar scrolling away: the pinned header was never found
+  once lines were wrapped. The grid now also keeps six week rows, so its
+  height stays the same between months.
 - Show habits in the agenda: a fixed slot is a `habit` row at its start
   with `until` its end, and a quota window is a `habit due` row at its close
   with its progress, such as `1/3 done`; later windows are projected. Habits

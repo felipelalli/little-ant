@@ -7725,7 +7725,8 @@ Week 44/53, Oct, 2026
 
 The calendar is a fixed-width header pinned above the scrolling rows while
 the terminal leaves the rows at least six lines; on a shorter terminal it
-scrolls away with them. The controls stay pinned. It shows the month of the
+scrolls away with them. The pinned grid always takes six week rows, so its
+height does not change between months. The controls stay pinned. It shows the month of the
 selected row, the current month while nothing later is selected, and marks
 the selected day bold and underlined, apart from today's highlight. Each day takes four columns, its mark directly after its
 number, so a mark never touches the next day. A legend follows the grids. With

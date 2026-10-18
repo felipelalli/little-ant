@@ -138,9 +138,9 @@ tests =
         [text | spans <- current, Span Today text <- spans] @?= ["18", "18"]
         [text | spans <- current, Span Urgent text <- spans] @?= ["!", "!"]
         [text | spans <- take 6 current, Span Dim text <- spans] @?= ["42  ", "43  "]
-        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18", ""] <> october <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today"]
+        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18", ""] <> october <> replicate 4 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today"]
         [text | spans <- selected, Span Pointed text <- spans] @?= ["21", "21"]
-        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18", ""] <> november <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today \183 16 selected"]
+        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18", ""] <> november <> replicate 5 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today \183 16 selected"]
         [text | spans <- take 5 later, Span Today text <- spans] @?= []
     , testCase "agenda days stay flat when alone, periods head turning weeks, and Domain folders open with Tab" $ do
         identity <- fixtureIdentity
@@ -158,6 +158,15 @@ tests =
         titles view{listViewGrouped = True, listViewExpanded = Set.singleton "eulen"}
           @?= [("folder", "\9662 eulen (2)"), ("category", "Wed, Oct 21"), ("brick", "Task #two"), ("brick", "Task #three"), ("folder", "\9656 Without a category (2)")]
         assertBool "the toggle hides its state" ("[c]ategories: off" `Text.isInfixOf` renderPlain (listModel 100 envelope view))
+    , testCase "the agenda calendar stays pinned while a far selection scrolls the rows" $ do
+        identity <- fixtureIdentity
+        let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            header = ["Today: Sun, Oct 18", "", "          October 2026", agendaWeekdays, "43  19  20  21  22  23  24  25", "", agendaLegend]
+            rows = [AgendaListRow ("#t" <> Text.pack (show day)) "Task" "Mon, Oct 19 \183 18:00 \183 deadline" "Mon, Oct 19" "2026-10-19" (Just "18:00") "deadline" | day <- [1 .. 40 :: Int]]
+            view = ListView "agenda" [] rows [] False "" False 30 Nothing header 35 Set.empty
+            visible = fmap plainLine (screenLines (viewportModel 100 40 0 (listModel 100 envelope view)))
+        assertBool ("the calendar scrolled away: " <> show visible) ("          October 2026" `elem` visible)
+        assertBool "the far selection is not visible" (any (\line -> "> " `Text.isPrefixOf` line && "#t31" `Text.isInfixOf` line) visible)
     , testCase "the palette finds archive by what out-of-date Work means" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow

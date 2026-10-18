@@ -1272,7 +1272,8 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
   chosen = take 1 (matching <> zip [0 ..] grids)
   pointedIn index = if not (null matching) && fmap fst (listToMaybe matching) == Just index then pointedNumber else Nothing
   gridLines (index, title : weekdays : weeks) =
-    [Span Normal title] : [Span Normal weekdays] : fmap (weekLine (if index == 0 then today else Nothing) (pointedIn index)) weeks <> [[]]
+    -- Six week rows always, so the pinned calendar keeps one height.
+    [Span Normal title] : [Span Normal weekdays] : fmap (weekLine (if index == 0 then today else Nothing) (pointedIn index)) weeks <> replicate (6 - length weeks) [] <> [[]]
   gridLines (_, other) = fmap (pure . Span Normal) other
   -- Each row starts with its ISO week number, then four columns per day.
   weekLine todayNumber pointed text = Span Dim (Text.take 4 text) : concatMap (cell todayNumber pointed) (chunks (Text.drop 4 text))
@@ -1437,13 +1438,14 @@ viewportRows :: Int -> Int -> ScreenModel -> ([ScreenLine], [ScreenLine], [Scree
 viewportRows width requestedHeight model = (pinned, content, footer, bodyRoom, overflowing)
  where
   height = max 1 requestedHeight
-  rows = concatMap (wrapScreenLine (max 1 width)) (screenLines model)
-  (allContent, footerRows) = break isDivider rows
-  isDivider line = not (Text.null (plainLine line)) && Text.all (== '─') (plainLine line)
+  wrap = concatMap (wrapScreenLine (max 1 width))
+  -- The boundary is found before wrapping, which drops its empty span.
   isBoundary = any ((== PinBoundary) . spanRole)
-  (header, body) = case break isBoundary allContent of
-    (before, _ : after) -> (before <> [[]], after)
-    _ -> ([], allContent)
+  (header, rows) = case break isBoundary (screenLines model) of
+    (before, _ : after) -> (wrap before <> [[]], wrap after)
+    _ -> ([], wrap (screenLines model))
+  (body, footerRows) = break isDivider rows
+  isDivider line = not (Text.null (plainLine line)) && Text.all (== '─') (plainLine line)
   footer = take (max 0 (height - 3)) footerRows
   fullRoom = max 1 (height - length footer)
   (pinned, content) = if fullRoom - length header >= 6 then (header, body) else ([], header <> body)
