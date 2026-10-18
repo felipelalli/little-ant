@@ -43,7 +43,8 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Text.IO qualified as Text
-import Data.Time (Day, defaultTimeLocale, formatTime, parseTimeM)
+import Data.Time (Day, LocalTime (..), addDays, addGregorianMonthsClip, dayOfWeek, defaultTimeLocale, formatTime, fromGregorian, gregorianMonthLength, parseTimeM, toGregorian)
+import Data.Time.Calendar.WeekDate (toWeekDate)
 import Graphics.Vty (Modifier (MCtrl), Vty, nextEvent, picForImage, shutdown, update)
 import Graphics.Vty qualified as Vty
 import Graphics.Vty.Config (defaultConfig)
@@ -93,6 +94,8 @@ data ReplScreen
   | CompletionNoticeScreen Text ReplScreen
   | -- | UX-019/UX-020: Escape at a commit boundary offers to undo the latest action.
     UndoPromptScreen InteractionEnvelope [Text] (Maybe Text)
+  | -- | WRK-165: a month calendar picks the day, then the time is edited.
+    DatePickerScreen InteractionEnvelope Day (Maybe EditorState) (Maybe Text)
   deriving stock (Eq, Show)
 
 -- Presentation state is kept across inspection and view changes, never as a
@@ -253,6 +256,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     SuspendedScreen previous _ -> readOnlyInput previous input
     CompletionNoticeScreen _ previous -> readOnlyInput previous input
     UndoPromptScreen envelope summary message -> undoPromptInput envelope summary message input
+    DatePickerScreen envelope day editor _ -> datePickerInput envelope day editor input
 
   readOnlyInput previous = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -566,6 +570,50 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
    where
     material = editorText editor
 
+  -- WRK-165: arrows move the day (never past today), Enter edits the time,
+  -- and the second Enter submits both for the engine's preview.
+  datePickerInput envelope day editor input = case editor of
+    Nothing -> case input of
+      Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+      ArrowLeft _ -> move (addDays (-1) day)
+      ArrowRight _ -> move (addDays 1 day)
+      ArrowUp _ -> move (addDays (-7) day)
+      ArrowDown _ -> move (addDays 7 day)
+      PageUp _ -> move (addGregorianMonthsClip (-1) day)
+      PageDown _ -> move (addGregorianMonthsClip 1 day)
+      Home _ -> move today
+      Enter _ -> pure . Just $ DatePickerScreen envelope day (Just (selectedEditor clock)) Nothing
+      Escape _ -> navigate envelope True
+      Backspace _ -> navigate envelope True
+      _ -> pure (Just screen)
+    Just current -> case input of
+      Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+      Printable character [] -> edit current (InsertText (Text.singleton character))
+      Pasted material -> edit current (InsertText material)
+      Backspace _
+        | Text.null (editorText current) -> pure . Just $ DatePickerScreen envelope day Nothing Nothing
+        | otherwise -> edit current DeleteBackward
+      Delete _ -> edit current DeleteForward
+      ArrowLeft _ -> edit current MoveEditorLeft
+      ArrowRight _ -> edit current MoveEditorRight
+      Escape _ -> pure . Just $ DatePickerScreen envelope day Nothing Nothing
+      Enter _ ->
+        let instant = Text.pack (formatTime defaultTimeLocale "%Y-%m-%d" day) <> " " <> Text.strip (editorText current)
+         in runCurrent (SubmitInteractionTextCommand (interactionResponse envelope "completion.date.submit") instant) >>= \case
+              Left problem -> pure . Just $ DatePickerScreen envelope day (Just current) (Just (appErrorMessage problem))
+              Right result -> screenFromResult envelope result
+      _ -> pure (Just screen)
+   where
+    asked = case envelopeOpportunity envelope of
+      CompletionDateOpportunity _ local -> Just local
+      _ -> Nothing
+    today = maybe day localDay asked
+    clock = maybe "" (Text.pack . formatTime defaultTimeLocale "%H:%M" . localTimeOfDay) asked
+    move target
+      | target > today = pure . Just $ DatePickerScreen envelope today editor (Just "Work cannot be done in the future.")
+      | otherwise = pure . Just $ DatePickerScreen envelope target editor Nothing
+    edit current command = pure . Just $ DatePickerScreen envelope day (Just (applyEditorCommand command current)) Nothing
+
   allowsEmptySubmission WorkBreakDraftOpportunity{} = True
   allowsEmptySubmission _ = False
 
@@ -619,6 +667,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
           Right WhyResult{resultWhySummary, resultWhyDetails} -> pure (Just (WhyScreen previous resultWhySummary resultWhyDetails False))
           Right result -> pure (Just (ReadOnlyScreen previous (renderCommandResult result)))
       "show" -> runShowCommand envelope command
+      view | view `elem` ["importance", "forecast", "agenda"] -> openList previous view
       "list" -> case Text.words (commandOptionCommand command) of
         _ : names@(_ : _) -> openList previous (Text.unwords names)
         _ -> openList previous "importance"
@@ -1022,6 +1071,7 @@ screenEnvelope = \case
   SuspendedScreen previous _ -> screenEnvelope previous
   CompletionNoticeScreen _ previous -> screenEnvelope previous
   UndoPromptScreen envelope _ _ -> envelope
+  DatePickerScreen envelope _ _ _ -> envelope
 
 refreshesPackRegistry :: Opportunity -> Bool
 refreshesPackRegistry = \case
@@ -1053,6 +1103,7 @@ brickCommandTargets envelope commandId hits = (targets, fromMaybe 0 (contextHand
 
 screenForEnvelope :: InteractionEnvelope -> ReplScreen
 screenForEnvelope envelope = case envelopeOpportunity envelope of
+  CompletionDateOpportunity _ asked -> DatePickerScreen envelope (localDay asked) Nothing Nothing
   WorkTitleOpportunity _ _ _ title -> InteractionEditor envelope "work.title.submit" (selectedEditor title) Nothing
   TranslationEditOpportunity _ suggestion _ -> InteractionEditor envelope "translate.edit.submit" (maybe (EditorState "" "" Nothing) selectedEditor suggestion) Nothing
   SourceRelocateOpportunity _ draft -> InteractionEditor envelope "source.relocate.submit" (selectedEditor draft) Nothing
@@ -1079,7 +1130,9 @@ presentCompletedEnvelope environment envelope = case envelopeOpportunity envelop
       Right other -> pure (CompletionNoticeScreen receipt (ReadOnlyScreen (screenForEnvelope envelope) (renderCommandResult other)))
   _ -> pure (screenForEnvelope envelope)
  where
-  receipt = "✓ Completed: " <> Text.intercalate " " (take 1 (contentBody (envelopeContent envelope)))
+  citation = Text.intercalate " " (take 1 (contentBody (envelopeContent envelope)))
+  -- WRK-165: the receipt says where to give an earlier completion time.
+  receipt = "✓ Completed: " <> citation <> maybe "" ("  ·  done earlier? /update " <>) (listToMaybe (Text.words citation))
 
 paletteReturnScreen :: InteractionEnvelope -> PaletteReturn -> ReplScreen
 paletteReturnScreen envelope = \case
@@ -1124,6 +1177,7 @@ modelFor width = \case
   ReadOnlyScreen previous text -> documentModel width (screenEnvelope previous) text "↑/↓ scroll · PgUp/PgDn page · Esc back"
   SuspendedScreen previous _ -> modelFor width previous
   CompletionNoticeScreen receipt previous -> prependCompletionNotice width (Just receipt) (modelFor width previous)
+  DatePickerScreen envelope day editor message -> datePickerModel width envelope day editor message
   UndoPromptScreen envelope summary message ->
     ScreenModel
       ( [[Span Heading "Undo the last recorded action?"], []]
@@ -1302,7 +1356,7 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
   -- Each row starts with its ISO week number, then four columns per day.
   weekLine todayNumber pointed text = Span Dim (Text.take 4 text) : concatMap (cell todayNumber pointed) (chunks (Text.drop 4 text))
   legendLines =
-    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Habit "\9702", Span Dim " habit · ", Span Opening "\10003", Span Dim " done · ", Span Urgent "\215", Span Dim " missed · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
+    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Habit "\9702", Span Dim " habit · ", Span Done "+", Span Dim " done · ", Span Urgent "\215", Span Dim " missed · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
     | agendaLegend `elem` header
     ]
   splitBlank values = case break Text.null values of
@@ -1320,7 +1374,7 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
           "!" -> [Span Urgent "!"]
           "\8226" -> [Span Caution "\8226"]
           "\9702" -> [Span Habit "\9702"]
-          "\10003" -> [Span Opening "\10003"]
+          "+" -> [Span Done "+"]
           "\215" -> [Span Urgent "\215"]
           rest -> [Span Normal rest | not (Text.null rest)]
      in Span numberRole number : mark <> [Span Normal (Text.drop 3 text) | not (Text.null (Text.drop 3 text))]
@@ -1340,7 +1394,7 @@ colorAgendaKinds = concatMap split
       let (before, kind, role) = foldr1 (\left right -> if Text.length (fst3 left) <= Text.length (fst3 right) then left else right) candidates
           rest = Text.drop (Text.length before + Text.length kind + 3) text
        in Span Dim (before <> " · ") : Span role kind : go rest
-  kinds = [("deadline", Urgent), ("best before", Caution), ("opens", Opening), ("starts", Opening), ("habit due", Habit), ("habit", Habit), ("missed", Urgent), ("habit missed", Urgent), ("done late", Caution), ("done", Opening), ("habit done", Opening)]
+  kinds = [("deadline", Urgent), ("best before", Caution), ("opens", Opening), ("starts", Opening), ("habit due", Habit), ("habit", Habit), ("missed", Urgent), ("habit missed", Urgent), ("done late", Caution), ("done", Done), ("habit done", Done)]
   boundary rest = Text.null rest || " · " `Text.isPrefixOf` rest
   fst3 (value, _, _) = value
 
@@ -1742,6 +1796,58 @@ actionSpans shortcut label = case Text.breakOn shortcut label of
   (before, after)
     | Text.null after -> [Span Dim "[", Span Accent shortcut, Span Dim "]", Span Normal (" " <> label)]
     | otherwise -> [Span Normal before, Span Dim "[", Span Accent shortcut, Span Dim "]", Span Normal (Text.drop 1 after)]
+
+{- | WRK-165: the completion-time calendar. The selected day is bold and
+underlined, today keeps its highlight, and later days are dim.
+-}
+datePickerModel :: Int -> InteractionEnvelope -> Day -> Maybe EditorState -> Maybe Text -> ScreenModel
+datePickerModel width envelope selected editor message =
+  ScreenModel
+    ( [[Span Heading (contentHeading content)]]
+        <> [[Span Normal subject] | Just subject <- [contentSubject content]]
+        <> [[]]
+        <> [[Span Normal (Text.stripEnd (Text.center 31 ' ' (Text.pack (formatTime defaultTimeLocale "%B %Y" first))))], [Span Normal agendaWeekdays]]
+        <> zipWith weekLine [0 ..] weeks
+        <> replicate (6 - length weeks) []
+        <> [[]]
+        <> [[Span Dim "Date: ", Span Normal (Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y" selected))]]
+        <> maybe [] (\current -> [[Span Dim "Time (HH:MM) › ", Span Normal (editorBefore current), Span Selected (fromMaybe " " (editorSelection current)), Span Normal (editorAfter current)]]) editor
+        <> maybe [] (\problem -> [] : fmap (pure . Span Warning) (wrapWords (max 20 width) problem)) message
+        <> [[]]
+        <> fmap (pure . Span Dim) (wrapWords (max 20 width) hints)
+        <> [[]]
+        <> footerFrom width envelope
+    )
+    Nothing
+ where
+  content = envelopeContent envelope
+  today = case envelopeOpportunity envelope of
+    CompletionDateOpportunity _ asked -> localDay asked
+    _ -> selected
+  (year, month, _) = toGregorian selected
+  first = fromGregorian year month 1
+  lead = (fromEnum (dayOfWeek first) + 6) `mod` 7
+  weeks = chunks (replicate lead Nothing <> fmap Just [1 .. gregorianMonthLength year month])
+  chunks values = case splitAt 7 values of
+    (week, []) -> [week | not (null week)]
+    (week, rest) -> week : chunks rest
+  weekLine :: Int -> [Maybe Int] -> [Span]
+  weekLine row week =
+    let (_, number, _) = toWeekDate (addDays (fromIntegral (row * 7 - lead)) first)
+     in Span Dim (Text.justifyRight 2 ' ' (Text.pack (show number)) <> "  ") : concatMap cell week
+  cell = \case
+    Nothing -> [Span Normal "    "]
+    Just number ->
+      let day = fromGregorian year month number
+          role
+            | day == selected = Pointed
+            | day == today = Today
+            | day > today = Dim
+            | otherwise = Normal
+       in [Span role (Text.justifyRight 2 ' ' (Text.pack (show number))), Span Normal "  "]
+  hints = case editor of
+    Nothing -> "←/→ day · ↑/↓ week · PgUp/PgDn month · Home today · Enter choose · Esc back"
+    Just _ -> "Type the time · Enter review · Esc back to the date"
 
 editorModel :: Int -> InteractionEnvelope -> Text -> Text -> EditorState -> Maybe Text -> ScreenModel
 editorModel width envelope heading hint editor message =

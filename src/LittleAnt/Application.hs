@@ -103,6 +103,7 @@ data AppCommand
   | FocusCommand Text
   | FocusBlockerCommand Text
   | DoneCommand (Maybe Text)
+  | DoneAtCommand Text Text
   | ReturnToIdleCommand (Maybe Text)
   | FinishCommand Text
   | ListCommand (Maybe Text) (Maybe Integer) (Maybe Integer)
@@ -426,6 +427,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   NextCommand -> runNext environment dryRun dataset
   FocusCommand reference -> runFocus environment dryRun dataset reference
   DoneCommand reference -> runDone environment dryRun dataset reference
+  DoneAtCommand reference instant -> runDoneAt environment dryRun dataset reference instant
   ReturnToIdleCommand reference -> runReturnToIdle environment dryRun dataset reference
   FinishCommand reference -> runFinish environment dryRun dataset reference
   ListCommand list days past -> runList environment dryRun dataset list days past
@@ -2614,6 +2616,47 @@ runDone environment dryRun dataset maybeReference =
       now <- appZonedNow env
       pure ((\envelope -> PresentationCheckpoint envelope [] []) <$> completedWorkEnvelope interactionId now accepted mutation)
 
+{- | WRK-165: a local completion instant, `YYYY-MM-DD HH:MM` or a date alone
+at the current clock time, in the profile zone and never in the future.
+-}
+parseCompletionInstant :: ZonedTime -> Text -> Either AppError UTCTime
+parseCompletionInstant now supplied = do
+  local <- maybe (Left invalid) Right (parse "%Y-%m-%d %H:%M" text <|> (withClock <$> parse "%Y-%m-%d" text))
+  let instant = localTimeToUTC zone local
+  when (instant > zonedTimeToUTC now) $ Left (appError InvalidInput "Work cannot be done in the future.")
+  pure instant
+ where
+  text = Text.unpack (Text.unwords (Text.words supplied))
+  zone = zonedTimeZone now
+  parse format value = parseTimeM False defaultTimeLocale format value :: Maybe LocalTime
+  withClock local = local{localTimeOfDay = localTimeOfDay (zonedTimeToLocalTime now)}
+  invalid =
+    (appError InvalidInput "Enter the local date and time as YYYY-MM-DD HH:MM.")
+      { appErrorRecovery = [RecoveryAction "example" "For example: 2026-10-16 15:00, or 2026-10-16 for the current clock time." Nothing]
+      }
+
+{- | WRK-165: complete Work that was done at an earlier instant, or date
+Work that is already complete.
+-}
+runDoneAt :: AppEnv -> Bool -> LoadedDataset -> Text -> Text -> IO (Either AppError CommandResult)
+runDoneAt environment dryRun dataset reference supplied = do
+  now <- appZonedNow environment
+  case (resolveAnyBrickReference state reference, parseCompletionInstant now supplied) of
+    (Left problem, _) -> pure (Left problem)
+    (_, Left problem) -> pure (Left problem)
+    (Right brick, Right instant)
+      | brickStatus brick == BrickActive ->
+          runDirectMutationWithCheckpoint environment dryRun dataset (completionUUIDCount state (brickId brick) + 1) (decideCompleteBrickAt state actor (brickId brick) instant) $ \accepted mutation -> do
+            interactionId <- appAllocateUUID environment
+            pure ((\envelope -> PresentationCheckpoint envelope [] []) <$> completedWorkEnvelope interactionId now accepted mutation)
+      | otherwise ->
+          runDirectMutationWithCheckpoint environment dryRun dataset 2 (decideDateCompletion state actor (brickId brick) instant) $ \accepted _ -> do
+            interactionId <- appAllocateUUID environment
+            pure (Right (PresentationCheckpoint (makeCompletionDatedResultEnvelope interactionId (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) now (loadedState accepted) brick) [] []))
+ where
+  state = loadedState dataset
+  actor = appActor environment
+
 completedWorkEnvelope :: UUIDv7 -> ZonedTime -> LoadedDataset -> MutationDecision -> Either AppError InteractionEnvelope
 completedWorkEnvelope identity now accepted mutation = do
   brick <- maybe (Left (appError CorruptData "The completed Brick is missing.")) Right (mutationDecisionBrick mutation)
@@ -3085,16 +3128,16 @@ agendaMarks =
   , ("habit missed", (5, '\215'))
   , ("deadline", (4, '!'))
   , ("best before", (3, '\8226'))
-  , ("done", (2, '\10003'))
-  , ("done late", (2, '\10003'))
-  , ("habit done", (2, '\10003'))
+  , ("done", (2, '+'))
+  , ("done late", (2, '+'))
+  , ("habit done", (2, '+'))
   , ("habit", (1, '\9702'))
   , ("habit due", (1, '\9702'))
   ]
 
 -- | The key to the agenda calendar marks.
 agendaLegend :: Text
-agendaLegend = "! deadline · \8226 best before · \9702 habit · \10003 done · \215 missed"
+agendaLegend = "! deadline · \8226 best before · \9702 habit · + done · \215 missed"
 
 -- | The weekday row of an agenda month grid, after the ISO week column.
 agendaWeekdays :: Text
@@ -3500,12 +3543,12 @@ listEntryStateLabel =
 helpEntries :: Maybe Text -> [ListRow]
 helpEntries Nothing =
   [ helpEntry "help" "Show help" "Use: lant help <topic>"
-  , helpEntry "list" "List structured data" "usage: lant list <importance|forecast>"
+  , helpEntry "list" "List structured data" "usage: lant list <importance|forecast|agenda> [--days N] [--past N]"
   , helpEntry "search" "Search text references" "usage: lant search <query>"
   , helpEntry "why" "Explain the recorded selection" "usage: lant [--view complete] why; REPL: /why"
   , helpEntry "next" "Get the next useful action" "default REPL route: lant"
   , helpEntry "focus" "Answer pending focus confirmation" "usage: lant focus <BRICK>"
-  , helpEntry "done" "Complete a Brick" "usage: lant done [BRICK]"
+  , helpEntry "done" "Complete a Brick" "usage: lant done [BRICK] [--at 'YYYY-MM-DD HH:MM']"
   , helpEntry "return-to-idle" "Return current focus to idle" "usage: lant return-to-idle [BRICK]"
   , helpEntry "pause" "Pause current focus" "usage: lant pause"
   , helpEntry "translate" "Review english-normalization opportunities" "usage: lant translate [TARGET]"
@@ -3535,7 +3578,7 @@ helpEntries (Just "commands") =
   , helpEntry "/focus" "Propose focus on one Brick or Domain" "target a Brick explicitly"
   ]
 helpEntries (Just "done") =
-  [ helpEntry "done" "Complete one Brick" "usage: lant done [BRICK]"
+  [ helpEntry "done" "Complete one Brick" "usage: lant done [BRICK] [--at 'YYYY-MM-DD HH:MM']"
   , helpEntry "return-to-idle" "Move current focus to idle" "usage: lant return-to-idle [BRICK]"
   ]
 helpEntries _ =
@@ -3852,6 +3895,20 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
         rawId : _ -> withRaw rawId $ \raw -> local (advanceEnvelope current (makeRawTriageEnvelope (envelopeInteractionId current) cursor precondition now state raw))
         [] -> pure (Left (appError PreconditionFailed "This import result contains no Raw material to triage."))
     (UpdateMeaningOpportunity brickId, "update.title", _) -> openUpdateText brickId UpdateTitle
+    (UpdateMeaningOpportunity brickId, "update.done_at", _) -> openCompletionDate brickId
+    (CompletionResultOpportunity brickId, "completion.earlier", _) -> openCompletionDate brickId
+    (CompletionDateOpportunity brickId _, action, _)
+      | Just instant <- lookup action [(identifier, instant) | (identifier, _, instant) <- completionDatePresets now] -> previewCompletionDate brickId instant
+    (CompletionDateOpportunity brickId _, "completion.date.submit", Just supplied) ->
+      either (pure . Left) (previewCompletionDate brickId) (parseCompletionInstant now supplied)
+    (CompletionDateOpportunity{}, "completion.date.submit", Nothing) ->
+      local (appendBody current "Enter the local date and time as YYYY-MM-DD HH:MM, such as 2026-10-16 15:00. A date alone keeps the current clock time.")
+    (CompletionDateOpportunity{}, "completion.date.unknown", _) -> local (appendBody current completionDateExplanation)
+    (CompletionDatePreviewOpportunity brickId instant, "completion.date.accept", _) ->
+      mutate 2 (decideDateCompletion state actor brickId instant) (makeCompletionDated brickId)
+    (CompletionDatePreviewOpportunity brickId _, "completion.date.edit", _) -> openCompletionDate brickId
+    (CompletionDatePreviewOpportunity{}, "completion.date.reject", _) -> replaceWithRecordedForecast
+    (CompletionDatePreviewOpportunity{}, "completion.date.unknown", _) -> local (appendBody current completionDateExplanation)
     (UpdateMeaningOpportunity brickId, "update.repetition", _) -> openRecurrenceEditor brickId
     (WorkCreatedResultOpportunity _ brickId, "recurrence.set", _) -> openRecurrenceEditor brickId
     (RecurrenceFieldOpportunity ownerId RecurrenceFamilyField draft _, action, _)
@@ -6981,6 +7038,22 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     brick <- maybe (Left (appError CorruptData "The archived Brick disappeared after review.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
     pure (makeArchiveReviewResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick message)
 
+  openCompletionDate brickId = withAnyBrick brickId $ \brick ->
+    case completionDatable state brick of
+      Left problem -> pure (Left problem)
+      Right () -> local (makeCompletionDateEnvelope current now state brick)
+
+  previewCompletionDate brickId instant = withAnyBrick brickId $ \brick ->
+    if instant > zonedTimeToUTC now
+      then pure (Left (appError InvalidInput "Work cannot be done in the future."))
+      else local (makeCompletionDatePreviewEnvelope current now state brick instant)
+
+  completionDateExplanation = "The completion time says when the Work was actually done. It moves the Work's done row in the agenda and decides whether it was done late. The completion itself, when you recorded it, and everything else stay unchanged; undo can revert it."
+
+  makeCompletionDated brickId identity currentNow accepted _ = do
+    brick <- maybe (Left (appError CorruptData "The dated Brick disappeared after replay.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
+    pure (makeCompletionDatedResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick)
+
   makeDomainsChanged brickId identity currentNow accepted _ = do
     brick <- maybe (Left (appError CorruptData "The classified Brick disappeared after replay.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
     pure (makeBrickDomainsResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick)
@@ -7372,6 +7445,7 @@ runShow dryRun dataset supplied view zone
       <> dateLines brick "Opens" temporalNotBefore False
       <> dateLines brick "Best before" temporalBestBefore True
       <> dateLines brick "Deadline" temporalDeadline True
+      <> ["Done: " <> Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y, %H:%M" (utcToLocalTime zone instant)) | brickStatus brick == BrickDone, Just instant <- [Map.lookup (brickId brick) (stateBrickCompletedAt state)]]
       <> ["Child: " <> brickReference (brickId child) | child <- sortOn (\child -> (brickSiblingPosition child, brickId child)) (siblingBricks state (Just (brickId brick)))]
       <> ["Blocked by: " <> brickReference (dependencyBlockerBrick dependency) | dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyIsBlocking state dependency]
       <> ["Removed prerequisite: " <> brickReference (dependencyBlockerBrick dependency) | view /= SummaryView, dependency <- Map.elems (stateDependencies state), dependencyBlockedBrick dependency == brickId brick, dependencyStatus dependency == DependencyRemoved]

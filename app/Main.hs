@@ -53,7 +53,7 @@ data CliCommand
   = WhyCli
   | ReplCli
   | NextCli
-  | DoneCli (Maybe Text)
+  | DoneCli (Maybe Text) (Maybe Text)
   | ReturnToIdleCli (Maybe Text)
   | FinishCli Text
   | ListCli (Maybe Text) (Maybe Integer) (Maybe Integer)
@@ -150,8 +150,14 @@ run environment options = case optionCommand options of
     | optionJson options || optionDryRun options -> execute environment options NextCommand
     | otherwise -> runRepl environment
   NextCli -> execute environment options NextCommand
-  DoneCli (Just target) -> requiredBrickCommand environment options "done" (DoneCommand . Just) [target]
-  DoneCli Nothing -> execute environment options (DoneCommand Nothing)
+  DoneCli (Just target) Nothing -> requiredBrickCommand environment options "done" (DoneCommand . Just) [target]
+  DoneCli (Just target) (Just instant) -> requiredBrickCommand environment options "done" (`DoneAtCommand` instant) [target]
+  DoneCli Nothing Nothing -> execute environment options (DoneCommand Nothing)
+  DoneCli Nothing (Just _) ->
+    emitError (optionJson options) $
+      (appError InvalidInput "Name the Brick whose completion time you give.")
+        { appErrorRecovery = [RecoveryAction "done-at" "Name the Brick, then the time." (Just "lant done '#brick' --at 'YYYY-MM-DD HH:MM'")]
+        }
   ReturnToIdleCli (Just target) -> requiredBrickCommand environment options "return-to-idle" (ReturnToIdleCommand . Just) [target]
   ReturnToIdleCli Nothing -> execute environment options (ReturnToIdleCommand Nothing)
   FinishCli target -> execute environment options (FinishCommand target)
@@ -816,7 +822,9 @@ commandParser =
         <> command
           "done"
           ( info
-              (DoneCli . fmap Text.pack <$> optional (strArgument (metavar "BRICK")))
+              ( (DoneCli . fmap Text.pack <$> optional (strArgument (metavar "BRICK")))
+                  <*> optional (Text.pack <$> strOption (long "at" <> metavar "'YYYY-MM-DD HH:MM'" <> help "When it was actually done, in the profile zone; also dates already completed Work"))
+              )
               (progDesc "Mark one Brick as completed")
           )
         <> command

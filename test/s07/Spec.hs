@@ -50,6 +50,8 @@ main =
       , testCase "the agenda's past shows misses, late completions, and excuses on their own days" agendaPastOccurrences
       , testCase "the agenda's past shows closed habit slots as done or missed" agendaPastHabits
       , testCase "the agenda's past shows every completion as done or done late" agendaPastCompletions
+      , testCase "done at an earlier time dates the completion in one command, never in the future" doneAtEarlierTime
+      , testCase "completed Work takes an earlier completion time through a preview" completionDateFlow
       , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
       , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
@@ -220,7 +222,7 @@ agendaPastOccurrences = withHarness $ \environment -> do
       -- The window reaches back into July, so its grid comes first.
       take 1 (drop 2 resultListHeader) @?= ["           July 2026"]
       assertBool ("missed days lack their mark: " <> show resultListHeader) (any (Text.isInfixOf " 1\215  2\215") resultListHeader)
-      assertBool ("the late completion lacks its mark: " <> show resultListHeader) (any (Text.isInfixOf " 3\10003  4!") resultListHeader)
+      assertBool ("the late completion lacks its mark: " <> show resultListHeader) (any (Text.isInfixOf " 3+  4!") resultListHeader)
       last resultListHeader @?= agendaLegend
     other -> assertFailure ("expected the agenda, got " <> show other)
 
@@ -258,6 +260,61 @@ agendaPastCompletions = withHarness $ \environment -> do
       -- Every completion is a dated fact; the order is time, then handle.
       [(listEntryHandle row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries] @?= [("#early", "done"), ("#late", "done late"), ("#undated", "done")]
     other -> assertFailure ("expected the agenda, got " <> show other)
+
+doneAtEarlierTime :: Assertion
+doneAtEarlierTime = withHarness $ \environment -> do
+  -- The fixed clock is Mon Aug 3, 09:00 at UTC-3; the deadline was Aug 1.
+  seedBrickAs environment (fixtureUuid 40) (Handle "late") "Late work" AtomicTask 50
+  setTemporal environment (fixtureUuid 40) Nothing (Just (ZonedInstant (UTCTime (fromGregorian 2026 8 1) 0) "America/Montevideo")) 100
+  future <- runAppCommand environment False (const (pure ())) (DoneAtCommand "#late" "2026-08-04 10:00")
+  either (\problem -> appErrorCode problem @?= InvalidInput) (\other -> assertFailure ("a future completion was accepted: " <> show other)) future
+  malformed <- runAppCommand environment False (const (pure ())) (DoneAtCommand "#late" "last friday")
+  either (\problem -> appErrorCode problem @?= InvalidInput) (\other -> assertFailure ("prose was accepted: " <> show other)) malformed
+  _ <- run environment (DoneAtCommand "#late" "2026-07-31 15:00")
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState loaded
+  brickStatus (stateBricks state Map.! fixtureUuid 40) @?= BrickDone
+  Map.lookup (fixtureUuid 40) (stateBrickCompletedAt state) @?= Just (UTCTime (fromGregorian 2026 7 31) (secondsToDiffTime (18 * 3600)))
+  -- Before the deadline, so the agenda says done, on its own day.
+  listed <- run environment (ListCommand (Just "agenda") (Just 1) (Just 5))
+  case listed of
+    ListResult{resultListEntries} -> [(listEntryDay row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries] @?= [("Fri, Jul 31", "done")]
+    other -> assertFailure ("expected the agenda, got " <> show other)
+  -- A date alone keeps the current clock time and also dates done Work.
+  _ <- run environment (DoneAtCommand "#late" "2026-08-02")
+  again <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  Map.lookup (fixtureUuid 40) (stateBrickCompletedAt (loadedState again)) @?= Just (UTCTime (fromGregorian 2026 8 2) (secondsToDiffTime (12 * 3600)))
+
+completionDateFlow :: Assertion
+completionDateFlow = withHarness $ \environment -> do
+  seedBrickAs environment (fixtureUuid 40) (Handle "met") "Meet the team" AtomicTask 50
+  completed <- run environment (DoneCommand (Just "#met")) >>= interactionOf
+  fmap actionId (envelopeActions completed) @?= ["next", "completion.earlier", "palette.open"]
+  asked <- answer environment completed "completion.earlier"
+  envelopeOpportunity asked @?= CompletionDateOpportunity (fixtureUuid 40) (LocalTime (fromGregorian 2026 8 3) (TimeOfDay 9 0 0))
+  fmap actionLabel (take 3 (envelopeActions asked)) @?= ["yesterday \183 Sun, Aug 2, 2026 \183 09:00", "2 days ago \183 Sat, Aug 1, 2026 \183 09:00", "3 days ago \183 Fri, Jul 31, 2026 \183 09:00"]
+  rejected <- runAppCommand environment False (const (pure ())) (SubmitInteractionTextCommand (response asked "completion.date.submit") "2026-08-03 10:00")
+  either (\problem -> appErrorCode problem @?= InvalidInput) (\other -> assertFailure ("a future time was previewed: " <> show other)) rejected
+  preview <- submit environment asked "completion.date.submit" "2026-07-30 15:30"
+  envelopeOpportunity preview @?= CompletionDatePreviewOpportunity (fixtureUuid 40) (UTCTime (fromGregorian 2026 7 30) (secondsToDiffTime (18 * 3600 + 1800)))
+  take 1 (contentBody (envelopeContent preview)) @?= ["Thu, Jul 30, 2026 \183 15:30"]
+  -- Nothing is recorded before yes.
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  Map.lookup (fixtureUuid 40) (stateBrickCompletedAt (loadedState before)) @?= Just (UTCTime (fromGregorian 2026 8 3) (secondsToDiffTime (12 * 3600)))
+  dated <- answer environment preview "completion.date.accept"
+  envelopeOpportunity dated @?= CompletionDatedResultOpportunity (fixtureUuid 40)
+  contentBody (envelopeContent dated) @?= ["#met \"Meet the team\"", "Thu, Jul 30, 2026 \183 15:30"]
+  -- Undo restores the recorded time.
+  _ <- run environment UndoCommand
+  undone <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  Map.lookup (fixtureUuid 40) (stateBrickCompletedAt (loadedState undone)) @?= Just (UTCTime (fromGregorian 2026 8 3) (secondsToDiffTime (12 * 3600)))
+  _ <- run environment RedoCommand
+  -- The update hub offers it for completed Work only.
+  hub <- run environment (UpdateCommand "#met" Nothing) >>= interactionOf
+  assertBool "the update hub lacks when done" ("update.done_at" `elem` fmap actionId (envelopeActions hub))
+  seedBrickAs environment (fixtureUuid 60) (Handle "open") "Open work" AtomicTask 70
+  openHub <- run environment (UpdateCommand "#open" Nothing) >>= interactionOf
+  assertBool "active Work offers when done" ("update.done_at" `notElem` fmap actionId (envelopeActions openHub))
 
 habitCompletion :: Assertion
 habitCompletion = withHarness $ \environment -> do

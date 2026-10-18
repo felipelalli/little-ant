@@ -314,11 +314,36 @@ class ReplTests(unittest.TestCase):
         # Today starts at midnight, so what was done today is already there.
         self.repl.wait(handle)
         self.repl.wait("· done")
-        self.repl.wait("✓ done · × missed")
+        self.repl.wait("+ done · × missed")
         # Above the top the agenda searches earlier days; this dataset has none.
         self.repl.send("\x1b[A")
         self.repl.wait("Nothing earlier was recorded in the last 420 days.")
         self.repl.wait(handle)
+
+    def test_completed_work_takes_an_earlier_time_from_the_calendar(self):
+        handle = self.create_atomic_work("Attend the onboarding")
+        self.repl.close()
+        self.cli("done", handle)
+        self.repl = Repl(self.executable, self.environment, columns=100, rows=40)
+        self.repl.wait("done earlier? /update " + handle)
+        self.repl.send("/update " + handle + "\r")
+        self.repl.wait("[w]hen done")
+        self.repl.send("w")
+        self.repl.wait("When was it done?")
+        self.repl.wait("Home today")
+        self.repl.send("\x1b[C")
+        self.repl.wait("Work cannot be done in the future.")
+        self.repl.send("\x1b[D")
+        self.repl.send("\r")
+        self.repl.wait("Time (HH:MM)")
+        self.repl.send("\r")
+        self.repl.wait("Record when this was done?")
+        self.repl.wait("UTC")
+        self.repl.send("y")
+        self.repl.wait("Done on:")
+        self.repl.send("/agenda\r")
+        self.repl.wait("Agenda")
+        self.repl.wait("+ done")
 
     def test_escape_after_an_action_offers_to_undo_it(self):
         handle = self.create_atomic_work("Undo this archive")

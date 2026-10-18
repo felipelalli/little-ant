@@ -13,6 +13,8 @@ module LittleAnt.Decision (
   ObligationLapseFact (..),
   TemporalTickPlan (..),
   decideCompleteBrick,
+  decideCompleteBrickAt,
+  decideDateCompletion,
   decideArchiveBrick,
   decideRestoreBrick,
   decideKeepArchived,
@@ -23,6 +25,7 @@ module LittleAnt.Decision (
   decideAddDependency,
   decideDomainFocus,
   completionUUIDCount,
+  completionDatable,
   supportsChildParts,
   decideDeferRawTriage,
   decideFeed,
@@ -2260,6 +2263,42 @@ decideCompleteBrick state actor identity facts = do
             resolutionIds
             released
     pure (MutationDecision commandId (Just brick) Nothing (completion : waitEvents <> resolutions))
+
+{- | WRK-165: complete finite Work that was actually done at an earlier
+instant, in one command: the completion, then its date.
+-}
+decideCompleteBrickAt :: State -> Actor -> UUIDv7 -> UTCTime -> RuntimeFacts -> Either AppError MutationDecision
+decideCompleteBrickAt state actor identity at facts = do
+  brick <- requireActiveBrick state identity
+  when (brickNature brick `elem` [Repeatable, Habit]) $
+    Left (appError PreconditionFailed "A repeatable or habit completion belongs to its current window and cannot be dated earlier.")
+  when (at > runtimeNow facts) $ Left (appError InvalidInput "Work cannot be done in the future.")
+  decision <- decideCompleteBrick state actor identity facts
+  allocated <- requireUUIDs (completionUUIDCount state identity + 1) facts
+  datedId <- maybe (Left (appError PreconditionFailed "The runtime UUID allocation count changed unexpectedly.")) Right (listToMaybe (reverse allocated))
+  let commandId = mutationDecisionCommandId decision
+      dated = makeDraft facts actor state allocated datedId commandId (CompletionDatedV1 (CompletionDated identity at))
+      events = [event{draftReplayUUIDs = allocated} | event <- mutationDecisionEvents decision] <> [dated]
+  pure decision{mutationDecisionEvents = events}
+
+-- | WRK-165: record when already completed Work was actually done.
+decideDateCompletion :: State -> Actor -> UUIDv7 -> UTCTime -> RuntimeFacts -> Either AppError MutationDecision
+decideDateCompletion state actor identity at facts = do
+  brick <- maybe (Left (appError NotFound "The Work to date is missing.")) Right (Map.lookup identity (stateBricks state))
+  completionDatable state brick
+  when (at > runtimeNow facts) $ Left (appError InvalidInput "Work cannot be done in the future.")
+  allocated <- requireUUIDs 2 facts
+  (commandId, eventId) <- exactlyTwo allocated
+  pure (MutationDecision commandId (Just brick) Nothing [makeDraft facts actor state allocated eventId commandId (CompletionDatedV1 (CompletionDated identity at))])
+
+{- | Whether completed Work can take an earlier completion date: an
+occurrence recorded as done late keeps that time in its period history.
+-}
+completionDatable :: State -> Brick -> Either AppError ()
+completionDatable state brick = do
+  unless (brickStatus brick == BrickDone) $ Left (appError PreconditionFailed "Only completed Work has a completion date.")
+  when (Data.Maybe.isJust (Map.lookup (brickId brick) (stateObligationPeriods state) >>= obligationPeriodDoneLateAt)) $
+    Left (appError PreconditionFailed "This occurrence was recorded as done late; its period history keeps that time.")
 
 completionUUIDCount :: State -> UUIDv7 -> Int
 completionUUIDCount state identity =

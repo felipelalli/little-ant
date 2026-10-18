@@ -27,6 +27,7 @@ import Graphics.Vty (
   defAttr,
   dim,
   emptyImage,
+  blue,
   green,
   horizCat,
   italic,
@@ -107,6 +108,9 @@ roleAttribute mode role =
     Today -> defAttr `withStyle` reverseVideo
     Pointed -> (defAttr `withStyle` underline) `withStyle` bold
     Opening -> case mode of
+      ColorEnabled -> defAttr `withForeColor` blue
+      Monochrome -> defAttr
+    Done -> case mode of
       ColorEnabled -> defAttr `withForeColor` green
       Monochrome -> defAttr
     PinBoundary -> defAttr
@@ -139,7 +143,14 @@ spanImage mode (Span role text)
 lineImage :: ColorMode -> ScreenLine -> Image
 lineImage mode spans
   | all (Text.null . spanText) spans = char defAttr ' '
+  -- A calendar cell ending the row would otherwise lend its highlight to the
+  -- terminal's erase of the rest of that line.
+  | endsHighlighted = horizCat (fmap (spanImage mode) spans <> [char defAttr ' '])
   | otherwise = horizCat (fmap (spanImage mode) spans)
+ where
+  endsHighlighted = case reverse (filter (not . Text.null . spanText) spans) of
+    Span role _ : _ -> role `elem` [Today, Pointed]
+    [] -> False
 
 screenImage :: ColorMode -> ScreenModel -> Image
 screenImage mode = vertCat . fmap (lineImage mode) . screenLines

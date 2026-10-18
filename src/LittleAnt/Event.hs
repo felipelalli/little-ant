@@ -1,5 +1,6 @@
 module LittleAnt.Event (
   BrickCompleted (..),
+  CompletionDated (..),
   BrickCreated (..),
   BrickChildCreated (..),
   BrickNatureChanged (..),
@@ -578,6 +579,15 @@ newtype BrickFocused = BrickFocused {focusedBrickId :: UUIDv7}
 newtype BrickCompleted = BrickCompleted {completedBrickId :: UUIDv7}
   deriving stock (Eq, Show)
 
+{- | WRK-165: when completed Work was actually done, if earlier than when its
+completion was recorded. The completion event keeps its recorded time.
+-}
+data CompletionDated = CompletionDated
+  { completionDatedBrick :: UUIDv7
+  , completionDatedAt :: UTCTime
+  }
+  deriving stock (Eq, Show)
+
 data ImportanceReviewDeferred = ImportanceReviewDeferred
   { deferredImportanceParent :: Maybe UUIDv7
   , deferredImportanceUntil :: UTCTime
@@ -666,6 +676,7 @@ data EventPayload
   | EffortActualObservedV1 EffortActualObserved
   | BrickFocusedV1 BrickFocused
   | BrickCompletedV1 BrickCompleted
+  | CompletionDatedV1 CompletionDated
   | ImportanceReviewDeferredV1 ImportanceReviewDeferred
   | ForecastSelectedV2 ForecastSelected
   | ForecastSelectedV1 ForecastSelected
@@ -774,6 +785,7 @@ eventTypeName = \case
   EffortActualObservedV1 _ -> "effort_actual_observed"
   BrickFocusedV1 _ -> "brick_focused"
   BrickCompletedV1 _ -> "brick_completed"
+  CompletionDatedV1 _ -> "completion_dated"
   ImportanceReviewDeferredV1 _ -> "importance_review_deferred"
   ForecastSelectedV2 _ -> "forecast_selected"
   ForecastSelectedV1 _ -> "forecast_selected"
@@ -931,6 +943,8 @@ undoDescription state payload = humanized <> maybe "" ((" · " <>) . cite) subje
     BrickStatusChangedV1 changed -> Just (statusChangedBrick changed)
     BrickNatureChangedV1 changed -> Just (natureChangedBrick changed)
     BrickDomainsChangedV1 changed -> Just (domainsChangedBrick changed)
+    BrickCompletedV1 completed -> Just (completedBrickId completed)
+    CompletionDatedV1 dated -> Just (completionDatedBrick dated)
     WorkReactionRecordedV1 recorded -> Just (recordedWorkReactionBrick recorded)
     JudgmentReviewDeferredV1 _ identity _ -> Just identity
     JudgmentReviewCompletedV1 _ identity _ -> Just identity
@@ -1018,6 +1032,11 @@ applyEventPayload state event = case persistedPayload event of
   BrickCompletedV1 payload -> do
     completed <- applyBrickCompleted state payload
     pure completed{stateBrickCompletedAt = Map.insert (completedBrickId payload) (persistedRecordedAt event) (stateBrickCompletedAt completed)}
+  CompletionDatedV1 payload -> do
+    brick <- requireBrick state (completionDatedBrick payload)
+    unless (brickStatus brick == BrickDone) $ corrupt "Only completed Work can be dated."
+    unless (completionDatedAt payload <= persistedRecordedAt event) $ corrupt "A completion cannot be dated in the future."
+    Right . bump $ state{stateBrickCompletedAt = Map.insert (brickId brick) (completionDatedAt payload) (stateBrickCompletedAt state)}
   ImportanceReviewDeferredV1 payload -> do
     unless (deferredImportanceUntil payload > persistedRecordedAt event) $ corrupt "An importance review cooldown must end in the future."
     let parent = deferredImportanceParent payload
@@ -3403,6 +3422,7 @@ payloadValue = \case
         <> maybe [] (pure . ("remaining_microhours" .=) . Text.pack . show) (observedEffortActualRemainingMicrohours payload)
   BrickFocusedV1 payload -> object ["brick_id" .= uuid (focusedBrickId payload)]
   BrickCompletedV1 payload -> object ["brick_id" .= uuid (completedBrickId payload)]
+  CompletionDatedV1 payload -> object ["brick_id" .= uuid (completionDatedBrick payload), "completed_at" .= completionDatedAt payload]
   ImportanceReviewDeferredV1 payload -> object ["parent_id" .= (renderUUIDv7 <$> deferredImportanceParent payload), "cooldown_until" .= deferredImportanceUntil payload]
   ForecastSelectedV2 payload -> forecastSelectionValue (selectedForecastEvidence payload)
   ForecastSelectedV1 payload -> forecastSelectionValue (selectedForecastEvidence payload)
@@ -3698,6 +3718,7 @@ parsePayload eventType version payload = case (eventType, version) of
   ("effort_actual_observed", 1) -> EffortActualObservedV1 <$> parseEffortActualObserved payload
   ("brick_focused", 1) -> BrickFocusedV1 <$> withObject "brick_focused@1" (\value -> BrickFocused <$> (value .: "brick_id" >>= parseId)) payload
   ("brick_completed", 1) -> BrickCompletedV1 <$> withObject "brick_completed@1" (\value -> BrickCompleted <$> (value .: "brick_id" >>= parseId)) payload
+  ("completion_dated", 1) -> CompletionDatedV1 <$> withObject "completion_dated@1" (\value -> CompletionDated <$> (value .: "brick_id" >>= parseId) <*> value .: "completed_at") payload
   ("importance_review_deferred", 1) -> ImportanceReviewDeferredV1 <$> withObject "importance_review_deferred@1" (\value -> ImportanceReviewDeferred <$> (value .:? "parent_id" >>= traverse parseId) <*> value .: "cooldown_until") payload
   ("forecast_selected", 2) -> do
     evidence <- parseForecastSelection payload

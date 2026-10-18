@@ -29,6 +29,11 @@ module LittleAnt.Interaction (
   envelopeIntegrityIsValid,
   upgradePresentationEnvelope,
   makeCompletionResultEnvelope,
+  makeCompletionDateEnvelope,
+  makeCompletionDatePreviewEnvelope,
+  makeCompletionDatedResultEnvelope,
+  completionDatePresets,
+  completionInstantText,
   makeRepeatableReturnEnvelope,
   makeRepeatableReturnCenterEnvelope,
   makeRepeatableReturnUnitEnvelope,
@@ -208,7 +213,7 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as TextEncoding
 import Data.Time
 import LittleAnt.Catalog
-import LittleAnt.Decision (DraftImportanceAnswer (..), WorkDraft (..), restoreRelinkCandidates)
+import LittleAnt.Decision (DraftImportanceAnswer (..), WorkDraft (..), completionDatable, restoreRelinkCandidates)
 import LittleAnt.Error
 import LittleAnt.Event (parseRecurrenceSchedule, recurrenceScheduleValue)
 import LittleAnt.Id
@@ -530,6 +535,9 @@ data Opportunity
   | RestoreResultOpportunity UUIDv7
   | ArchiveReviewOpportunity UUIDv7 UUIDv7
   | CompletionResultOpportunity UUIDv7
+  | CompletionDateOpportunity UUIDv7 LocalTime
+  | CompletionDatePreviewOpportunity UUIDv7 UTCTime
+  | CompletionDatedResultOpportunity UUIDv7
   | RepairPreviewOpportunity Text FilePath FilePath FilePath FilePath Integer
   | RepairCandidateOpportunity Text Text FilePath FilePath FilePath DatasetCursor Integer
   | RepairCompleteOpportunity Text FilePath Bool
@@ -2807,6 +2815,9 @@ makeUpdateMeaningEnvelope identity cursor precondition now state brick =
         <> [ Action "update.repetition" "repetition" "r" False "Change this recurring series' calendar rule and due offsets."
            | brickNature brick == RecurringObligation
            ]
+        <> [ Action "update.done_at" "when done" "w" False "Say when this completed Work was actually done."
+           | either (const False) (const True) (completionDatable state brick)
+           ]
         <> [ Action "update.unknown" "I don't know" "k" False "Explain the alpha update routes."
            , moreAction
            ]
@@ -2963,7 +2974,106 @@ updateDisplayValue value
 
 makeCompletionResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
 makeCompletionResultEnvelope identity cursor precondition now state brick =
-  resultEnvelope identity cursor precondition now state (CompletionResultOpportunity (brickId brick)) "Completed:" [brickCitation brick]
+  base{envelopeActions = take 1 (envelopeActions base) <> [Action "completion.earlier" "earlier" "e" False "Say it was actually done at an earlier time."] <> drop 1 (envelopeActions base)}
+    & resealEnvelope
+ where
+  base = resultEnvelope identity cursor precondition now state (CompletionResultOpportunity (brickId brick)) "Completed:" [brickCitation brick]
+
+{- | WRK-165 presets: the same clock time one, two, and three days ago, each
+shown as an absolute local instant (UX-DT00).
+-}
+completionDatePresets :: ZonedTime -> [(Text, Text, UTCTime)]
+completionDatePresets now =
+  [ ("completion.date." <> Text.pack (show days), label, localTimeToUTC zone (local{localDay = addDays (negate days) (localDay local)}))
+  | (days, label) <- [(1, "yesterday"), (2, "2 days ago"), (3, "3 days ago")]
+  ]
+ where
+  zone = zonedTimeZone now
+  local = zonedTimeToLocalTime now
+
+-- | A UTC offset as UX-DT02 shows it, such as `UTC−03:00`.
+utcOffsetText :: TimeZone -> Text
+utcOffsetText zone = "UTC" <> sign <> Text.pack (formatTime defaultTimeLocale "%H:%M" (TimeOfDay hours minutes 0))
+ where
+  offset = timeZoneMinutes zone
+  sign = if offset < 0 then "\8722" else "+"
+  (hours, minutes) = abs offset `divMod` 60
+
+-- | An absolute completion instant in the profile zone.
+completionInstantText :: TimeZone -> UTCTime -> Text
+completionInstantText zone = Text.pack . formatTime defaultTimeLocale "%a, %b %-d, %Y · %H:%M" . utcToLocalTime zone
+
+-- | WRK-165: when was completed Work actually done?
+makeCompletionDateEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> InteractionEnvelope
+makeCompletionDateEnvelope previous now state brick =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ChoiceGrammar
+      (CompletionDateOpportunity (brickId brick) (zonedTimeToLocalTime now))
+      ( EnvelopeContent
+          "When was it done?"
+          (Just (brickCitation brick))
+          ["Recorded as done: " <> maybe "unknown" (completionInstantText zone) (Map.lookup (brickId brick) (stateBrickCompletedAt state))]
+          Nothing
+      )
+      ( [Action identifier (label <> " · " <> completionInstantText zone instant) shortcut False "Record this earlier completion time after a preview." | ((identifier, label, instant), shortcut) <- zip (completionDatePresets now) ["y", "2", "3"]]
+          <> [ Action "completion.date.submit" "choose another..." "c" False "Enter a local date and time as YYYY-MM-DD HH:MM; a date alone keeps the current clock time."
+             , Action "completion.date.unknown" "I don't know" "k" False "Explain what the completion time changes."
+             , moreAction
+             ]
+      )
+      [showBrickCommand brick, helpCommand, exitCommand]
+      (Just "choose_completion_time")
+      (brickFooter now state brick)
+ where
+  zone = zonedTimeZone now
+
+makeCompletionDatePreviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> UTCTime -> InteractionEnvelope
+makeCompletionDatePreviewEnvelope previous now state brick instant =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ConfirmationGrammar
+      (CompletionDatePreviewOpportunity (brickId brick) instant)
+      ( EnvelopeContent
+          "Record when this was done?"
+          (Just (brickCitation brick))
+          [ completionInstantText zone instant
+          , operationalZone (stateOperationalDayConfig state) <> " · " <> utcOffsetText zone
+          , "This changes only when it counts as done, as in the agenda. The log keeps when you recorded it."
+          ]
+          Nothing
+      )
+      [ Action "completion.date.accept" "yes" "y" True "Record this completion time."
+      , Action "completion.date.edit" "edit" "e" False "Choose another time."
+      , Action "completion.date.reject" "no" "n" False "Keep the recorded completion time."
+      , Action "completion.date.unknown" "I don't know" "k" False "Explain what the completion time changes."
+      , moreAction
+      ]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      (Just "confirm_completion_time")
+      (brickFooter now state brick)
+ where
+  zone = zonedTimeZone now
+
+makeCompletionDatedResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> InteractionEnvelope
+makeCompletionDatedResultEnvelope identity cursor precondition now state brick =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (CompletionDatedResultOpportunity (brickId brick))
+    "Done on:"
+    [brickCitation brick, maybe "" (completionInstantText (zonedTimeZone now)) (Map.lookup (brickId brick) (stateBrickCompletedAt state))]
 
 makeRepeatableReturnEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> LazyReviewClaim -> InteractionEnvelope
 makeRepeatableReturnEnvelope identity cursor precondition now state brick review =
@@ -4528,6 +4638,9 @@ ordinaryCommands =
   [ CommandOption "why" "/why" "Explain the recorded selection"
   , importCommand
   , CommandOption "list" "/list" "Browse importance order or focus forecast"
+  , CommandOption "importance" "/importance" "Open the importance order"
+  , CommandOption "forecast" "/forecast" "Open the focus forecast: current chances"
+  , CommandOption "agenda" "/agenda" "Open the agenda: past and coming dates under a calendar"
   , CommandOption "search" "/search" "Search Bricks, Raw, Domains, and people"
   , CommandOption "archive" "/archive" "Archive Work that is out of date, obsolete, or no longer makes sense; dependencies are reviewed first"
   , CommandOption "restore" "/restore" "Choose archived Work to restore"
@@ -5334,6 +5447,9 @@ opportunityValue = \case
   RestoreResultOpportunity identity -> typed "restore_result" ["brick_id" .= renderUUIDv7 identity]
   ArchiveReviewOpportunity identity review -> typed "archive_review" ["brick_id" .= renderUUIDv7 identity, "review_id" .= renderUUIDv7 review]
   CompletionResultOpportunity identity -> typed "completion_result" ["brick_id" .= renderUUIDv7 identity]
+  CompletionDateOpportunity identity asked -> typed "completion_date" ["brick_id" .= renderUUIDv7 identity, "asked_at_local" .= asked]
+  CompletionDatePreviewOpportunity identity instant -> typed "completion_date_preview" ["brick_id" .= renderUUIDv7 identity, "completed_at" .= instant]
+  CompletionDatedResultOpportunity identity -> typed "completion_dated_result" ["brick_id" .= renderUUIDv7 identity]
   RepairPreviewOpportunity planHash source original replacement candidate validEvents ->
     typed
       "repair_preview"
@@ -5557,6 +5673,9 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "restore_result" -> RestoreResultOpportunity <$> uuidField value "brick_id"
     "archive_review" -> ArchiveReviewOpportunity <$> uuidField value "brick_id" <*> uuidField value "review_id"
     "completion_result" -> CompletionResultOpportunity <$> uuidField value "brick_id"
+    "completion_date" -> CompletionDateOpportunity <$> uuidField value "brick_id" <*> value .: "asked_at_local"
+    "completion_date_preview" -> CompletionDatePreviewOpportunity <$> uuidField value "brick_id" <*> value .: "completed_at"
+    "completion_dated_result" -> CompletionDatedResultOpportunity <$> uuidField value "brick_id"
     "repair_preview" -> RepairPreviewOpportunity <$> value .: "plan_hash" <*> value .: "source_root" <*> value .: "original_segment" <*> value .: "replacement_segment" <*> value .: "candidate_root" <*> value .: "valid_event_count"
     "repair_candidate" -> RepairCandidateOpportunity <$> value .: "repair_plan_hash" <*> value .: "cutover_plan_hash" <*> value .: "source_root" <*> value .: "candidate_root" <*> value .: "backup_root" <*> value .: "candidate_cursor" <*> value .: "candidate_event_count"
     "repair_complete" -> RepairCompleteOpportunity <$> value .: "cutover_plan_hash" <*> value .: "backup_root" <*> value .: "recovered"

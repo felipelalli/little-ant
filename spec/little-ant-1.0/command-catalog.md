@@ -109,7 +109,7 @@ transport does not claim implementation of deferred product features.
 | `/focus-blocker` | `lant focus-blocker <#brick>` | From a visible blocker chain, ask `Focus?` for its named executable blocker without claiming it started. |
 | `/pause` | `lant pause` | End the current focus interval while retaining the Brick as WIP. |
 | `/return-to-idle [#brick]` | `lant return-to-idle <#brick>` | Clear focus/WIP without claiming an outcome. |
-| `/done [#brick]` | `lant done <#brick>` | Record the Nature-owned truthful completion outcome. |
+| `/done [#brick]` | `lant done <#brick> [--at 'YYYY-MM-DD HH:MM']` | Record the Nature-owned truthful completion outcome; `--at` gives an earlier completion time (WRK-165). |
 | `/finish [#brick]` | `lant finish <#brick>` | Finish only an active checklist run; it is unavailable elsewhere. |
 | `/archive [#brick]` | `lant archive <#brick>` | Stop pursuing Work after previewing removal of its affected dependencies, without claiming completion. |
 | `/restore [#brick]` | `lant restore <#brick>` | Restore archived Work through its lifecycle preview. |
@@ -133,7 +133,8 @@ human shortcut for its focus behavior.
 |---|---|---|
 | `/impact [#brick]` | `lant impact set|clear|show <#brick>` | Review or inspect expected-effect evidence without creating a priority score. |
 | `/effort [#brick]` | `lant effort set|clear|show <#brick>` | Review or inspect subjective effort without storing hours as truth. |
-| `/list [importance\|forecast] [scope]` | `lant list importance\|forecast [scope]` | View the human importance tree or the read-only current Focus forecast. |
+| `/list [importance\|forecast\|agenda] [scope]` | `lant list importance\|forecast\|agenda [scope] [--days N] [--past N]` | View the human importance tree, the read-only current Focus forecast, or the dated agenda. |
+| `/importance`, `/forecast`, `/agenda` | `lant list importance\|forecast\|agenda` | Open `/list` directly on that view (UX-280). |
 | `/show [reference]` | `lant show <reference>` | Inspect one canonical object through its sparse summary/detail projection. |
 | `/search [query]` | `lant search <query>` | Search globally across typed references; `Ctrl-F` opens this route outside `/list`, where it searches the current list. |
 | `/history [filters]` | `lant history [filters]` | Search bounded semantic history rather than dump the event log. |
@@ -257,8 +258,7 @@ credential, external-effect, and undo boundaries from chapters 7–9.
 
 ## Explicitly rejected vocabulary
 
-The core rejects `/capture`, `/priority`, `/importance`, `/forecast`,
-`/weight`, `/estimate-hours`, `/complete`, `/retire`, `/abandon`, `/kill`,
+The core rejects `/capture`, `/priority`, `/weight`, `/estimate-hours`, `/complete`, `/retire`, `/abandon`, `/kill`,
 `/stop`, `/resume`, `/start`, `/edit`, `/plan`, `/find`, `/unify`,
 `/interaction`, `/focus blocker`, and `/focus_blocker`. Natural-language
 operators may understand the user's intent, but their visible result names

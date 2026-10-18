@@ -42,7 +42,7 @@ tests =
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
             commands = filteredCommands envelope "/f"
-        fmap commandOptionId commands @?= ["feed"]
+        fmap commandOptionId commands @?= ["feed", "forecast"]
         let plain = renderPlain (paletteModel envelope "/f" 0)
         assertBool "palette has stable cursor" ("> /feed" `Text.isInfixOf` plain)
         assertBool "palette has exact navigation hint" ("↑/↓ select · Enter run · Esc back" `Text.isInfixOf` plain)
@@ -138,20 +138,20 @@ tests =
         [text | spans <- current, Span Today text <- spans] @?= ["18", "18"]
         [text | spans <- current, Span Urgent text <- spans] @?= ["!", "!", "\215"]
         [text | spans <- take 6 current, Span Dim text <- spans] @?= ["42  ", "43  "]
-        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18, 2026", ""] <> october <> replicate 4 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 \10003 done \183 \215 missed \183 18 today"]
+        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18, 2026", ""] <> october <> replicate 4 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 + done \183 \215 missed \183 18 today"]
         [text | spans <- selected, Span Pointed text <- spans] @?= ["21", "21"]
-        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18, 2026", ""] <> november <> replicate 5 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 \10003 done \183 \215 missed \183 18 today \183 16 selected"]
+        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18, 2026", ""] <> november <> replicate 5 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 + done \183 \215 missed \183 18 today \183 16 selected"]
         [text | spans <- take 5 later, Span Today text <- spans] @?= []
     , testCase "the agenda calendar opens on today's month even when past months come first" $ do
         let september = ["        September 2026", agendaWeekdays, "40  28  29  30\215"]
-            october = ["          October 2026", agendaWeekdays, "40               1\10003  2   3   4", "42  12  13  14  15  16  17  18"]
+            october = ["          October 2026", agendaWeekdays, "40               1+  2   3   4", "42  12  13  14  15  16  17  18"]
             header = ["Today: Sun, Oct 18, 2026", ""] <> september <> [""] <> october <> ["", agendaLegend]
             current = agendaHeaderLines Nothing header
             past = agendaHeaderLines (Just "2026-09-30") header
             titles = fmap (Text.concat . fmap spanText) . take 1 . drop 2
         titles current @?= ["          October 2026"]
         [text | spans <- current, Span Today text <- spans] @?= ["18", "18"]
-        [text | spans <- current, Span Opening text <- spans] @?= ["\10003", "\10003"]
+        [text | spans <- current, Span Done text <- spans] @?= ["+", "+"]
         titles past @?= ["        September 2026"]
         [text | spans <- take 9 past, Span Today text <- spans] @?= []
         [text | spans <- past, Span Pointed text <- spans] @?= ["30", "30"]

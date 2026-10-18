@@ -698,7 +698,7 @@ uses the ordinary `next` continuation after `/done`. For example, when the
 following recorded opportunity offers another Work:
 
 ```text
-✓ Completed: #rrsr "Review Rock Splitter rules"
+✓ Completed: #rrsr "Review Rock Splitter rules"  ·  done earlier? /update #rrsr
 
 Work:
 
@@ -729,7 +729,9 @@ Repeatable Work keeps its return-policy questions. Noninteractive commands
 and other surfaces may return the standalone completion result; the
 deterministic UX-064 personality catalog remains available there. Undo keeps
 its ordinary typed preconditions, and backward navigation cannot reopen the
-completed Focus as an uncommitted choice.
+completed Focus as an uncommitted choice. The completion fact names `/update`,
+whose `[w]hen done` gives an earlier completion time under WRK-165; the
+standalone completion result offers the same route as `[e]arlier`.
 
 ## UX-F08 — Repeatable Work offer
 
@@ -1319,6 +1321,37 @@ Wait review, or another eligible instant. Yes is the sole commit; edit restores
 UX-DT01 with the selected field, no restores the caller, and uncertainty uses
 the `date_time` family. No operational-day label or relative phrase is stored
 in place of the displayed instant.
+
+## UX-DT03 — Completion calendar
+
+`[w]hen done` on completed Work opens a month calendar with today selected:
+
+```text
+When was it done?
+#jocioo2 "Join one customer interview or onboarding"
+
+          October 2026
+Wk  Mo  Tu  We  Th  Fr  Sa  Su
+40               1   2   3   4
+41   5   6   7   8   9  10  11
+42  12  13  14  15  16  17  18
+43  19  20  21  22  23  24  25
+44  26  27  28  29  30  31
+
+Date: Fri, Oct 16, 2026
+Time (HH:MM) › 13:00
+
+Type the time · Enter review · Esc back to the date
+```
+
+Left and Right Arrow move one day, Up and Down one week, PgUp and PgDn one
+month, and Home returns to today; later days are dim and cannot be chosen.
+The selected day is bold and underlined, apart from today's highlight. Enter
+opens the time, which starts selected with the current clock time; the
+second Enter previews the instant as UX-DT02 does, and only yes records it.
+Escape in the time returns to the day, and Escape on the day returns without
+a domain event. Noninteractive clients answer the same question with a
+preset or the typed `YYYY-MM-DD HH:MM`.
 
 ## UX-W01 — Open Wait review
 
@@ -7696,11 +7729,11 @@ Agenda · Today: Sat, Oct 17, 2026
 Wk  Mo  Tu  We  Th  Fr  Sa  Su
 40               1   2   3   4
 41   5   6   7   8   9  10  11
-42  12  13  14  15! 16  17✓ 18
+42  12  13  14  15! 16  17+ 18
 43  19  20  21• 22  23! 24  25
 44  26  27  28• 29  30! 31
 
-! deadline · • best before · ◦ habit · ✓ done · × missed · 17 today · 21 selected
+! deadline · • best before · ◦ habit · + done · × missed · 17 today · 21 selected
 
   #rpt Send the weekly report
     Sat, Oct 17 · 09:12 · done
@@ -7732,9 +7765,11 @@ height does not change between months. The controls stay pinned. It shows the mo
 selected row, the current month while no row is selected, and marks
 the selected day bold and underlined, apart from today's highlight. Each day takes four columns, its mark directly after its
 number, so a mark never touches the next day. A legend follows the grids. With
-color enabled, `!` and `×` are red, `•` is yellow, `✓` is green, a habit's
-`◦` is magenta like its `habit` and `habit due` rows, and today's number looks like the
-selected style without being the selection, so the viewport follows the
+color enabled, `!` and `×` are red, `•` is yellow, `+` is green like `done`
+rows, `opens` rows are blue, a habit's `◦` is magenta like its `habit` and
+`habit due` rows, and today's number looks like the
+selected style without being the selection, ending at its own number even in
+the last column, so the viewport follows the
 selected row; monochrome keeps the characters and bold marks. The CLI prints the
 legend without `today`, since the `Today:` line names it. Day labels and `Overdue` are not inspection targets.
 A day with one fact is a flat row; several facts on one day form a group.

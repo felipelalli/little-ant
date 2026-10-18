@@ -41,6 +41,8 @@ data SemanticRole
     Pointed
   | -- | An agenda opening, the mildest dated fact.
     Opening
+  | -- | Something done in the agenda's past.
+    Done
   | -- | A habit slot or quota window in the agenda.
     Habit
   | -- | Ends the rows a viewport keeps pinned above the scrolling body.

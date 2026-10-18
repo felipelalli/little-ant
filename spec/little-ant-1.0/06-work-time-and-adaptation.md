@@ -41,6 +41,22 @@
   completed. It does not interpose a confirmation screen. The typed outcome
   event is eligible for semantic undo under `UX-020`; undo restores the prior
   execution unit and focus state when its recorded preconditions still hold.
+- **WRK-165 [standard] — Completion can be dated earlier than its record.**
+  Completed finite Work may say when it was actually done: one absolute
+  local instant no later than now, chosen from presets at the same clock time
+  one, two, or three days ago, or from a calendar date and a time (UX-DT03).
+  Yes on the preview records one `completion_dated` fact; the completion keeps
+  its recorded time and history keeps both. The completion time places the
+  Work's `done` row in the agenda (UX-288) and decides `done late` against its
+  deadline. It never reopens Work, releases or blocks anything again, or
+  changes importance, and undo reverts it. The REPL offers it as `[w]hen
+  done` in `/update` of completed Work, and the completion fact names that
+  route; a standalone completion result offers `[e]arlier`. The CLI `done
+  BRICK --at 'YYYY-MM-DD HH:MM'` completes active Work and dates it in one
+  command, or dates Work that is already complete; a date alone keeps the
+  current clock time. Repeatable and habit completions belong to their windows
+  and are not dated, and an occurrence recorded as done late keeps that time
+  under WRK-163.
 
 ## Skip as evidence
 

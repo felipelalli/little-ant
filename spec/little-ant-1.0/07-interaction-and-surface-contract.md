@@ -241,8 +241,8 @@ assistance-label, and no-emoji rendering.
   typing (retaining the query) or Escape clears it.
   Search retains ancestor context. Inspection/back and view changes preserve
   scope, query, and the selected item where available. Every view is
-  cursor-stable, scoped, read-only, and consumes no draw. `/forecast`,
-  `/importance`, and `/agenda` are not aliases.
+  cursor-stable, scoped, read-only, and consumes no draw. `/importance`,
+  `/forecast`, and `/agenda` open `/list` directly on that view.
 - **UX-288 [standard] — The agenda is a dated, read-only outlook.** `list
   agenda` shows dated facts of active Work from today in the operational zone,
   like an org-mode agenda, with no fixed horizon: it projects
@@ -276,15 +276,16 @@ assistance-label, and no-emoji rendering.
   A compact Monday-first month calendar heads the view, each row starting
   with its ISO week number and giving each day its strongest mark: `×` for a
   miss, `!` for a deadline (on a past day, Work still overdue), `•` for a
-  `best_before`, `✓` for something done, and `◦` for a habit. It highlights
+  `best_before`, `+` for something done, and `◦` for a habit; every mark takes
+  one column, so it never touches the next day. It highlights
   today and ends with a legend of those marks; the REPL keeps it pinned
   above the scrolling rows, shows the month of the selected row (today's
   month when no row is selected), and marks the selected day differently
   from today; the CLI shows every month the window touches. Between dated days, a
   heading names the largest unit that turned: `2027` for a year, `Sep, 2026`
   for a month, or `Week 44/53, Oct, 2026` for an ISO week. Fact kinds are
-  colored in the REPL: `opens`, `starts`, `done`, and `habit done` green,
-  `best before` and `done late` yellow, `deadline`, `missed`, and `habit
+  colored in the REPL: `opens` and `starts` blue, `done` and `habit done`
+  green, `best before` and `done late` yellow, `deadline`, `missed`, and `habit
   missed` red, and other habit kinds magenta.
   A day with several facts is a non-selectable group; a day with one fact
   stays a flat row, whose details already name the date, while `Overdue` is

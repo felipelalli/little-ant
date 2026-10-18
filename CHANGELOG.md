@@ -9,6 +9,18 @@ replace the specification.
 
 ## Unreleased
 
+- Give completed Work an earlier completion time. `/update` on completed
+  Work offers `[w]hen done`, which opens a month calendar with today
+  selected (arrows move the day and week, PgUp/PgDn the month); Enter asks
+  the time, prefilled with the current clock time, and a preview records it.
+  `lant done '#brick' --at 'YYYY-MM-DD HH:MM'` completes and dates in one
+  command, or dates Work already done. The agenda and `show` use that time,
+  and `done late` is decided by it. The completion receipt names the route.
+- Add `/importance`, `/forecast`, and `/agenda`, which open `/list` on that
+  view.
+- Make the agenda calendar easier to read: the done mark is a one-column
+  `+`, `opens` rows are blue while `done` rows stay green, and today's
+  highlight in the last column no longer runs to the end of the line.
 - Show the past in the agenda. Moving above the first row in the REPL, or
   `lant list agenda --past N`, loads earlier days: every completion as
   `done` on its day (`done late` after a deadline), misses, excuses with
