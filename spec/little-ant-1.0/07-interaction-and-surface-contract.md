@@ -227,7 +227,9 @@ assistance-label, and no-emoji rendering.
 - **UX-280 [core] — One list command exposes the three lists.** `/list` opens
   importance order directly in the REPL; CLI usage still names `importance`,
   `forecast`, or `agenda`. Pinned `[i]mportance`, `[f]orecast`, and
-  `[a]genda` (UX-288) switch directly to each view, the current one highlighted, and
+  `[a]genda` (UX-288) switch directly to each view, the current one highlighted;
+  Right and Left Arrow step to the next and previous view in that order, and
+  Left Arrow on the first view returns as before; and
   `[c]ategories` toggles a combined
   category/project/part tree in every view, its label naming the current
   state (`[c]ategories: on` or `off`). Positions remain sibling-local; forecast chances

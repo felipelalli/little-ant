@@ -273,14 +273,15 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     Printable key []
       | Just name <- lookup key listViewKeys
       , name /= listViewName view ->
-          runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view))) (Just agendaChunkDays)) >>= \case
-            Left problem -> changed view{listViewMessage = Just (appErrorMessage problem)}
-            Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewDays = agendaChunkDays}
-            Right _ -> pure (Just screen)
+          switchView name
     Printable 'c' [] -> preserve view{listViewGrouped = not (listViewGrouped view)}
     Printable '/' [] -> pure . Just $ PaletteScreen (screenEnvelope previous) "/" 0 (ReturnToScreen screen)
     Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts, overdue first, and loads further days as you scroll. [c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list."}
-    ArrowLeft _ | not (listViewSearching view) -> pure (Just previous)
+    -- UX-280: arrows step through the views; Left on the first one goes back.
+    ArrowLeft _
+      | not (listViewSearching view) -> maybe (pure (Just previous)) switchView (adjacentView (-1))
+    ArrowRight _
+      | not (listViewSearching view) -> maybe (pure (Just screen)) switchView (adjacentView 1)
     Backspace _ -> pure (Just previous)
     ArrowUp _ -> select (selected - 1)
     ArrowDown _ -> forward (selected + 1)
@@ -302,6 +303,15 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     lastIndex = max 0 (length visible - 1)
     changed next = pure . Just $ ListScreen previous next
     select index = changed view{listViewSelected = max 0 (min lastIndex index), listViewMessage = Nothing}
+    views = fmap snd listViewKeys
+    adjacentView step = do
+      position <- elemIndex (listViewName view) views
+      safeIndex (position + step) views
+    switchView name =
+      runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view))) (Just agendaChunkDays)) >>= \case
+        Left problem -> changed view{listViewMessage = Just (appErrorMessage problem)}
+        Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewDays = agendaChunkDays}
+        Right _ -> pure (Just screen)
     -- UX-288: reaching the end of the agenda loads its next chunk of days.
     forward index
       | listViewName view == "agenda" && index >= lastIndex - 2 =
@@ -1161,7 +1171,7 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
   hints
     | listViewSearching view = ["Type to search · ↑/↓ select", "Ctrl+F finish · Enter inspect", "Esc clear search"]
     | width < 50 = [treeHint, "Ctrl+F search · Enter show", "↑/↓ select · " <> escapeHint]
-    | otherwise = ["↑/↓ select · Enter inspect · " <> escapeHint <> " · [/] more"]
+    | otherwise = ["↑/↓ select · ←/→ view · Enter inspect · " <> escapeHint <> " · [/] more"]
   -- Wide terminals keep the view keys and the grouping toggle on one line.
   controlLine
     | width < 50 = viewSpans

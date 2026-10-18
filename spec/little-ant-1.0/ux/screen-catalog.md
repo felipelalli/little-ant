@@ -7635,7 +7635,9 @@ mode never changes glyphs.
 
 `/list` opens importance order immediately. The default presentation shows
 composition with `├──`, `│`, and `└──`; `f` switches to the current forecast
-and `a` to the agenda, and `i` returns to importance.
+and `a` to the agenda, and `i` returns to importance. Right and Left Arrow
+step through the same three views in order; Left Arrow on importance returns
+to the suspended interaction.
 `c` turns on the combined category and composition tree:
 
 ```text
@@ -7651,7 +7653,7 @@ Positions are local to each sibling group.
 
 ────────────────────────────────────────────────────
 [i]mportance · [f]orecast · [a]genda · [c]ategories: on · Ctrl+F search
-↑/↓ select · Enter inspect · Esc back · [/] more
+↑/↓ select · ←/→ view · Enter inspect · Esc back · [/] more
 ```
 
 Controls and the product footer remain visible while paging. Category labels
@@ -7715,7 +7717,7 @@ Su  Mo  Tu  We  Th  Fr  Sa
 
 ────────────────────────────────────────────────────
 [i]mportance · [f]orecast · [a]genda · [c]ategories: off · Ctrl+F search
-↑/↓ select · Enter inspect · Esc back · [/] more
+↑/↓ select · ←/→ view · Enter inspect · Esc back · [/] more
 ```
 
 The calendar is a fixed-width header and scrolls away with the rows; the

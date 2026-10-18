@@ -9,6 +9,8 @@ replace the specification.
 
 ## Unreleased
 
+- Step through the list views with Right and Left Arrow: importance,
+  forecast, agenda. Left Arrow on importance still returns.
 - Ask, when restoring archived Work, which Dependencies removed by the
   archive to relink: each relinkable one is a numbered, pre-marked row, and
   yes recreates the marked ones as new Dependencies in the same command.
