@@ -248,8 +248,19 @@ assistance-label, and no-emoji rendering.
   like an org-mode agenda, with no fixed horizon: it projects
   `agenda.chunk_days` local days at a time, and the REPL projects the next
   chunk when the selection reaches the end, keeping the selection; the CLI
-  takes `--days N`. An
-  `Overdue` group comes first: open Work whose deadline, or else
+  takes `--days N`. The past comes first: what was recorded since the start
+  of today and, when the REPL selection moves above the first row or the CLI
+  takes `--past N`, earlier local days. The REPL loads them a chunk at a
+  time, searching at most twelve chunks per step before it says that nothing
+  earlier was recorded, and keeps the selection on its row. Past facts keep
+  their own time: `done` at each completion of any Work, `done late` when it
+  came after the Work's deadline or was recorded late for an occurrence,
+  `missed` at the deadline of a missed occurrence, and `excused` at the
+  excuse with its reason, so a miss stays on its day after a later late
+  completion or excuse. A closed habit window is `habit done` when it met its
+  target, `habit` with the outcome when that outcome did not apply (blocked,
+  paused, not applicable, or cancelled), and otherwise `habit missed`. Then an
+  `Overdue` group: open Work whose deadline, or else
   `best_before`, already passed, oldest first. Then one group per day with at
   least one fact, in time order: `opens` for a future `not_before`, `best
   before`, `deadline` (with `counts as missed` for a lapsing occurrence),
@@ -263,16 +274,18 @@ assistance-label, and no-emoji rendering.
   When facts of one Work fall on the same instant, only the strongest is
   listed: `opens` yields to `best before`, and both yield to `deadline`.
   A compact Monday-first month calendar heads the view, each row starting
-  with its ISO week number, marking days with a deadline `!` and other days
-  with a `best_before` `•`, other days with a habit `◦`, highlighting today,
-  and ending with a legend of
-  those marks; the REPL keeps it pinned above the scrolling rows, shows the
-  month of the selected row, and marks the selected day differently from
-  today; the CLI shows every month the window touches. Between dated days, a
+  with its ISO week number and giving each day its strongest mark: `×` for a
+  miss, `!` for a deadline (on a past day, Work still overdue), `•` for a
+  `best_before`, `✓` for something done, and `◦` for a habit. It highlights
+  today and ends with a legend of those marks; the REPL keeps it pinned
+  above the scrolling rows, shows the month of the selected row (today's
+  month when no row is selected), and marks the selected day differently
+  from today; the CLI shows every month the window touches. Between dated days, a
   heading names the largest unit that turned: `2027` for a year, `Sep, 2026`
   for a month, or `Week 44/53, Oct, 2026` for an ISO week. Fact kinds are
-  colored in the REPL: `opens` and `starts` green, `best before` yellow,
-  `deadline` red, and habits magenta.
+  colored in the REPL: `opens`, `starts`, `done`, and `habit done` green,
+  `best before` and `done late` yellow, `deadline`, `missed`, and `habit
+  missed` red, and other habit kinds magenta.
   A day with several facts is a non-selectable group; a day with one fact
   stays a flat row, whose details already name the date, while `Overdue` is
   always a group. `[c]ategories` groups the rows by Domain, then by day, and

@@ -7690,18 +7690,20 @@ native collapsible branches and browser find replace terminal key controls.
 UX-288; today's date is highlighted in the calendar:
 
 ```text
-Agenda · Today: Sat, Oct 17
+Agenda · Today: Sat, Oct 17, 2026
 
           October 2026
 Wk  Mo  Tu  We  Th  Fr  Sa  Su
 40               1   2   3   4
 41   5   6   7   8   9  10  11
-42  12  13  14  15  16  17  18
+42  12  13  14  15! 16  17✓ 18
 43  19  20  21• 22  23! 24  25
 44  26  27  28• 29  30! 31
 
-! deadline · • best before · ◦ habit · 17 today · 21 selected
+! deadline · • best before · ◦ habit · ✓ done · × missed · 17 today · 21 selected
 
+  #rpt Send the weekly report
+    Sat, Oct 17 · 09:12 · done
   Overdue
   └── #pfr Pay the fine
       deadline · Thu, Oct 15
@@ -7727,16 +7729,21 @@ The calendar is a fixed-width header pinned above the scrolling rows while
 the terminal leaves the rows at least six lines; on a shorter terminal it
 scrolls away with them. The pinned grid always takes six week rows, so its
 height does not change between months. The controls stay pinned. It shows the month of the
-selected row, the current month while nothing later is selected, and marks
+selected row, the current month while no row is selected, and marks
 the selected day bold and underlined, apart from today's highlight. Each day takes four columns, its mark directly after its
 number, so a mark never touches the next day. A legend follows the grids. With
-color enabled, `!` is red, `•` is yellow, a habit's `◦` is magenta like its
-`habit` and `habit due` rows, and today's number looks like the
+color enabled, `!` and `×` are red, `•` is yellow, `✓` is green, a habit's
+`◦` is magenta like its `habit` and `habit due` rows, and today's number looks like the
 selected style without being the selection, so the viewport follows the
 selected row; monochrome keeps the characters and bold marks. The CLI prints the
 legend without `today`, since the `Today:` line names it. Day labels and `Overdue` are not inspection targets.
 A day with one fact is a flat row; several facts on one day form a group.
-Reaching the end loads the next `agenda.chunk_days` days in place. With
+Reaching the end loads the next `agenda.chunk_days` days in place. Moving
+above the first row loads earlier days the same way, so the past grows
+upward: `done`, `done late`, `missed`, `excused`, and closed habit windows,
+each on its own day. When twelve chunks hold nothing, the list says
+`Nothing earlier was recorded in the last N days.` and stays put. Past days
+load only while `[c]ategories` is off. With
 `[c]ategories: on`, Domain folders open with Tab or Enter and contain day
 groups, and a dated part nests under its dated parent of the same day:
 

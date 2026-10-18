@@ -1015,7 +1015,9 @@ applyEventPayload state event = case persistedPayload event of
   EffortClassifiedV1 payload -> applyEffortClassified state event payload
   EffortActualObservedV1 payload -> applyEffortActualObserved state event payload
   BrickFocusedV1 payload -> applyBrickFocused state payload
-  BrickCompletedV1 payload -> applyBrickCompleted state payload
+  BrickCompletedV1 payload -> do
+    completed <- applyBrickCompleted state payload
+    pure completed{stateBrickCompletedAt = Map.insert (completedBrickId payload) (persistedRecordedAt event) (stateBrickCompletedAt completed)}
   ImportanceReviewDeferredV1 payload -> do
     unless (deferredImportanceUntil payload > persistedRecordedAt event) $ corrupt "An importance review cooldown must end in the future."
     let parent = deferredImportanceParent payload

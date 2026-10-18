@@ -9,6 +9,13 @@ replace the specification.
 
 ## Unreleased
 
+- Show the past in the agenda. Moving above the first row in the REPL, or
+  `lant list agenda --past N`, loads earlier days: every completion as
+  `done` on its day (`done late` after a deadline), misses, excuses with
+  their reason, and closed habit windows as `habit done` or `habit missed`.
+  What was done today is listed from the start. The calendar adds `✓` for
+  done and `×` for missed days, keeps `!` on past days with Work still
+  overdue, and opens on today's month.
 - Fix the agenda calendar scrolling away: the pinned header was never found
   once lines were wrapped. The grid now also keeps six week rows, so its
   height stays the same between months.

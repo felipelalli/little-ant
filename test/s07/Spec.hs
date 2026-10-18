@@ -47,6 +47,9 @@ main =
       , testCase "the agenda lists dated facts by day with projections and a calendar" agendaOutlook
       , testCase "the agenda lists habit slots with their own kind and calendar mark" agendaHabits
       , testCase "the agenda lists a quota habit at its close with its progress" agendaQuotaHabit
+      , testCase "the agenda's past shows misses, late completions, and excuses on their own days" agendaPastOccurrences
+      , testCase "the agenda's past shows closed habit slots as done or missed" agendaPastHabits
+      , testCase "the agenda's past shows every completion as done or done late" agendaPastCompletions
       , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
       , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
@@ -139,7 +142,7 @@ agendaHabits = withHarness $ \environment -> do
           Nothing
           0
   _ <- run environment (SetHabitScheduleCommand schedule)
-  listed <- run environment (ListCommand (Just "agenda") (Just 3))
+  listed <- run environment (ListCommand (Just "agenda") (Just 3) Nothing)
   case listed of
     ListResult{resultListEntries, resultListHeader} -> do
       [(listEntryDay row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries]
@@ -147,20 +150,113 @@ agendaHabits = withHarness $ \environment -> do
       [listEntryDetails row | row@AgendaListRow{} <- take 2 resultListEntries]
         @?= ["Mon, Aug 3 \183 08:00 \183 habit \183 until 10:00 \183 projected", "Tue, Aug 4 \183 08:00 \183 habit \183 until 10:00 \183 projected"]
       assertBool ("habit days lack their mark: " <> show resultListHeader) (any (Text.isInfixOf " 4\9702  5\9702") resultListHeader)
-      last resultListHeader @?= "! deadline \183 \8226 best before \183 \9702 habit"
+      last resultListHeader @?= agendaLegend
     other -> assertFailure ("expected the agenda, got " <> show other)
 
 agendaQuotaHabit :: Assertion
 agendaQuotaHabit = withHarness $ \environment -> do
   seedBrick environment Habit
   _ <- run environment (SetHabitScheduleCommand (QuotaWindowHabit brickIdValue 3 1 ReturnWeeks (fromGregorian 2026 8 3) "America/Montevideo" Nothing 0))
-  listed <- run environment (ListCommand (Just "agenda") (Just 15))
+  listed <- run environment (ListCommand (Just "agenda") (Just 15) Nothing)
   case listed of
     ListResult{resultListEntries} ->
       [(listEntryDay row, listEntryKind row, listEntryDetails row) | row@AgendaListRow{} <- resultListEntries]
         @?= [ ("Mon, Aug 10", "habit due", "Mon, Aug 10 \183 04:00 \183 habit due \183 0/3 done \183 projected")
             , ("Mon, Aug 17", "habit due", "Mon, Aug 17 \183 04:00 \183 habit due \183 0/3 done \183 projected")
             ]
+    other -> assertFailure ("expected the agenda, got " <> show other)
+
+agendaPastOccurrences :: Assertion
+agendaPastOccurrences = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  -- Daily at 18:00 in Montevideo with a lapsing deadline: at the fixed clock
+  -- (Mon Aug 3, 09:00 local) Aug 1 and Aug 2 are missed.
+  let schedule =
+        RecurrenceSchedule
+          brickIdValue
+          (CalendarRule DailyRecurrence 1 (fromGregorian 2026 8 1) Set.empty Nothing Nothing [TimeOfDay 18 0 0])
+          "America/Montevideo"
+          AtomicTask
+          Nothing
+          (-86400)
+          Nothing
+          (Just 0)
+          DeadlineLapses
+          Nothing
+          0
+  _ <- run environment (SetRecurrenceScheduleCommand schedule)
+  _ <- run environment TickCommand
+  loaded <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState loaded
+      handleOf occurrence = "#" <> unHandle (brickHandle (stateBricks state Map.! recurringOccurrenceBrick occurrence))
+  (newest, middle, oldest) <- case seriesOccurrences state brickIdValue of
+    [first, second, third] -> pure (first, second, third)
+    other -> assertFailure ("expected three occurrences, got " <> show other)
+  missed <- run environment (ShowRawCommand (handleOf middle) GuidedView) >>= interactionOf
+  _ <- answer environment missed "occurrence.done_late"
+  oldestScreen <- run environment (ShowRawCommand (handleOf oldest) GuidedView) >>= interactionOf
+  reason <- answer environment oldestScreen "occurrence.excuse"
+  _ <- submit environment reason "occurrence.excuse.submit" "vacation"
+  -- Excusing today's open occurrence leaves Aug 3 without a deadline.
+  newestScreen <- run environment (ShowRawCommand (handleOf newest) GuidedView) >>= interactionOf
+  newestReason <- answer environment newestScreen "occurrence.excuse"
+  _ <- submit environment newestReason "occurrence.excuse.submit" ""
+  -- Without past days the agenda starts now.
+  current <- run environment (ListCommand (Just "agenda") (Just 2) Nothing)
+  case current of
+    ListResult{resultListEntries} -> assertBool "the default agenda shows the past" (all ((/= "missed") . listEntryKind) [row | row@AgendaListRow{} <- resultListEntries])
+    other -> assertFailure ("expected the agenda, got " <> show other)
+  listed <- run environment (ListCommand (Just "agenda") (Just 2) (Just 5))
+  case listed of
+    ListResult{resultListEntries, resultListHeader} -> do
+      [(listEntryDay row, listEntryHandle row, listEntryKind row) | row@AgendaListRow{} <- take 4 resultListEntries]
+        @?= [ ("Sat, Aug 1", handleOf oldest, "missed")
+            , ("Sun, Aug 2", handleOf middle, "missed")
+            , ("Mon, Aug 3", handleOf middle, "done late")
+            , ("Mon, Aug 3", handleOf oldest, "excused")
+            ]
+      [listEntryDetails row | row@AgendaListRow{} <- take 1 (drop 3 resultListEntries)] @?= ["Mon, Aug 3 \183 09:00 \183 excused \183 vacation"]
+      take 1 resultListHeader @?= ["Today: Mon, Aug 3, 2026"]
+      -- The window reaches back into July, so its grid comes first.
+      take 1 (drop 2 resultListHeader) @?= ["           July 2026"]
+      assertBool ("missed days lack their mark: " <> show resultListHeader) (any (Text.isInfixOf " 1\215  2\215") resultListHeader)
+      assertBool ("the late completion lacks its mark: " <> show resultListHeader) (any (Text.isInfixOf " 3\10003  4!") resultListHeader)
+      last resultListHeader @?= agendaLegend
+    other -> assertFailure ("expected the agenda, got " <> show other)
+
+agendaPastHabits :: Assertion
+agendaPastHabits = withHarness $ \environment -> do
+  seedBrick environment Habit
+  let schedule =
+        FixedSlotHabit
+          brickIdValue
+          (CalendarRule DailyRecurrence 1 (fromGregorian 2026 8 1) Set.empty Nothing Nothing [TimeOfDay 8 0 0])
+          "America/Montevideo"
+          3600
+          Nothing
+          0
+  _ <- run environment (SetHabitScheduleCommand schedule)
+  _ <- run environment TickCommand
+  listed <- run environment (ListCommand (Just "agenda") (Just 1) (Just 3))
+  case listed of
+    ListResult{resultListEntries} ->
+      [(listEntryDay row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries]
+        @?= [("Sat, Aug 1", "habit missed"), ("Sun, Aug 2", "habit missed"), ("Mon, Aug 3", "habit missed")]
+    other -> assertFailure ("expected the agenda, got " <> show other)
+
+agendaPastCompletions :: Assertion
+agendaPastCompletions = withHarness $ \environment -> do
+  seedBrickAs environment (fixtureUuid 40) (Handle "late") "Late work" AtomicTask 50
+  seedBrickAs environment (fixtureUuid 60) (Handle "early") "Early work" AtomicTask 70
+  seedBrickAs environment (fixtureUuid 80) (Handle "undated") "Undated work" AtomicTask 90
+  setTemporal environment (fixtureUuid 40) Nothing (Just (ZonedInstant (UTCTime (fromGregorian 2026 8 1) 0) "America/Montevideo")) 100
+  setTemporal environment (fixtureUuid 60) Nothing (Just (ZonedInstant (UTCTime (fromGregorian 2026 8 10) 0) "America/Montevideo")) 110
+  mapM_ (run environment . DoneCommand . Just) ["#late", "#early", "#undated"]
+  listed <- run environment (ListCommand (Just "agenda") (Just 1) (Just 1))
+  case listed of
+    ListResult{resultListEntries} ->
+      -- Every completion is a dated fact; the order is time, then handle.
+      [(listEntryHandle row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries] @?= [("#early", "done"), ("#late", "done late"), ("#undated", "done")]
     other -> assertFailure ("expected the agenda, got " <> show other)
 
 habitCompletion :: Assertion
@@ -443,7 +539,7 @@ agendaOutlook = withHarness $ \environment -> do
           Nothing
           0
   _ <- run environment (SetRecurrenceScheduleCommand schedule)
-  listed <- run environment (ListCommand (Just "agenda") Nothing)
+  listed <- run environment (ListCommand (Just "agenda") Nothing Nothing)
   case listed of
     ListResult{resultListEntries, resultListHeader, resultListCategories} -> do
       let summary = [(listEntryDay row, listEntryHandle row, listEntryKind row) | row@AgendaListRow{} <- resultListEntries]
@@ -456,9 +552,9 @@ agendaOutlook = withHarness $ \environment -> do
       assertBool ("the second Friday is not projected: " <> show summary) (("Fri, Aug 14", "#standing", "deadline") `elem` summary)
       assertBool "a projected row lacks its mark" (all (Text.isInfixOf "projected" . listEntryDetails) (filter ((== "#standing") . listEntryHandle) resultListEntries))
       assertBool ("the lapsing deadline lacks its consequence: " <> show resultListEntries) (any (Text.isInfixOf "deadline · counts as missed" . listEntryDetails) resultListEntries)
-      take 5 resultListHeader @?= ["Today: Mon, Aug 3", "", "          August 2026", "Wk  Mo  Tu  We  Th  Fr  Sa  Su", "31                       1   2"]
+      take 5 resultListHeader @?= ["Today: Mon, Aug 3, 2026", "", "          August 2026", "Wk  Mo  Tu  We  Th  Fr  Sa  Su", "31                       1   2"]
       assertBool ("calendar marks are missing: " <> show resultListHeader) (any (Text.isInfixOf " 6•  7!  8") resultListHeader)
-      last resultListHeader @?= "! deadline · • best before · \9702 habit"
+      last resultListHeader @?= agendaLegend
       [label | ListCategory label _ <- resultListCategories] @?= ["Without a category"]
       [label | ListCategory _ days <- resultListCategories, ListCategory label _ <- days] @?= ["Overdue", "Wed, Aug 5", "Thu, Aug 6", "Fri, Aug 7", "Wed, Aug 12", "Thu, Aug 13", "Fri, Aug 14", "Wed, Aug 19", "Thu, Aug 20", "Fri, Aug 21", "Wed, Aug 26", "Thu, Aug 27", "Fri, Aug 28", "Wed, Sep 2", "Thu, Sep 3", "Fri, Sep 4"]
       [listEntryDate row | row@AgendaListRow{} <- take 2 resultListEntries] @?= ["2026-07-31", "2026-08-05"]

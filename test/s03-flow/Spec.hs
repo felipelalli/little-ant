@@ -255,7 +255,7 @@ demandIsLazy = withHarness $ \environment -> do
   _ <- createProvisionalWork environment "bravo"
   before <- loadState environment
   stateJudgmentReviews before @?= Map.empty
-  _ <- run environment (ListCommand (Just "forecast") Nothing)
+  _ <- run environment (ListCommand (Just "forecast") Nothing Nothing)
   _ <- run environment (WhyCommand CompleteView)
   loadState environment >>= (@?= before)
   _ <- run environment (EffortCommand (ref first))
@@ -264,7 +264,7 @@ demandIsLazy = withHarness $ \environment -> do
   stateEffortClaims requested @?= Map.empty
   _ <- run environment (EffortCommand (ref first))
   loadState environment >>= (@?= requested)
-  _ <- run environment (ListCommand (Just "forecast") Nothing)
+  _ <- run environment (ListCommand (Just "forecast") Nothing Nothing)
   loadState environment >>= (@?= requested)
   assertBool "effort review was not eligible" (World.EffortComparisonOpportunity `elem` offeredKinds requested fixedTime)
 

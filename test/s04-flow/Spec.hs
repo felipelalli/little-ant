@@ -63,7 +63,7 @@ whyIsReadOnly = withHarness $ \environment -> do
       assertBool "new selections omitted their snapshot" (isJust (forecastSelectionExplanation evidence))
       assertBool "why did not explain its recorded chance" (any (Text.isInfixOf "100.00%") summary)
     other -> assertFailure (show other)
-  _ <- run environment (ListCommand (Just "forecast") Nothing)
+  _ <- run environment (ListCommand (Just "forecast") Nothing Nothing)
   again <- run environment (WhyCommand CompleteView)
   again @?= first
   ByteString.readFile checkpoint >>= (@?= saved)
@@ -96,7 +96,7 @@ lotteryOrdering = withHarness $ \environment -> do
   case envelopeOpportunity first of
     ImportanceReviewOpportunity session _ _ _ _ _ -> orderSessionCadence session @?= LotteryOrder
     other -> assertFailure ("unresolved ordering was not dispatched: " <> show other)
-  forecast <- run environment (ListCommand (Just "forecast") Nothing)
+  forecast <- run environment (ListCommand (Just "forecast") Nothing Nothing)
   case forecast of
     ListResult{resultListEntries = [ForecastListRow _ _ _ chance [opportunity]]} -> do
       chance @?= (1, 1)
@@ -126,11 +126,11 @@ lotteryOrdering = withHarness $ \environment -> do
     deferred <- assertRight =<< loadDataset (appStore skipping) (const (pure ()))
     fmap importanceReviewCooldownUntil (Map.lookup Nothing (stateImportanceReviewDeferrals (loadedState deferred))) @?= Just (addUTCTime 86400 fixedTime)
     stateWorkDeferrals (loadedState deferred) @?= Map.empty
-    during <- run skipping (ListCommand (Just "forecast") Nothing)
+    during <- run skipping (ListCommand (Just "forecast") Nothing Nothing)
     resultListEntries during @?= []
     let later = addUTCTime 86400 fixedTime
         resumed = skipping{appNow = pure later, appZonedNow = pure (utcToZonedTime utc later)}
-    afterCooldown <- run resumed (ListCommand (Just "forecast") Nothing)
+    afterCooldown <- run resumed (ListCommand (Just "forecast") Nothing Nothing)
     assertBool "cooldown expiry discarded the unresolved review" (not (null (resultListEntries afterCooldown)))
  where
   respond environment envelope action =
@@ -395,9 +395,9 @@ archivedCategoryForecast = withHarness $ \environment -> do
   let response = InteractionResponse (envelopeInteractionId preview) (envelopeRevision preview) "archive.accept" (envelopeIntegrityToken preview) (envelopeDatasetCursor preview)
   _ <- run environment (RespondCommand response)
   before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
-  importance <- run environment (ListCommand (Just "importance") Nothing)
+  importance <- run environment (ListCommand (Just "importance") Nothing Nothing)
   case importance of ListResult{resultListEntries} -> resultListEntries @?= []; other -> assertFailure (show other)
-  forecast <- run environment (ListCommand (Just "forecast") Nothing)
+  forecast <- run environment (ListCommand (Just "forecast") Nothing Nothing)
   case forecast of
     ListResult{resultListEntries = [row], resultListCategories = [ListCategory "Without a category" [ListItem grouped False []]]} -> do
       listEntryHandle row @?= "#wtms"

@@ -131,17 +131,31 @@ tests =
     , testCase "the agenda calendar numbers ISO weeks, follows the selected month, and marks the selected day" $ do
         let october = ["          October 2026", agendaWeekdays, "42  12  13  14  15  16  17  18", "43  19  20  21\8226 22  23! 24  25"]
             november = ["         November 2026", agendaWeekdays, "47  16  17  18  19  20  21  22"]
-            header = ["Today: Sun, Oct 18", ""] <> october <> [""] <> november <> ["", agendaLegend]
+            header = ["Today: Sun, Oct 18, 2026", ""] <> october <> [""] <> november <> ["", agendaLegend]
             current = agendaHeaderLines Nothing header
             selected = agendaHeaderLines (Just "2026-10-21") header
             later = agendaHeaderLines (Just "2026-11-16") header
         [text | spans <- current, Span Today text <- spans] @?= ["18", "18"]
-        [text | spans <- current, Span Urgent text <- spans] @?= ["!", "!"]
+        [text | spans <- current, Span Urgent text <- spans] @?= ["!", "!", "\215"]
         [text | spans <- take 6 current, Span Dim text <- spans] @?= ["42  ", "43  "]
-        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18", ""] <> october <> replicate 4 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today"]
+        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18, 2026", ""] <> october <> replicate 4 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 \10003 done \183 \215 missed \183 18 today"]
         [text | spans <- selected, Span Pointed text <- spans] @?= ["21", "21"]
-        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18", ""] <> november <> replicate 5 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 18 today \183 16 selected"]
+        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18, 2026", ""] <> november <> replicate 5 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 \10003 done \183 \215 missed \183 18 today \183 16 selected"]
         [text | spans <- take 5 later, Span Today text <- spans] @?= []
+    , testCase "the agenda calendar opens on today's month even when past months come first" $ do
+        let september = ["        September 2026", agendaWeekdays, "40  28  29  30\215"]
+            october = ["          October 2026", agendaWeekdays, "40               1\10003  2   3   4", "42  12  13  14  15  16  17  18"]
+            header = ["Today: Sun, Oct 18, 2026", ""] <> september <> [""] <> october <> ["", agendaLegend]
+            current = agendaHeaderLines Nothing header
+            past = agendaHeaderLines (Just "2026-09-30") header
+            titles = fmap (Text.concat . fmap spanText) . take 1 . drop 2
+        titles current @?= ["          October 2026"]
+        [text | spans <- current, Span Today text <- spans] @?= ["18", "18"]
+        [text | spans <- current, Span Opening text <- spans] @?= ["\10003", "\10003"]
+        titles past @?= ["        September 2026"]
+        [text | spans <- take 9 past, Span Today text <- spans] @?= []
+        [text | spans <- past, Span Pointed text <- spans] @?= ["30", "30"]
+        [text | spans <- take 9 past, Span Urgent text <- spans] @?= ["\215"]
     , testCase "agenda days stay flat when alone, periods head turning weeks, and Domain folders open with Tab" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
@@ -151,7 +165,7 @@ tests =
             second = row "#three" "Wed, Oct 21" "2026-10-21"
             later = row "#four" "Mon, Oct 26" "2026-10-26"
             categories = [ListCategory "eulen" [ListCategory "Wed, Oct 21" [ListItem first False [ListItem second False []]]], ListCategory "Without a category" [ListCategory "Mon, Oct 19" [ListItem single False []], ListCategory "Mon, Oct 26" [ListItem later False []]]]
-            view = ListView "agenda" [] [single, first, second, later] categories False "" False 0 Nothing [] 35 Set.empty
+            view = ListView "agenda" [] [single, first, second, later] categories False "" False 0 Nothing [] 35 0 False Set.empty
             titles v = [(searchHitKind hit, searchHitTitle hit) | (_, _, hit) <- listViewRows v]
         titles view @?= [("brick", "Task #one"), ("category", "Wed, Oct 21"), ("brick", "Task #two"), ("brick", "Task #three"), ("period", "Week 44/53, Oct, 2026"), ("brick", "Task #four")]
         titles view{listViewGrouped = True} @?= [("folder", "\9656 eulen (2)"), ("folder", "\9656 Without a category (2)")]
@@ -161,9 +175,9 @@ tests =
     , testCase "the agenda calendar stays pinned while a far selection scrolls the rows" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
-            header = ["Today: Sun, Oct 18", "", "          October 2026", agendaWeekdays, "43  19  20  21  22  23  24  25", "", agendaLegend]
+            header = ["Today: Sun, Oct 18, 2026", "", "          October 2026", agendaWeekdays, "43  19  20  21  22  23  24  25", "", agendaLegend]
             rows = [AgendaListRow ("#t" <> Text.pack (show day)) "Task" "Mon, Oct 19 \183 18:00 \183 deadline" "Mon, Oct 19" "2026-10-19" (Just "18:00") "deadline" | day <- [1 .. 40 :: Int]]
-            view = ListView "agenda" [] rows [] False "" False 30 Nothing header 35 Set.empty
+            view = ListView "agenda" [] rows [] False "" False 30 Nothing header 35 0 False Set.empty
             visible = fmap plainLine (screenLines (viewportModel 100 40 0 (listModel 100 envelope view)))
         assertBool ("the calendar scrolled away: " <> show visible) ("          October 2026" `elem` visible)
         assertBool "the far selection is not visible" (any (\line -> "> " `Text.isPrefixOf` line && "#t31" `Text.isInfixOf` line) visible)
@@ -184,7 +198,7 @@ tests =
             child = ListRow "#diagram" "Draw diagram" "60.0% · importance position 1"
             others = [ListRow ("#b" <> Text.pack (show index)) "Other task" "1.0%" | index <- [1 .. 35 :: Int]]
             categories = [ListCategory "Work" [ListCategory "Talks" [ListItem parent True [ListItem child False []]]], ListCategory "Other" [ListItem row False [] | row <- others]]
-            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing [] 35 Set.empty
+            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing [] 35 0 False Set.empty
             filtered = renderPlain (listModel 80 envelope view)
         mapM_ (\fragment -> assertBool ("missing grouped context: " <> Text.unpack fragment) (fragment `Text.isInfixOf` filtered)) ["Work", "Talks", "#talk", "#diagram", "60.0%", "context only"]
         assertBool "search retained an unrelated category" (not ("Other task" `Text.isInfixOf` filtered))

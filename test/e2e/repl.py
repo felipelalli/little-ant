@@ -301,6 +301,25 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("Created:")
         return next(hit["handle"] for hit in self.cli("search", title)["hits"] if hit["kind"] == "brick")
 
+    def test_agenda_shows_today_done_and_searches_past_days_above_its_top(self):
+        handle = self.create_atomic_work("Finish this earlier")
+        self.repl.close()
+        self.cli("done", handle)
+        self.repl = Repl(self.executable, self.environment, columns=100, rows=40)
+        self.repl.wait("Completed:")
+        self.repl.send("/list\r")
+        self.repl.wait("Importance order")
+        self.repl.send("a")
+        self.repl.wait("Agenda")
+        # Today starts at midnight, so what was done today is already there.
+        self.repl.wait(handle)
+        self.repl.wait("· done")
+        self.repl.wait("✓ done · × missed")
+        # Above the top the agenda searches earlier days; this dataset has none.
+        self.repl.send("\x1b[A")
+        self.repl.wait("Nothing earlier was recorded in the last 420 days.")
+        self.repl.wait(handle)
+
     def test_escape_after_an_action_offers_to_undo_it(self):
         handle = self.create_atomic_work("Undo this archive")
         self.repl.send("/archive " + handle + "\r")

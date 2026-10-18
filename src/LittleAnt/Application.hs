@@ -4,6 +4,7 @@ module LittleAnt.Application (
   ProviderConnectionRuntime (..),
   ViewDepth (..),
   agendaChunkDays,
+  agendaPastLimitDays,
   agendaLegend,
   agendaWeekdays,
   natureBranch,
@@ -104,7 +105,7 @@ data AppCommand
   | DoneCommand (Maybe Text)
   | ReturnToIdleCommand (Maybe Text)
   | FinishCommand Text
-  | ListCommand (Maybe Text) (Maybe Integer)
+  | ListCommand (Maybe Text) (Maybe Integer) (Maybe Integer)
   | SearchCommand Text
   | HelpCommand (Maybe Text)
   | FeedCommand Text Text
@@ -395,10 +396,10 @@ runAppCommand environment dryRun progress (WhyCommand view) =
   loadDataset (appStore environment) progress >>= \case
     Left problem -> pure (Left problem)
     Right dataset -> runWhy environment dryRun dataset view
-runAppCommand environment dryRun progress (ListCommand name days) =
+runAppCommand environment dryRun progress (ListCommand name days past) =
   loadDataset (appStore environment) progress >>= \case
     Left problem -> pure (Left problem)
-    Right dataset -> runList environment dryRun dataset name days
+    Right dataset -> runList environment dryRun dataset name days past
 runAppCommand environment dryRun _ PendingInteractionCommand =
   loadPendingCheckpoint environment >>= \case
     Left problem -> pure (Left problem)
@@ -427,7 +428,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   DoneCommand reference -> runDone environment dryRun dataset reference
   ReturnToIdleCommand reference -> runReturnToIdle environment dryRun dataset reference
   FinishCommand reference -> runFinish environment dryRun dataset reference
-  ListCommand list days -> runList environment dryRun dataset list days
+  ListCommand list days past -> runList environment dryRun dataset list days past
   SearchCommand query -> runSearch environment dryRun dataset query
   HelpCommand topic -> runHelp environment dryRun dataset topic
   FocusBlockerCommand reference -> runFocusBlocker environment dryRun dataset reference
@@ -2788,8 +2789,8 @@ resolveExportScope state (Just supplied)
  where
   reference = Text.strip supplied
 
-runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> Maybe Integer -> IO (Either AppError CommandResult)
-runList environment dryRun dataset maybeList maybeDays = do
+runList :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> Maybe Integer -> Maybe Integer -> IO (Either AppError CommandResult)
+runList environment dryRun dataset maybeList maybeDays maybePast = do
   zone <- zonedTimeZone <$> appZonedNow environment
   let arguments = maybe [] Text.words maybeList
       listName = case arguments of name : _ -> Just (Text.toLower name); _ -> Nothing
@@ -2818,7 +2819,8 @@ runList environment dryRun dataset maybeList maybeDays = do
           now <- appZonedNow environment
           zones <- recurrenceZones (loadedState dataset)
           let days = max 1 (fromMaybe agendaChunkDays maybeDays)
-              (header, rows) = agendaView (loadedState dataset) zones now days
+              past = max 0 (fromMaybe 0 maybePast)
+              (header, rows) = agendaView (loadedState dataset) zones now past days
           pure $ do
             scoped <- scopeListRows (loadedState dataset) scope rows
             pure (ListResult (loadedCursor dataset) "agenda" scoped header (agendaCategoryTree (loadedState dataset) scoped) dryRun)
@@ -2838,6 +2840,12 @@ chunk as the selection reaches the end, so the agenda has no fixed horizon.
 agendaChunkDays :: Integer
 agendaChunkDays = 35
 
+{- | UX-288: how far back one step above the agenda's top searches, a chunk
+at a time, before it reports that nothing earlier was recorded.
+-}
+agendaPastLimitDays :: Integer
+agendaPastLimitDays = 12 * agendaChunkDays
+
 -- | The loadable zones of recorded recurrence and habit schedules, for projection.
 recurrenceZones :: State -> IO (Map.Map Text TZ)
 recurrenceZones state = do
@@ -2851,17 +2859,21 @@ data AgendaFact = AgendaFact
   , agendaNotes :: [Text]
   }
 
-{- | UX-288: the calendar header and the dated rows of the agenda, overdue
-first. Projected occurrences come from recorded schedules; nothing is
-released, drawn, or changed.
+{- | UX-288: the calendar header and the rows of the agenda: what happened in
+the past days asked for, then overdue Work, then the dated facts ahead.
+Projected occurrences come from recorded schedules; nothing is released,
+drawn, or changed.
 -}
-agendaView :: State -> Map.Map Text TZ -> ZonedTime -> Integer -> ([Text], [ListRow])
-agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defaultTimeLocale "%a, %b %-d" today) : "" : calendar, overdueRows <> datedRows)
+agendaView :: State -> Map.Map Text TZ -> ZonedTime -> Integer -> Integer -> ([Text], [ListRow])
+agendaView state zones now pastDays windowDays = (Text.pack ("Today: " <> formatTime defaultTimeLocale "%a, %b %-d, %Y" today) : "" : calendar, historyRows <> overdueRows <> datedRows)
  where
   utcNow = zonedTimeToUTC now
   zone = zonedTimeZone now
   today = localDay (zonedTimeToLocalTime now)
+  firstDay = addDays (negate pastDays) today
   lastDay = addDays (windowDays - 1) today
+  pastStart = localTimeToUTC zone (LocalTime firstDay midnight)
+  inPast instant = instant >= pastStart && instant <= utcNow
   windowEnd = localTimeToUTC zone (LocalTime (addDays windowDays today) midnight)
   inWindow instant = instant >= utcNow && instant < windowEnd
   localDayOf = localDay . utcToLocalTime zone
@@ -2929,16 +2941,16 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
     , not (habitWindowSettled window)
     , Just owner <- [Map.lookup (habitWindowOwner window) (stateBricks state)]
     , brickStatus owner == BrickActive
-    , zonedInstantUtc (habitWindowClosesAt window) >= utcNow
+    , zonedInstantUtc (habitWindowClosesAt window) > utcNow
     , zonedInstantUtc (habitWindowOpensAt window) < windowEnd
     ]
-      <> [ habitFact (HabitWindow (habitScheduleOwner schedule) (habitScheduleOwner schedule) opensAt closesAt target (habitScheduleRevision schedule) False) owner 0 True
+      <> [ habitFact (HabitWindow (habitScheduleOwner schedule) (habitScheduleOwner schedule) opensAt closesAt target (habitScheduleRevision schedule) False) owner (0 :: Int) True
          | schedule <- Map.elems (stateHabitSchedules state)
          , Just owner <- [Map.lookup (habitScheduleOwner schedule) (stateBricks state)]
          , brickStatus owner == BrickActive
          , Just tz <- [Map.lookup (habitScheduleZone schedule) zones]
          , (opensAt, closesAt, target) <- projectedHabitWindows tz schedule
-         , zonedInstantUtc closesAt >= utcNow
+         , zonedInstantUtc closesAt > utcNow
          , not (any (\window -> habitWindowOwner window == habitScheduleOwner schedule && zonedInstantUtc (habitWindowOpensAt window) == zonedInstantUtc opensAt) (Map.elems (stateHabitWindows state)))
          , habitInstant schedule opensAt closesAt < windowEnd
          ]
@@ -2955,7 +2967,56 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
         AgendaFact (zonedInstantUtc (habitWindowClosesAt window)) "habit due" owner ([Text.pack (show done) <> "/" <> Text.pack (show (habitWindowTarget window)) <> " done"] <> ["projected" | projection])
       _ ->
         AgendaFact (zonedInstantUtc (habitWindowOpensAt window)) "habit" owner (["until " <> clock (zonedInstantUtc (habitWindowClosesAt window))] <> ["done" | done > 0] <> ["projected" | projection])
-  kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("habit", 1), ("best before", 2), ("habit due", 2), ("deadline", 3)])
+  -- What already happened, each fact at its own time: every completion on
+  -- its day, and a miss stays on its day even after the occurrence was done
+  -- late or excused.
+  history = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (filter (inPast . agendaAt) (completedWork <> periodFacts <> habitHistory))
+  deadlineOf brick = zonedInstantUtc <$> (constraintsOf brick >>= temporalDeadline)
+  completedWork =
+    [ AgendaFact at (if maybe False (< at) (deadlineOf brick) then "done late" else "done") brick []
+    | (identity, at) <- Map.toList (stateBrickCompletedAt state)
+    , Just brick <- [Map.lookup identity (stateBricks state)]
+    , brickStatus brick == BrickDone
+    , -- A recorded late completion is its own fact below.
+      isNothing (Map.lookup identity (stateObligationPeriods state) >>= obligationPeriodDoneLateAt)
+    ]
+  periodFacts =
+    concat
+      [ [AgendaFact (fromMaybe missedAt (deadlineOf brick)) "missed" brick [] | Just missedAt <- [obligationPeriodMissedAt period]]
+          <> [AgendaFact at "done late" brick [] | Just at <- [obligationPeriodDoneLateAt period]]
+          <> [AgendaFact at "excused" brick (maybe [] pure (obligationPeriodExcuseReason period)) | Just at <- [obligationPeriodExcusedAt period]]
+      | (identity, period) <- Map.toList (stateObligationPeriods state)
+      , Just brick <- [Map.lookup identity (stateBricks state)]
+      ]
+      <> [ AgendaFact at "missed" brick []
+         | brick <- Map.elems (stateBricks state)
+         , brickStatus brick == BrickMissed
+         , isNothing (Map.lookup (brickId brick) (stateObligationPeriods state) >>= obligationPeriodMissedAt)
+         , Just at <- [deadlineOf brick]
+         ]
+  -- A closed habit window is done when it met its target, otherwise missed,
+  -- unless its outcome says it did not apply (blocked, paused, cancelled).
+  habitHistory =
+    [ pastHabit window owner
+    | window <- Map.elems (stateHabitWindows state)
+    , zonedInstantUtc (habitWindowClosesAt window) <= utcNow
+    , Just owner <- [Map.lookup (habitWindowOwner window) (stateBricks state)]
+    ]
+  outcomeKinds = Map.fromListWith (<>) [(habitOutcomeWindow outcome, [habitOutcomeKind outcome]) | outcome <- Map.elems (stateHabitOutcomes state)]
+  pastHabit window owner
+    | done >= max 1 (habitWindowTarget window) = AgendaFact at "habit done" owner progress
+    | not (null excusing) = AgendaFact at "habit" owner (progress <> nub excusing)
+    | otherwise = AgendaFact at "habit missed" owner progress
+   where
+    kinds = Map.findWithDefault [] (habitWindowId window) outcomeKinds
+    done = length (filter (`elem` [StandingDone, StandingAttended]) kinds)
+    excusing = [label | kind <- kinds, Just label <- [lookup kind [(StandingBlocked, "blocked"), (StandingPaused, "paused"), (StandingInapplicable, "not applicable"), (StandingCancelled, "cancelled")]]]
+    quota = case Map.lookup (brickId owner) (stateHabitSchedules state) of
+      Just QuotaWindowHabit{} -> True
+      _ -> False
+    at = zonedInstantUtc (if quota then habitWindowClosesAt window else habitWindowOpensAt window)
+    progress = [Text.pack (show done) <> "/" <> Text.pack (show (habitWindowTarget window)) <> " done" | quota]
+  kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("habit", 1), ("habit done", 1), ("habit missed", 1), ("best before", 2), ("habit due", 2), ("deadline", 3), ("missed", 3), ("done late", 4), ("done", 4), ("excused", 5)])
   dated = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (dropCoincident (concatMap ownFacts active <> projected) <> habits)
   -- A fact at the same instant as a later one of the same Work says less:
   -- opens yields to best before, and both yield to the deadline.
@@ -2983,18 +3044,20 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
       (Text.pack (showGregorian (localDayOf (agendaAt fact))))
       (Just (clock (agendaAt fact)))
       (agendaKind fact)
+  historyRows = [row (dayLabel (localDayOf (agendaAt fact))) fact | fact <- history]
   overdueRows = fmap (row "Overdue") overdue
   datedRows = [row (dayLabel (localDayOf (agendaAt fact))) fact | fact <- dated]
-  -- One mark per day, the strongest: deadline, then best before, then habit.
+  -- One mark per day, the strongest: a miss, a deadline (on a past day, Work
+  -- still overdue), best before, something done, then a habit.
   marks =
     snd
       <$> Map.fromListWith
         max
         [ (localDayOf (agendaAt fact), mark)
-        | fact <- dated
-        , Just mark <- [lookup (agendaKind fact) [("deadline", (3 :: Int, '!')), ("best before", (2, '\8226')), ("habit", (1, '\9702')), ("habit due", (1, '\9702'))]]
+        | fact <- history <> overdue <> dated
+        , Just mark <- [lookup (agendaKind fact) agendaMarks]
         ]
-  calendar = intercalateBlank [monthGrid month | month <- nub [let { (y, m, _) = toGregorian day } in (y, m) | day <- [today .. lastDay]]] <> ["", agendaLegend]
+  calendar = intercalateBlank [monthGrid month | month <- nub [let { (y, m, _) = toGregorian day } in (y, m) | day <- [firstDay .. lastDay]]] <> ["", agendaLegend]
   intercalateBlank = \case
     [] -> []
     first : rest -> first <> concatMap ("" :) rest
@@ -3015,9 +3078,23 @@ agendaView state zones now windowDays = (Text.pack ("Today: " <> formatTime defa
     (chunk, []) -> [chunk | not (null chunk)]
     (chunk, rest) -> chunk : chunksOf count rest
 
+-- | The calendar mark of each agenda fact kind, with its strength.
+agendaMarks :: [(Text, (Int, Char))]
+agendaMarks =
+  [ ("missed", (5, '\215'))
+  , ("habit missed", (5, '\215'))
+  , ("deadline", (4, '!'))
+  , ("best before", (3, '\8226'))
+  , ("done", (2, '\10003'))
+  , ("done late", (2, '\10003'))
+  , ("habit done", (2, '\10003'))
+  , ("habit", (1, '\9702'))
+  , ("habit due", (1, '\9702'))
+  ]
+
 -- | The key to the agenda calendar marks.
 agendaLegend :: Text
-agendaLegend = "! deadline · \8226 best before · \9702 habit"
+agendaLegend = "! deadline · \8226 best before · \9702 habit · \10003 done · \215 missed"
 
 -- | The weekday row of an agenda month grid, after the ISO week column.
 agendaWeekdays :: Text

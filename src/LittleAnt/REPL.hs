@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiWayIf #-}
+
 module LittleAnt.REPL (
   ImportCatalogChoice (..),
   ImportSelection (..),
@@ -107,6 +109,8 @@ data ListView = ListView
   , listViewMessage :: Maybe Text
   , listViewHeader :: [Text]
   , listViewDays :: Integer
+  , listViewPast :: Integer
+  , listViewPastDone :: Bool
   , listViewExpanded :: Set.Set Text
   }
   deriving stock (Eq, Show)
@@ -258,10 +262,10 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     _ -> pure (Just screen)
 
   openList previous name =
-    runCurrent (ListCommand (Just name) Nothing) >>= \case
+    runCurrent (ListCommand (Just name) Nothing Nothing) >>= \case
       Left problem -> pure . Just $ ReadOnlyScreen previous (renderError problem)
       Right ListResult{resultListName, resultListEntries, resultListCategories, resultListHeader} ->
-        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing resultListHeader agendaChunkDays Set.empty)
+        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing resultListHeader agendaChunkDays 0 False Set.empty)
       Right other -> pure . Just $ ReadOnlyScreen previous (renderCommandResult other)
 
   listInput previous view input = case input of
@@ -277,16 +281,16 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
           switchView name
     Printable 'c' [] -> preserve view{listViewGrouped = not (listViewGrouped view)}
     Printable '/' [] -> pure . Just $ PaletteScreen (screenEnvelope previous) "/" 0 (ReturnToScreen screen)
-    Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts, overdue first, and loads further days as you scroll. [c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list."}
+    Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts, overdue first, and loads further days as you scroll down; above the top it loads past days: done, done late, missed, and excused. [c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list."}
     -- UX-280: arrows step through the views; Left on the first one goes back.
     ArrowLeft _
       | not (listViewSearching view) -> maybe (pure (Just previous)) switchView (adjacentView (-1))
     ArrowRight _
       | not (listViewSearching view) -> maybe (pure (Just screen)) switchView (adjacentView 1)
     Backspace _ -> pure (Just previous)
-    ArrowUp _ -> select (selected - 1)
+    ArrowUp _ -> backward (selected - 1)
     ArrowDown _ -> forward (selected + 1)
-    PageUp _ -> select (selected - max 1 ((height - 10) `div` 3))
+    PageUp _ -> backward (selected - max 1 ((height - 10) `div` 3))
     PageDown _ -> forward (selected + max 1 ((height - 10) `div` 3))
     Home _ -> select 0
     End _ -> forward lastIndex
@@ -312,9 +316,9 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
       position <- elemIndex (listViewName view) views
       safeIndex (position + step) views
     switchView name =
-      runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view))) (Just agendaChunkDays)) >>= \case
+      runCurrent (ListCommand (Just (Text.unwords (name : listViewScope view))) (Just agendaChunkDays) Nothing) >>= \case
         Left problem -> changed view{listViewMessage = Just (appErrorMessage problem)}
-        Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewDays = agendaChunkDays}
+        Right ListResult{resultListEntries, resultListCategories, resultListHeader} -> preserve view{listViewName = name, listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewDays = agendaChunkDays, listViewPast = 0, listViewPastDone = False}
         Right _ -> pure (Just screen)
     -- UX-288: reaching the end of the agenda loads its next chunk of days.
     -- More days appear before later categories, so the selection follows its
@@ -323,7 +327,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
       | listViewName view == "agenda" && index >= lastIndex - 2 && maybe False ((/= "folder") . searchHitKind) (safeIndex lastIndex visible) =
           let days = listViewDays view + agendaChunkDays
               anchor = safeIndex (min index lastIndex) visible
-           in runCurrent (ListCommand (Just (Text.unwords ("agenda" : listViewScope view))) (Just days)) >>= \case
+           in runCurrent (ListCommand (Just (Text.unwords ("agenda" : listViewScope view))) (Just days) (Just (listViewPast view))) >>= \case
                 Right ListResult{resultListEntries, resultListCategories, resultListHeader} ->
                   let next = view{listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewDays = days}
                       hits = listViewHits next
@@ -332,6 +336,24 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
                    in changed next{listViewSelected = max 0 (min (length hits - 1) target), listViewMessage = Nothing}
                 _ -> select index
       | otherwise = select index
+    -- UX-288: moving above the first row loads earlier days, a chunk at a
+    -- time, until something recorded appears or the search limit passes.
+    backward index
+      | listViewName view == "agenda" && not (listViewGrouped view) && index < 0 && not (listViewPastDone view) = loadPast (listViewPast view + agendaChunkDays)
+      | otherwise = select index
+     where
+      anchor = safeIndex 0 visible
+      loadPast past =
+        runCurrent (ListCommand (Just (Text.unwords ("agenda" : listViewScope view))) (Just (listViewDays view)) (Just past)) >>= \case
+          Right ListResult{resultListEntries, resultListCategories, resultListHeader} ->
+            let next = view{listViewEntries = resultListEntries, listViewCategories = resultListCategories, listViewHeader = resultListHeader, listViewPast = past}
+                hits = listViewHits next
+                earlier = maybe (length hits) (\hit -> fromMaybe 0 (findIndex (sameHit hit) hits)) anchor
+             in if
+                  | earlier > 0 -> changed next{listViewSelected = max 0 (earlier + index), listViewMessage = Nothing}
+                  | past < listViewPast view + agendaPastLimitDays -> loadPast (past + agendaChunkDays)
+                  | otherwise -> changed next{listViewSelected = 0, listViewPastDone = True, listViewMessage = Just ("Nothing earlier was recorded in the last " <> Text.pack (show past) <> " days.")}
+          _ -> select 0
     sameHit left right = (searchHitKind left, searchHitHandle left, searchHitDetails left) == (searchHitKind right, searchHitHandle right, searchHitDetails right)
     toggleFolder = case safeIndex selected (agendaContainers view) of
       Just (Just key) ->
@@ -1250,42 +1272,44 @@ listViewKeys :: [(Char, Text)]
 listViewKeys = [('i', "importance"), ('f', "forecast"), ('a', "agenda")]
 
 {- | The agenda header: today, the month grid of the selected row (the
-current month when nothing later is selected), and the legend. Today's cell
-is highlighted only in the current month's grid, which comes first because
-the window starts today.
+current month when no row is selected), and the legend. Today's cell is
+highlighted only in the current month's grid.
 -}
 agendaHeaderLines :: Maybe Text -> [Text] -> [[Span]]
 agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> concatMap gridLines chosen <> legendLines
  where
   intro = takeWhile (\text -> text /= agendaWeekdays && text /= agendaLegend) (take 2 header)
-  today = case header of
-    first : _ | Just date <- Text.stripPrefix "Today: " first -> lastMaybe (Text.words date)
+  todayDay = case header of
+    first : _ | Just date <- Text.stripPrefix "Today: " first -> parseTimeM False defaultTimeLocale "%a, %b %-d, %Y" (Text.unpack date) :: Maybe Day
     _ -> Nothing
+  today = Text.pack . formatTime defaultTimeLocale "%-d" <$> todayDay
   blocks = splitBlank (drop 2 header)
   grids = [block | block@(_ : weekdays : _) <- blocks, weekdays == agendaWeekdays]
   selectedDay = do
     date <- selectedDate
     parseTimeM False defaultTimeLocale "%Y-%m-%d" (Text.unpack date) :: Maybe Day
-  selectedMonth = Text.pack . formatTime defaultTimeLocale "%B %Y" <$> selectedDay
+  monthOf = fmap (Text.pack . formatTime defaultTimeLocale "%B %Y")
   pointedNumber = Text.pack . formatTime defaultTimeLocale "%-d" <$> selectedDay
-  matching = [(index, grid) | (index, grid@(title : _)) <- zip [0 :: Int ..] grids, Just (Text.strip title) == selectedMonth]
-  chosen = take 1 (matching <> zip [0 ..] grids)
-  pointedIn index = if not (null matching) && fmap fst (listToMaybe matching) == Just index then pointedNumber else Nothing
-  gridLines (index, title : weekdays : weeks) =
-    -- Six week rows always, so the pinned calendar keeps one height.
-    [Span Normal title] : [Span Normal weekdays] : fmap (weekLine (if index == 0 then today else Nothing) (pointedIn index)) weeks <> replicate (6 - length weeks) [] <> [[]]
-  gridLines (_, other) = fmap (pure . Span Normal) other
+  titled month = [grid | grid@(title : _) <- grids, Just (Text.strip title) == month]
+  chosen = take 1 (titled (monthOf selectedDay) <> titled (monthOf todayDay) <> grids)
+  gridLines (title : weekdays : weeks) =
+    let here = Just (Text.strip title)
+        todayHere = if here == monthOf todayDay then today else Nothing
+        pointedHere = if here == monthOf selectedDay then pointedNumber else Nothing
+     in -- Six week rows always, so the pinned calendar keeps one height.
+        [Span Normal title] : [Span Normal weekdays] : fmap (weekLine todayHere pointedHere) weeks <> replicate (6 - length weeks) [] <> [[]]
+  gridLines other = fmap (pure . Span Normal) other
   -- Each row starts with its ISO week number, then four columns per day.
   weekLine todayNumber pointed text = Span Dim (Text.take 4 text) : concatMap (cell todayNumber pointed) (chunks (Text.drop 4 text))
   legendLines =
-    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Habit "\9702", Span Dim " habit · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
+    [ [Span Urgent "!", Span Dim " deadline · ", Span Caution "\8226", Span Dim " best before · ", Span Habit "\9702", Span Dim " habit · ", Span Opening "\10003", Span Dim " done · ", Span Urgent "\215", Span Dim " missed · ", Span Today (fromMaybe "dd" today), Span Dim " today"] <> concat [[Span Dim " · ", Span Pointed number, Span Dim " selected"] | Just number <- [pointedNumber]]
     | agendaLegend `elem` header
     ]
   splitBlank values = case break Text.null values of
     (block, []) -> [block | not (null block)]
     (block, _ : rest) -> [block | not (null block)] <> splitBlank rest
-  -- Grid cells are a two-column day, one mark (! deadline, • best before),
-  -- and a separating space.
+  -- Grid cells are a two-column day, one mark (see agendaMarks), and a
+  -- separating space.
   cell day pointed text =
     let number = Text.take 2 text
         numberRole
@@ -1296,12 +1320,13 @@ agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> conca
           "!" -> [Span Urgent "!"]
           "\8226" -> [Span Caution "\8226"]
           "\9702" -> [Span Habit "\9702"]
+          "\10003" -> [Span Opening "\10003"]
+          "\215" -> [Span Urgent "\215"]
           rest -> [Span Normal rest | not (Text.null rest)]
      in Span numberRole number : mark <> [Span Normal (Text.drop 3 text) | not (Text.null (Text.drop 3 text))]
   chunks text
     | Text.null text = []
     | otherwise = Text.take 4 text : chunks (Text.drop 4 text)
-  lastMaybe values = if null values then Nothing else Just (last values)
 
 -- | Agenda fact kinds in their urgency colors inside the detail lines.
 colorAgendaKinds :: ScreenLine -> ScreenLine
@@ -1315,7 +1340,7 @@ colorAgendaKinds = concatMap split
       let (before, kind, role) = foldr1 (\left right -> if Text.length (fst3 left) <= Text.length (fst3 right) then left else right) candidates
           rest = Text.drop (Text.length before + Text.length kind + 3) text
        in Span Dim (before <> " · ") : Span role kind : go rest
-  kinds = [("deadline", Urgent), ("best before", Caution), ("opens", Opening), ("starts", Opening), ("habit due", Habit), ("habit", Habit)]
+  kinds = [("deadline", Urgent), ("best before", Caution), ("opens", Opening), ("starts", Opening), ("habit due", Habit), ("habit", Habit), ("missed", Urgent), ("habit missed", Urgent), ("done late", Caution), ("done", Opening), ("habit done", Opening)]
   boundary rest = Text.null rest || " · " `Text.isPrefixOf` rest
   fst3 (value, _, _) = value
 

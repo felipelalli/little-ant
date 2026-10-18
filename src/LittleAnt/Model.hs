@@ -1315,6 +1315,8 @@ data State = State
   , stateRecurrenceSchedules :: Map UUIDv7 RecurrenceSchedule
   , stateRecurringOccurrences :: Map UUIDv7 RecurringOccurrence
   , stateObligationPeriods :: Map UUIDv7 ObligationPeriod
+  , -- | When each completed Brick was completed, for the agenda's past (UX-288).
+    stateBrickCompletedAt :: Map UUIDv7 UTCTime
   , stateHabitSchedules :: Map UUIDv7 HabitSchedule
   , stateHabitWindows :: Map UUIDv7 HabitWindow
   , stateHabitOutcomes :: Map UUIDv7 HabitOutcome
@@ -1406,6 +1408,7 @@ emptyState =
     , stateRecurrenceSchedules = Map.empty
     , stateRecurringOccurrences = Map.empty
     , stateObligationPeriods = Map.empty
+    , stateBrickCompletedAt = Map.empty
     , stateHabitSchedules = Map.empty
     , stateHabitWindows = Map.empty
     , stateHabitOutcomes = Map.empty
