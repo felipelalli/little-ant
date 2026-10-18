@@ -149,7 +149,12 @@ assistance-label, and no-emoji rendering.
   that forward chain. After local backward navigation is exhausted,
   empty-buffer `Backspace` stops at the commit boundary. `Escape` at the root
   main opportunity screen ends the presentation session, retaining its pending
-  interaction and current focus; elsewhere it stops at the commit boundary.
+  interaction and current focus. Elsewhere it walks back through the
+  interaction's earlier screens; once none remains, as on a screen opened by
+  a slash command or after a commit, it ends the session the same way, so
+  repeated `Escape` always reaches the shell. When another client replaced
+  the pending interaction, `Escape` shows the current one with a notice
+  instead of an error.
   When a reversible action was recorded during the current presentation
   session, `Escape` at that boundary first opens UX-U01 for it; `no` keeps
   everything and stays, and `Escape` on the preview keeps everything and

@@ -473,14 +473,27 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
           Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
           Right result -> screenFromResult envelope result
 
+  -- Escape walks back through the interaction; with no earlier screen left it
+  -- ends the session, so a command opened from the palette is never a trap.
   navigateOrExit envelope =
     runCurrent (NavigateBackCommand (interactionResponse envelope "navigation.back")) >>= \case
       Left _ | leavesOnEscape envelope -> offerUndoOr envelope (pure Nothing)
-      Left problem -> offerUndoOr envelope (pure . Just $ EnvelopeScreen envelope (Just (appErrorMessage problem)))
+      Left _ -> restorePending envelope
       Right RespondResult{resultInteraction}
-        | resultInteraction == envelope, leavesOnEscape envelope -> offerUndoOr envelope (pure Nothing)
-        | resultInteraction == envelope -> offerUndoOr envelope (pure (Just screen))
+        | sameScreen resultInteraction envelope -> offerUndoOr envelope (pure Nothing)
       Right result -> screenFromResult envelope result
+
+  -- The REPL may decorate the stored envelope, so identity and revision decide
+  -- whether back navigation actually moved.
+  sameScreen one other = envelopeInteractionId one == envelopeInteractionId other && envelopeRevision one == envelopeRevision other
+
+  -- Another client or a CLI command replaced the pending question, so this
+  -- screen can no longer navigate; show the current question instead.
+  restorePending envelope =
+    runCurrent NextCommand >>= \case
+      Right NextResult{resultInteraction}
+        | not (sameScreen resultInteraction envelope) -> pure (Just (EnvelopeScreen resultInteraction (Just replacedElsewhereNotice)))
+      _ -> offerUndoOr envelope (pure Nothing)
 
   -- At the commit boundary, Escape first asks whether to undo the latest
   -- action; a dry run finds it without recording anything. Declining once
@@ -505,10 +518,8 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
         Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
         Right result -> screenFromResult envelope result
     Printable 'n' [] -> declined
-    Printable 'k' [] -> pure (Just (UndoPromptScreen envelope summary (Just "Yes appends one compensating event that restores the state before that action; history keeps both, no new draw happens, and /redo restores it. No keeps everything; Esc keeps everything and continues leaving.")))
-    Escape _
-      | leavesOnEscape envelope -> pure Nothing
-      | otherwise -> declined
+    Printable 'k' [] -> pure (Just (UndoPromptScreen envelope summary (Just "Yes appends one compensating event that restores the state before that whole action; history keeps both, no new draw happens, and /redo restores it. No keeps everything; Esc keeps everything and leaves.")))
+    Escape _ -> pure Nothing
     Backspace _ -> declined
     ArrowLeft _ -> declined
     _ -> pure (Just screen)
@@ -1040,7 +1051,11 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
 
 -- | Shown after declining the undo offer; the next Escape then leaves as usual.
 undoDeclinedNotice :: Text
-undoDeclinedNotice = "Nothing was undone. Press Esc again to continue."
+undoDeclinedNotice = "Nothing was undone. Press Esc again to leave."
+
+-- | Shown when the pending question changed outside this session.
+replacedElsewhereNotice :: Text
+replacedElsewhereNotice = "This question changed outside this window; showing the current one."
 
 isRepairScreen :: InteractionEnvelope -> Bool
 isRepairScreen envelope = case envelopeOpportunity envelope of

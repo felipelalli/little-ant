@@ -9,6 +9,11 @@ replace the specification.
 
 ## Unreleased
 
+- Fix Escape in the REPL: on a screen opened by a slash command, such as
+  the `/update` hub, Escape no longer stays put; with no earlier screen left
+  it ends the session like on the main screen. When a CLI command or
+  another window replaced the pending question, Escape shows the current
+  one instead of "The navigation request is stale or invalid."
 - Fix the creation receipt's importance line, which could name the wrong
   neighbours after done Work kept the top positions: it now reads the
   position the comparisons left, not the one first computed.
