@@ -872,7 +872,7 @@ commandParser =
           "triage"
           ( info
               (TriageCli . fmap Text.pack <$> many (strArgument (metavar "RAW")))
-              (progDesc "Triage one Inbox Raw now, or the first Raw awaiting triage")
+              (progDesc "Triage one Inbox Raw, or every Raw awaiting triage one after another")
           )
         <> command
           "show"

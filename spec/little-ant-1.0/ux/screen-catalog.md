@@ -6706,7 +6706,7 @@ Review raw material
 
 +milk "milk"
 
-Is this something you could work on by itself?
+On its own, is this something you could work on?
 
 [y]es    [n]o    [s]kip    I don't [k]now
 

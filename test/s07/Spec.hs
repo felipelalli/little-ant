@@ -701,7 +701,7 @@ rawDetailClassify = withHarness $ \environment -> do
   assertBool "Inbox Raw detail lacks classify" ("raw.detail.classify" `elem` fmap actionId (envelopeActions detail))
   triage <- answer environment detail "raw.detail.classify"
   case envelopeOpportunity triage of
-    RawTriageOpportunity identity _ _ -> identity @?= rawId target
+    RawTriageOpportunity identity _ _ _ -> identity @?= rawId target
     other -> assertFailure ("expected triage of the exact Raw, got " <> show other)
 
 noticeLifecycle :: Assertion

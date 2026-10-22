@@ -9,10 +9,15 @@ replace the specification.
 
 ## Unreleased
 
-- Add `/triage` and `lant triage [+raw]`. They open the triage question of a
-  named Inbox Raw, or of the first Raw awaiting triage, without the Raw
-  detail screen or a draw. A Raw that already left the Inbox, or an empty
-  Inbox, gets an error pointing to `lant show` or `lant feed`. The operator
+- Add `/triage` and `lant triage [+raw]`. They open the triage question
+  without the Raw detail screen or a draw. A named Inbox Raw is triaged
+  alone. Without one, `/triage` runs through the Inbox like `/order` runs
+  through the order: each settled or skipped Raw opens the next, oldest
+  first, with a one-line receipt of the last one, until "Inbox triage
+  finished" counts what was triaged and skipped. A Raw that already left the
+  Inbox, or an empty Inbox, gets an error pointing to `lant show` or `lant
+  feed`. The triage question now reads "On its own, is this something you
+  could work on?", so "by itself" no longer reads as working alone. The operator
   skill now triages with it, writes an English title instead of accepting
   the prefilled original words, and handles "I'm starting X now": it focuses
   X, or creates it first, skipping importance comparisons so the new Work

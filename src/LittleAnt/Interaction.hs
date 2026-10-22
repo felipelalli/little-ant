@@ -12,6 +12,7 @@ module LittleAnt.Interaction (
   OrderCadence (..),
   OrderScope (..),
   OrderSession (..),
+  TriageRun (..),
   TranslationScope (..),
   TranslationCandidate (..),
   TranslationQueue (..),
@@ -162,6 +163,7 @@ module LittleAnt.Interaction (
   makeRawAttachmentResultEnvelope,
   makeRawUnderBrickEnvelope,
   makeRawTriageEnvelope,
+  makeRawTriageRunEnvelope,
   makeRepairCandidateEnvelope,
   makeRepairCompleteEnvelope,
   makeRepairPreviewEnvelope,
@@ -180,6 +182,7 @@ module LittleAnt.Interaction (
   makeWorkBreakResultEnvelope,
   makeWorkSprintDurationEnvelope,
   makeStandaloneResultEnvelope,
+  makeTriageRunResultEnvelope,
   makeTemplateChoiceEnvelope,
   makeTemplateListEnvelope,
   makeTemplateDiscoveryEnvelope,
@@ -328,6 +331,15 @@ data WorkContext = WorkContext
 data OrderCadence = LotteryOrder | ContinuousOrder
   deriving stock (Eq, Ord, Show)
 
+{- | An explicit Inbox triage run (bare @triage@): how many Raws it settled,
+and the Raws it passed over, which it does not serve again.
+-}
+data TriageRun = TriageRun
+  { triageRunSettled :: Int
+  , triageRunPassed :: [UUIDv7]
+  }
+  deriving stock (Eq, Show)
+
 data OrderScope
   = AllSiblingGroups
   | OneSiblingGroup (Maybe UUIDv7)
@@ -369,7 +381,7 @@ data DestinationCandidate
 data Opportunity
   = PristineOpportunity
   | SafeEmptyOpportunity
-  | RawTriageOpportunity UUIDv7 Handle Text
+  | RawTriageOpportunity UUIDv7 Handle Text (Maybe TriageRun)
   | RawDuplicateOpportunity UUIDv7 UUIDv7
   | TranslationScopeOpportunity TranslationScope
   | TranslationEditOpportunity TranslationQueue (Maybe Text) (Maybe Text)
@@ -458,6 +470,7 @@ data Opportunity
   | JudgmentResultOpportunity JudgmentAxis UUIDv7 Text
   | WorkPreviewOpportunity WorkDraft
   | StandaloneResultOpportunity UUIDv7
+  | TriageRunResultOpportunity Int Int
   | WorkCreatedResultOpportunity UUIDv7 UUIDv7
   | FocusProposalOpportunity UUIDv7 (Maybe UUIDv7)
   | FocusAssistanceOpportunity UUIDv7 (Maybe UUIDv7) FocusAssistanceStep Bool
@@ -656,14 +669,25 @@ makeSafeEmptyEnvelope identity cursor precondition now =
 
 makeRawTriageEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Raw -> InteractionEnvelope
 makeRawTriageEnvelope identity cursor precondition now state raw =
+  rawTriageEnvelope identity cursor precondition now state raw Nothing []
+
+{- | The same question inside an explicit Inbox triage run, with a receipt of
+the Raw it just settled or passed over.
+-}
+makeRawTriageRunEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Raw -> TriageRun -> [Text] -> InteractionEnvelope
+makeRawTriageRunEnvelope identity cursor precondition now state raw run =
+  rawTriageEnvelope identity cursor precondition now state raw (Just run)
+
+rawTriageEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Raw -> Maybe TriageRun -> [Text] -> InteractionEnvelope
+rawTriageEnvelope identity cursor precondition now state raw run body =
   sealed
     identity
     1
     cursor
     precondition
     ChoiceGrammar
-    (RawTriageOpportunity (rawId raw) (rawHandle raw) (rawPreview raw))
-    (EnvelopeContent "Review raw material" (Just (rawCitation raw)) [] (Just "Is this something you could work on by itself?"))
+    (RawTriageOpportunity (rawId raw) (rawHandle raw) (rawPreview raw) run)
+    (EnvelopeContent "Review raw material" (Just (rawCitation raw)) body (Just "On its own, is this something you could work on?"))
     [ Action "raw.materialize-work" "yes" "y" False "Enter Work materialization."
     , Action "raw.choose-destination" "no" "n" False "Choose a compatible destination."
     , Action "raw.defer-triage" "skip" "s" False "Defer this Raw triage."
@@ -2123,6 +2147,15 @@ makeWorkPreviewEnvelope previous now state raw draft =
 makeStandaloneResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Raw -> InteractionEnvelope
 makeStandaloneResultEnvelope identity cursor precondition now state raw =
   resultEnvelope identity cursor precondition now state (StandaloneResultOpportunity (rawId raw)) "Kept as standalone raw material:" [rawCitation raw]
+
+makeTriageRunResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> TriageRun -> [Text] -> InteractionEnvelope
+makeTriageRunResultEnvelope identity cursor precondition now state run receipt =
+  resultEnvelope identity cursor precondition now state (TriageRunResultOpportunity (triageRunSettled run) passed) "Inbox triage finished:" $
+    receipt
+      <> ["Triaged: " <> Text.pack (show (triageRunSettled run))]
+      <> ["Skipped, still in the Inbox: " <> Text.pack (show passed) | passed > 0]
+ where
+  passed = length (triageRunPassed run)
 
 makeWorkCreatedResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Raw -> Brick -> InteractionEnvelope
 makeWorkCreatedResultEnvelope identity cursor precondition now state raw brick =
@@ -4768,7 +4801,7 @@ ordinaryCommands =
   , CommandOption "forecast" "/forecast" "Open the focus forecast: current chances"
   , CommandOption "agenda" "/agenda" "Open the agenda: past and coming dates under a calendar"
   , CommandOption "search" "/search" "Search Bricks, Raw, Domains, and people"
-  , CommandOption "triage" "/triage" "Triage the first Raw awaiting triage, or a named +Raw"
+  , CommandOption "triage" "/triage" "Triage the Inbox one Raw after another, or one named +Raw"
   , CommandOption "archive" "/archive" "Archive Work that is out of date, obsolete, or no longer makes sense; dependencies are reviewed first"
   , CommandOption "restore" "/restore" "Choose archived Work to restore"
   , CommandOption "update" "/update" "Choose Work to update its title or description"
@@ -5370,7 +5403,12 @@ opportunityValue :: Opportunity -> Value
 opportunityValue = \case
   PristineOpportunity -> typed "pristine" []
   SafeEmptyOpportunity -> typed "safe_empty" []
-  RawTriageOpportunity identity handle preview -> typed "raw_triage" ["raw_id" .= renderUUIDv7 identity, "handle" .= unHandle handle, "preview" .= preview]
+  RawTriageOpportunity identity handle preview run ->
+    typed "raw_triage" $
+      ["raw_id" .= renderUUIDv7 identity, "handle" .= unHandle handle, "preview" .= preview]
+        <> [ "run" .= object ["settled" .= triageRunSettled progress, "passed_raw_ids" .= fmap renderUUIDv7 (triageRunPassed progress)]
+           | Just progress <- [run]
+           ]
   RawDuplicateOpportunity candidate root -> typed "raw_duplicate" ["candidate_raw_id" .= renderUUIDv7 candidate, "root_raw_id" .= renderUUIDv7 root]
   TranslationScopeOpportunity scope -> typed "translation_scope" ["scope" .= translationScopeValue scope]
   TranslationEditOpportunity queue suggestion attribution -> typed "translation_edit" (["queue" .= translationQueueValue queue] <> maybe [] (pure . ("suggestion" .=)) suggestion <> maybe [] (pure . ("attribution" .=)) attribution)
@@ -5467,6 +5505,7 @@ opportunityValue = \case
   JudgmentResultOpportunity axis brickId message -> typed "judgment_result" ["axis" .= judgmentAxisText axis, "brick_id" .= renderUUIDv7 brickId, "message" .= message]
   WorkPreviewOpportunity draft -> typed "work_preview" ["draft" .= workDraftValue draft]
   StandaloneResultOpportunity identity -> typed "standalone_result" ["raw_id" .= renderUUIDv7 identity]
+  TriageRunResultOpportunity settled passed -> typed "triage_run_result" ["settled" .= settled, "passed" .= passed]
   WorkCreatedResultOpportunity rawId brickId -> typed "work_created_result" ["raw_id" .= renderUUIDv7 rawId, "brick_id" .= renderUUIDv7 brickId]
   FocusProposalOpportunity identity selection ->
     typed
@@ -5616,7 +5655,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
   value .: "type" >>= \case
     ("pristine" :: Text) -> pure PristineOpportunity
     "safe_empty" -> pure SafeEmptyOpportunity
-    "raw_triage" -> RawTriageOpportunity <$> uuidField value "raw_id" <*> (Handle <$> value .: "handle") <*> value .: "preview"
+    "raw_triage" -> RawTriageOpportunity <$> uuidField value "raw_id" <*> (Handle <$> value .: "handle") <*> value .: "preview" <*> (value .:? "run" >>= traverse parseTriageRun)
     "raw_duplicate" -> RawDuplicateOpportunity <$> uuidField value "candidate_raw_id" <*> uuidField value "root_raw_id"
     "translation_scope" -> TranslationScopeOpportunity <$> (value .: "scope" >>= parseTranslationScope)
     "translation_edit" -> TranslationEditOpportunity <$> (value .: "queue" >>= parseTranslationQueue) <*> value .:? "suggestion" <*> value .:? "attribution"
@@ -5710,6 +5749,7 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "judgment_result" -> JudgmentResultOpportunity <$> (value .: "axis" >>= parseJudgmentAxisText) <*> uuidField value "brick_id" <*> value .: "message"
     "work_preview" -> WorkPreviewOpportunity <$> (value .: "draft" >>= parseWorkDraft)
     "standalone_result" -> StandaloneResultOpportunity <$> uuidField value "raw_id"
+    "triage_run_result" -> TriageRunResultOpportunity <$> value .: "settled" <*> value .: "passed"
     "work_created_result" -> WorkCreatedResultOpportunity <$> uuidField value "raw_id" <*> uuidField value "brick_id"
     "focus_proposal" -> FocusProposalOpportunity <$> uuidField value "brick_id" <*> (value .:? "selection_id" >>= traverse parseUuid)
     "focus_assistance" -> do
@@ -6321,6 +6361,10 @@ uuidField value key = value .: key >>= parseUuid
 
 parseUuid :: Text -> Parser UUIDv7
 parseUuid = either (fail . Text.unpack) pure . parseUUIDv7
+
+parseTriageRun :: Value -> Parser TriageRun
+parseTriageRun = withObject "triage run" $ \run ->
+  TriageRun <$> run .: "settled" <*> (run .: "passed_raw_ids" >>= traverse parseUuid)
 
 instance ToJSON EnvelopeContent where
   toJSON content = object $ ["heading" .= contentHeading content, "body" .= contentBody content] <> maybe [] (pure . ("subject" .=)) (contentSubject content) <> maybe [] (pure . ("question" .=)) (contentQuestion content)

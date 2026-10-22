@@ -92,8 +92,10 @@ Feed saves Raw material; it does not by itself create a fully triaged Brick.
 A remark that the user is starting something is not a bare capture request;
 follow "Start Work now" below.
 
-`triage '+handle'` opens the triage question of one Inbox Raw; bare `triage`
-opens the first Raw awaiting triage. If the installed help does not list
+`triage '+handle'` opens the triage question of one Inbox Raw. Bare `triage`
+runs through the whole Inbox: each settled or skipped Raw returns the next
+one's question, until an `Inbox triage finished:` result; use it only when
+the user asked to triage the Inbox. If the installed help does not list
 `triage`, reach the same question through `--view guided show '+handle'` and
 its `raw.detail.classify` action. Answer the descriptive questions (Work or
 destination, Nature, setting, Template, title) from the material and its
@@ -117,10 +119,11 @@ focus. Do not leave them waiting on questions:
 
 1. `search` for X. If exactly one active Brick matches, run `focus '#handle'`
    and answer `focus.accept`. If several match, ask which one.
-2. Otherwise `feed` the user's words and `triage` that Raw. Feed may return
-   another pending question; leave it unanswered. Answer `yes` for Work,
-   deduce Nature, setting, and Template, and submit an English title. Answer
-   every importance comparison with `importance.skip`: after the configured
+2. Otherwise `feed` the user's words and run `triage '+handle'` on that Raw.
+   Feed may return another pending question; leave it unanswered. Answer
+   `yes` for Work, deduce Nature, setting, and Template, and submit an
+   English title. Answer every importance comparison with
+   `importance.skip`: after the configured
    skips the engine places the Work provisionally, with low importance
    confidence that later asks the user to review it. Accept the
    `Create this Work?` preview, then `focus` the new Brick and answer

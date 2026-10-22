@@ -236,6 +236,35 @@ class HeadlessTests(unittest.TestCase):
         self.assertEqual(settled["code"], "precondition_failed")
         self.assertEqual(self.event_types(), before)
 
+    def test_bare_triage_runs_through_the_inbox_like_continuous_order(self):
+        self.call("feed", "First run material", code=0)
+        _, second = self.call("feed", "Second run material", code=0)
+        _, third = self.call("feed", "Third run material", code=0)
+        _, value = self.call("triage", code=2)
+        self.assertEqual(value["interaction"]["opportunity"]["run"], {"settled": 0, "passed_raw_ids": []})
+        for action in ("raw.materialize-work", "nature.choose.atomic_task", "template.setting.digital", "template.choose.digital_task"):
+            _, value = self.reply(value, action, code=2)
+        _, value = self.reply(value, "work.title.submit", "First run material", code=2)
+        _, value = self.reply(value, "work.create", code=0)
+        opportunity = value["interaction"]["opportunity"]
+        self.assertEqual((opportunity["raw_id"], opportunity["run"]["settled"]), (second["raw"]["id"], 1))
+        self.assertTrue(value["interaction"]["content"]["body"][0].startswith("Created: #"))
+        _, value = self.reply(value, "raw.defer-triage", code=0)
+        opportunity = value["interaction"]["opportunity"]
+        self.assertEqual((opportunity["raw_id"], opportunity["run"]["passed_raw_ids"]), (third["raw"]["id"], [second["raw"]["id"]]))
+        _, value = self.reply(value, "raw.choose-destination", code=2)
+        _, value = self.reply(value, "raw.keep-standalone", code=0)
+        self.assertEqual(value["interaction"]["opportunity"], {"type": "triage_run_result", "settled": 2, "passed": 1})
+
+    def test_named_triage_settles_only_that_raw(self):
+        _, first = self.call("feed", "Only this material", code=0)
+        self.call("feed", "Material left for later", code=0)
+        _, value = self.call("triage", first["raw"]["handle"], code=2)
+        self.assertNotIn("run", value["interaction"]["opportunity"])
+        _, value = self.reply(value, "raw.choose-destination", code=2)
+        _, value = self.reply(value, "raw.keep-standalone", code=0)
+        self.assertEqual(value["interaction"]["opportunity"]["type"], "standalone_result")
+
     def test_noninteractive_vault_input_is_explicit_and_redacted(self):
         _, error = self.call("vault", "create", "--without-backup", code=1)
         self.assertEqual(error["code"], "permission_required")

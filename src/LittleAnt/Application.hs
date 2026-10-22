@@ -2437,23 +2437,24 @@ runOpenRaw environment dryRun dataset reference =
     Right brick -> (,brick) <$> Map.lookup (brickId brick) (stateRecurringOccurrences (loadedState dataset))
     Left _ -> Nothing
 
--- Open the Raw-triage question (UX-145) without the detail screen or a draw:
--- for the named Inbox Raw, or for the Raw the ordinary opportunity offers first.
+-- Open the Raw-triage question (UX-145) without the detail screen or a draw.
+-- A named Inbox Raw is triaged alone; a bare `triage` starts a run that, like
+-- continuous `/order`, serves each Raw awaiting triage until the Inbox is done.
 runTriage :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runTriage environment dryRun dataset reference =
   case target of
     Left problem -> pure (Left problem)
-    Right raw -> do
+    Right open -> do
       identity <- appAllocateUUID environment
       now <- appZonedNow environment
-      let envelope = makeRawTriageEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state raw
+      let envelope = open identity (loadedCursor dataset) (statePreconditionHash state) now state
       saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
       pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
  where
   state = loadedState dataset
   target = case reference of
-    Nothing -> case orderedInbox state of
-      raw : _ -> Right raw
+    Nothing -> case triageRunQueue state firstRun of
+      raw : waiting -> Right (\identity cursor precondition now current -> makeRawTriageRunEnvelope identity cursor precondition now current raw firstRun [triageRunProgress waiting])
       [] ->
         Left
           (appError PreconditionFailed "No Raw material is awaiting triage.")
@@ -2462,12 +2463,36 @@ runTriage environment dryRun dataset reference =
     Just named ->
       resolveAnyRawReference state named >>= \raw ->
         if rawId raw `elem` fmap rawId (inboxRaws state)
-          then Right raw
+          then Right (\identity cursor precondition now current -> makeRawTriageEnvelope identity cursor precondition now current raw)
           else
             Left
               (appError PreconditionFailed "Only Raw material still awaiting triage can be triaged.")
                 { appErrorRecovery = [RecoveryAction "show" "Inspect where this Raw already went." (Just ("lant show " <> named))]
                 }
+  firstRun = TriageRun 0 []
+
+-- Inbox Raws in the order a triage run serves them, oldest first, without the
+-- Raws the run already passed over.
+triageRunQueue :: State -> TriageRun -> [Raw]
+triageRunQueue state run =
+  sortOn (\raw -> (rawCreatedAt raw, rawId raw)) [raw | raw <- inboxRaws state, rawId raw `notElem` triageRunPassed run]
+
+triageRunProgress :: [Raw] -> Text
+triageRunProgress = \case
+  [] -> "Inbox triage: this is the last Raw waiting."
+  [_] -> "Inbox triage: 1 more Raw waits after this one."
+  waiting -> "Inbox triage: " <> Text.pack (show (length waiting)) <> " more Raws wait after this one."
+
+-- Results that settle one Raw's triage and can stand as a one-line receipt.
+isTriageReceipt :: Opportunity -> Bool
+isTriageReceipt = \case
+  WorkCreatedResultOpportunity{} -> True
+  StandaloneResultOpportunity{} -> True
+  RawShelfResultOpportunity{} -> True
+  RawAttachmentResultOpportunity{} -> True
+  ListEntryResultOpportunity{} -> True
+  ExistingWorkReuseResultOpportunity{} -> True
+  _ -> False
 
 runTranslate :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runTranslate environment dryRun dataset reference = do
@@ -4444,10 +4469,10 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (NoticeSnoozeOpportunity notice, "notice.snooze.week", _) -> snoozeNotice notice SnoozeOneWeek
     (NoticeSnoozeOpportunity{}, "notice.snooze.unknown", _) ->
       local (appendBody current "Each choice records one exact notice-only not-before instant. It does not defer the Work or edit best-before or deadline.")
-    (RawTriageOpportunity rawId _ _, "raw.materialize-work", _) -> withRaw rawId $ \raw -> local (makeNatureChoiceEnvelope current now state raw (WorkContext rawId Nothing Set.empty))
-    (RawTriageOpportunity rawId _ _, "raw.choose-destination", _) -> withRaw rawId $ \raw -> local (makeRawDestinationEnvelope current now state raw 0)
-    (RawTriageOpportunity rawId _ _, "raw.defer-triage", _) -> mutate 2 (decideDeferRawTriage state actor rawId) makeFreshResult
-    (RawTriageOpportunity rawId _ _, "raw.triage-assistance", _) -> withRaw rawId $ \raw -> local (withExplanation current "Seeing this Raw alone under Work should communicate one useful action: do it, consider it, or read it. Choose yes or no; another uncertainty may leave triage pending." raw state now)
+    (RawTriageOpportunity rawId _ _ _, "raw.materialize-work", _) -> withRaw rawId $ \raw -> local (makeNatureChoiceEnvelope current now state raw (WorkContext rawId Nothing Set.empty))
+    (RawTriageOpportunity rawId _ _ _, "raw.choose-destination", _) -> withRaw rawId $ \raw -> local (makeRawDestinationEnvelope current now state raw 0)
+    (RawTriageOpportunity rawId _ _ _, "raw.defer-triage", _) -> mutate 2 (decideDeferRawTriage state actor rawId) makeFreshResult
+    (RawTriageOpportunity rawId _ _ _, "raw.triage-assistance", _) -> withRaw rawId $ \raw -> local (withExplanation current "Seeing this Raw alone under Work should communicate one useful action: do it, consider it, or read it. Choose yes or no; another uncertainty may leave triage pending." raw state now)
     (RawDuplicateOpportunity candidate root, "raw.duplicate.accept", _) -> mutate 4 (decideRawDuplicateYes state actor candidate root) makeFreshResult
     (RawDuplicateOpportunity candidate root, "raw.duplicate.reject", _) -> mutate 2 (decideRawDuplicateNo state actor candidate root) makeFreshResult
     (RawDuplicateOpportunity candidate _, "raw.duplicate.defer", _) -> mutate 2 (decideDeferRawTriage state actor candidate) makeFreshResult
@@ -6841,10 +6866,34 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
             currentNow <- appZonedNow environment
             case resultBuilder identity currentNow accepted mutation of
               Left problem -> pure (Left problem)
-              Right envelope -> do
-                let nextCheckpoint = PresentationCheckpoint envelope [] []
+              Right built -> do
+                let envelope = continueTriageRun identity currentNow accepted built
+                    nextCheckpoint = PresentationCheckpoint envelope [] []
                 saveUnlessDry environment dryRun nextCheckpoint
                 pure . Right $ RespondResult (loadedCursor accepted) envelope (Just (mutationDecisionCommandId mutation)) dryRun
+
+  -- A bare `triage` run serves the next Raw awaiting triage once the Raw it
+  -- opened leaves the Inbox or is deferred; any other change keeps its result.
+  continueTriageRun identity currentNow accepted result =
+    case [(rawIdentity, progress) | envelope <- current : checkpointBack checkpoint, RawTriageOpportunity rawIdentity _ _ (Just progress) <- [envelopeOpportunity envelope]] of
+      (rawIdentity, progress) : _
+        | rawIdentity `notElem` fmap rawId (inboxRaws acceptedState) ->
+            serve progress{triageRunSettled = triageRunSettled progress + 1} (settledReceipt rawIdentity)
+        | deferrals rawIdentity acceptedState /= deferrals rawIdentity state ->
+            serve progress{triageRunPassed = rawIdentity : triageRunPassed progress} ["Skipped: " <> citation rawIdentity]
+      _ -> result
+   where
+    acceptedState = loadedState accepted
+    acceptedCursor = loadedCursor accepted
+    acceptedPrecondition = statePreconditionHash acceptedState
+    deferrals rawIdentity = Map.lookup rawIdentity . stateRawTriageDeferrals
+    citation rawIdentity = maybe "Raw material" rawCitationText (Map.lookup rawIdentity (stateRaws acceptedState))
+    settledReceipt rawIdentity = case contentBody (envelopeContent result) of
+      line : _ | isTriageReceipt (envelopeOpportunity result) -> [contentHeading (envelopeContent result) <> " " <> line]
+      _ -> ["Triaged: " <> citation rawIdentity]
+    serve next receipt = case triageRunQueue acceptedState next of
+      raw : waiting -> makeRawTriageRunEnvelope identity acceptedCursor acceptedPrecondition currentNow acceptedState raw next (receipt <> [triageRunProgress waiting])
+      [] -> makeTriageRunResultEnvelope identity acceptedCursor acceptedPrecondition currentNow acceptedState next receipt
 
   -- Like 'mutate', but releases what the change made due before building the
   -- result, so the receipt already carries the post-release cursor and the

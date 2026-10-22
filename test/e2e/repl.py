@@ -415,7 +415,8 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("Second waiting material")
         self.repl.send("/triage\r")
         self.repl.wait("First waiting material")
-        self.repl.wait("Is this something you could work on by itself?")
+        self.repl.wait("Inbox triage: 1 more Raw waits after this one.")
+        self.repl.wait("On its own, is this something you could work on?")
 
     def test_easier_work_shortlist_resumes_and_waits_for_focus_consent(self):
         source = self.create_atomic_work("Prepare the full proposal")

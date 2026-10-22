@@ -135,7 +135,7 @@ tests =
         brick <- brickFromResult environment created
         fed <- run environment (FeedCommand "test" "Rock Splitter pilot results") >>= interactionOf
         evidenceId <- case envelopeOpportunity fed of
-          RawTriageOpportunity identity _ _ -> pure identity
+          RawTriageOpportunity identity _ _ _ -> pure identity
           other -> assertFailure ("expected Raw triage, got " <> show other)
         destinations <- answer environment fed "raw.choose-destination"
         under <- answer environment destinations ("raw.destination.brick." <> renderUUIDv7 (brickId brick))
