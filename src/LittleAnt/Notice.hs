@@ -5,12 +5,14 @@ module LittleAnt.Notice (
   noticeCandidates,
   noticeKindLabel,
   noticeStateLabel,
+  noticeTimeSummary,
 )
 where
 
 import Data.List (sortOn)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Time
 import LittleAnt.Model
 
@@ -100,3 +102,26 @@ noticeStateLabel = \case
   CurrentNotice -> "current"
   SnoozedNotice{} -> "snoozed"
   AcknowledgedNotice{} -> "acknowledged"
+
+-- Use the profile's calendar date, rather than its operational workday.
+noticeTimeSummary :: ZonedTime -> ZonedInstant -> Text
+noticeTimeSummary now instant = Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y, %H:%M %z" local) <> " · " <> relative
+ where
+  local = utcToZonedTime (zonedTimeZone now) (zonedInstantUtc instant)
+  days = diffDays (localDay (zonedTimeToLocalTime local)) (localDay (zonedTimeToLocalTime now))
+  remaining = diffUTCTime (zonedInstantUtc instant) (zonedTimeToUTC now)
+  relative
+    | days > 1 = "in " <> Text.pack (show days) <> " days"
+    | days == 1 = "tomorrow"
+    | days == -1 = "yesterday"
+    | days < -1 = Text.pack (show (abs days)) <> " days ago"
+    | remaining == 0 = "now"
+    | remaining > 0 = "today · in " <> duration
+    | otherwise = "today · " <> duration <> " ago"
+  duration
+    | abs remaining >= 3600 = units 3600 "hour"
+    | abs remaining >= 60 = units 60 "minute"
+    | otherwise = "less than a minute"
+  units size label =
+    let count = floor (abs remaining / size) :: Integer
+     in Text.pack (show count) <> " " <> label <> if count == 1 then "" else "s"

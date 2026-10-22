@@ -18,6 +18,7 @@ import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
 import LittleAnt.Model
+import LittleAnt.Notice (noticeTimeSummary)
 import LittleAnt.RecurrenceInput (RecurrenceField (..))
 import LittleAnt.Result
 import LittleAnt.Store
@@ -55,6 +56,7 @@ main =
       , testCase "recurrence is offered only for a recurring-obligation series" recurrenceEntryPoints
       , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
+      , testCase "notice dates describe future and past instants in the profile calendar" noticeDates
       , testCase "scheduled commitment has hard precedence and truthful outcome" scheduledCommitmentFlow
       , testCase "scheduled commitment preserves interrupted Work as WIP" scheduledPreemptsFocus
       , testCase "overlapping commitments have no default and resolve independently" scheduledOverlap
@@ -720,12 +722,17 @@ noticeLifecycle = withHarness $ \environment -> do
     NoticeListOpportunity values -> pure values
     other -> assertFailure ("expected notice list, got " <> show other)
   length notices @?= 2
+  fmap actionLabel (take 2 (envelopeActions listed))
+    @?= [ "#standing \"Standing work\" · Deadline · Mon, Aug 3, 2026, 12:00 -0300 · today · in 3 hours · current"
+        , "#standing \"Standing work\" · Best before · Mon, Aug 3, 2026, 11:00 -0300 · today · in 2 hours · current"
+        ]
   restored <- run environment (NavigateBackCommand (response listed "navigation.back")) >>= interactionOf
   restored @?= proposal
   reopened <- run environment (NavigateForwardCommand (response restored "navigation.forward")) >>= interactionOf
   reopened @?= listed
   opened <- answer environment listed "notice.select.0"
   envelopeOpportunity opened @?= TemporalNoticeOpportunity (head notices)
+  take 1 (contentBody (envelopeContent opened)) @?= ["Deadline: Mon, Aug 3, 2026, 12:00 -0300 · today · in 3 hours"]
   acknowledged <- answer environment opened "notice.acknowledge"
   case envelopeOpportunity acknowledged of
     NoticeResultOpportunity identity _ -> identity @?= head notices
@@ -743,6 +750,30 @@ noticeLifecycle = withHarness $ \environment -> do
   Map.size (stateNoticeDispositions state) @?= 2
   Map.lookup brickIdValue (stateTemporalConstraints state) @?= Just (TemporalConstraints Nothing (Just bestBefore) (Just deadline) 1)
   Map.size (statePairJudgments state) @?= 0
+
+noticeDates :: Assertion
+noticeDates = do
+  let now = utcToZonedTime (minutesToTimeZone (-180)) fixedTime
+      summary offset = noticeTimeSummary now (ZonedInstant (addUTCTime offset fixedTime) "America/Montevideo")
+  summary (4 * nominalDay) @?= "Fri, Aug 7, 2026, 09:00 -0300 · in 4 days"
+  summary (-4 * nominalDay) @?= "Thu, Jul 30, 2026, 09:00 -0300 · 4 days ago"
+  mapM_
+    (\(offset, label) -> assertBool ("wrong relative date: " <> Text.unpack (summary offset)) (label `Text.isSuffixOf` summary offset))
+    [ (nominalDay, " · tomorrow")
+    , (-nominalDay, " · yesterday")
+    , (0, " · now")
+    , (3600, " · today · in 1 hour")
+    , (7200, " · today · in 2 hours")
+    , (-7200, " · today · 2 hours ago")
+    , (60, " · today · in 1 minute")
+    , (-60, " · today · 1 minute ago")
+    , (59, " · today · in less than a minute")
+    , (-59, " · today · less than a minute ago")
+    ]
+  -- The UTC day is already Aug 3, while the profile is still on Aug 2.
+  let late = ZonedTime (LocalTime (fromGregorian 2026 8 2) (TimeOfDay 23 30 0)) (minutesToTimeZone (-180))
+      midnight = ZonedInstant (addUTCTime 1800 (zonedTimeToUTC late)) "Etc/UTC"
+  noticeTimeSummary late midnight @?= "Mon, Aug 3, 2026, 00:00 -0300 · tomorrow"
 
 scheduledCommitmentFlow :: Assertion
 scheduledCommitmentFlow = withHarness $ \environment -> do

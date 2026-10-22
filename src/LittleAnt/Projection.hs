@@ -80,8 +80,18 @@ renderEnvelopeAtWidth requestedWidth envelope =
     _ -> 4
   firstRow = joinActions firstRowSpacing primaryActions
   primaryRows
+    | NoticeListOpportunity{} <- envelopeOpportunity envelope = concatMap noticeActionRows primaryActions
     | textDisplayWidth (plainLine firstRow) <= width = [firstRow]
     | otherwise = fmap actionLine primaryActions
+  noticeActionRows action
+    | "notice.select." `Text.isPrefixOf` actionId action =
+        let prefix = [normal " ", dim "[", accent (actionShortcut action), dim "] "]
+            indent = textDisplayWidth (plainLine prefix)
+            rows = wrapText (width - indent) (actionLabel action)
+         in case rows of
+              first : rest -> (prefix <> [normal first]) : [[normal (Text.replicate indent " " <> line)] | line <- rest]
+              [] -> [prefix]
+    | otherwise = [actionLine action]
   actionLines = primaryRows <> fmap actionLine paletteActions
   footerLines =
     [dimLine (Text.replicate (min 40 width) "─")]

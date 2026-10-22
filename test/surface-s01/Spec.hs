@@ -256,6 +256,28 @@ tests =
         assertBool "notice shortcut appears without a notice" (not ("TAB notices" `Text.isInfixOf` renderPlain (guidedModel 80 pristine)))
         assertBool "notice summary exceeds terminal width" (all ((<= 28) . textDisplayWidth . plainLine) (screenLines (rendered 28)))
         assertBool "agenda promises TAB for both notices and folders" (not ("TAB notices" `Text.isInfixOf` renderPlain (listModel 100 envelope (ListView "agenda" [] [] [] True "" False 0 Nothing [] 35 0 False Set.empty True True))))
+    , testCase "notice items stay on separate lines with numbered prefixes even in a wide terminal" $ do
+        identity <- fixtureIdentity
+        let pristine = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            first = "#dosio2 \"Do one shift\" · Deadline · Fri, Oct 23, 2026, 18:00 -0300 · tomorrow · current"
+            second = "#dosio2 \"Do one shift\" · Best before · Thu, Oct 22, 2026, 18:00 -0300 · today · in 4 hours · current"
+            envelope = pristine{envelopeOpportunity = NoticeListOpportunity [], envelopeActions = [Action "notice.select.0" first "1" False "Open.", Action "notice.select.1" second "2" False "Open.", Action "next" "next" "n" False "Return."]}
+            model = renderEnvelopeAtWidth 300 envelope
+            lines = fmap plainLine (screenLines model)
+        assertBool "first notice shares its row" ((" [1] " <> first) `elem` lines)
+        assertBool "second notice shares its row or its number entered the handle" ((" [2] " <> second) `elem` lines)
+        assertBool "next action shares a notice row" (" [n]ext" `elem` lines)
+        mapM_
+          ( \width -> do
+              let rendered = renderEnvelopeAtWidth width envelope
+                  rows = fmap plainLine (screenLines rendered)
+                  labelPieces = [line | line <- rows, "     " `Text.isPrefixOf` line]
+              assertBool "notice text overflows" (all ((<= width) . textDisplayWidth) rows)
+              assertBool "wrapped notices lack an indented continuation" (not (null labelPieces))
+              length [line | line <- rows, " [1] " `Text.isPrefixOf` line] @?= 1
+              length [line | line <- rows, " [2] " `Text.isPrefixOf` line] @?= 1
+          )
+          [28, 80]
     , testCase "the agenda calendar stays pinned while a far selection scrolls the rows" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow

@@ -3685,7 +3685,7 @@ makeNoticeListEnvelope identity cursor precondition now state candidates =
   selectionActions =
     [ Action
         ("notice.select." <> Text.pack (show index))
-        (brickCitation (candidateNoticeBrick candidate) <> " · " <> noticeKindLabel (noticeKind (candidateNoticeIdentity candidate)) <> " · " <> noticeStateLabel (candidateNoticeState candidate))
+        (brickCitation (candidateNoticeBrick candidate) <> " · " <> noticeKindLabel (noticeKind (candidateNoticeIdentity candidate)) <> " · " <> noticeTimeSummary now (candidateNoticeFactAt candidate) <> " · " <> noticeStateLabel (candidateNoticeState candidate))
         (Text.pack (show (index + 1)))
         False
         "Open this exact notice identity."
@@ -3706,7 +3706,7 @@ makeTemporalNoticeEnvelope previous now state candidate =
           "Notice:"
           (Just (brickCitation brick))
           [ noticeKindLabel (noticeKind identity) <> ": " <> formatFact
-          , zonedInstantZone (candidateNoticeFactAt candidate)
+          , "Recorded zone: " <> zonedInstantZone (candidateNoticeFactAt candidate)
           , "State: " <> noticeStateLabel (candidateNoticeState candidate)
           ]
           Nothing
@@ -3723,7 +3723,7 @@ makeTemporalNoticeEnvelope previous now state candidate =
  where
   identity = candidateNoticeIdentity candidate
   brick = candidateNoticeBrick candidate
-  formatFact = formatLocalDateTime (utcToZonedTime (zonedTimeZone now) (zonedInstantUtc (candidateNoticeFactAt candidate)))
+  formatFact = noticeTimeSummary now (candidateNoticeFactAt candidate)
 
 makeNoticeSnoozeEnvelope :: InteractionEnvelope -> ZonedTime -> State -> NoticeCandidate -> InteractionEnvelope
 makeNoticeSnoozeEnvelope previous now state candidate =
