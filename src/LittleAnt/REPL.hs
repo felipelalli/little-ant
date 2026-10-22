@@ -469,7 +469,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     Printable 'z' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope UndoCommand
     Printable '_' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope UndoCommand
     Printable 'y' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope RedoCommand
-    Printable 'q' [] | all ((/= "q") . actionShortcut) (envelopeActions envelope) -> pure Nothing
+    Printable key [] | key `elem` ['q', 'Q'], all ((/= "q") . actionShortcut) (envelopeActions envelope) -> pure Nothing
     Printable '\t' [] | not (isRepairScreen envelope) -> case envelopeOpportunity envelope of
       NoticeListOpportunity{} -> navigate envelope True
       _ -> runSimpleCommand envelope NoticesCommand
@@ -552,6 +552,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
 
   undoPromptInput envelope summary _ = \case
     Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
+    Printable key [] | key `elem` ['q', 'Q'] -> pure Nothing
     Printable 'y' [] ->
       runCurrent UndoCommand >>= \case
         Left problem -> pure (Just (EnvelopeScreen envelope (Just (appErrorMessage problem))))
@@ -1270,6 +1271,7 @@ modelFor width = \case
           <> concatMap (fmap (pure . Span Normal) . wrapWords width) summary
           <> [[]]
           <> [[Span Accent "[y]", Span Normal "es    ", Span Accent "[n]", Span Normal "o    ", Span Normal "I don't ", Span Accent "[k]", Span Normal "now"]]
+          <> fmap (pure . Span Dim) (wrapWords width "[q] quit and keep this action · Esc also quits")
           <> maybe [] (\text -> [] : fmap (pure . Span Dim) (wrapWords width text)) message
           <> [[]]
           <> footerFrom width envelope

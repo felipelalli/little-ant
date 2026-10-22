@@ -142,6 +142,14 @@ planOccurrence = withHarness $ \environment -> do
   before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   asked <- answer environment proposal "focus.skip" >>= \skipped -> answer environment skipped "work.plan"
   preview <- submit environment asked "work.plan.submit" "2026-08-03 17:00"
+  let content = envelopeContent preview
+      body = contentBody content
+  contentHeading content @?= "Confirm this planned time?"
+  contentQuestion content @?= Just "Press Enter to confirm."
+  assertBool "chosen time is not the first fact" (any (Text.isPrefixOf "Planned for: Today · Mon, Aug 3, 2026 · 17:00") (take 1 body))
+  assertBool "deadline context is missing" (any (Text.isPrefixOf "Deadline unchanged: ") body)
+  assertBool "occurrence scope is unclear" ("For this occurrence only." `elem` body)
+  assertBool "the series citation distracts from the chosen time" (not (any (Text.isPrefixOf "Series: ") body))
   _ <- answer environment preview "work.plan.accept"
   after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
   let old = loadedState before

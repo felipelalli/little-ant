@@ -9,6 +9,14 @@ replace the specification.
 
 ## Unreleased
 
+- Advertise `[q] quit and keep this action` in the undo offer shown on exit.
+  Both q and Q leave that screen without undoing the recorded action.
+
+- Make planning confirmation lead with the chosen time and say explicitly
+  that Enter confirms it. Show only the relevant unchanged due date and the
+  single-occurrence scope, instead of repeating the series and consequence.
+  Label today/tomorrow in both the preview and receipt.
+
 - Reuse the Agenda calendar when choosing a planning or completion date,
   including its marks and independent habits/obligations filters. The tasks
   on the selected day appear in chronological order; TAB switches to that

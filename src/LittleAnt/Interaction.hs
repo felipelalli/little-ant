@@ -3272,24 +3272,40 @@ makeWorkPlanPreviewEnvelope previous now state brick instant local =
       ConfirmationGrammar
       (WorkPlanPreviewOpportunity (brickId brick) instant local)
       ( EnvelopeContent
-          "Keep this Work out of suggestions until then?"
+          "Confirm this planned time?"
           (Just (brickCitation brick))
-          ( ["Return to suggestions: " <> Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y · %H:%M" local) <> " · " <> zonedInstantZone instant]
-              <> standingContext now state brick
+          ( ["Planned for: " <> workPlanTimeText now instant local, "This Work won't be suggested before then."]
+              <> dueContext
+              <> ["For this occurrence only." | any ((== brickId brick) . recurringOccurrenceBrick) (Map.elems (stateRecurringOccurrences state))]
               <> ["This Work's current focus will be paused." | stateCurrentFocus state == Just (brickId brick)]
-              <> ["This applies only to this Work. Its deadline, best before, and recurring series keep their recorded dates."]
-              <> ["This planned time is after the deadline." | Just constraints <- [Map.lookup (brickId brick) (stateTemporalConstraints state)], Just deadline <- [temporalDeadline constraints], zonedInstantUtc instant >= zonedInstantUtc deadline]
+              <> ["Warning: this time is at or after the deadline." | Just deadline <- [constraints >>= temporalDeadline], zonedInstantUtc instant >= zonedInstantUtc deadline]
           )
-          Nothing
+          (Just "Press Enter to confirm.")
       )
-      [ Action "work.plan.accept" "yes" "y" True "Record the planned time and pause this Work's suggestions."
-      , Action "work.plan.edit" "edit" "e" False "Choose another date and time."
+      [ Action "work.plan.accept" "confirm" "y" True "Record the planned time and pause this Work's suggestions."
+      , Action "work.plan.edit" "edit date/time" "e" False "Choose another date and time."
       , Action "work.plan.cancel" "cancel" "c" False "Return without recording a plan."
       , moreAction
       ]
       [showBrickCommand brick, helpCommand, exitCommand]
       Nothing
       (brickFooter now state brick)
+ where
+  constraints = Map.lookup (brickId brick) (stateTemporalConstraints state)
+  dueContext = case (constraints >>= temporalDeadline, constraints >>= temporalBestBefore) of
+    (Just deadline, _) -> ["Deadline unchanged: " <> localInstant deadline]
+    (_, Just preferred) -> ["Best before unchanged: " <> localInstant preferred]
+    _ -> []
+  localInstant = formatLocalDateTime . utcToZonedTime (zonedTimeZone now) . zonedInstantUtc
+
+workPlanTimeText :: ZonedTime -> ZonedInstant -> LocalTime -> Text
+workPlanTimeText now instant local = relative <> Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y · %H:%M" local) <> " · " <> zonedInstantZone instant
+ where
+  today = localDay (zonedTimeToLocalTime now)
+  relative
+    | localDay local == today = "Today · "
+    | localDay local == addDays 1 today = "Tomorrow · "
+    | otherwise = ""
 
 makeWorkPlannedResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ZonedInstant -> LocalTime -> InteractionEnvelope
 makeWorkPlannedResultEnvelope identity cursor precondition now state brick instant local =
@@ -3301,7 +3317,7 @@ makeWorkPlannedResultEnvelope identity cursor precondition now state brick insta
     state
     (WorkPlannedResultOpportunity (brickId brick))
     "Planned for:"
-    [brickCitation brick, Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y · %H:%M" local) <> " · " <> zonedInstantZone instant, "This Work may return to suggestions then. Its recorded due dates stay in effect."]
+    [brickCitation brick, workPlanTimeText now instant local, "This Work may return to suggestions then. Its recorded due dates stay in effect."]
 
 makeRepeatableReturnEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> LazyReviewClaim -> InteractionEnvelope
 makeRepeatableReturnEnvelope identity cursor precondition now state brick review =

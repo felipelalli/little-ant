@@ -273,9 +273,10 @@ class ReplTests(unittest.TestCase):
         self.repl.send("\x1b[C\r")
         self.repl.wait("Time (HH:MM)")
         self.repl.send("09:00\r")
-        self.repl.wait("Keep this Work out of suggestions until then?")
+        self.repl.wait("Confirm this planned time?")
+        self.repl.wait("Press Enter to confirm.")
         self.repl.wait("09:00")
-        self.repl.send("y")
+        self.repl.send("\r")
         self.repl.wait("Planned for:")
         self.repl.wait("This Work may return to suggestions then.")
         self.repl.send("/plan " + handle + "\r")
@@ -312,6 +313,33 @@ class ReplTests(unittest.TestCase):
         self.repl.send("\x1b")
         self.repl.wait("Planned for:")
         self.assertTrue(self.cli("doctor")["healthy"])
+
+    def test_quitting_the_undo_offer_keeps_the_confirmed_plan(self):
+        handle = self.create_atomic_work("Keep my planned time when quitting")
+        for gesture in ("q", "Q", "\x1b"):
+            with self.subTest(gesture=repr(gesture)):
+                self.repl.close()
+                self.cli("plan", handle)
+                self.repl = Repl(self.executable, self.environment)
+                self.repl.wait("Already planned for...")
+                self.repl.send("\r")
+                self.repl.wait("Time (HH:MM)")
+                self.repl.send("09:00\r")
+                self.repl.wait("Press Enter to confirm.")
+                self.repl.send("\r")
+                self.repl.wait("Planned for:")
+                self.repl.wait("This Work may return to suggestions then.")
+                dataset = self.root / "state/lant/profiles/default/dataset"
+                events = {path: path.read_bytes() for path in dataset.glob("events/*.jsonl")}
+                checkpoint = dataset / "checkpoints/pending-envelope.json"
+                before = checkpoint.read_bytes()
+                self.repl.send("\x1b")
+                self.repl.wait("Undo the last recorded action?")
+                self.repl.wait("[q] quit and keep this action")
+                self.repl.send(gesture)
+                self.repl.await_exit(repr(gesture))
+                self.assertEqual(checkpoint.read_bytes(), before)
+                self.assertEqual({path: path.read_bytes() for path in dataset.glob("events/*.jsonl")}, events)
 
     def test_plan_palette_chooses_work_without_accepting_focus(self):
         self.create_atomic_work("Plan from the command menu")
@@ -622,7 +650,7 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("No Bricks yet.")
 
     def test_exit_gestures_preserve_the_pending_interaction(self):
-        for gesture in ("q", "\x1b", "/quit\r", "/exit\r"):
+        for gesture in ("q", "Q", "\x1b", "/quit\r", "/exit\r"):
             with self.subTest(gesture=repr(gesture)):
                 self.launch()
                 checkpoint = self.root / "state/lant/profiles/default/dataset/checkpoints/pending-envelope.json"
