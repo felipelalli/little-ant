@@ -42,7 +42,7 @@ import Data.Functor qualified
 import Data.IORef
 import Data.List (elemIndex, find, findIndex, sortOn)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, isNothing, listToMaybe)
+import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, listToMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -262,7 +262,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
   maximumOffset = max 0 (length contentRows - bodyRoom)
   offset = viewportStart bodyRoom requestedOffset contentRows
   scrollable = case screen of ReadOnlyScreen{} -> True; WhyScreen{} -> True; InspectionScreen{} -> True; EnvelopeScreen{} -> True; _ -> False
-  selectable = case screen of DatePickerScreen _ _ view _ _ -> not (isNothing (datePickerTask view)); ListScreen{} -> True; BrowserScreen{} -> True; CommandTargetScreen{} -> True; PaletteScreen{} -> True; PackManagerScreen{} -> True; ImportSourceScreen{} -> True; ImportContainerScreen{} -> True; _ -> False
+  selectable = case screen of DatePickerScreen _ _ view _ _ -> isJust (datePickerTask view); ListScreen{} -> True; BrowserScreen{} -> True; CommandTargetScreen{} -> True; PaletteScreen{} -> True; PackManagerScreen{} -> True; ImportSourceScreen{} -> True; ImportContainerScreen{} -> True; _ -> False
   transition input = case screen of
     EnvelopeScreen envelope _ -> envelopeInput envelope input
     FeedEditor envelope editor message -> feedEditorInput envelope editor message input
@@ -1970,7 +1970,7 @@ datePickerModel width envelope selected view editor message =
         <> calendar
         <> [[Span Dim "Date: ", Span Normal (Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y" selected))]]
         <> maybe [] (\current -> [[Span Dim "Time (HH:MM) › "] <> editorSpans current]) editor
-        <> concatMap (fmap (pure . Span Warning) . wrapWords width) [problem | Just problem <- [message, datePickerProblem view]]
+        <> concatMap (fmap (pure . Span Warning) . wrapWords width) (catMaybes [message, datePickerProblem view])
         <> [[Span PinBoundary ""]]
         <> (if null tasks then [[Span Dim (if isNothing (datePickerProblem view) then "No dated tasks on this day with these filters." else "Day's tasks could not be loaded.")]] else taskRows)
         <> take 1 (footerFrom width envelope)
@@ -1993,7 +1993,7 @@ datePickerModel width envelope selected view editor message =
   agendaCalendar = agendaHeaderLines (Just (Text.pack (show selected))) (agendaCalendarHeader today first lastDay (pickerEntries view))
   dimUnavailable spanValue@Span{spanRole, spanText}
     | spanRole == Normal
-    , Just number <- (readMaybeDay (Text.strip spanText))
+    , Just number <- readMaybeDay (Text.strip spanText)
     , let day = addDays (fromIntegral (number - 1)) first
     , if planning then day < today else day > today =
         spanValue{spanRole = Dim}

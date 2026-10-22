@@ -109,6 +109,7 @@ transport does not claim implementation of deferred product features.
 | `/focus [#brick]` | `lant focus <#brick>` | Ask the ordinary `Focus?` question for named Work, or resume its WIP continuation. |
 | `/focus-blocker` | `lant focus-blocker <#brick>` | From a visible blocker chain, ask `Focus?` for its named executable blocker without claiming it started. |
 | `/pause` | `lant pause` | End the current focus interval while retaining the Brick as WIP. |
+| `/plan [#brick]` | `lant plan [#brick]` | Choose and preview when this Work may return to suggestions, without moving its deadline or best before. |
 | `/return-to-idle [#brick]` | `lant return-to-idle <#brick>` | Clear focus/WIP without claiming an outcome. |
 | `/done [#brick]` | `lant done <#brick> [--at 'YYYY-MM-DD HH:MM']` | Record the Nature-owned truthful completion outcome; `--at` gives an earlier completion time (WRK-165). |
 | `/finish [#brick]` | `lant finish <#brick>` | Finish only an active checklist run; it is unavailable elsewhere. |
@@ -241,6 +242,22 @@ opens the separate UX-PACK04 global archive plan. Neither has a default,
 deletes canonical data, or performs implicit binding recovery; collection is
 never automatic.
 
+`/plan` is the direct entry to skip's `already planned for...` choice. Its
+calendar shows the same dated facts and independent habits/obligations filters
+as Agenda, plus the selected day's tasks. Enter chooses the day and then edits
+the time; TAB switches between the calendar and task inspection. The final
+preview requires explicit acceptance. Cancellation, browsing, and inspection
+record no planning event. Completion-time selection reuses that calendar while
+allowing only today or earlier days.
+
+A plan records when one Work may return to suggestions. It applies only to
+that occurrence, can be replaced by another plan or undone, and preserves
+its due dates and recurring series. Acceptance pauses that Work's current
+focus if necessary. Agenda shows its return time as `+ planned` with
+`suggestions resume`; it does not claim a booked interval. This operation
+is distinct from `/update`'s structural `plan` purpose and is not an alias
+for semantic maintenance.
+
 ## CLI-only administration
 
 These operations are intentionally absent from the ordinary slash palette:
@@ -260,7 +277,7 @@ credential, external-effect, and undo boundaries from chapters 7–9.
 ## Explicitly rejected vocabulary
 
 The core rejects `/capture`, `/priority`, `/weight`, `/estimate-hours`, `/complete`, `/retire`, `/abandon`, `/kill`,
-`/stop`, `/resume`, `/start`, `/edit`, `/plan`, `/find`, `/unify`,
+`/stop`, `/resume`, `/start`, `/edit`, `/find`, `/unify`,
 `/interaction`, `/focus blocker`, and `/focus_blocker`. Natural-language
 operators may understand the user's intent, but their visible result names
 the canonical command above. This keeps old terminology and friendly language

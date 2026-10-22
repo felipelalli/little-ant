@@ -884,7 +884,7 @@ noticeDates = do
   let now = utcToZonedTime (minutesToTimeZone (-180)) fixedTime
       summary offset = noticeTimeSummary now (ZonedInstant (addUTCTime offset fixedTime) "America/Montevideo")
   summary (4 * nominalDay) @?= "Fri, Aug 7, 2026, 09:00 -0300 · in 4 days"
-  summary (-4 * nominalDay) @?= "Thu, Jul 30, 2026, 09:00 -0300 · 4 days ago"
+  summary (-(4 * nominalDay)) @?= "Thu, Jul 30, 2026, 09:00 -0300 · 4 days ago"
   mapM_
     (\(offset, label) -> assertBool ("wrong relative date: " <> Text.unpack (summary offset)) (label `Text.isSuffixOf` summary offset))
     [ (nominalDay, " · tomorrow")

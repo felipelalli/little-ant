@@ -1802,7 +1802,7 @@ applyWorkPlanned state event payload = do
   brick <- requireBrick state (plannedWorkBrick payload)
   unless (brickStatus brick == BrickActive && supportsWorkPlanning (brickNature brick)) $
     corrupt "Only active ordinary Work or an obligation occurrence can be planned."
-  unless (not (Text.null (Text.strip (zonedInstantZone (plannedWorkAt payload))))) $
+  when (Text.null (Text.strip (zonedInstantZone (plannedWorkAt payload)))) $
     corrupt "A Work plan needs a named timezone."
   unless (zonedInstantUtc (plannedWorkAt payload) > persistedRecordedAt event) $
     corrupt "A Work plan must return to suggestions in the future."
