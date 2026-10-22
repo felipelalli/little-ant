@@ -77,4 +77,4 @@ unboundMessage :: Text -> InteractionEnvelope -> Text
 unboundMessage shortcut envelope
   | shortcut == "n" && any ((== "raw.defer-triage") . actionId) (envelopeActions envelope) =
       "[n] is not available here. To decline this suggestion, use [s]kip."
-  | otherwise = "[" <> shortcut <> "] is not available here. Choose a visible action."
+  | otherwise = "[" <> (if shortcut == "\t" then "TAB" else shortcut) <> "] is not available here. Choose a visible action."

@@ -4,6 +4,7 @@ module LittleAnt.Application (
   ProviderConnectionRuntime (..),
   ViewDepth (..),
   agendaChunkDays,
+  agendaCalendarHeader,
   agendaPastLimitDays,
   agendaLegend,
   agendaWeekdays,
@@ -1844,14 +1845,18 @@ pathFacts paths =
     ]
 
 runNotices :: AppEnv -> Bool -> LoadedDataset -> IO (Either AppError CommandResult)
-runNotices environment dryRun dataset = do
-  identity <- appAllocateUUID environment
-  now <- appZonedNow environment
-  let state = loadedState dataset
-      envelope = makeNoticeListEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state (noticeCandidates state (zonedTimeToUTC now))
-      checkpoint = PresentationCheckpoint envelope [] []
-  saveUnlessDry environment dryRun checkpoint
-  pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+runNotices environment dryRun dataset =
+  loadPendingCheckpoint environment >>= \case
+    Left problem -> pure (Left problem)
+    Right previous -> do
+      identity <- appAllocateUUID environment
+      now <- appZonedNow environment
+      let state = loadedState dataset
+          envelope = makeNoticeListEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state (noticeCandidates state (zonedTimeToUTC now))
+          back = maybe [] (\prior -> checkpointCurrent prior : checkpointBack prior) previous
+          checkpoint = PresentationCheckpoint envelope back []
+      saveUnlessDry environment dryRun checkpoint
+      pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
 
 runHistory :: AppEnv -> Bool -> LoadedDataset -> Maybe Int -> IO (Either AppError CommandResult)
 runHistory environment dryRun dataset maybeLimit = do
@@ -2969,7 +2974,7 @@ Projected occurrences come from recorded schedules; nothing is released,
 drawn, or changed.
 -}
 agendaView :: State -> Map.Map Text TZ -> ZonedTime -> Integer -> Integer -> ([Text], [ListRow])
-agendaView state zones now pastDays windowDays = (Text.pack ("Today: " <> formatTime defaultTimeLocale "%a, %b %-d, %Y" today) : "" : calendar, historyRows <> overdueRows <> datedRows)
+agendaView state zones now pastDays windowDays = (agendaCalendarHeader today firstDay lastDay rows, rows)
  where
   utcNow = zonedTimeToUTC now
   zone = zonedTimeZone now
@@ -3082,7 +3087,7 @@ agendaView state zones now pastDays windowDays = (Text.pack ("Today: " <> format
     , Just brick <- [Map.lookup identity (stateBricks state)]
     , brickStatus brick == BrickDone
     , -- A recorded late completion is its own fact below.
-      isNothing (Map.lookup identity (stateObligationPeriods state) >>= obligationPeriodDoneLateAt)
+    isNothing (Map.lookup identity (stateObligationPeriods state) >>= obligationPeriodDoneLateAt)
     ]
   periodFacts =
     concat
@@ -3151,15 +3156,22 @@ agendaView state zones now pastDays windowDays = (Text.pack ("Today: " <> format
   historyRows = [row (dayLabel (localDayOf (agendaAt fact))) fact | fact <- history]
   overdueRows = fmap (row "Overdue") overdue
   datedRows = [row (dayLabel (localDayOf (agendaAt fact))) fact | fact <- dated]
+  rows = historyRows <> overdueRows <> datedRows
+
+-- | Build calendar marks from the same dated rows shown in the agenda.
+agendaCalendarHeader :: Day -> Day -> Day -> [ListRow] -> [Text]
+agendaCalendarHeader today firstDay lastDay rows = Text.pack ("Today: " <> formatTime defaultTimeLocale "%a, %b %-d, %Y" today) : "" : calendar
+ where
   -- One mark per day, the strongest: a miss, a deadline (on a past day, Work
   -- still overdue), best before, something done, then a habit.
   marks =
     snd
       <$> Map.fromListWith
         max
-        [ (localDayOf (agendaAt fact), mark)
-        | fact <- history <> overdue <> dated
-        , Just mark <- [lookup (agendaKind fact) agendaMarks]
+        [ (date, mark)
+        | AgendaListRow{listEntryDate, listEntryKind} <- rows
+        , Just date <- [parseTimeM False defaultTimeLocale "%Y-%m-%d" (Text.unpack listEntryDate)]
+        , Just mark <- [lookup listEntryKind agendaMarks]
         ]
   calendar = intercalateBlank [monthGrid month | month <- nub [let { (y, m, _) = toGregorian day } in (y, m) | day <- [firstDay .. lastDay]]] <> ["", agendaLegend]
   intercalateBlank = \case

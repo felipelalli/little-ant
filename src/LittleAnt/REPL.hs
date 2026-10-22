@@ -18,10 +18,12 @@ module LittleAnt.REPL (
   browserModel,
   brickCommandTargets,
   agendaHeaderLines,
+  guidedModel,
   documentModel,
   ListView (..),
   listModel,
   listViewRows,
+  toggleAgendaFilter,
   viewportModel,
   progressModel,
   runRepl,
@@ -115,6 +117,8 @@ data ListView = ListView
   , listViewPast :: Integer
   , listViewPastDone :: Bool
   , listViewExpanded :: Set.Set Text
+  , listViewHabits :: Bool
+  , listViewObligations :: Bool
   }
   deriving stock (Eq, Show)
 
@@ -269,7 +273,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     runCurrent (ListCommand (Just name) Nothing Nothing) >>= \case
       Left problem -> pure . Just $ ReadOnlyScreen previous (renderError problem)
       Right ListResult{resultListName, resultListEntries, resultListCategories, resultListHeader} ->
-        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing resultListHeader agendaChunkDays 0 False Set.empty)
+        pure . Just $ ListScreen previous (ListView resultListName (drop 1 (Text.words name)) resultListEntries resultListCategories False "" False 0 Nothing resultListHeader agendaChunkDays 0 False Set.empty True True)
       Right other -> pure . Just $ ReadOnlyScreen previous (renderCommandResult other)
 
   listInput previous view input = case input of
@@ -284,8 +288,9 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
       , name /= listViewName view ->
           switchView name
     Printable 'c' [] -> preserve view{listViewGrouped = not (listViewGrouped view)}
+    Printable key [] | listViewName view == "agenda" && key `elem` ['h', 'o'] -> changed (toggleAgendaFilter key view)
     Printable '/' [] -> pure . Just $ PaletteScreen (screenEnvelope previous) "/" 0 (ReturnToScreen screen)
-    Printable 'k' [] -> changed view{listViewMessage = Just "[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts, overdue first, and loads further days as you scroll down; above the top it loads past days: done, done late, missed, and excused. [c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list."}
+    Printable 'k' [] -> changed view{listViewMessage = Just ("[i]mportance is your sibling order. [f]orecast shows current chances. [a]genda shows dated facts, overdue first, and loads further days as you scroll down; above the top it loads past days: done, done late, missed, and excused. " <> (if listViewName view == "agenda" then "[h]abits and [o]bligations filter the rows and calendar independently. Obligations include all dated Work other than habits. " else "") <> "[c]ategories group the same items; repeated references share one chance. Ctrl+F searches this list.")}
     -- UX-280: arrows step through the views; Left on the first one goes back.
     ArrowLeft _
       | not (listViewSearching view) -> maybe (pure (Just previous)) switchView (adjacentView (-1))
@@ -434,6 +439,9 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
     Printable '_' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope UndoCommand
     Printable 'y' modifiers | MCtrl `elem` modifiers -> runSimpleCommand envelope RedoCommand
     Printable 'q' [] | all ((/= "q") . actionShortcut) (envelopeActions envelope) -> pure Nothing
+    Printable '\t' [] | not (isRepairScreen envelope) -> case envelopeOpportunity envelope of
+      NoticeListOpportunity{} -> navigate envelope True
+      _ -> runSimpleCommand envelope NoticesCommand
     Printable character [] -> dispatchShortcut envelope (Text.singleton character)
     Enter [] -> dispatchShortcut envelope "*"
     Escape _ | isRepairScreen envelope -> pure Nothing
@@ -1173,7 +1181,7 @@ interactionResponse envelope action =
 
 modelFor :: Int -> ReplScreen -> ScreenModel
 modelFor width = \case
-  EnvelopeScreen envelope message -> prependMessage message (renderEnvelopeAtWidth width envelope)
+  EnvelopeScreen envelope message -> prependMessage message (guidedModel width envelope)
   FeedEditor envelope editor message -> editorModel width envelope "Feed Little Ant" "Tip: prefer English for consistent titles and search." editor message
   InteractionEditor envelope _ editor message -> editorModel width envelope (contentHeading (envelopeContent envelope)) "Tip: write Brick titles in English." editor message
   PaletteScreen envelope query selected _ -> paletteModelAtWidth width envelope query selected
@@ -1206,6 +1214,16 @@ modelFor width = \case
       )
       Nothing
 
+-- TAB opens notices on guided screens; list screens reserve it for folders.
+guidedModel :: Int -> InteractionEnvelope -> ScreenModel
+guidedModel width envelope = model{screenLines = body <> concatMap hint footer}
+ where
+  model = renderEnvelopeAtWidth width envelope
+  (body, footer) = break (\line -> not (Text.null (plainLine line)) && Text.all (== '─') (plainLine line)) (screenLines model)
+  hint line
+    | not (isRepairScreen envelope) && "⚠ " `Text.isPrefixOf` plainLine line = wrapScreenLine width (line <> [Span Dim " · TAB notices"])
+    | otherwise = [line]
+
 listHit :: ListRow -> SearchHit
 listHit row = SearchHit kind (listEntryHandle row) (listEntryTitle row) (listEntryDetails row)
  where
@@ -1213,6 +1231,29 @@ listHit row = SearchHit kind (listEntryHandle row) (listEntryTitle row) (listEnt
     | "+" `Text.isPrefixOf` listEntryHandle row = "raw"
     | "#" `Text.isPrefixOf` listEntryHandle row = "brick"
     | otherwise = "external_effect"
+
+-- These switches only affect agenda presentation, including its calendar.
+-- Obligations comprise the dated Work other than habit opportunities.
+agendaIncludes :: ListView -> ListRow -> Bool
+agendaIncludes view row = case row of
+  AgendaListRow{listEntryKind} | "habit" `Text.isPrefixOf` listEntryKind -> listViewHabits view
+  _ -> listViewObligations view
+
+agendaEntries :: ListView -> [ListRow]
+agendaEntries view = filter (agendaIncludes view) (listViewEntries view)
+
+toggleAgendaFilter :: Char -> ListView -> ListView
+toggleAgendaFilter key view
+  | listViewName view /= "agenda" || key `notElem` ['h', 'o'] = view
+  | otherwise = next{listViewSelected = position, listViewMessage = Nothing, listViewPastDone = False}
+ where
+  next = case key of
+    'h' -> view{listViewHabits = not (listViewHabits view)}
+    _ -> view{listViewObligations = not (listViewObligations view)}
+  anchor = safeIndex (listViewSelected view) (listViewHits view)
+  hits = listViewHits next
+  sameRow left right = (searchHitKind left, searchHitHandle left, searchHitDetails left) == (searchHitKind right, searchHitHandle right, searchHitDetails right)
+  position = fromMaybe (max 0 (min (length hits - 1) (listViewSelected view))) (anchor >>= \hit -> findIndex (sameRow hit) hits)
 
 listViewRows :: ListView -> [(Text, Text, SearchHit)]
 listViewRows view
@@ -1237,8 +1278,15 @@ agendaForest view = Tree.filterForest (matches . fst) forest
   query = listViewQuery view
   matches hit = searchHitKind hit == "period" || not (null (filteredHits query [hit]))
   forest
-    | listViewGrouped view = fmap (node []) (listViewCategories view)
-    | otherwise = withBreaks (concatMap day (groupOn rowDay (listViewEntries view)))
+    | listViewGrouped view = fmap (node []) (filterCategories (listViewCategories view))
+    | otherwise = withBreaks (concatMap day (groupOn rowDay (agendaEntries view)))
+  filterCategories = concatMap $ \case
+    ListCategory label children -> case filterCategories children of
+      [] -> []
+      visible -> [ListCategory label visible]
+    ListItem row context children ->
+      let visible = filterCategories children
+       in if agendaIncludes view row then [ListItem row context visible] else visible
   -- A Domain branch is a folder: collapsed until Tab opens it, except while
   -- searching, so a long branch never hides the ones after it.
   node path (ListCategory label children)
@@ -1309,7 +1357,7 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
     styledLines Heading (heading <> if listViewGrouped view then " · Categories + parts" else "")
       <> concat [styledLines Dim ("Scope: " <> Text.unwords (listViewScope view)) | not (null (listViewScope view))]
       <> concat [styledLines Dim "Chances apply when next draws flexible work." | listViewName view == "forecast"]
-      <> (if agenda then agendaHeaderLines (agendaSelectedDate view) (listViewHeader view) else styledLines Dim "Positions are local to each sibling group.")
+      <> (if agenda then agendaHeaderLines (agendaSelectedDate view) agendaHeader else styledLines Dim "Positions are local to each sibling group.")
       <> [[Span Accent "Search: ", Span Normal (listViewQuery view <> if listViewSearching view then "▏" else "")] | listViewSearching view || not (Text.null (listViewQuery view))]
       <> [[] | not agenda]
       -- The agenda keeps its calendar pinned while the rows scroll.
@@ -1318,8 +1366,14 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
       <> maybe [] (fmap (pure . Span Warning) . wrapWords width) (listViewMessage view)
   hints
     | listViewSearching view = ["Type to search · ↑/↓ select", "Ctrl+F finish · Enter inspect", "Esc clear search"]
-    | width < 50 = [treeHint, "Ctrl+F search · Enter show", "↑/↓ select · " <> escapeHint]
-    | otherwise = ["↑/↓ select · ←/→ view · Enter inspect · " <> escapeHint <> " · [/] more"]
+    | width < 50 = [treeHint] <> folderHints <> ["Ctrl+F search · Enter show", "↑/↓ select · " <> escapeHint]
+    | otherwise = [Text.intercalate " · " (["↑/↓ select", "←/→ view", "Enter inspect"] <> folderHints <> [escapeHint, "[/] more"])]
+  folderHints = ["TAB open/close tree" | agenda && listViewGrouped view]
+  agendaHeader = case agendaToday (listViewHeader view) of
+    Just today -> agendaCalendarHeader today (addDays (negate (listViewPast view)) today) (addDays (listViewDays view - 1) today) (agendaEntries view)
+    Nothing -> listViewHeader view
+  agendaControls = ["[h]abits: " <> onOff (listViewHabits view) <> " · [o]bligations: " <> onOff (listViewObligations view) | agenda && not (listViewSearching view)]
+  onOff enabled = if enabled then "on" else "off"
   -- Wide terminals keep the view keys and the grouping toggle on one line.
   controlLine
     | width < 50 = viewSpans
@@ -1334,12 +1388,17 @@ listModel width envelope view = ScreenModel (content <> pinned) Nothing
   treeHint = "[c]ategories: " <> if listViewGrouped view then "on" else "off"
   escapeHint = if Text.null (listViewQuery view) then "Esc back" else "Esc clear search"
   footer = footerFrom width envelope
-  pinned = take 1 footer <> [controlLine | not (listViewSearching view)] <> concatMap (fmap (pure . Span Dim) . wrapWords width) hints <> drop 1 footer
+  pinned = take 1 footer <> [controlLine | not (listViewSearching view)] <> concatMap (fmap (pure . Span Dim) . wrapWords width) (agendaControls <> hints) <> drop 1 footer
   styledLines role = fmap (pure . Span role) . wrapWords width
 
 -- | UX-280: one key opens each list view directly.
 listViewKeys :: [(Char, Text)]
 listViewKeys = [('i', "importance"), ('f', "forecast"), ('a', "agenda")]
+
+agendaToday :: [Text] -> Maybe Day
+agendaToday = \case
+  first : _ | Just date <- Text.stripPrefix "Today: " first -> parseTimeM False defaultTimeLocale "%a, %b %-d, %Y" (Text.unpack date)
+  _ -> Nothing
 
 {- | The agenda header: today, the month grid of the selected row (the
 current month when no row is selected), and the legend. Today's cell is
@@ -1349,9 +1408,7 @@ agendaHeaderLines :: Maybe Text -> [Text] -> [[Span]]
 agendaHeaderLines selectedDate header = fmap (pure . Span Normal) intro <> concatMap gridLines chosen <> legendLines
  where
   intro = takeWhile (\text -> text /= agendaWeekdays && text /= agendaLegend) (take 2 header)
-  todayDay = case header of
-    first : _ | Just date <- Text.stripPrefix "Today: " first -> parseTimeM False defaultTimeLocale "%a, %b %-d, %Y" (Text.unpack date) :: Maybe Day
-    _ -> Nothing
+  todayDay = agendaToday header
   today = Text.pack . formatTime defaultTimeLocale "%-d" <$> todayDay
   blocks = splitBlank (drop 2 header)
   grids = [block | block@(_ : weekdays : _) <- blocks, weekdays == agendaWeekdays]

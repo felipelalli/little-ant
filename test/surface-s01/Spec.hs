@@ -3,12 +3,12 @@ module Main (main) where
 import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Data.Time
-import LittleAnt.Application (agendaLegend, agendaWeekdays)
+import LittleAnt.Application (agendaCalendarHeader, agendaLegend, agendaWeekdays)
 import LittleAnt.Decision (statePreconditionHash)
 import LittleAnt.Id
 import LittleAnt.Interaction
 import LittleAnt.Markdown
-import LittleAnt.Model
+import LittleAnt.Model hiding (Habit)
 import LittleAnt.Projection
 import LittleAnt.REPL
 import LittleAnt.Reference
@@ -165,19 +165,103 @@ tests =
             second = row "#three" "Wed, Oct 21" "2026-10-21"
             later = row "#four" "Mon, Oct 26" "2026-10-26"
             categories = [ListCategory "eulen" [ListCategory "Wed, Oct 21" [ListItem first False [ListItem second False []]]], ListCategory "Without a category" [ListCategory "Mon, Oct 19" [ListItem single False []], ListCategory "Mon, Oct 26" [ListItem later False []]]]
-            view = ListView "agenda" [] [single, first, second, later] categories False "" False 0 Nothing [] 35 0 False Set.empty
+            view = ListView "agenda" [] [single, first, second, later] categories False "" False 0 Nothing [] 35 0 False Set.empty True True
             titles v = [(searchHitKind hit, searchHitTitle hit) | (_, _, hit) <- listViewRows v]
         titles view @?= [("brick", "Task #one"), ("category", "Wed, Oct 21"), ("brick", "Task #two"), ("brick", "Task #three"), ("period", "Week 44/53, Oct, 2026"), ("brick", "Task #four")]
         titles view{listViewGrouped = True} @?= [("folder", "\9656 eulen (2)"), ("folder", "\9656 Without a category (2)")]
         titles view{listViewGrouped = True, listViewExpanded = Set.singleton "eulen"}
           @?= [("folder", "\9662 eulen (2)"), ("category", "Wed, Oct 21"), ("brick", "Task #two"), ("brick", "Task #three"), ("folder", "\9656 Without a category (2)")]
         assertBool "the toggle hides its state" ("[c]ategories: off" `Text.isInfixOf` renderPlain (listModel 100 envelope view))
+    , testCase "agenda switches independently filter habits and obligations and recompute calendar priority" $ do
+        identity <- fixtureIdentity
+        let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            today = fromGregorian 2026 10 22
+            row handle date kind = AgendaListRow handle ("Task " <> handle) (date <> " · " <> kind) date date Nothing kind
+            rows =
+              [ row "#habit" "2026-10-22" "habit"
+              , row "#deadline" "2026-10-22" "deadline"
+              , row "#quota" "2026-10-23" "habit due"
+              , row "#done" "2026-10-24" "habit done"
+              , row "#missed" "2026-10-25" "habit missed"
+              , row "#work" "2026-10-26" "best before"
+              , row "#late" "2026-10-27" "done late"
+              ]
+            header = agendaCalendarHeader today today (addDays 6 today) rows
+            view = ListView "agenda" [] rows [] False "" False 0 Nothing header 7 0 False Set.empty True True
+            habitsOnly = toggleAgendaFilter 'o' view
+            obligationsOnly = toggleAgendaFilter 'h' view
+            neither = toggleAgendaFilter 'h' habitsOnly
+            handles = fmap (searchHitHandle . third) . filter ((== "brick") . searchHitKind . third) . listViewRows
+            third (_, _, value) = value
+            marks v = [(spanRole value, spanText value) | line <- takeWhile (not . any ((== PinBoundary) . spanRole)) (screenLines (listModel 100 envelope v)), value <- line, spanRole value `elem` [Habit, Urgent, Done, Caution]]
+        handles view @?= fmap listEntryHandle rows
+        handles habitsOnly @?= ["#habit", "#quota", "#done", "#missed"]
+        handles obligationsOnly @?= ["#deadline", "#work", "#late"]
+        handles neither @?= []
+        -- A deadline masks the habit on Oct 22 until obligations are hidden.
+        take 5 (marks view) @?= [(Urgent, "!"), (Habit, "\9702"), (Done, "."), (Urgent, "\215"), (Caution, "\8226")]
+        take 4 (marks habitsOnly) @?= [(Habit, "\9702"), (Habit, "\9702"), (Done, "."), (Urgent, "\215")]
+        take 3 (marks obligationsOnly) @?= [(Urgent, "!"), (Caution, "\8226"), (Done, ".")]
+        -- The static legend still explains every kind when the grid is empty.
+        marks neither @?= [(Urgent, "!"), (Caution, "\8226"), (Habit, "\9702"), (Done, "."), (Urgent, "\215")]
+        handles (toggleAgendaFilter 'o' obligationsOnly) @?= []
+        handles (toggleAgendaFilter 'o' (toggleAgendaFilter 'h' neither)) @?= fmap listEntryHandle rows
+        listViewSelected neither @?= 0
+    , testCase "agenda filters prune closed folders, update counts, and retain visible nested parts" $ do
+        let row handle kind = AgendaListRow handle handle kind "Thu, Oct 22" "2026-10-22" Nothing kind
+            habit = row "#habit" "habit"
+            work = row "#work" "deadline"
+            categories = [ListCategory "Mixed" [ListCategory "Thu, Oct 22" [ListItem work False [ListItem habit False []]]], ListCategory "Work only" [ListCategory "Thu, Oct 22" [ListItem work False []]]]
+            view = ListView "agenda" [] [work, habit] categories True "" False 0 Nothing [] 35 0 False Set.empty True True
+            titles = fmap (searchHitTitle . third) . listViewRows
+            third (_, _, value) = value
+            habitsOnly = toggleAgendaFilter 'o' view
+        titles view @?= ["▸ Mixed (2)", "▸ Work only (1)"]
+        titles habitsOnly @?= ["▸ Mixed (1)"]
+        titles habitsOnly{listViewExpanded = Set.singleton "Mixed"} @?= ["▾ Mixed (1)", "Thu, Oct 22", "#habit"]
+        titles (toggleAgendaFilter 'h' habitsOnly) @?= []
+    , testCase "agenda filter controls reflow on narrow screens and leave other views unchanged" $ do
+        identity <- fixtureIdentity
+        let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            row handle kind = AgendaListRow handle handle kind "Thu, Oct 22" "2026-10-22" Nothing kind
+            rows = [row "#habit" "habit", row "#work" "deadline", row "#habit" "habit due"]
+            view = ListView "agenda" [] rows [] False "" False 2 Nothing [] 35 0 False Set.empty True True
+            habitsOnly = toggleAgendaFilter 'o' view
+        listViewSelected habitsOnly @?= 1
+        listViewSelected (toggleAgendaFilter 'o' habitsOnly) @?= 2
+        mapM_
+          ( \width -> do
+              let model = viewportModel width 80 0 (listModel width envelope view)
+                  rendered = renderPlain model
+              mapM_ (\label -> assertBool ("missing agenda filter: " <> Text.unpack label) (label `Text.isInfixOf` rendered)) ["[h]abits: on", "[o]bligations: on"]
+              assertBool "filter controls overflow" (all ((<= width) . textDisplayWidth . plainLine) (screenLines model))
+          )
+          [28, 49, 80, 100]
+        mapM_
+          ( \name -> do
+              let other = view{listViewName = name, listViewHabits = False, listViewObligations = False}
+                  plain = renderPlain (listModel 80 envelope other)
+              assertBool "agenda controls leaked into another view" (not ("[h]abits" `Text.isInfixOf` plain || "[o]bligations" `Text.isInfixOf` plain))
+              length (listViewRows other) @?= 3
+              toggleAgendaFilter 'h' other @?= other
+              toggleAgendaFilter 'o' other @?= other
+          )
+          ["importance", "forecast"]
+    , testCase "guided notice summaries advertise TAB and wrap within the terminal" $ do
+        identity <- fixtureIdentity
+        let pristine = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            envelope = pristine{envelopeFooter = (envelopeFooter pristine){footerNotice = Just "#due \"Do one shift\" · deadline", footerNoticeCount = 2}}
+            rendered width = guidedModel width envelope
+        assertBool "notice expansion shortcut is missing" ("+1 notices · TAB notices" `Text.isInfixOf` renderPlain (rendered 100))
+        assertBool "notice shortcut appears without a notice" (not ("TAB notices" `Text.isInfixOf` renderPlain (guidedModel 80 pristine)))
+        assertBool "notice summary exceeds terminal width" (all ((<= 28) . textDisplayWidth . plainLine) (screenLines (rendered 28)))
+        assertBool "agenda promises TAB for both notices and folders" (not ("TAB notices" `Text.isInfixOf` renderPlain (listModel 100 envelope (ListView "agenda" [] [] [] True "" False 0 Nothing [] 35 0 False Set.empty True True))))
     , testCase "the agenda calendar stays pinned while a far selection scrolls the rows" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
             header = ["Today: Sun, Oct 18, 2026", "", "          October 2026", agendaWeekdays, "43  19  20  21  22  23  24  25", "", agendaLegend]
             rows = [AgendaListRow ("#t" <> Text.pack (show day)) "Task" "Mon, Oct 19 \183 18:00 \183 deadline" "Mon, Oct 19" "2026-10-19" (Just "18:00") "deadline" | day <- [1 .. 40 :: Int]]
-            view = ListView "agenda" [] rows [] False "" False 30 Nothing header 35 0 False Set.empty
+            view = ListView "agenda" [] rows [] False "" False 30 Nothing header 35 0 False Set.empty True True
             visible = fmap plainLine (screenLines (viewportModel 100 40 0 (listModel 100 envelope view)))
         assertBool ("the calendar scrolled away: " <> show visible) ("          October 2026" `elem` visible)
         assertBool "the far selection is not visible" (any (\line -> "> " `Text.isPrefixOf` line && "#t31" `Text.isInfixOf` line) visible)
@@ -198,7 +282,7 @@ tests =
             child = ListRow "#diagram" "Draw diagram" "60.0% · importance position 1"
             others = [ListRow ("#b" <> Text.pack (show index)) "Other task" "1.0%" | index <- [1 .. 35 :: Int]]
             categories = [ListCategory "Work" [ListCategory "Talks" [ListItem parent True [ListItem child False []]]], ListCategory "Other" [ListItem row False [] | row <- others]]
-            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing [] 35 0 False Set.empty
+            view = ListView "forecast" [] (child : others) categories True "diagram" True 1 Nothing [] 35 0 False Set.empty True True
             filtered = renderPlain (listModel 80 envelope view)
         mapM_ (\fragment -> assertBool ("missing grouped context: " <> Text.unpack fragment) (fragment `Text.isInfixOf` filtered)) ["Work", "Talks", "#talk", "#diagram", "60.0%", "context only"]
         assertBool "search retained an unrelated category" (not ("Other task" `Text.isInfixOf` filtered))

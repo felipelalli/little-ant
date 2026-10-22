@@ -31,6 +31,11 @@ tests =
         case dispatchGuidedShortcut envelope envelope "x" of
           Left problem -> appErrorCode problem @?= InvalidInput
           Right other -> assertFailure ("unbound key unexpectedly dispatched: " <> show other)
+    , testCase "an unavailable TAB is named without emitting a terminal tab" $ do
+        envelope <- pristine "same" Genesis
+        case dispatchGuidedShortcut envelope envelope "\t" of
+          Left problem -> appErrorMessage problem @?= "[TAB] is not available here. Choose a visible action."
+          Right other -> assertFailure ("TAB unexpectedly dispatched as a guided action: " <> show other)
     , testCase "headless dispatch returns the replacement for a relevant stale response" $ do
         original <- pristine "before" Genesis
         current <- pristine "after" (DatasetCursor 1 (Text.replicate 64 "a"))

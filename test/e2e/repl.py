@@ -237,6 +237,43 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("Keep this draft")
         self.assertEqual(list(self.root.glob("state/lant/profiles/default/dataset/events/*.jsonl")), [])
 
+    def test_agenda_filters_toggle_independently_and_survive_view_changes(self):
+        self.launch(columns=100, rows=40)
+        self.repl.send("/list\r")
+        self.repl.wait("Importance order")
+        self.repl.send("a")
+        self.repl.wait("[h]abits: on · [o]bligations: on")
+        self.repl.send("h")
+        self.repl.wait("[h]abits: off · [o]bligations: on")
+        self.repl.send("o")
+        self.repl.wait("[h]abits: off · [o]bligations: off")
+        self.repl.send("f")
+        self.repl.wait("Focus forecast")
+        self.assertNotIn("[h]abits", self.repl.terminal.text)
+        self.repl.send("ho")
+        self.repl.send("a")
+        self.repl.wait("[h]abits: off · [o]bligations: off")
+        self.repl.send("ho")
+        self.repl.wait("[h]abits: on · [o]bligations: on")
+        self.repl.send("\x06ho")
+        self.repl.wait("Search: ho")
+        self.repl.send("\x1b")
+        self.repl.wait("[h]abits: on · [o]bligations: on")
+        self.assertEqual(list(self.root.glob("state/lant/profiles/default/dataset/events/*.jsonl")), [])
+
+    def test_tab_opens_notices_and_escape_restores_raw_triage(self):
+        self.cli("feed", "Keep this Raw while checking notices")
+        self.repl = Repl(self.executable, self.environment, columns=100, rows=40)
+        self.repl.wait("Review raw material")
+        self.repl.send("\t")
+        self.repl.wait("Notices:")
+        self.repl.wait("No temporal notices are available.")
+        self.repl.send("\x1b")
+        self.repl.wait("Review raw material")
+        self.repl.wait("Keep this Raw while checking notices")
+        self.repl.send("y")
+        self.repl.wait("How should this behave?")
+
     def test_create_inspect_scroll_focus_and_complete_through_the_palette(self):
         self.launch()
         material = "Fix the REPL\n" + "\n".join(f"Evidence line {index}" for index in range(40)) + "\nEND_OF_MATERIAL"

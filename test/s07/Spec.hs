@@ -720,6 +720,10 @@ noticeLifecycle = withHarness $ \environment -> do
     NoticeListOpportunity values -> pure values
     other -> assertFailure ("expected notice list, got " <> show other)
   length notices @?= 2
+  restored <- run environment (NavigateBackCommand (response listed "navigation.back")) >>= interactionOf
+  restored @?= proposal
+  reopened <- run environment (NavigateForwardCommand (response restored "navigation.forward")) >>= interactionOf
+  reopened @?= listed
   opened <- answer environment listed "notice.select.0"
   envelopeOpportunity opened @?= TemporalNoticeOpportunity (head notices)
   acknowledged <- answer environment opened "notice.acknowledge"
