@@ -4768,6 +4768,7 @@ ordinaryCommands =
   , CommandOption "forecast" "/forecast" "Open the focus forecast: current chances"
   , CommandOption "agenda" "/agenda" "Open the agenda: past and coming dates under a calendar"
   , CommandOption "search" "/search" "Search Bricks, Raw, Domains, and people"
+  , CommandOption "triage" "/triage" "Triage the first Raw awaiting triage, or a named +Raw"
   , CommandOption "archive" "/archive" "Archive Work that is out of date, obsolete, or no longer makes sense; dependencies are reviewed first"
   , CommandOption "restore" "/restore" "Choose archived Work to restore"
   , CommandOption "update" "/update" "Choose Work to update its title or description"

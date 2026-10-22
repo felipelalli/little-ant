@@ -1,6 +1,6 @@
 ---
 name: little-ant
-description: Operate Little Ant (lant) when the user wants to capture intentions, find or inspect tasks, browse importance or forecast, choose a focus, or complete work in their LANT dataset. Use the installed CLI and its actual choices. Repository development alone does not require this skill.
+description: Operate Little Ant (lant) when the user wants to capture intentions, triage Raw material, find or inspect tasks, browse importance or forecast, choose a focus, say they are starting something now, or complete work in their LANT dataset. Use the installed CLI and its actual choices. Repository development alone does not require this skill.
 metadata:
   compatibility: lant 1.0.0-alpha.2
 ---
@@ -55,6 +55,7 @@ smallest relevant query and use the references it returns:
 | Inspect a returned reference | `show '#handle'` |
 | Inspect its description and context | `--view operational show '#handle'` |
 | Open the workflow for one exact Raw | `--view guided show '+handle'` |
+| Triage one Inbox Raw, or the first one waiting | `triage ['+handle']` |
 | Browse human importance | `list importance` |
 | Browse selection chances without drawing | `list forecast` |
 | Explain the current recorded selection without drawing | `why` |
@@ -88,11 +89,47 @@ preview. A dry-run result is a simulation, not a committed selection.
 For an authorized capture, pass the user's original material through stdin to
 `lant --profile NAME --json feed`, or as a properly shell-quoted argument.
 Feed saves Raw material; it does not by itself create a fully triaged Brick.
+A remark that the user is starting something is not a bare capture request;
+follow "Start Work now" below.
+
+`triage '+handle'` opens the triage question of one Inbox Raw; bare `triage`
+opens the first Raw awaiting triage. If the installed help does not list
+`triage`, reach the same question through `--view guided show '+handle'` and
+its `raw.detail.classify` action. Answer the descriptive questions (Work or
+destination, Nature, setting, Template, title) from the material and its
+context, and ask the user only when a choice is genuinely unclear. Answers
+sent through `interaction respond` are recorded as the user's own, so never
+answer `importance.more` or `importance.less` for the user: ask the
+comparison, or skip it as "Start Work now" describes.
 
 English is the canonical language of Brick titles (PRD-010), whatever language
-the conversation uses. When triage asks for a title, propose an English one
-and submit it only once the user accepted it; never submit a title in another
-language on your own. Raw material keeps the user's original words.
+the conversation uses. The title question arrives prefilled with the Raw's
+original words; submit a short English title with `--text` instead of
+accepting the prefill, and never submit a title in another language. Raw
+material keeps the user's original words. Report the title you chose;
+`update '#handle' title` corrects it.
+
+### Start Work now
+
+When the user says they are starting something now ("I'm starting X",
+"vou começar X agora"), that statement authorizes making X their current
+focus. Do not leave them waiting on questions:
+
+1. `search` for X. If exactly one active Brick matches, run `focus '#handle'`
+   and answer `focus.accept`. If several match, ask which one.
+2. Otherwise `feed` the user's words and `triage` that Raw. Feed may return
+   another pending question; leave it unanswered. Answer `yes` for Work,
+   deduce Nature, setting, and Template, and submit an English title. Answer
+   every importance comparison with `importance.skip`: after the configured
+   skips the engine places the Work provisionally, with low importance
+   confidence that later asks the user to review it. Accept the
+   `Create this Work?` preview, then `focus` the new Brick and answer
+   `focus.accept`.
+3. Ask first only when a question cannot be answered without the user and the
+   answer changes the outcome. Afterwards, report in one short message what
+   you deduced (title, Nature, Template, provisional importance) so the user
+   can correct it with `update` or `undo`. When the words suggest repetition
+   ("another class"), mention that a recurring series may fit better.
 
 For an authorized completion, resolve the exact Brick, then use
 `lant --profile NAME --json done '#handle'`. Prefer the explicit reference over
@@ -104,7 +141,8 @@ Some commands return an `interaction` with `content`, `actions`, `commands`,
 and revision/cursor information. Present the actual pending choice. For
 example, `focus '#handle'` opens a proposal; it does not mean Focus was accepted.
 Importance comparisons, readiness judgments, and missing decisions belong to
-the user. Existing authorization applies to the operation it covers.
+the user, apart from the deductions "Start Work now" allows. Existing
+authorization applies to the operation it covers.
 
 For an authorized archive or restore, use `archive '#handle' --yes` or
 `restore '#handle' --yes` with the common profile/non-interactive/JSON flags.

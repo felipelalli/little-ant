@@ -111,6 +111,7 @@ data AppCommand
   | HelpCommand (Maybe Text)
   | FeedCommand Text Text
   | ShowRawCommand Text ViewDepth
+  | TriageCommand (Maybe Text)
   | TranslateCommand (Maybe Text)
   | RespondCommand InteractionResponse
   | PendingInteractionCommand
@@ -437,6 +438,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   FeedCommand origin material -> runFeed environment dryRun dataset origin material
   ShowRawCommand reference GuidedView -> runOpenRaw environment dryRun dataset reference
   ShowRawCommand reference view -> runShow dryRun dataset reference view . zonedTimeZone <$> appZonedNow environment
+  TriageCommand reference -> runTriage environment dryRun dataset reference
   TranslateCommand reference -> runTranslate environment dryRun dataset reference
   RespondCommand response -> runResponse environment dryRun dataset response Nothing
   PendingInteractionCommand -> runAppCommand environment dryRun (const (pure ())) PendingInteractionCommand
@@ -2434,6 +2436,38 @@ runOpenRaw environment dryRun dataset reference =
   occurrenceReference = case resolveAnyBrickReference (loadedState dataset) reference of
     Right brick -> (,brick) <$> Map.lookup (brickId brick) (stateRecurringOccurrences (loadedState dataset))
     Left _ -> Nothing
+
+-- Open the Raw-triage question (UX-145) without the detail screen or a draw:
+-- for the named Inbox Raw, or for the Raw the ordinary opportunity offers first.
+runTriage :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
+runTriage environment dryRun dataset reference =
+  case target of
+    Left problem -> pure (Left problem)
+    Right raw -> do
+      identity <- appAllocateUUID environment
+      now <- appZonedNow environment
+      let envelope = makeRawTriageEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state raw
+      saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
+      pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+ where
+  state = loadedState dataset
+  target = case reference of
+    Nothing -> case orderedInbox state of
+      raw : _ -> Right raw
+      [] ->
+        Left
+          (appError PreconditionFailed "No Raw material is awaiting triage.")
+            { appErrorRecovery = [RecoveryAction "feed" "Feed new material; it waits in the Inbox for triage." (Just "lant feed")]
+            }
+    Just named ->
+      resolveAnyRawReference state named >>= \raw ->
+        if rawId raw `elem` fmap rawId (inboxRaws state)
+          then Right raw
+          else
+            Left
+              (appError PreconditionFailed "Only Raw material still awaiting triage can be triaged.")
+                { appErrorRecovery = [RecoveryAction "show" "Inspect where this Raw already went." (Just ("lant show " <> named))]
+                }
 
 runTranslate :: AppEnv -> Bool -> LoadedDataset -> Maybe Text -> IO (Either AppError CommandResult)
 runTranslate environment dryRun dataset reference = do

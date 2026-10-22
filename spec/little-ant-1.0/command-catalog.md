@@ -105,6 +105,7 @@ transport does not claim implementation of deferred product features.
 | `/why` | `lant why` | Inspect the current recorded selection without drawing, answering, or changing the checkpoint; `--view complete` exposes replay details. |
 | `/next` | `lant next` | Obtain one replay-recorded opportunity without silently replacing current focus. |
 | `/feed [text]` | `lant feed [text]` | Preserve one new item as Inbox Raw before any lazy classification. |
+| `/triage [+raw]` | `lant triage [+raw]` | Open the Raw-triage question (UX-145) for one exact Inbox Raw, or for the first Raw awaiting triage, without a draw or the Raw detail screen. |
 | `/focus [#brick]` | `lant focus <#brick>` | Ask the ordinary `Focus?` question for named Work, or resume its WIP continuation. |
 | `/focus-blocker` | `lant focus-blocker <#brick>` | From a visible blocker chain, ask `Focus?` for its named executable blocker without claiming it started. |
 | `/pause` | `lant pause` | End the current focus interval while retaining the Brick as WIP. |

@@ -708,6 +708,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
       "restore" -> runBrickCommand envelope command RestoreCommand
       "update" -> runBrickCommand envelope command (`UpdateCommand` Nothing)
       "translate" -> runSimpleCommand envelope (TranslateCommand Nothing)
+      "triage" -> runSimpleCommand envelope (TriageCommand (commandReference command))
       "tie-break" -> runSimpleCommand envelope TieBreakCommand
       _ -> pure (Just (EnvelopeScreen envelope (Just "That command is not implemented yet.")))
    where

@@ -9,6 +9,14 @@ replace the specification.
 
 ## Unreleased
 
+- Add `/triage` and `lant triage [+raw]`. They open the triage question of a
+  named Inbox Raw, or of the first Raw awaiting triage, without the Raw
+  detail screen or a draw. A Raw that already left the Inbox, or an empty
+  Inbox, gets an error pointing to `lant show` or `lant feed`. The operator
+  skill now triages with it, writes an English title instead of accepting
+  the prefilled original words, and handles "I'm starting X now": it focuses
+  X, or creates it first, skipping importance comparisons so the new Work
+  lands provisionally with low confidence.
 - Redesign the setup (Template) choice. An atomic task now asks where it is
   done: `*digital` (Enter) or `physical`, then lists that setting's setups
   with a generic one first as the default (`a digital task`, `a physical

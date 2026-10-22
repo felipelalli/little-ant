@@ -218,6 +218,24 @@ class HeadlessTests(unittest.TestCase):
         self.assertEqual(opened["interaction"]["opportunity"]["raw_id"], first["raw"]["id"])
         self.assertEqual(self.event_types(), before)
 
+    def test_triage_opens_the_raw_question_directly_without_a_draw(self):
+        _, empty = self.call("triage", code=1)
+        self.assertEqual((empty["code"], empty["recovery"][0]["id"]), ("precondition_failed", "feed"))
+        self.create_work("Material already shaped into Work")
+        _, shaped = self.call("search", "Material already shaped into Work", code=0)
+        shaped_raw = next(hit["handle"] for hit in shaped["hits"] if hit["kind"] == "raw")
+        _, first = self.call("feed", "First material awaiting triage", code=0)
+        _, second = self.call("feed", "Second material awaiting triage", code=0)
+        before = self.event_types()
+        _, opened = self.call("triage", code=2)
+        self.assertEqual(opened["interaction"]["opportunity"]["type"], "raw_triage")
+        self.assertEqual(opened["interaction"]["opportunity"]["raw_id"], first["raw"]["id"])
+        _, named = self.call("triage", second["raw"]["handle"], code=2)
+        self.assertEqual(named["interaction"]["opportunity"]["raw_id"], second["raw"]["id"])
+        _, settled = self.call("triage", shaped_raw, code=1)
+        self.assertEqual(settled["code"], "precondition_failed")
+        self.assertEqual(self.event_types(), before)
+
     def test_noninteractive_vault_input_is_explicit_and_redacted(self):
         _, error = self.call("vault", "create", "--without-backup", code=1)
         self.assertEqual(error["code"], "permission_required")

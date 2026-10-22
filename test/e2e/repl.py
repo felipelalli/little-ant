@@ -406,6 +406,17 @@ class ReplTests(unittest.TestCase):
         events = [event for entry in self.cli("history", "100")["history"] for event in entry["event_types"]]
         self.assertFalse(any("focus" in event for event in events))
 
+    def test_triage_opens_a_named_or_the_first_waiting_raw_from_the_palette(self):
+        self.cli("feed", "First waiting material")
+        second = self.cli("feed", "Second waiting material")["raw"]["handle"]
+        self.repl = Repl(self.executable, self.environment)
+        self.repl.wait("Review raw material")
+        self.repl.send("/triage " + second + "\r")
+        self.repl.wait("Second waiting material")
+        self.repl.send("/triage\r")
+        self.repl.wait("First waiting material")
+        self.repl.wait("Is this something you could work on by itself?")
+
     def test_easier_work_shortlist_resumes_and_waits_for_focus_consent(self):
         source = self.create_atomic_work("Prepare the full proposal")
         self.create_atomic_work("Review the short summary", below=True)

@@ -62,6 +62,7 @@ data CliCommand
   | FocusCli [Text]
   | FocusBlockerCli [Text]
   | FeedCli [Text]
+  | TriageCli [Text]
   | ShowCli [Text]
   | TranslateCli [Text]
   | OrderCli [Text]
@@ -169,6 +170,7 @@ run environment options = case optionCommand options of
   FeedCli wordsInCommand -> do
     material <- if null wordsInCommand then readFeedMaterial options else pure (Text.unwords wordsInCommand)
     execute environment options (FeedCommand "cli" material)
+  TriageCli referenceWords -> execute environment options (TriageCommand (nonEmptyWords referenceWords))
   ShowCli referenceWords
     | null referenceWords ->
         emitError (optionJson options) $
@@ -865,6 +867,12 @@ commandParser =
           ( info
               (FeedCli . fmap Text.pack <$> many (strArgument (metavar "TEXT")))
               (progDesc "Preserve one submission as Inbox Raw material")
+          )
+        <> command
+          "triage"
+          ( info
+              (TriageCli . fmap Text.pack <$> many (strArgument (metavar "RAW")))
+              (progDesc "Triage one Inbox Raw now, or the first Raw awaiting triage")
           )
         <> command
           "show"
