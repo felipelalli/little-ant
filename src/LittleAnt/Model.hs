@@ -66,6 +66,7 @@ module LittleAnt.Model (
   RawStatus (..),
   SkipReaction (..),
   SkipSymptom (..),
+  supportsWorkPlanning,
   State (..),
   UndoPoint (..),
   TemplateSelection (..),
@@ -838,6 +839,9 @@ data BrickNature
   | ScheduledCommitment
   deriving stock (Bounded, Enum, Eq, Ord, Generic, Show)
 
+supportsWorkPlanning :: BrickNature -> Bool
+supportsWorkPlanning nature = nature `notElem` [RecurringObligation, Habit, ScheduledCommitment]
+
 data BrickStatus
   = BrickActive
   | BrickDone
@@ -1305,6 +1309,7 @@ data State = State
   , stateForecastSelections :: Map UUIDv7 ForecastSelectionEvidence
   , stateImportanceReviewDeferrals :: Map (Maybe UUIDv7) ImportanceReviewDeferral
   , stateWorkDeferrals :: Map UUIDv7 WorkDeferral
+  , stateWorkPlans :: Map UUIDv7 ZonedInstant
   , stateActiveSprint :: Maybe ActiveSprint
   , stateDependencies :: Map UUIDv7 Dependency
   , stateChecklistRuns :: Map UUIDv7 ChecklistRun
@@ -1315,8 +1320,8 @@ data State = State
   , stateRecurrenceSchedules :: Map UUIDv7 RecurrenceSchedule
   , stateRecurringOccurrences :: Map UUIDv7 RecurringOccurrence
   , stateObligationPeriods :: Map UUIDv7 ObligationPeriod
-  , -- | When each completed Brick was completed, for the agenda's past (UX-288).
-    stateBrickCompletedAt :: Map UUIDv7 UTCTime
+  , stateBrickCompletedAt :: Map UUIDv7 UTCTime
+  -- ^ When each completed Brick was completed, for the agenda's past (UX-288).
   , stateHabitSchedules :: Map UUIDv7 HabitSchedule
   , stateHabitWindows :: Map UUIDv7 HabitWindow
   , stateHabitOutcomes :: Map UUIDv7 HabitOutcome
@@ -1398,6 +1403,7 @@ emptyState =
     , stateForecastSelections = Map.empty
     , stateImportanceReviewDeferrals = Map.empty
     , stateWorkDeferrals = Map.empty
+    , stateWorkPlans = Map.empty
     , stateActiveSprint = Nothing
     , stateDependencies = Map.empty
     , stateChecklistRuns = Map.empty

@@ -261,6 +261,38 @@ class ReplTests(unittest.TestCase):
         self.repl.wait("[h]abits: on · [o]bligations: on")
         self.assertEqual(list(self.root.glob("state/lant/profiles/default/dataset/events/*.jsonl")), [])
 
+    def test_skip_planning_chooses_a_future_date_and_confirms_before_recording(self):
+        handle = self.create_atomic_work("Already arranged for Friday")
+        self.repl.send("n")
+        self.repl.wait("Focus?")
+        self.repl.send("s")
+        self.repl.wait("already [p]lanned for...")
+        self.repl.send("p")
+        self.repl.wait("Already planned for...")
+        self.repl.wait("Home today")
+        self.repl.send("\x1b[C\r")
+        self.repl.wait("Time (HH:MM)")
+        self.repl.send("09:00\r")
+        self.repl.wait("Keep this Work out of suggestions until then?")
+        self.repl.wait("09:00")
+        self.repl.send("y")
+        self.repl.wait("Planned for:")
+        self.repl.wait("This Work may return to suggestions then.")
+        self.repl.send("/plan " + handle + "\r")
+        self.repl.wait("Already planned for...")
+        self.repl.send("\x1b")
+        self.repl.wait("Planned for:")
+        self.assertTrue(self.cli("doctor")["healthy"])
+
+    def test_plan_palette_chooses_work_without_accepting_focus(self):
+        self.create_atomic_work("Plan from the command menu")
+        self.repl.send("/plan\r")
+        self.repl.wait("Choose Work for /plan")
+        self.repl.send("\r")
+        self.repl.wait("Already planned for...")
+        self.repl.send("\x1b")
+        self.repl.wait("Created:")
+
     def test_tab_opens_notices_and_escape_restores_raw_triage(self):
         self.cli("feed", "Keep this Raw while checking notices")
         self.repl = Repl(self.executable, self.environment, columns=100, rows=40)

@@ -14,6 +14,7 @@ import LittleAnt.Decision (statePreconditionHash)
 import LittleAnt.Error
 import LittleAnt.Event
 import LittleAnt.Export (emptyExportPort)
+import LittleAnt.ForecastWorld qualified as World
 import LittleAnt.Id
 import LittleAnt.Import (emptyImportPort)
 import LittleAnt.Interaction
@@ -57,10 +58,130 @@ main =
       , testCase "raw detail classifies one exact Inbox Raw" rawDetailClassify
       , testCase "notices remain secondary and acknowledge or snooze only their exact identity" noticeLifecycle
       , testCase "notice dates describe future and past instants in the profile calendar" noticeDates
+      , testCase "planning previews without events, returns at its time, and supports reschedule and undo" workPlanning
+      , testCase "planning one escalated occurrence preserves its series and due dates" planOccurrence
+      , testCase "planning respects future timezone offsets and validates again at acceptance" planTimezoneAndExpiry
+      , testCase "planning pauses only its current focus and undo restores it" planCurrentFocus
       , testCase "scheduled commitment has hard precedence and truthful outcome" scheduledCommitmentFlow
       , testCase "scheduled commitment preserves interrupted Work as WIP" scheduledPreemptsFocus
       , testCase "overlapping commitments have no default and resolve independently" scheduledOverlap
       ]
+
+executionEligible :: State -> UTCTime -> UUIDv7 -> Bool
+executionEligible state now identity = any available (World.buildForecastWorld state now)
+ where
+  available ticket = World.ticketIdentity ticket == identity && any ((== World.FiniteWorkOpportunity) . World.selectableKind) (World.ticketOpportunities ticket)
+
+workPlanning :: Assertion
+workPlanning = withHarness $ \environment -> do
+  seedBrick environment AtomicTask
+  proposal <- run environment NextCommand >>= interactionOf
+  skipped <- answer environment proposal "focus.skip"
+  assertBool "planning is missing from the first skip screen" ("work.plan" `elem` fmap actionId (envelopeActions skipped))
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  asked <- answer environment skipped "work.plan"
+  case envelopeOpportunity asked of
+    WorkPlanOpportunity owner _ -> owner @?= brickIdValue
+    other -> assertFailure ("expected a date picker: " <> show other)
+  mapM_
+    ( \invalid -> do
+        rejected <- runAppCommand environment False (const (pure ())) (SubmitInteractionTextCommand (response asked "work.plan.submit") invalid)
+        either (\problem -> appErrorCode problem @?= InvalidInput) (\other -> assertFailure ("invalid plan was accepted: " <> show other)) rejected
+    )
+    ["yesterday", "2026-08-02 09:00", "2026-08-03 09:00", "2026-08-04", "2026-02-31 09:00"]
+  preview <- submit environment asked "work.plan.submit" "2026-08-05 09:00"
+  let firstInstant = ZonedInstant (addUTCTime (2 * nominalDay) fixedTime) "America/Montevideo"
+      firstLocal = LocalTime (fromGregorian 2026 8 5) (TimeOfDay 9 0 0)
+  envelopeOpportunity preview @?= WorkPlanPreviewOpportunity brickIdValue firstInstant firstLocal
+  afterPreview <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  loadedCursor afterPreview @?= loadedCursor before
+  cancelled <- answer environment preview "work.plan.cancel"
+  cancelledState <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  assertBool "cancelling wrote a plan" (Map.null (stateWorkPlans (loadedState cancelledState)))
+  previewAgain <- submit environment cancelled "work.plan.submit" "2026-08-05 09:00"
+  accepted <- answer environment previewAgain "work.plan.accept"
+  envelopeOpportunity accepted @?= WorkPlannedResultOpportunity brickIdValue
+  saved <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  Map.lookup brickIdValue (stateWorkPlans (loadedState saved)) @?= Just firstInstant
+  assertBool "planned Work remains executable" (not (executionEligible (loadedState saved) fixedTime brickIdValue))
+  assertBool "planning was counted as avoidance" (Map.null (stateWorkDeferrals (loadedState saved)))
+  again <- run environment (PlanCommand "#standing") >>= interactionOf
+  earlier <- submit environment again "work.plan.submit" "2026-08-04 09:00"
+  _ <- answer environment earlier "work.plan.accept"
+  replanned <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let state = loadedState replanned
+      at = addUTCTime nominalDay fixedTime
+  assertBool "Work returned before its planned time" (not (executionEligible state (addUTCTime (-1) at) brickIdValue))
+  assertBool "the previous later plan still blocks Work" (executionEligible state at brickIdValue)
+  events <- assertRight =<< readCanonicalEvents (appStore environment)
+  mapM_ (\event -> decodeEvent (encodeEvent event) @?= Right event) [event | event <- events, WorkPlannedV1{} <- [persistedPayload event]]
+  _ <- run environment UndoCommand
+  undone <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  Map.lookup brickIdValue (stateWorkPlans (loadedState undone)) @?= Just firstInstant
+  _ <- run environment RedoCommand
+  redone <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  executionEligible (loadedState redone) at brickIdValue @?= True
+
+planOccurrence :: Assertion
+planOccurrence = withHarness $ \environment -> do
+  seedBrick environment RecurringObligation
+  let schedule = RecurrenceSchedule brickIdValue (CalendarRule DailyRecurrence 1 (fromGregorian 2026 8 3) Set.empty Nothing Nothing [TimeOfDay 18 0 0]) "America/Montevideo" AtomicTask Nothing (-(3 * 86400)) (Just (-(2 * 86400))) (Just 0) DeadlineLapses Nothing 0
+  _ <- run environment (SetRecurrenceScheduleCommand schedule)
+  _ <- run environment TickCommand
+  proposal <- run environment NextCommand >>= interactionOf
+  target <- case envelopeOpportunity proposal of
+    FocusProposalOpportunity owner Nothing -> pure owner
+    other -> assertFailure ("expected escalated Work: " <> show other)
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  asked <- answer environment proposal "focus.skip" >>= \skipped -> answer environment skipped "work.plan"
+  preview <- submit environment asked "work.plan.submit" "2026-08-03 17:00"
+  _ <- answer environment preview "work.plan.accept"
+  after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let old = loadedState before
+      state = loadedState after
+      at = UTCTime (fromGregorian 2026 8 3) (secondsToDiffTime (20 * 3600))
+  stateTemporalConstraints state @?= stateTemporalConstraints old
+  stateRecurrenceSchedules state @?= stateRecurrenceSchedules old
+  stateRecurringOccurrences state @?= stateRecurringOccurrences old
+  stateNoticeDispositions state @?= stateNoticeDispositions old
+  Map.keys (stateWorkPlans state) @?= [target]
+  assertBool "Due first bypassed the plan" (target `notElem` fmap (brickId . fst) (World.escalatedOccurrences state fixedTime))
+  assertBool "the occurrence never returns to Due first" (target `elem` fmap (brickId . fst) (World.escalatedOccurrences state at))
+  assertBool "other occurrences were suppressed" (not (null (World.escalatedOccurrences state fixedTime)))
+  rejected <- runAppCommand environment False (const (pure ())) (PlanCommand "#standing")
+  either (\problem -> appErrorCode problem @?= PreconditionFailed) (\other -> assertFailure ("the series was planned instead of one occurrence: " <> show other)) rejected
+
+planTimezoneAndExpiry :: Assertion
+planTimezoneAndExpiry = withHarness $ \environment -> do
+  seedBrick environment AtomicTask
+  _ <- run environment (SetOperationalDayConfigCommand (OperationalDayConfig "America/New_York" (TimeOfDay 6 0 0) (TimeOfDay 4 0 0)))
+  asked <- run environment (PlanCommand "#standing") >>= interactionOf
+  preview <- submit environment asked "work.plan.submit" "2026-12-01 09:00"
+  let at = UTCTime (fromGregorian 2026 12 1) (secondsToDiffTime (14 * 3600))
+  envelopeOpportunity preview @?= WorkPlanPreviewOpportunity brickIdValue (ZonedInstant at "America/New_York") (LocalTime (fromGregorian 2026 12 1) (TimeOfDay 9 0 0))
+  before <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  let expired = environment{appNow = pure at, appZonedNow = pure (utcToZonedTime (hoursToTimeZone (-5)) at)}
+  rejected <- runAppCommand expired False (const (pure ())) (RespondCommand (response preview "work.plan.accept"))
+  either (\problem -> appErrorCode problem @?= InvalidInput) (\other -> assertFailure ("an expired preview was accepted: " <> show other)) rejected
+  after <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  loadedCursor after @?= loadedCursor before
+
+planCurrentFocus :: Assertion
+planCurrentFocus = withHarness $ \environment -> do
+  seedBrick environment AtomicTask
+  proposal <- run environment (FocusCommand "#standing") >>= interactionOf
+  _ <- answer environment proposal "focus.accept"
+  asked <- run environment (PlanCommand "#standing") >>= interactionOf
+  preview <- submit environment asked "work.plan.submit" "2026-08-04 09:00"
+  assertBool "the preview hides the focus pause" ("This Work's current focus will be paused." `elem` contentBody (envelopeContent preview))
+  _ <- answer environment preview "work.plan.accept"
+  planned <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  stateCurrentFocus (loadedState planned) @?= Nothing
+  brickWorkState (stateBricks (loadedState planned) Map.! brickIdValue) @?= Wip
+  _ <- run environment UndoCommand
+  undone <- assertRight =<< loadDataset (appStore environment) (const (pure ()))
+  stateCurrentFocus (loadedState undone) @?= Just brickIdValue
+  assertBool "undo left the plan behind" (Map.null (stateWorkPlans (loadedState undone)))
 
 monthEndClamp :: Assertion
 monthEndClamp = do

@@ -53,12 +53,14 @@ import Graphics.Vty.Config (defaultConfig)
 import Graphics.Vty.CrossPlatform qualified as CrossPlatform
 import Graphics.Vty.Output (Mode (Mouse), setMode)
 import LittleAnt.Application
+import LittleAnt.Catalog (natureLabel)
 import LittleAnt.Error
 import LittleAnt.Id (HandleKind (RawHandle), UUIDv7, generateUUIDv7, renderHandle, renderUUIDv7)
 import LittleAnt.Import
 import LittleAnt.Interaction
 import LittleAnt.Markdown
 import LittleAnt.Model (Actor (actorProfile), SourceMode (..))
+import LittleAnt.Model qualified as Model
 import LittleAnt.Profile qualified as Profile
 import LittleAnt.Projection
 import LittleAnt.Protocol
@@ -589,8 +591,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
    where
     material = editorText editor
 
-  -- WRK-165: arrows move the day (never past today), Enter edits the time,
-  -- and the second Enter submits both for the engine's preview.
+  -- Both date flows share navigation; completion looks back, planning ahead.
   datePickerInput envelope day editor input = case editor of
     Nothing -> case input of
       Printable 'c' modifiers | MCtrl `elem` modifiers -> pure Nothing
@@ -618,18 +619,22 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
       Escape _ -> pure . Just $ DatePickerScreen envelope day Nothing Nothing
       Enter _ ->
         let instant = Text.pack (formatTime defaultTimeLocale "%Y-%m-%d" day) <> " " <> Text.strip (editorText current)
-         in runCurrent (SubmitInteractionTextCommand (interactionResponse envelope "completion.date.submit") instant) >>= \case
+         in runCurrent (SubmitInteractionTextCommand (interactionResponse envelope submitAction) instant) >>= \case
               Left problem -> pure . Just $ DatePickerScreen envelope day (Just current) (Just (appErrorMessage problem))
               Right result -> screenFromResult envelope result
       _ -> pure (Just screen)
    where
     asked = case envelopeOpportunity envelope of
       CompletionDateOpportunity _ local -> Just local
+      WorkPlanOpportunity _ local -> Just local
       _ -> Nothing
+    planning = case envelopeOpportunity envelope of WorkPlanOpportunity{} -> True; _ -> False
+    submitAction = if planning then "work.plan.submit" else "completion.date.submit"
     today = maybe day localDay asked
     clock = maybe "" (Text.pack . formatTime defaultTimeLocale "%H:%M" . localTimeOfDay) asked
     move target
-      | target > today = pure . Just $ DatePickerScreen envelope today editor (Just "Work cannot be done in the future.")
+      | planning && target < today = pure . Just $ DatePickerScreen envelope today editor (Just "Choose today or a future day.")
+      | not planning && target > today = pure . Just $ DatePickerScreen envelope today editor (Just "Work cannot be done in the future.")
       | otherwise = pure . Just $ DatePickerScreen envelope target editor Nothing
     edit current command = pure . Just $ DatePickerScreen envelope day (Just (applyEditorCommand command current)) Nothing
 
@@ -704,6 +709,7 @@ loopWithNotice sessionStart environmentRef vty color width height requestedOffse
       "order" -> runSimpleCommand envelope (OrderCommand (commandReference command))
       "done" -> runBrickCommand envelope command (DoneCommand . Just)
       "focus" -> runBrickCommand envelope command FocusCommand
+      "plan" -> runBrickCommand envelope command PlanCommand
       "finish" -> runBrickCommand envelope command FinishCommand
       "return" -> runBrickCommand envelope command (ReturnToIdleCommand . Just)
       "impact" -> runBrickCommand envelope command ImpactCommand
@@ -1115,7 +1121,8 @@ they accept: archived ones for restore, any for update, active otherwise.
 brickCommandTargets :: InteractionEnvelope -> Text -> [SearchHit] -> ([SearchHit], Int)
 brickCommandTargets envelope commandId hits = (targets, fromMaybe 0 (contextHandle >>= \handle -> findIndex ((== handle) . searchHitHandle) targets))
  where
-  targets = filter (\hit -> searchHitKind hit == "brick" && accepts (hitStatus hit)) hits
+  targets = filter (\hit -> searchHitKind hit == "brick" && accepts (hitStatus hit) && plannable hit) hits
+  plannable hit = commandId /= "plan" || maybe True (`notElem` fmap natureLabel [Model.RecurringObligation, Model.Habit, Model.ScheduledCommitment]) (safeIndex 1 (Text.splitOn " · " (searchHitDetails hit)))
   hitStatus = fst . Text.breakOn " · " . fromMaybe "" . Text.stripPrefix "status: " . searchHitDetails
   accepts status = case commandId of
     "restore" -> status == "archived"
@@ -1128,6 +1135,7 @@ brickCommandTargets envelope commandId hits = (targets, fromMaybe 0 (contextHand
 screenForEnvelope :: InteractionEnvelope -> ReplScreen
 screenForEnvelope envelope = case envelopeOpportunity envelope of
   CompletionDateOpportunity _ asked -> DatePickerScreen envelope (localDay asked) Nothing Nothing
+  WorkPlanOpportunity _ asked -> DatePickerScreen envelope (addDays 1 (localDay asked)) Nothing Nothing
   WorkTitleOpportunity _ _ _ title -> InteractionEditor envelope "work.title.submit" (selectedEditor title) Nothing
   TranslationEditOpportunity _ suggestion _ -> InteractionEditor envelope "translate.edit.submit" (maybe (EditorState "" "" Nothing) selectedEditor suggestion) Nothing
   SourceRelocateOpportunity _ draft -> InteractionEditor envelope "source.relocate.submit" (selectedEditor draft) Nothing
@@ -1896,7 +1904,9 @@ datePickerModel width envelope selected editor message =
   content = envelopeContent envelope
   today = case envelopeOpportunity envelope of
     CompletionDateOpportunity _ asked -> localDay asked
+    WorkPlanOpportunity _ asked -> localDay asked
     _ -> selected
+  planning = case envelopeOpportunity envelope of WorkPlanOpportunity{} -> True; _ -> False
   (year, month, _) = toGregorian selected
   first = fromGregorian year month 1
   lead = (fromEnum (dayOfWeek first) + 6) `mod` 7
@@ -1915,7 +1925,7 @@ datePickerModel width envelope selected editor message =
           role
             | day == selected = Pointed
             | day == today = Today
-            | day > today = Dim
+            | if planning then day < today else day > today = Dim
             | otherwise = Normal
        in [Span role (Text.justifyRight 2 ' ' (Text.pack (show number))), Span Normal "  "]
   hints = case editor of

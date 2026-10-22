@@ -33,6 +33,9 @@ module LittleAnt.Interaction (
   makeCompletionDateEnvelope,
   makeCompletionDatePreviewEnvelope,
   makeCompletionDatedResultEnvelope,
+  makeWorkPlanEnvelope,
+  makeWorkPlanPreviewEnvelope,
+  makeWorkPlannedResultEnvelope,
   completionDatePresets,
   completionInstantText,
   makeRepeatableReturnEnvelope,
@@ -558,6 +561,9 @@ data Opportunity
   | CompletionDateOpportunity UUIDv7 LocalTime
   | CompletionDatePreviewOpportunity UUIDv7 UTCTime
   | CompletionDatedResultOpportunity UUIDv7
+  | WorkPlanOpportunity UUIDv7 LocalTime
+  | WorkPlanPreviewOpportunity UUIDv7 ZonedInstant LocalTime
+  | WorkPlannedResultOpportunity UUIDv7
   | RepairPreviewOpportunity Text FilePath FilePath FilePath FilePath Integer
   | RepairCandidateOpportunity Text Text FilePath FilePath FilePath DatasetCursor Integer
   | RepairCompleteOpportunity Text FilePath Bool
@@ -2475,20 +2481,22 @@ makeWorkSkipSymptomEnvelope previous now state brick selection =
       ChoiceGrammar
       (WorkSkipSymptomOpportunity (brickId brick) selection)
       (EnvelopeContent "" (Just (brickCitation brick)) [] (Just "What's getting in the way?"))
-      [ Action "work.symptom.vague" "💭 vague" "v" False "Open vague-work recovery."
-      , Action "work.symptom.hard" "🧗 hard" "h" False "Open difficult-work recovery."
-      , Action "work.symptom.big" "🏔️ big" "g" False "Open decomposition recovery."
-      , Action "work.symptom.blocked" "🚧 blocked or waiting" "b" False "Classify an external prerequisite."
-      , Action "work.symptom.tired" "🥱 tired" "t" False "Open low-energy recovery."
-      , Action "work.symptom.bored" "😐 bored" "r" False "Open low-interest recovery."
-      , Action "work.symptom.fear" "😨 fear" "f" False "Open risk recovery."
-      , Action "work.symptom.less-important" "⬇️ less important" "l" False "Open importance, time, or subject recovery."
-      , Action "work.symptom.out-of-date" "🕰️ out of date" "u" False "Open stale-work recovery."
-      , Action "work.symptom.other" "🧩 other" "o" False "Preserve another obstacle verbatim."
-      , Action "work.symptom.unknown" "❓ I don't know" "k" False "Discover the symptom through one question at a time."
-      , Action "work.symptom.done" "✅ done" "d" False "Complete this finite Work."
-      , moreAction
-      ]
+      ( [Action "work.plan" "already planned for..." "p" False "Choose when this Work may return to suggestions." | supportsWorkPlanning (brickNature brick)]
+          <> [ Action "work.symptom.vague" "💭 vague" "v" False "Open vague-work recovery."
+             , Action "work.symptom.hard" "🧗 hard" "h" False "Open difficult-work recovery."
+             , Action "work.symptom.big" "🏔️ big" "g" False "Open decomposition recovery."
+             , Action "work.symptom.blocked" "🚧 blocked or waiting" "b" False "Classify an external prerequisite."
+             , Action "work.symptom.tired" "🥱 tired" "t" False "Open low-energy recovery."
+             , Action "work.symptom.bored" "😐 bored" "r" False "Open low-interest recovery."
+             , Action "work.symptom.fear" "😨 fear" "f" False "Open risk recovery."
+             , Action "work.symptom.less-important" "⬇️ less important" "l" False "Open importance, time, or subject recovery."
+             , Action "work.symptom.out-of-date" "🕰️ out of date" "u" False "Open stale-work recovery."
+             , Action "work.symptom.other" "🧩 other" "o" False "Preserve another obstacle verbatim."
+             , Action "work.symptom.unknown" "❓ I don't know" "k" False "Discover the symptom through one question at a time."
+             , Action "work.symptom.done" "✅ done" "d" False "Complete this finite Work."
+             , moreAction
+             ]
+      )
       [showBrickCommand brick, helpCommand, exitCommand]
       (Just "discover_skip_symptom")
       (brickFooter now state brick)
@@ -3233,6 +3241,67 @@ makeCompletionDatedResultEnvelope identity cursor precondition now state brick =
     (CompletionDatedResultOpportunity (brickId brick))
     "Done on:"
     [brickCitation brick, maybe "" (completionInstantText (zonedTimeZone now)) (Map.lookup (brickId brick) (stateBrickCompletedAt state))]
+
+makeWorkPlanEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> InteractionEnvelope
+makeWorkPlanEnvelope previous now state brick =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ChoiceGrammar
+      (WorkPlanOpportunity (brickId brick) (zonedTimeToLocalTime now))
+      (EnvelopeContent "Already planned for..." (Just (brickCitation brick)) ["Choose when this Work may return to suggestions.", operationalZone (stateOperationalDayConfig state)] Nothing)
+      [ Action "work.plan.submit" "choose a date and time" "enter" False "Enter YYYY-MM-DD HH:MM in the profile timezone."
+      , Action "work.plan.cancel" "cancel" "c" False "Return without recording a plan."
+      , moreAction
+      ]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      Nothing
+      (brickFooter now state brick)
+
+makeWorkPlanPreviewEnvelope :: InteractionEnvelope -> ZonedTime -> State -> Brick -> ZonedInstant -> LocalTime -> InteractionEnvelope
+makeWorkPlanPreviewEnvelope previous now state brick instant local =
+  advanceEnvelope previous $
+    sealed
+      (envelopeInteractionId previous)
+      (envelopeRevision previous)
+      (envelopeDatasetCursor previous)
+      (envelopePreconditionHash previous)
+      ConfirmationGrammar
+      (WorkPlanPreviewOpportunity (brickId brick) instant local)
+      ( EnvelopeContent
+          "Keep this Work out of suggestions until then?"
+          (Just (brickCitation brick))
+          ( ["Return to suggestions: " <> Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y · %H:%M" local) <> " · " <> zonedInstantZone instant]
+              <> standingContext now state brick
+              <> ["This Work's current focus will be paused." | stateCurrentFocus state == Just (brickId brick)]
+              <> ["This applies only to this Work. Its deadline, best before, and recurring series keep their recorded dates."]
+              <> ["This planned time is after the deadline." | Just constraints <- [Map.lookup (brickId brick) (stateTemporalConstraints state)], Just deadline <- [temporalDeadline constraints], zonedInstantUtc instant >= zonedInstantUtc deadline]
+          )
+          Nothing
+      )
+      [ Action "work.plan.accept" "yes" "y" True "Record the planned time and pause this Work's suggestions."
+      , Action "work.plan.edit" "edit" "e" False "Choose another date and time."
+      , Action "work.plan.cancel" "cancel" "c" False "Return without recording a plan."
+      , moreAction
+      ]
+      [showBrickCommand brick, helpCommand, exitCommand]
+      Nothing
+      (brickFooter now state brick)
+
+makeWorkPlannedResultEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> ZonedInstant -> LocalTime -> InteractionEnvelope
+makeWorkPlannedResultEnvelope identity cursor precondition now state brick instant local =
+  resultEnvelope
+    identity
+    cursor
+    precondition
+    now
+    state
+    (WorkPlannedResultOpportunity (brickId brick))
+    "Planned for:"
+    [brickCitation brick, Text.pack (formatTime defaultTimeLocale "%a, %b %-d, %Y · %H:%M" local) <> " · " <> zonedInstantZone instant, "This Work may return to suggestions then. Its recorded due dates stay in effect."]
 
 makeRepeatableReturnEnvelope :: UUIDv7 -> DatasetCursor -> Text -> ZonedTime -> State -> Brick -> LazyReviewClaim -> InteractionEnvelope
 makeRepeatableReturnEnvelope identity cursor precondition now state brick review =
@@ -4805,6 +4874,7 @@ ordinaryCommands =
   , CommandOption "archive" "/archive" "Archive Work that is out of date, obsolete, or no longer makes sense; dependencies are reviewed first"
   , CommandOption "restore" "/restore" "Choose archived Work to restore"
   , CommandOption "update" "/update" "Choose Work to update its title or description"
+  , CommandOption "plan" "/plan" "Already planned for a date and time: choose when Work returns to suggestions"
   ]
 
 sealEnvelope :: InteractionEnvelope -> InteractionEnvelope
@@ -5619,6 +5689,9 @@ opportunityValue = \case
   CompletionDateOpportunity identity asked -> typed "completion_date" ["brick_id" .= renderUUIDv7 identity, "asked_at_local" .= asked]
   CompletionDatePreviewOpportunity identity instant -> typed "completion_date_preview" ["brick_id" .= renderUUIDv7 identity, "completed_at" .= instant]
   CompletionDatedResultOpportunity identity -> typed "completion_dated_result" ["brick_id" .= renderUUIDv7 identity]
+  WorkPlanOpportunity identity asked -> typed "work_plan" ["brick_id" .= renderUUIDv7 identity, "asked_at_local" .= asked]
+  WorkPlanPreviewOpportunity identity instant local -> typed "work_plan_preview" ["brick_id" .= renderUUIDv7 identity, "planned_at" .= interactionZonedInstantValue instant, "planned_at_local" .= local]
+  WorkPlannedResultOpportunity identity -> typed "work_planned_result" ["brick_id" .= renderUUIDv7 identity]
   RepairPreviewOpportunity planHash source original replacement candidate validEvents ->
     typed
       "repair_preview"
@@ -5849,6 +5922,9 @@ parseOpportunity = withObject "Opportunity" $ \value ->
     "completion_date" -> CompletionDateOpportunity <$> uuidField value "brick_id" <*> value .: "asked_at_local"
     "completion_date_preview" -> CompletionDatePreviewOpportunity <$> uuidField value "brick_id" <*> value .: "completed_at"
     "completion_dated_result" -> CompletionDatedResultOpportunity <$> uuidField value "brick_id"
+    "work_plan" -> WorkPlanOpportunity <$> uuidField value "brick_id" <*> value .: "asked_at_local"
+    "work_plan_preview" -> WorkPlanPreviewOpportunity <$> uuidField value "brick_id" <*> (value .: "planned_at" >>= parseInteractionZonedInstant) <*> value .: "planned_at_local"
+    "work_planned_result" -> WorkPlannedResultOpportunity <$> uuidField value "brick_id"
     "repair_preview" -> RepairPreviewOpportunity <$> value .: "plan_hash" <*> value .: "source_root" <*> value .: "original_segment" <*> value .: "replacement_segment" <*> value .: "candidate_root" <*> value .: "valid_event_count"
     "repair_candidate" -> RepairCandidateOpportunity <$> value .: "repair_plan_hash" <*> value .: "cutover_plan_hash" <*> value .: "source_root" <*> value .: "candidate_root" <*> value .: "backup_root" <*> value .: "candidate_cursor" <*> value .: "candidate_event_count"
     "repair_complete" -> RepairCompleteOpportunity <$> value .: "cutover_plan_hash" <*> value .: "backup_root" <*> value .: "recovered"

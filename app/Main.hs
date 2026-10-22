@@ -60,6 +60,7 @@ data CliCommand
   | SearchCli [Text]
   | HelpCli (Maybe Text)
   | FocusCli [Text]
+  | PlanCli [Text]
   | FocusBlockerCli [Text]
   | FeedCli [Text]
   | TriageCli [Text]
@@ -166,6 +167,7 @@ run environment options = case optionCommand options of
   SearchCli query -> execute environment options (SearchCommand (Text.unwords query))
   HelpCli maybeTopic -> execute environment options (HelpCommand maybeTopic)
   FocusCli referenceWords -> requiredBrickCommand environment options "focus" FocusCommand referenceWords
+  PlanCli referenceWords -> requiredBrickCommand environment options "plan" PlanCommand referenceWords
   FocusBlockerCli referenceWords -> requiredBrickCommand environment options "focus-blocker" FocusBlockerCommand referenceWords
   FeedCli wordsInCommand -> do
     material <- if null wordsInCommand then readFeedMaterial options else pure (Text.unwords wordsInCommand)
@@ -898,6 +900,7 @@ commandParser =
               (FocusBlockerCli . fmap Text.pack <$> many (strArgument (metavar "BRICK")))
               (progDesc "Focus the executable endpoint of the visible blocker chain")
           )
+        <> command "plan" (info (PlanCli . fmap Text.pack <$> many (strArgument (metavar "BRICK"))) (progDesc "Choose when Work returns to suggestions without changing its due dates"))
         <> command
           "order"
           ( info

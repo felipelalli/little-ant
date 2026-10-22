@@ -1,6 +1,7 @@
 module LittleAnt.Event (
   BrickCompleted (..),
   CompletionDated (..),
+  WorkPlanned (..),
   BrickCreated (..),
   BrickChildCreated (..),
   BrickNatureChanged (..),
@@ -409,6 +410,12 @@ data LazyReviewRequested = LazyReviewRequested
   }
   deriving stock (Eq, Show)
 
+data WorkPlanned = WorkPlanned
+  { plannedWorkBrick :: UUIDv7
+  , plannedWorkAt :: ZonedInstant
+  }
+  deriving stock (Eq, Show)
+
 data WorkReactionRecorded = WorkReactionRecorded
   { recordedWorkReactionBrick :: UUIDv7
   , recordedWorkReactionSelection :: Maybe UUIDv7
@@ -682,6 +689,7 @@ data EventPayload
   | ForecastSelectedV1 ForecastSelected
   | ForecastFocusAcceptedV1 ForecastFocusAccepted
   | WorkReactionRecordedV1 WorkReactionRecorded
+  | WorkPlannedV1 WorkPlanned
   | FocusPausedV1 FocusPaused
   | SprintStartedV1 SprintStarted
   | DependencyAddedV1 DependencyAdded
@@ -791,6 +799,7 @@ eventTypeName = \case
   ForecastSelectedV1 _ -> "forecast_selected"
   ForecastFocusAcceptedV1 _ -> "forecast_focus_accepted"
   WorkReactionRecordedV1 _ -> "work_reaction_recorded"
+  WorkPlannedV1 _ -> "work_planned"
   FocusPausedV1 _ -> "focus_paused"
   SprintStartedV1 _ -> "sprint_started"
   DependencyAddedV1 _ -> "dependency_added"
@@ -946,6 +955,7 @@ undoDescription state payload = humanized <> maybe "" ((" · " <>) . cite) subje
     BrickCompletedV1 completed -> Just (completedBrickId completed)
     CompletionDatedV1 dated -> Just (completionDatedBrick dated)
     WorkReactionRecordedV1 recorded -> Just (recordedWorkReactionBrick recorded)
+    WorkPlannedV1 planned -> Just (plannedWorkBrick planned)
     JudgmentReviewDeferredV1 _ identity _ -> Just identity
     JudgmentReviewCompletedV1 _ identity _ -> Just identity
     WaitChangedV1 changed -> Just (waitAffectedBrick (changedWaitGate changed))
@@ -1046,6 +1056,7 @@ applyEventPayload state event = case persistedPayload event of
   ForecastSelectedV1 payload -> applyForecastSelected state payload
   ForecastFocusAcceptedV1 payload -> applyForecastFocusAccepted state payload
   WorkReactionRecordedV1 payload -> applyWorkReactionRecorded state event payload
+  WorkPlannedV1 payload -> applyWorkPlanned state event payload
   FocusPausedV1 payload -> applyFocusPaused state payload
   SprintStartedV1 payload -> applySprintStarted state event payload
   DependencyAddedV1 payload -> applyDependencyAdded state event payload
@@ -1785,6 +1796,25 @@ applyOperationalDayConfigChanged state payload =
    in if Text.null (Text.strip (operationalZone config))
         then corrupt "Operational days need one named IANA zone."
         else Right . bump $ state{stateOperationalDayConfig = config, stateLastRedo = Nothing}
+
+applyWorkPlanned :: State -> PersistedEvent -> WorkPlanned -> Either AppError State
+applyWorkPlanned state event payload = do
+  brick <- requireBrick state (plannedWorkBrick payload)
+  unless (brickStatus brick == BrickActive && supportsWorkPlanning (brickNature brick)) $
+    corrupt "Only active ordinary Work or an obligation occurrence can be planned."
+  unless (not (Text.null (Text.strip (zonedInstantZone (plannedWorkAt payload))))) $
+    corrupt "A Work plan needs a named timezone."
+  unless (zonedInstantUtc (plannedWorkAt payload) > persistedRecordedAt event) $
+    corrupt "A Work plan must return to suggestions in the future."
+  Right . bump $
+    state
+      { stateWorkPlans = Map.insert (brickId brick) (plannedWorkAt payload) (stateWorkPlans state)
+      , stateCurrentFocus = if stateCurrentFocus state == Just (brickId brick) then Nothing else stateCurrentFocus state
+      , stateActiveSprint = case stateActiveSprint state of
+          Just sprint | activeSprintBrick sprint == brickId brick -> Nothing
+          other -> other
+      , stateLastRedo = Nothing
+      }
 
 applyWorkReactionRecorded :: State -> PersistedEvent -> WorkReactionRecorded -> Either AppError State
 applyWorkReactionRecorded state event payload = do
@@ -3432,6 +3462,7 @@ payloadValue = \case
       , "brick_id" .= uuid (acceptedForecastBrick payload)
       ]
         <> maybe [] (pure . ("active_domain_id" .=) . renderUUIDv7) (acceptedForecastDomain payload)
+  WorkPlannedV1 payload -> object ["brick_id" .= uuid (plannedWorkBrick payload), "planned_at" .= zonedInstantValue (plannedWorkAt payload)]
   WorkReactionRecordedV1 payload ->
     object $
       [ "brick_id" .= uuid (recordedWorkReactionBrick payload)
@@ -3749,6 +3780,8 @@ parsePayload eventType version payload = case (eventType, version) of
               <*> value .:? "cooldown_until"
         )
         payload
+  ("work_planned", 1) ->
+    WorkPlannedV1 <$> withObject "work_planned@1" (\value -> WorkPlanned <$> (value .: "brick_id" >>= parseId) <*> (value .: "planned_at" >>= parseZonedInstant)) payload
   ("focus_paused", 1) ->
     FocusPausedV1 <$> withObject "focus_paused@1" (\value -> FocusPaused <$> (value .: "brick_id" >>= parseId)) payload
   ("sprint_started", 1) ->

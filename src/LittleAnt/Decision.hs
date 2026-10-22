@@ -15,6 +15,7 @@ module LittleAnt.Decision (
   decideCompleteBrick,
   decideCompleteBrickAt,
   decideDateCompletion,
+  decidePlanWork,
   decideArchiveBrick,
   decideRestoreBrick,
   decideKeepArchived,
@@ -321,6 +322,7 @@ statePreconditionHash state =
       <> ["scheduled-interval:" <> renderUUIDv7 identity <> ":" <> Text.pack (show interval) | (identity, interval) <- Map.toAscList (stateScheduledIntervals state)]
   deferralLines =
     ["deferral:" <> renderUUIDv7 identity <> ":" <> Text.pack (show deferral) | (identity, deferral) <- Map.toAscList (stateWorkDeferrals state)]
+      <> ["work-plan:" <> renderUUIDv7 identity <> ":" <> Text.pack (show instant) | (identity, instant) <- Map.toAscList (stateWorkPlans state)]
       <> ["importance-review-deferral:" <> maybe "root" renderUUIDv7 parent <> ":" <> Text.pack (show deferral) | (parent, deferral) <- Map.toAscList (stateImportanceReviewDeferrals state)]
   domainLines =
     ["domain:" <> renderUUIDv7 identity <> ":" <> Text.pack (show domain) | (identity, domain) <- Map.toAscList (stateDomains state)]
@@ -1851,6 +1853,18 @@ decideRecordedFocus state actor identity selectionId facts = do
  where
   lastMaybe [] = Nothing
   lastMaybe values = Just (last values)
+
+decidePlanWork :: State -> Actor -> UUIDv7 -> ZonedInstant -> RuntimeFacts -> Either AppError MutationDecision
+decidePlanWork state actor identity instant facts = do
+  brick <- requireActiveBrick state identity
+  unless (supportsWorkPlanning (brickNature brick)) $
+    Left (appError PreconditionFailed "Plan ordinary Work or one obligation occurrence; a series, habit, or scheduled commitment keeps its own schedule.")
+  unless (zonedInstantUtc instant > runtimeNow facts) $
+    Left (appError InvalidInput "Choose a future date and time to return to suggestions.")
+  allocated <- requireUUIDs 2 facts
+  (commandId, eventId) <- exactlyTwo allocated
+  let event = makeDraft facts actor state allocated eventId commandId (WorkPlannedV1 (WorkPlanned identity instant))
+  pure (MutationDecision commandId (Just brick) Nothing [event])
 
 decideWorkReaction :: State -> Actor -> UUIDv7 -> Maybe UUIDv7 -> SkipSymptom -> SkipReaction -> RuntimeFacts -> Either AppError MutationDecision
 decideWorkReaction state actor identity selection symptom reaction facts = do

@@ -723,12 +723,13 @@ brickOpportunities state now brick children allChildren =
 
 workCoolingDown :: State -> UTCTime -> Brick -> Bool
 workCoolingDown state now brick =
-  or
-    [ now < untilTime
-    | deferral <- Map.elems (stateWorkDeferrals state)
-    , workDeferralBrick deferral == brickId brick
-    , Just untilTime <- [workDeferralCooldownUntil deferral]
-    ]
+  maybe False ((> now) . zonedInstantUtc) (Map.lookup (brickId brick) (stateWorkPlans state))
+    || or
+      [ now < untilTime
+      | deferral <- Map.elems (stateWorkDeferrals state)
+      , workDeferralBrick deferral == brickId brick
+      , Just untilTime <- [workDeferralCooldownUntil deferral]
+      ]
 
 -- One owner per unresolved sibling run, including imported provisional order.
 -- Equivalent persisted claims are coalesced rather than becoming extra tickets.

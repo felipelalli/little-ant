@@ -102,6 +102,7 @@ data AppCommand
   = WhyCommand ViewDepth
   | NextCommand
   | FocusCommand Text
+  | PlanCommand Text
   | FocusBlockerCommand Text
   | DoneCommand (Maybe Text)
   | DoneAtCommand Text Text
@@ -428,6 +429,7 @@ runLoadedCommand environment dryRun dataset tickPlan = \case
   WhyCommand view -> runWhy environment dryRun dataset view
   NextCommand -> runNext environment dryRun dataset
   FocusCommand reference -> runFocus environment dryRun dataset reference
+  PlanCommand reference -> runPlan environment dryRun dataset reference
   DoneCommand reference -> runDone environment dryRun dataset reference
   DoneAtCommand reference instant -> runDoneAt environment dryRun dataset reference instant
   ReturnToIdleCommand reference -> runReturnToIdle environment dryRun dataset reference
@@ -2539,6 +2541,25 @@ runOrder environment dryRun dataset reference = do
       saveUnlessDry environment dryRun (PresentationCheckpoint envelope [] [])
       pure (Right (NextResult cursor envelope dryRun))
 
+runPlan :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
+runPlan environment dryRun dataset reference = case resolveBrickReference state reference of
+  Left problem -> pure (Left problem)
+  Right brick
+    | not (supportsWorkPlanning (brickNature brick)) -> pure (Left (appError PreconditionFailed "Choose ordinary Work or one obligation occurrence to plan."))
+    | otherwise ->
+        loadPendingCheckpoint environment >>= \case
+          Left problem -> pure (Left problem)
+          Right previous -> do
+            now <- appZonedNow environment
+            identity <- appAllocateUUID environment
+            let base = makeFocusProposalEnvelope identity (loadedCursor dataset) (statePreconditionHash state) now state brick
+                envelope = makeWorkPlanEnvelope base now state brick
+                back = maybe [base] (\prior -> checkpointCurrent prior : checkpointBack prior) previous
+            saveUnlessDry environment dryRun (PresentationCheckpoint envelope back [])
+            pure (Right (NextResult (loadedCursor dataset) envelope dryRun))
+ where
+  state = loadedState dataset
+
 runFocus :: AppEnv -> Bool -> LoadedDataset -> Text -> IO (Either AppError CommandResult)
 runFocus environment dryRun dataset reference =
   startBrickInteraction environment dryRun dataset reference $ \identity cursor precondition now state brick ->
@@ -3621,6 +3642,7 @@ helpEntries Nothing =
   , helpEntry "why" "Explain the recorded selection" "usage: lant [--view complete] why; REPL: /why"
   , helpEntry "next" "Get the next useful action" "default REPL route: lant"
   , helpEntry "focus" "Answer pending focus confirmation" "usage: lant focus <BRICK>"
+  , helpEntry "plan" "Choose when Work returns to suggestions" "usage: lant plan <BRICK>; REPL: skip → already planned for..., or /plan"
   , helpEntry "done" "Complete a Brick" "usage: lant done [BRICK] [--at 'YYYY-MM-DD HH:MM']"
   , helpEntry "return-to-idle" "Return current focus to idle" "usage: lant return-to-idle [BRICK]"
   , helpEntry "pause" "Pause current focus" "usage: lant pause"
@@ -3977,6 +3999,15 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
     (CompletionDateOpportunity{}, "completion.date.submit", Nothing) ->
       local (appendBody current "Enter the local date and time as YYYY-MM-DD HH:MM, such as 2026-10-16 15:00. A date alone keeps the current clock time.")
     (CompletionDateOpportunity{}, "completion.date.unknown", _) -> local (appendBody current completionDateExplanation)
+    (WorkSkipSymptomOpportunity brickId _, "work.plan", _) -> openWorkPlan brickId
+    (WorkSkipReactionOpportunity brickId _ BlockedOrWaitingSymptom, "work.reaction.until", _) -> openWorkPlan brickId
+    (WorkPlanOpportunity brickId _, "work.plan.submit", Just supplied) -> previewWorkPlan brickId supplied
+    (WorkPlanOpportunity{}, "work.plan.submit", Nothing) -> pure (Left (appError InvalidInput "Enter a future local date and time as YYYY-MM-DD HH:MM."))
+    (WorkPlanPreviewOpportunity brickId _ _, "work.plan.edit", _) -> openWorkPlan brickId
+    (WorkPlanPreviewOpportunity brickId instant localClock, "work.plan.accept", _) ->
+      mutate 2 (decidePlanWork state actor brickId instant) (makeWorkPlanned brickId instant localClock)
+    (WorkPlanOpportunity{}, "work.plan.cancel", _) -> saveAndReturn (fromMaybe checkpoint (moveBack checkpoint)) Nothing
+    (WorkPlanPreviewOpportunity{}, "work.plan.cancel", _) -> saveAndReturn (fromMaybe checkpoint (moveBack checkpoint)) Nothing
     (CompletionDatePreviewOpportunity brickId instant, "completion.date.accept", _) ->
       mutate 2 (decideDateCompletion state actor brickId instant) (makeCompletionDated brickId)
     (CompletionDatePreviewOpportunity brickId _, "completion.date.edit", _) -> openCompletionDate brickId
@@ -7148,6 +7179,28 @@ dispatchResponseAt now environment dryRun dataset checkpoint response submitted 
   makeArchiveReviewResult brickId message identity currentNow accepted _ = do
     brick <- maybe (Left (appError CorruptData "The archived Brick disappeared after review.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
     pure (makeArchiveReviewResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick message)
+
+  openWorkPlan brickId = withBrick brickId $ \brick ->
+    if supportsWorkPlanning (brickNature brick)
+      then local (makeWorkPlanEnvelope current now state brick)
+      else pure (Left (appError PreconditionFailed "Choose ordinary Work or one obligation occurrence to plan."))
+
+  previewWorkPlan brickId supplied = withBrick brickId $ \brick ->
+    case parseTimeM False defaultTimeLocale "%Y-%m-%d %H:%M" (Text.unpack (Text.unwords (Text.words supplied))) of
+      Nothing -> pure (Left (appError InvalidInput "Enter a future local date and time as YYYY-MM-DD HH:MM."))
+      Just requested -> do
+        let zoneName = operationalZone (stateOperationalDayConfig state)
+        loadRecurrenceZone zoneName >>= \case
+          Left problem -> pure (Left problem)
+          Right zone ->
+            let (instant, _) = resolveLocalInstant zone requested
+             in if instant <= zonedTimeToUTC now
+                  then pure (Left (appError InvalidInput "Choose a future date and time to return to suggestions."))
+                  else local (makeWorkPlanPreviewEnvelope current now state brick (ZonedInstant instant zoneName) (utcToLocalTimeTZ zone instant))
+
+  makeWorkPlanned brickId instant localClock identity currentNow accepted _ = do
+    brick <- maybe (Left (appError CorruptData "The planned Work disappeared after replay.")) Right (Map.lookup brickId (stateBricks (loadedState accepted)))
+    pure (makeWorkPlannedResultEnvelope identity (loadedCursor accepted) (statePreconditionHash (loadedState accepted)) currentNow (loadedState accepted) brick instant localClock)
 
   openCompletionDate brickId = withAnyBrick brickId $ \brick ->
     case completionDatable state brick of
