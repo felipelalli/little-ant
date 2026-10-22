@@ -138,9 +138,9 @@ tests =
         [text | spans <- current, Span Today text <- spans] @?= ["18", "18"]
         [text | spans <- current, Span Urgent text <- spans] @?= ["!", "!", "\215"]
         [text | spans <- take 6 current, Span Dim text <- spans] @?= ["42  ", "43  "]
-        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18, 2026", ""] <> october <> replicate 4 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 . done \183 \215 missed \183 18 today"]
+        fmap (Text.concat . fmap spanText) current @?= ["Today: Sun, Oct 18, 2026", ""] <> october <> replicate 4 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 + planned \183 . done \183 \215 missed \183 18 today"]
         [text | spans <- selected, Span Pointed text <- spans] @?= ["21", "21"]
-        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18, 2026", ""] <> november <> replicate 5 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 . done \183 \215 missed \183 18 today \183 16 selected"]
+        fmap (Text.concat . fmap spanText) later @?= ["Today: Sun, Oct 18, 2026", ""] <> november <> replicate 5 "" <> ["", "! deadline \183 \8226 best before \183 \9702 habit \183 + planned \183 . done \183 \215 missed \183 18 today \183 16 selected"]
         [text | spans <- take 5 later, Span Today text <- spans] @?= []
     , testCase "the agenda calendar opens on today's month even when past months come first" $ do
         let september = ["        September 2026", agendaWeekdays, "40  28  29  30\215"]
@@ -172,6 +172,43 @@ tests =
         titles view{listViewGrouped = True, listViewExpanded = Set.singleton "eulen"}
           @?= [("folder", "\9662 eulen (2)"), ("category", "Wed, Oct 21"), ("brick", "Task #two"), ("brick", "Task #three"), ("folder", "\9656 Without a category (2)")]
         assertBool "the toggle hides its state" ("[c]ategories: off" `Text.isInfixOf` renderPlain (listModel 100 envelope view))
+    , testCase "date picker shows selected-day tasks, shared marks, and independent filters" $ do
+        identity <- fixtureIdentity
+        let day = fromGregorian 2026 10 22
+            envelope = (makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow){envelopeOpportunity = WorkPlanOpportunity identity (LocalTime day midnight)}
+            row handle date clock kind = AgendaListRow handle ("Task " <> handle) (clock <> " · " <> kind) date date (Just clock) kind
+            rows = [row "#later" "2026-10-22" "18:00" "deadline", row "#habit" "2026-10-22" "08:00" "habit", row "#tomorrow" "2026-10-23" "09:00" "planned"]
+            view = emptyDatePickerView{datePickerEntries = rows}
+            model v = datePickerModel 100 envelope day v Nothing Nothing
+            plain = renderPlain (model view)
+            habitsOnly = view{datePickerObligations = False}
+            neither = habitsOnly{datePickerHabits = False}
+            gridMarks v = [(spanRole value, spanText value) | line <- takeWhile (not . any ((== PinBoundary) . spanRole)) (screenLines (model v)), value <- line, spanRole value `elem` [Urgent, Habit, Opening]]
+        assertBool "selected day's tasks are missing" ("#habit" `Text.isInfixOf` plain && "#later" `Text.isInfixOf` plain)
+        assertBool "other day's task leaked into the list" (not ("#tomorrow" `Text.isInfixOf` plain))
+        assertBool "tasks are not chronological" (Text.length (fst (Text.breakOn "#habit" plain)) < Text.length (fst (Text.breakOn "#later" plain)))
+        take 2 (gridMarks view) @?= [(Urgent, "!"), (Opening, "+")]
+        take 1 (gridMarks habitsOnly) @?= [(Habit, "\9702")]
+        assertBool "obligations remain after filtering" (not ("#later" `Text.isInfixOf` renderPlain (model habitsOnly)))
+        assertBool "empty state is missing" ("No dated tasks on this day" `Text.isInfixOf` renderPlain (model neither))
+        assertBool "TAB task navigation is missing" ("TAB tasks" `Text.isInfixOf` plain)
+    , testCase "time picker cursor never inserts a gap within the clock" $ do
+        identity <- fixtureIdentity
+        let day = fromGregorian 2026 10 22
+            envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow
+            editor = EditorState "1" "9:25" Nothing
+            model = datePickerModel 80 envelope day emptyDatePickerView (Just editor) Nothing
+            timeRows = [line | line <- screenLines model, "Time (HH:MM)" `Text.isPrefixOf` plainLine line]
+        fmap plainLine timeRows @?= ["Time (HH:MM) › 19:25"]
+        [spanText value | row <- timeRows, value <- row, spanRole value == Selected] @?= ["9"]
+        mapM_
+          ( \width -> do
+              let visible = viewportModel width 24 0 (datePickerModel width envelope day emptyDatePickerView (Just editor) Nothing)
+              assertBool "time editor scrolled out of view" ("19:25" `Text.isInfixOf` renderPlain visible)
+              assertBool "review hint is hidden" ("Enter review" `Text.isInfixOf` renderPlain visible)
+              assertBool "picker overflows the viewport" (length (screenLines visible) <= 24 && all ((<= width) . textDisplayWidth . plainLine) (screenLines visible))
+          )
+          [32, 80, 120]
     , testCase "agenda switches independently filter habits and obligations and recompute calendar priority" $ do
         identity <- fixtureIdentity
         let envelope = makePristineEnvelope identity Genesis (statePreconditionHash emptyState) fixedNow

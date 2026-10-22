@@ -105,6 +105,13 @@ workPlanning = withHarness $ \environment -> do
   Map.lookup brickIdValue (stateWorkPlans (loadedState saved)) @?= Just firstInstant
   assertBool "planned Work remains executable" (not (executionEligible (loadedState saved) fixedTime brickIdValue))
   assertBool "planning was counted as avoidance" (Map.null (stateWorkDeferrals (loadedState saved)))
+  agenda <- run environment (ListCommand (Just "agenda") (Just 7) Nothing)
+  case agenda of
+    ListResult{resultListEntries} -> do
+      let plans = [row | row@AgendaListRow{listEntryKind = "planned"} <- resultListEntries]
+      fmap (\row -> (listEntryDate row, listEntryTime row)) plans @?= [("2026-08-05", Just "09:00")]
+      assertBool "a plan is confused with a booked interval" (all (Text.isInfixOf "suggestions resume" . listEntryDetails) plans)
+    other -> assertFailure ("expected planned Work in agenda: " <> show other)
   again <- run environment (PlanCommand "#standing") >>= interactionOf
   earlier <- submit environment again "work.plan.submit" "2026-08-04 09:00"
   _ <- answer environment earlier "work.plan.accept"

@@ -9,6 +9,14 @@ replace the specification.
 
 ## Unreleased
 
+- Reuse the Agenda calendar when choosing a planning or completion date,
+  including its marks and independent habits/obligations filters. The tasks
+  on the selected day appear in chronological order; TAB switches to that
+  list and Enter opens a task for inspection. Planning return times now
+  appear as `+ planned` in the Agenda, with “suggestions resume” to distinguish
+  them from booked appointments. Fix the time editor's block caret inserting
+  a visual gap between digits.
+
 - Add `/triage` and `lant triage [+raw]`. They open the triage question
   without the Raw detail screen or a draw. A named Inbox Raw is triaged
   alone. Without one, `/triage` runs through the Inbox like `/order` runs

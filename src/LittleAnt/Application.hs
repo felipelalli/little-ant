@@ -3038,6 +3038,7 @@ agendaView state zones now pastDays windowDays = (agendaCalendarHeader today fir
              | brickNature brick == ScheduledCommitment
              , Just interval <- [Map.lookup (brickId brick) (stateScheduledIntervals state)]
              ]
+          <> [(zonedInstantUtc instant, "planned") | Just instant <- [Map.lookup (brickId brick) (stateWorkPlans state)]]
     , inWindow instant
     ]
   constraintFacts constraints =
@@ -3146,7 +3147,7 @@ agendaView state zones now pastDays windowDays = (agendaCalendarHeader today fir
       _ -> False
     at = zonedInstantUtc (if quota then habitWindowClosesAt window else habitWindowOpensAt window)
     progress = [Text.pack (show done) <> "/" <> Text.pack (show (habitWindowTarget window)) <> " done" | quota]
-  kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("habit", 1), ("habit done", 1), ("habit missed", 1), ("best before", 2), ("habit due", 2), ("deadline", 3), ("missed", 3), ("done late", 4), ("done", 4), ("excused", 5)])
+  kindOrder kind = fromMaybe (9 :: Int) (lookup kind [("opens", 0), ("starts", 1), ("planned", 1), ("habit", 1), ("habit done", 1), ("habit missed", 1), ("best before", 2), ("habit due", 2), ("deadline", 3), ("missed", 3), ("done late", 4), ("done", 4), ("excused", 5)])
   dated = sortOn (\fact -> (agendaAt fact, kindOrder (agendaKind fact), brickHandle (agendaBrick fact))) (dropCoincident (concatMap ownFacts active <> projected) <> habits)
   -- A fact at the same instant as a later one of the same Work says less:
   -- opens yields to best before, and both yield to the deadline.
@@ -3169,7 +3170,7 @@ agendaView state zones now pastDays windowDays = (agendaCalendarHeader today fir
     AgendaListRow
       (renderHandle BrickHandle (brickHandle (agendaBrick fact)))
       (brickTitle (agendaBrick fact))
-      (Text.intercalate " · " ([dayLabel (localDayOf (agendaAt fact)), clock (agendaAt fact), agendaKind fact] <> agendaNotes fact))
+      (Text.intercalate " · " ([dayLabel (localDayOf (agendaAt fact)), clock (agendaAt fact), agendaKind fact] <> ["suggestions resume" | agendaKind fact == "planned"] <> agendaNotes fact))
       label
       (Text.pack (showGregorian (localDayOf (agendaAt fact))))
       (Just (clock (agendaAt fact)))
@@ -3227,11 +3228,12 @@ agendaMarks =
   , ("habit done", (2, '.'))
   , ("habit", (1, '\9702'))
   , ("habit due", (1, '\9702'))
+  , ("planned", (1, '+'))
   ]
 
 -- | The key to the agenda calendar marks.
 agendaLegend :: Text
-agendaLegend = "! deadline · \8226 best before · \9702 habit · . done · \215 missed"
+agendaLegend = "! deadline · \8226 best before · \9702 habit · + planned · . done · \215 missed"
 
 -- | The weekday row of an agenda month grid, after the ISO week column.
 agendaWeekdays :: Text
