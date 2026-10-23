@@ -61,6 +61,8 @@
         devShells.default = pkgs.mkShell {
           # Keep interactive bash available to tools that re-exec through env.
           packages = [ pkgs.bashInteractive pkgs.taskjuggler ];
+          # libc needs this database for named TZ values on non-NixOS hosts.
+          TZDIR = "${pkgs.tzdata}/share/zoneinfo";
           buildInputs = with haskellPackages; [
             ghc
             cabal-install
