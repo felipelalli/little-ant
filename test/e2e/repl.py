@@ -176,7 +176,10 @@ class ReplTests(unittest.TestCase):
         self.root = Path(self.folder.name)
         self.environment = os.environ.copy()
         self.environment.update({f"XDG_{name.upper()}_HOME": str(self.root / name) for name in ("config", "data", "state")})
-        self.environment.update(TERM="xterm-256color", NO_COLOR="1", XDG_RUNTIME_DIR=str(self.root / "runtime"), little_ant_datadir=str(ROOT), PATH=str(Path(self.runner).parent) + os.pathsep + self.environment["PATH"])
+        # The empty dataset uses America/Montevideo for local time input.
+        # Match the terminal's display zone instead of inheriting the host's
+        # timezone (UTC on GitHub's runners).
+        self.environment.update(TERM="xterm-256color", NO_COLOR="1", TZ="America/Montevideo", XDG_RUNTIME_DIR=str(self.root / "runtime"), little_ant_datadir=str(ROOT), PATH=str(Path(self.runner).parent) + os.pathsep + self.environment["PATH"])
         self.repl = None
 
     def tearDown(self):
